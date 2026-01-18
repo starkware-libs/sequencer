@@ -166,6 +166,7 @@ class BlobTransformer:
         self._chain = chain
         self._custom_fields: JsonObject = dict(custom_fields)
         self._logger: logging.Logger = logger_obj
+        self._latest_block_meta: Optional[JsonObject] = None
 
     @staticmethod
     def get_blob_tx_hashes(blob: JsonObject) -> List[str]:
@@ -179,6 +180,12 @@ class BlobTransformer:
     def _halve_gas_prices(v: str) -> str:
         """By shifting the integer value right by 1, the gas prices are halved."""
         return hex(int(v, 16) >> 1)
+
+    def _with_halved_gas_prices(self, price: JsonObject) -> JsonObject:
+        out = dict(price)
+        out["price_in_wei"] = self._halve_gas_prices(out["price_in_wei"])
+        out["price_in_fri"] = self._halve_gas_prices(out["price_in_fri"])
+        return out
 
     @staticmethod
     @dataclass(slots=True)
@@ -314,21 +321,28 @@ class BlobTransformer:
 
         return receipt
 
-    def _fetch_upstream_block_meta(self, block_number: int) -> JsonObject:
+    def _fetch_upstream_block_meta(self, block_number: Optional[int]) -> JsonObject:
         """
         Fetch mainnet timestamp and gas prices for `block_number`.
         (fetched from shared FGW snapshot or upstream feeder gateway)
         """
+        if block_number is None:
+            if self._latest_block_meta is not None:
+                return dict(self._latest_block_meta)
+            block_number = self._chain.base_block_number
+
         obj = self._shared.get_fgw_block(block_number)
         if obj is None:
             obj = self._feeder_client.get_block(block_number)
 
-        return {
+        meta: JsonObject = {
             "timestamp": obj["timestamp"],
             "l1_gas_price": obj["l1_gas_price"],
             "l1_data_gas_price": obj["l1_data_gas_price"],
             "l2_gas_price": obj["l2_gas_price"],
         }
+        self._latest_block_meta = meta
+        return meta
 
     @staticmethod
     def _transform_transactions(tx_entries: List[JsonObject]) -> List[JsonObject]:
@@ -376,7 +390,7 @@ class BlobTransformer:
             if tx_type == TxType.DEPLOY_ACCOUNT:
                 extra_keys = ["contract_address_salt", "class_hash", "constructor_calldata"]
             elif tx_type == TxType.DECLARE:
-                extra_keys = ["class_hash", "compiled_class_hash"]
+                extra_keys = ["class_hash", "compiled_class_hash", "account_deployment_data"]
             else:  # invoke
                 extra_keys = ["calldata", "account_deployment_data"]
 
@@ -427,26 +441,17 @@ class BlobTransformer:
         block_document.update(self._custom_fields)
 
         tx_hashes = self.get_blob_tx_hashes(blob)
-        if tx_hashes:
-            bn_for_meta = self._shared.get_sent_block_number(tx_hashes[0])
-        else:
-            bn_for_meta = self._chain.base_block_number
+        bn_for_meta: Optional[int] = (
+            self._shared.get_sent_block_number(tx_hashes[0]) if tx_hashes else None
+        )
 
         meta = self._fetch_upstream_block_meta(bn_for_meta)
         block_document["timestamp"] = meta["timestamp"]
 
-        l1_price = dict(meta["l1_gas_price"])
         # The gas prices are halved in order for txs to pass the fee sequencer checks.
-        l1_price["price_in_wei"] = self._halve_gas_prices(l1_price["price_in_wei"])
-        l1_price["price_in_fri"] = self._halve_gas_prices(l1_price["price_in_fri"])
-        block_document["l1_gas_price"] = l1_price
+        for price in ("l1_gas_price", "l1_data_gas_price", "l2_gas_price"):
+            block_document[price] = self._with_halved_gas_prices(meta[price])
 
-        l1_data_price = dict(meta["l1_data_gas_price"])
-        l1_data_price["price_in_wei"] = self._halve_gas_prices(l1_data_price["price_in_wei"])
-        l1_data_price["price_in_fri"] = self._halve_gas_prices(l1_data_price["price_in_fri"])
-        block_document["l1_data_gas_price"] = l1_data_price
-
-        block_document["l2_gas_price"] = meta["l2_gas_price"]
         return block_document
 
     def transform_state_update(self, blob: JsonObject, block_number: int) -> JsonObject:

@@ -5,8 +5,6 @@ use rust_rocksdb::{
     BlockBasedIndexType,
     BlockBasedOptions,
     Cache,
-    ColumnFamily,
-    ColumnFamilyDescriptor,
     Options,
     WriteBatch,
     WriteOptions,
@@ -103,39 +101,13 @@ impl RocksDbOptions {
 pub struct RocksDbStorage {
     db: Arc<DB>,
     write_options: Arc<WriteOptions>,
-    /// family according to its last byte. Otherwise, the database is opened with a single
-    /// column family (default behavior).
-    column_families: bool,
 }
 
 impl RocksDbStorage {
-    pub fn open(
-        path: &Path,
-        options: RocksDbOptions,
-        column_families: bool,
-    ) -> PatriciaStorageResult<Self> {
-        let cfs = if column_families {
-            (0..1 << u8::BITS)
-                .map(|i| ColumnFamilyDescriptor::new(format!("{i}"), Options::default()))
-                .collect()
-        } else {
-            vec![ColumnFamilyDescriptor::new("default", Options::default())]
-        };
-
-        let db = Arc::new(DB::open_cf_descriptors(&options.db_options, path, cfs)?);
+    pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
+        let db = Arc::new(DB::open(&options.db_options, path)?);
         let write_options = Arc::new(options.write_options);
-        Ok(Self { db, write_options, column_families })
-    }
-
-    pub fn get_column_family(&self, key: &DbKey) -> &ColumnFamily {
-        if self.column_families {
-            let last_byte = key.0.last().unwrap_or(&0u8);
-            self.db
-                .cf_handle(&format!("{last_byte}"))
-                .unwrap_or_else(|| panic!("Column family not found: {last_byte}"))
-        } else {
-            self.db.cf_handle("default").unwrap()
-        }
+        Ok(Self { db, write_options })
     }
 }
 
@@ -143,20 +115,18 @@ impl Storage for RocksDbStorage {
     type Stats = NoStats;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        let cf = self.get_column_family(key);
-        Ok(self.db.get_cf(&cf, &key.0)?.map(DbValue))
+        Ok(self.db.get(&key.0)?.map(DbValue))
     }
 
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        let cf = self.get_column_family(&key);
-        Ok(self.db.put_cf_opt(&cf, &key.0, &value.0, &self.write_options)?)
+        Ok(self.db.put_opt(&key.0, &value.0, &self.write_options)?)
     }
 
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        let cfs_and_raw_keys = keys.iter().map(|k| (self.get_column_family(k), k.0.clone()));
+        let raw_keys = keys.iter().map(|k| &k.0);
         let res = self
             .db
-            .multi_get_cf(cfs_and_raw_keys)
+            .multi_get(raw_keys)
             .into_iter()
             .map(|r| r.map(|opt| opt.map(DbValue)))
             .collect::<Result<_, _>>()?;
@@ -166,15 +136,13 @@ impl Storage for RocksDbStorage {
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         let mut batch = WriteBatch::default();
         for key in key_to_value.keys() {
-            let cf = self.get_column_family(key);
-            batch.put_cf(&cf, &key.0, &key_to_value[key].0);
+            batch.put(&key.0, &key_to_value[key].0);
         }
         Ok(self.db.write_opt(&batch, &self.write_options)?)
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        let cf = self.get_column_family(key);
-        Ok(self.db.delete_cf_opt(&cf, &key.0, &self.write_options)?)
+        Ok(self.db.delete_opt(&key.0, &self.write_options)?)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {

@@ -28,10 +28,12 @@ use crate::component_client::{
 };
 use crate::component_definitions::{
     ComponentClient,
+    RequestId,
     RequestWrapper,
     ServerError,
     APPLICATION_OCTET_STREAM,
     BUSY_PREVIOUS_REQUESTS_MSG,
+    REQUEST_ID_HEADER,
 };
 use crate::component_server::{
     ComponentServerStarter,
@@ -41,6 +43,7 @@ use crate::component_server::{
 };
 use crate::serde_utils::SerdeWrapper;
 use crate::tests::{
+    available_ports_factory,
     dummy_remote_server_config,
     test_a_b_functionality,
     ComponentA,
@@ -55,7 +58,6 @@ use crate::tests::{
     ResultB,
     ValueA,
     ValueB,
-    AVAILABLE_PORTS,
     TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
@@ -135,7 +137,7 @@ async fn create_client_and_faulty_server<T>(body: T) -> ComponentAClient
 where
     T: Serialize + DeserializeOwned + Debug + Send + Sync + 'static + Clone,
 {
-    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let socket = available_ports_factory(0).get_next_local_host_socket();
     task::spawn(async move {
         async fn handler<T>(
             _http_request: Request<Body>,
@@ -183,8 +185,9 @@ async fn remote_connection_concurrency() {
     const MAX_ATTEMPTS: usize = 50;
 
     let setup_value: ValueB = Felt::from(90);
-    let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let mut available_ports = available_ports_factory(1);
+    let a_socket = available_ports.get_next_local_host_socket();
+    let b_socket = available_ports.get_next_local_host_socket();
 
     // Shared semaphore used inside ComponentA::handle_request
     let semaphore = Arc::new(Semaphore::new(0));
@@ -401,8 +404,9 @@ async fn setup_for_tests(
 #[tokio::test]
 async fn proper_setup() {
     let setup_value: ValueB = Felt::from(90);
-    let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let mut available_ports = available_ports_factory(2);
+    let a_socket = available_ports.get_next_local_host_socket();
+    let b_socket = available_ports.get_next_local_host_socket();
 
     setup_for_tests(setup_value, a_socket, b_socket, MAX_CONCURRENCY, None).await;
     let a_client_config = RemoteClientConfig::default();
@@ -426,8 +430,9 @@ async fn proper_setup() {
 
 #[tokio::test]
 async fn faulty_client_setup() {
-    let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let mut available_ports = available_ports_factory(3);
+    let a_socket = available_ports.get_next_local_host_socket();
+    let b_socket = available_ports.get_next_local_host_socket();
     // Todo(uriel): Find a better way to pass expected value to the setup
     // 123 is some arbitrary value, we don't check it anyway.
     setup_for_tests(Felt::from(123), a_socket, b_socket, MAX_CONCURRENCY, None).await;
@@ -444,6 +449,7 @@ async fn faulty_client_setup() {
                 format!("http://[{}]:{}/", self.socket.ip(), self.socket.port()).parse().unwrap();
             let http_request = Request::post(uri)
                 .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                .header(REQUEST_ID_HEADER, RequestId::generate().to_string())
                 .body(Body::from(SerdeWrapper::new(component_request).wrapper_serialize().unwrap()))
                 .unwrap();
             let http_response = Client::new().request(http_request).await.unwrap();
@@ -461,7 +467,7 @@ async fn faulty_client_setup() {
 
 #[tokio::test]
 async fn unconnected_server() {
-    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let socket = available_ports_factory(4).get_next_local_host_socket();
     let client = ComponentAClient::new(
         FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
@@ -494,7 +500,7 @@ async fn faulty_server(
 
 #[tokio::test]
 async fn retry_request() {
-    let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let socket = available_ports_factory(5).get_next_local_host_socket();
     // Spawn a server that responses with OK every other request.
     task::spawn(async move {
         let should_send_ok = Arc::new(Mutex::new(false));

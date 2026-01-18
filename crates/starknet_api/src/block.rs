@@ -286,6 +286,11 @@ pub enum BlockStatus {
 )]
 pub struct BlockHash(pub StarkHash);
 
+impl BlockHash {
+    // TODO(Amos): Use this anywhere the genesis parent block hash is used.
+    pub const GENESIS_PARENT_HASH: Self = Self(StarkHash::ZERO);
+}
+
 /// The number of a [Block](`crate::block::Block`).
 #[derive(
     Debug,
@@ -305,6 +310,8 @@ pub struct BlockHash(pub StarkHash);
 pub struct BlockNumber(pub u64);
 
 impl BlockNumber {
+    pub const ZERO: Self = Self(0);
+
     /// Returns the next block number, without checking if it's in range.
     pub fn unchecked_next(&self) -> BlockNumber {
         BlockNumber(self.0 + 1)
@@ -420,7 +427,10 @@ impl GasPrice {
         Ok(self
             .checked_mul_u128(eth_to_fri_rate)
             .ok_or_else(|| {
-                StarknetApiError::GasPriceConversionError("Gas price is too high".to_string())
+                StarknetApiError::GasPriceConversionError(format!(
+                    "Gas price is too high: {:?}, eth to fri rate: {:?}",
+                    self, eth_to_fri_rate
+                ))
             })?
             .checked_div(WEI_PER_ETH)
             .expect("WEI_PER_ETH must be non-zero"))
@@ -428,7 +438,10 @@ impl GasPrice {
     pub fn fri_to_wei(self, eth_to_fri_rate: u128) -> Result<GasPrice, StarknetApiError> {
         self.checked_mul_u128(WEI_PER_ETH)
             .ok_or_else(|| {
-                StarknetApiError::GasPriceConversionError("Gas price is too high".to_string())
+                StarknetApiError::GasPriceConversionError(format!(
+                    "Gas price is too high: {:?}, eth to fri rate: {:?}",
+                    self, eth_to_fri_rate
+                ))
             })?
             .checked_div(eth_to_fri_rate)
             .ok_or_else(|| {

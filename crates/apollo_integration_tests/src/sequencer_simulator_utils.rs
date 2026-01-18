@@ -95,7 +95,9 @@ impl SequencerSimulator {
         sender_account: AccountId,
     ) {
         const N_TXS: usize = 50;
-        const SLEEP_DURATION: Duration = Duration::from_secs(1);
+        // TODO(Tsabary/NoamSp): Do we need this sleep at all? Potentially we're already waiting in
+        // the `await_txs_accepted` fn below.
+        const SLEEP_DURATION: Duration = Duration::from_millis(100);
 
         let mut i = 1;
         loop {

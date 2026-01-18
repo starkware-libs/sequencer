@@ -105,6 +105,13 @@ async fn fetch_all_patricia_paths(
         HashMap::with_capacity(contract_storage_sorted_leaf_indices.len());
 
     for (idx, sorted_leaf_indices) in contract_storage_sorted_leaf_indices {
+        let contract_address = try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
+            panic!(
+                "Converting leaf NodeIndex to ContractAddress should succeed; failed to convert \
+                 {idx:?}."
+            )
+        });
+
         // The contract address might not exist in the contracts trie in the following cases:
         // 1. We are looking at the previous tree and the contract is new.
         // 2. We are looking at the new tree and the contract is deleted (revert).
@@ -120,18 +127,10 @@ async fn fetch_all_patricia_paths(
             storage_root_hash,
             *sorted_leaf_indices,
             leaves,
-            &EmptyKeyContext,
+            &contract_address,
         )
         .await?;
-        contracts_trie_storage_proofs.insert(
-            try_node_index_into_contract_address(idx).unwrap_or_else(|_| {
-                panic!(
-                    "Converting leaf NodeIndex to ContractAddress should succeed; failed to \
-                     convert {idx:?}."
-                )
-            }),
-            proof,
-        );
+        contracts_trie_storage_proofs.insert(contract_address, proof);
     }
 
     // Convert contract_leaves_data keys from NodeIndex to ContractAddress.

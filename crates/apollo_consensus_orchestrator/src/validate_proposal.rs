@@ -35,9 +35,6 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 
 use crate::metrics::{
-    CONSENSUS_ETH_TO_FRI_RATE_MISMATCH,
-    CONSENSUS_L1_DATA_GAS_MISMATCH,
-    CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
@@ -46,10 +43,11 @@ use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
-    get_oracle_rate_and_prices,
+    get_l1_prices_in_fri_and_wei,
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
+    RetrospectiveBlockHashError,
 };
 
 const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;
@@ -99,10 +97,8 @@ type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 pub(crate) enum ValidateProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
-    #[error("State sync client error: {0}")]
-    StateSyncClientError(String),
-    #[error("State sync is not ready: block number {0} not found")]
-    StateSyncNotReady(BlockNumber),
+    #[error(transparent)]
+    RetrospectiveBlockHashError(#[from] RetrospectiveBlockHashError),
     // Consensus may exit early (e.g. sync).
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
@@ -134,7 +130,6 @@ pub(crate) async fn validate_proposal(
     mut args: ProposalValidateArguments,
 ) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
-    let mut final_n_executed_txs: Option<usize> = None;
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -151,7 +146,10 @@ pub(crate) async fn validate_proposal(
     .await?
     {
         SecondProposalPart::BlockInfo(block_info) => block_info,
-        SecondProposalPart::Fin(ProposalFin { proposal_commitment }) => {
+        SecondProposalPart::Fin(ProposalFin {
+            proposal_commitment,
+            executed_transaction_count: _,
+        }) => {
             return Ok(proposal_commitment);
         }
     };
@@ -165,7 +163,7 @@ pub(crate) async fn validate_proposal(
     .await?;
 
     initiate_validation(
-        args.deps.batcher.as_ref(),
+        args.deps.batcher.clone(),
         args.deps.state_sync_client,
         block_info.clone(),
         args.proposal_id,
@@ -197,7 +195,6 @@ pub(crate) async fn validate_proposal(
                     args.deps.batcher.as_ref(),
                     proposal_part.clone(),
                     &mut content,
-                    &mut final_n_executed_txs,
                     args.deps.transaction_converter.clone(),
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
@@ -285,7 +282,7 @@ async fn is_block_info_valid(
             "Block info validation failed".to_string(),
         ));
     }
-    let (eth_to_fri_rate, l1_gas_prices) = get_oracle_rate_and_prices(
+    let (l1_gas_prices_fri, _l1_gas_prices_wei) = get_l1_prices_in_fri_and_wei(
         l1_gas_price_provider,
         block_info_proposed.timestamp,
         block_info_validation.previous_block_info.as_ref(),
@@ -294,15 +291,12 @@ async fn is_block_info_valid(
     .await;
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
-    debug!("L1 price info: {l1_gas_prices:?}");
+    debug!("L1 price info: {l1_gas_prices_fri:?}");
 
-    let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate)?;
-    let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate)?;
-    let l1_gas_price_fri_proposed =
-        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate)?;
-    let l1_data_gas_price_fri_proposed = block_info_proposed
-        .l1_data_gas_price_wei
-        .wei_to_fri(block_info_proposed.eth_to_fri_rate)?;
+    let l1_gas_price_fri = l1_gas_prices_fri.l1_gas_price;
+    let l1_data_gas_price_fri = l1_gas_prices_fri.l1_data_gas_price;
+    let l1_gas_price_fri_proposed = block_info_proposed.l1_gas_price_fri;
+    let l1_data_gas_price_fri_proposed = block_info_proposed.l1_data_gas_price_fri;
 
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
@@ -321,18 +315,6 @@ async fn is_block_info_valid(
                  l1_gas_price_margin_percent={l1_gas_price_margin_percent}"
             ),
         ));
-    }
-    // TODO(Asmaa): consider removing after 0.14 as other validators may use other sources.
-    if block_info_proposed.eth_to_fri_rate != eth_to_fri_rate {
-        CONSENSUS_ETH_TO_FRI_RATE_MISMATCH.increment(1);
-    }
-
-    // L1 gas prices should match exactly in wei.
-    if block_info_proposed.l1_gas_price_wei != l1_gas_prices.base_fee_per_gas {
-        CONSENSUS_L1_GAS_MISMATCH.increment(1);
-    }
-    if block_info_proposed.l1_data_gas_price_wei != l1_gas_prices.blob_fee {
-        CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
     }
     Ok(())
 }
@@ -374,9 +356,9 @@ async fn await_second_proposal_part(
                 Some(ProposalPart::BlockInfo(block_info)) => {
                     Ok(SecondProposalPart::BlockInfo(block_info))
                 }
-                Some(ProposalPart::Fin(ProposalFin { proposal_commitment })) => {
+                Some(ProposalPart::Fin(ProposalFin { proposal_commitment, executed_transaction_count })) => {
                     warn!("Received an empty proposal.");
-                    Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment }))
+                    Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment, executed_transaction_count }))
                 }
                 x => {
                     Err(ValidateProposalError::InvalidSecondProposalPart(x
@@ -388,7 +370,7 @@ async fn await_second_proposal_part(
 }
 
 async fn initiate_validation(
-    batcher: &dyn BatcherClient,
+    batcher: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
@@ -401,9 +383,13 @@ async fn initiate_validation(
     let input = ValidateBlockInput {
         proposal_id,
         deadline: clock.now() + chrono_timeout,
-        retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info)
-            .await
-            .map_err(ValidateProposalError::from)?,
+        retrospective_block_hash: retrospective_block_hash(
+            batcher.clone(),
+            state_sync_client,
+            &block_info,
+        )
+        .await
+        .map_err(ValidateProposalError::from)?,
         block_info: convert_to_sn_api_block_info(&block_info)?,
     };
     debug!("Initiating validate proposal: input={input:?}");
@@ -425,7 +411,6 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    final_n_executed_txs: &mut Option<usize>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
@@ -441,15 +426,18 @@ async fn handle_proposal_part(
         }
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
-            let Some(final_n_executed_txs_nonopt) = *final_n_executed_txs else {
+            let Ok(executed_txs_count) = fin.executed_transaction_count.try_into() else {
                 return HandledProposalPart::Failed(
-                    "Received Fin without executed transaction count".to_string(),
+                    "Number of executed transactions should fit in usize".to_string(),
                 );
             };
+
+            *content = truncate_to_executed_txs(content, executed_txs_count);
+
             // Output this along with the ID from batcher, to compare them.
             let input = SendProposalContentInput {
                 proposal_id,
-                content: SendProposalContent::Finish(final_n_executed_txs_nonopt),
+                content: SendProposalContent::Finish(executed_txs_count),
             };
             let response = match batcher.send_proposal_content(input).await {
                 Ok(response) => response,
@@ -471,21 +459,16 @@ async fn handle_proposal_part(
             info!(
                 network_block_id = ?fin.proposal_commitment,
                 ?batcher_block_id,
-                final_n_executed_txs_nonopt,
+                executed_txs_count,
                 "Finished validating proposal."
             );
-            if final_n_executed_txs_nonopt == 0 {
+            if executed_txs_count == 0 {
                 warn!("Validated an empty proposal.");
             }
             HandledProposalPart::Finished(batcher_block_id, fin)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
-            if final_n_executed_txs.is_some() {
-                return HandledProposalPart::Failed(
-                    "Received transactions after executed transaction count".to_string(),
-                );
-            }
             let txs =
                 futures::future::join_all(txs.into_iter().map(|tx| {
                     transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
@@ -525,24 +508,6 @@ async fn handle_proposal_part(
                     unreachable!("Unexpected batcher status for transactions: {status:?}");
                 }
             }
-        }
-        Some(ProposalPart::ExecutedTransactionCount(executed_txs_count)) => {
-            debug!("Received executed transaction count: {executed_txs_count}");
-            if final_n_executed_txs.is_some() {
-                return HandledProposalPart::Failed(
-                    "Received executed transaction count more than once".to_string(),
-                );
-            }
-            let executed_txs_count_usize_res: Result<usize, _> = executed_txs_count.try_into();
-            let Ok(executed_txs_count_usize) = executed_txs_count_usize_res else {
-                return HandledProposalPart::Failed(
-                    "Number of executed transactions should fit in usize".to_string(),
-                );
-            };
-            *final_n_executed_txs = Some(executed_txs_count_usize);
-            *content = truncate_to_executed_txs(content, executed_txs_count_usize);
-
-            HandledProposalPart::Continue
         }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
     }

@@ -46,7 +46,6 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size",
     "batcher_config.block_builder_config.execute_config.n_workers",
     "batcher_config.block_builder_config.proposer_idle_detection_delay_millis",
-    "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist",
     "batcher_config.first_block_with_partial_block_hash.#is_none",
     "batcher_config.first_block_with_partial_block_hash.block_number",
     "batcher_config.first_block_with_partial_block_hash.block_hash",
@@ -54,18 +53,19 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
     "chain_id",
     "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
+    "committer_config.verify_state_diff_hash",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
-    "consensus_manager_config.context_config.build_proposal_margin_millis",
-    "consensus_manager_config.context_config.num_validators",
-    "consensus_manager_config.context_config.override_eth_to_fri_rate.#is_none",
-    "consensus_manager_config.context_config.override_eth_to_fri_rate",
-    "consensus_manager_config.context_config.override_l1_data_gas_price_wei.#is_none",
-    "consensus_manager_config.context_config.override_l1_data_gas_price_wei",
-    "consensus_manager_config.context_config.override_l1_gas_price_wei.#is_none",
-    "consensus_manager_config.context_config.override_l1_gas_price_wei",
-    "consensus_manager_config.context_config.override_l2_gas_price_fri.#is_none",
-    "consensus_manager_config.context_config.override_l2_gas_price_fri",
+    "consensus_manager_config.context_config.static_config.build_proposal_margin_millis",
+    "consensus_manager_config.context_config.static_config.num_validators",
+    "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate.#is_none",
+    "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate",
+    "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri.#is_none",
+    "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri",
+    "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri.#is_none",
+    "consensus_manager_config.context_config.dynamic_config.override_l1_gas_price_fri",
+    "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri.#is_none",
+    "consensus_manager_config.context_config.dynamic_config.override_l2_gas_price_fri",
     "consensus_manager_config.network_config.advertised_multiaddr.#is_none",
     "consensus_manager_config.network_config.advertised_multiaddr",
     "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none",
@@ -86,6 +86,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "mempool_p2p_config.network_config.bootstrap_peer_multiaddr",
     "mempool_p2p_config.network_config.port",
     "monitoring_endpoint_config.port",
+    "native_classes_whitelist",
     "recorder_url",
     "sierra_compiler_config.audited_libfuncs_only",
     "sierra_compiler_config.max_bytecode_size",
@@ -112,8 +113,6 @@ pub enum NodeService {
 }
 
 // TODO(Tsabary): move p2p ports from the application configs to the replacer format.
-// TODO(Tsabary): avoid creating the service application config file, and just create the replacer
-// one.
 
 impl NodeService {
     pub fn replacer_deployment_file_path(&self) -> String {
@@ -123,10 +122,6 @@ impl NodeService {
             .join(format!("replacer_deployment_{}.json", self.as_inner()))
             .to_string_lossy()
             .to_string()
-    }
-
-    fn get_config_file_path(&self) -> String {
-        format!("{}.json", self.as_inner())
     }
 
     fn get_replacer_config_file_path(&self) -> String {
@@ -139,17 +134,6 @@ impl NodeService {
             NodeService::Hybrid(inner) => inner,
             NodeService::Distributed(inner) => inner,
         }
-    }
-
-    // TODO(Tsabary): deprecate this function after we complete the transition to the replacer
-    // format.
-    fn get_service_file_path(&self) -> String {
-        PathBuf::from(CONFIG_BASE_DIR)
-            .join(SERVICES_DIR_NAME)
-            .join(NodeType::from(self).get_folder_name())
-            .join(self.get_config_file_path())
-            .to_string_lossy()
-            .to_string()
     }
 
     fn get_replacer_service_file_path(&self) -> String {
@@ -296,13 +280,8 @@ impl NodeType {
                 ComponentConfigsSerializationWrapper::new(component_config, components_in_service);
             let flattened = config_to_preset(&json!(wrapper.dump()));
             let pruned = prune_by_is_none(flattened);
-            // TODO(Tsabary): deprecate this section after we complete the transition to the
-            // replacer format. Dumping in the original format.
-            let file_path = node_service.get_service_file_path();
-            writer(&pruned, &file_path);
 
             // Dumping in the replacer format.
-
             let pruned_with_replacer_annotations =
                 insert_replacer_annotations(pruned, replace_pred);
             let file_path = node_service.get_replacer_service_file_path();

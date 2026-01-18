@@ -95,9 +95,12 @@ impl FlowTestSetup {
         test_unique_index: u16,
         block_max_capacity_gas: GasAmount,
         allow_bootstrap_txs: bool,
+        instance_indices: [u16; 3],
     ) -> Self {
         let chain_info = ChainInfo::create_for_testing();
-        let mut available_ports = AvailablePorts::new(test_unique_index, 0);
+        let [shared_instance_index, sequencer_0_instance_index, sequencer_1_instance_index] =
+            instance_indices;
+        let mut available_ports = AvailablePorts::new(test_unique_index, shared_instance_index);
 
         let accounts = tx_generator.accounts();
         let (consensus_manager_configs, consensus_proposals_channels) =
@@ -157,7 +160,7 @@ impl FlowTestSetup {
             base_layer_url.clone(),
             sequencer_0_consensus_manager_config,
             sequencer_0_mempool_p2p_config,
-            AvailablePorts::new(test_unique_index, 1),
+            AvailablePorts::new(test_unique_index, sequencer_0_instance_index),
             sequencer_0_state_sync_config,
             block_max_capacity_gas,
             allow_bootstrap_txs,
@@ -172,7 +175,7 @@ impl FlowTestSetup {
             base_layer_url,
             sequencer_1_consensus_manager_config,
             sequencer_1_mempool_p2p_config,
-            AvailablePorts::new(test_unique_index, 2),
+            AvailablePorts::new(test_unique_index, sequencer_1_instance_index),
             sequencer_1_state_sync_config,
             block_max_capacity_gas,
             allow_bootstrap_txs,
@@ -338,7 +341,7 @@ pub fn create_consensus_manager_configs_and_channels(
     );
 
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
-        config.context_config.builder_address =
+        config.context_config.static_config.builder_address =
             ContractAddress::try_from(BUILDER_BASE_ADDRESS + Felt::from(i)).unwrap();
     }
 
@@ -445,9 +448,6 @@ impl TxCollector {
                         })
                         .collect();
                     self.accumulated_txs.lock().await.add_transactions(&received_tx_hashes);
-                }
-                StreamMessageBody::Content(ProposalPart::ExecutedTransactionCount(_)) => {
-                    // TODO(Asmaa): Add validation for executed transaction count when implemented.
                 }
                 StreamMessageBody::Fin => {
                     got_channel_fin = true;

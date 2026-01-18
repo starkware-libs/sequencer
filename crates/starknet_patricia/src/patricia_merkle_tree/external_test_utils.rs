@@ -23,6 +23,7 @@ use super::types::{NodeIndex, SubTreeHeight};
 use crate::felt::u256_from_felt;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
+use crate::patricia_merkle_tree::node_data::leaf::LeafWithEmptyKeyContext;
 
 pub(crate) const TEST_PREFIX: &[u8] = &[0];
 
@@ -119,9 +120,7 @@ fn create_inner_node_patricia_key(val: Felt) -> DbKey {
     create_db_key(PatriciaPrefix::InnerNode.into(), &val.to_bytes_be())
 }
 
-pub fn create_leaf_patricia_key<L: Leaf + HasStaticPrefix<KeyContext = EmptyKeyContext>>(
-    val: u128,
-) -> DbKey {
+pub fn create_leaf_patricia_key<L: LeafWithEmptyKeyContext>(val: u128) -> DbKey {
     create_db_key(L::get_static_prefix(&EmptyKeyContext), &U256::from(val).to_be_bytes())
 }
 
@@ -162,9 +161,7 @@ pub fn create_edge_entry_from_u128<SH: StarkHash>(
     create_edge_entry::<SH>(Felt::from(hash), path, length)
 }
 
-pub fn create_leaf_entry<L: Leaf + HasStaticPrefix<KeyContext = EmptyKeyContext>>(
-    hash: u128,
-) -> (DbKey, DbValue) {
+pub fn create_leaf_entry<L: LeafWithEmptyKeyContext>(hash: u128) -> (DbKey, DbValue) {
     (create_leaf_patricia_key::<L>(hash), DbValue(create_32_bytes_entry(hash).to_vec()))
 }
 

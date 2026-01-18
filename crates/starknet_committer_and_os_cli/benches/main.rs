@@ -10,6 +10,7 @@
 use std::collections::HashMap;
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use starknet_api::core::ContractAddress;
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::db::external_test_utils::tree_computation_flow;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
@@ -39,6 +40,8 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
         .collect::<LeafModifications<StarknetStorageValue>>();
 
+    let dummy_contract_address = ContractAddress::from(0_u128);
+
     criterion.bench_function("tree_computation_flow", move |benchmark| {
         benchmark.iter_batched(
             || leaf_modifications.clone(),
@@ -49,6 +52,7 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
                         &mut storage,
                         root_hash,
                         OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
+                        &dummy_contract_address,
                     ),
                 );
             },

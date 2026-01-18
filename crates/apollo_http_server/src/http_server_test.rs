@@ -1,4 +1,3 @@
-use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -13,9 +12,12 @@ use apollo_gateway_types::gateway_types::{
     InvokeGatewayOutput,
 };
 use apollo_infra::component_client::ClientError;
-use axum::body::{Bytes, HttpBody};
-use axum::response::{IntoResponse, Response};
-use axum::Json;
+// TODO(victork): finalise migration to hyper 1.x
+use axum_08::body::Bytes;
+use axum_08::http::StatusCode;
+use axum_08::response::{IntoResponse, Response};
+use axum_08::Json;
+use http_body_util::BodyExt;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::test_utils::read_json_file;
@@ -32,8 +34,8 @@ use crate::test_utils::{
     deprecated_gateway_deploy_account_tx,
     deprecated_gateway_invoke_tx,
     deprecated_gateway_invoke_tx_client_side_proving,
+    get_mock_config_manager_client,
     rpc_invoke_tx,
-    rpc_invoke_tx_client_side_proving,
     GatewayTransaction,
     TransactionSerialization,
 };
@@ -47,8 +49,10 @@ const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_RESPONSE_JSON_PATH: &str =
 
 const EXPECTED_TX_HASH: TransactionHash = TransactionHash(Felt::ONE);
 
+// TODO(Tsabary): find a better way to allocate different ports to different tests.
+
 // The http_server is oblivious to the GateWayOutput type, so we always return invoke.
-pub fn default_gateway_output() -> GatewayOutput {
+fn default_gateway_output() -> GatewayOutput {
     GatewayOutput::Invoke(InvokeGatewayOutput::new(EXPECTED_TX_HASH))
 }
 
@@ -79,7 +83,7 @@ async fn gateway_output_json_conversion(
     let status_code = response.status();
     let response_bytes = &to_bytes(response).await;
 
-    assert_eq!(status_code, hyper::StatusCode::OK, "{response_bytes:?}");
+    assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
     let gateway_response: GatewayOutput = serde_json::from_slice(response_bytes).unwrap();
 
     let expected_gateway_response = read_json_file(expected_serialized_response_path);
@@ -88,6 +92,28 @@ async fn gateway_output_json_conversion(
 
 async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
+}
+
+// TODO(Tsabary): there's a discrepancy with the used `StatusCode` crates: reqwest and axum. Some
+// tests expect the former and some the other, based on the used test utils. Better sort this out
+// and make consistent across.
+
+// Uses add_tx_http_client with index 0.
+/// Test that an HTTP server with a `allow_new_txs = false` config rejects new transactions.
+#[rstest]
+#[tokio::test]
+async fn allow_new_txs() {
+    let tx = rpc_invoke_tx();
+
+    let mock_gateway_client = MockGatewayClient::new();
+    let mock_config_manager_client = get_mock_config_manager_client(false);
+
+    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 0).await;
+
+    // Send a transaction to the server.
+    let response = http_client.add_tx(tx.clone()).await;
+    let status = response.status();
+    assert_eq!(status, reqwest::StatusCode::SERVICE_UNAVAILABLE, "{status:?}");
 }
 
 #[tokio::test]
@@ -108,10 +134,11 @@ async fn error_into_response() {
     );
 }
 
+// Uses add_tx_http_client with indices 1,2.
 #[traced_test]
 #[rstest]
-#[case::add_deprecated_gateway_tx(0, deprecated_gateway_invoke_tx())]
-#[case::add_rpc_tx(1, rpc_invoke_tx())]
+#[case::add_deprecated_gateway_tx(1, deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(2, rpc_invoke_tx())]
 #[tokio::test]
 /// Test that when an add transaction HTTP request is sent to the server, the region of the http
 /// request is recorded to the info log.
@@ -129,11 +156,10 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
         .times(1)
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_2))));
 
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     // TODO(Yael): avoid the hardcoded node offset index, consider dynamic allocation.
     let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 1 + index).await;
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
 
     // Send a transaction to the server, without a region.
     http_client.add_tx(tx.clone()).await;
@@ -149,10 +175,11 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
     ));
 }
 
+// Uses add_tx_http_client with indices 3,4.
 #[traced_test]
 #[rstest]
-#[case::add_deprecated_gateway_tx(0, deprecated_gateway_invoke_tx())]
-#[case::add_rpc_tx(1, rpc_invoke_tx())]
+#[case::add_deprecated_gateway_tx(3, deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(4, rpc_invoke_tx())]
 #[tokio::test]
 /// Test that when an "add_tx" HTTP request is sent to the server, and it fails in the Gateway, no
 /// record of the region is logged.
@@ -165,26 +192,25 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
         )),
     ));
 
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 3 + index).await;
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
 
     // Send a transaction to the server.
     http_client.add_tx(tx).await;
     assert!(!logs_contain("Recorded transaction transaction_hash="));
 }
 
+// Uses add_tx_http_client with indices 5,6,7,8,9.
 #[rstest]
-#[case::add_deprecated_gateway_invoke(0, deprecated_gateway_invoke_tx())]
+#[case::add_deprecated_gateway_invoke(5, deprecated_gateway_invoke_tx())]
 #[case::add_deprecated_gateway_invoke_client_side_proving(
-    1,
+    6,
     deprecated_gateway_invoke_tx_client_side_proving()
 )]
-#[case::add_deprecated_gateway_deploy_account(2, deprecated_gateway_deploy_account_tx())]
-#[case::add_deprecated_gateway_declare(3, deprecated_gateway_declare_tx())]
-#[case::add_rpc_invoke(4, rpc_invoke_tx())]
-#[case::add_rpc_invoke_client_side_proving(5, rpc_invoke_tx_client_side_proving())]
+#[case::add_deprecated_gateway_deploy_account(7, deprecated_gateway_deploy_account_tx())]
+#[case::add_deprecated_gateway_declare(8, deprecated_gateway_declare_tx())]
+#[case::add_rpc_invoke(9, rpc_invoke_tx())]
 #[tokio::test]
 async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();
@@ -221,10 +247,9 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         expected_internal_err,
     ));
 
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
+    let mock_config_manager_client = get_mock_config_manager_client(true);
     let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 5 + index).await;
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
 
     // Test a successful response.
     let tx_hash = http_client.assert_add_tx_success(tx.clone()).await;
@@ -241,68 +266,73 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
 
-// TODO(Einat): turn test back on when port issue is fixed.
-// #[rstest]
-// #[case::missing_version(
-//     0,
-//     None,
-//     StarknetError {
-//         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-//         message: "Missing version field".to_string(),
-//     }
-// )]
-// #[case::bad_version(
-//     1,
-//     Some("bad version"),
-//     StarknetError {
-//         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-//         message: "Version field is not a valid hex string: badversion".to_string(), //Note:
-// whitespaces are removed when parsing malformed tx jsons         }
-// )]
-// #[case::old_version(2, Some("0x1"), StarknetError {
-//             code: StarknetErrorCode::KnownErrorCode(
-//                 KnownStarknetErrorCode::InvalidTransactionVersion,
-//             ),
-//             message: "Transaction version 1 is not supported. Supported versions: [3]."
-//                 .to_string(),
-//         },
-// )]
-// #[case::newer_version(3, Some("0x4"), StarknetError {
-//                 code: StarknetErrorCode::KnownErrorCode(
-//                     KnownStarknetErrorCode::InvalidTransactionVersion,
-//                 ),
-//                 message: "Transaction version 4 is not supported. Supported versions: [3]."
-//                     .to_string(),
-//             }
-// )]
-// #[tokio::test]
-// async fn test_unsupported_tx_version(
-//     #[case] index: u16,
-//     #[case] version: Option<&str>,
-//     #[case] expected_err: StarknetError,
-// ) {
-//     // Set the tx version to the given version.
-//     let mut tx_json =
-//         TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
-//     let as_object = tx_json.0.as_object_mut().unwrap();
-//     if let Some(version) = version {
-//         as_object.insert("version".to_string(), Value::String(version.to_string())).unwrap();
-//     } else {
-//         as_object.remove("version").unwrap();
-//     }
+// Uses add_tx_http_client with indices 10,11,12,13.
+#[rstest]
+#[case::missing_version(
+    10,
+    None,
+    StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+        message: "Missing version field".to_string(),
+    }
+)]
+#[case::bad_version(
+    11,
+    Some("bad version"),
+    StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+        //Note: whitespaces are removed when parsing malformed tx jsons
+        message: "Version field is not a valid hex string: badversion".to_string(),
+    }
+)]
+#[case::old_version(
+    12,
+    Some("0x1"),
+    StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(
+            KnownStarknetErrorCode::InvalidTransactionVersion,
+        ),
+        message: "Transaction version 1 is not supported. Supported versions: [3].".to_string(),
+    },
+)]
+#[case::newer_version(
+    13,
+    Some("0x4"),
+    StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(
+            KnownStarknetErrorCode::InvalidTransactionVersion,
+        ),
+        message: "Transaction version 4 is not supported. Supported versions: [3].".to_string(),
+    }
+)]
+#[tokio::test]
+async fn test_unsupported_tx_version(
+    #[case] index: u16,
+    #[case] version: Option<&str>,
+    #[case] expected_err: StarknetError,
+) {
+    // Set the tx version to the given version.
+    let mut tx_json =
+        TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
+    let as_object = tx_json.0.as_object_mut().unwrap();
+    if let Some(version) = version {
+        as_object.insert("version".to_string(), Value::String(version.to_string())).unwrap();
+    } else {
+        as_object.remove("version").unwrap();
+    }
 
-//     let mock_gateway_client = MockGatewayClient::new();
-//     let mock_config_manager_client = MockConfigManagerClient::new();
+    let mock_gateway_client = MockGatewayClient::new();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
 
-//     let http_client =
-//         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 9 + index).await;
+    let serialized_err =
+        http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
+    let starknet_error = serde_json::from_str::<StarknetError>(&serialized_err).unwrap();
+    assert_eq!(starknet_error, expected_err);
+}
 
-//     let serialized_err =
-//         http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
-//     let starknet_error = serde_json::from_str::<StarknetError>(&serialized_err).unwrap();
-//     assert_eq!(starknet_error, expected_err);
-// }
-
+// Uses add_tx_http_client with index 14.
 #[tokio::test]
 async fn sanitizing_error_message() {
     // Set the tx version to be a problematic text.
@@ -314,9 +344,8 @@ async fn sanitizing_error_message() {
     tx_object.insert("version".to_string(), Value::String(malicious_version.to_string())).unwrap();
 
     let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
-    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 13).await;
+    let mock_config_manager_client = get_mock_config_manager_client(true);
+    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 14).await;
 
     let serialized_err =
         http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;

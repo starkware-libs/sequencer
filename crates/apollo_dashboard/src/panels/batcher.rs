@@ -1,11 +1,12 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     BLOCK_CLOSE_REASON,
+    BUILDING_HEIGHT,
+    GLOBAL_ROOT_HEIGHT,
     LABEL_NAME_BLOCK_CLOSE_REASON,
     PROPOSER_DEFERRED_TXS,
     REJECTED_TRANSACTIONS,
     REVERTED_TRANSACTIONS,
-    STORAGE_HEIGHT,
     VALIDATOR_WASTED_TXS,
 };
 use apollo_consensus::metrics::CONSENSUS_BLOCK_NUMBER;
@@ -54,11 +55,21 @@ fn get_panel_proposer_deferred_txs() -> Panel {
     .with_log_query("Finished building block as proposer. Started executing")
 }
 
-fn get_panel_storage_height() -> Panel {
+fn get_panel_building_height() -> Panel {
     Panel::new(
-        "Storage Height",
-        "The height of the batcher's storage",
-        STORAGE_HEIGHT.get_name_with_filter().to_string(),
+        "Building Height",
+        "The height of the block that should be built next.",
+        BUILDING_HEIGHT.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
+    .with_log_query("Building block at height")
+}
+
+fn get_panel_global_root_height() -> Panel {
+    Panel::new(
+        "Global Root Height",
+        "The height of the first block without global root stored.",
+        GLOBAL_ROOT_HEIGHT.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
     .with_log_query("Committing block at height")
@@ -67,17 +78,14 @@ fn get_panel_storage_height() -> Panel {
 fn get_panel_rejection_reverted_ratio() -> Panel {
     let rejected_txs_expr = increase(&REJECTED_TRANSACTIONS, DEFAULT_DURATION);
     let reverted_txs_expr = increase(&REVERTED_TRANSACTIONS, DEFAULT_DURATION);
+    let batched_txs_expr = increase(&BATCHED_TRANSACTIONS, DEFAULT_DURATION);
 
-    let denominator_expr = format!(
-        "({} + {} + {})",
-        rejected_txs_expr,
-        reverted_txs_expr,
-        increase(&BATCHED_TRANSACTIONS, DEFAULT_DURATION),
-    );
+    let denominator_expr =
+        format!("({} + {} + {})", rejected_txs_expr, reverted_txs_expr, batched_txs_expr,);
     Panel::new(
-        "Rejected / Reverted TXs Ratio",
+        "Rate of Rejected and Reverted TXs Ratio",
         format!(
-            "Ratio of rejected / reverted transactions out of all processed txs \
+            "Rates of the rejected and reverted transactions ratios of all processed txs \
              ({DEFAULT_DURATION} window)"
         ),
         vec![
@@ -141,7 +149,8 @@ pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
         vec![
-            get_panel_storage_height(),
+            get_panel_building_height(),
+            get_panel_global_root_height(),
             get_panel_consensus_block_time_avg(),
             get_panel_batched_transactions_rate(),
             get_panel_proposer_deferred_txs(),

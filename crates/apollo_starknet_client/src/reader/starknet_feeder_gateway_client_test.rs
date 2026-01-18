@@ -5,7 +5,7 @@ use std::future::Future;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::indexmap;
-use mockito::mock;
+use mockito::ServerGuard;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
@@ -60,32 +60,37 @@ fn get_block_url(block_number_or_latest: Option<u64>) -> String {
     url
 }
 
-fn apollo_starknet_client() -> StarknetFeederGatewayClient {
-    StarknetFeederGatewayClient::new(&mockito::server_url(), None, NODE_VERSION, get_test_config())
-        .unwrap()
+fn apollo_starknet_client(server: &ServerGuard) -> StarknetFeederGatewayClient {
+    StarknetFeederGatewayClient::new(&server.url(), None, NODE_VERSION, get_test_config()).unwrap()
 }
 
 // TODO(Ayelet): Consider making this function generic for all successful mock responses in this
 // file.
-fn mock_successful_get_block_response(
+async fn mock_successful_get_block_response(
+    server: &mut ServerGuard,
     response_file: &str,
     request_param: Option<u64>,
 ) -> mockito::Mock {
-    mock("GET", get_block_url(request_param).as_str())
+    server
+        .mock("GET", get_block_url(request_param).as_str())
         .with_status(200)
         .with_body(read_resource_file(response_file))
-        .create()
+        .create_async()
+        .await
 }
 
 // TODO(Ayelet): Consider making this function generic for all error mock responses in this file.
-fn mock_error_get_block_response(
+async fn mock_error_get_block_response(
+    server: &mut ServerGuard,
     error_response_body: String,
     request_param: Option<u64>,
 ) -> mockito::Mock {
-    mock("GET", get_block_url(request_param).as_str())
+    server
+        .mock("GET", get_block_url(request_param).as_str())
         .with_status(400)
         .with_body(error_response_body)
-        .create()
+        .create_async()
+        .await
 }
 
 fn block_not_found_error(block_number: i64) -> String {
@@ -114,19 +119,24 @@ fn new_urls() {
 
 #[tokio::test]
 async fn get_latest_block_when_blocks_exists() {
-    let apollo_starknet_client = apollo_starknet_client();
-    let mock_block = mock_successful_get_block_response("reader/block_post_0_14_0.json", None);
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
+    let mock_block =
+        mock_successful_get_block_response(&mut server, "reader/block_post_0_14_0.json", None)
+            .await;
     let latest_block = apollo_starknet_client.latest_block().await.unwrap();
-    mock_block.assert();
+    mock_block.assert_async().await;
     assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329526));
 }
 
 #[tokio::test]
 async fn get_latest_block_when_no_blocks_exist() {
-    let apollo_starknet_client = apollo_starknet_client();
-    let mock_no_block = mock_error_get_block_response(block_not_found_error(-1), None);
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
+    let mock_no_block =
+        mock_error_get_block_response(&mut server, block_not_found_error(-1), None).await;
     let latest_block = apollo_starknet_client.latest_block().await.unwrap();
-    mock_no_block.assert();
+    mock_no_block.assert_async().await;
     assert!(latest_block.is_none());
 }
 
@@ -158,26 +168,29 @@ async fn declare_tx_serde() {
 
 #[tokio::test]
 async fn state_update() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
     let raw_state_update = read_resource_file("reader/block_state_update.json");
-    let mock_state_update =
-        mock("GET", &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=123456")[..])
-            .with_status(200)
-            .with_body(&raw_state_update)
-            .create();
+    let mock_state_update = server
+        .mock("GET", &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=123456")[..])
+        .with_status(200)
+        .with_body(&raw_state_update)
+        .create_async()
+        .await;
     let state_update = apollo_starknet_client.state_update(BlockNumber(123456)).await.unwrap();
-    mock_state_update.assert();
+    mock_state_update.assert_async().await;
     let expected_state_update: StateUpdate = serde_json::from_str(&raw_state_update).unwrap();
     assert_eq!(state_update.unwrap(), expected_state_update);
 
-    let mock_no_block =
-        mock("GET", &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=999999")[..])
-            .with_status(400)
-            .with_body(block_not_found_error(-1))
-            .create();
+    let mock_no_block = server
+        .mock("GET", &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=999999")[..])
+        .with_status(400)
+        .with_body(block_not_found_error(-1))
+        .create_async()
+        .await;
     let state_update = apollo_starknet_client.state_update(BlockNumber(999999)).await.unwrap();
     assert!(state_update.is_none());
-    mock_no_block.assert();
+    mock_no_block.assert_async().await;
 }
 
 #[tokio::test]
@@ -191,7 +204,8 @@ async fn serialization_precision() {
 
 #[tokio::test]
 async fn contract_class() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
     let expected_contract_class = ContractClass {
         sierra_program: vec![felt!("0x302e312e30"), felt!("0x1c"), felt!("0x52616e6765436865636b")],
         entry_points_by_type: HashMap::from([
@@ -213,16 +227,18 @@ async fn contract_class() {
         ),
     };
 
-    let mock_by_hash = mock(
-        "GET",
-        &format!(
+    let mock_by_hash = server
+        .mock(
+            "GET",
+            &format!(
             "/feeder_gateway/get_class_by_hash?blockNumber=pending&\
              {CLASS_HASH_QUERY}=0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c"
         )[..],
-    )
-    .with_status(200)
-    .with_body(read_resource_file("reader/contract_class.json"))
-    .create();
+        )
+        .with_status(200)
+        .with_body(read_resource_file("reader/contract_class.json"))
+        .create_async()
+        .await;
     let contract_class = apollo_starknet_client
         .class_by_hash(class_hash!(
             "0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c"
@@ -235,13 +251,14 @@ async fn contract_class() {
         GenericContractClass::Cairo1ContractClass(class) => class,
         _ => unreachable!("Expecting Cairo0ContractClass."),
     };
-    mock_by_hash.assert();
+    mock_by_hash.assert_async().await;
     assert_eq!(contract_class, expected_contract_class);
 }
 
 #[tokio::test]
 async fn deprecated_contract_class() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
     let expected_contract_class = DeprecatedContractClass {
         abi: Some(vec![ContractClassAbiEntry::Constructor(FunctionAbiEntry::<ConstructorType> {
             name: "constructor".to_string(),
@@ -293,16 +310,18 @@ async fn deprecated_contract_class() {
             ),
         ]),
     };
-    let mock_by_hash = mock(
-        "GET",
-        &format!(
+    let mock_by_hash = server
+        .mock(
+            "GET",
+            &format!(
             "/feeder_gateway/get_class_by_hash?blockNumber=pending&\
              {CLASS_HASH_QUERY}=0x7af612493193c771c1b12f511a8b4d3b0c6d0648242af4680c7cd0d06186f17"
         )[..],
-    )
-    .with_status(200)
-    .with_body(read_resource_file("reader/deprecated_contract_class.json"))
-    .create();
+        )
+        .with_status(200)
+        .with_body(read_resource_file("reader/deprecated_contract_class.json"))
+        .create_async()
+        .await;
     let contract_class = apollo_starknet_client
         .class_by_hash(class_hash!(
             "0x7af612493193c771c1b12f511a8b4d3b0c6d0648242af4680c7cd0d06186f17"
@@ -314,13 +333,13 @@ async fn deprecated_contract_class() {
         GenericContractClass::Cairo0ContractClass(class) => class,
         _ => unreachable!("Expecting deprecated contract class."),
     };
-    mock_by_hash.assert();
+    mock_by_hash.assert_async().await;
     assert_eq!(contract_class, expected_contract_class);
 
     // Undeclared class.
     let body = r#"{"code": "StarknetErrorCode.UNDECLARED_CLASS", "message": "Class with hash 0x7 is not declared."}"#;
-    let mock_by_hash =
-        mock(
+    let mock_by_hash = server
+        .mock(
             "GET",
             &format!(
                 "/feeder_gateway/get_class_by_hash?blockNumber=pending&{CLASS_HASH_QUERY}=0x7"
@@ -328,9 +347,10 @@ async fn deprecated_contract_class() {
         )
         .with_status(400)
         .with_body(body)
-        .create();
+        .create_async()
+        .await;
     let class = apollo_starknet_client.class_by_hash(class_hash!("0x7")).await.unwrap();
-    mock_by_hash.assert();
+    mock_by_hash.assert_async().await;
     assert!(class.is_none());
 }
 
@@ -338,41 +358,45 @@ async fn deprecated_contract_class() {
 
 #[tokio::test]
 async fn deprecated_pending_data() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
 
     // Pending
     let raw_pending_data = read_resource_file("reader/deprecated_pending_data.json");
-    let mock_pending =
-        mock("GET", "/feeder_gateway/get_state_update?blockNumber=pending&includeBlock=true")
-            .with_status(200)
-            .with_body(&raw_pending_data)
-            .create();
+    let mock_pending = server
+        .mock("GET", "/feeder_gateway/get_state_update?blockNumber=pending&includeBlock=true")
+        .with_status(200)
+        .with_body(&raw_pending_data)
+        .create_async()
+        .await;
     let pending_data = apollo_starknet_client.pending_data().await;
-    mock_pending.assert();
+    mock_pending.assert_async().await;
     let expected_pending_data: PendingData = serde_json::from_str(&raw_pending_data).unwrap();
     assert_eq!(pending_data.unwrap().unwrap(), expected_pending_data);
 
     // Accepted on L2.
     let raw_pending_data = read_resource_file("reader/accepted_on_l2_deprecated_data.json");
-    let mock_accepted =
-        mock("GET", "/feeder_gateway/get_state_update?blockNumber=pending&includeBlock=true")
-            .with_status(200)
-            .with_body(&raw_pending_data)
-            .create();
+    let mock_accepted = server
+        .mock("GET", "/feeder_gateway/get_state_update?blockNumber=pending&includeBlock=true")
+        .with_status(200)
+        .with_body(&raw_pending_data)
+        .create_async()
+        .await;
     let pending_data = apollo_starknet_client.pending_data().await;
-    mock_accepted.assert();
+    mock_accepted.assert_async().await;
     let expected_pending_data: PendingData = serde_json::from_str(&raw_pending_data).unwrap();
     assert_eq!(pending_data.unwrap().unwrap(), expected_pending_data);
 }
 
 #[tokio::test]
 async fn get_block() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
     let json_filename = "reader/block_post_0_14_0.json";
 
-    let mock_block = mock_successful_get_block_response(json_filename, Some(20));
+    let mock_block = mock_successful_get_block_response(&mut server, json_filename, Some(20)).await;
     let block = apollo_starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
-    mock_block.assert();
+    mock_block.assert_async().await;
 
     let expected_block: Block = serde_json::from_str(&read_resource_file(json_filename)).unwrap();
     assert_eq!(block, expected_block);
@@ -381,60 +405,73 @@ async fn get_block() {
 // Requesting a block that does not exist, expecting a "Block Not Found" error.
 #[tokio::test]
 async fn get_block_not_found() {
-    let apollo_starknet_client = apollo_starknet_client();
-    let mock_no_block =
-        mock_error_get_block_response(block_not_found_error(9999999999), Some(9999999999));
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
+    let mock_no_block = mock_error_get_block_response(
+        &mut server,
+        block_not_found_error(9999999999),
+        Some(9999999999),
+    )
+    .await;
     let block = apollo_starknet_client.block(BlockNumber(9999999999)).await.unwrap();
-    mock_no_block.assert();
+    mock_no_block.assert_async().await;
     assert!(block.is_none());
 }
 
 #[tokio::test]
 async fn compiled_class_by_hash() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
     let raw_casm_contract_class = read_resource_file("reader/casm_contract_class.json");
-    let mock_casm_contract_class = mock(
-        "GET",
-        &format!(
-            "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=pending&\
-             {CLASS_HASH_QUERY}=0x7"
-        )[..],
-    )
-    .with_status(200)
-    .with_body(&raw_casm_contract_class)
-    .create();
+    let mock_casm_contract_class = server
+        .mock(
+            "GET",
+            &format!(
+                "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=pending&\
+                 {CLASS_HASH_QUERY}=0x7"
+            )[..],
+        )
+        .with_status(200)
+        .with_body(&raw_casm_contract_class)
+        .create_async()
+        .await;
     let casm_contract_class =
         apollo_starknet_client.compiled_class_by_hash(class_hash!("0x7")).await.unwrap().unwrap();
-    mock_casm_contract_class.assert();
+    mock_casm_contract_class.assert_async().await;
     let expected_casm_contract_class: CasmContractClass =
         serde_json::from_str(&raw_casm_contract_class).unwrap();
     assert_eq!(casm_contract_class, expected_casm_contract_class);
 
     let body = r#"{"code": "StarknetErrorCode.UNDECLARED_CLASS", "message": "Class with hash 0x7 is not declared."}"#;
-    let mock_undeclared = mock(
-        "GET",
-        &format!(
-            "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=pending&\
-             {CLASS_HASH_QUERY}=0x0"
-        )[..],
-    )
-    .with_status(400)
-    .with_body(body)
-    .create();
+    let mock_undeclared = server
+        .mock(
+            "GET",
+            &format!(
+                "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=pending&\
+                 {CLASS_HASH_QUERY}=0x0"
+            )[..],
+        )
+        .with_status(400)
+        .with_body(body)
+        .create_async()
+        .await;
     let class = apollo_starknet_client.compiled_class_by_hash(class_hash!("0x0")).await.unwrap();
-    mock_undeclared.assert();
+    mock_undeclared.assert_async().await;
     assert!(class.is_none());
 }
 
 #[tokio::test]
 async fn is_alive() {
-    let apollo_starknet_client = apollo_starknet_client();
-    let mock_is_alive = mock("GET", "/feeder_gateway/is_alive")
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
+    let mock_is_alive = server
+        .mock("GET", "/feeder_gateway/is_alive")
         .with_status(200)
         .with_body(FEEDER_GATEWAY_ALIVE_RESPONSE)
-        .create();
+        .create_async()
+        .await;
     let response = apollo_starknet_client.is_alive().await;
-    mock_is_alive.assert();
+    mock_is_alive.assert_async().await;
     assert!(response);
 }
 
@@ -442,20 +479,22 @@ async fn is_alive() {
 // the state diff commitment).
 #[tokio::test]
 async fn state_update_with_empty_storage_diff() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
 
     let mut state_update = StateUpdate::default();
     let empty_storage_diff = indexmap!(ContractAddress::default() => vec![]);
     state_update.state_diff.storage_diffs.clone_from(&empty_storage_diff);
 
-    let mock =
-        mock("GET", &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=123456")[..])
-            .with_status(200)
-            .with_body(serde_json::to_string(&state_update).unwrap())
-            .create();
+    let mock = server
+        .mock("GET", &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=123456")[..])
+        .with_status(200)
+        .with_body(serde_json::to_string(&state_update).unwrap())
+        .create_async()
+        .await;
     let state_update =
         apollo_starknet_client.state_update(BlockNumber(123456)).await.unwrap().unwrap();
-    mock.assert();
+    mock.assert_async().await;
     assert_eq!(state_update.state_diff.storage_diffs, empty_storage_diff);
 }
 
@@ -464,20 +503,22 @@ async fn test_unserializable<
     Fut: Future<Output = ReaderClientResult<Output>>,
     F: FnOnce(StarknetFeederGatewayClient) -> Fut,
 >(
+    server: &mut ServerGuard,
     url_suffix: &str,
     call_method: F,
 ) {
-    let apollo_starknet_client = apollo_starknet_client();
+    let apollo_starknet_client = apollo_starknet_client(server);
     let body = "body";
-    let mock = mock("GET", url_suffix).with_status(200).with_body(body).create();
+    let mock = server.mock("GET", url_suffix).with_status(200).with_body(body).create_async().await;
     let error = call_method(apollo_starknet_client).await.unwrap_err();
-    mock.assert();
+    mock.assert_async().await;
     assert_matches!(error, ReaderClientError::SerdeError(_));
 }
 
 #[tokio::test]
 async fn latest_block_unserializable() {
-    test_unserializable(&get_block_url(None), |apollo_starknet_client| async move {
+    let mut server = mockito::Server::new_async().await;
+    test_unserializable(&mut server, &get_block_url(None), |apollo_starknet_client| async move {
         apollo_starknet_client.latest_block().await
     })
     .await
@@ -485,15 +526,20 @@ async fn latest_block_unserializable() {
 
 #[tokio::test]
 async fn block_unserializable() {
-    test_unserializable(&get_block_url(Some(20)), |apollo_starknet_client| async move {
-        apollo_starknet_client.block(BlockNumber(20)).await
-    })
+    let mut server = mockito::Server::new_async().await;
+    test_unserializable(
+        &mut server,
+        &get_block_url(Some(20)),
+        |apollo_starknet_client| async move { apollo_starknet_client.block(BlockNumber(20)).await },
+    )
     .await
 }
 
 #[tokio::test]
 async fn class_by_hash_unserializable() {
+    let mut server = mockito::Server::new_async().await;
     test_unserializable(
+        &mut server,
         &format!("/feeder_gateway/get_class_by_hash?blockNumber=pending&{CLASS_HASH_QUERY}=0x1")[..],
         |apollo_starknet_client| async move {
             apollo_starknet_client.class_by_hash(class_hash!("0x1")).await
@@ -504,7 +550,9 @@ async fn class_by_hash_unserializable() {
 
 #[tokio::test]
 async fn state_update_unserializable() {
+    let mut server = mockito::Server::new_async().await;
     test_unserializable(
+        &mut server,
         &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=123456")[..],
         |apollo_starknet_client| async move {
             apollo_starknet_client.state_update(BlockNumber(123456)).await
@@ -515,7 +563,9 @@ async fn state_update_unserializable() {
 
 #[tokio::test]
 async fn compiled_class_by_hash_unserializable() {
+    let mut server = mockito::Server::new_async().await;
     test_unserializable(
+        &mut server,
         &format!(
             "/feeder_gateway/get_compiled_class_by_class_hash?blockNumber=pending&\
              {CLASS_HASH_QUERY}=0x7"
@@ -529,7 +579,8 @@ async fn compiled_class_by_hash_unserializable() {
 
 #[tokio::test]
 async fn get_block_signature() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
 
     let expected_block_signature = BlockSignatureData::Deprecated {
         block_number: BlockNumber(20),
@@ -540,44 +591,50 @@ async fn get_block_signature() {
         },
     };
 
-    let mock_block_signature =
-        mock("GET", &format!("/feeder_gateway/get_signature?{BLOCK_NUMBER_QUERY}=20")[..])
-            .with_status(200)
-            .with_body(serde_json::to_string(&expected_block_signature).unwrap())
-            .create();
+    let mock_block_signature = server
+        .mock("GET", &format!("/feeder_gateway/get_signature?{BLOCK_NUMBER_QUERY}=20")[..])
+        .with_status(200)
+        .with_body(serde_json::to_string(&expected_block_signature).unwrap())
+        .create_async()
+        .await;
 
     let block_signature =
         apollo_starknet_client.block_signature(BlockNumber(20)).await.unwrap().unwrap();
-    mock_block_signature.assert();
+    mock_block_signature.assert_async().await;
     assert_eq!(block_signature, expected_block_signature);
 }
 
 #[tokio::test]
 async fn get_block_signature_unknown_block() {
-    let apollo_starknet_client = apollo_starknet_client();
-    let mock_no_block =
-        mock("GET", &format!("/feeder_gateway/get_signature?{BLOCK_NUMBER_QUERY}=999999")[..])
-            .with_status(400)
-            .with_body(block_not_found_error(999999))
-            .create();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
+    let mock_no_block = server
+        .mock("GET", &format!("/feeder_gateway/get_signature?{BLOCK_NUMBER_QUERY}=999999")[..])
+        .with_status(400)
+        .with_body(block_not_found_error(999999))
+        .create_async()
+        .await;
     let block_signature =
         apollo_starknet_client.block_signature(BlockNumber(999999)).await.unwrap();
-    mock_no_block.assert();
+    mock_no_block.assert_async().await;
     assert!(block_signature.is_none());
 }
 
 #[tokio::test]
 async fn get_sequencer_public_key() {
-    let apollo_starknet_client = apollo_starknet_client();
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
 
     let expected_sequencer_pub_key = SequencerPublicKey(PublicKey(felt!("0x1")));
 
-    let mock_key = mock("GET", "/feeder_gateway/get_public_key")
+    let mock_key = server
+        .mock("GET", "/feeder_gateway/get_public_key")
         .with_status(200)
         .with_body(serde_json::to_string(&expected_sequencer_pub_key).unwrap())
-        .create();
+        .create_async()
+        .await;
 
     let pub_key = apollo_starknet_client.sequencer_pub_key().await.unwrap();
-    mock_key.assert();
+    mock_key.assert_async().await;
     assert_eq!(pub_key, expected_sequencer_pub_key);
 }

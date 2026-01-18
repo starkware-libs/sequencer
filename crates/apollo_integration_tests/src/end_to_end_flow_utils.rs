@@ -1,34 +1,27 @@
-// Each test module is compiled as a separate crate, and all can declare the common module.
-// This means that any peace of code in this module that is not used by *all* test modules will be
-// identified as unused code by clippy (for one of the crates).
-#![allow(dead_code)]
-
 use std::time::Duration;
 
 use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::flow_test_setup::{
-    FlowSequencerSetup,
-    FlowTestSetup,
-    NUM_OF_SEQUENCERS,
-};
-use apollo_integration_tests::utils::{
-    create_flow_test_tx_generator,
-    run_test_scenario,
-    CreateL1ToL2MessagesArgsFn,
-    CreateRpcTxsFn,
-    TestTxHashesFn,
-};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use pretty_assertions::assert_eq;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::TransactionHash;
 use tracing::info;
 
+use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup, NUM_OF_SEQUENCERS};
+use crate::utils::{
+    create_flow_test_tx_generator,
+    run_test_scenario,
+    CreateL1ToL2MessagesArgsFn,
+    CreateRpcTxsFn,
+    TestTxHashesFn,
+};
+
 pub struct EndToEndFlowArgs {
     pub test_identifier: TestIdentifier,
-    pub test_blocks_scenarios: Vec<TestScenario>,
+    pub instance_indices: [u16; 3],
+    pub test_scenario: TestScenario,
     pub block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
     pub expecting_full_blocks: bool,
     pub expecting_reverted_transactions: bool,
@@ -38,12 +31,13 @@ pub struct EndToEndFlowArgs {
 impl EndToEndFlowArgs {
     pub fn new(
         test_identifier: TestIdentifier,
-        test_blocks_scenarios: Vec<TestScenario>,
+        test_scenario: TestScenario,
         block_max_capacity_gas: GasAmount,
     ) -> Self {
         Self {
             test_identifier,
-            test_blocks_scenarios,
+            instance_indices: [0, 1, 2],
+            test_scenario,
             block_max_capacity_gas,
             expecting_full_blocks: false,
             expecting_reverted_transactions: false,
@@ -62,6 +56,10 @@ impl EndToEndFlowArgs {
     pub fn allow_bootstrap_txs(self) -> Self {
         Self { allow_bootstrap_txs: true, ..self }
     }
+
+    pub fn instance_indices(self, instance_indices: [u16; 3]) -> Self {
+        Self { instance_indices, ..self }
+    }
 }
 
 // Note: run integration/flow tests from separate files in `tests/`, which helps cargo ensure
@@ -70,7 +68,8 @@ impl EndToEndFlowArgs {
 pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     let EndToEndFlowArgs {
         test_identifier,
-        test_blocks_scenarios,
+        instance_indices,
+        test_scenario,
         block_max_capacity_gas,
         expecting_full_blocks,
         expecting_reverted_transactions,
@@ -90,6 +89,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         test_identifier.into(),
         block_max_capacity_gas,
         allow_bootstrap_txs,
+        instance_indices,
     )
     .await;
 
@@ -113,58 +113,54 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     let mut total_expected_batched_txs_count = 0;
 
     // Build multiple heights to ensure heights are committed.
-    for (
-        i,
-        TestScenario { create_rpc_txs_fn, create_l1_to_l2_messages_args_fn, test_tx_hashes_fn },
-    ) in test_blocks_scenarios.into_iter().enumerate()
-    {
-        info!("Starting scenario {i}.");
-        // Create and send transactions.
-        // TODO(Arni): move send messages to l2 into [run_test_scenario].
-        let l1_handlers = create_l1_to_l2_messages_args_fn(&mut tx_generator);
-        mock_running_system.send_messages_to_l2(&l1_handlers).await;
+    let TestScenario { create_rpc_txs_fn, create_l1_to_l2_messages_args_fn, test_tx_hashes_fn } =
+        test_scenario;
 
-        // Run the test scenario and get the expected batched tx hashes of the current scenario.
-        let expected_batched_tx_hashes = run_test_scenario(
-            &mut tx_generator,
-            create_rpc_txs_fn,
-            l1_handlers,
-            &mut send_rpc_tx_fn,
-            test_tx_hashes_fn,
-            &chain_id,
-        )
-        .await;
+    // Create and send transactions.
+    // TODO(Arni): move send messages to l2 into [run_test_scenario].
+    let l1_handlers = create_l1_to_l2_messages_args_fn(&mut tx_generator);
+    mock_running_system.send_messages_to_l2(&l1_handlers).await;
 
-        // Each sequencer increases the same BATCHED_TRANSACTIONS metric because they are running
-        // in the same process in this test.
-        total_expected_batched_txs_count += NUM_OF_SEQUENCERS * expected_batched_tx_hashes.len();
-        let mut current_batched_txs_count = 0;
+    // Run the test scenario and get the expected batched tx hashes of the current scenario.
+    let expected_batched_tx_hashes = run_test_scenario(
+        &mut tx_generator,
+        create_rpc_txs_fn,
+        l1_handlers,
+        &mut send_rpc_tx_fn,
+        test_tx_hashes_fn,
+        &chain_id,
+    )
+    .await;
 
-        tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
-            loop {
-                info!(
-                    "Waiting for more txs to be batched in a block. Expected batched txs: \
-                     {total_expected_batched_txs_count}, Currently batched txs: \
-                     {current_batched_txs_count}"
-                );
+    // Each sequencer increases the same BATCHED_TRANSACTIONS metric because they are running
+    // in the same process in this test.
+    total_expected_batched_txs_count += NUM_OF_SEQUENCERS * expected_batched_tx_hashes.len();
+    let mut current_batched_txs_count = 0;
 
-                current_batched_txs_count = get_total_batched_txs_count(&global_recorder_handle);
-                if current_batched_txs_count == total_expected_batched_txs_count {
-                    break;
-                }
+    tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
+        loop {
+            info!(
+                "Waiting for more txs to be batched in a block. Expected batched txs: \
+                 {total_expected_batched_txs_count}, Currently batched txs: \
+                 {current_batched_txs_count}"
+            );
 
-                tokio::time::sleep(Duration::from_millis(2000)).await;
+            current_batched_txs_count = get_total_batched_txs_count(&global_recorder_handle);
+            if current_batched_txs_count == total_expected_batched_txs_count {
+                break;
             }
-        })
-        .await
-        .unwrap_or_else(|_| {
-            panic!(
-                "Scenario {i}: Expected transactions should be included in a block by now, \
-                 Expected amount of batched txs: {total_expected_batched_txs_count}, Currently \
-                 amount of batched txs: {current_batched_txs_count}"
-            )
-        });
-    }
+
+            tokio::time::sleep(Duration::from_millis(2000)).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "Expected transactions should be included in a block by now, Expected amount of \
+             batched txs: {total_expected_batched_txs_count}, Currently amount of batched txs: \
+             {current_batched_txs_count}"
+        )
+    });
 
     assert_full_blocks_flow(&global_recorder_handle, expecting_full_blocks);
     assert_on_number_of_reverted_transactions_flow(
@@ -176,6 +172,8 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
 pub struct TestScenario {
     pub create_rpc_txs_fn: CreateRpcTxsFn,
     pub create_l1_to_l2_messages_args_fn: CreateL1ToL2MessagesArgsFn,
+    // TODO(Arni): replace with an optional apply shuffle to the tx hashes + a length assertion
+    // parameter.
     pub test_tx_hashes_fn: TestTxHashesFn,
 }
 
@@ -203,7 +201,7 @@ fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_bl
     }
     // Just because we don't expect full blocks, doesn't mean we should assert that the metric is 0.
     // It is possible that a block is filled, no need to assert that this is not the case.
-    // TODO(AlonH): In the `else` case, assert that some block closed due to time.
+    // TODO(Arni): In the `else` case, assert that some block closed due to time.
 }
 
 fn assert_on_number_of_reverted_transactions_flow(
@@ -234,11 +232,9 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
 }
 
 pub fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
-    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
-    tx_hashes.to_vec()
+    validate_tx_count(tx_hashes, 1)
 }
 
-/// TODO(Itamar): Use this function in all tests built with TestScenario struct.
 #[track_caller]
 pub fn validate_tx_count(
     tx_hashes: &[TransactionHash],

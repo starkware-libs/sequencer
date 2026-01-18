@@ -472,11 +472,13 @@ pub struct BlockInfo {
     #[prost(message, optional, tag = "5")]
     pub l2_gas_price_fri: ::core::option::Option<Uint128>,
     #[prost(message, optional, tag = "6")]
-    pub l1_gas_price_wei: ::core::option::Option<Uint128>,
+    pub l1_gas_price_fri: ::core::option::Option<Uint128>,
     #[prost(message, optional, tag = "7")]
-    pub l1_data_gas_price_wei: ::core::option::Option<Uint128>,
+    pub l1_data_gas_price_fri: ::core::option::Option<Uint128>,
     #[prost(message, optional, tag = "8")]
-    pub eth_to_fri_rate: ::core::option::Option<Uint128>,
+    pub l1_gas_price_wei: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "9")]
+    pub l1_data_gas_price_wei: ::core::option::Option<Uint128>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -490,21 +492,23 @@ pub struct ProposalFin {
     /// Identifies a Starknet block based on the content streamed in the proposal.
     #[prost(message, optional, tag = "1")]
     pub proposal_commitment: ::core::option::Option<Hash>,
+    /// Number of executed transactions in the proposal.
+    #[prost(uint64, tag = "2")]
+    pub executed_transaction_count: u64,
 }
 /// Network format:
 /// 1. First message is ProposalInit
-/// 2. Last message is ProposalFin
+/// 2. block_info is sent once
+/// 3. Last message is ProposalFin
 ///
 /// Empty block - no other messages sent.
 ///
 /// Block with transactions:
-/// 3. block_info is sent once
 /// 4. transactions is sent repeatedly
-/// 5. executed_transaction_count is sent once
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProposalPart {
-    #[prost(oneof = "proposal_part::Message", tags = "1, 2, 3, 4, 5")]
+    #[prost(oneof = "proposal_part::Message", tags = "1, 2, 3, 4")]
     pub message: ::core::option::Option<proposal_part::Message>,
 }
 /// Nested message and enum types in `ProposalPart`.
@@ -520,8 +524,6 @@ pub mod proposal_part {
         BlockInfo(super::BlockInfo),
         #[prost(message, tag = "4")]
         Transactions(super::TransactionBatch),
-        #[prost(uint64, tag = "5")]
-        ExecutedTransactionCount(u64),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -968,6 +970,54 @@ pub mod mempool_transaction {
 pub struct MempoolTransactionBatch {
     #[prost(message, repeated, tag = "1")]
     pub transactions: ::prost::alloc::vec::Vec<MempoolTransaction>,
+}
+/// A Merkle proof consisting of sibling hashes used to verify that a leaf belongs to a Merkle tree.
+/// Each sibling hash is 32 bytes (SHA-256). The siblings are ordered from leaf level to root level.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MerkleProof {
+    /// The sibling hashes needed to reconstruct the path from the leaf to the root.
+    /// Each hash is 32 bytes.
+    #[prost(message, repeated, tag = "1")]
+    pub siblings: ::prost::alloc::vec::Vec<Hash256>,
+}
+/// A single unit in the Propeller protocol containing a shard of erasure-coded data
+/// along with cryptographic proofs for verification.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PropellerUnit {
+    /// The actual data shard (erasure-coded fragment of the original message).
+    #[prost(bytes = "vec", tag = "1")]
+    pub shard: ::prost::alloc::vec::Vec<u8>,
+    /// The position of this shard in the erasure coding scheme.
+    #[prost(uint64, tag = "2")]
+    pub index: u64,
+    /// The Merkle root of all shards, used to verify shard integrity.
+    #[prost(message, optional, tag = "3")]
+    pub merkle_root: ::core::option::Option<Hash256>,
+    /// The Merkle proof that this shard belongs to the tree with the given root.
+    #[prost(message, optional, tag = "4")]
+    pub merkle_proof: ::core::option::Option<MerkleProof>,
+    /// The peer ID of the original publisher who created and signed this unit.
+    #[prost(message, optional, tag = "5")]
+    pub publisher: ::core::option::Option<PeerId>,
+    /// Cryptographic signature from the publisher over the merkle_root.
+    #[prost(bytes = "vec", tag = "6")]
+    pub signature: ::prost::alloc::vec::Vec<u8>,
+    /// TODO(AndrewL): consider re-naming channel
+    /// TODO(AndrewL): make it uint64 instead of uint32.
+    /// Logical channel identifier for multiplexing different message streams.
+    ///
+    /// TODO(AndrewL): CRITICAL: protect against replay attacks (maybe using a timestamp)
+    #[prost(uint32, tag = "7")]
+    pub channel: u32,
+}
+/// A batch of PropellerUnits for efficient transmission.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PropellerUnitBatch {
+    #[prost(message, repeated, tag = "1")]
+    pub batch: ::prost::alloc::vec::Vec<PropellerUnit>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

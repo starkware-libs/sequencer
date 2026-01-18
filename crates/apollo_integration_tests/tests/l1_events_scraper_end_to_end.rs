@@ -8,7 +8,6 @@ use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
-use mockall::predicate::eq;
 use mockall::Sequence;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
@@ -19,6 +18,23 @@ use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1Ha
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
+
+/// Checks if two lists of events are almost equal, allowing for a small margin in scrape time.
+fn check_events_match(expected: &[Event], actual: &[Event]) -> bool {
+    if expected.len() != actual.len() {
+        println!("Expected: {expected:?}\nActual: {actual:?}");
+        return false;
+    }
+
+    let all_match =
+        expected.iter().zip(actual.iter()).all(|(expected, actual)| expected.almost_eq(actual));
+
+    if !all_match {
+        println!("Expected: {expected:?}\nActual: {actual:?}");
+    }
+
+    all_match
+}
 
 #[tokio::test]
 async fn scraper_end_to_end() {
@@ -137,15 +153,22 @@ async fn scraper_end_to_end() {
 
     let mut sequence = Sequence::new();
     // Expect first call to return all the events defined further down.
+    let expected_events_first_call =
+        [first_expected_log, second_expected_log, expected_cancel_message];
     l1_provider_client
         .expect_add_events()
         .once()
         .in_sequence(&mut sequence)
-        .with(eq(vec![first_expected_log, second_expected_log, expected_cancel_message]))
+        .withf(move |actual| check_events_match(&expected_events_first_call, actual))
         .returning(|_| Ok(()));
 
     // Expect second call to return nothing, no events left to scrape.
-    l1_provider_client.expect_add_events().once().in_sequence(&mut sequence).returning(|_| Ok(()));
+    l1_provider_client
+        .expect_add_events()
+        .once()
+        .in_sequence(&mut sequence)
+        .withf(move |actual| check_events_match(&[], actual))
+        .returning(|_| Ok(()));
 
     let l1_scraper_config = L1ScraperConfig {
         // Start scraping far enough back to capture all of the events created before.

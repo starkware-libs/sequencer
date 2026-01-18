@@ -7,6 +7,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia_storage::db_object::{
     DBObject,
     EmptyDeserializationContext,
+    EmptyKeyContext,
     HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationError};
@@ -16,16 +17,19 @@ use starknet_types_core::felt::Felt;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
-
 // Wrap the leaves types so that we can implement the [DBObject] trait differently in index
 // layout.
-#[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From, derive_more::Into,
+)]
 pub struct IndexLayoutContractState(pub ContractState);
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From)]
+#[derive(
+    Clone, Debug, Default, Eq, PartialEq, derive_more::AsRef, derive_more::From, derive_more::Into,
+)]
 pub struct IndexLayoutCompiledClassHash(pub CompiledClassHash);
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::From)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::From, derive_more::Into)]
 pub struct IndexLayoutStarknetStorageValue(pub StarknetStorageValue);
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
@@ -44,44 +48,32 @@ static CONTRACTS_TREE_PREFIX: LazyLock<[u8; 32]> =
 static CLASSES_TREE_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (*FIRST_AVAILABLE_PREFIX_FELT + Felt::ONE).to_bytes_be());
 
-// TODO(Ariel): Delete this enum and use `CommitmentType` instead.
-#[derive(Debug, PartialEq)]
-pub enum TrieType {
-    ContractsTrie,
-    ClassesTrie,
-    StorageTrie(ContractAddress),
-}
-
-impl TrieType {
-    fn db_prefix(&self) -> DbKeyPrefix {
-        match self {
-            Self::ContractsTrie => DbKeyPrefix::new((&CONTRACTS_TREE_PREFIX[..]).into()),
-            Self::ClassesTrie => DbKeyPrefix::new((&CLASSES_TREE_PREFIX[..]).into()),
-            Self::StorageTrie(contract_address) => {
-                let prefix = contract_address.to_bytes_be().to_vec();
-                DbKeyPrefix::new(prefix.into())
-            }
-        }
-    }
-}
-
-macro_rules! impl_has_static_prefix_for_index_layouts {
-    ($($ty:ty),* $(,)?) => {
+macro_rules! impl_has_static_prefix_empty_context {
+    ($($ty:ty => $prefix:expr),* $(,)?) => {
         $(
             impl HasStaticPrefix for $ty {
-                type KeyContext = TrieType;
-                fn get_static_prefix(key_context: &Self::KeyContext) -> DbKeyPrefix {
-                    key_context.db_prefix()
+                type KeyContext = EmptyKeyContext;
+                fn get_static_prefix(_key_context: &Self::KeyContext) -> DbKeyPrefix {
+                    DbKeyPrefix::new((&$prefix[..]).into())
                 }
             }
         )*
     };
 }
 
-impl_has_static_prefix_for_index_layouts! {
-    IndexLayoutContractState,
-    IndexLayoutCompiledClassHash,
-    IndexLayoutStarknetStorageValue,
+impl_has_static_prefix_empty_context! {
+    IndexLayoutContractState => CONTRACTS_TREE_PREFIX,
+    IndexLayoutCompiledClassHash => CLASSES_TREE_PREFIX,
+}
+
+impl HasStaticPrefix for IndexLayoutStarknetStorageValue {
+    type KeyContext = ContractAddress;
+
+    /// Returns the contract address, which is the storage trie prefix in index layout.
+    fn get_static_prefix(key_context: &Self::KeyContext) -> DbKeyPrefix {
+        let prefix = key_context.to_bytes_be().to_vec();
+        DbKeyPrefix::new(prefix.into())
+    }
 }
 
 macro_rules! impl_leaf_for_wrappers {

@@ -3,20 +3,20 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::db_object::EmptyKeyContext;
+use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, Storage};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
-use crate::db::db_layout::NodeLayout;
 use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
-use crate::db::forest_trait::{ForestReader, ForestWriter};
-use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
+use crate::db::forest_trait::{read_forest, ForestReader, ForestWriter};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -33,9 +33,36 @@ pub struct FactsNodeLayout {}
 impl<'a, L: Leaf> NodeLayout<'a, L> for FactsNodeLayout {
     type NodeData = HashOutput;
 
+    type NodeDbObject = FactDbFilledNode<L>;
+
     type DeserializationContext = FactNodeDeserializationContext;
 
     type SubTree = FactsSubTree<'a>;
+
+    fn get_db_object<LeafBase: Leaf + Into<L>>(
+        _node_index: NodeIndex,
+        key_context: &<L as HasStaticPrefix>::KeyContext,
+        filled_node: FilledNode<LeafBase, HashOutput>,
+    ) -> (DbKey, Self::NodeDbObject) {
+        let db_filled_node = Self::convert_node_data_and_leaf(filled_node);
+
+        let suffix = &db_filled_node.hash.0.to_bytes_be();
+        let key = db_filled_node.get_db_key(key_context, suffix);
+
+        (key, db_filled_node)
+    }
+}
+
+impl NodeLayoutFor<StarknetStorageValue> for FactsNodeLayout {
+    type DbLeaf = StarknetStorageValue;
+}
+
+impl NodeLayoutFor<ContractState> for FactsNodeLayout {
+    type DbLeaf = ContractState;
+}
+
+impl NodeLayoutFor<CompiledClassHash> for FactsNodeLayout {
+    type DbLeaf = CompiledClassHash;
 }
 
 pub struct FactsDb<S: Storage> {
@@ -69,33 +96,15 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
-        let (contracts_trie, original_contracts_trie_leaves) = create_contracts_trie(
+        read_forest::<S, FactsNodeLayout>(
             &mut self.storage,
-            context.0.contracts_trie_root_hash,
-            forest_sorted_indices.contracts_trie_sorted_indices,
-        )
-        .await?;
-        let storage_tries = create_storage_tries(
-            &mut self.storage,
+            context,
             storage_updates,
-            &original_contracts_trie_leaves,
-            &config,
-            &forest_sorted_indices.storage_tries_sorted_indices,
-        )
-        .await?;
-        let classes_trie = create_classes_trie(
-            &mut self.storage,
             classes_updates,
-            context.0.classes_trie_root_hash,
-            &config,
-            forest_sorted_indices.classes_trie_sorted_indices,
+            forest_sorted_indices,
+            config,
         )
-        .await?;
-
-        Ok((
-            OriginalSkeletonForest { classes_trie, contracts_trie, storage_tries },
-            original_contracts_trie_leaves,
-        ))
+        .await
     }
 }
 
@@ -105,8 +114,8 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
         let mut serialized_forest = DbHashMap::new();
 
         // Storage tries.
-        for tree in filled_forest.storage_tries.values() {
-            serialized_forest.extend(tree.serialize(&EmptyKeyContext)?);
+        for (contract_address, tree) in &filled_forest.storage_tries {
+            serialized_forest.extend(tree.serialize(contract_address)?);
         }
 
         // Contracts and classes tries.

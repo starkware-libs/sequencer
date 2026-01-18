@@ -10,7 +10,7 @@ description = "Type definitions for Sierra to CASM compilation."
 workspace = true
 
 [features]
-testing = ["mockall"]
+testing = ["mockall", "starknet_api/testing"]
 
 [dependencies]
 apollo_infra.workspace = true

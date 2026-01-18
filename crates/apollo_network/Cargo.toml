@@ -16,7 +16,7 @@ apollo_network_types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
-derive_more.workspace = true
+derive_more = { workspace = true, features = ["display"] }
 futures.workspace = true
 lazy_static.workspace = true
 libp2p = { workspace = true, features = [

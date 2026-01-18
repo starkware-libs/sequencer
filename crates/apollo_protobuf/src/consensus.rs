@@ -93,10 +93,11 @@ pub struct ConsensusBlockInfo {
     pub builder: ContractAddress,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l2_gas_price_fri: GasPrice,
+    pub l1_gas_price_fri: GasPrice,
+    pub l1_data_gas_price_fri: GasPrice,
+    // Keeping the wei prices for now, to use with L1 transactions.
     pub l1_gas_price_wei: GasPrice,
     pub l1_data_gas_price_wei: GasPrice,
-    /// The value of 1 ETH in FRI.
-    pub eth_to_fri_rate: u128,
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
@@ -127,6 +128,8 @@ pub struct ProposalFin {
     /// The commitment identifying the proposed block.
     /// TODO(Matan): Consider changing the content ID to a signature.
     pub proposal_commitment: ProposalCommitment,
+    /// Number of executed transactions in the proposal.
+    pub executed_transaction_count: u64,
 }
 
 /// A part of the proposal.
@@ -140,8 +143,6 @@ pub enum ProposalPart {
     BlockInfo(ConsensusBlockInfo),
     /// A part of the proposal that contains one or more transactions.
     Transactions(TransactionBatch),
-    /// Number of executed transactions in the proposal.
-    ExecutedTransactionCount(u64),
 }
 
 impl TryInto<ProposalInit> for ProposalPart {

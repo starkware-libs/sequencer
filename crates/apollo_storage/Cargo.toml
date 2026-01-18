@@ -8,6 +8,7 @@ description = "A storage implementation for a Starknet node."
 
 [features]
 testing = ["starknet_api/testing", "tempfile", "tower"]
+storage_cli = ["clap", "reqwest"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -19,6 +20,7 @@ byteorder.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+clap = { workspace = true, features = ["derive"], optional = true }
 human_bytes.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 integer-encoding.workspace = true
@@ -30,12 +32,14 @@ page_size.workspace = true
 papyrus_common.workspace = true
 parity-scale-codec.workspace = true
 primitive-types.workspace = true
+reqwest = { workspace = true, features = ["json"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core = { workspace = true, features = ["papyrus-serialization"] }
 starknet_api.workspace = true
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 tower = { workspace = true, optional = true }
 tracing = { workspace = true, features = ["log"] }
 validator = { workspace = true, features = ["derive"] }
@@ -73,3 +77,8 @@ workspace = true
 # Used in apollo_proc_macros for latency_histogram.
 [package.metadata.cargo-machete]
 ignored = ["papyrus_common"]
+
+
+[[bin]]
+name = "storage_cli"
+required-features = ["storage_cli"]

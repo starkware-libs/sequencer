@@ -10,9 +10,14 @@ description = "Implementation of the Propeller algorithm for the Starknet sequen
 testing = []
 
 [dependencies]
-
+libp2p.workspace = true
+reed-solomon-simd.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
+rstest.workspace = true
 
 
 [lints]

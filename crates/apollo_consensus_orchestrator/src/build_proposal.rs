@@ -25,7 +25,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, DateTime};
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::GasPrice;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -39,10 +39,11 @@ use tracing::{debug, info, trace, warn};
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
-    get_oracle_rate_and_prices,
+    get_l1_prices_in_fri_and_wei,
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
     GasPriceParams,
+    RetrospectiveBlockHashError,
     StreamSender,
 };
 
@@ -79,10 +80,8 @@ type BuildProposalResult<T> = Result<T, BuildProposalError>;
 pub(crate) enum BuildProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
-    #[error("State sync client error: {0}")]
-    StateSyncClientError(String),
-    #[error("State sync is not ready: block number {0} not found")]
-    StateSyncNotReady(BlockNumber),
+    #[error(transparent)]
+    RetrospectiveBlockHashError(#[from] RetrospectiveBlockHashError),
     #[error("Failed to send proposal part: {0}")]
     SendError(String),
     #[error("EthToStrkOracle error: {0}")]
@@ -151,34 +150,34 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         args.deps.clock.as_ref(),
     )
     .await;
-    let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
+    let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
         &args.gas_price_params,
     )
     .await;
-
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
         timestamp,
         builder: args.builder_address,
         l1_da_mode: args.l1_da_mode,
         l2_gas_price_fri: args.l2_gas_price,
-        l1_gas_price_wei: l1_prices.base_fee_per_gas,
-        l1_data_gas_price_wei: l1_prices.blob_fee,
-        eth_to_fri_rate,
+        l1_gas_price_wei: l1_prices_wei.l1_gas_price,
+        l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
+        l1_gas_price_fri: l1_prices_fri.l1_gas_price,
+        l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
+        args.deps.batcher.clone(),
         args.deps.state_sync_client.clone(),
         &block_info,
         args.deps.clock.as_ref(),
         args.retrospective_block_hash_deadline,
         args.retrospective_block_hash_retry_interval_millis,
     )
-    .await
-    .map_err(BuildProposalError::from)?;
+    .await?;
 
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
@@ -289,18 +288,10 @@ async fn get_proposal_content(
                     }
                 }
 
-                let final_n_executed_txs_u64 = final_n_executed_txs
+                let executed_transaction_count: u64 = final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                args.stream_sender
-                    .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs_u64))
-                    .await
-                    .map_err(|e| {
-                        BuildProposalError::SendError(format!(
-                            "Failed to send executed transaction count: {e:?}"
-                        ))
-                    })?;
-                let fin = ProposalFin { proposal_commitment };
+                let fin = ProposalFin { proposal_commitment, executed_transaction_count };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
                     BuildProposalError::SendError(format!("Failed to send proposal fin: {e:?}"))
