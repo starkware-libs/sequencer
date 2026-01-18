@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use ethnum::U256;
@@ -15,18 +16,18 @@ use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 
-use super::filled_tree::node_serde::PatriciaPrefix;
 use super::node_data::inner_node::{EdgePathLength, PathToBottom};
 use super::node_data::leaf::Leaf;
 use super::original_skeleton_tree::node::OriginalSkeletonNode;
 use super::types::{NodeIndex, SubTreeHeight};
 use crate::felt::u256_from_felt;
 use crate::patricia_merkle_tree::errors::TypesError;
-use crate::patricia_merkle_tree::filled_tree::node_serde::FACT_LAYOUT_DB_KEY_SEPARATOR;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::node_data::leaf::LeafWithEmptyKeyContext;
 
 const TEST_PREFIX: &[u8] = &[0];
+pub const COLON_DB_KEY_SEPARATOR: &[u8] = b":";
+const PATRICIA_NODE_PREFIX: DbKeyPrefix = DbKeyPrefix::new(Cow::Borrowed(b"patricia_node"));
 
 #[derive(Debug, PartialEq, Clone, Copy, Default, Eq)]
 pub struct MockLeaf(pub Felt);
@@ -39,7 +40,7 @@ impl HasStaticPrefix for MockLeaf {
 }
 
 impl DBObject for MockLeaf {
-    const DB_KEY_SEPARATOR: &[u8] = FACT_LAYOUT_DB_KEY_SEPARATOR;
+    const DB_KEY_SEPARATOR: &[u8] = COLON_DB_KEY_SEPARATOR;
 
     type DeserializeContext = EmptyDeserializationContext;
 
@@ -120,17 +121,13 @@ pub fn create_32_bytes_entry(simple_val: u128) -> [u8; 32] {
 }
 
 fn create_inner_node_patricia_key(val: Felt) -> DbKey {
-    create_db_key(
-        PatriciaPrefix::InnerNode.into(),
-        FACT_LAYOUT_DB_KEY_SEPARATOR,
-        &val.to_bytes_be(),
-    )
+    create_db_key(PATRICIA_NODE_PREFIX, COLON_DB_KEY_SEPARATOR, &val.to_bytes_be())
 }
 
 pub fn create_leaf_patricia_key<L: LeafWithEmptyKeyContext>(val: u128) -> DbKey {
     create_db_key(
         L::get_static_prefix(&EmptyKeyContext),
-        FACT_LAYOUT_DB_KEY_SEPARATOR,
+        COLON_DB_KEY_SEPARATOR,
         &U256::from(val).to_be_bytes(),
     )
 }
@@ -208,8 +205,8 @@ pub fn create_root_edge_entry(old_root: u128, subtree_height: SubTreeHeight) -> 
     let length = SubTreeHeight::ACTUAL_HEIGHT.0 - subtree_height.0;
     let new_root = old_root + u128::from(length);
     let key = create_db_key(
-        PatriciaPrefix::InnerNode.into(),
-        FACT_LAYOUT_DB_KEY_SEPARATOR,
+        PATRICIA_NODE_PREFIX,
+        COLON_DB_KEY_SEPARATOR,
         &Felt::from(new_root).to_bytes_be(),
     );
     let value = DbValue(

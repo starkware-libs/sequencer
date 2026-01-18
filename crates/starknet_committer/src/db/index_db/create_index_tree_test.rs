@@ -7,8 +7,11 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_functio
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_types_core::felt::Felt;
 
-use crate::db::create_original_skeleton_tests::case_helpers::CreateTreeCase;
-use crate::db::create_original_skeleton_tests::{create_tree_cases, test_create_original_skeleton};
+use crate::db::create_original_skeleton_tests::{
+    create_tree_cases,
+    test_create_original_skeleton,
+    CreateTreeCase,
+};
 use crate::db::index_db::test_utils::convert_facts_db_to_index_db;
 use crate::db::index_db::IndexNodeLayout;
 use crate::hash_function::hash::TreeHashFunctionImpl;
