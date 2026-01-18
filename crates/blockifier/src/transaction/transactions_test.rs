@@ -599,6 +599,8 @@ fn test_invoke_tx(
     #[case] mut expected_arguments: ExpectedResultTestInvokeTx,
     #[case] account_cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
+    #[values(ProofFacts::default(), ProofFacts::snos_proof_facts_for_testing())]
+    proof_facts: ProofFacts,
 ) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
@@ -614,6 +616,7 @@ fn test_invoke_tx(
         sender_address: account_contract_address,
         calldata: Calldata(Arc::clone(&calldata.0)),
         resource_bounds,
+        proof_facts,
     });
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
