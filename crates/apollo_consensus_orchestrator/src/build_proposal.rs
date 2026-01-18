@@ -43,6 +43,7 @@ use crate::utils::{
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
     GasPriceParams,
+    PreviousBlockInfo,
     RetrospectiveBlockHashError,
     StreamSender,
 };
@@ -62,7 +63,7 @@ pub(crate) struct ProposalBuildArguments {
     pub l2_gas_price: GasPrice,
     pub builder_address: ContractAddress,
     pub cancel_token: CancellationToken,
-    pub previous_block_info: Option<ConsensusBlockInfo>,
+    pub previous_block_info: Option<PreviousBlockInfo>,
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
