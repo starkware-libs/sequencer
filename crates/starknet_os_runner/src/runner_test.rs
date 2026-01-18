@@ -1,9 +1,12 @@
+use std::path::PathBuf;
+
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::invoke_tx;
+use starknet_api::test_utils::privacy_transaction::create_signed_invoke_v3;
 use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
@@ -73,4 +76,35 @@ async fn test_run_os_with_balance_of_transaction(sepolia_runner_factory: RpcRunn
 
     // Verify execution succeeds.
     runner.run_os(vec![(tx, tx_hash)]).await.expect("run_os should succeed");
+}
+
+/// Integration test that runs a privacy pool transaction and saves the Cairo PIE.
+///
+/// Uses a pre-signed privacy transaction from `starknet_api::test_utils::privacy_transaction`.
+///
+/// # Running
+///
+/// ```bash
+/// SEPOLIA_NODE_URL=https://your-rpc-node cargo test -p starknet_os_runner test_run_os_with_privacy_transaction -- --ignored
+/// ```
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore] // Requires RPC access
+async fn test_run_os_with_privacy_transaction(sepolia_runner_factory: RpcRunnerFactory) {
+    let block_number = fetch_sepolia_block_number().await;
+
+    // Create privacy transaction from pre-signed constants.
+    let invoke_v3 = create_signed_invoke_v3();
+    let tx = InvokeTransaction::V3(invoke_v3);
+    let tx_hash =
+        Transaction::Invoke(tx.clone()).calculate_transaction_hash(&ChainId::Sepolia).unwrap();
+
+    let runner = sepolia_runner_factory.create_runner(block_number);
+    let output = runner.run_os(vec![(tx, tx_hash)]).await.expect("run_os should succeed");
+
+    // Save Cairo PIE to resources folder.
+    let pie_path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources/privacy_tx_cairo_pie.zip");
+    output.cairo_pie.write_zip_file(&pie_path, true).expect("Failed to save Cairo PIE");
+    println!("Cairo PIE saved to: {}", pie_path.display());
 }
