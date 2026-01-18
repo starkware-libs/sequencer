@@ -101,7 +101,7 @@ jobs:
   system_test_hybrid:
     needs:
       - build_docker_images
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=1.5
     timeout-minutes: 45
     steps:
       - name: Checkout repository
