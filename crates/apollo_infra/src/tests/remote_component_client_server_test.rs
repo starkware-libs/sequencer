@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::fmt::Debug;
 use std::future::ready;
 use std::net::{Ipv4Addr, SocketAddr};
@@ -5,18 +6,24 @@ use std::sync::Arc;
 
 use apollo_infra_utils::run_until::run_until;
 use async_trait::async_trait;
-// todo(victork): finalise migration to hyper 1.x
-use http_1::StatusCode;
-use hyper::body::to_bytes;
-use hyper::header::CONTENT_TYPE;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Client, Request, Response, Server, Uri};
+// TODO(victork): finalise migration to hyper 1.x
+use bytes::Bytes;
+use http_1::header::CONTENT_TYPE;
+use http_1::{StatusCode, Uri};
+use http_body_util::{BodyExt, Full};
+use hyper_1::body::Incoming;
+use hyper_1::service::service_fn;
+use hyper_1::{Request, Response};
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto::Builder as Http2ServerBuilder;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_types_core::felt::Felt;
+use tokio::net::TcpListener;
 use tokio::sync::mpsc::channel;
 use tokio::sync::{Mutex, Semaphore};
 use tokio::task;
@@ -140,25 +147,32 @@ where
     T: Serialize + DeserializeOwned + Debug + Send + Sync + 'static + Clone,
 {
     let socket = available_ports_factory(index).get_next_local_host_socket();
+    // hyper 1.x no longer has hyper::Error; we use Infallible since handler always returns Ok.
     task::spawn(async move {
         async fn handler<T>(
-            _http_request: Request<Body>,
+            _http_request: Request<Incoming>,
             body: T,
-        ) -> Result<Response<Body>, hyper::Error>
+        ) -> Result<Response<Full<Bytes>>, Infallible>
         where
             T: Serialize + DeserializeOwned + Debug,
         {
             Ok(Response::builder()
-                .status(hyper::StatusCode::BAD_REQUEST)
-                .body(Body::from(SerdeWrapper::new(body).wrapper_serialize().unwrap()))
+                .status(StatusCode::BAD_REQUEST)
+                .body(Full::new(Bytes::from(SerdeWrapper::new(body).wrapper_serialize().unwrap())))
                 .unwrap())
         }
 
-        let make_svc = make_service_fn(|_conn| {
+        let listener = TcpListener::bind(&socket).await.unwrap();
+        let (stream, _) = listener.accept().await.unwrap();
+        let io = TokioIo::new(stream);
+        let service = service_fn(move |req| {
             let body = body.clone();
-            async move { Ok::<_, hyper::Error>(service_fn(move |req| handler(req, body.clone()))) }
+            async move { handler(req, body).await }
         });
-        Server::bind(&socket).serve(make_svc).await.unwrap();
+        let _ = Http2ServerBuilder::new(TokioExecutor::new())
+            .http2()
+            .serve_connection(io, service)
+            .await;
     });
 
     // Ensure the server starts running.
@@ -455,15 +469,19 @@ async fn faulty_client_setup() {
             let http_request = Request::post(uri)
                 .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
                 .header(REQUEST_ID_HEADER, RequestId::generate().to_string())
-                .body(Body::from(SerdeWrapper::new(component_request).wrapper_serialize().unwrap()))
+                .body(Full::new(Bytes::from(
+                    SerdeWrapper::new(component_request).wrapper_serialize().unwrap(),
+                )))
                 .unwrap();
-            let http_response = Client::new().request(http_request).await.unwrap();
+            let http_response = Client::builder(TokioExecutor::new())
+                .build_http()
+                .request(http_request)
+                .await
+                .unwrap();
             let status_code = http_response.status();
-            let body_bytes = to_bytes(http_response.into_body()).await.unwrap();
+            let body_bytes = http_response.into_body().collect().await.unwrap().to_bytes();
             let response = SerdeWrapper::<ServerError>::wrapper_deserialize(&body_bytes).unwrap();
-            // Convert hyper::StatusCode to http_1::StatusCode for ClientError
-            let status_code_1 = StatusCode::from_u16(status_code.as_u16()).unwrap();
-            Err(ClientError::ResponseError(status_code_1, response))
+            Err(ClientError::ResponseError(status_code, response))
         }
     }
     let faulty_a_client = FaultyAClient { socket: a_socket };
@@ -515,20 +533,24 @@ async fn retry_request() {
     task::spawn(async move {
         let should_send_ok = Arc::new(Mutex::new(false));
         async fn handler(
-            _http_request: Request<Body>,
+            _http_request: Request<Incoming>,
             should_send_ok: Arc<Mutex<bool>>,
-        ) -> Result<Response<Body>, hyper::Error> {
+        ) -> Result<Response<Full<Bytes>>, Infallible> {
             let mut should_send_ok = should_send_ok.lock().await;
             let body = ComponentAResponse::AGetValue(VALID_VALUE_A);
             let ret = if *should_send_ok {
                 Response::builder()
-                    .status(hyper::StatusCode::OK)
-                    .body(Body::from(SerdeWrapper::new(body).wrapper_serialize().unwrap()))
+                    .status(StatusCode::OK)
+                    .body(Full::new(Bytes::from(
+                        SerdeWrapper::new(body).wrapper_serialize().unwrap(),
+                    )))
                     .unwrap()
             } else {
                 Response::builder()
-                    .status(hyper::StatusCode::IM_A_TEAPOT)
-                    .body(Body::from(SerdeWrapper::new(body).wrapper_serialize().unwrap()))
+                    .status(StatusCode::IM_A_TEAPOT)
+                    .body(Full::new(Bytes::from(
+                        SerdeWrapper::new(body).wrapper_serialize().unwrap(),
+                    )))
                     .unwrap()
             };
             *should_send_ok = !*should_send_ok;
@@ -536,14 +558,22 @@ async fn retry_request() {
             Ok(ret)
         }
 
-        let make_svc = make_service_fn(|_conn| {
+        let listener = TcpListener::bind(&socket).await.unwrap();
+        loop {
+            let Ok((stream, _)) = listener.accept().await else { continue };
+            let io = TokioIo::new(stream);
             let should_send_ok = should_send_ok.clone();
-            async move {
-                Ok::<_, hyper::Error>(service_fn(move |req| handler(req, should_send_ok.clone())))
-            }
-        });
-
-        Server::bind(&socket).serve(make_svc).await.unwrap();
+            let service = service_fn(move |req| {
+                let should_send_ok = should_send_ok.clone();
+                async move { handler(req, should_send_ok).await }
+            });
+            tokio::spawn(async move {
+                let _ = Http2ServerBuilder::new(TokioExecutor::new())
+                    .http2()
+                    .serve_connection(io, service)
+                    .await;
+            });
+        }
     });
     // Todo(uriel): Get rid of this
     // Ensure the server starts running.
