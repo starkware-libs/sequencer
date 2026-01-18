@@ -8,12 +8,15 @@
 // gcloud storage cp LOCAL_FILE gs://committer-testing-artifacts/NEW_PREFIX/tree_flow_inputs.json).
 
 use std::collections::HashMap;
+use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use starknet_api::core::ContractAddress;
-use starknet_committer::block_committer::input::StarknetStorageValue;
+use starknet_api::hash::HashOutput;
+use starknet_committer::block_committer::input::{Input, StarknetStorageValue};
 use starknet_committer::db::external_test_utils::tree_computation_flow;
 use starknet_committer::db::facts_db::db::FactsNodeLayout;
+use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use starknet_committer_and_os_cli::committer_cli::commands::commit;
@@ -22,14 +25,39 @@ use starknet_committer_and_os_cli::committer_cli::parse_input::read::parse_input
 use starknet_committer_and_os_cli::committer_cli::tests::parse_from_python::TreeFlowInput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia_storage::map_storage::MapStorage;
 
 const CONCURRENCY_MODE: bool = true;
 const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../test_inputs/tree_flow_inputs.json");
 const FLOW_TEST_INPUT: &str = include_str!("../test_inputs/committer_flow_inputs.json");
 const OUTPUT_PATH: &str = "benchmark_output.txt";
+const COMMITTER_FLOW_N_TIMES: usize = 100;
+const TREE_COMPUTATION_FLOW_N_TIMES: usize = 100;
+const MEASUREMENT_TIME: Duration = Duration::from_secs(200);
+
+/// Runs the tree computation flow sequentially for smoother results.
+async fn repeat_tree_computation_flow(
+    leaf_modifications: LeafModifications<StarknetStorageValue>,
+    storage: &MapStorage,
+    root_hash: HashOutput,
+    config: OriginalSkeletonTrieConfig,
+    contract_address: &ContractAddress,
+    n_times: usize,
+) {
+    for _ in 0..n_times {
+        tree_computation_flow::<StarknetStorageValue, FactsNodeLayout, TreeHashFunctionImpl>(
+            leaf_modifications.clone(),
+            &mut MapStorage(storage.0.clone()),
+            root_hash,
+            config.clone(),
+            contract_address,
+        )
+        .await;
+    }
+}
 
 pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
-    let TreeFlowInput { leaf_modifications, mut storage, root_hash } =
+    let TreeFlowInput { leaf_modifications, storage, root_hash } =
         serde_json::from_str(SINGLE_TREE_FLOW_INPUT).unwrap();
     let runtime = match CONCURRENCY_MODE {
         true => tokio::runtime::Builder::new_multi_thread().build().unwrap(),
@@ -47,21 +75,30 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         benchmark.iter_batched(
             || leaf_modifications.clone(),
             |leaf_modifications_input| {
-                runtime.block_on(tree_computation_flow::<
-                    StarknetStorageValue,
-                    FactsNodeLayout,
-                    TreeHashFunctionImpl,
-                >(
+                runtime.block_on(repeat_tree_computation_flow(
                     leaf_modifications_input,
-                    &mut storage,
+                    &storage,
                     root_hash,
                     OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
                     &dummy_contract_address,
+                    TREE_COMPUTATION_FLOW_N_TIMES,
                 ));
             },
             BatchSize::LargeInput,
         )
     });
+}
+
+/// Runs the commit flow sequentially for smoother results.
+async fn repeat_commit(
+    input: Input<FactsDbInitialRead>,
+    output_path: String,
+    storage: MapStorage,
+    n_times: usize,
+) {
+    for _ in 0..n_times {
+        commit(input.clone(), output_path.clone(), MapStorage(storage.0.clone())).await;
+    }
 }
 
 pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
@@ -81,12 +118,16 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
             runtime.block_on({
                 let CommitterFactsDbInputImpl { input, storage, .. } =
                     parse_input(committer_input_string).expect("Failed to parse the given input.");
-                // Set the given log level if handle is passed.
-                commit(input, OUTPUT_PATH.to_owned(), storage)
+                // Run the committer flow several times times to smooth out the benchmark.
+                repeat_commit(input, OUTPUT_PATH.to_owned(), storage, COMMITTER_FLOW_N_TIMES)
             });
         })
     });
 }
 
-criterion_group!(benches, single_tree_flow_benchmark, full_committer_flow_benchmark);
+criterion_group!(
+    name = benches;
+    config = Criterion::default().measurement_time(MEASUREMENT_TIME);
+    targets = single_tree_flow_benchmark, full_committer_flow_benchmark
+);
 criterion_main!(benches);
