@@ -1602,7 +1602,7 @@
   "components.proof_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 150
+    "value": 15
   },
   "components.proof_manager.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
@@ -3009,7 +3009,11 @@
     "privacy": "Public",
     "value": 8082
   },
-<<<<<<< HEAD
+  "native_classes_whitelist": {
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
+    "privacy": "TemporaryValue",
+    "value": "[]"
+  },
   "proof_manager_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -3020,14 +3024,6 @@
     "privacy": "Public",
     "value": "/data/proofs"
   },
-||||||| 2542eac07b
-=======
-  "native_classes_whitelist": {
-    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
-    "privacy": "TemporaryValue",
-    "value": "[]"
-  },
->>>>>>> origin/main-v0.14.1-committer
   "recorder_url": {
     "description": "The URL of the Pythonic cende_recorder",
     "privacy": "TemporaryValue",
