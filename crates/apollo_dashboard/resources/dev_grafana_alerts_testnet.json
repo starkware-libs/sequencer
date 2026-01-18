@@ -893,7 +893,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3",
+      "severity": "$$$_BATCHED_TRANSACTIONS_STUCK_$$$",
       "observer_applicable": "false"
     },
     {
@@ -921,7 +921,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "$$$_BATCHED_TRANSACTIONS_STUCK_LONG_TIME_$$$",
       "observer_applicable": "false"
     },
     {
