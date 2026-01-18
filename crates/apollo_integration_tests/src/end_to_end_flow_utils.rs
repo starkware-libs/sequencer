@@ -21,7 +21,7 @@ use crate::utils::{
 pub struct EndToEndFlowArgs {
     pub test_identifier: TestIdentifier,
     pub instance_indices: [u16; 3],
-    pub test_scenario: TestScenario,
+    pub test_scenario: EndToEndTestScenario,
     pub block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
     pub expecting_full_blocks: bool,
     pub expecting_reverted_transactions: bool,
@@ -31,7 +31,7 @@ pub struct EndToEndFlowArgs {
 impl EndToEndFlowArgs {
     pub fn new(
         test_identifier: TestIdentifier,
-        test_scenario: TestScenario,
+        test_scenario: EndToEndTestScenario,
         block_max_capacity_gas: GasAmount,
     ) -> Self {
         Self {
@@ -113,8 +113,11 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     let mut total_expected_batched_txs_count = 0;
 
     // Build multiple heights to ensure heights are committed.
-    let TestScenario { create_rpc_txs_fn, create_l1_to_l2_messages_args_fn, test_tx_hashes_fn } =
-        test_scenario;
+    let EndToEndTestScenario {
+        create_rpc_txs_fn,
+        create_l1_to_l2_messages_args_fn,
+        test_tx_hashes_fn,
+    } = test_scenario;
 
     // Create and send transactions.
     // TODO(Arni): move send messages to l2 into [run_test_scenario].
@@ -169,7 +172,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     );
 }
 
-pub struct TestScenario {
+pub struct EndToEndTestScenario {
     pub create_rpc_txs_fn: CreateRpcTxsFn,
     pub create_l1_to_l2_messages_args_fn: CreateL1ToL2MessagesArgsFn,
     // TODO(Arni): replace with an optional apply shuffle to the tx hashes + a length assertion

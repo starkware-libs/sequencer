@@ -3,7 +3,7 @@ use apollo_integration_tests::end_to_end_flow_utils::{
     end_to_end_flow,
     test_single_tx,
     EndToEndFlowArgs,
-    TestScenario,
+    EndToEndTestScenario,
 };
 use apollo_integration_tests::utils::create_l1_to_l2_messages_args;
 use blockifier::bouncer::BouncerWeights;
@@ -23,8 +23,8 @@ async fn l1_to_l2_message_flow() {
     .await
 }
 
-fn create_test_scenarios() -> TestScenario {
-    TestScenario {
+fn create_test_scenarios() -> EndToEndTestScenario {
+    EndToEndTestScenario {
         create_rpc_txs_fn: |_| vec![],
         create_l1_to_l2_messages_args_fn: |tx_generator| {
             create_l1_to_l2_messages_args(tx_generator, 1, false)

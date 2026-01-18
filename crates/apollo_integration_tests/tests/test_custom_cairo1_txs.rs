@@ -3,7 +3,7 @@ use apollo_integration_tests::end_to_end_flow_utils::{
     end_to_end_flow,
     validate_tx_count,
     EndToEndFlowArgs,
-    TestScenario,
+    EndToEndTestScenario,
 };
 use apollo_integration_tests::utils::ACCOUNT_ID_0 as CAIRO1_ACCOUNT_ID;
 use blockifier::bouncer::BouncerWeights;
@@ -39,8 +39,8 @@ async fn custom_cairo1_txs() {
     .await
 }
 
-fn create_custom_cairo1_txs_scenario() -> TestScenario {
-    TestScenario {
+fn create_custom_cairo1_txs_scenario() -> EndToEndTestScenario {
+    EndToEndTestScenario {
         create_rpc_txs_fn: create_custom_cairo1_test_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, CUSTOM_INVOKE_TX_COUNT),
