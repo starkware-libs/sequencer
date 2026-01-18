@@ -10,6 +10,7 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
+use starknet_api::transaction::fields::{Proof, ProofFacts};
 
 use crate::consensus::{
     ConsensusBlockInfo,
@@ -99,11 +100,26 @@ fn convert_block_info_to_vec_u8_and_back() {
     assert_eq!(block_info, res_data);
 }
 
+// Tests TransactionBatch byte serialization for consensus p2p communication.
+//
+// Creates a mixed batch containing:
+// 1. Random transaction (any type: Declare/Deploy/Invoke(with default proof fields)/L1Handler.
+// 2. InvokeV3 with client-side proving (with populated proof and proof_facts)
 #[test]
 fn convert_transaction_batch_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
     let mut transaction_batch = TransactionBatch::get_test_instance(&mut rng);
+
+    // Add InvokeV3 with client-side proving
+    let mut rpc_transaction = RpcInvokeTransactionV3::get_test_instance(&mut rng);
+    rpc_transaction.proof = Proof::proof_for_testing();
+    rpc_transaction.proof_facts = ProofFacts::snos_proof_facts_for_testing();
+
+    let consensus_tx_with_proof = ConsensusTransaction::RpcTransaction(RpcTransaction::Invoke(
+        RpcInvokeTransaction::V3(rpc_transaction),
+    ));
+    transaction_batch.transactions.push(consensus_tx_with_proof);
 
     add_gas_values_to_transaction(&mut transaction_batch.transactions);
 
