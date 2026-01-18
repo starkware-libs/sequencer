@@ -893,7 +893,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p1",
+      "severity": "$$$BATCHED_TRANSACTIONS_STUCK-SEVERITY$$$",
       "observer_applicable": "false"
     },
     {
