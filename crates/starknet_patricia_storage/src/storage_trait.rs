@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::future::Future;
 
 use serde::{Serialize, Serializer};
@@ -9,8 +9,14 @@ use starknet_types_core::felt::Felt;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Eq, PartialEq, Serialize)]
 pub struct DbValue(pub Vec<u8>);
+
+impl Debug for DbValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DbValue(0x{})", hex::encode(&self.0))
+    }
+}
 
 pub type DbHashMap = HashMap<DbKey, DbValue>;
 

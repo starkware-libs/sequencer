@@ -87,8 +87,7 @@ impl SerializeConfig for BlockBuilderConfig {
     }
 }
 
-// TODO(amos): Add to Batcher config.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CommitmentManagerConfig {
     pub tasks_channel_size: usize,
     pub results_channel_size: usize,
@@ -103,6 +102,32 @@ impl Default for CommitmentManagerConfig {
             results_channel_size: DEFAULT_RESULTS_CHANNEL_SIZE,
             wait_for_tasks_channel: true,
         }
+    }
+}
+
+impl SerializeConfig for CommitmentManagerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "tasks_channel_size",
+                &self.tasks_channel_size,
+                "The size of the channel for sending tasks to the commitment manager.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "results_channel_size",
+                &self.results_channel_size,
+                "The size of the channel for receiving results from the commitment manager.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "wait_for_tasks_channel",
+                &self.wait_for_tasks_channel,
+                "If the task channel is full: if true, will wait for the tasks channel to be \
+                 available. If false, will panic.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
@@ -209,6 +234,7 @@ pub struct BatcherConfig {
     pub block_builder_config: BlockBuilderConfig,
     pub pre_confirmed_block_writer_config: PreconfirmedBlockWriterConfig,
     pub contract_class_manager_config: ContractClassManagerConfig,
+    pub commitment_manager_config: CommitmentManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
@@ -264,6 +290,10 @@ impl SerializeConfig for BatcherConfig {
             "contract_class_manager_config",
         ));
         dump.append(&mut prepend_sub_config_name(
+            self.commitment_manager_config.dump(),
+            "commitment_manager_config",
+        ));
+        dump.append(&mut prepend_sub_config_name(
             self.pre_confirmed_cende_config.dump(),
             "pre_confirmed_cende_config",
         ));
@@ -293,6 +323,7 @@ impl Default for BatcherConfig {
             block_builder_config: BlockBuilderConfig::default(),
             pre_confirmed_block_writer_config: PreconfirmedBlockWriterConfig::default(),
             contract_class_manager_config: ContractClassManagerConfig::default(),
+            commitment_manager_config: CommitmentManagerConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.

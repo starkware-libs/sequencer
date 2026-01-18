@@ -84,12 +84,8 @@ async def fetch_block_transactions(
                 max_retry_sleep_seconds,
             )
             logger.warning(
-                "Fetch block %s failed (%s/%s): %s. Retrying in %.2fs",
-                block_number,
-                attempt + 1,
-                retries + 1,
-                err,
-                sleep_seconds,
+                f"Fetch block {block_number} failed ({attempt + 1}/{retries + 1}): {err}. "
+                f"Retrying in {sleep_seconds:.2f}s"
             )
             await asyncio.sleep(sleep_seconds)
             attempt += 1
@@ -154,10 +150,8 @@ class TxTransformer:
 
         if tx_type == TxType.L1_HANDLER:
             logger.info(
-                "Observed L1_HANDLER tx=%s src_bn=%s src_ts=%s",
-                tx["transaction_hash"],
-                tx_data.source_block_number,
-                tx_data.source_timestamp,
+                f"Observed L1_HANDLER tx={tx['transaction_hash']} "
+                f"src_bn={tx_data.source_block_number} src_ts={tx_data.source_timestamp}"
             )
             l1_manager.set_new_tx(tx, tx_data.source_timestamp)
             shared.record_sent_tx(tx["transaction_hash"], tx_data.source_block_number)
@@ -192,12 +186,12 @@ class HttpForwarder:
             text = await response.text()
             tx_hash = tx["transaction_hash"]
             if response.status != requests.codes.ok:
-                logger.warning("Forward failed (%s): %s", response.status, text)
+                logger.warning(f"Forward failed ({response.status}): {text}")
                 shared.record_gateway_error(
                     tx_hash, response.status, text, block_number=source_block_number
                 )
             else:
-                logger.info("Forwarded tx: %s", tx_hash)
+                logger.info(f"Forwarded tx: {tx_hash}")
                 shared.record_sent_tx(tx_hash, source_block_number)
 
         if tx["type"] == TxType.DEPLOY_ACCOUNT:
@@ -269,10 +263,7 @@ class TransactionSenderService:
                     valid_txs = TxSelector.filter_blocked(all_txs, CONFIG.tx_filter.blocked_senders)
                     ordered_txs = TxSelector.deploy_account_first(valid_txs)
                     logger.info(
-                        "Block %s: total=%s valid=%s",
-                        block_number,
-                        len(all_txs),
-                        len(ordered_txs),
+                        f"Block {block_number}: total={len(all_txs)} valid={len(ordered_txs)}"
                     )
 
                     for tx in ordered_txs:
@@ -295,10 +286,8 @@ class TransactionSenderService:
                     )
                     if trigger:
                         logger.warning(
-                            "Resync triggered by tx %s at block %s: %s",
-                            trigger["tx_hash"],
-                            trigger["block_number"],
-                            trigger["reason"],
+                            f"Resync triggered by tx {trigger['tx_hash']} at block {trigger['block_number']}: "
+                            f"{trigger['reason']}"
                         )
                         await drain_queue()
                         block_number = await resync_executor.execute(trigger=trigger)
@@ -399,16 +388,11 @@ class TransactionSenderRunner:
                 shared.set_current_start_block(config.start_block)
 
                 logger.info(
-                    "TransactionSenderRunner starting: feeder_url=%s sequencer_url=%s start_block=%s end_block=%s "
-                    "timeout=%s retries=%s backoff=%s sleep=%s",
-                    config.feeder_url,
-                    config.sequencer_url,
-                    config.start_block,
-                    config.end_block,
-                    config.request_timeout_seconds,
-                    config.retries,
-                    config.retry_backoff_seconds,
-                    config.sleep_between_blocks_seconds,
+                    f"TransactionSenderRunner starting: feeder_url={config.feeder_url} "
+                    f"sequencer_url={config.sequencer_url} start_block={config.start_block} "
+                    f"end_block={config.end_block} timeout={config.request_timeout_seconds} "
+                    f"retries={config.retries} backoff={config.retry_backoff_seconds} "
+                    f"sleep={config.sleep_between_blocks_seconds}"
                 )
                 asyncio.run(self._service.run(config))
             finally:

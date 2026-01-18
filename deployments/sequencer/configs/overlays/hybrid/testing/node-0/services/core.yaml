@@ -9,7 +9,6 @@ config:
     batcher_config_block_builder_config_bouncer_config_block_max_capacity_state_diff_size: 4000
     batcher_config_block_builder_config_execute_config_n_workers: 28
     batcher_config_block_builder_config_proposer_idle_detection_delay_millis: 2000
-    batcher_config_contract_class_manager_config_cairo_native_run_config_native_classes_whitelist: "All"
     batcher_config_first_block_with_partial_block_hash_is_none: true
     batcher_config_first_block_with_partial_block_hash_block_number: 0
     batcher_config_first_block_with_partial_block_hash_block_hash: "0x0"
@@ -39,16 +38,16 @@ config:
     components_state_sync_url: sequencer-core-service
     consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_base: 9.1
     consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_max: 15.0
-    consensus_manager_config_context_config_build_proposal_margin_millis: 1000
-    consensus_manager_config_context_config_num_validators: 1
-    consensus_manager_config_context_config_override_eth_to_fri_rate_is_none: true
-    consensus_manager_config_context_config_override_eth_to_fri_rate: 0
-    consensus_manager_config_context_config_override_l1_data_gas_price_wei_is_none: true
-    consensus_manager_config_context_config_override_l1_data_gas_price_wei: 0
-    consensus_manager_config_context_config_override_l1_gas_price_wei_is_none: true
-    consensus_manager_config_context_config_override_l1_gas_price_wei: 0
-    consensus_manager_config_context_config_override_l2_gas_price_fri_is_none: true
-    consensus_manager_config_context_config_override_l2_gas_price_fri: 0
+    consensus_manager_config_context_config_static_config_build_proposal_margin_millis: 1000
+    consensus_manager_config_context_config_static_config_num_validators: 1
+    consensus_manager_config_context_config_dynamic_config_override_eth_to_fri_rate_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_eth_to_fri_rate: 0
+    consensus_manager_config_context_config_dynamic_config_override_l1_data_gas_price_fri_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l1_data_gas_price_fri: 0
+    consensus_manager_config_context_config_dynamic_config_override_l1_gas_price_fri_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l1_gas_price_fri: 0
+    consensus_manager_config_context_config_dynamic_config_override_l2_gas_price_fri_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l2_gas_price_fri: 0
     consensus_manager_config_network_config_advertised_multiaddr_is_none: true
     consensus_manager_config_network_config_advertised_multiaddr: ""
     consensus_manager_config_network_config_bootstrap_peer_multiaddr_is_none: true

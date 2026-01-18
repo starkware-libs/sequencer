@@ -46,7 +46,13 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
-derive_more.workspace = true
+derive_more = { workspace = true, features = [
+  "add",
+  "add_assign",
+  "display",
+  "from",
+  "into_iterator",
+] }
 indexmap.workspace = true
 itertools.workspace = true
 keccak.workspace = true

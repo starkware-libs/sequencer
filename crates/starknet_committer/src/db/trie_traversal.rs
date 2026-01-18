@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -33,10 +34,6 @@ use crate::block_committer::input::{
     ReaderConfig,
     StarknetStorageValue,
 };
-use crate::db::db_layout::NodeLayout;
-use crate::db::facts_db::create_facts_tree::create_original_skeleton_tree_and_get_previous_leaves;
-use crate::db::facts_db::db::FactsNodeLayout;
-use crate::db::facts_db::types::FactsSubTree;
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
@@ -57,7 +54,7 @@ macro_rules! log_trivial_modification {
 ///
 /// The function is generic over the DB layout (`Layout`), which controls the concrete node data
 /// (`Layout::NodeData`) and traversal strategy (via `Layout::SubTree`).
-pub async fn fetch_nodes<'a, L, Layout>(
+pub(crate) async fn fetch_nodes<'a, L, Layout>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
     subtrees: Vec<Layout::SubTree>,
     storage: &mut impl Storage,
@@ -69,7 +66,6 @@ pub async fn fetch_nodes<'a, L, Layout>(
 where
     L: Leaf,
     Layout: NodeLayout<'a, L>,
-    FilledNode<L, Layout::NodeData>: DBObject<DeserializeContext = Layout::DeserializationContext>,
 {
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
@@ -247,10 +243,7 @@ pub async fn get_roots_from_storage<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     subtrees: &[Layout::SubTree],
     storage: &mut impl Storage,
     key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>>
-where
-    FilledNode<L, Layout::NodeData>: DBObject<DeserializeContext = Layout::DeserializationContext>,
-{
+) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>> {
     let mut subtrees_roots = vec![];
     let db_keys: Vec<DbKey> = subtrees
         .iter()
@@ -262,7 +255,8 @@ where
     let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
     for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
         let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
-        let filled_node = FilledNode::deserialize(val, &subtree.get_root_context())?;
+        let filled_node =
+            Layout::NodeDbObject::deserialize(val, &subtree.get_root_context())?.into();
         subtrees_roots.push(filled_node);
     }
     Ok(subtrees_roots)
@@ -288,12 +282,27 @@ pub(crate) fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug
     Ok(())
 }
 
-pub async fn create_original_skeleton_tree<'a, L: Leaf>(
+/// Creates an original skeleton tree by fetching Patricia nodes from storage.
+///
+/// Traverses the trie from the root towards the modified leaves, collecting all nodes needed
+/// to construct the skeleton. If `previous_leaves` is provided, it will be populated with the
+/// previous values of modified leaves.
+///
+/// # Layout-Dependent Arguments
+///
+/// The following arguments depend on the `Layout` type parameter:
+/// - `storage`: storage to fetch nodes from, expected to match the serialization of
+///   `Layout::NodeDbObject`.
+/// - `key_context`: additional context that is needed to determine the DB key prefix used when
+///   fetching nodes from storage.
+/// - `leaf_modifications` and `previous_leaves`: Their leaf type `L` is constrained by `Layout`.
+pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
     config: &impl OriginalSkeletonTreeConfig,
     leaf_modifications: &LeafModifications<L>,
+    previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<OriginalSkeletonTreeImpl<'a>> {
     if sorted_leaf_indices.is_empty() {
@@ -305,30 +314,44 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf>(
             leaf_modifications,
             config,
         )?;
+        if let Some(previous_leaves) = previous_leaves {
+            previous_leaves.extend(
+                sorted_leaf_indices
+                    .get_indices()
+                    .iter()
+                    .map(|idx| (*idx, L::default()))
+                    .collect::<HashMap<NodeIndex, L>>(),
+            );
+        }
         return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
     }
-    let main_subtree = FactsSubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash);
+    let main_subtree =
+        Layout::SubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash.into());
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
-    fetch_nodes::<L, FactsNodeLayout>(
+    fetch_nodes::<L, Layout>(
         &mut skeleton_tree,
         vec![main_subtree],
         storage,
         leaf_modifications,
         config,
-        None,
+        previous_leaves,
         key_context,
     )
     .await?;
     Ok(skeleton_tree)
 }
 
-pub async fn create_storage_tries<'a>(
+pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
     storage: &mut impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>> {
+) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+where
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
     let mut storage_tries = HashMap::new();
     for (address, updates) in actual_storage_updates {
         let sorted_leaf_indices = storage_tries_sorted_indices
@@ -341,13 +364,16 @@ pub async fn create_storage_tries<'a>(
             config.warn_on_trivial_modifications(),
         );
 
-        let original_skeleton = create_original_skeleton_tree(
+        let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
             storage,
             contract_state.storage_root_hash,
             *sorted_leaf_indices,
             &config,
-            updates,
-            &EmptyKeyContext,
+            // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
+            // iterator over borrowed data so that the conversion below is costless.
+            &updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect(),
+            None,
+            address,
         )
         .await?;
         storage_tries.insert(*address, original_skeleton);
@@ -357,39 +383,61 @@ pub async fn create_storage_tries<'a>(
 
 /// Creates the contracts trie original skeleton.
 /// Also returns the previous contracts state of the modified contracts.
-pub async fn create_contracts_trie<'a>(
+pub async fn create_contracts_trie<'a, Layout: NodeLayoutFor<ContractState>>(
     storage: &mut impl Storage,
     contracts_trie_root_hash: HashOutput,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
-    Ok(create_original_skeleton_tree_and_get_previous_leaves(
+) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)>
+where
+    <Layout as NodeLayoutFor<ContractState>>::DbLeaf: HasStaticPrefix<KeyContext = EmptyKeyContext>,
+{
+    let config = OriginalSkeletonTrieConfig::new_for_contracts_trie();
+
+    let mut leaves = HashMap::new();
+    let skeleton_tree = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
         storage,
         contracts_trie_root_hash,
         contracts_trie_sorted_indices,
+        &config,
         &HashMap::new(),
-        &OriginalSkeletonTrieConfig::new_for_contracts_trie(),
+        Some(&mut leaves),
         &EmptyKeyContext,
     )
-    .await?)
+    .await?;
+
+    let leaves: HashMap<NodeIndex, ContractState> =
+        leaves.into_iter().map(|(idx, leaf)| (idx, leaf.into())).collect();
+
+    Ok((skeleton_tree, leaves))
 }
 
-pub async fn create_classes_trie<'a>(
+pub async fn create_classes_trie<'a, Layout: NodeLayoutFor<CompiledClassHash>>(
     storage: &mut impl Storage,
     actual_classes_updates: &LeafModifications<CompiledClassHash>,
     classes_trie_root_hash: HashOutput,
     config: &ReaderConfig,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {
+) -> ForestResult<OriginalSkeletonTreeImpl<'a>>
+where
+    <Layout as NodeLayoutFor<CompiledClassHash>>::DbLeaf:
+        HasStaticPrefix<KeyContext = EmptyKeyContext>,
+{
     let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
         config.warn_on_trivial_modifications(),
     );
 
-    Ok(create_original_skeleton_tree(
+    Ok(create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
         storage,
         classes_trie_root_hash,
         contracts_trie_sorted_indices,
         &config,
-        actual_classes_updates,
+        // TODO(Ariel): Change `actual_classes_updates` to be an iterator over borrowed data so
+        // that the conversion below is costless.
+        &actual_classes_updates
+            .iter()
+            .map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value)))
+            .collect(),
+        None,
         &EmptyKeyContext,
     )
     .await?)

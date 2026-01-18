@@ -1,4 +1,10 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
+use apollo_integration_tests::end_to_end_flow_utils::{
+    end_to_end_flow,
+    validate_tx_count,
+    EndToEndFlowArgs,
+    TestScenario,
+};
 use apollo_integration_tests::utils::ACCOUNT_ID_0 as CAIRO1_ACCOUNT_ID;
 use blockifier::bouncer::BouncerWeights;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -19,10 +25,6 @@ use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
-use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
-
-mod common;
-
 const CUSTOM_INVOKE_TX_COUNT: usize = 16;
 
 /// Test a wide range of different kinds of invoke transactions.
@@ -37,12 +39,12 @@ async fn custom_cairo1_txs() {
     .await
 }
 
-fn create_custom_cairo1_txs_scenario() -> Vec<TestScenario> {
-    vec![TestScenario {
+fn create_custom_cairo1_txs_scenario() -> TestScenario {
+    TestScenario {
         create_rpc_txs_fn: create_custom_cairo1_test_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, CUSTOM_INVOKE_TX_COUNT),
-    }]
+    }
 }
 
 /// Creates a set of transactions that test the Cairo 1.0 syscall functionality.

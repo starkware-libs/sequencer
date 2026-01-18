@@ -17,13 +17,13 @@ apollo_metrics.workspace = true
 async-trait.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
+starknet_patricia.workspace = true
 starknet_patricia_storage.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
 indexmap.workspace = true
-starknet_patricia.workspace = true
 tokio.workspace = true
 
 [lints]

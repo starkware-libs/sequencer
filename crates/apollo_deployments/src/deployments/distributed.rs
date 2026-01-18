@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap};
 
 use apollo_infra::component_client::DEFAULT_RETRIES;
 use apollo_node_config::component_config::ComponentConfig;
@@ -10,18 +10,19 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{
-    ComponentConfigInService,
-    InfraServicePort,
-    INFRA_PORT_PLACEHOLDER,
-};
+use crate::deployment_definitions::{ComponentConfigInService, RETRIES_FOR_L1_SERVICES};
 use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::utils::validate_ports;
+use crate::utils::InfraPortAllocator;
 
+<<<<<<< HEAD
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 11;
-
-pub const RETRIES_FOR_L1_SERVICES: usize = 0;
+||||||| 2542eac07b
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
+=======
+// Number of infra-required ports for a distributed node service distribution.
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
+>>>>>>> origin/main-v0.14.1-committer
 
 // TODO(Tsabary): define consts and functions whenever relevant.
 
@@ -51,6 +52,7 @@ impl From<DistributedNodeServiceName> for NodeService {
 
 impl GetComponentConfigs for DistributedNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
+<<<<<<< HEAD
         // TODO(Tsabary): style this code, i.e., no need to use a mutable map nor the for loop, and
         // can simply collect the required values.
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
@@ -92,6 +94,62 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             .component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
         let state_sync =
             Self::StateSync.component_config_pair(service_ports[&InfraServicePort::StateSync]);
+||||||| 2542eac07b
+        // TODO(Tsabary): style this code, i.e., no need to use a mutable map nor the for loop, and
+        // can simply collect the required values.
+        let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
+        match ports {
+            Some(ports) => {
+                // TODO(Nadin): This should compare against DistributedServicePort-specific infra
+                // ports, not all InfraServicePort variants.
+                validate_ports(&ports, InfraServicePort::iter().count());
+                for (service_port, port) in InfraServicePort::iter().zip(ports) {
+                    service_ports.insert(service_port, port);
+                }
+            }
+            None => {
+                for service_port in InfraServicePort::iter() {
+                    service_ports.insert(service_port, INFRA_PORT_PLACEHOLDER);
+                }
+            }
+        };
+
+        let batcher =
+            Self::Batcher.component_config_pair(service_ports[&InfraServicePort::Batcher]);
+        let class_manager = Self::ClassManager
+            .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
+        let committer =
+            Self::Committer.component_config_pair(service_ports[&InfraServicePort::Committer]);
+        let gateway =
+            Self::Gateway.component_config_pair(service_ports[&InfraServicePort::Gateway]);
+        let l1_gas_price_provider =
+            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
+        let l1_provider =
+            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1Provider]);
+        let mempool =
+            Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let sierra_compiler = Self::SierraCompiler
+            .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
+        let signature_manager = Self::SignatureManager
+            .component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
+        let state_sync =
+            Self::StateSync.component_config_pair(service_ports[&InfraServicePort::StateSync]);
+=======
+        let mut infra_port_allocator =
+            InfraPortAllocator::new(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM);
+        let batcher = Self::Batcher.component_config_pair(infra_port_allocator.next());
+        let class_manager = Self::ClassManager.component_config_pair(infra_port_allocator.next());
+        let committer = Self::Committer.component_config_pair(infra_port_allocator.next());
+        let gateway = Self::Gateway.component_config_pair(infra_port_allocator.next());
+        let l1_gas_price_provider = Self::L1.component_config_pair(infra_port_allocator.next());
+        let l1_provider = Self::L1.component_config_pair(infra_port_allocator.next());
+        let mempool = Self::Mempool.component_config_pair(infra_port_allocator.next());
+        let sierra_compiler =
+            Self::SierraCompiler.component_config_pair(infra_port_allocator.next());
+        let signature_manager =
+            Self::SignatureManager.component_config_pair(infra_port_allocator.next());
+        let state_sync = Self::StateSync.component_config_pair(infra_port_allocator.next());
+>>>>>>> origin/main-v0.14.1-committer
 
         let mut component_config_map = HashMap::<NodeService, ComponentConfig>::new();
         for inner_service_name in Self::iter() {

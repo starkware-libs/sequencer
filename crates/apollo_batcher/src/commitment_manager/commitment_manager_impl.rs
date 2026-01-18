@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
-use apollo_committer_types::committer_types::CommitBlockResponse;
-use apollo_committer_types::communication::SharedCommitterClient;
-use starknet_api::block::BlockNumber;
+use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
+use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
     PartialBlockHashComponents,
@@ -20,8 +20,8 @@ use crate::batcher::BatcherStorageReader;
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::commitment_manager::state_committer::{StateCommitter, StateCommitterTrait};
 use crate::commitment_manager::types::{
-    CommitmentTaskInput,
     CommitmentTaskOutput,
+    CommitterTaskInput,
     CommitterTaskOutput,
     FinalBlockCommitment,
 };
@@ -32,7 +32,7 @@ pub(crate) type ApolloCommitmentManager = CommitmentManager<StateCommitter>;
 #[allow(dead_code)]
 /// Encapsulates the block hash calculation logic.
 pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
-    pub(crate) tasks_sender: Sender<CommitmentTaskInput>,
+    pub(crate) tasks_sender: Sender<CommitterTaskInput>,
     pub(crate) results_receiver: Receiver<CommitterTaskOutput>,
     pub(crate) config: CommitmentManagerConfig,
     pub(crate) commitment_task_offset: BlockNumber,
@@ -52,7 +52,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     ) -> Self {
         let global_root_height = storage_reader
             .global_root_height()
-            .expect("Failed to get block hash height from storage.");
+            .expect("Failed to get global root height from storage.");
         info!("Initializing commitment manager.");
         let mut commitment_manager = CommitmentManager::initialize(
             commitment_manager_config,
@@ -60,7 +60,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             committer_client,
         );
         let block_height =
-            storage_reader.height().expect("Failed to get block height from storage.");
+            storage_reader.state_diff_height().expect("Failed to get block height from storage.");
         commitment_manager
             .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
             .await;
@@ -90,7 +90,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             });
         }
         let commitment_task_input =
-            CommitmentTaskInput { height, state_diff, state_diff_commitment };
+            CommitterTaskInput(CommitterRequest::CommitBlock(CommitBlockRequest {
+                height,
+                state_diff,
+                state_diff_commitment,
+            }));
         let error_message = format!(
             "Failed to send commitment task to state committer. Block: {height}, state diff \
              commitment: {state_diff_commitment:?}",
@@ -241,6 +245,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// hash using the global root, the parent block hash and the partial block hash components.
     /// Otherwise, returns the final commitment with no block hash.
     // TODO(Rotem): Test this function.
+    // TODO(Amos): Test blocks [0,10] in OS flow tests.
     pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
         CommitmentTaskOutput { response: CommitBlockResponse { state_root: global_root }, height }: CommitmentTaskOutput,
@@ -253,8 +258,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
             true => {
                 info!("Finalizing commitment for block {height} with calculating block hash.");
-                let (parent_hash, partial_block_hash_components) =
+                let (mut parent_hash, partial_block_hash_components) =
                     storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
+                if height == BlockNumber::ZERO {
+                    parent_hash = Some(BlockHash::GENESIS_PARENT_HASH);
+                }
                 let parent_hash = parent_hash.ok_or(CommitmentManagerError::MissingBlockHash(
                     height.prev().expect(
                         "For the genesis block, the block hash is constant and should not be \

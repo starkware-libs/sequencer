@@ -53,7 +53,7 @@ def _check_gcloud_auth() -> None:
     if proc.returncode != 0:
         stderr = (proc.stderr or "").strip()
         logger.error(
-            "Failed to verify gcloud auth (exit %s): %s", proc.returncode, stderr or "<no stderr>"
+            f"Failed to verify gcloud auth (exit {proc.returncode}): {stderr or '<no stderr>'}"
         )
         logger.error("Try running: gcloud auth login")
         raise SystemExit(1)
@@ -63,12 +63,12 @@ def _check_gcloud_auth() -> None:
         logger.error("No active gcloud account found. Try running: gcloud auth login")
         raise SystemExit(1)
 
-    logger.info("Using gcloud account: %s", active)
+    logger.info(f"Using gcloud account: {active}")
 
 
 def _run(cmd: list[str], **kwargs) -> None:
     """Run a command, echoing it first."""
-    logger.info("Running: %s", shlex.join(cmd))
+    logger.info(f"Running: {shlex.join(cmd)}")
     subprocess.run(cmd, check=True, **kwargs)
 
 
@@ -132,7 +132,7 @@ def _build_source_bundle(echonet_dir: Path, out_path: Path) -> None:
     tmp_tgz.unlink()
     tmp_b64.replace(out_path)
     size_kb = out_path.stat().st_size / 1024.0
-    logger.info("Built source bundle: %s (%.1f KiB, base64)", out_path, size_kb)
+    logger.info(f"Built source bundle: {out_path} ({size_kb:.1f} KiB, base64)")
 
 
 def _namespace_args(namespace: str | None) -> list[str]:
@@ -152,7 +152,7 @@ def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
         raise ValueError("Missing required key: start_block")
 
     shutil.copyfile(keys_in_repo, generated_path)
-    logger.info("Copied keys file: %s -> %s", keys_in_repo, generated_path)
+    logger.info(f"Copied keys file: {keys_in_repo} -> {generated_path}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -176,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     kustomize_dir = script_dir / "k8s" / "echonet"
 
     if not kustomize_dir.is_dir():
-        logger.error("Kustomize directory not found at %s", kustomize_dir)
+        logger.error(f"Kustomize directory not found at {kustomize_dir}")
         return 1
 
     # Build a configmap-friendly bundle of the echonet/ tree so imports work in the pod.

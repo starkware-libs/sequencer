@@ -8,6 +8,7 @@ import argparse
 import json
 import logging
 import re
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -37,6 +38,32 @@ def _format_rate(numerator: int, denom_seconds: int | None, unit: str) -> str:
     if denom_seconds is None or denom_seconds <= 0:
         return "(n/a)"
     return f"{numerator / denom_seconds:.2f} {unit}"
+
+
+class BaseRevertComparisonTextReport(ABC):
+    """
+    Template-method base class for rendering revert comparisons.
+
+    Subclasses implement `_render_section(...)` and inherit the shared `render()` skeleton.
+    """
+
+    def render(self, mainnet_reverts: Mapping[str, str], echonet_reverts: Mapping[str, str]) -> str:
+        total_mainnet = len(mainnet_reverts)
+        total_echonet = len(echonet_reverts)
+
+        lines: list[str] = []
+        lines.append("=== Revert counts ===")
+        lines.append(f"Only on Mainnet: {total_mainnet}")
+        lines.append(f"Only on Echonet: {total_echonet}")
+        lines.append("")
+        lines.extend(self._render_section("Reverted only on Mainnet", mainnet_reverts))
+        lines.append("")
+        lines.extend(self._render_section("Reverted only on Echonet", echonet_reverts))
+        return "\n".join(lines).rstrip() + "\n"
+
+    @abstractmethod
+    def _render_section(self, title: str, reverts: Mapping[str, str]) -> list[str]:
+        raise NotImplementedError
 
 
 def append_key_value_lines(
@@ -223,13 +250,28 @@ class RevertClassifier:
     Classify revert errors into coarse-grained buckets.
     """
 
-    _leaf_paren = re.compile(r"\('([^']*)'\)")
-    _leaf_quote = re.compile(r'"([^"]+)"')
+    _WRAPPER_REASONS_LOWER = frozenset(
+        {
+            "argent/multicall-failed",
+            "entrypoint_failed",
+        }
+    )
+
+    _reason_in_parentheses_regex = re.compile(r"\('([^']*)'\)")
+    _reason_in_quotes_regex = re.compile(r'"([^"]+)"')
 
     def __init__(self, rules: list[RevertRule] | None = None) -> None:
         self._rules = rules or self._default_rules()
 
-    def leaf_message(self, raw: str) -> str:
+    @staticmethod
+    def _select_specific_reason(candidates: Sequence[str]) -> str | None:
+        for s in candidates:
+            t = s.strip()
+            if t and t.lower() not in RevertClassifier._WRAPPER_REASONS_LOWER:
+                return t
+        return None
+
+    def extract_revert_reason(self, raw: str) -> str:
         if not raw:
             return ""
 
@@ -238,25 +280,25 @@ class RevertClassifier:
             return raw
 
         for line in reversed(lines):
-            for r in (self._leaf_paren, self._leaf_quote):
-                m = r.search(line)
-                if m and m.group(1):
-                    return m.group(1)
+            for extractor in (self._reason_in_quotes_regex, self._reason_in_parentheses_regex):
+                hit = self._select_specific_reason(extractor.findall(line))
+                if hit:
+                    return hit
         return lines[-1]
 
-    def classify(self, leaf_message: str) -> str:
-        if not leaf_message:
+    def classify(self, revert_reason: str) -> str:
+        if not revert_reason:
             return "Unknown"
         for rule in self._rules:
-            if rule.predicate(leaf_message):
+            if rule.predicate(revert_reason):
                 return rule.name
         return "Other"
 
     def group(self, reverts: Mapping[str, str]) -> dict[str, list[tuple[str, str]]]:
         grouped: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for tx_hash, raw_msg in reverts.items():
-            leaf = self.leaf_message(raw_msg)
-            grouped[self.classify(leaf)].append((tx_hash, leaf))
+            revert_reason = self.extract_revert_reason(raw_msg)
+            grouped[self.classify(revert_reason)].append((tx_hash, revert_reason))
         return grouped
 
     @staticmethod
@@ -311,29 +353,12 @@ class RevertClassifier:
         ]
 
 
-class RevertComparisonTextReport:
+class RevertComparisonTextReport(BaseRevertComparisonTextReport):
     def __init__(self, classifier: RevertClassifier) -> None:
         self._classifier = classifier
 
-    def render(self, mainnet_reverts: Mapping[str, str], echonet_reverts: Mapping[str, str]) -> str:
-        grouped_mainnet = self._classifier.group(mainnet_reverts)
-        grouped_echonet = self._classifier.group(echonet_reverts)
-
-        total_mainnet = sum(len(v) for v in grouped_mainnet.values())
-        total_echonet = sum(len(v) for v in grouped_echonet.values())
-
-        lines: list[str] = []
-        lines.append("=== Revert counts ===")
-        lines.append(f"Only on Mainnet: {total_mainnet}")
-        lines.append(f"Only on Echonet: {total_echonet}")
-        lines.append("")
-        lines.extend(self._render_grouped("Reverted only on Mainnet", grouped_mainnet))
-        lines.append("")
-        lines.extend(self._render_grouped("Reverted only on Echonet", grouped_echonet))
-        return "\n".join(lines).rstrip() + "\n"
-
-    @staticmethod
-    def _render_grouped(title: str, grouped: Mapping[str, list[tuple[str, str]]]) -> list[str]:
+    def _render_section(self, title: str, reverts: Mapping[str, str]) -> list[str]:
+        grouped = self._classifier.group(reverts)
         total = sum(len(v) for v in grouped.values())
         lines: list[str] = [f"=== {title} ({total} txs) ==="]
         if total == 0:
@@ -343,8 +368,34 @@ class RevertComparisonTextReport:
         for error_type, txs in sorted(grouped.items(), key=lambda kv: (-len(kv[1]), kv[0])):
             lines.append("")
             lines.append(f"-- {error_type} ({len(txs)} txs, {_format_percent(len(txs), total)}) --")
-            for tx_hash, leaf in sorted(txs, key=lambda x: x[0]):
-                lines.append(f"{tx_hash}: {leaf}")
+            for tx_hash, revert_reason in sorted(txs, key=lambda x: x[0]):
+                lines.append(f"{tx_hash}: {revert_reason}")
+        return lines
+
+
+class RawRevertComparisonTextReport(BaseRevertComparisonTextReport):
+    """
+    Render the revert comparison without classification and without shortening messages.
+
+    This is intended for `--compare-reverts`, where we want to additionally show
+    the full original revert errors after the classified summary.
+    """
+
+    def _render_section(self, title: str, reverts: Mapping[str, str]) -> list[str]:
+        total = len(reverts)
+        lines: list[str] = [f"=== {title} ({total} txs) ==="]
+        if total == 0:
+            lines.append("(none)")
+            return lines
+
+        for tx_hash, raw in sorted(reverts.items(), key=lambda kv: kv[0]):
+            lines.append("")
+            lines.append(f"{tx_hash}:")
+            if not raw:
+                lines.append("  (empty)")
+                continue
+            for ln in raw.splitlines():
+                lines.append(f"  {ln}")
         return lines
 
 
@@ -366,7 +417,7 @@ class PreResyncReportWriter:
             echonet_reverts=snapshot.revert_errors_echonet,
         )
 
-        logger.info("Echonet report snapshot before resync:\n%s", snapshot_text.rstrip())
+        logger.info(f"Echonet report snapshot before resync:\n{snapshot_text.rstrip()}")
 
         self._log_dir.mkdir(parents=True, exist_ok=True)
         ts_suffix = context.timestamp_utc.strftime("%Y%m%dT%H%M%SZ")
@@ -417,13 +468,18 @@ def print_snapshot(base_url: str) -> None:
 def compare_reverts(base_url: str) -> None:
     data = ReportHttpClient(base_url).fetch_report_snapshot()
     s = SnapshotModel.from_dict(data)
-    report = RevertComparisonTextReport(classifier=RevertClassifier())
-    print(
-        report.render(
-            mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
-        ),
-        end="",
+    classified = RevertComparisonTextReport(classifier=RevertClassifier()).render(
+        mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
     )
+    raw = RawRevertComparisonTextReport().render(
+        mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
+    )
+
+    print("=== CLASSIFIED REVERTS (shortened) ===")
+    print(classified, end="")
+    print("")
+    print("=== FULL REVERTS (raw) ===")
+    print(raw, end="")
 
 
 def show_block(base_url: str, block_number: int, kind: BlockDumpKind) -> None:
@@ -442,7 +498,7 @@ def main() -> None:
     parser.add_argument(
         "--compare-reverts",
         action="store_true",
-        help="Compare revert errors from in-memory state (mainnet vs echonet)",
+        help="Compare revert errors from in-memory state (mainnet vs echonet). Prints classified + full raw sections.",
     )
     parser.add_argument(
         "--base-url",

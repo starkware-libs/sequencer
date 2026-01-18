@@ -23,6 +23,7 @@ use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -73,7 +74,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "batcher_config.storage.db_config.chain_id",
                 "class_manager_config.class_storage_config.class_hash_storage_config.db_config.chain_id",
                 "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id",
-                "consensus_manager_config.context_config.chain_id",
+                "consensus_manager_config.context_config.static_config.chain_id",
                 "consensus_manager_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
                 "l1_scraper_config.chain_id",
@@ -95,6 +96,20 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                  eth_fee_token_address",
                 "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address",
                 "state_sync_config.rpc_config.execution_config.eth_fee_contract_address",
+            ]),
+        ),
+        (
+            ser_pointer_target_param(
+                "native_classes_whitelist",
+                &"[]".to_string(),
+                "Specifies whether to execute all class hashes or only specific ones using Cairo \
+                native. If limited, a specific list of class hashes is provided.",
+            ),
+            set_pointing_param_paths(&[
+                "batcher_config.contract_class_manager_config.cairo_native_run_config.\
+                native_classes_whitelist",
+                "gateway_config.contract_class_manager_config.cairo_native_run_config.\
+                native_classes_whitelist",
             ]),
         ),
         (
@@ -299,6 +314,8 @@ pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
+    pub context_dynamic_config: Option<ContextDynamicConfig>,
+    #[validate(nested)]
     pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
     #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
@@ -308,6 +325,7 @@ impl SerializeConfig for NodeDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = [
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
+            ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
         ];
@@ -323,6 +341,11 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
             },
         );
+        let context_dynamic_config = sequencer_node_config.consensus_manager_config.as_ref().map(
+            |consensus_manager_config| {
+                consensus_manager_config.context_config.dynamic_config.clone()
+            },
+        );
         let http_server_dynamic_config = sequencer_node_config
             .http_server_config
             .as_ref()
@@ -331,27 +354,13 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
-        Self { consensus_dynamic_config, http_server_dynamic_config, mempool_dynamic_config }
-    }
-}
-
-macro_rules! validate_component_config_is_set_iff_running_locally {
-    ($self:ident, $component_field:ident, $config_field:ident) => {{
-        // The component config should be set iff its running locally.
-        if $self.components.$component_field.is_running_locally() != $self.$config_field.is_some() {
-            let execution_mode = &$self.components.$component_field.execution_mode;
-            let component_config_availability =
-                if $self.$config_field.is_some() { "available" } else { "not available" };
-            return Err(ConfigError::ComponentConfigMismatch {
-                component_config_mismatch: format!(
-                    "{} component configs mismatch: execution mode {:?} while config is {}",
-                    stringify!($component_field),
-                    execution_mode,
-                    component_config_availability
-                ),
-            });
+        Self {
+            consensus_dynamic_config,
+            context_dynamic_config,
+            http_server_dynamic_config,
+            mempool_dynamic_config,
         }
-    }};
+    }
 }
 
 impl SequencerNodeConfig {
@@ -371,21 +380,37 @@ impl SequencerNodeConfig {
     }
 
     fn cross_member_validations(&self) -> Result<(), ConfigError> {
+        macro_rules! validate_component_config_is_set_iff_running_locally {
+            ($component_field:ident, $config_field:ident) => {{
+                // The component config should be set iff its running locally.
+                if self.components.$component_field.is_running_locally()
+                    != self.$config_field.is_some()
+                {
+                    let execution_mode = &self.components.$component_field.execution_mode;
+                    let component_config_availability =
+                        if self.$config_field.is_some() { "available" } else { "not available" };
+                    return Err(ConfigError::ComponentConfigMismatch {
+                        component_config_mismatch: format!(
+                            "{} component configs mismatch: execution mode {:?} while config is {}",
+                            stringify!($component_field),
+                            execution_mode,
+                            component_config_availability
+                        ),
+                    });
+                }
+            }};
+        }
+
         // TODO(Tsabary): should be based on iteration of `ComponentConfig` fields.
-        validate_component_config_is_set_iff_running_locally!(self, batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(class_manager, class_manager_config);
+        validate_component_config_is_set_iff_running_locally!(committer, committer_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            class_manager,
-            class_manager_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, committer, committer_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
             config_manager,
             config_manager_config
         );
-        validate_component_config_is_set_iff_running_locally!(self, gateway, gateway_config);
         validate_component_config_is_set_iff_running_locally!(
+<<<<<<< HEAD
             self,
             l1_provider,
             l1_provider_config
@@ -414,25 +439,58 @@ impl SequencerNodeConfig {
         validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
         validate_component_config_is_set_iff_running_locally!(
             self,
+||||||| 2542eac07b
+            self,
+            l1_provider,
+            l1_provider_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_gas_price_provider,
+            l1_gas_price_provider_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            mempool_p2p,
+            mempool_p2p_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            sierra_compiler,
+            sierra_compiler_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+=======
+>>>>>>> origin/main-v0.14.1-committer
             consensus_manager,
             consensus_manager_config
         );
+        validate_component_config_is_set_iff_running_locally!(gateway, gateway_config);
+        validate_component_config_is_set_iff_running_locally!(http_server, http_server_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
-            http_server,
-            http_server_config
+            l1_gas_price_provider,
+            l1_gas_price_provider_config
         );
-        validate_component_config_is_set_iff_running_locally!(self, l1_scraper, l1_scraper_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
             l1_gas_price_scraper,
             l1_gas_price_scraper_config
         );
+        validate_component_config_is_set_iff_running_locally!(l1_provider, l1_provider_config);
+        validate_component_config_is_set_iff_running_locally!(l1_scraper, l1_scraper_config);
+        validate_component_config_is_set_iff_running_locally!(mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(mempool_p2p, mempool_p2p_config);
         validate_component_config_is_set_iff_running_locally!(
-            self,
             monitoring_endpoint,
             monitoring_endpoint_config
         );
+        validate_component_config_is_set_iff_running_locally!(
+            sierra_compiler,
+            sierra_compiler_config
+        );
+        validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
 
         Ok(())
     }

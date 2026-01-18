@@ -1,4 +1,10 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
+use apollo_integration_tests::end_to_end_flow_utils::{
+    end_to_end_flow,
+    validate_tx_count,
+    EndToEndFlowArgs,
+    TestScenario,
+};
 use apollo_integration_tests::utils::ACCOUNT_ID_1 as CAIRO0_ACCOUNT_ID;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
@@ -14,10 +20,6 @@ use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{ContractAddressSalt, TransactionSignature};
 use starknet_api::{calldata, felt};
 
-use crate::common::{end_to_end_flow, validate_tx_count, EndToEndFlowArgs, TestScenario};
-
-mod common;
-
 const CUSTOM_CAIRO_0_INVOKE_TX_COUNT: usize = 9;
 
 /// The test uses 3 threads: 1 for the test's main thread and 2 for the sequencers.
@@ -31,12 +33,12 @@ async fn custom_cairo0_txs() {
     .await
 }
 
-fn create_custom_cairo0_txs_scenario() -> Vec<TestScenario> {
-    vec![TestScenario {
+fn create_custom_cairo0_txs_scenario() -> TestScenario {
+    TestScenario {
         create_rpc_txs_fn: create_custom_cairo0_test_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, CUSTOM_CAIRO_0_INVOKE_TX_COUNT),
-    }]
+    }
 }
 
 /// Creates a set of transactions that test the Cairo 0 functionality.

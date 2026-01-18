@@ -1,12 +1,15 @@
 use blockifier::execution::call_info::Retdata;
+use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
 use crate::committee_provider::Staker;
+use crate::staking_manager::Epoch;
 
 pub(crate) const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
+pub(crate) const GET_CURRENT_EPOCH_DATA_ENTRY_POINT: &str = "get_current_epoch_data";
 pub(crate) const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
 
 /// Conversion from an [`Iterator`].
@@ -41,6 +44,8 @@ pub enum RetdataDeserializationError {
     U128ConversionError { felt: Felt },
     #[error("Failed to convert Felt to usize: {felt}")]
     USizeConversionError { felt: Felt },
+    #[error("Failed to convert Felt to u64: {felt}")]
+    U64ConversionError { felt: Felt },
     #[error("Invalid object length: {message}.")]
     InvalidObjectLength { message: String },
     #[error("Unexpected enum variant: {variant}")]
@@ -146,6 +151,32 @@ where
     }
 }
 
+impl TryFrom<Retdata> for Epoch {
+    type Error = RetdataDeserializationError;
+
+    // Retdata should contain the following values, in order:
+    // 1. Epoch ID (1 Felt)
+    // 2. Start Block (1 Felt)
+    // 3. Epoch Length (1 Felt)
+    fn try_from(retdata: Retdata) -> Result<Self, Self::Error> {
+        let raw_felts = retdata.0;
+        if raw_felts.len() != 3 {
+            return Err(RetdataDeserializationError::InvalidObjectLength {
+                message: format!(
+                    "Epoch retdata should contain 3 felts, but got {}.",
+                    raw_felts.len()
+                ),
+            });
+        }
+
+        let epoch_id = felt_to_u64(raw_felts[0])?;
+        let start_block = BlockNumber(felt_to_u64(raw_felts[1])?);
+        let epoch_length = felt_to_u64(raw_felts[2])?;
+
+        Ok(Epoch { epoch_id, start_block, epoch_length })
+    }
+}
+
 impl From<&ContractStaker> for Staker {
     /// # Panics
     ///
@@ -157,6 +188,10 @@ impl From<&ContractStaker> for Staker {
             public_key: contract_staker.public_key.expect("public key is required."),
         }
     }
+}
+
+fn felt_to_u64(felt: Felt) -> Result<u64, RetdataDeserializationError> {
+    u64::try_from(felt).map_err(|_| RetdataDeserializationError::U64ConversionError { felt })
 }
 
 #[cfg(test)]
@@ -171,6 +206,17 @@ impl From<&ContractStaker> for Vec<Felt> {
             public_key.as_slice(),
         ]
         .concat()
+    }
+}
+
+#[cfg(test)]
+impl From<&Epoch> for Vec<Felt> {
+    fn from(epoch: &Epoch) -> Self {
+        vec![
+            Felt::from(epoch.epoch_id),
+            Felt::from(epoch.start_block.0),
+            Felt::from(epoch.epoch_length),
+        ]
     }
 }
 

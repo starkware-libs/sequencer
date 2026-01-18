@@ -13,6 +13,7 @@ use axum::routing::post;
 use axum::{Json, Router};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::task::AbortHandle;
 use tracing::{error, info};
 use validator::Validate;
 
@@ -158,6 +159,23 @@ where
         axum::Server::bind(&socket).serve(app.into_make_service()).await.map_err(|e| {
             error!("Storage reader server error: {}", e);
             StorageError::IOError(io::Error::other(e))
+        })
+    }
+
+    /// Spawns the storage reader server in a background task if it's enabled.
+    pub fn spawn_if_enabled(server: Option<Self>) -> Option<AbortHandle>
+    where
+        RequestHandler: Send + Sync + 'static,
+        Request: Send + Sync + 'static,
+        Response: Send + Sync + 'static,
+    {
+        server.map(|server| {
+            tokio::spawn(async move {
+                if let Err(e) = server.run().await {
+                    tracing::error!("Storage reader server error: {:?}", e);
+                }
+            })
+            .abort_handle()
         })
     }
 }

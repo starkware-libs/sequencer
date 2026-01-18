@@ -1,4 +1,4 @@
-use apollo_batcher::metrics::{REVERTED_TRANSACTIONS, STORAGE_HEIGHT};
+use apollo_batcher::metrics::{BUILDING_HEIGHT, REVERTED_TRANSACTIONS};
 use apollo_consensus::metrics::CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
@@ -16,18 +16,25 @@ use starknet_api::block::BlockNumber;
 use tokio::try_join;
 use tracing::info;
 
+// TODO(NoamSp): consider changing these consts to input values determined by the specific tested
+// scenario.
+const INTERVAL_MS: u64 = 100;
+const ATTEMPTS_FOR_BLOCK: usize = 2500;
+const ATTEMPTS_FOR_VERIFY_TXS: usize = 1000;
+const ATTEMPTS_FOR_AWAIT_TXS: usize = 2500;
+
 /// Gets the latest block number from the batcher's metrics.
 pub async fn get_batcher_latest_block_number(
     batcher_monitoring_client: &MonitoringClient,
 ) -> BlockNumber {
     BlockNumber(
         batcher_monitoring_client
-            .get_metric::<u64>(STORAGE_HEIGHT.get_name())
+            .get_metric::<u64>(BUILDING_HEIGHT.get_name())
             .await
             .expect("Failed to get storage height metric."),
     )
     .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
-    .expect("Storage height should be at least 1.")
+    .expect("The height being built should be at least 1.")
 }
 
 /// Gets the latest decisions reached by consensus from the consensus metrics.
@@ -125,8 +132,20 @@ pub async fn await_block(
     });
     // TODO(noamsp): Change this so we get both values with one metrics query.
     try_join!(
-        await_batcher_block(5000, condition, 50, batcher_monitoring_client, batcher_logger),
-        await_sync_block(5000, condition, 50, state_sync_monitoring_client, sync_logger)
+        await_batcher_block(
+            INTERVAL_MS,
+            condition,
+            ATTEMPTS_FOR_BLOCK,
+            batcher_monitoring_client,
+            batcher_logger
+        ),
+        await_sync_block(
+            INTERVAL_MS,
+            condition,
+            ATTEMPTS_FOR_BLOCK,
+            state_sync_monitoring_client,
+            sync_logger
+        )
     )
     .unwrap_or_else(|_| {
         panic!(
@@ -141,24 +160,21 @@ pub async fn verify_txs_accepted(
     sequencer_idx: usize,
     expected_n_accepted_txs: usize,
 ) {
-    const INTERVAL_MS: u64 = 5_000;
-    const MAX_ATTEMPTS: usize = 20;
-
     info!("Verifying that sequencer {sequencer_idx} accepted {expected_n_accepted_txs} txs.");
     let condition = |num_accpted_tx: &usize| *num_accpted_tx >= expected_n_accepted_txs;
 
     let n_accepted_txs_closure = || sequencer_num_accepted_txs(monitoring_client);
 
-    run_until(INTERVAL_MS, MAX_ATTEMPTS, n_accepted_txs_closure, condition, None).await;
+    run_until(INTERVAL_MS, ATTEMPTS_FOR_VERIFY_TXS, n_accepted_txs_closure, condition, None).await;
 }
 
+// TODO(Tsabary/NoamSp): check for code duplications w.r.t. all variants of `verify_txs_accepted`
+// and `await_txs_accepted`.
 pub async fn await_txs_accepted(
     monitoring_client: &MonitoringClient,
     sequencer_idx: usize,
     target_n_accepted_txs: usize,
 ) {
-    const INTERVAL_MILLIS: u64 = 5000;
-    const MAX_ATTEMPTS: usize = 50;
     info!("Waiting until sequencer {sequencer_idx} accepts {target_n_accepted_txs} txs.");
 
     let condition =
@@ -174,8 +190,8 @@ pub async fn await_txs_accepted(
     );
 
     run_until(
-        INTERVAL_MILLIS,
-        MAX_ATTEMPTS,
+        INTERVAL_MS,
+        ATTEMPTS_FOR_AWAIT_TXS,
         get_current_n_accepted_txs_closure,
         condition,
         Some(logger),

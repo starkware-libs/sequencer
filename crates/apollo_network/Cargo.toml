@@ -16,7 +16,15 @@ apollo_network_types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
+<<<<<<< HEAD
 derive_more.workspace = true
+||||||| 2542eac07b
+clap = { workspace = true, features = ["derive"] }
+derive_more.workspace = true
+=======
+clap = { workspace = true, features = ["derive"] }
+derive_more = { workspace = true, features = ["display"] }
+>>>>>>> origin/main-v0.14.1-committer
 futures.workspace = true
 lazy_static.workspace = true
 libp2p = { workspace = true, features = [

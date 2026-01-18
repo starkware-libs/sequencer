@@ -439,7 +439,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
     derive_more:: Deref,
     SizeOf,
 )]
-#[display(fmt = "{}", "_0.to_fixed_hex_string()")]
+#[display("{}", _0.to_fixed_hex_string())]
 pub struct PatriciaKey(StarkHash);
 
 // 2**251

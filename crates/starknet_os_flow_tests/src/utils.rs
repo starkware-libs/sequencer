@@ -281,7 +281,7 @@ pub(crate) async fn create_commitment_infos(
             commitments,
             address_to_previous_storage_root_hash[address],
             sorted_leaf_indices,
-            &EmptyKeyContext,
+            &address,
         )
         .await
         .unwrap();

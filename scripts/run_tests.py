@@ -43,7 +43,9 @@ class BaseCommand(Enum):
             package_args.extend(["--package", package])
 
         if self == BaseCommand.TEST:
-            return [["cargo", "nextest", "run"] + package_args + ["--no-fail-fast"]]
+            return [
+                ["cargo", "nextest", "run"] + package_args + ["--no-fail-fast", "--no-tests=pass"]
+            ]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
             return [["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]]

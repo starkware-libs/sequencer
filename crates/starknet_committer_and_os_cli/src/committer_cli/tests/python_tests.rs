@@ -163,11 +163,13 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                 let TreeFlowInput { leaf_modifications, mut storage, root_hash } =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
+                let dummy_contract_address = ContractAddress::from(0_u128);
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
                     leaf_modifications,
                     &mut storage,
                     root_hash,
                     OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(false),
+                    &dummy_contract_address,
                 )
                 .await;
                 // 3. Serialize and return output.
@@ -430,7 +432,7 @@ fn xor_hash(x: &[u8], y: &[u8]) -> Vec<u8> {
 /// A JSON string representing the serialized storage keys for different node types.
 pub(crate) fn test_node_db_key() -> String {
     let zero = Felt::ZERO;
-
+    let dummy_contract_address = ContractAddress::from(0_u128);
     // Generate keys for different node types.
     let hash = HashOutput(zero);
 
@@ -438,17 +440,17 @@ pub(crate) fn test_node_db_key() -> String {
         data: NodeData::Binary(BinaryData { left_data: hash, right_data: hash }),
         hash,
     };
-    let binary_node_key = binary_node.db_key(&EmptyKeyContext).0;
+    let binary_node_key = binary_node.db_key(&dummy_contract_address).0;
 
     let edge_node: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode {
         data: NodeData::Edge(EdgeData { bottom_data: hash, path_to_bottom: Default::default() }),
         hash,
     };
 
-    let edge_node_key = edge_node.db_key(&EmptyKeyContext).0;
+    let edge_node_key = edge_node.db_key(&dummy_contract_address).0;
 
     let storage_leaf = FactDbFilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash };
-    let storage_leaf_key = storage_leaf.db_key(&EmptyKeyContext).0;
+    let storage_leaf_key = storage_leaf.db_key(&dummy_contract_address).0;
 
     let state_tree_leaf = FactDbFilledNode {
         data: NodeData::Leaf(ContractState {
@@ -519,6 +521,7 @@ fn python_hash_constants_compare() -> String {
 async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult {
     // Create a storage to store the nodes.
     let mut rust_fact_storage = MapStorage::default();
+    let dummy_contract_address = ContractAddress::from(0_u128);
 
     // Parse the binary node data from the input.
     let binary_json = get_or_key_not_found(&data, "binary")?;
@@ -536,7 +539,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Store the binary node in the storage.
     rust_fact_storage
         .set(
-            binary_rust.db_key(&EmptyKeyContext),
+            binary_rust.db_key(&dummy_contract_address),
             binary_rust.serialize().map_err(|error| {
                 PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
             })?,
@@ -570,7 +573,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Store the edge node in the storage.
     rust_fact_storage
         .set(
-            edge_rust.db_key(&EmptyKeyContext),
+            edge_rust.db_key(&dummy_contract_address),
             edge_rust.serialize().map_err(|error| {
                 PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
             })?,
@@ -593,7 +596,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     // Store the storage leaf node in the storage.
     rust_fact_storage
         .set(
-            storage_leaf_rust.db_key(&EmptyKeyContext),
+            storage_leaf_rust.db_key(&dummy_contract_address),
             storage_leaf_rust.serialize().map_err(|error| {
                 PythonTestError::SpecificError(CommitterSpecificTestError::Serialization(error))
             })?,

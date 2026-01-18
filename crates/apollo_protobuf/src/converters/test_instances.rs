@@ -44,6 +44,7 @@ auto_impl_get_test_instance! {
     pub struct ProposalCommitment(pub StarkHash);
     pub struct ProposalFin {
         pub proposal_commitment: ProposalCommitment,
+        pub executed_transaction_count: u64,
     }
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,
@@ -54,16 +55,16 @@ auto_impl_get_test_instance! {
         pub builder: ContractAddress,
         pub l1_da_mode: L1DataAvailabilityMode,
         pub l2_gas_price_fri: GasPrice,
+        pub l1_gas_price_fri: GasPrice,
+        pub l1_data_gas_price_fri: GasPrice,
         pub l1_gas_price_wei: GasPrice,
         pub l1_data_gas_price_wei: GasPrice,
-        pub eth_to_fri_rate: u128,
     }
     pub enum ProposalPart {
         Init(ProposalInit) = 0,
         Fin(ProposalFin) = 1,
         BlockInfo(ConsensusBlockInfo) = 2,
         Transactions(TransactionBatch) = 3,
-        ExecutedTransactionCount(u64) = 4,
     }
 
 }

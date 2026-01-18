@@ -125,11 +125,13 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--namespace",
         type=str,
+        required=True,
         help="Provide Kubernetes namespace to inject into alert expressions.",
     )
     parser.add_argument(
         "--cluster",
         type=str,
+        required=True,
         help="Provide Kubernetes cluster to inject into alert expressions.",
     )
     parser.add_argument(
@@ -138,11 +140,17 @@ def arg_parser() -> argparse.ArgumentParser:
         choices=[e.value for e in EnvironmentName],
         required=True,
     )
+    parser.add_argument(
+        "--config-file",
+        type=str,
+        required=True,
+        help="Path to YAML config file with alert field overrides (e.g., alert_name.field: value). Required.",
+    )
 
     args = parser.parse_args()
 
-    assert not (
-        (args.namespace and not args.cluster) or (args.cluster and not args.namespace)
-    ), "If a namespace is provided, a cluster must also be provided, and vice versa."
+    assert (
+        args.dev_dashboards_file or args.dev_alerts_file
+    ), "At least one of --dev-dashboards-file or --dev-alerts-file must be provided."
 
     return args

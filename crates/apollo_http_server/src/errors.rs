@@ -1,3 +1,6 @@
+use std::io;
+
+use apollo_config_manager_types::communication::ConfigManagerClientError;
 use apollo_gateway_types::communication::GatewayClientError;
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -5,8 +8,9 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewayError;
-use axum::response::{IntoResponse, Response};
-use hyper::StatusCode;
+// TODO(victork): finalise migration to hyper 1.x
+use axum_08::http::StatusCode;
+use axum_08::response::{IntoResponse, Response};
 use regex::Regex;
 use starknet_api::compression_utils::CompressionError;
 use thiserror::Error;
@@ -16,26 +20,34 @@ use tracing::debug;
 #[derive(Debug, Error)]
 pub enum HttpServerRunError {
     #[error(transparent)]
-    ServerStartupError(#[from] hyper::Error),
+    ServerStartupError(#[from] io::Error),
 }
 
 /// Errors that may occur during the runtime of the HTTP server.
 #[derive(Error, Debug)]
 pub enum HttpServerError {
     #[error(transparent)]
-    GatewayClientError(#[from] Box<GatewayClientError>),
-    #[error(transparent)]
-    DeserializationError(#[from] serde_json::Error),
+    ConfigManagerClientError(#[from] ConfigManagerClientError),
     #[error(transparent)]
     DecompressionError(#[from] CompressionError),
+    #[error(transparent)]
+    DeserializationError(#[from] serde_json::Error),
+    #[error("Server is rejecting new transactions.")]
+    DisabledError(),
+    #[error(transparent)]
+    GatewayClientError(#[from] Box<GatewayClientError>),
 }
 
 impl IntoResponse for HttpServerError {
     fn into_response(self) -> Response {
         match self {
-            HttpServerError::GatewayClientError(e) => gw_client_err_into_response(*e),
-            HttpServerError::DeserializationError(e) => serde_error_into_response(e),
+            HttpServerError::ConfigManagerClientError(e) => {
+                config_manager_client_err_into_response(e)
+            }
             HttpServerError::DecompressionError(e) => compression_error_into_response(e),
+            HttpServerError::DeserializationError(e) => serde_error_into_response(e),
+            HttpServerError::DisabledError() => disabled_error_into_response(),
+            HttpServerError::GatewayClientError(e) => gw_client_err_into_response(*e),
         }
     }
 }
@@ -68,6 +80,19 @@ fn serde_error_into_response(err: serde_json::Error) -> Response {
     (response_code, response_body).into_response()
 }
 
+fn disabled_error_into_response() -> Response {
+    debug!("Server is configured to reject transactions.");
+    let (response_code, starknet_error) = (
+        StatusCode::SERVICE_UNAVAILABLE,
+        StarknetError {
+            code: StarknetErrorCode::UnknownErrorCode("Server unavailable.".to_string()),
+            message: "Server unavailable.".to_string(),
+        },
+    );
+    let response_body = serialize_error(&starknet_error);
+    (response_code, response_body).into_response()
+}
+
 fn gw_client_err_into_response(err: GatewayClientError) -> Response {
     let (response_code, deprecated_gateway_error) = match err {
         GatewayClientError::ClientError(e) => (
@@ -86,6 +111,15 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
 
     let response_body = serialize_error(&deprecated_gateway_error);
 
+    (response_code, response_body).into_response()
+}
+
+fn config_manager_client_err_into_response(err: ConfigManagerClientError) -> Response {
+    let (response_code, config_manager_error) = (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        StarknetError::internal_with_logging("Failed to process client request", err),
+    );
+    let response_body = serialize_error(&config_manager_error);
     (response_code, response_body).into_response()
 }
 

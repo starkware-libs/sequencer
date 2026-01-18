@@ -8,7 +8,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 
 import kubernetes  # pyright: ignore[reportMissingImports]
 from kubernetes.client.rest import ApiException  # pyright: ignore[reportMissingImports]
@@ -17,6 +17,13 @@ from echonet.echonet_types import CONFIG, JsonObject
 from echonet.logger import get_logger
 
 logger = get_logger("sequencer_manager")
+
+REVERT_INACTIVITY_SUBSTRINGS: tuple[str, ...] = (
+    "Reverting Batcher's storage to height marker",
+    "Successfully reverted Batcher's storage to height marker",
+    "Reverting State Sync's storage to height marker",
+    "Successfully reverted State Sync's storage to height marker",
+)
 
 
 ConfigMutator = Callable[[JsonObject], None]
@@ -36,7 +43,7 @@ class SequencerTiming:
     """Polling defaults used by the manager."""
 
     poll_interval_seconds: float = 2.0
-    scale_timeout_seconds: float = 200.0
+    scale_timeout_seconds: float = 1000.0
 
 
 class SequencerManager:
@@ -92,7 +99,7 @@ class SequencerManager:
         Read the node JSON config from the sequencer ConfigMap, mutate it in-place, and patch it back.
         """
         configmap_name = self._spec.configmap_name
-        logger.info("Fetching ConfigMap '%s' in namespace '%s'...", configmap_name, self._namespace)
+        logger.info(f"Fetching ConfigMap '{configmap_name}' in namespace '{self._namespace}'...")
         configmap = self._core_v1.read_namespaced_config_map(configmap_name, self._namespace)
 
         config: JsonObject = json.loads(configmap.data["config"])
@@ -132,10 +139,7 @@ class SequencerManager:
     def scale(self, replicas: int) -> None:
         stateful_set_name = self._spec.statefulset_name
         logger.info(
-            "Scaling StatefulSet '%s' in namespace '%s' to %s replicas...",
-            stateful_set_name,
-            self._namespace,
-            replicas,
+            f"Scaling StatefulSet '{stateful_set_name}' in namespace '{self._namespace}' to {replicas} replicas..."
         )
         self._apps_v1.patch_namespaced_stateful_set_scale(
             name=stateful_set_name,
@@ -143,7 +147,7 @@ class SequencerManager:
             body={"spec": {"replicas": replicas}},
         )
         self._wait_for_statefulset_replicas(expected_replicas=replicas)
-        logger.info("Scaling to %s replicas done.", replicas)
+        logger.info(f"Scaling to {replicas} replicas done.")
 
     def restart_node(self) -> None:
         """Restart the node by scaling `1 -> 0 -> 1` (waits at each step)."""
@@ -153,9 +157,7 @@ class SequencerManager:
     def _wait_for_statefulset_replicas(self, expected_replicas: int) -> None:
         stateful_set_name = self._spec.statefulset_name
         logger.info(
-            "Waiting for StatefulSet '%s' to reach %s replicas...",
-            stateful_set_name,
-            expected_replicas,
+            f"Waiting for StatefulSet '{stateful_set_name}' to reach {expected_replicas} replicas..."
         )
         start = time.time()
 
@@ -165,10 +167,10 @@ class SequencerManager:
             )
             replicas = stateful_set.status.replicas or 0
             ready = stateful_set.status.ready_replicas or 0
-            logger.info("Current replicas: %s, ready: %s", replicas, ready)
+            logger.info(f"Current replicas: {replicas}, ready: {ready}")
 
             if replicas == expected_replicas and ready == expected_replicas:
-                logger.info("StatefulSet reached %s replicas.", expected_replicas)
+                logger.info(f"StatefulSet reached {expected_replicas} replicas.")
                 return
 
             if time.time() - start > self._timing.scale_timeout_seconds:
@@ -179,60 +181,50 @@ class SequencerManager:
 
             time.sleep(self._timing.poll_interval_seconds)
 
-    def wait_for_log_substring(
+    def wait_for_log_inactivity(
         self,
-        substring: str,
+        inactivity_substrings: Sequence[str],
+        inactivity_seconds: float = 15,
         timeout_seconds: float = 6000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
-        occurrences_required: int = 1,
         pod_name: Optional[str] = None,
     ) -> None:
         """
-        Block until `substring` appears in the pod logs `occurrences_required` times, or timeout.
+        Block until none of `inactivity_substrings` appear in the last `inactivity_seconds` of pod
+        logs.
         """
         pod = pod_name or self.pod_name
         logger.info(
-            "Waiting for log message '%s' in pod '%s' (ns=%s)... (required occurrences: %s)",
-            substring,
-            pod,
-            self._namespace,
-            occurrences_required,
+            f"Waiting for {inactivity_seconds}s of log inactivity in pod '{pod}' (ns={self._namespace})... "
+            f"(substrings: {', '.join(inactivity_substrings)})"
         )
         start = time.time()
-        tail_arg = None if occurrences_required > 1 else tail_lines
 
         while True:
-            logs = self._read_pod_logs(pod_name=pod, tail_lines=tail_arg)
-
-            if occurrences_required > 1:
-                # If the container restarted, the message might exist only in previous logs.
-                logs_prev = self._read_pod_logs(pod_name=pod, tail_lines=tail_arg, previous=True)
-                if logs_prev:
-                    logs = f"{logs_prev}\n{logs}"
-
-            seen = logs.count(substring)
-            if seen >= occurrences_required:
+            logs_recent = self._read_pod_logs(
+                pod_name=pod,
+                tail_lines=tail_lines,
+                # K8s `sinceSeconds` must be an integer; passing a float can yield 400 Bad Request.
+                since_seconds=int(inactivity_seconds),
+            )
+            if not any(s in logs_recent for s in inactivity_substrings):
                 logger.info(
-                    "Found log message '%s' in pod '%s' (occurrences seen: %s/%s).",
-                    substring,
-                    pod,
-                    seen,
-                    occurrences_required,
+                    f"No revert activity logs were seen for the last {inactivity_seconds}s in pod '{pod}'."
                 )
                 return
 
             if time.time() - start > timeout_seconds:
                 raise TimeoutError(
-                    f"Timed out after {timeout_seconds}s waiting for log message "
-                    f"'{substring}' in pod '{pod}' (seen {seen}/{occurrences_required})."
+                    f"Timed out after {timeout_seconds}s waiting for {inactivity_seconds}s of log "
+                    f"inactivity in pod '{pod}'."
                 )
             time.sleep(poll_interval_seconds)
 
     def wait_for_synced_block_at_least(
         self,
         target_block: int,
-        timeout_seconds: float = 300.0,
+        timeout_seconds: float = 1000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
         pod_name: Optional[str] = None,
@@ -240,10 +232,7 @@ class SequencerManager:
         """Wait until logs show a synced block height >= `target_block`."""
         pod = pod_name or self.pod_name
         logger.info(
-            "Waiting for synced block to be >= %s in pod '%s' (ns=%s)...",
-            target_block,
-            pod,
-            self._namespace,
+            f"Waiting for synced block to be >= {target_block} in pod '{pod}' (ns={self._namespace})..."
         )
 
         pattern = re.compile(r"Adding sync block to Batcher for height (\d+)")
@@ -258,15 +247,12 @@ class SequencerManager:
                 highest_seen = block_num if highest_seen is None else max(highest_seen, block_num)
                 if block_num >= target_block:
                     logger.info(
-                        "Found new block synced %s (>= %s) in pod '%s'.",
-                        block_num,
-                        target_block,
-                        pod,
+                        f"Found new block synced {block_num} (>= {target_block}) in pod '{pod}'."
                     )
                     return
 
             if highest_seen:
-                logger.info("Latest new block synced found in recent logs: %s", highest_seen)
+                logger.info(f"Latest new block synced found in recent logs: {highest_seen}")
 
             if time.time() - start > timeout_seconds:
                 raise TimeoutError(
@@ -281,6 +267,7 @@ class SequencerManager:
         pod_name: str,
         tail_lines: Optional[int],
         previous: bool = False,
+        since_seconds: Optional[int] = None,
     ) -> str:
         try:
             logs = self._core_v1.read_namespaced_pod_log(
@@ -289,12 +276,13 @@ class SequencerManager:
                 tail_lines=tail_lines,
                 timestamps=False,
                 previous=previous,
+                since_seconds=since_seconds,
             )
             return logs or ""
         except ApiException as e:
             if previous and getattr(e, "status", None) == 400:
                 return ""
-            logger.warning("Could not read logs for pod %s: %s", pod_name, e.reason)
+            logger.warning(f"Could not read logs for pod {pod_name}: {e.reason}")
             return ""
 
     def scale_to_zero(self) -> None:
@@ -312,9 +300,8 @@ class SequencerManager:
 
         self.configure_stop_sync(block_number=block_number)
         self.restart_node()
-        self.wait_for_log_substring(
-            substring="Starting eternal pending",
-            occurrences_required=2,
+        self.wait_for_log_inactivity(
+            inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS,
         )
 
         self.configure_revert(should_revert=False)
@@ -330,14 +317,11 @@ class SequencerManager:
         - Stop sync at block + bounce + wait for pending
         - Disable revert + bounce
         """
-        logger.info("Starting resync workflow around block %s...", block_number)
+        logger.info(f"Starting resync workflow around block {block_number}...")
 
         self.configure_revert(should_revert=True)
         self.restart_node()
-        self.wait_for_log_substring(
-            substring="Starting eternal pending",
-            occurrences_required=2,
-        )
+        self.wait_for_log_inactivity(inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS)
 
         self.configure_start_sync()
         self.restart_node()
@@ -345,10 +329,7 @@ class SequencerManager:
 
         self.configure_stop_sync(block_number=block_number)
         self.restart_node()
-        self.wait_for_log_substring(
-            substring="Starting eternal pending",
-            occurrences_required=2,
-        )
+        self.wait_for_log_inactivity(inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS)
 
         self.configure_revert(should_revert=False)
         self.restart_node()
@@ -359,5 +340,5 @@ class SequencerManager:
 def _read_namespace_from_serviceaccount(namespace_path: str) -> str:
     with open(namespace_path, "r") as f:
         namespace = f.read().strip()
-    logger.info("Auto-detected namespace: %s", namespace)
+    logger.info(f"Auto-detected namespace: {namespace}")
     return namespace
