@@ -3,7 +3,10 @@ use std::str::FromStr;
 
 use num_traits::Num;
 use regex::{escape, Regex};
+use tracing::info;
 
+// TODO(Tsabary): consider removing the logging and returning a `Result` instead of an `Option`; the
+// error variant can include the metric name, labels, and the metrics string.
 /// Parses a specific numeric metric value from a metrics string.
 ///
 /// # Arguments
@@ -52,7 +55,12 @@ pub fn parse_numeric_metric<T: Num + FromStr>(
             return value.as_str().parse().ok();
         }
     }
-    // If no match is found, return None.
+    // If no match is found, log the values and return `None`.
+    info!(
+        "No match found for metric {metric_name} with labels {labels:?} in metrics string: \
+         {metrics_as_string}"
+    );
+
     None
 }
 
