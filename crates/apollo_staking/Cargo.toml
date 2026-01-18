@@ -7,8 +7,9 @@ license-file.workspace = true
 description = "Staking functionality for Starknet consensus participants."
 
 [dependencies]
-apollo_config.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_consensus.workspace = true
+apollo_staking_config.workspace = true
 apollo_state_sync_types.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
@@ -18,8 +19,10 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 static_assertions.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
+apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }

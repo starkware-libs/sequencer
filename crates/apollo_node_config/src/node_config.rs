@@ -39,6 +39,7 @@ use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_staking_config::config::StakingManagerDynamicConfig;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -314,6 +315,8 @@ pub struct NodeDynamicConfig {
     pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
     #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
+    #[validate(nested)]
+    pub staking_manager_dynamic_config: Option<StakingManagerDynamicConfig>,
 }
 
 impl SerializeConfig for NodeDynamicConfig {
@@ -323,6 +326,10 @@ impl SerializeConfig for NodeDynamicConfig {
             ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
+            ser_optional_sub_config(
+                &self.staking_manager_dynamic_config,
+                "staking_manager_dynamic_config",
+            ),
         ];
         sub_configs.into_iter().flatten().collect()
     }
@@ -354,6 +361,9 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             context_dynamic_config,
             http_server_dynamic_config,
             mempool_dynamic_config,
+            // TODO(Dafna): take from the staking-related config once available in
+            // consensus_manager_config.
+            staking_manager_dynamic_config: Some(StakingManagerDynamicConfig::default()),
         }
     }
 }

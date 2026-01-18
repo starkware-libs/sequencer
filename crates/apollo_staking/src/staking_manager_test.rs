@@ -2,6 +2,12 @@ use std::collections::HashSet;
 use std::convert::TryFrom;
 use std::sync::Arc;
 
+use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_staking_config::config::{
+    StakingManagerConfig,
+    StakingManagerDynamicConfig,
+    StakingManagerStaticConfig,
+};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use assert_matches::assert_matches;
 use blockifier::context::BlockContext;
@@ -34,7 +40,7 @@ use crate::committee_provider::{
     Staker,
 };
 use crate::contract_types::{ContractStaker, RetdataDeserializationError, TryFromIterator};
-use crate::staking_manager::{Epoch, StakingManager, StakingManagerConfig};
+use crate::staking_manager::{Epoch, StakingManager};
 use crate::utils::MockBlockRandomGenerator;
 
 const STAKING_CONTRACT: FeatureContract =
@@ -89,10 +95,12 @@ fn state(block_context: Context) -> State {
 #[fixture]
 fn default_config() -> StakingManagerConfig {
     StakingManagerConfig {
-        staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
-        max_cached_epochs: 10,
-        committee_size: 10,
-        proposer_prediction_window_in_heights: 10,
+        dynamic_config: StakingManagerDynamicConfig { committee_size: 10 },
+        static_config: StakingManagerStaticConfig {
+            staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
+            max_cached_epochs: 10,
+            proposer_prediction_window_in_heights: 10,
+        },
     }
 }
 
@@ -126,13 +134,14 @@ fn set_current_epoch(state: &mut State, block_context: &Context, epoch: Epoch) {
 }
 
 #[rstest]
+#[tokio::test]
 #[case::no_stakers(vec![], vec![])]
 #[case::single_staker(vec![STAKER_1], vec![STAKER_1])]
 #[case::multiple_stakers_less_than_committee_size(vec![STAKER_1, STAKER_2], vec![STAKER_2, STAKER_1])]
 #[case::multiple_stakers_equal_to_committee_size(vec![STAKER_1, STAKER_2, STAKER_3], vec![STAKER_3, STAKER_2, STAKER_1])]
 #[case::multiple_stakers_greater_than_committee_size(vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4], vec![STAKER_4, STAKER_3, STAKER_2])]
 #[case::multiple_stakers_equal_weights(vec![STAKER_1, STAKER_2, STAKER_3, Staker { address: ContractAddress(PatriciaKey::from_hex_unchecked("0x0")), .. STAKER_1 }], vec![STAKER_3, STAKER_2, STAKER_1])]
-fn get_committee_success(
+async fn get_committee_success(
     default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
@@ -146,7 +155,11 @@ fn get_committee_success(
 
     let mut committee_manager = StakingManager::new(
         Box::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { committee_size: 3, ..default_config },
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { committee_size: 3 },
+            ..default_config
+        },
+        None,
     );
 
     let context = ExecutionContext {
@@ -154,23 +167,24 @@ fn get_committee_success(
         block_context: block_context.clone(),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
     };
-    let committee = committee_manager.get_committee(BlockNumber(1), context).unwrap();
+    let committee = committee_manager.get_committee(BlockNumber(1), context).await.unwrap();
 
     assert_eq!(*committee, expected_committee);
 }
 
 #[rstest]
-fn get_committee_cache(
+#[tokio::test]
+async fn get_committee_cache(
     default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
 ) {
     set_current_epoch(&mut state, &block_context, EPOCH_1);
 
-    let mut committee_manager = StakingManager::new(
-        Box::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { max_cached_epochs: 1, ..default_config },
-    );
+    let mut config = default_config;
+    config.static_config.max_cached_epochs = 1;
+    let mut committee_manager =
+        StakingManager::new(Box::new(MockBlockRandomGenerator::new()), config, None);
 
     // Case 1: Get committee for epoch 1. Cache miss – STAKER_1 fetched from contract.
     set_stakers(&mut state, &block_context, &[ContractStaker::from(&STAKER_1)]);
@@ -179,7 +193,7 @@ fn get_committee_cache(
         block_context: block_context.clone(),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
     };
-    let committee = committee_manager.get_committee(BlockNumber(1), context).unwrap();
+    let committee = committee_manager.get_committee(BlockNumber(1), context).await.unwrap();
     assert_eq!(*committee, vec![STAKER_1]);
 
     // Case 2: Query epoch 1 again. Cache hit – STAKER_1 returned from cache despite contract
@@ -191,21 +205,23 @@ fn get_committee_cache(
         block_context: block_context.clone(),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
     };
-    let committee = committee_manager.get_committee(BlockNumber(1), context.clone()).unwrap();
+    let committee = committee_manager.get_committee(BlockNumber(1), context.clone()).await.unwrap();
     assert_eq!(*committee, vec![STAKER_1]);
 
     // Case 3: Get committee for epoch 2. Cache miss – new state is fetched from the contract.
-    let committee = committee_manager.get_committee(BlockNumber(101), context.clone()).unwrap();
+    let committee =
+        committee_manager.get_committee(BlockNumber(101), context.clone()).await.unwrap();
     assert_eq!(*committee, vec![STAKER_2]);
 
     // Case 4: Query epoch 1 again - Invalid Height error. Since the manager advanced to epoch 2 in
     // the previous step, epoch 1 is now considered too old.
-    let err = committee_manager.get_committee(BlockNumber(1), context).unwrap_err();
+    let err = committee_manager.get_committee(BlockNumber(1), context).await.unwrap_err();
     assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
 }
 
 #[rstest]
-fn get_committee_filters_out_stakers_without_public_key(
+#[tokio::test]
+async fn get_committee_filters_out_stakers_without_public_key(
     default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
@@ -222,7 +238,11 @@ fn get_committee_filters_out_stakers_without_public_key(
 
     let mut committee_manager = StakingManager::new(
         Box::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { committee_size: 3, ..default_config },
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { committee_size: 3 },
+            ..default_config
+        },
+        None,
     );
 
     let context = ExecutionContext {
@@ -230,7 +250,8 @@ fn get_committee_filters_out_stakers_without_public_key(
         block_context: block_context.clone(),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
     };
-    let committee = (*committee_manager.get_committee(BlockNumber(1), context).unwrap()).clone();
+    let committee =
+        (*committee_manager.get_committee(BlockNumber(1), context).await.unwrap()).clone();
 
     // STAKER_1 should be filtered out. Comparing HashSets since the order of the stakers is not
     // important.
@@ -238,7 +259,8 @@ fn get_committee_filters_out_stakers_without_public_key(
 }
 
 #[rstest]
-fn get_committee_for_next_epoch(
+#[tokio::test]
+async fn get_committee_for_next_epoch(
     default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
@@ -251,7 +273,11 @@ fn get_committee_for_next_epoch(
 
     let mut committee_manager = StakingManager::new(
         Box::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { committee_size: 3, ..default_config },
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { committee_size: 3 },
+            ..default_config
+        },
+        None,
     );
 
     let context = ExecutionContext {
@@ -262,14 +288,57 @@ fn get_committee_for_next_epoch(
 
     // 1. Valid Query: Height 101 falls within the next epoch's min bounds.
     let committee =
-        (*committee_manager.get_committee(BlockNumber(101), context.clone()).unwrap()).clone();
+        (*committee_manager.get_committee(BlockNumber(101), context.clone()).await.unwrap())
+            .clone();
     assert_eq!(committee.into_iter().collect::<HashSet<_>>(), HashSet::from([STAKER_1, STAKER_2]));
 
     // 2. Invalid Query: Height 150 exceeds the min bounds of the next epoch.
     // Since the next epoch's length is not known at this point, we cannot know if this height
     // belongs to Epoch 2 or a future Epoch > 2.
-    let err = committee_manager.get_committee(BlockNumber(150), context).unwrap_err();
+    let err = committee_manager.get_committee(BlockNumber(150), context).await.unwrap_err();
     assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_committee_applies_dynamic_config_changes(
+    default_config: StakingManagerConfig,
+    mut state: State,
+    block_context: Context,
+) {
+    set_current_epoch(&mut state, &block_context, EPOCH_1);
+
+    let contract_stakers: Vec<ContractStaker> =
+        [STAKER_1, STAKER_2, STAKER_3].iter().map(&ContractStaker::from).collect();
+    set_stakers(&mut state, &block_context, &contract_stakers);
+
+    let mut config_manager_client = MockConfigManagerClient::new();
+    config_manager_client
+        .expect_get_staking_manager_dynamic_config()
+        .times(1)
+        .return_once(|| Ok(StakingManagerDynamicConfig { committee_size: 2 }));
+    config_manager_client
+        .expect_get_staking_manager_dynamic_config()
+        .times(1)
+        .return_once(|| Ok(StakingManagerDynamicConfig { committee_size: 1 }));
+
+    let mut committee_manager = StakingManager::new(
+        Box::new(MockBlockRandomGenerator::new()),
+        default_config,
+        Some(Arc::new(config_manager_client)),
+    );
+
+    let context = ExecutionContext {
+        state_reader: state.clone(),
+        block_context: block_context.clone(),
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
+    };
+
+    let committee = committee_manager.get_committee(BlockNumber(1), context.clone()).await.unwrap();
+    assert_eq!(committee.len(), 2);
+
+    let committee = committee_manager.get_committee(BlockNumber(101), context).await.unwrap();
+    assert_eq!(committee.len(), 1);
 }
 
 #[rstest]
@@ -305,7 +374,8 @@ async fn get_proposer_success(
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| random_value);
 
-    let mut committee_manager = StakingManager::new(Box::new(random_generator), default_config);
+    let mut committee_manager =
+        StakingManager::new(Box::new(random_generator), default_config, None);
 
     let context = ExecutionContext {
         state_reader: state.clone(),
@@ -329,7 +399,11 @@ async fn get_proposer_empty_committee(
 
     let mut committee_manager = StakingManager::new(
         Box::new(random_generator),
-        StakingManagerConfig { committee_size: 0, ..default_config },
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { committee_size: 0 },
+            ..default_config
+        },
+        None,
     );
 
     let context = ExecutionContext {
@@ -360,7 +434,8 @@ async fn get_proposer_random_value_exceeds_total_weight(
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 10000);
 
-    let mut committee_manager = StakingManager::new(Box::new(random_generator), default_config);
+    let mut committee_manager =
+        StakingManager::new(Box::new(random_generator), default_config, None);
 
     let context = ExecutionContext {
         state_reader: state.clone(),
