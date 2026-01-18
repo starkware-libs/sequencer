@@ -33,14 +33,9 @@ use crate::test_utils::{
     deprecated_gateway_declare_tx,
     deprecated_gateway_deploy_account_tx,
     deprecated_gateway_invoke_tx,
-<<<<<<< HEAD
     deprecated_gateway_invoke_tx_client_side_proving,
-||||||| 2542eac07b
-=======
     get_mock_config_manager_client,
->>>>>>> origin/main-v0.14.1-committer
     rpc_invoke_tx,
-    rpc_invoke_tx_client_side_proving,
     GatewayTransaction,
     TransactionSerialization,
 };
@@ -208,27 +203,14 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
 
 // Uses add_tx_http_client with indices 5,6,7,8.
 #[rstest]
-<<<<<<< HEAD
-#[case::add_deprecated_gateway_invoke(0, deprecated_gateway_invoke_tx())]
+#[case::add_deprecated_gateway_invoke(5, deprecated_gateway_invoke_tx())]
 #[case::add_deprecated_gateway_invoke_client_side_proving(
-    1,
+    6,
     deprecated_gateway_invoke_tx_client_side_proving()
 )]
-#[case::add_deprecated_gateway_deploy_account(2, deprecated_gateway_deploy_account_tx())]
-#[case::add_deprecated_gateway_declare(3, deprecated_gateway_declare_tx())]
-#[case::add_rpc_invoke(4, rpc_invoke_tx())]
-#[case::add_rpc_invoke_client_side_proving(5, rpc_invoke_tx_client_side_proving())]
-||||||| 2542eac07b
-#[case::add_deprecated_gateway_invoke(0, deprecated_gateway_invoke_tx())]
-#[case::add_deprecated_gateway_deploy_account(1, deprecated_gateway_deploy_account_tx())]
-#[case::add_deprecated_gateway_declare(2, deprecated_gateway_declare_tx())]
-#[case::add_rpc_invoke(3, rpc_invoke_tx())]
-=======
-#[case::add_deprecated_gateway_invoke(5, deprecated_gateway_invoke_tx())]
-#[case::add_deprecated_gateway_deploy_account(6, deprecated_gateway_deploy_account_tx())]
-#[case::add_deprecated_gateway_declare(7, deprecated_gateway_declare_tx())]
-#[case::add_rpc_invoke(8, rpc_invoke_tx())]
->>>>>>> origin/main-v0.14.1-committer
+#[case::add_deprecated_gateway_deploy_account(7, deprecated_gateway_deploy_account_tx())]
+#[case::add_deprecated_gateway_declare(8, deprecated_gateway_declare_tx())]
+#[case::add_rpc_invoke(9, rpc_invoke_tx())]
 #[tokio::test]
 async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();
@@ -284,11 +266,11 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
 
-<<<<<<< HEAD
 // TODO(Einat): turn test back on when port issue is fixed.
+// Uses add_tx_http_client with indices 9,10,11,12.
 // #[rstest]
 // #[case::missing_version(
-//     0,
+//     9,
 //     None,
 //     StarknetError {
 //         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
@@ -296,28 +278,33 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
 //     }
 // )]
 // #[case::bad_version(
-//     1,
+//     10,
 //     Some("bad version"),
 //     StarknetError {
 //         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-//         message: "Version field is not a valid hex string: badversion".to_string(), //Note:
-// whitespaces are removed when parsing malformed tx jsons         }
+//         //Note: whitespaces are removed when parsing malformed tx jsons
+//         message: "Version field is not a valid hex string: badversion".to_string(),
+//     }
 // )]
-// #[case::old_version(2, Some("0x1"), StarknetError {
-//             code: StarknetErrorCode::KnownErrorCode(
-//                 KnownStarknetErrorCode::InvalidTransactionVersion,
-//             ),
-//             message: "Transaction version 1 is not supported. Supported versions: [3]."
-//                 .to_string(),
-//         },
+// #[case::old_version(
+//     11,
+//     Some("0x1"),
+//     StarknetError {
+//         code: StarknetErrorCode::KnownErrorCode(
+//             KnownStarknetErrorCode::InvalidTransactionVersion,
+//         ),
+//         message: "Transaction version 1 is not supported. Supported versions: [3].".to_string(),
+//     },
 // )]
-// #[case::newer_version(3, Some("0x4"), StarknetError {
-//                 code: StarknetErrorCode::KnownErrorCode(
-//                     KnownStarknetErrorCode::InvalidTransactionVersion,
-//                 ),
-//                 message: "Transaction version 4 is not supported. Supported versions: [3]."
-//                     .to_string(),
-//             }
+// #[case::newer_version(
+//     12,
+//     Some("0x4"),
+//     StarknetError {
+//         code: StarknetErrorCode::KnownErrorCode(
+//             KnownStarknetErrorCode::InvalidTransactionVersion,
+//         ),
+//         message: "Transaction version 4 is not supported. Supported versions: [3].".to_string(),
+//     }
 // )]
 // #[tokio::test]
 // async fn test_unsupported_tx_version(
@@ -334,130 +321,11 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
 //     } else {
 //         as_object.remove("version").unwrap();
 //     }
-||||||| 2542eac07b
-#[rstest]
-#[case::missing_version(
-    0,
-    None,
-    StarknetError {
-        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-        message: "Missing version field".to_string(),
-    }
-)]
-#[case::bad_version(
-    1,
-    Some("bad version"),
-    StarknetError {
-        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-        message: "Version field is not a valid hex string: badversion".to_string(), //Note: whitespaces are removed when parsing malformed tx jsons
-    }
-)]
-#[case::old_version(2, Some("0x1"), StarknetError {
-            code: StarknetErrorCode::KnownErrorCode(
-                KnownStarknetErrorCode::InvalidTransactionVersion,
-            ),
-            message: "Transaction version 1 is not supported. Supported versions: [3]."
-                .to_string(),
-        },
-)]
-#[case::newer_version(3, Some("0x4"), StarknetError {
-                code: StarknetErrorCode::KnownErrorCode(
-                    KnownStarknetErrorCode::InvalidTransactionVersion,
-                ),
-                message: "Transaction version 4 is not supported. Supported versions: [3]."
-                    .to_string(),
-            }
-)]
-#[tokio::test]
-async fn test_unsupported_tx_version(
-    #[case] index: u16,
-    #[case] version: Option<&str>,
-    #[case] expected_err: StarknetError,
-) {
-    // Set the tx version to the given version.
-    let mut tx_json =
-        TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
-    let as_object = tx_json.0.as_object_mut().unwrap();
-    if let Some(version) = version {
-        as_object.insert("version".to_string(), Value::String(version.to_string())).unwrap();
-    } else {
-        as_object.remove("version").unwrap();
-    }
-=======
-// Uses add_tx_http_client with indices 9,10,11,12.
-#[rstest]
-#[case::missing_version(
-    9,
-    None,
-    StarknetError {
-        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-        message: "Missing version field".to_string(),
-    }
-)]
-#[case::bad_version(
-    10,
-    Some("bad version"),
-    StarknetError {
-        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
-        //Note: whitespaces are removed when parsing malformed tx jsons
-        message: "Version field is not a valid hex string: badversion".to_string(),
-    }
-)]
-#[case::old_version(
-    11,
-    Some("0x1"),
-    StarknetError {
-        code: StarknetErrorCode::KnownErrorCode(
-            KnownStarknetErrorCode::InvalidTransactionVersion,
-        ),
-        message: "Transaction version 1 is not supported. Supported versions: [3].".to_string(),
-    },
-)]
-#[case::newer_version(
-    12,
-    Some("0x4"),
-    StarknetError {
-        code: StarknetErrorCode::KnownErrorCode(
-            KnownStarknetErrorCode::InvalidTransactionVersion,
-        ),
-        message: "Transaction version 4 is not supported. Supported versions: [3].".to_string(),
-    }
-)]
-#[tokio::test]
-async fn test_unsupported_tx_version(
-    #[case] index: u16,
-    #[case] version: Option<&str>,
-    #[case] expected_err: StarknetError,
-) {
-    // Set the tx version to the given version.
-    let mut tx_json =
-        TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
-    let as_object = tx_json.0.as_object_mut().unwrap();
-    if let Some(version) = version {
-        as_object.insert("version".to_string(), Value::String(version.to_string())).unwrap();
-    } else {
-        as_object.remove("version").unwrap();
-    }
->>>>>>> origin/main-v0.14.1-committer
 
-<<<<<<< HEAD
-//     let mock_gateway_client = MockGatewayClient::new();
-//     let mock_config_manager_client = MockConfigManagerClient::new();
-
-//     let http_client =
-//         add_tx_http_client(mock_config_manager_client, mock_gateway_client, 9 + index).await;
-||||||| 2542eac07b
-    let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = MockConfigManagerClient::new();
-
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, 9 + index).await;
-=======
-    let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = get_mock_config_manager_client(true);
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
->>>>>>> origin/main-v0.14.1-committer
+//   let mock_gateway_client = MockGatewayClient::new();
+//   let mock_config_manager_client = get_mock_config_manager_client(true);
+//   let http_client =
+//       add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
 
 //     let serialized_err =
 //         http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;

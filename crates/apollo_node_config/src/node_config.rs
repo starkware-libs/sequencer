@@ -410,61 +410,6 @@ impl SequencerNodeConfig {
             config_manager_config
         );
         validate_component_config_is_set_iff_running_locally!(
-<<<<<<< HEAD
-            self,
-            l1_provider,
-            l1_provider_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-            l1_gas_price_provider,
-            l1_gas_price_provider_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, mempool, mempool_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-            mempool_p2p,
-            mempool_p2p_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-            proof_manager,
-            proof_manager_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-            sierra_compiler,
-            sierra_compiler_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-||||||| 2542eac07b
-            self,
-            l1_provider,
-            l1_provider_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-            l1_gas_price_provider,
-            l1_gas_price_provider_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, mempool, mempool_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-            mempool_p2p,
-            mempool_p2p_config
-        );
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-            sierra_compiler,
-            sierra_compiler_config
-        );
-        validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
-        validate_component_config_is_set_iff_running_locally!(
-            self,
-=======
->>>>>>> origin/main-v0.14.1-committer
             consensus_manager,
             consensus_manager_config
         );
@@ -486,6 +431,7 @@ impl SequencerNodeConfig {
             monitoring_endpoint,
             monitoring_endpoint_config
         );
+        validate_component_config_is_set_iff_running_locally!(proof_manager, proof_manager_config);
         validate_component_config_is_set_iff_running_locally!(
             sierra_compiler,
             sierra_compiler_config
