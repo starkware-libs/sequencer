@@ -4,7 +4,11 @@ use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
-use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
+use apollo_committer_types::communication::{
+    CommitterRequest,
+    CommitterRequestLabelValue,
+    SharedCommitterClient,
+};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
@@ -24,6 +28,7 @@ use crate::commitment_manager::types::{
     CommitterTaskInput,
     CommitterTaskOutput,
     FinalBlockCommitment,
+    TasksTiming,
 };
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
@@ -37,6 +42,7 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) config: CommitmentManagerConfig,
     pub(crate) commitment_task_offset: BlockNumber,
     pub(crate) state_committer: S,
+    pub(crate) tasks_timing: TasksTiming,
 }
 
 impl<S: StateCommitterTrait> CommitmentManager<S> {
@@ -132,7 +138,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let mut results = Vec::new();
         loop {
             match self.results_receiver.try_recv() {
-                Ok(result) => results.push(result.expect_commitment()),
+                Ok(result) => {
+                    let task_duration = self.tasks_timing.stop_timing(&result);
+                    // TODO(Rotem): add a metric for the task duration.
+                    results.push(result.expect_commitment())
+                }
                 Err(TryRecvError::Empty) => break,
                 Err(err) => {
                     panic!("Failed to receive commitment result from state committer. error: {err}")
@@ -149,6 +159,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         height: BlockNumber,
         state_diff_commitment: Option<StateDiffCommitment>,
     ) -> CommitmentManagerResult<()> {
+        self.tasks_timing.start_timing(CommitterRequestLabelValue::CommitBlock, height);
         info!(
             "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
              state committer."
@@ -168,6 +179,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let (results_sender, results_receiver) = channel(config.results_channel_size);
 
         let state_committer = S::create(tasks_receiver, results_sender, committer_client);
+        let requests_timings = TasksTiming::new();
 
         Self {
             tasks_sender,
@@ -175,6 +187,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             config: config.clone(),
             commitment_task_offset: global_root_height,
             state_committer,
+            tasks_timing: requests_timings,
         }
     }
 
