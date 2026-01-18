@@ -118,18 +118,15 @@ pub fn create_signed_invoke_v3() -> InvokeTransactionV3 {
         ])),
         nonce: Nonce(felt!(constants::NONCE)),
         resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-            l1_gas: parse_resource_bounds(
-                constants::L1_GAS_MAX_AMOUNT,
-                constants::L1_GAS_MAX_PRICE,
-            ),
-            l2_gas: parse_resource_bounds(
-                constants::L2_GAS_MAX_AMOUNT,
-                constants::L2_GAS_MAX_PRICE,
-            ),
-            l1_data_gas: parse_resource_bounds(
-                constants::L1_DATA_GAS_MAX_AMOUNT,
-                constants::L1_DATA_GAS_MAX_PRICE,
-            ),
+            l1_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
+            l2_gas: ResourceBounds {
+                max_amount: GasAmount(10_000_000),
+                max_price_per_unit: GasPrice(0),
+            },
+            l1_data_gas: ResourceBounds {
+                max_amount: GasAmount(0),
+                max_price_per_unit: GasPrice(0),
+            },
         }),
         tip: Tip(parse_hex(constants::TIP)),
         calldata: Calldata(Arc::new(constants::CALLDATA.iter().map(|&s| felt!(s)).collect())),
