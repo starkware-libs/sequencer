@@ -362,6 +362,9 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         TransactionConverterError::ClassNotFound { .. } => {
             StarknetError::internal_with_signature_logging("Class not found", tx_signature, err)
         }
+        TransactionConverterError::ProofNotFound { .. } => {
+            StarknetError::internal_with_signature_logging("Proof not found", tx_signature, err)
+        }
         TransactionConverterError::StarknetApiError(err) => convert_sn_api_error(err),
     }
 }
