@@ -37,6 +37,7 @@ async fn build_proposal_succeed() {
             content: GetProposalContent::Finished {
                 id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
                 final_n_executed_txs: 0,
+                concatenated_counts: starknet_types_core::felt::Felt::ZERO,
             },
         })
     });
@@ -136,6 +137,7 @@ async fn cende_fail() {
             content: GetProposalContent::Finished {
                 id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
                 final_n_executed_txs: 0,
+                concatenated_counts: starknet_types_core::felt::Felt::ZERO,
             },
         })
     });

@@ -481,6 +481,9 @@ pub struct ProposalFin {
     /// Number of executed transactions in the proposal.
     #[prost(uint64, tag = "2")]
     pub executed_transaction_count: u64,
+    /// Concatenated counts.
+    #[prost(message, optional, tag = "3")]
+    pub concatenated_counts: ::core::option::Option<Felt252>,
 }
 /// Network format:
 /// 1. First message is BlockInfo (includes all block metadata)

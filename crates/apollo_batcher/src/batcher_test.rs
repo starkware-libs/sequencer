@@ -746,7 +746,8 @@ async fn propose_block_full_flow() {
                 id: proposal_commitment().await,
                 final_n_executed_txs: BlockExecutionArtifacts::create_for_testing()
                     .await
-                    .final_n_executed_txs
+                    .final_n_executed_txs,
+                concatenated_counts: starknet_types_core::felt::Felt::ZERO,
             }
         }
     );

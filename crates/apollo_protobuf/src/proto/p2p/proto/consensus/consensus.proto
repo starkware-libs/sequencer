@@ -69,6 +69,8 @@ message ProposalFin {
     Hash proposal_commitment = 1;
     // Number of executed transactions in the proposal.
     uint64 executed_transaction_count = 2;
+    // Concatenated counts.
+    Felt252 concatenated_counts = 3;
 }
 
 // Network format:
