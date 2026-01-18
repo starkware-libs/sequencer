@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod test;
 
-use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_mempool_p2p_types::communication::{
@@ -14,6 +13,7 @@ use apollo_metrics::metrics::LossyIntoF64;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
+use apollo_transaction_converter::TransactionConverterTrait;
 use async_trait::async_trait;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use tracing::{debug, trace, warn};

@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::MockClassManagerClient;
 use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_proof_manager_types::MockProofManagerClient;
+use apollo_transaction_converter::TransactionConverter;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;

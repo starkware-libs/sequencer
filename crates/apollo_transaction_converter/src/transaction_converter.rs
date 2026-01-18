@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use apollo_class_manager_types::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
 use apollo_proof_manager_types::{ProofManagerClientError, SharedProofManagerClient};
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -30,8 +31,6 @@ use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use thiserror::Error;
 use tracing::info;
-
-use crate::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
 
 #[cfg(test)]
 #[path = "transaction_converter_test.rs"]

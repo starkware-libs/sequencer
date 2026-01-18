@@ -13,7 +13,6 @@ use apollo_batcher_types::batcher_types::{
     ProposeBlockInput,
 };
 use apollo_batcher_types::communication::BatcherClientError;
-use apollo_class_manager_types::transaction_converter::TransactionConverterError;
 use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
@@ -25,6 +24,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, DateTime};
+use apollo_transaction_converter::TransactionConverterError;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;

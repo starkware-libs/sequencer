@@ -2,10 +2,6 @@ use std::clone::Clone;
 use std::sync::Arc;
 use std::time::Instant;
 
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterTrait,
-};
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
@@ -26,6 +22,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_transaction_converter::{TransactionConverter, TransactionConverterTrait};
 use axum::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::executable_transaction::AccountTransaction;
