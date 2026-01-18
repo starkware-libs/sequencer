@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use apollo_proof_manager_types::{ProofManagerClientError, SharedProofManagerClient};
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -27,6 +29,7 @@ use starknet_api::transaction::fields::{Fee, Proof, ProofFacts};
 use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use thiserror::Error;
+use tracing::info;
 
 use crate::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
 
@@ -338,7 +341,10 @@ impl TransactionConverter {
         };
         let internal_tx = self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
         if let Some((proof_facts, proof)) = proof_data {
+            let proof_manager_store_start = Instant::now();
             self.proof_manager_client.set_proof(proof_facts, proof).await?;
+            let proof_manager_store_duration = proof_manager_store_start.elapsed();
+            info!("Proof manager store in the consensus took: {proof_manager_store_duration:?}");
         }
         Ok(internal_tx)
     }
@@ -362,7 +368,10 @@ impl TransactionConverter {
             return Ok(());
         }
 
+        let verify_start = Instant::now();
         self.verify_proof(proof_facts.clone(), proof.clone())?;
+        let verify_duration = verify_start.elapsed();
+        info!("Proof verification took: {verify_duration:?}");
         Ok(())
     }
 
