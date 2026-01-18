@@ -439,6 +439,35 @@
           "extra_params": {
             "log_query": "\"BATCHER_FIN_PROPOSER\""
           }
+        },
+        {
+          "title": "Batcher Commitment Manager Commit Block Latency",
+          "description": "The latency of commit tasks in the commitment manager in seconds",
+          "type": "timeseries",
+          "exprs": [
+            "batcher_commitment_manager_commit_block_latency_gauge{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_commit_block_latency_hist_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_commit_block_latency_hist_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"commitment task\"",
+            "legends": [
+              "current",
+              "0.50",
+              "0.95"
+            ]
+          }
+        },
+        {
+          "title": "Commitment Manager Results Count",
+          "description": "The number of commit results received from the commitment manager",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_num_commit_results_hist_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_num_commit_results_hist_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true
