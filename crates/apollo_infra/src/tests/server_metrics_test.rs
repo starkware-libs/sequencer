@@ -169,6 +169,7 @@ async fn setup_concurrent_local_server_test(
     (test_sem, local_client)
 }
 
+// Uses available_ports_factory with index 6.
 async fn setup_remote_server_test(
     max_concurrency: usize,
 ) -> (Arc<Semaphore>, RemoteTestComponentClient) {
