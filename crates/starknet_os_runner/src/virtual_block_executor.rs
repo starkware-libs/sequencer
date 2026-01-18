@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use apollo_gateway::rpc_objects::BlockHeader;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutionOutput,
@@ -17,6 +16,7 @@ use blockifier::state::state_reader_and_contract_manager::{
 };
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier_reexecution::rpc_state_reader::rpc_objects::BlockHeader;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use blockifier_reexecution::utils::get_chain_info;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
