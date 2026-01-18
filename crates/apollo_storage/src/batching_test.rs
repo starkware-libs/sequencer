@@ -1,10 +1,17 @@
 use starknet_api::block::{BlockBody, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::state::ThinStateDiff;
-use tempfile::tempdir;
+use tempfile::{tempdir, TempDir};
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
-use crate::test_utils::get_test_config_with_path;
-use crate::{open_storage, BatchConfig, StorageScope};
+use crate::test_utils::{get_test_config, get_test_config_with_path};
+use crate::{open_storage, BatchConfig, StorageReader, StorageScope, StorageWriter};
+
+/// Returns [`StorageReader`], [`StorageWriter`] with batching enabled and the temporary directory.
+fn get_test_storage_with_batching(batch_size: usize) -> ((StorageReader, StorageWriter), TempDir) {
+    let (mut config, temp_dir) = get_test_config(None);
+    config.batch_config = BatchConfig { enable_batching: true, batch_size };
+    ((open_storage(config).unwrap()), temp_dir)
+}
 
 /// Test basic batching configuration.
 #[test]
@@ -394,4 +401,88 @@ fn test_old_api_works_after_flush() {
     // Verify data was written.
     let read_header = reader.begin_ro_txn().unwrap().get_block_header(block_number).unwrap();
     assert!(read_header.is_some(), "Old API should work after flush");
+}
+
+/// Test that the transaction flag protection prevents auto-flush during a transaction.
+/// This ensures atomicity: all operations between begin_rw_txn() and commit() are
+/// flushed together, preventing partial block writes.
+#[test]
+fn test_transaction_flag_blocks_auto_flush() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_batching(2); // batch_size=2
+
+    let block0 = BlockNumber(0);
+    let block1 = BlockNumber(1);
+    let header0 = BlockHeader::default();
+    let header1 = BlockHeader::default();
+
+    // Start a transaction (sets active_transaction=true).
+    let mut txn = writer.begin_rw_txn().unwrap();
+
+    // Queue an item using the transaction API.
+    txn = txn.append_header(block0, &header0).unwrap();
+
+    // At this point, the queue has 0 items (transaction API doesn't use the queue).
+    // Commit the transaction (resets active_transaction=false).
+    txn.commit().unwrap();
+
+    // Now queue items using the queue API.
+    writer.queue_header(block1, header1).unwrap();
+
+    // The queue should have 1 item (block1), because block0 was flushed on commit.
+    assert_eq!(writer.batch_queue_len(), 1, "Queue should have 1 item after transaction commit");
+
+    // Verify block0 was written.
+    let read_header0 = reader.begin_ro_txn().unwrap().get_block_header(block0).unwrap();
+    assert!(read_header0.is_some(), "Block0 should be written after transaction commit");
+
+    // Verify block1 is NOT written yet (still in queue).
+    let read_header1 = reader.begin_ro_txn().unwrap().get_block_header(block1).unwrap();
+    assert!(read_header1.is_none(), "Block1 should not be written yet (still in queue)");
+}
+
+/// Test that auto-flush resumes after transaction commits.
+#[test]
+fn test_auto_flush_resumes_after_commit() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage_with_batching(2); // batch_size=2
+
+    let block0 = BlockNumber(0);
+    let block1 = BlockNumber(1);
+    let block2 = BlockNumber(2);
+
+    // Create headers with different block hashes to avoid KeyAlreadyExists error.
+    let header0 = BlockHeader {
+        block_hash: starknet_api::block::BlockHash(starknet_api::hash::StarkHash::from(0_u128)),
+        ..Default::default()
+    };
+
+    let header1 = BlockHeader {
+        block_hash: starknet_api::block::BlockHash(starknet_api::hash::StarkHash::from(1_u128)),
+        ..Default::default()
+    };
+
+    let header2 = BlockHeader {
+        block_hash: starknet_api::block::BlockHash(starknet_api::hash::StarkHash::from(2_u128)),
+        ..Default::default()
+    };
+
+    // Use transaction API for block0.
+    let mut txn = writer.begin_rw_txn().unwrap();
+    txn = txn.append_header(block0, &header0).unwrap();
+    txn.commit().unwrap();
+
+    // Now use queue API - auto-flush should work normally.
+    writer.queue_header(block1, header1).unwrap();
+    assert_eq!(writer.batch_queue_len(), 1, "Queue should have 1 item");
+
+    // Queue another item - this should trigger auto-flush (batch_size=2).
+    writer.queue_header(block2, header2).unwrap();
+    assert_eq!(writer.batch_queue_len(), 0, "Queue should be empty after auto-flush");
+
+    // Verify all blocks were written.
+    let read_header0 = reader.begin_ro_txn().unwrap().get_block_header(block0).unwrap();
+    let read_header1 = reader.begin_ro_txn().unwrap().get_block_header(block1).unwrap();
+    let read_header2 = reader.begin_ro_txn().unwrap().get_block_header(block2).unwrap();
+    assert!(read_header0.is_some(), "Block0 should be written");
+    assert!(read_header1.is_some(), "Block1 should be written after auto-flush");
+    assert!(read_header2.is_some(), "Block2 should be written after auto-flush");
 }
