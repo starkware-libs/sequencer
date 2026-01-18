@@ -3,6 +3,12 @@ use serde::{Serialize, Serializer};
 
 use crate::alerts::AlertSeverity;
 
+const ALERT_PLACEHOLDER_FORMAT: &str = "$$$_{}_$$$";
+
+fn format_alert_placeholder(key: &String) -> String {
+    Template::new(ALERT_PLACEHOLDER_FORMAT).format(&[&key]).to_uppercase()
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum ComparisonValueOrPlaceholder {
     ConcreteValue(f64),
@@ -29,7 +35,7 @@ impl Serialize for ComparisonValueOrPlaceholder {
         match self {
             ComparisonValueOrPlaceholder::ConcreteValue(value) => value.serialize(serializer),
             ComparisonValueOrPlaceholder::Placeholder(placeholder) => {
-                placeholder.serialize(serializer)
+                format_alert_placeholder(placeholder).serialize(serializer)
             }
         }
     }
@@ -61,7 +67,7 @@ impl Serialize for SeverityValueOrPlaceholder {
         match self {
             SeverityValueOrPlaceholder::ConcreteValue(severity) => severity.serialize(serializer),
             SeverityValueOrPlaceholder::Placeholder(placeholder) => {
-                placeholder.serialize(serializer)
+                format_alert_placeholder(placeholder).serialize(serializer)
             }
         }
     }
@@ -96,7 +102,8 @@ impl Serialize for ExpressionOrExpressionWithPlaceholder {
                 expression.serialize(serializer)
             }
             ExpressionOrExpressionWithPlaceholder::Placeholder(template, placeholders) => {
-                template.format(placeholders.as_slice()).serialize(serializer)
+                format_alert_placeholder(&template.format(placeholders.as_slice()))
+                    .serialize(serializer)
             }
         }
     }

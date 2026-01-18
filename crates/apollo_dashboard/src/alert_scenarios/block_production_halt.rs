@@ -6,6 +6,7 @@ use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_definitions::BLOCK_TIME_SEC;
+use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -68,11 +69,16 @@ pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
     ]
 }
 
+// TODO(Tsabary): settle all the required parameters that are different among envs using the
+// placeholder mechanism. TODO(Tsabary): remove `AlertEnvFiltering` throughout and use the
+// placeholder mechanism instead.
+
 fn get_batched_transactions_stuck(
     alert_name: &'static str,
     alert_env_filtering: AlertEnvFiltering,
     duration: Duration,
-    alert_severity: AlertSeverity,
+    // TODO(Tsabary): remove the `_alert_severity` argument.
+    _alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
         alert_name,
@@ -86,7 +92,7 @@ fn get_batched_transactions_stuck(
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(alert_name.to_string()),
         ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
