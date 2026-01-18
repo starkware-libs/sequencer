@@ -26,15 +26,21 @@ use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{Fee, Proof, ProofFacts};
 use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
+use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
+use crate::proof_verification::{run_stwo_verify_on_proof, VerifyProofError};
 use crate::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
+
+/// The expected bootloader program hash for proof verification.
+pub const BOOTLOADER_PROGRAM_HASH: &str =
+    "0x3faf9fbac01a844107ca8f272e78763d3818ac40ed9107307271b651e7efe0d";
 
 #[cfg(test)]
 #[path = "transaction_converter_test.rs"]
 pub mod transaction_converter_test;
 
-#[derive(Error, Debug, Clone, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum TransactionConverterError {
     #[error(transparent)]
     ClassManagerClientError(#[from] ClassManagerClientError),
@@ -42,6 +48,8 @@ pub enum TransactionConverterError {
     ClassNotFound { class_hash: ClassHash },
     #[error(transparent)]
     ProofManagerClientError(#[from] ProofManagerClientError),
+    #[error(transparent)]
+    ProofVerificationError(#[from] VerifyProofError),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
@@ -334,17 +342,40 @@ impl TransactionConverter {
             return Ok(());
         }
 
-        self.verify_proof(proof_facts.clone(), proof.clone())?;
+        self.verify_proof(proof_facts.clone(), proof.clone()).await?;
         self.proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await?;
         Ok(())
     }
 
-    fn verify_proof(
+    /// Verifies a client-side proof by running stwo_verify on a temporary binary proof file,
+    /// validating the emitted proof facts, and comparing the bootloader program hash to the
+    /// expected value.
+    async fn verify_proof(
         &self,
-        _proof_facts: ProofFacts,
-        _proof: Proof,
-    ) -> TransactionConverterResult<()> {
-        // TODO(Avi): Implement actual proof validation.
+        proof_facts: ProofFacts,
+        proof: Proof,
+    ) -> Result<(), VerifyProofError> {
+        // Reject empty proof payloads before running the verifier.
+        if proof.is_empty() {
+            return Err(VerifyProofError::EmptyProof);
+        }
+
+        // Run stwo_verify and extract proof facts and program hash.
+        let output = run_stwo_verify_on_proof(proof).await?;
+
+        // Validate that the extracted proof facts match the expected facts.
+        if proof_facts != output.proof_facts {
+            return Err(VerifyProofError::ProofFactsMismatch);
+        }
+
+        // Validate the bootloader program hash output against the expected bootloader hash.
+        let expected_program_hash = Felt::from_hex(BOOTLOADER_PROGRAM_HASH.trim())
+            .map_err(VerifyProofError::ParseExpectedHash)?;
+
+        if output.program_hash != expected_program_hash {
+            return Err(VerifyProofError::BootloaderHashMismatch);
+        }
+
         Ok(())
     }
 }

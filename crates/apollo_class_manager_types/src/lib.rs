@@ -1,3 +1,4 @@
+pub mod proof_verification;
 pub mod transaction_converter;
 
 use std::error::Error;
