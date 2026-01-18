@@ -4,8 +4,6 @@
 
 use std::sync::Arc;
 
-use num_traits::Num;
-
 use crate::block::GasPrice;
 use crate::core::Nonce;
 use crate::data_availability::DataAvailabilityMode;
@@ -21,23 +19,8 @@ use crate::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use crate::transaction::InvokeTransactionV3;
+use crate::transaction::{InvokeTransaction, InvokeTransactionV3};
 use crate::{contract_address, felt};
-
-// Generic helper function for parsing hex strings to integer types
-fn parse_hex<T: Num>(hex: &str) -> T
-where
-    <T as Num>::FromStrRadixErr: std::fmt::Debug,
-{
-    T::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap()
-}
-
-fn parse_resource_bounds(max_amount_hex: &str, max_price_hex: &str) -> ResourceBounds {
-    ResourceBounds {
-        max_amount: GasAmount(parse_hex(max_amount_hex)),
-        max_price_per_unit: GasPrice(parse_hex(max_price_hex)),
-    }
-}
 
 /// Raw hex constants defining a real privacy pool InvokeTransactionV3.
 ///
@@ -50,26 +33,27 @@ fn parse_resource_bounds(max_amount_hex: &str, max_price_hex: &str) -> ResourceB
 /// - Token: STRK
 /// - note0: 60 STRK, randomness = 0x7df2e0febf7b49789620f89f79ff5
 /// - note1: 40 STRK, randomness = 0x1a3fc3168f27d39a708ad8c2d44d9c
-mod constants {
+mod tx_constants {
     /// Sender is the privacy pool contract.
     pub const SENDER_ADDRESS: &str =
         "0x712391ff6487c9232582442ea7eb4a10cad4892c3bcde3516e2a3955bf4f0da";
 
+    // Signature for the specific transaction(any change in the tx changes the signature).
     pub const SIGNATURE_R: &str =
-        "0x257e4c97da7707455eed927d07fcc321ad9069adc45f1fc64c9d7217297db65";
+        "0x20e2eb40a80ecb91fc20f8d67f5aeb597ca30a593785eddef26046352b639bd";
     pub const SIGNATURE_S: &str =
-        "0x3de8cb6bcf51c543db201baaf4f54d89e82fc31a7939436216f3d79d77c7520";
+        "0x6953e08cc5d88f01923afe940e009ad0d278319410fc52b0e050f379573b2a5";
 
     pub const NONCE: &str = "0x7";
-    pub const TIP: &str = "0x0";
+    pub const TIP: u64 = 0;
 
     // Resource bounds
-    pub const L1_GAS_MAX_AMOUNT: &str = "0x0";
-    pub const L1_GAS_MAX_PRICE: &str = "0x0";
-    pub const L2_GAS_MAX_AMOUNT: &str = "0x8f0d180";
-    pub const L2_GAS_MAX_PRICE: &str = "0xba43b7400";
-    pub const L1_DATA_GAS_MAX_AMOUNT: &str = "0x0";
-    pub const L1_DATA_GAS_MAX_PRICE: &str = "0x0";
+    pub const L1_GAS_MAX_AMOUNT: u64 = 0;
+    pub const L1_GAS_MAX_PRICE: u64 = 0;
+    pub const L2_GAS_MAX_AMOUNT: u64 = 100_000_000;
+    pub const L2_GAS_MAX_PRICE: u64 = 0;
+    pub const L1_DATA_GAS_MAX_AMOUNT: u64 = 0;
+    pub const L1_DATA_GAS_MAX_PRICE: u64 = 0;
 
     /// Calldata semantics:
     /// - Consumes note0 (60 STRK) and note1 (40 STRK).
@@ -109,31 +93,36 @@ mod constants {
 }
 
 /// Creates a pre-signed InvokeTransactionV3 for privacy pool testing.
-pub fn create_signed_invoke_v3() -> InvokeTransactionV3 {
-    InvokeTransactionV3 {
-        sender_address: contract_address!(constants::SENDER_ADDRESS),
+pub fn create_privacy_invoke_tx() -> InvokeTransaction {
+    let tx = InvokeTransactionV3 {
+        sender_address: contract_address!(tx_constants::SENDER_ADDRESS),
         signature: TransactionSignature(Arc::new(vec![
-            felt!(constants::SIGNATURE_R),
-            felt!(constants::SIGNATURE_S),
+            felt!(tx_constants::SIGNATURE_R),
+            felt!(tx_constants::SIGNATURE_S),
         ])),
-        nonce: Nonce(felt!(constants::NONCE)),
+        nonce: Nonce(felt!(tx_constants::NONCE)),
         resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-            l1_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
+            l1_gas: ResourceBounds {
+                max_amount: GasAmount(tx_constants::L1_GAS_MAX_AMOUNT),
+                max_price_per_unit: GasPrice(0),
+            },
             l2_gas: ResourceBounds {
-                max_amount: GasAmount(10_000_000),
+                max_amount: GasAmount(tx_constants::L2_GAS_MAX_AMOUNT),
                 max_price_per_unit: GasPrice(0),
             },
             l1_data_gas: ResourceBounds {
-                max_amount: GasAmount(0),
+                max_amount: GasAmount(tx_constants::L1_DATA_GAS_MAX_AMOUNT),
                 max_price_per_unit: GasPrice(0),
             },
         }),
-        tip: Tip(parse_hex(constants::TIP)),
-        calldata: Calldata(Arc::new(constants::CALLDATA.iter().map(|&s| felt!(s)).collect())),
+        tip: Tip(tx_constants::TIP),
+        calldata: Calldata(Arc::new(tx_constants::CALLDATA.iter().map(|&s| felt!(s)).collect())),
         nonce_data_availability_mode: DataAvailabilityMode::L1,
         fee_data_availability_mode: DataAvailabilityMode::L1,
         paymaster_data: PaymasterData(vec![]),
         account_deployment_data: AccountDeploymentData(vec![]),
         proof_facts: ProofFacts::default(),
-    }
+    };
+
+    InvokeTransaction::V3(tx)
 }

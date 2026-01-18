@@ -55,7 +55,7 @@
     "ignore_inner_event_resources": false,
     "invoke_tx_max_n_steps": 10000000,
     "max_recursion_depth": 50,
-    "min_sierra_version_for_sierra_gas": "1.7.0",
+    "min_sierra_version_for_sierra_gas": "0.0.0",
     "os_constants": {
         "builtin_gas_costs": {
             "add_mod": 230,
