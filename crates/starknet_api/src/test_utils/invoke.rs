@@ -227,4 +227,14 @@ impl InvokeTxArgs {
         self.nonce = nonce;
         self
     }
+
+    pub fn proof_facts(mut self, proof_facts: ProofFacts) -> Self {
+        self.proof_facts = proof_facts;
+        self
+    }
+
+    pub fn proof(mut self, proof: Proof) -> Self {
+        self.proof = proof;
+        self
+    }
 }

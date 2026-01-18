@@ -403,6 +403,24 @@ impl AccountTransactionGenerator {
         rpc_invoke_tx(self.build_invoke_tx_args().tip(Tip(tip)).calldata(calldata))
     }
 
+    /// Generates a trivial invoke transaction with proof facts and proof for client-side proving.
+    pub fn generate_trivial_rpc_invoke_tx_with_proof(
+        &mut self,
+        tip: u64,
+        proof_facts: ProofFacts,
+        proof: Proof,
+    ) -> RpcTransaction {
+        let test_contract = FeatureContract::TestContract(self.account.cairo_version());
+        let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
+        rpc_invoke_tx(
+            self.build_invoke_tx_args()
+                .tip(Tip(tip))
+                .calldata(calldata)
+                .proof_facts(proof_facts)
+                .proof(proof),
+        )
+    }
+
     fn generate_nested_call_invoke_tx(
         &mut self,
         outer_test_contract: &FeatureContract,
