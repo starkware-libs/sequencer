@@ -30,12 +30,7 @@ use apollo_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
-<<<<<<< HEAD
 use apollo_proof_manager_types::MockProofManagerClient;
-use apollo_protobuf::consensus::{ConsensusBlockInfo, HeightAndRound, ProposalPart, Vote};
-||||||| 2542eac07b
-use apollo_protobuf::consensus::{ConsensusBlockInfo, HeightAndRound, ProposalPart, Vote};
-=======
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     HeightAndRound,
@@ -46,7 +41,6 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
->>>>>>> origin/main-v0.14.1-committer
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DateTime, DefaultClock};
 use futures::channel::mpsc;

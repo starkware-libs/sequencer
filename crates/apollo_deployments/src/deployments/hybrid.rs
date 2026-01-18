@@ -15,14 +15,8 @@ use crate::scale_policy::ScalePolicy;
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::utils::InfraPortAllocator;
 
-<<<<<<< HEAD
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 11;
-||||||| 2542eac07b
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
-=======
 // Number of infra-required ports for a hybrid node service distribution.
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
->>>>>>> origin/main-v0.14.1-committer
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 11;
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -45,89 +39,6 @@ impl From<HybridNodeServiceName> for NodeService {
 
 impl GetComponentConfigs for HybridNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> HashMap<NodeService, ComponentConfig> {
-<<<<<<< HEAD
-        // TODO(Tsabary): style this code, i.e., no need to use a mutable map nor the for loop, and
-        // can simply collect the required values.
-        let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
-        match ports {
-            Some(ports) => {
-                validate_ports(&ports, InfraServicePort::iter().count());
-                // TODO(Nadin): This should compare against HybridServicePort-specific infra ports,
-                // not all InfraServicePort variants.
-                for (service_port, port) in InfraServicePort::iter().zip(ports) {
-                    service_ports.insert(service_port, port);
-                }
-            }
-            None => {
-                // Extract the infra service ports for all inner services of the hybrid node.
-                for service_port in InfraServicePort::iter() {
-                    service_ports.insert(service_port, INFRA_PORT_PLACEHOLDER);
-                }
-            }
-        };
-
-        let batcher = Self::Core.component_config_pair(service_ports[&InfraServicePort::Batcher]);
-        let class_manager =
-            Self::Core.component_config_pair(service_ports[&InfraServicePort::ClassManager]);
-        let committer =
-            Self::Committer.component_config_pair(service_ports[&InfraServicePort::Committer]);
-        let gateway =
-            Self::Gateway.component_config_pair(service_ports[&InfraServicePort::Gateway]);
-        let l1_gas_price_provider =
-            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
-        let l1_provider =
-            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1Provider]);
-        let mempool =
-            Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
-        let proof_manager =
-            Self::Core.component_config_pair(service_ports[&InfraServicePort::ProofManager]);
-        let sierra_compiler = Self::SierraCompiler
-            .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
-        let signature_manager =
-            Self::Core.component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
-        let state_sync =
-            Self::Core.component_config_pair(service_ports[&InfraServicePort::StateSync]);
-||||||| 2542eac07b
-        // TODO(Tsabary): style this code, i.e., no need to use a mutable map nor the for loop, and
-        // can simply collect the required values.
-        let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
-        match ports {
-            Some(ports) => {
-                validate_ports(&ports, InfraServicePort::iter().count());
-                // TODO(Nadin): This should compare against HybridServicePort-specific infra ports,
-                // not all InfraServicePort variants.
-                for (service_port, port) in InfraServicePort::iter().zip(ports) {
-                    service_ports.insert(service_port, port);
-                }
-            }
-            None => {
-                // Extract the infra service ports for all inner services of the hybrid node.
-                for service_port in InfraServicePort::iter() {
-                    service_ports.insert(service_port, INFRA_PORT_PLACEHOLDER);
-                }
-            }
-        };
-
-        let batcher = Self::Core.component_config_pair(service_ports[&InfraServicePort::Batcher]);
-        let class_manager =
-            Self::Core.component_config_pair(service_ports[&InfraServicePort::ClassManager]);
-        let committer =
-            Self::Committer.component_config_pair(service_ports[&InfraServicePort::Committer]);
-        let gateway =
-            Self::Gateway.component_config_pair(service_ports[&InfraServicePort::Gateway]);
-        let l1_gas_price_provider =
-            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
-        let l1_provider =
-            Self::L1.component_config_pair(service_ports[&InfraServicePort::L1Provider]);
-        let mempool =
-            Self::Mempool.component_config_pair(service_ports[&InfraServicePort::Mempool]);
-        let sierra_compiler = Self::SierraCompiler
-            .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
-        let signature_manager =
-            Self::Core.component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
-        let state_sync =
-            Self::Core.component_config_pair(service_ports[&InfraServicePort::StateSync]);
-=======
         let mut infra_port_allocator =
             InfraPortAllocator::new(ports, HYBRID_NODE_REQUIRED_PORTS_NUM);
         let batcher = Self::Core.component_config_pair(infra_port_allocator.next());
@@ -137,11 +48,11 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let l1_gas_price_provider = Self::L1.component_config_pair(infra_port_allocator.next());
         let l1_provider = Self::L1.component_config_pair(infra_port_allocator.next());
         let mempool = Self::Mempool.component_config_pair(infra_port_allocator.next());
+        let proof_manager = Self::Core.component_config_pair(infra_port_allocator.next());
         let sierra_compiler =
             Self::SierraCompiler.component_config_pair(infra_port_allocator.next());
         let signature_manager = Self::Core.component_config_pair(infra_port_allocator.next());
         let state_sync = Self::Core.component_config_pair(infra_port_allocator.next());
->>>>>>> origin/main-v0.14.1-committer
 
         let mut component_config_map = HashMap::<NodeService, ComponentConfig>::new();
         for inner_service_name in Self::iter() {
