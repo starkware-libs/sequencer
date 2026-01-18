@@ -18,8 +18,13 @@ apollo_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
+bytes.workspace = true
 derive_more = { workspace = true, features = ["display", "from_str"] }
+http-body-util.workspace = true
+http_1.workspace = true
 hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
+hyper-util = { workspace = true, features = ["client-legacy", "tokio"] }
+hyper_1.workspace = true
 metrics-exporter-prometheus.workspace = true
 rand.workspace = true
 rstest.workspace = true
