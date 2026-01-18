@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 
@@ -101,16 +102,39 @@ impl MonitoringClient {
     }
 
     // TODO(Yael/Itay): add labels support
-    // TODO(Itay): Consider making this private
-    pub async fn get_metric<T: Num + FromStr>(
+    pub async fn get_metric<T: Num + FromStr + Send + Debug + 'static>(
         &self,
         metric_name: &str,
     ) -> Result<T, MonitoringClientError> {
-        let body_string = self.get_metrics().await?;
+        const INTERVAL_MS: u64 = 10;
+        const MAX_ATTEMPTS: usize = 25;
 
-        // Extract and return the metric value, or a suitable error.
-        parse_numeric_metric::<T>(&body_string, metric_name, None)
-            .ok_or(MonitoringClientError::MetricNotFound { metric_name: metric_name.to_string() })
+        let logger = CustomLogger::new(
+            TraceLevel::Info,
+            Some(format!("Polling for metric '{}'", metric_name)),
+        );
+
+        let result = run_until(
+            INTERVAL_MS,
+            MAX_ATTEMPTS,
+            || async {
+                let body_string = self.get_metrics().await?;
+                parse_numeric_metric::<T>(&body_string, metric_name, None).ok_or(
+                    MonitoringClientError::MetricNotFound { metric_name: metric_name.to_string() },
+                )
+            },
+            |result: &Result<T, MonitoringClientError>| result.is_ok(),
+            Some(logger),
+        )
+        .await;
+
+        match result {
+            Some(Ok(metric_value)) => Ok(metric_value),
+            Some(Err(err)) => Err(err),
+            None => {
+                Err(MonitoringClientError::MetricNotFound { metric_name: metric_name.to_string() })
+            }
+        }
     }
 }
 
