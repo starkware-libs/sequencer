@@ -24,11 +24,7 @@ fn get_preconfirmed_block_not_written(
         "Preconfirmed block not written",
         AlertGroup::Batcher,
         format!("increase({}[2m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,

@@ -124,11 +124,7 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
             consensus = CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
             sync = CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.5,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 0.5, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
@@ -146,11 +142,7 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 5.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -168,11 +160,7 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
             "sum(increase({}[20m])) or vector(0)",
             CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 20.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 20.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -192,11 +180,7 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
             CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_sum_with_filter(),
             CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_count_with_filter(),
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 3.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 3.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
@@ -214,11 +198,7 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 5.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
@@ -236,11 +216,7 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -258,11 +234,7 @@ fn get_consensus_proposal_fin_mismatch_once() -> Alert {
             "sum(increase({}[1h])) or vector(0)",
             CONSENSUS_PROPOSAL_FIN_MISMATCH.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
@@ -280,11 +252,7 @@ fn get_consensus_conflicting_votes() -> Alert {
             "sum(increase({}[20m])) or vector(0)",
             CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         // TODO(matan): Increase severity once slashing is supported.
@@ -303,11 +271,7 @@ fn get_consensus_retrospective_block_hash_from_state_sync() -> Alert {
             "sum(increase({}[5m])) or vector(0)",
             CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -325,11 +289,7 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
             "sum(increase({}[1h])) or vector(0)",
             ETH_TO_STRK_ERROR_COUNT.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 10.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         "1m",
         20,
         AlertSeverity::Informational,
@@ -347,11 +307,7 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
             "sum(increase({}[5m])) or vector(0)",
             L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -369,11 +325,7 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
             "sum(increase({}[1m])) or vector(0)",
             L1_GAS_PRICE_SCRAPER_REORG_DETECTED.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -391,11 +343,7 @@ fn get_l1_message_scraper_baselayer_error_count_alert() -> Alert {
             "sum(increase({}[1h])) or vector(0)",
             L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 5.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -413,11 +361,7 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
             "sum(increase({}[1m])) or vector(0)",
             L1_MESSAGE_SCRAPER_REORG_DETECTED.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Sos,
@@ -435,11 +379,7 @@ fn get_native_compilation_error_increase() -> Alert {
             "sum(increase({}[1h])) or vector(0)",
             NATIVE_COMPILATION_ERROR.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
@@ -460,11 +400,7 @@ fn get_consensus_p2p_disconnections() -> Alert {
             "(sum(changes({}[1h])) or vector(0)) / 2",
             CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 10.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
@@ -485,11 +421,7 @@ fn get_mempool_p2p_disconnections() -> Alert {
             "(sum(changes({}[1h])) or vector(0)) / 2",
             MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 10.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
@@ -506,11 +438,11 @@ fn create_storage_open_read_transactions_alert(storage_type: &str, metric_name: 
         format!("{storage_type} - High number of open read transactions"),
         AlertGroup::StateSync,
         format!("max_over_time({}[1m])", metric_name),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: MAX_OPEN_READ_TRANSACTIONS,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            MAX_OPEN_READ_TRANSACTIONS,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
