@@ -56,6 +56,9 @@ define_metrics!(
         MetricGauge { SIERRA_GAS_IN_LAST_BLOCK, "batcher_sierra_gas_in_last_block", "The sierra gas in the last block"},
         MetricGauge { PROVING_GAS_IN_LAST_BLOCK, "batcher_proving_gas_in_last_block", "The proving gas in the last block"},
         MetricGauge { L2_GAS_IN_LAST_BLOCK, "batcher_l2_gas_in_last_block", "The L2 gas used in the last block"},
+        // Commitment manager
+        MetricHistogram { COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY, "batcher_commitment_manager_commit_block_latency", "The latency of commit task in the commitment manager in milliseconds" },
+        MetricHistogram { COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY, "batcher_commitment_manager_revert_block_latency", "The latency of revert task in the commitment manager in milliseconds" },
     },
 );
 
@@ -113,6 +116,9 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
     SIERRA_GAS_IN_LAST_BLOCK.register();
     PROVING_GAS_IN_LAST_BLOCK.register();
     L2_GAS_IN_LAST_BLOCK.register();
+
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.register();
+    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.register();
 
     // Blockifier's metrics
     BATCHER_CLASS_CACHE_METRICS.register();
