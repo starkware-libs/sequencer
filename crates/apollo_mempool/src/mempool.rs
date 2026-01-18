@@ -596,7 +596,9 @@ impl Mempool {
 
     /// Updates the gas price threshold for transactions that are eligible for sequencing.
     pub fn update_gas_price(&mut self, threshold: GasPrice) {
-        self.tx_queue.update_gas_price_threshold(threshold);
+        if self.config.static_config.validate_resource_bounds {
+            self.tx_queue.update_gas_price_threshold(threshold);
+        }
         self.update_state_metrics();
     }
 
