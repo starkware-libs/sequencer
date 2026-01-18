@@ -17,6 +17,8 @@ pub enum VirtualBlockExecutorError {
     TransactionExecutionError(String),
     #[error("Block state unavailable after execution")]
     StateUnavailable,
+    #[error("Failed to acquire bouncer lock: {0}")]
+    BouncerLockError(String),
 }
 
 #[derive(Debug, Error)]
