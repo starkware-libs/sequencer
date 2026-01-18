@@ -2,10 +2,15 @@ use apollo_gateway_config::config::ProofArchiveWriterConfig;
 use async_trait::async_trait;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
+use google_cloud_storage::http::Error as GcsError;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use thiserror::Error;
+
+// The expected error code for precondition failed errors when using `if_generation_match` in GCS.
+const GCS_ERROR_CODE_PRECONDITION_FAILED: u16 = 412;
+
 /// Trait for writing proof facts and proofs to large storage systems.
 /// Implementations should be thread-safe (Send + Sync).
 #[cfg_attr(any(feature = "testing", test), automock)]
@@ -39,6 +44,7 @@ impl GcsProofArchiveWriter {
 
 #[async_trait]
 impl ProofArchiveWriterTrait for GcsProofArchiveWriter {
+    // TODO(Einat): Add retry mechanism.
     async fn set_proof(
         &self,
         proof_facts: ProofFacts,
@@ -48,21 +54,29 @@ impl ProofArchiveWriterTrait for GcsProofArchiveWriter {
         let proof_bytes: Vec<u8> = proof.0.iter().flat_map(|&val| val.to_be_bytes()).collect();
         let object_name = format!("proofs/{}", facts_hash);
 
-        self.client
+        let result = self
+            .client
             .upload_object(
                 &UploadObjectRequest {
                     bucket: self.config.bucket_name.clone(),
+                    // Only write if the object does not already exist.
+                    if_generation_match: Some(0),
                     ..Default::default()
                 },
                 proof_bytes,
                 &UploadType::Simple(Media::new(object_name)),
             )
-            .await
-            .map_err(|e| {
-                ProofArchiveError::WriteError(format!("Failed to upload to GCS: {}", e))
-            })?;
+            .await;
 
-        Ok(())
+        match result {
+            Ok(_) => Ok(()),
+            Err(GcsError::Response(ref err)) if err.code == GCS_ERROR_CODE_PRECONDITION_FAILED => {
+                // Precondition failed: object already exists. This is expected if the proof already
+                // exists in the archive.
+                Ok(())
+            }
+            Err(e) => Err(ProofArchiveError::WriteError(format!("Failed to upload to GCS: {}", e))),
+        }
     }
 }
 
