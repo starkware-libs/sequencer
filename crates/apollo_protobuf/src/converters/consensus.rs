@@ -213,6 +213,8 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
                 });
             }
         };
+        let parent_proposal_commitment =
+            value.parent_proposal_commitment.map(|hash| hash.try_into()).transpose()?;
         Ok(ConsensusBlockInfo {
             height,
             round,
@@ -227,6 +229,7 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
             l1_gas_price_wei,
             l1_data_gas_price_wei,
             starknet_version,
+            parent_proposal_commitment,
         })
     }
 }
@@ -247,6 +250,7 @@ impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
             l1_gas_price_wei: Some(value.l1_gas_price_wei.0.into()),
             l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.0.into()),
             starknet_version: value.starknet_version.to_string(),
+            parent_proposal_commitment: value.parent_proposal_commitment.map(|c| c.into()),
         }
     }
 }

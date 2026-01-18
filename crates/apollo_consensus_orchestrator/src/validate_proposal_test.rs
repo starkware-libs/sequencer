@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    GetParentProposalCommitmentResponse,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
@@ -123,6 +124,9 @@ fn create_proposal_validate_arguments()
 async fn validate_empty_proposal() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     // Empty proposals call validate_block and send Finish (no Txs)
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
     proposal_args
         .deps
@@ -181,6 +185,9 @@ async fn validate_proposal_success() {
 async fn interrupt_proposal() {
     let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
     // Interrupted proposals call validate_block and send Abort
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
     proposal_args
         .deps
@@ -204,6 +211,9 @@ async fn interrupt_proposal() {
 async fn validation_timeout() {
     let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
     // Timed out proposals call validate_block and send Abort
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_validate_block().times(1).returning(|_| Ok(()));
     proposal_args
         .deps
@@ -227,6 +237,9 @@ async fn validation_timeout() {
 async fn invalid_block_info() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
 
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.block_info.l2_gas_price_fri =
         GasPrice(proposal_args.block_info_validation.l2_gas_price_fri.0 + 1);
     content_sender.send(ProposalPart::BlockInfo(proposal_args.block_info.clone())).await.unwrap();
@@ -239,6 +252,9 @@ async fn invalid_block_info() {
 async fn validate_block_fail() {
     let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
     // Setup batcher to return an error when validating the block.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_validate_block().returning(|_| {
         Err(BatcherClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
     });
@@ -253,6 +269,9 @@ async fn proposal_fin_mismatch() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     let n_executed = 0;
     // Setup batcher to validate the block.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
     // Batcher returns a different block hash than the one received in Fin.
     let built_block = StateDiffCommitment(PoseidonHash(Felt::ONE));
@@ -289,6 +308,9 @@ async fn batcher_returns_invalid_proposal() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     let n_executed = 0;
     // Setup batcher to validate the block.
+    proposal_args.deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
     // Batcher returns an invalid proposal status.
     proposal_args
