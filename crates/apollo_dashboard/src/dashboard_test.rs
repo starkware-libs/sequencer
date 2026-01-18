@@ -20,11 +20,7 @@ fn serialize_alert() {
         "Message",
         AlertGroup::Batcher,
         "max".to_string(),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 10.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         "5m",
         20,
         AlertSeverity::Sos,

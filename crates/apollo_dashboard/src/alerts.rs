@@ -106,13 +106,23 @@ pub(crate) enum AlertLogicalOp {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct AlertCondition {
     // The comparison operator to use when comparing the expression to the value.
-    pub(crate) comparison_op: AlertComparisonOp,
+    comparison_op: AlertComparisonOp,
     // The value to compare the expression to.
-    pub(crate) comparison_value: f64,
+    comparison_value: f64,
     // The logical operator between this condition and other conditions.
     // TODO(Yael): Consider moving this field to the be one per alert to avoid ambiguity when
     // trying to use a combination of `and` and `or` operators.
-    pub(crate) logical_op: AlertLogicalOp,
+    logical_op: AlertLogicalOp,
+}
+
+impl AlertCondition {
+    pub(crate) fn new(
+        comparison_op: AlertComparisonOp,
+        comparison_value: f64,
+        logical_op: AlertLogicalOp,
+    ) -> Self {
+        Self { comparison_op, comparison_value, logical_op }
+    }
 }
 
 impl Serialize for AlertCondition {

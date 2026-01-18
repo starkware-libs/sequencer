@@ -36,11 +36,7 @@ fn get_consensus_block_number_stuck(
             CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
             duration.as_secs(),
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -87,11 +83,7 @@ fn get_batched_transactions_stuck(
             BATCHED_TRANSACTIONS.get_name_with_filter(),
             duration.as_secs()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -138,13 +130,13 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
             CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter(),
             duration.as_secs()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
+        vec![AlertCondition::new(
+            AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators and
             // assume_no_malicious_validators
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+            1.0,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -185,11 +177,11 @@ fn get_consensus_round_high(
         "Consensus round high",
         AlertGroup::Consensus,
         format!("max_over_time({}[2m])", CONSENSUS_ROUND.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 120.0 / BLOCK_TIME_SEC,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            120.0 / BLOCK_TIME_SEC,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,

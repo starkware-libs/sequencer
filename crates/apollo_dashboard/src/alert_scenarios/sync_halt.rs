@@ -33,11 +33,7 @@ fn get_state_sync_lag(
             CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
             STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()
         ), // Alert when the central sync is ahead of the class manager by more than 5 blocks
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 5.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -68,11 +64,7 @@ fn get_state_sync_stuck(
             STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter(),
             duration.as_secs()
         ), // Alert is triggered when the class manager marker is not updated for {duration}s
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
