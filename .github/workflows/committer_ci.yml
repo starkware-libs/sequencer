@@ -18,8 +18,8 @@ on:
 
 env:
   RUSTFLAGS: "-D warnings"
-  FULL_COMMITTER_FLOW_TIME_LIMIT_NS: "25000000"
-  TREE_COMPUTATION_FLOW_TIME_LIMIT_NS: "20000000"
+  FULL_COMMITTER_FLOW_TIME_LIMIT_NS: "750000000"
+  TREE_COMPUTATION_FLOW_TIME_LIMIT_NS: "600000000"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.

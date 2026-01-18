@@ -23,7 +23,7 @@ use crate::patricia_merkle_tree::types::{
     StarknetForestProofs,
 };
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct OriginalSkeletonTrieConfig {
     compare_modified_leaves: bool,
 }
