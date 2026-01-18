@@ -5,7 +5,11 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use strum_macros::EnumIter;
 
-use crate::alert_placeholders::{ComparisonValueOrPlaceholder, SeverityValueOrPlaceholder};
+use crate::alert_placeholders::{
+    ComparisonValueOrPlaceholder,
+    ExpressionOrExpressionWithPlaceholder,
+    SeverityValueOrPlaceholder,
+};
 
 pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";
 pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
@@ -238,7 +242,7 @@ impl Alert {
         name: impl ToString,
         title: impl ToString,
         alert_group: AlertGroup,
-        expr: impl ToString,
+        expr: impl Into<ExpressionOrExpressionWithPlaceholder>,
         conditions: Vec<AlertCondition>,
         pending_duration: impl ToString,
         evaluation_interval_sec: u64,
@@ -248,17 +252,26 @@ impl Alert {
     ) -> Self {
         let severity = severity.into();
 
-        // Collect all placeholder names from the conditions and severity field, and validate
-        // that there are no duplicates.
+        // Collect all placeholder names from the conditions and severity field.
         let severity_placeholder = match &severity {
             SeverityValueOrPlaceholder::Placeholder(name) => Some(name),
             SeverityValueOrPlaceholder::ConcreteValue(_) => None,
         };
 
+        // Extract the expression and the placeholder names from the expression field.
+        let (expr, expr_placeholder_names) = match expr.into() {
+            ExpressionOrExpressionWithPlaceholder::ConcreteValue(expr) => (expr, vec![]),
+            ExpressionOrExpressionWithPlaceholder::Placeholder(template, placeholders) => {
+                (template.format(placeholders.as_slice()).to_string(), placeholders.clone())
+            }
+        };
+
+        // Validate there are no duplicate placeholder names.
         let placeholder_names = conditions
             .iter()
             .filter_map(|condition| condition.get_comparison_value_placeholder_name())
             .chain(severity_placeholder)
+            .chain(expr_placeholder_names.iter())
             .try_fold(HashSet::new(), |mut set, name| {
                 set.insert(name.clone()).then_some(set).ok_or(name)
             })
@@ -270,7 +283,7 @@ impl Alert {
             alert_group,
             // Grafana's alert evaluation does not substitute `$pod`. If we keep
             // `pod=~"$pod"` in alert PromQL, rules may evaluate to empty/no-data and stop firing.
-            expr: expr.to_string().replace(", pod=~\"$pod\"", ""),
+            expr: expr.replace(", pod=~\"$pod\"", ""),
             conditions,
             pending_duration: pending_duration.to_string(),
             evaluation_interval_sec,

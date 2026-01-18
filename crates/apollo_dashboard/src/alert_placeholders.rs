@@ -1,3 +1,4 @@
+use apollo_infra_utils::template::Template;
 use serde::{Serialize, Serializer};
 
 use crate::alerts::AlertSeverity;
@@ -61,6 +62,41 @@ impl Serialize for SeverityValueOrPlaceholder {
             SeverityValueOrPlaceholder::ConcreteValue(severity) => severity.serialize(serializer),
             SeverityValueOrPlaceholder::Placeholder(placeholder) => {
                 placeholder.serialize(serializer)
+            }
+        }
+    }
+}
+
+// TODO(Tsabary): remove the `Clone` and `PartialEq` constraints.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum ExpressionOrExpressionWithPlaceholder {
+    ConcreteValue(String),
+    Placeholder(Template, Vec<String>),
+}
+
+impl From<String> for ExpressionOrExpressionWithPlaceholder {
+    fn from(value: String) -> Self {
+        ExpressionOrExpressionWithPlaceholder::ConcreteValue(value)
+    }
+}
+
+impl From<(Template, String)> for ExpressionOrExpressionWithPlaceholder {
+    fn from((template, placeholder): (Template, String)) -> Self {
+        ExpressionOrExpressionWithPlaceholder::Placeholder(template, vec![placeholder])
+    }
+}
+
+impl Serialize for ExpressionOrExpressionWithPlaceholder {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            ExpressionOrExpressionWithPlaceholder::ConcreteValue(expression) => {
+                expression.serialize(serializer)
+            }
+            ExpressionOrExpressionWithPlaceholder::Placeholder(template, placeholders) => {
+                template.format(placeholders.as_slice()).serialize(serializer)
             }
         }
     }
