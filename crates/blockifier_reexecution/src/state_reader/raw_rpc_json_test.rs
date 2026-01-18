@@ -16,8 +16,8 @@ use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonc
 use starknet_core::types::ContractClass;
 
 use crate::compile::legacy_to_contract_class_v0;
-use crate::rpc_state_reader::rpc_objects::BlockHeader;
 use crate::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
+use crate::state_reader::rpc_objects::BlockHeader;
 
 #[fixture]
 fn block_header() -> BlockHeader {

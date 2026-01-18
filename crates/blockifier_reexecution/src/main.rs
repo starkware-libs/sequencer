@@ -10,7 +10,7 @@ use blockifier_reexecution::cli::{
     TransactionInput,
     FULL_RESOURCES_DIR,
 };
-use blockifier_reexecution::rpc_state_reader::config::RpcStateReaderConfig;
+use blockifier_reexecution::state_reader::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 use blockifier_reexecution::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;

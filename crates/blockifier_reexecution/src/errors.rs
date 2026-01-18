@@ -8,7 +8,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 
-use crate::rpc_state_reader::rpc_objects::{RpcErrorCode, RpcErrorResponse};
+use crate::state_reader::rpc_objects::{RpcErrorCode, RpcErrorResponse};
 
 #[derive(Debug, Error)]
 pub enum RPCStateReaderError {

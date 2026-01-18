@@ -29,10 +29,9 @@ use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::cli::guess_chain_id_from_node_url;
 use crate::compile::legacy_to_contract_class_v0;
-use crate::rpc_state_reader::config::RpcStateReaderConfig;
-use crate::rpc_state_reader::rpc_objects::BlockId;
-use crate::rpc_state_reader::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
+use crate::state_reader::config::RpcStateReaderConfig;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
+use crate::state_reader::rpc_objects::BlockId;
 use crate::state_reader::rpc_state_reader::{
     ConsecutiveRpcStateReaders,
     RetryConfig,
@@ -100,10 +99,8 @@ pub fn get_test_rpc_config() -> RpcStateReaderConfig {
 #[fixture]
 pub fn test_state_reader() -> RpcStateReader {
     RpcStateReader {
-        rpc_state_reader: GatewayRpcStateReader {
-            config: get_test_rpc_config(),
-            block_id: get_test_block_id(),
-        },
+        config: get_test_rpc_config(),
+        block_id: get_test_block_id(),
         retry_config: RetryConfig::default(),
         chain_id: ChainId::Mainnet,
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
