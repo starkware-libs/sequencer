@@ -56,9 +56,9 @@ mod constants {
         "0x712391ff6487c9232582442ea7eb4a10cad4892c3bcde3516e2a3955bf4f0da";
 
     pub const SIGNATURE_R: &str =
-        "0x257e4c97da7707455eed927d07fcc321ad9069adc45f1fc64c9d7217297db65";
+        "0x51b5ccfc0b94c75e063c48a0a24fcfdaf148c4a86218293a2d6d26170400113";
     pub const SIGNATURE_S: &str =
-        "0x3de8cb6bcf51c543db201baaf4f54d89e82fc31a7939436216f3d79d77c7520";
+        "0x72d94d6dd706745ee1938db5639fe7bfafb2dc8407056ddd82c64df7bfcdd60";
 
     pub const NONCE: &str = "0x7";
     pub const TIP: &str = "0x0";
@@ -66,8 +66,8 @@ mod constants {
     // Resource bounds
     pub const L1_GAS_MAX_AMOUNT: &str = "0x0";
     pub const L1_GAS_MAX_PRICE: &str = "0x0";
-    pub const L2_GAS_MAX_AMOUNT: &str = "0x8f0d180";
-    pub const L2_GAS_MAX_PRICE: &str = "0xba43b7400";
+    pub const L2_GAS_MAX_AMOUNT: &str = "0x989680";
+    pub const L2_GAS_MAX_PRICE: &str = "0x0";
     pub const L1_DATA_GAS_MAX_AMOUNT: &str = "0x0";
     pub const L1_DATA_GAS_MAX_PRICE: &str = "0x0";
 
@@ -118,15 +118,18 @@ pub fn create_signed_invoke_v3() -> InvokeTransactionV3 {
         ])),
         nonce: Nonce(felt!(constants::NONCE)),
         resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-            l1_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
-            l2_gas: ResourceBounds {
-                max_amount: GasAmount(10_000_000),
-                max_price_per_unit: GasPrice(0),
-            },
-            l1_data_gas: ResourceBounds {
-                max_amount: GasAmount(0),
-                max_price_per_unit: GasPrice(0),
-            },
+            l1_gas: parse_resource_bounds(
+                constants::L1_GAS_MAX_AMOUNT,
+                constants::L1_GAS_MAX_PRICE,
+            ),
+            l2_gas: parse_resource_bounds(
+                constants::L2_GAS_MAX_AMOUNT,
+                constants::L2_GAS_MAX_PRICE,
+            ),
+            l1_data_gas: parse_resource_bounds(
+                constants::L1_DATA_GAS_MAX_AMOUNT,
+                constants::L1_DATA_GAS_MAX_PRICE,
+            ),
         }),
         tip: Tip(parse_hex(constants::TIP)),
         calldata: Calldata(Arc::new(constants::CALLDATA.iter().map(|&s| felt!(s)).collect())),
