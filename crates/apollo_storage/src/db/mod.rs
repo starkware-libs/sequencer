@@ -268,6 +268,12 @@ impl DbWriter {
     pub(crate) fn begin_rw_txn(&mut self) -> DbResult<DbWriteTransaction<'_>> {
         Ok(DbWriteTransaction { txn: self.env.begin_rw_txn()? })
     }
+
+    /// Creates a DbReader that shares the same environment.
+    /// Useful for read operations without needing a separate writer.
+    pub(crate) fn get_reader(&self) -> DbReader {
+        DbReader { env: self.env.clone() }
+    }
 }
 
 type DbWriteTransaction<'env> = DbTransaction<'env, RW>;
