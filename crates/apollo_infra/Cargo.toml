@@ -22,9 +22,8 @@ bytes.workspace = true
 derive_more = { workspace = true, features = ["display", "from_str"] }
 http-body-util.workspace = true
 http_1.workspace = true
-hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
-hyper-util = { workspace = true, features = ["client-legacy", "tokio"] }
-hyper_1.workspace = true
+hyper-util = { workspace = true, features = ["client-legacy", "server-auto", "tokio"] }
+hyper_1 = { workspace = true, features = ["server"] }
 metrics-exporter-prometheus.workspace = true
 rand.workspace = true
 rstest.workspace = true
@@ -35,7 +34,6 @@ thiserror.workspace = true
 time = { workspace = true, features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] }
-tower = { workspace = true, features = ["limit", "util"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json", "time"] }
 validator.workspace = true
