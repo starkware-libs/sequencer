@@ -59,6 +59,7 @@ impl Default for FsClassStorageConfig {
                     path_prefix: "/data/class_hash_storage".into(),
                     ..Default::default()
                 },
+                batch_config: Default::default(),
                 mmap_file_config: MmapFileConfig {
                     max_size: 1 << 30,        // 1GB.
                     growth_step: 1 << 20,     // 1MB.
