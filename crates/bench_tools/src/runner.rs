@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use crate::gcs;
 use crate::types::benchmark_config::BenchmarkConfig;
+use crate::types::estimates::{Estimates, GithubBenchmarkEntry};
 use crate::utils::copy_dir_contents;
 
 /// Prepares inputs for a benchmark.
@@ -90,7 +91,12 @@ fn save_benchmark_results(bench: &BenchmarkConfig, output_dir: &str) {
 }
 
 /// Runs benchmarks for a given package, handling input downloads if needed.
-pub fn run_benchmarks(benchmarks: &[&BenchmarkConfig], input_dir: Option<&str>, output_dir: &str) {
+pub fn run_benchmarks(
+    benchmarks: &[&BenchmarkConfig],
+    input_dir: Option<&str>,
+    output_dir: &str,
+    github_action_benchmark_output_file: Option<&str>,
+) {
     // Prepare inputs.
     for bench in benchmarks {
         prepare_inputs(bench, input_dir);
@@ -105,7 +111,48 @@ pub fn run_benchmarks(benchmarks: &[&BenchmarkConfig], input_dir: Option<&str>, 
         save_benchmark_results(bench, output_dir);
     }
 
+    // Generate github-action-benchmark output if requested.
+    if let Some(output_file) = github_action_benchmark_output_file {
+        write_github_action_benchmark_json(benchmarks, output_file);
+    }
+
     println!("\n✓ All benchmarks completed! Results saved to: {}", output_dir);
+}
+
+/// Generates JSON output in github-action-benchmark format.
+/// Reads Criterion estimates and converts to the "customSmallerIsBetter" format.
+fn write_github_action_benchmark_json(benchmarks: &[&BenchmarkConfig], output_file: &str) {
+    let criterion_base = PathBuf::from("target/criterion");
+    let mut entries = Vec::new();
+
+    for bench in benchmarks {
+        let benchmark_names: Vec<&str> = match bench.criterion_benchmark_names {
+            Some(names) => names.to_vec(),
+            None => vec![bench.name],
+        };
+
+        for bench_name in benchmark_names {
+            let estimates_path = criterion_base.join(bench_name).join("new/estimates.json");
+
+            if let Ok(data) = fs::read_to_string(&estimates_path) {
+                if let Ok(estimates) = serde_json::from_str::<Estimates>(&data) {
+                    entries.push(GithubBenchmarkEntry::from_estimates(bench_name, &estimates));
+                }
+            }
+        }
+    }
+
+    if entries.is_empty() {
+        panic!("No benchmark results found for github-action-benchmark output");
+    }
+
+    let json = serde_json::to_string_pretty(&entries)
+        .unwrap_or_else(|e| panic!("Failed to serialize benchmark results: {}", e));
+
+    fs::write(output_file, json)
+        .unwrap_or_else(|e| panic!("Failed to write {}: {}", output_file, e));
+
+    println!("Saved github-action-benchmark output: {}", output_file);
 }
 
 /// Runs benchmarks and compares them against previous results, failing if regression exceeds limit.
@@ -116,8 +163,8 @@ pub fn run_and_compare_benchmarks(
     regression_limit: f64,
     absolute_time_ns_limits: HashMap<String, f64>,
 ) {
-    // Run benchmarks first.
-    run_benchmarks(benchmarks, input_dir, output_dir);
+    // Run benchmarks first (no github-action-benchmark output for comparison runs).
+    run_benchmarks(benchmarks, input_dir, output_dir, None);
 
     // Collect all criterion benchmark names from configs.
     let mut bench_names = Vec::new();
