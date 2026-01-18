@@ -59,7 +59,7 @@ pub struct ExecutionContext<S: StateReader + Clone> {
 pub trait CommitteeProvider<S: StateReader + Clone + Send> {
     /// Returns a list of the committee members at the epoch of the given height.
     /// The state's most recent block should be provided in the execution_context.
-    fn get_committee(
+    async fn get_committee(
         &mut self,
         height: BlockNumber,
         execution_context: ExecutionContext<S>,

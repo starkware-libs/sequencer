@@ -10,6 +10,7 @@ use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_metrics::generate_permutation_labels;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_proc_macros::handle_all_response_variants;
+use apollo_staking_config::config::StakingManagerDynamicConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use strum::{EnumVariantNames, VariantNames};
@@ -40,6 +41,9 @@ pub trait ConfigManagerClient: Send + Sync {
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
 
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
+    async fn get_staking_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
 
     async fn set_node_dynamic_config(
         &self,
@@ -58,6 +62,7 @@ pub enum ConfigManagerRequest {
     GetContextDynamicConfig,
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
+    GetStakingManagerDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
@@ -77,6 +82,7 @@ pub enum ConfigManagerResponse {
     GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
+    GetStakingManagerDynamicConfig(ConfigManagerResult<StakingManagerDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -136,6 +142,19 @@ where
         handle_all_response_variants!(
             ConfigManagerResponse,
             GetMempoolDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_staking_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<StakingManagerDynamicConfig> {
+        let request = ConfigManagerRequest::GetStakingManagerDynamicConfig;
+        handle_all_response_variants!(
+            ConfigManagerResponse,
+            GetStakingManagerDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
