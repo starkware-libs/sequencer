@@ -23,6 +23,7 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
+#[derive(Clone)]
 pub struct MockIndexInitialRead {}
 
 impl InputContext for MockIndexInitialRead {}
