@@ -27,11 +27,12 @@ apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
-axum.workspace = true
+async-trait.workspace = true
+axum_08.workspace = true
 blockifier_reexecution.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 futures.workspace = true
-hyper.workspace = true
+http-body-util.workspace = true
 mempool_test_utils = { workspace = true, optional = true }
 regex.workspace = true
 reqwest = { workspace = true, optional = true }

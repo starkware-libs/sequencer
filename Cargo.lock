@@ -939,7 +939,7 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "async-trait",
- "axum",
+ "axum 0.6.20",
  "blockifier",
  "chrono",
  "derive_more 2.1.1",
@@ -1501,7 +1501,7 @@ dependencies = [
  "apollo_test_utils",
  "assert_matches",
  "async-trait",
- "axum",
+ "axum 0.6.20",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-sierra-to-casm",
@@ -1579,14 +1579,15 @@ dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",
  "assert_matches",
- "axum",
+ "async-trait",
+ "axum 0.8.8",
  "base64 0.13.1",
  "blockifier",
  "blockifier_reexecution",
  "blockifier_test_utils",
  "flate2",
  "futures",
- "hyper 0.14.32",
+ "http-body-util",
  "mempool_test_utils",
  "metrics",
  "metrics-exporter-prometheus",
@@ -1717,7 +1718,7 @@ dependencies = [
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
- "axum",
+ "axum 0.6.20",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
@@ -2016,7 +2017,7 @@ dependencies = [
  "apollo_mempool_types",
  "apollo_metrics",
  "apollo_monitoring_endpoint_config",
- "axum",
+ "axum 0.6.20",
  "hyper 0.14.32",
  "metrics",
  "metrics-exporter-prometheus",
@@ -2623,7 +2624,7 @@ dependencies = [
  "apollo_test_utils",
  "assert_matches",
  "async-trait",
- "axum",
+ "axum 0.6.20",
  "byteorder",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -3241,7 +3242,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b829e4e32b91e643de6eafe82b1d90675f5874230191a4ffbc1b336dec4d6bf"
 dependencies = [
  "async-trait",
- "axum-core",
+ "axum-core 0.3.4",
  "bitflags 1.2.1",
  "bytes",
  "futures-util",
@@ -3249,7 +3250,7 @@ dependencies = [
  "http-body 0.4.6",
  "hyper 0.14.32",
  "itoa",
- "matchit",
+ "matchit 0.7.3",
  "memchr",
  "mime",
  "percent-encoding",
@@ -3267,6 +3268,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b52af3cb4058c895d37317bb27508dccc8e5f2d39454016b297bf4a400597b8"
+dependencies = [
+ "axum-core 0.5.6",
+ "bytes",
+ "form_urlencoded",
+ "futures-util",
+ "http 1.3.1",
+ "http-body 1.0.1",
+ "http-body-util",
+ "hyper 1.8.0",
+ "hyper-util",
+ "itoa",
+ "matchit 0.8.4",
+ "memchr",
+ "mime",
+ "percent-encoding",
+ "pin-project-lite",
+ "serde_core",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_urlencoded",
+ "sync_wrapper 1.0.2",
+ "tokio",
+ "tower 0.5.2",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
 name = "axum-core"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3281,6 +3315,25 @@ dependencies = [
  "rustversion",
  "tower-layer",
  "tower-service",
+]
+
+[[package]]
+name = "axum-core"
+version = "0.5.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08c78f31d7b1291f7ee735c1c6780ccde7785daae9a9206026862dab7d8792d1"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "http 1.3.1",
+ "http-body 1.0.1",
+ "http-body-util",
+ "mime",
+ "pin-project-lite",
+ "sync_wrapper 1.0.2",
+ "tower-layer",
+ "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -8025,6 +8078,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
 
 [[package]]
+name = "matchit"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
+
+[[package]]
 name = "matrixmultiply"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12350,6 +12409,7 @@ dependencies = [
  "tokio",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
