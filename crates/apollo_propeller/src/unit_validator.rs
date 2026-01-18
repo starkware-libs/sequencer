@@ -96,7 +96,7 @@ impl UnitValidator {
         }
 
         self.tree_manager.validate_origin(sender, unit.publisher(), unit.index())?;
-        // TODO(AndrewL): Add proof verification
+        unit.validate_shard_proof(self.tree_manager.num_shards())?;
         self.verify_signature(unit).map_err(ShardValidationError::SignatureVerificationFailed)?;
 
         // add for next time we see this shard

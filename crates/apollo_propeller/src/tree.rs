@@ -92,6 +92,10 @@ impl PropellerScheduleManager {
         self.num_coding_shards
     }
 
+    pub fn num_shards(&self) -> usize {
+        self.num_data_shards + self.num_coding_shards
+    }
+
     pub fn should_build(&self, shard_count: usize) -> bool {
         shard_count >= self.num_data_shards
     }
