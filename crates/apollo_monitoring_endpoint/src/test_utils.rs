@@ -5,11 +5,13 @@ use anyhow::Result;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::test_utils::parse_numeric_metric;
-use axum::body::Body;
-use axum::http::Request;
-use hyper::body::to_bytes;
-use hyper::client::HttpConnector;
-use hyper::Client;
+// TODO(victork): finalise migration to hyper 1.x
+use axum_08::body::Body;
+use axum_08::http::Request;
+use http_body_util::BodyExt;
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
 use num_traits::Num;
 use thiserror::Error;
 use tracing::info;
@@ -29,12 +31,12 @@ pub enum MonitoringClientError {
 /// Client for querying 'alive' status of an http server.
 pub struct MonitoringClient {
     socket: SocketAddr,
-    client: Client<HttpConnector>,
+    client: Client<HttpConnector, Body>,
 }
 
 impl MonitoringClient {
     pub fn new(socket: SocketAddr) -> Self {
-        let client = Client::new();
+        let client = Client::builder(TokioExecutor::new()).build_http();
         Self { socket, client }
     }
 
@@ -88,7 +90,7 @@ impl MonitoringClient {
         match result {
             Some(Ok(response)) => {
                 // Parse the response body.
-                let body_bytes = to_bytes(response.into_body()).await.unwrap();
+                let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
                 Ok(String::from_utf8(body_bytes.to_vec()).unwrap())
             }
             Some(Err(err)) => {
