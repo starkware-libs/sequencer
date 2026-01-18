@@ -265,6 +265,47 @@ pub(crate) struct FileHandler<V: ValueSerde, Mode: TransactionKind> {
 unsafe impl<V: ValueSerde, Mode: TransactionKind> Send for FileHandler<V, Mode> {}
 unsafe impl<V: ValueSerde, Mode: TransactionKind> Sync for FileHandler<V, Mode> {}
 
+impl<V: ValueSerde> FileHandler<V, RW> {
+    /// Appends multiple values in a single lock acquisition and returns their locations.
+    /// This is more efficient than calling append() multiple times because it:
+    /// 1. Acquires the lock once for all writes
+    /// 2. Grows the file once for the total size needed
+    #[allow(dead_code)]
+    pub(crate) fn append_batch(&mut self, vals: &[&V::Value]) -> Vec<LocationInFile> {
+        if vals.is_empty() {
+            return Vec::new();
+        }
+
+        let serialized_vals: Vec<Vec<u8>> = vals
+            .iter()
+            .map(|val| V::serialize(val).expect("Should be able to serialize"))
+            .collect();
+        let total_len: usize = serialized_vals.iter().map(|v| v.len()).sum();
+
+        let mut locations = Vec::with_capacity(vals.len());
+        let mut mmap_file = self.mmap_file.lock().expect("Lock should not be poisoned");
+        let start_offset = mmap_file.offset;
+        mmap_file.grow_to_target(start_offset + total_len);
+
+        for serialized in &serialized_vals {
+            let location = mmap_file.write_at_current_offset(serialized);
+            locations.push(location);
+        }
+
+        locations
+    }
+
+    /// Creates a read-only FileHandler that shares the same underlying mmap file.
+    /// Useful for read operations from a writer.
+    #[allow(dead_code)]
+    pub(crate) fn as_reader(&self) -> FileHandler<V, RO> {
+        FileHandler {
+            memory_ptr: self.memory_ptr,
+            mmap_file: self.mmap_file.clone(),
+            _mode: PhantomData,
+        }
+    }
+}
 impl<V: ValueSerde + Debug> Writer<V> for FileHandler<V, RW> {
     fn append(&mut self, val: &V::Value) -> LocationInFile {
         trace!("Inserting object: {:?}", val);
