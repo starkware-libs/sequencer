@@ -1552,7 +1552,6 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_infra",
  "apollo_network_types",
- "apollo_proc_macros",
  "apollo_rpc",
  "async-trait",
  "enum-assoc",

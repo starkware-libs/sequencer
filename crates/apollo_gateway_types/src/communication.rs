@@ -2,8 +2,11 @@ use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
-use apollo_proc_macros::handle_all_response_variants;
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -66,6 +69,8 @@ where
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<GatewayOutput> {
         let request = GatewayRequest::AddTransaction(gateway_input);
         handle_all_response_variants!(
+            self,
+            request,
             GatewayResponse,
             AddTransaction,
             GatewayClientError,
