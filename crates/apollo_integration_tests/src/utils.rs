@@ -1,5 +1,5 @@
 use std::future::Future;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
@@ -417,9 +417,7 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
 }
 
 pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
-    // [127, 0, 0, 1] is the localhost IP address.
-    let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
-    // TODO(Tsabary): create a socket-to-url function.
+    let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}")).unwrap();
     let join_handle = spawn_success_recorder(socket_address);
     (url, join_handle)
@@ -457,7 +455,7 @@ pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle
 
 /// Starts the fake eth to fri oracle server and returns its URL and handle.
 pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (UrlAndHeaders, JoinHandle<()>) {
-    let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
+    let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}{ETH_TO_STRK_ORACLE_PATH}")).unwrap();
     let url_and_headers = UrlAndHeaders {
         url,
@@ -717,7 +715,7 @@ pub fn create_state_sync_configs(
             storage_config: state_sync_storage_config.clone(),
             network_config: Some(network_config),
             rpc_config: RpcConfig {
-                ip: [127, 0, 0, 1].into(),
+                ip: Ipv4Addr::LOCALHOST.into(),
                 port: rpc_ports.remove(0),
                 ..Default::default()
             },

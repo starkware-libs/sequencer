@@ -1,3 +1,4 @@
+use std::net::Ipv4Addr;
 use std::ops::RangeInclusive;
 use std::process::Command;
 use std::time::Duration;
@@ -141,7 +142,7 @@ curl -L \
     }
 
     pub fn url_static(port: u16) -> Url {
-        format!("http://127.0.0.1:{}", port).parse().unwrap()
+        format!("http://{}:{port}", Ipv4Addr::LOCALHOST).parse().unwrap()
     }
 
     pub fn config(url: Url) -> EthereumBaseLayerConfig {
