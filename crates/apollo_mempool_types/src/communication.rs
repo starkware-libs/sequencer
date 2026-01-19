@@ -7,9 +7,12 @@ use apollo_infra::component_definitions::{
     RequestPriority,
     RequestWrapper,
 };
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -117,6 +120,8 @@ where
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             AddTransaction,
             MempoolClientError,
@@ -128,6 +133,8 @@ where
     async fn validate_tx(&self, args: ValidationArgs) -> MempoolClientResult<()> {
         let request = MempoolRequest::ValidateTransaction(args);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             ValidateTransaction,
             MempoolClientError,
@@ -139,6 +146,8 @@ where
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()> {
         let request = MempoolRequest::CommitBlock(args);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             CommitBlock,
             MempoolClientError,
@@ -150,6 +159,8 @@ where
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<InternalRpcTransaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             GetTransactions,
             MempoolClientError,
@@ -164,6 +175,8 @@ where
     ) -> MempoolClientResult<bool> {
         let request = MempoolRequest::AccountTxInPoolOrRecentBlock(account_address);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             AccountTxInPoolOrRecentBlock,
             MempoolClientError,
@@ -175,6 +188,8 @@ where
     async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()> {
         let request = MempoolRequest::UpdateGasPrice(gas_price);
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             UpdateGasPrice,
             MempoolClientError,
@@ -186,6 +201,8 @@ where
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot> {
         let request = MempoolRequest::GetMempoolSnapshot();
         handle_all_response_variants!(
+            self,
+            request,
             MempoolResponse,
             GetMempoolSnapshot,
             MempoolClientError,
