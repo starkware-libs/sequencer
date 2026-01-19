@@ -1,5 +1,6 @@
 pub mod communication;
 pub mod mempool;
+pub mod naive_mempool;
 pub mod metrics;
 pub(crate) mod suspended_transaction_pool;
 pub(crate) mod transaction_pool;
@@ -8,3 +9,6 @@ pub(crate) mod utils;
 
 #[cfg(test)]
 pub mod test_utils;
+
+#[cfg(test)]
+mod naive_mempool_test;
