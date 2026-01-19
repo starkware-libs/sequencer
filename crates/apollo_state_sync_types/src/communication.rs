@@ -8,9 +8,12 @@ use apollo_infra::component_definitions::{
     RequestWrapper,
 };
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_metrics::generate_permutation_labels;
-use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -178,6 +181,8 @@ where
     async fn get_block(&self, block_number: BlockNumber) -> StateSyncClientResult<SyncBlock> {
         let request = StateSyncRequest::GetBlock(block_number);
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             GetBlock,
             StateSyncClientError,
@@ -189,6 +194,8 @@ where
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash> {
         let request = StateSyncRequest::GetBlockHash(block_number);
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             GetBlockHash,
             StateSyncClientError,
@@ -200,6 +207,8 @@ where
     async fn add_new_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
         let request = StateSyncRequest::AddNewBlock(Box::new(sync_block));
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             AddNewBlock,
             StateSyncClientError,
@@ -216,6 +225,8 @@ where
     ) -> StateSyncClientResult<Felt> {
         let request = StateSyncRequest::GetStorageAt(block_number, contract_address, storage_key);
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             GetStorageAt,
             StateSyncClientError,
@@ -231,6 +242,8 @@ where
     ) -> StateSyncClientResult<Nonce> {
         let request = StateSyncRequest::GetNonceAt(block_number, contract_address);
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             GetNonceAt,
             StateSyncClientError,
@@ -246,6 +259,8 @@ where
     ) -> StateSyncClientResult<ClassHash> {
         let request = StateSyncRequest::GetClassHashAt(block_number, contract_address);
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             GetClassHashAt,
             StateSyncClientError,
@@ -257,6 +272,8 @@ where
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>> {
         let request = StateSyncRequest::GetLatestBlockNumber();
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             GetLatestBlockNumber,
             StateSyncClientError,
@@ -268,6 +285,8 @@ where
     async fn get_latest_block_header(&self) -> StateSyncClientResult<Option<BlockHeader>> {
         let request = StateSyncRequest::GetLatestBlockHeader();
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             GetLatestBlockHeader,
             StateSyncClientError,
@@ -283,6 +302,8 @@ where
     ) -> StateSyncClientResult<bool> {
         let request = StateSyncRequest::IsCairo1ClassDeclaredAt(block_number, class_hash);
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             IsCairo1ClassDeclaredAt,
             StateSyncClientError,
@@ -298,6 +319,8 @@ where
     ) -> StateSyncClientResult<bool> {
         let request = StateSyncRequest::IsClassDeclaredAt(block_number, class_hash);
         handle_all_response_variants!(
+            self,
+            request,
             StateSyncResponse,
             IsClassDeclaredAt,
             StateSyncClientError,
