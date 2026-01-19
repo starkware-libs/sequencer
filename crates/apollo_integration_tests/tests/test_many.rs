@@ -1,11 +1,12 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::end_to_end_flow_utils::{
+use apollo_integration_tests::utils::{
+    create_invoke_txs,
     end_to_end_flow,
     validate_tx_count,
     EndToEndFlowArgs,
     EndToEndTestScenario,
+    ACCOUNT_ID_1,
 };
-use apollo_integration_tests::utils::{create_invoke_txs, ACCOUNT_ID_1};
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
