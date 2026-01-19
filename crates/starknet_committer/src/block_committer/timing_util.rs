@@ -7,11 +7,6 @@ use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::block_committer::input::Input;
-use crate::db::facts_db::types::FactsDbInitialRead;
-
-pub type FactsDbInputImpl = Input<FactsDbInitialRead>;
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Action {
     EndToEnd,
@@ -68,20 +63,20 @@ impl BlockMeasurement {
     pub fn update_after_action(
         &mut self,
         action: &Action,
-        facts_count: usize,
+        entries_count: usize,
         duration_in_millis: u128,
     ) {
         match action {
             Action::Read => {
                 self.read_duration = duration_in_millis;
-                self.n_reads = facts_count;
+                self.n_reads = entries_count;
             }
             Action::Compute => {
                 self.compute_duration = duration_in_millis;
             }
             Action::Write => {
                 self.write_duration = duration_in_millis;
-                self.n_writes = facts_count;
+                self.n_writes = entries_count;
             }
             Action::EndToEnd => {
                 self.block_duration = duration_in_millis;
@@ -130,9 +125,9 @@ impl TimeMeasurement {
     }
 
     /// Stops the measurement for the given action and adds the duration to the corresponding
-    /// vector. For Read/Write actions, `facts_count` is the number of facts read from / written
+    /// vector. For Read/Write actions, `entries_count` is the number of entries read from / written
     /// to the DB. For other actions, it is ignored.
-    pub fn stop_measurement(&mut self, action: Action, facts_count: usize) {
+    pub fn stop_measurement(&mut self, action: Action, entries_count: usize) {
         let duration_in_millis = self.block_timers.stop_measurement(&action);
         info!(
             "Time elapsed for {action:?} in iteration {}: {} milliseconds",
@@ -142,14 +137,14 @@ impl TimeMeasurement {
 
         self.current_block_measurement.update_after_action(
             &action,
-            facts_count,
+            entries_count,
             duration_in_millis,
         );
 
         match action {
             Action::Write => {
                 self.initial_db_entry_count.push(self.total_db_entry_count);
-                self.total_db_entry_count += facts_count;
+                self.total_db_entry_count += entries_count;
             }
             Action::EndToEnd => {
                 self.total_time += duration_in_millis;
@@ -173,7 +168,7 @@ impl TimeMeasurement {
         }
     }
 
-    /// Returns the average time per fact over a window of `window_size` blocks (microseconds).
+    /// Returns the average time per entry over a window of `window_size` blocks (microseconds).
     fn average_window_time(&self, window_size: usize) -> Vec<f64> {
         let mut averages = Vec::new(); // In milliseconds.
         // Takes only the full windows, so if the last window is smaller than `window_size`, it is
@@ -186,13 +181,13 @@ impl TimeMeasurement {
                 .iter()
                 .map(|measurement| measurement.block_duration)
                 .sum();
-            let sum_of_facts: usize = self.block_measurements
+            let sum_of_entries: usize = self.block_measurements
                 [window_start..window_start + window_size]
                 .iter()
                 .map(|measurement| measurement.n_writes)
                 .sum();
             #[allow(clippy::as_conversions)]
-            averages.push(1000.0 * total_duration as f64 / sum_of_facts as f64);
+            averages.push(1000.0 * total_duration as f64 / sum_of_entries as f64);
         }
         averages
     }
@@ -218,12 +213,12 @@ impl TimeMeasurement {
         let means = self.average_window_time(window_size);
         let max = means.iter().cloned().fold(f64::MIN, f64::max);
         // Print a graph visualization of block times.
-        for (i, fact_duration) in means.iter().enumerate() {
-            let norm = fact_duration / max;
+        for (i, entry_duration) in means.iter().enumerate() {
+            let norm = entry_duration / max;
             #[allow(clippy::as_conversions)]
             let width = (norm * 40.0).round() as usize; // up tp 40 characters wide
             let bar = "█".repeat(width.max(1));
-            println!("win {i:>4}: {fact_duration:>8.4} microsecond / fact | {bar}");
+            println!("win {i:>4}: {entry_duration:>8.4} microsecond / db entry | {bar}");
         }
     }
 
