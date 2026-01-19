@@ -17,7 +17,7 @@ use starknet_api::abi::abi_utils::{
     get_storage_var_address,
     selector_from_name,
 };
-use starknet_api::block::{FeeType, GasPrice};
+use starknet_api::block::{BlockHash, BlockNumber, FeeType, GasPrice};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
@@ -41,6 +41,7 @@ use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
     NonceManager,
+    CURRENT_BLOCK_NUMBER,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
@@ -55,9 +56,12 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
+    ProofFacts,
     Resource,
     ResourceBounds,
+    SnosProofFacts,
     ValidResourceBounds,
+    VIRTUAL_SNOS,
 };
 use starknet_api::transaction::{
     DeclareTransaction,
@@ -79,6 +83,7 @@ use starknet_api::{
 };
 use starknet_types_core::felt::Felt;
 
+use crate::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::TrackedResource;
@@ -2190,4 +2195,97 @@ fn test_missing_validate_entrypoint_rejects(
         TransactionExecutionError::ValidateCairo0Error(ret)
         if ret == retdata![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]
     );
+}
+
+/// Converts SnosProofFacts to ProofFacts for testing.
+fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
+    vec![
+        felt!(VIRTUAL_SNOS),
+        snos.program_hash,
+        felt!(snos.block_number.0),
+        snos.block_hash.0,
+        snos.config_hash,
+    ]
+    .into()
+}
+
+/// Returns invalid proof_facts with a too recent block number (at the boundary).
+fn proof_facts_with_too_recent_block() -> ProofFacts {
+    let mut snos_proof_facts =
+        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
+    // Set the proof block number to the first invalid value:
+    // `current_block_number - STORED_BLOCK_HASH_BUFFER`
+    // (i.e. last allowed block + 1).
+    snos_proof_facts.block_number = BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER);
+    snos_to_proof_facts(snos_proof_facts)
+}
+
+/// Returns invalid proof_facts with a mismatched block hash.
+fn proof_facts_with_mismatched_hash() -> ProofFacts {
+    let mut snos_proof_facts =
+        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
+    snos_proof_facts.block_hash = BlockHash(snos_proof_facts.block_hash.0 + 1);
+    snos_to_proof_facts(snos_proof_facts)
+}
+
+/// Returns invalid proof_facts with a zero block hash.
+fn proof_facts_with_zero_block_hash() -> ProofFacts {
+    let mut snos_proof_facts = SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing())
+        .expect("Invalid proof facts");
+    snos_proof_facts.block_hash = BlockHash(Felt::ZERO);
+    snos_to_proof_facts(snos_proof_facts)
+}
+
+/// Returns invalid proof_facts with an invalid program hash.
+fn proof_facts_with_invalid_program_hash() -> ProofFacts {
+    let mut snos_proof_facts = SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing())
+        .expect("Invalid proof facts");
+    snos_proof_facts.program_hash = Felt::from(0x12345678_u64);
+    snos_to_proof_facts(snos_proof_facts)
+}
+
+/// Tests the `validate_proof_facts` function for Invoke V3 transactions.
+/// The test runs `perform_pre_validation_stage` and asserts that invalid cases
+/// fail with `InvalidProofFacts`, while valid cases pass.
+#[rstest]
+#[case::valid(ProofFacts::snos_proof_facts_for_testing(), CURRENT_BLOCK_NUMBER, false)]
+#[case::block_number_too_recent(proof_facts_with_too_recent_block(), CURRENT_BLOCK_NUMBER, true)]
+#[case::current_block_number_too_small(
+    ProofFacts::snos_proof_facts_for_testing(),
+    STORED_BLOCK_HASH_BUFFER - 1,
+    true,
+)]
+#[case::block_hash_mismatched(proof_facts_with_mismatched_hash(), CURRENT_BLOCK_NUMBER, true)]
+#[case::block_hash_zero(proof_facts_with_zero_block_hash(), CURRENT_BLOCK_NUMBER, true)]
+#[case::program_hash_invalid(proof_facts_with_invalid_program_hash(), CURRENT_BLOCK_NUMBER, true)]
+fn test_validate_proof_facts(
+    default_all_resource_bounds: ValidResourceBounds,
+    #[case] proof_facts: ProofFacts,
+    #[case] current_block_number: u64,
+    #[case] should_fail: bool,
+) {
+    let mut block_context = BlockContext::create_for_account_testing();
+    block_context.block_info.block_number = BlockNumber(current_block_number);
+
+    let chain_info = &block_context.chain_info;
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let mut state = test_state(chain_info, BALANCE, &[(account, 1u16)]);
+    let account_address = account.get_instance_address(0_u16);
+
+    let tx = invoke_tx_with_default_flags(invoke_tx_args! {
+        sender_address: account_address,
+        resource_bounds: default_all_resource_bounds,
+        proof_facts,
+    });
+
+    // Run only pre-validation stage (which includes proof facts validation).
+    let tx_context = block_context.to_tx_context(&tx);
+    let result = tx.perform_pre_validation_stage(&mut state, &tx_context);
+
+    if should_fail {
+        assert_matches!(result, Err(TransactionPreValidationError::InvalidProofFacts(_)));
+    } else {
+        assert_matches!(result, Ok(()));
+    }
 }
