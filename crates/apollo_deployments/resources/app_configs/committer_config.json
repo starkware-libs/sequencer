@@ -1,4 +1,5 @@
 {
     "committer_config.reader_config.warn_on_trivial_modifications": false,
+    "committer_config.storage_config.path": "/data/committer",
     "committer_config.verify_state_diff_hash": true
 }
