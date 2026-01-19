@@ -3,6 +3,7 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
+    L1_PROVIDER_NUM_PENDING_TXS,
 };
 use apollo_metrics::metrics::MetricQueryName;
 
@@ -42,6 +43,9 @@ fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
 fn get_panel_l1_message_scraper_latest_scraped_block() -> Panel {
     Panel::from_gauge(&L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK, PanelType::TimeSeries)
 }
+fn get_panel_l1_provider_num_pending_txs() -> Panel {
+    Panel::from_gauge(&L1_PROVIDER_NUM_PENDING_TXS, PanelType::TimeSeries)
+}
 fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
     Panel::new(
         "Seconds since last successful l1 event scrape",
@@ -61,6 +65,7 @@ pub(crate) fn get_l1_provider_row() -> Row {
         vec![
             get_panel_l1_message_scraper_seconds_since_last_successful_scrape(),
             get_panel_l1_message_scraper_latest_scraped_block(),
+            get_panel_l1_provider_num_pending_txs(),
             get_panel_l1_message_scraper_success_count(),
             get_panel_l1_message_scraper_baselayer_error_count(),
             get_panel_l1_message_scraper_reorg_detected(),
