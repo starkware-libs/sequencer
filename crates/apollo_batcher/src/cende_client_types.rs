@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
-use blockifier::execution::call_info::{CallExecution, OrderedEvent, OrderedL2ToL1Message};
+use blockifier::execution::call_info::{CallExecution, OrderedL2ToL1Message};
 use blockifier::state::cached_state::{StateMaps, StorageView};
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
@@ -314,29 +314,12 @@ impl OrderedItem for OrderedL2ToL1Message {
     }
 }
 
-impl OrderedItem for OrderedEvent {
-    type UnorderedItem = Event;
-
-    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
-        (self.order, Event { from_address, content: self.event.clone() })
-    }
-
-    fn get_items_from_call_execution<'a>(
-        execution: &'a CallExecution,
-    ) -> impl Iterator<Item = &'a Self>
-    where
-        Self: 'a,
-    {
-        execution.events.iter()
-    }
-}
-
 fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL1Message> {
     OrderedL2ToL1Message::accumulated_sorted_items(execution_info)
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
-    OrderedEvent::accumulated_sorted_items(execution_info)
+    execution_info.accumulated_sorted_events()
 }
 
 fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
