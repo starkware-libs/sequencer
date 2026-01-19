@@ -870,6 +870,15 @@
           }
         },
         {
+          "title": "L1 Message Scraper Latest Scraped Block",
+          "description": "The latest block number that the L1 message scraper has scraped",
+          "type": "timeseries",
+          "exprs": [
+            "l1_message_scraper_latest_scraped_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "L1 Message Scraper Success Count",
           "description": "The increase in the number of times the L1 message scraper successfully scraped messages (10m window)",
           "type": "timeseries",
