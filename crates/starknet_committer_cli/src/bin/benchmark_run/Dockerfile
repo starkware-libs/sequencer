@@ -21,11 +21,11 @@ USER committer_benchmark
 # Run the storage benchmark command.
 ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 
-CMD ["cached-rocksdb", \
+CMD ["cached-mdbx", \
     "--n-iterations", "1000000", \
     "--flavor", "constant", \
     "--n-updates", "1000", \
-    "--cache-size", "800000", \
+    "--cache-size", "8000000", \
     "--include-inner-stats", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
