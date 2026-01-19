@@ -21,7 +21,17 @@ from rich.console import Console
 
 # Pattern to match $$$_ITEM_NAME.FIELD_$$$ or $$$_ITEM_NAME.PART1.PART2_$$$
 # Allow digits in item name and field path (e.g., L1_MESSAGE_SCRAPER, EXPR)
-PLACEHOLDER_PATTERN = r"\$\$\$_([A-Z0-9_]+)\.([A-Z0-9_.]+)_\$\$\$"
+# Must have: $$$_ at start (exactly 3 $ and exactly 1 _), ITEM_NAME (cannot start with _), dot, FIELD_PATH (cannot end with underscore), underscore, $$$ at end
+# Field path cannot end with underscore to avoid ambiguity with the required underscore before $$$
+# Item name cannot start with underscore to avoid matching double underscores like $$$__ITEM
+PLACEHOLDER_PATTERN = r"\$\$\$_(?![_])([A-Z0-9_]+)\.([A-Z0-9_.]*[A-Z0-9.])_\$\$\$"
+
+# Pattern to detect any potential placeholder (to catch malformed ones)
+# Matches anything that looks like it might be a placeholder
+# This is a broad pattern to catch all variations (wrong number of $, etc.)
+# We'll then validate each match strictly against PLACEHOLDER_PATTERN
+# Matches: $...$_...$...$ (any number of $ at start, underscore, content, any number of $ at end)
+POTENTIAL_PLACEHOLDER_PATTERN = r"\$+_[A-Z0-9_.]+\$+"
 
 
 def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
@@ -59,7 +69,7 @@ def extract_config_key_from_placeholder(placeholder: str) -> Optional[str]:
     Returns:
         Config key in format item_name.field (lowercase), or None if invalid format
     """
-    match = re.match(PLACEHOLDER_PATTERN, placeholder)
+    match = re.fullmatch(PLACEHOLDER_PATTERN, placeholder)
     if match:
         item_name = match.group(1).lower()
         field_path = match.group(2).lower()
@@ -140,6 +150,213 @@ def replace_placeholder_in_string(
     # Replace all placeholders in the value
     result = re.sub(PLACEHOLDER_PATTERN, replace_match, value)
     return result
+
+
+def collect_invalid_placeholders_recursive(
+    obj: Any,
+    path: str = "",
+    expected_item_name: Optional[str] = None,
+) -> list[tuple[str, str]]:
+    """
+    Recursively collect all invalid placeholders from an object.
+    Invalid placeholders are those:
+    - Missing the field path (e.g., $$$_ITEM_NAME_$$$)
+    - Having item name that doesn't match the expected item name
+
+    Args:
+        obj: The object to process (dict, list, or primitive)
+        path: Current path in the object (for error messages)
+        expected_item_name: Optional expected item name (e.g., alert name) to validate against
+
+    Returns:
+        List of tuples: (full_placeholder, field_path)
+    """
+    invalid_placeholders = []
+
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            current_path = f"{path}.{key}" if path else key
+            invalid_placeholders.extend(
+                collect_invalid_placeholders_recursive(value, current_path, expected_item_name)
+            )
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            current_path = f"{path}[{i}]" if path else f"[{i}]"
+            invalid_placeholders.extend(
+                collect_invalid_placeholders_recursive(item, current_path, expected_item_name)
+            )
+    elif isinstance(obj, str):
+        # Find all potential placeholders (anything that looks like it might be a placeholder)
+        # Then check each one against the valid pattern
+        for match in re.finditer(POTENTIAL_PLACEHOLDER_PATTERN, obj):
+            full_placeholder = match.group(0)
+            # Check if this placeholder matches the valid pattern EXACTLY (full match)
+            # Valid pattern requires: $$$_ITEM_NAME.FIELD_$$$ (exactly 3 $ at start, dot, field, underscore, exactly 3 $ at end)
+            # Use fullmatch to ensure the entire string matches, not just the beginning
+            placeholder_match = re.fullmatch(PLACEHOLDER_PATTERN, full_placeholder)
+            if placeholder_match:
+                # This is a valid placeholder format, but we need to check:
+                # 1. If the entire string is JUST this placeholder (no extra text before or after)
+                if full_placeholder != obj:
+                    # There's extra text - the entire string is invalid
+                    invalid_placeholders.append((obj, path))
+                # 2. If the item name in the placeholder matches the expected item name
+                elif expected_item_name:
+                    placeholder_item_name = placeholder_match.group(1).lower()
+                    if placeholder_item_name != expected_item_name.lower():
+                        # Item name doesn't match - this is invalid
+                        invalid_placeholders.append((full_placeholder, path))
+            else:
+                # This placeholder looks like a placeholder but doesn't match the valid format exactly
+                # It's invalid (could be missing dot, missing underscore, wrong number of $, etc.)
+                invalid_placeholders.append((full_placeholder, path))
+
+    return invalid_placeholders
+
+
+def validate_placeholder_format(
+    items: list[dict[str, Any]],
+    source_json_path: str = "",
+    logger_instance=None,
+    item_name_extractor: Optional[Callable[[dict], str]] = None,
+    item_title_extractor: Optional[Callable[[dict], str]] = None,
+    item_type_name: str = "item",
+) -> None:
+    """
+    Validate that all placeholders follow the correct format.
+    Placeholders must include a field path: $$$_ITEM_NAME.FIELD_$$$
+    Invalid format: $$$_ITEM_NAME_$$$ (missing field path)
+
+    Args:
+        items: List of item dictionaries (e.g., alerts, dashboards)
+        source_json_path: Path to the source JSON file (for error messages)
+        logger_instance: Optional logger instance
+        item_name_extractor: Optional function(item) -> str to extract item name
+                           Default: item["name"]
+        item_title_extractor: Optional function(item) -> str to extract item title/description
+                            Default: item.get("title", "N/A")
+        item_type_name: Name of the item type for error messages (e.g., "alert", "dashboard")
+
+    Raises:
+        ValueError: If any invalid placeholder format is detected
+    """
+    # Default extractors
+    if item_name_extractor is None:
+        item_name_extractor = lambda item: item["name"]
+    if item_title_extractor is None:
+        item_title_extractor = lambda item: item.get("title", "N/A")
+
+    # Collect all invalid placeholders from all items
+    all_invalid_placeholders = []  # List of (item_name, item_title, placeholder, field_path)
+
+    for item in items:
+        item_name = item_name_extractor(item)
+        item_title = item_title_extractor(item)
+
+        # Collect all invalid placeholders for this item
+        # Pass the item name to validate that placeholders match the actual item name
+        invalid_placeholders = collect_invalid_placeholders_recursive(
+            item, expected_item_name=item_name
+        )
+
+        # Add to the list with item context
+        for placeholder, field_path in invalid_placeholders:
+            all_invalid_placeholders.append((item_name, item_title, placeholder, field_path))
+
+    # If no invalid placeholders found, validation passed
+    if not all_invalid_placeholders:
+        return
+
+    # Build comprehensive error message using Rich
+    console = Console()
+    error_title = "INVALID PLACEHOLDER FORMAT DETECTED"
+
+    # Build error message with Rich markup
+    error_parts = [
+        "[bold red]" + "=" * 80 + "[/bold red]",
+        f"[bold red]ERROR:[/bold red] [bold]{error_title}[/bold]",
+        "[bold red]" + "=" * 80 + "[/bold red]",
+        "",
+        f"Found [yellow]{len(all_invalid_placeholders)}[/yellow] invalid placeholder(s) across "
+        f"[cyan]{len(set(p[0] for p in all_invalid_placeholders))}[/cyan] {item_type_name}(s):",
+        "",
+        "[bold]Invalid Format:[/bold]",
+        "  Placeholders must include a field path after the item name.",
+        f"  The item name in the placeholder must match the actual {item_type_name} name.",
+        "",
+        "[bold]Valid Examples:[/bold]",
+        "  [green]$$$_ALERT_NAME.FIELD_$$$[/green]  (item name matches alert name)",
+        "  [green]$$$_ALERT_NAME.FIELD.NESTED_$$$[/green]",
+        "  [green]$$$_ALERT_NAME.FIELD.NESTED.DEEPER_$$$[/green]",
+        "",
+        "[bold]Invalid Examples:[/bold]",
+        "  [red]$$$_ALERT_NAME_$$$[/red]  (missing field path)",
+        "  [red]$$$_WRONG_NAME.FIELD_$$$[/red]  (item name doesn't match alert name)",
+        "  [red]$$$_STRING.FIELD_$$$[/red]  (generic placeholder, item name doesn't match)",
+        "",
+        "[bold]File Paths:[/bold]",
+    ]
+
+    if source_json_path:
+        error_parts.append(f"  source_json_path: [cyan]{source_json_path}[/cyan]")
+    else:
+        error_parts.append("  source_json_path: [dim]<not provided>[/dim]")
+
+    error_parts.append("")
+    error_parts.append("[bold]" + "-" * 80 + "[/bold]")
+    error_parts.append("[bold]Invalid Placeholders Found:[/bold]")
+    error_parts.append("[bold]" + "-" * 80 + "[/bold]")
+
+    # Display invalid placeholders with context
+    for item_name, item_title, placeholder, field_path in all_invalid_placeholders:
+        error_parts.append(f"[bold]Item:[/bold] [cyan]{item_name}[/cyan] ({item_title})")
+        error_parts.append(f"[bold]Field:[/bold] [yellow]{field_path}[/yellow]")
+        error_parts.append(f"[bold]Invalid Placeholder:[/bold] [red]{placeholder}[/red]")
+
+        # Check if it's an item name mismatch (placeholder format is valid but item name doesn't match)
+        placeholder_match = re.fullmatch(PLACEHOLDER_PATTERN, placeholder)
+        if placeholder_match:
+            placeholder_item_name = placeholder_match.group(1).lower()
+            if placeholder_item_name != item_name.lower():
+                error_parts.append(
+                    f"[bold]Reason:[/bold] [yellow]Item name in placeholder ('{placeholder_item_name}') "
+                    f"does not match actual {item_type_name} name ('{item_name.lower()}')[/yellow]"
+                )
+
+        error_parts.append("")  # Empty line between items
+
+    # Remove trailing empty line
+    if error_parts and error_parts[-1] == "":
+        error_parts.pop()
+
+    error_parts.append("")
+    error_parts.append("[bold]To fix:[/bold]")
+    error_parts.append(
+        "  Add the field path to your placeholder. For example:\n"
+        "  - If you want to override the 'for' field: [green]$$$_ALERT_NAME.FOR_$$$[/green]\n"
+        "  - If you want to override nested field: [green]$$$_ALERT_NAME.LABELS.OG_PRIORITY_$$$[/green]"
+    )
+    error_parts.append("")
+    error_parts.append("[bold red]" + "=" * 80 + "[/bold red]")
+
+    # Build the error message string with Rich formatting
+    rich_error_message = "\n".join(error_parts)
+
+    # Print with Rich formatting
+    console.print(rich_error_message)
+
+    # Build plain text version for ValueError (strip Rich markup)
+    plain_error_parts = []
+    for part in error_parts:
+        # Remove Rich markup tags like [bold], [red], etc.
+        plain_part = re.sub(r"\[/?[^\]]+\]", "", part)
+        plain_error_parts.append(plain_part)
+
+    plain_error_message = "\n".join(plain_error_parts)
+
+    # Don't log the error here - it's already printed with Rich formatting above
+    # The ValueError will be caught by the caller and handled appropriately
+    raise ValueError(plain_error_message)
 
 
 def collect_placeholders_recursive(
@@ -289,6 +506,22 @@ def validate_config_overrides(
         item_name_extractor = lambda item: item["name"]
     if item_title_extractor is None:
         item_title_extractor = lambda item: item.get("title", "N/A")
+
+    # First, validate placeholder format (run BEFORE checking for missing config keys)
+    # This ensures we catch format errors first
+    try:
+        validate_placeholder_format(
+            items,
+            source_json_path=source_json_path,
+            logger_instance=logger_instance,
+            item_name_extractor=item_name_extractor,
+            item_title_extractor=item_title_extractor,
+            item_type_name=item_type_name,
+        )
+    except ValueError:
+        # Error message already printed by validate_placeholder_format with Rich formatting
+        # Re-raise to stop validation
+        raise
 
     # Collect all placeholders from all items
     all_placeholders = set()  # Set of all config keys that have placeholders
