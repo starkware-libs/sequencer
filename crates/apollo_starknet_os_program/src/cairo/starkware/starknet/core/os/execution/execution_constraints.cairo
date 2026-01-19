@@ -1,10 +1,13 @@
 // Execution constraints for transaction execution.
 
+from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_le, assert_not_zero
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.constants import (
+    ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0,
+    ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN,
     BLOCK_HASH_CONTRACT_ADDRESS,
     STORED_BLOCK_HASH_BUFFER,
 )
@@ -30,6 +33,15 @@ func check_is_reverted(is_reverted: felt) {
     return ();
 }
 
+// validate that the program hash is the virtual OS program hash.
+func check_program_hash(program_hash: felt) -> felt {
+    static_assert ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN == 1;
+    if (program_hash == ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
 // Validates that the proof facts of an invoke transaction are of a valid virtual OS run.
 func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     proof_facts_size: felt, proof_facts: felt*, current_block_number: felt
@@ -41,9 +53,8 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     assert_le(VirtualOsOutputHeader.SIZE + 2, proof_facts_size);
     let proof_type = proof_facts[0];
     assert proof_type = 'VIRTUAL_SNOS';
-    // TODO(Meshi): add a check that the program hash is the virtual OS program hash.
     let program_hash = proof_facts[1];
-
+    assert check_program_hash(program_hash) = TRUE;
     let os_output_header = cast(&proof_facts[2], VirtualOsOutputHeader*);
     // validate that the proof facts block number is not too recent
     // (the first check is to avoid underflow in the second one).

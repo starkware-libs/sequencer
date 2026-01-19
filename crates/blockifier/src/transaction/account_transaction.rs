@@ -272,6 +272,15 @@ impl AccountTransaction {
             ProofFactsVariant::Snos(snos_proof_facts) => snos_proof_facts,
         };
 
+        // Validates the proof facts program hash.
+        let allowed = &os_constants.allowed_virtual_os_program_hashes;
+        if !allowed.contains(&snos_proof_facts.program_hash) {
+            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                "Virtual OS program hash {} is not allowed",
+                snos_proof_facts.program_hash
+            )));
+        }
+
         // Proof block must be old enough to have a stored block hash.
         // Stored block hashes are guaranteed only up to: current - STORED_BLOCK_HASH_BUFFER.
         let max_allowed =
@@ -307,15 +316,6 @@ impl AccountTransaction {
             return Err(TransactionPreValidationError::InvalidProofFacts(format!(
                 "Block hash mismatch for block {proof_block_number}. Proof block hash: \
                  {proof_block_hash}, stored block hash: {stored_block_hash}."
-            )));
-        }
-
-        // Validates the proof facts program hash.
-        let allowed = &os_constants.allowed_virtual_os_program_hashes;
-        if !allowed.contains(&snos_proof_facts.program_hash) {
-            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
-                "Virtual OS program hash {} is not allowed",
-                snos_proof_facts.program_hash
             )));
         }
 
