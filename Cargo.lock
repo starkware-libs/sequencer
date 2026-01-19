@@ -2428,7 +2428,6 @@ dependencies = [
  "apollo_infra",
  "apollo_metrics",
  "apollo_network_types",
- "apollo_proc_macros",
  "async-trait",
  "mockall",
  "serde",
