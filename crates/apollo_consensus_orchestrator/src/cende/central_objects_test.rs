@@ -9,7 +9,6 @@ use apollo_batcher::cende_client_types::{
     CendePreconfirmedTransaction,
     ExecutionResources as CendeClientExecutionResources,
     IntermediateInvokeTransaction,
-    L2ToL1Message,
     StarknetClientTransactionReceipt,
     TransactionExecutionStatus,
 };
@@ -123,6 +122,7 @@ use starknet_api::transaction::{
     EventData,
     EventKey,
     L2ToL1Payload,
+    MessageToL1 as StarknetAPIMessageToL1,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionVersion,
@@ -726,8 +726,8 @@ fn message_to_l1_from_serialized_fields(
     from_address: &str,
     to_address: &str,
     payload: Vec<&str>,
-) -> L2ToL1Message {
-    L2ToL1Message {
+) -> StarknetAPIMessageToL1 {
+    StarknetAPIMessageToL1 {
         from_address: contract_address!(from_address),
         to_address: EthAddress::try_from(felt!(to_address))
             .expect("Failed to convert to_address to EthAddress"),
