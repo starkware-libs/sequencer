@@ -37,7 +37,7 @@ macro_rules! retdata {
     };
 }
 
-trait OrderedItem {
+pub(crate) trait OrderedItem {
     type UnorderedItem;
 
     /// converts to a tuple of (order, non-ordered struct).
@@ -388,7 +388,6 @@ impl CallInfo {
         })
     }
 
-    // TODO(Arni): Test this function (Probably first write the tests then refactor).
     /// Returns a vector of Starknet Event objects collected during the execution, sorted by the
     /// order in which they were emitted.
     pub fn get_sorted_events(&self) -> Vec<Event> {
