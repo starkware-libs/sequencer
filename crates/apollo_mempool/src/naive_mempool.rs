@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::sync::Arc;
 
-use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
+use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
     AddTransactionArgs,
@@ -12,23 +11,13 @@ use apollo_mempool_types::mempool_types::{
     TransactionQueueSnapshot,
     ValidationArgs,
 };
-use apollo_time::time::Clock;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info};
 
-// HACK: Tests commented out - they test the old complex Mempool implementation
-// TODO(Fix): Update tests to work with naive FIFO mempool or create new test suite
-// #[cfg(test)]
-// #[path = "mempool_test.rs"]
-// pub mod mempool_test;
-//
-// #[cfg(test)]
-// #[path = "mempool_flow_tests.rs"]
-// pub mod mempool_flow_tests;
+use crate::mempool::TransactionReference;
 
 /// A minimal FIFO mempool implementation.
 ///
@@ -44,7 +33,7 @@ use tracing::{debug, error, info};
 /// - Simple rewind logic: transactions returned by `get_txs()` but not committed are put back in
 ///   queue
 #[derive(Default)]
-pub struct Mempool {
+pub struct NaiveMempool {
     /// FIFO queue of transaction hashes in order of arrival
     queue: VecDeque<TransactionHash>,
     /// Map from transaction hash to full transaction
@@ -56,26 +45,26 @@ pub struct Mempool {
     staged_txs: VecDeque<TransactionHash>,
 }
 
-impl Mempool {
-    pub fn new(_config: MempoolConfig, _clock: Arc<dyn Clock>) -> Self {
+impl NaiveMempool {
+    pub fn new() -> Self {
         Self::default()
     }
 
     /// Retrieves up to `n_txs` transactions from the mempool in FIFO order.
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
         debug!(
-            "Mempool: get_txs called: requested={}, queue_size={}, pool_size={}",
+            "NaiveMempool: get_txs called: requested={}, queue_size={}, pool_size={}",
             n_txs,
             self.queue.len(),
             self.tx_pool.len()
         );
 
         let take_count = n_txs.min(self.queue.len());
-        debug!("Mempool: get_txs: taking {} transactions from queue", take_count);
+        debug!("NaiveMempool: get_txs: taking {} transactions from queue", take_count);
 
         let tx_hashes: Vec<TransactionHash> = self.queue.drain(..take_count).collect();
         debug!(
-            "Mempool: get_txs: drained {} transaction hashes from queue: {:?}",
+            "NaiveMempool: get_txs: drained {} transaction hashes from queue: {:?}",
             tx_hashes.len(),
             tx_hashes
         );
@@ -85,18 +74,23 @@ impl Mempool {
         for tx_hash in &tx_hashes {
             self.staged_txs.push_back(*tx_hash);
         }
+        debug!(
+            "NaiveMempool: get_txs: total staged_txs={}, txs={:?}",
+            self.staged_txs.len(),
+            self.staged_txs
+        );
 
         // Transactions are NOT removed from the mempool until `commit_block` is called.
         let result: Vec<InternalRpcTransaction> = tx_hashes
             .iter()
             .map(|hash| {
-                debug!("Mempool: get_txs: fetching tx_hash={} from tx_pool", hash);
+                debug!("NaiveMempool: get_txs: fetching tx_hash={} from tx_pool", hash);
                 match self.tx_pool.get(hash) {
                     Some(tx) => tx.clone(),
                     None => {
                         error!(
-                            "Mempool: BUG: Transaction hash {} in queue but not found in tx_pool! \
-                             queue_size={}, pool_size={}",
+                            "NaiveMempool: BUG: Transaction hash {} in queue but not found in \
+                             tx_pool! queue_size={}, pool_size={}",
                             hash,
                             self.queue.len(),
                             self.tx_pool.len()
@@ -109,8 +103,8 @@ impl Mempool {
 
         let n_returned_txs = result.len();
         debug!(
-            "Mempool: get_txs: returning {} transactions, remaining queue_size={}, staged_txs={}, \
-             pool_size={}",
+            "NaiveMempool: get_txs: returning {} transactions, remaining queue_size={}, \
+             staged_txs={}, pool_size={}",
             n_returned_txs,
             self.queue.len(),
             self.staged_txs.len(),
@@ -118,11 +112,11 @@ impl Mempool {
         );
         if n_returned_txs != 0 {
             info!(
-                "Mempool: Returned {n_returned_txs} out of {n_txs} transactions from mempool, \
-                 ready for sequencing."
+                "NaiveMempool: Returned {n_returned_txs} out of {n_txs} transactions from naive \
+                 mempool, ready for sequencing."
             );
         } else {
-            debug!("Mempool: get_txs: no transactions returned (queue empty or requested 0)");
+            debug!("NaiveMempool: get_txs: no transactions returned (queue empty or requested 0)");
         }
 
         Ok(result)
@@ -134,7 +128,7 @@ impl Mempool {
         let address = args.tx.contract_address();
         let tx_nonce = args.tx.nonce();
         debug!(
-            "Mempool: add_tx: received tx_hash={}, address={}, tx_nonce={}, \
+            "NaiveMempool: add_tx: received tx_hash={}, address={}, tx_nonce={}, \
              current_queue_size={}, current_pool_size={}",
             tx_hash,
             address,
@@ -145,14 +139,14 @@ impl Mempool {
 
         self.queue.push_back(tx_hash);
         debug!(
-            "Mempool: add_tx: pushed tx_hash={} to queue, new_queue_size={}",
+            "NaiveMempool: add_tx: pushed tx_hash={} to queue, new_queue_size={}",
             tx_hash,
             self.queue.len()
         );
 
         self.tx_pool.insert(tx_hash, args.tx);
         debug!(
-            "Mempool: add_tx: inserted tx_hash={} to tx_pool, new_pool_size={}",
+            "NaiveMempool: add_tx: inserted tx_hash={} to tx_pool, new_pool_size={}",
             tx_hash,
             self.tx_pool.len()
         );
@@ -160,7 +154,7 @@ impl Mempool {
         // Add to account index
         self.txs_by_account.entry(address).or_default().insert(tx_nonce, tx_hash);
         debug!(
-            "Mempool: add_tx: added tx_hash={} to txs_by_account[address={}][nonce={}], \
+            "NaiveMempool: add_tx: added tx_hash={} to txs_by_account[address={}][nonce={}], \
              total_accounts={}",
             tx_hash,
             address,
@@ -173,8 +167,9 @@ impl Mempool {
         let in_pool = self.tx_pool.contains_key(&tx_hash);
 
         debug!(
-            "Mempool: add_tx: Transaction successfully added to mempool: tx_hash={}, address={}, \
-             tx_nonce={}, final_queue_size={}, final_pool_size={}, in_queue={}, in_pool={}",
+            "NaiveMempool: add_tx: Transaction successfully added to naive mempool: tx_hash={}, \
+             address={}, tx_nonce={}, final_queue_size={}, final_pool_size={}, in_queue={}, \
+             in_pool={}",
             tx_hash,
             address,
             tx_nonce,
@@ -186,7 +181,7 @@ impl Mempool {
 
         if !in_queue || !in_pool {
             error!(
-                "Mempool: BUG: Transaction {} not properly stored! in_queue={}, in_pool={}, \
+                "NaiveMempool: BUG: Transaction {} not properly stored! in_queue={}, in_pool={}, \
                  queue_size={}, pool_size={}",
                 tx_hash,
                 in_queue,
@@ -197,7 +192,7 @@ impl Mempool {
         }
 
         info!(
-            "Mempool: add_tx: SUCCESS - tx_hash={} added, queue_size={}, pool_size={}, \
+            "NaiveMempool: add_tx: SUCCESS - tx_hash={} added, queue_size={}, pool_size={}, \
              verified_in_queue={}, verified_in_pool={}",
             tx_hash,
             self.queue.len(),
@@ -228,7 +223,7 @@ impl Mempool {
         let CommitBlockArgs { address_to_nonce, rejected_tx_hashes } = args;
 
         debug!(
-            "Mempool: commit_block: with {} addresses, {} rejected txs, queue_size={}, \
+            "NaiveMempool: commit_block: with {} addresses, {} rejected txs, queue_size={}, \
              staged_txs={}, pool_size={}",
             address_to_nonce.len(),
             rejected_tx_hashes.len(),
@@ -243,69 +238,70 @@ impl Mempool {
 
         // Remove rejected transactions from tx_pool, txs_by_account, and queue.
         debug!(
-            "Mempool: commit_block: processing {} rejected transactions",
+            "NaiveMempool: commit_block: processing {} rejected transactions",
             rejected_tx_hashes.len()
         );
         for tx_hash in &rejected_tx_hashes {
-            debug!("Mempool: commit_block: removing rejected tx_hash={}", tx_hash);
+            debug!("NaiveMempool: commit_block: removing rejected tx_hash={}", tx_hash);
             committed_or_rejected_txs.insert(*tx_hash);
             if let Some(tx) = self.tx_pool.remove(tx_hash) {
                 let address = tx.contract_address();
                 let tx_nonce = tx.nonce();
                 debug!(
-                    "Mempool: commit_block: removed rejected tx_hash={} from tx_pool (address={}, \
-                     nonce={})",
+                    "NaiveMempool: commit_block: removed rejected tx_hash={} from tx_pool \
+                     (address={}, nonce={})",
                     tx_hash, address, tx_nonce
                 );
                 if let Some(account_txs) = self.txs_by_account.get_mut(&address) {
                     account_txs.remove(&tx_nonce);
                     debug!(
-                        "Mempool: commit_block: removed rejected tx_hash={} from \
+                        "NaiveMempool: commit_block: removed rejected tx_hash={} from \
                          txs_by_account[address={}][nonce={}]",
                         tx_hash, address, tx_nonce
                     );
-                    // Only remove account entry if it's empty AND the rejected tx was nonce 0
-                    // (DeployAccount). For nonce > 0, keep the entry even if empty to handle
-                    // race conditions where account_tx_in_pool_or_recent_block is called before
-                    // state is updated.
-                    if account_txs.is_empty() && tx_nonce == Nonce::default() {
+                    if account_txs.is_empty() {
                         self.txs_by_account.remove(&address);
                         debug!(
-                            "Mempool: commit_block: removed empty account entry for address={} \
-                             (rejected DeployAccount with nonce 0)",
-                            address
-                        );
-                    } else if account_txs.is_empty() {
-                        debug!(
-                            "Mempool: commit_block: keeping empty account entry for address={} \
-                             (rejected tx had nonce > 0, account exists)",
+                            "NaiveMempool: commit_block: removed empty account entry for \
+                             address={}",
                             address
                         );
                     }
                 }
             } else {
-                debug!("Mempool: commit_block: rejected tx_hash={} not found in tx_pool", tx_hash);
+                debug!(
+                    "NaiveMempool: commit_block: rejected tx_hash={} not found in tx_pool",
+                    tx_hash
+                );
             }
             // Also remove from queue if still there (not staged)
             let before_retain = self.queue.len();
             self.queue.retain(|&h| h != *tx_hash);
             if self.queue.len() < before_retain {
-                debug!("Mempool: commit_block: removed rejected tx_hash={} from queue", tx_hash);
+                debug!(
+                    "NaiveMempool: commit_block: removed rejected tx_hash={} from queue",
+                    tx_hash
+                );
             }
         }
 
         // Remove committed transactions from tx_pool, txs_by_account, and queue.
         // The nonce passed is the "next_nonce" (nonce after the last committed transaction).
         // So if next_nonce is 4, we remove transactions with nonce < 4 (i.e., 0, 1, 2, 3).
-        debug!("Mempool: commit_block: processing {} committed addresses", address_to_nonce.len());
+        debug!(
+            "NaiveMempool: commit_block: processing {} committed addresses",
+            address_to_nonce.len()
+        );
         for (&address, &next_nonce) in &address_to_nonce {
             debug!(
-                "Mempool: commit_block: removing committed txs for address={} up to next_nonce={}",
+                "NaiveMempool: commit_block: removing committed txs for address={} up to \
+                 next_nonce={}",
                 address, next_nonce
             );
             let removed_txs = self.remove_up_to_nonce(address, next_nonce);
             debug!(
-                "Mempool: commit_block: removed {} committed transactions for address={}: {:?}",
+                "NaiveMempool: commit_block: removed {} committed transactions for address={}: \
+                 {:?}",
                 removed_txs.len(),
                 address,
                 removed_txs
@@ -317,7 +313,7 @@ impl Mempool {
                 self.queue.retain(|&h| h != *tx_hash);
                 if self.queue.len() < before_retain {
                     debug!(
-                        "Mempool: commit_block: removed committed tx_hash={} from queue",
+                        "NaiveMempool: commit_block: removed committed tx_hash={} from queue",
                         tx_hash
                     );
                 }
@@ -327,20 +323,15 @@ impl Mempool {
         // Rewind logic: Put transactions back in queue if they were sent to batcher
         // but not committed/rejected. Preserve FIFO order.
         let staged_count = self.staged_txs.len();
-        debug!(
-            "Mempool: commit_block: checking whether should rewind {} staged transactions",
-            staged_count
-        );
+        debug!("NaiveMempool: commit_block: rewinding {} staged transactions", staged_count);
         let mut rewound_count = 0;
         let mut skipped_count = 0;
-        // Iterate in reverse to preserve FIFO order when pushing to front
-        // staged_txs is in FIFO order [oldest, ..., newest]
-        // To preserve FIFO when pushing to front, we need to push newest first, then oldest
-        for tx_hash in self.staged_txs.drain(..).rev() {
+        for tx_hash in self.staged_txs.drain(..) {
             // Skip if committed or rejected (already removed from tx_pool)
             if committed_or_rejected_txs.contains(&tx_hash) {
                 debug!(
-                    "Mempool: commit_block: skipping rewinding tx_hash={} (committed or rejected)",
+                    "NaiveMempool: commit_block: skipping rewinding tx_hash={} (committed or \
+                     rejected)",
                     tx_hash
                 );
                 skipped_count += 1;
@@ -348,13 +339,13 @@ impl Mempool {
             }
 
             // Put back in queue (rewind) - transaction is still in tx_pool
-            self.queue.push_front(tx_hash);
-            debug!("Mempool: commit_block: rewound tx_hash={} back to queue", tx_hash);
+            self.queue.push_back(tx_hash);
+            debug!("NaiveMempool: commit_block: rewound tx_hash={} back to queue", tx_hash);
             rewound_count += 1;
         }
         debug!(
-            "Mempool: commit_block: rewind complete: rewound={}, skipped={}, final_queue_size={}, \
-             final_pool_size={}",
+            "NaiveMempool: commit_block: rewind complete: rewound={}, skipped={}, \
+             final_queue_size={}, final_pool_size={}",
             rewound_count,
             skipped_count,
             self.queue.len(),
@@ -368,15 +359,15 @@ impl Mempool {
     /// Part of the API contract - Gateway calls this to check if transaction can be added.
     pub fn validate_tx(&mut self, args: ValidationArgs) -> MempoolResult<()> {
         debug!(
-            "Mempool: validate_tx: checking tx_hash={}, pool_size={}",
+            "NaiveMempool: validate_tx: checking tx_hash={}, pool_size={}",
             args.tx_hash,
             self.tx_pool.len()
         );
         if self.tx_pool.contains_key(&args.tx_hash) {
-            debug!("Mempool: validate_tx: duplicate tx_hash={} found in pool", args.tx_hash);
+            debug!("NaiveMempool: validate_tx: duplicate tx_hash={} found in pool", args.tx_hash);
             return Err(MempoolError::DuplicateTransaction { tx_hash: args.tx_hash });
         }
-        debug!("Mempool: validate_tx: tx_hash={} is valid (not duplicate)", args.tx_hash);
+        debug!("NaiveMempool: validate_tx: tx_hash={} is valid (not duplicate)", args.tx_hash);
         Ok(())
     }
 
@@ -436,14 +427,17 @@ impl Mempool {
         address: ContractAddress,
         next_nonce: Nonce,
     ) -> Vec<TransactionHash> {
-        debug!("Mempool: remove_up_to_nonce: address={}, next_nonce={}", address, next_nonce);
+        debug!("NaiveMempool: remove_up_to_nonce: address={}, next_nonce={}", address, next_nonce);
         let Some(account_txs) = self.txs_by_account.get_mut(&address) else {
-            debug!("Mempool: remove_up_to_nonce: address={} not found in txs_by_account", address);
+            debug!(
+                "NaiveMempool: remove_up_to_nonce: address={} not found in txs_by_account",
+                address
+            );
             return Vec::default();
         };
 
         debug!(
-            "Mempool: remove_up_to_nonce: address={} has {} transactions before removal",
+            "NaiveMempool: remove_up_to_nonce: address={} has {} transactions before removal",
             address,
             account_txs.len()
         );
@@ -455,22 +449,19 @@ impl Mempool {
         let txs_with_lower_nonce = std::mem::replace(account_txs, txs_with_higher_or_equal_nonce);
 
         debug!(
-            "Mempool: remove_up_to_nonce: address={} will remove {} transactions (nonce < {}), \
-             keeping {} transactions",
+            "NaiveMempool: remove_up_to_nonce: address={} will remove {} transactions (nonce < \
+             {}), keeping {} transactions",
             address,
             txs_with_lower_nonce.len(),
             next_nonce,
             account_txs.len()
         );
 
-        // Don't remove empty account entry for committed transactions.
-        // This allows account_tx_in_pool_or_recent_block to return true even after all
-        // transactions are committed, handling race conditions where the Gateway checks
-        // before state is updated.
+        // Clean up empty address entry
         if account_txs.is_empty() {
+            self.txs_by_account.remove(&address);
             debug!(
-                "Mempool: remove_up_to_nonce: keeping empty account entry for address={} (all \
-                 transactions committed, but account exists)",
+                "NaiveMempool: remove_up_to_nonce: removed empty account entry for address={}",
                 address
             );
         }
@@ -478,7 +469,7 @@ impl Mempool {
         // Collect transaction hashes to remove (nonce < next_nonce)
         let txs_to_remove: Vec<TransactionHash> = txs_with_lower_nonce.into_values().collect();
         debug!(
-            "Mempool: remove_up_to_nonce: collected {} transaction hashes to remove: {:?}",
+            "NaiveMempool: remove_up_to_nonce: collected {} transaction hashes to remove: {:?}",
             txs_to_remove.len(),
             txs_to_remove
         );
@@ -486,10 +477,13 @@ impl Mempool {
         // Remove from tx_pool
         for tx_hash in &txs_to_remove {
             if self.tx_pool.remove(tx_hash).is_some() {
-                debug!("Mempool: remove_up_to_nonce: removed tx_hash={} from tx_pool", tx_hash);
+                debug!(
+                    "NaiveMempool: remove_up_to_nonce: removed tx_hash={} from tx_pool",
+                    tx_hash
+                );
             } else {
                 debug!(
-                    "Mempool: remove_up_to_nonce: tx_hash={} not found in tx_pool (already \
+                    "NaiveMempool: remove_up_to_nonce: tx_hash={} not found in tx_pool (already \
                      removed?)",
                     tx_hash
                 );
@@ -497,58 +491,10 @@ impl Mempool {
         }
 
         debug!(
-            "Mempool: remove_up_to_nonce: completed for address={}, removed {} transactions",
+            "NaiveMempool: remove_up_to_nonce: completed for address={}, removed {} transactions",
             address,
             txs_to_remove.len()
         );
         txs_to_remove
-    }
-}
-
-/// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding
-/// execution fields).
-/// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
-/// becomes available, to better reflect its purpose and usage.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct TransactionReference {
-    pub address: ContractAddress,
-    pub nonce: Nonce,
-    pub tx_hash: TransactionHash,
-    pub tip: Tip,
-    pub max_l2_gas_price: GasPrice,
-}
-
-impl TransactionReference {
-    pub fn new(tx: &InternalRpcTransaction) -> Self {
-        TransactionReference {
-            address: tx.contract_address(),
-            nonce: tx.nonce(),
-            tx_hash: tx.tx_hash(),
-            tip: tx.tip(),
-            max_l2_gas_price: tx.resource_bounds().l2_gas.max_price_per_unit,
-        }
-    }
-}
-
-impl From<&ValidationArgs> for TransactionReference {
-    fn from(args: &ValidationArgs) -> Self {
-        TransactionReference {
-            address: args.address,
-            nonce: args.tx_nonce,
-            tx_hash: args.tx_hash,
-            tip: args.tip,
-            max_l2_gas_price: args.max_l2_gas_price,
-        }
-    }
-}
-
-impl std::fmt::Display for TransactionReference {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let TransactionReference { address, nonce, tx_hash, tip, max_l2_gas_price } = self;
-        write!(
-            f,
-            "TransactionReference {{ address: {address}, nonce: {nonce}, tx_hash: {tx_hash}, tip: \
-             {tip}, max_l2_gas_price: {max_l2_gas_price} }}"
-        )
     }
 }
