@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
-use blockifier::execution::call_info::{CallExecution, OrderedL2ToL1Message};
 use blockifier::state::cached_state::{StateMaps, StorageView};
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
@@ -238,77 +237,8 @@ impl
     }
 }
 
-trait OrderedItem {
-    type UnorderedItem;
-
-    /// converts to a tuple of (order, non-ordered struct).
-    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem);
-
-    fn get_items_from_call_execution<'a>(
-        execution: &'a CallExecution,
-    ) -> impl Iterator<Item = &'a Self>
-    where
-        Self: 'a;
-
-    fn accumulated_sorted_items(
-        execution_info: &TransactionExecutionInfo,
-    ) -> Vec<Self::UnorderedItem>
-    where
-        Self: std::marker::Sized,
-    {
-        let main_call_info_iterator = execution_info.non_optional_call_infos();
-
-        // Collect all the structs from the call infos, along with their order.
-        let mut accumulated_sorted_structs = vec![];
-        for main_call_info in main_call_info_iterator {
-            let mut main_call_accumulated_sortable_structs = vec![];
-            for call_info in main_call_info.iter() {
-                let sortable_structs = Self::get_items_from_call_execution(&call_info.execution)
-                    .map(|ordered_struct| {
-                        ordered_struct.to_ordered_tuple(call_info.call.storage_address)
-                    });
-                main_call_accumulated_sortable_structs.extend(sortable_structs);
-            }
-            // Sort the structs by their order, per main call info.
-            main_call_accumulated_sortable_structs.sort_by_key(|(order, _)| *order);
-            accumulated_sorted_structs.extend(
-                main_call_accumulated_sortable_structs
-                    .into_iter()
-                    .map(|(_, unordered_struct)| unordered_struct),
-            );
-        }
-
-        accumulated_sorted_structs
-    }
-}
-
-impl OrderedItem for OrderedL2ToL1Message {
-    type UnorderedItem = MessageToL1;
-
-    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
-        (
-            self.order,
-            MessageToL1 {
-                from_address,
-                to_address: EthAddress::try_from(self.message.to_address)
-                    .expect("Failed to convert L1Address to EthAddress"),
-                payload: self.message.payload.clone(),
-            },
-        )
-    }
-
-    fn get_items_from_call_execution<'a>(
-        execution: &'a CallExecution,
-    ) -> impl Iterator<Item = &'a Self>
-    where
-        Self: 'a,
-    {
-        execution.l2_to_l1_messages.iter()
-    }
-}
-
 fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<MessageToL1> {
-    OrderedL2ToL1Message::accumulated_sorted_items(execution_info)
+    execution_info.accumulated_sorted_l2_to_l1_messages()
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {

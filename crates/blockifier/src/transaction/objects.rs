@@ -18,6 +18,7 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{
     signed_tx_version,
     Event,
+    MessageToL1,
     RevertedTransactionExecutionStatus,
     TransactionExecutionStatus,
     TransactionHash,
@@ -33,6 +34,7 @@ use crate::execution::call_info::{
     ExecutionSummary,
     OrderedEvent,
     OrderedItem,
+    OrderedL2ToL1Message,
 };
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
@@ -307,6 +309,10 @@ impl TransactionExecutionInfo {
 
     pub fn accumulated_sorted_events(&self) -> Vec<Event> {
         self.accumulated_sorted_items::<OrderedEvent>()
+    }
+
+    pub fn accumulated_sorted_l2_to_l1_messages(&self) -> Vec<MessageToL1> {
+        self.accumulated_sorted_items::<OrderedL2ToL1Message>()
     }
 }
 
