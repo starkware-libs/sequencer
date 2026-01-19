@@ -879,6 +879,15 @@
           "extra_params": {}
         },
         {
+          "title": "L1 Provider Num Pending Txs",
+          "description": "The number of pending L1 handler transactions in the transaction manager",
+          "type": "timeseries",
+          "exprs": [
+            "l1_provider_num_pending_txs{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "L1 Message Scraper Success Count",
           "description": "The increase in the number of times the L1 message scraper successfully scraped messages (10m window)",
           "type": "timeseries",
