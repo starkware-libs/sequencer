@@ -325,12 +325,6 @@ impl AccountTransaction {
             ProofFactsVariant::Snos(snos_proof_facts) => snos_proof_facts,
         };
 
-        let proof_block_hash = snos_proof_facts.block_hash.0;
-        let proof_block_number = snos_proof_facts.block_number.0;
-
-        Self::validate_proof_block_number(proof_block_number, current_block_number)?;
-        Self::validate_proof_block_hash(proof_block_hash, proof_block_number, os_constants, state)?;
-
         // Validates the proof facts program hash.
         let allowed = &os_constants.allowed_virtual_os_program_hashes;
         if !allowed.contains(&snos_proof_facts.program_hash) {
@@ -339,6 +333,12 @@ impl AccountTransaction {
                 snos_proof_facts.program_hash
             )));
         }
+
+        // Validates the proof facts block hash and block number.
+        let proof_block_hash = snos_proof_facts.block_hash.0;
+        let proof_block_number = snos_proof_facts.block_number.0;
+        Self::validate_proof_block_number(proof_block_number, current_block_number)?;
+        Self::validate_proof_block_hash(proof_block_hash, proof_block_number, os_constants, state)?;
 
         Ok(())
     }
