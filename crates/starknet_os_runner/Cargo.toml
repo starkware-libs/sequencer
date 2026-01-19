@@ -35,6 +35,7 @@ url.workspace = true
 
 [dev-dependencies]
 apollo_class_manager_types.workspace = true
+apollo_starknet_os_program.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 rstest.workspace = true
