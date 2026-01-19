@@ -5,12 +5,9 @@ use apollo_consensus::types::Round;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use blockifier::execution::entry_point::call_view_entry_point;
-use blockifier::state::state_api::StateReader;
+use blockifier::context::BlockContext;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::fields::Calldata;
-use starknet_types_core::felt::Felt;
 use static_assertions::const_assert;
 
 use crate::committee_provider::{
@@ -18,16 +15,10 @@ use crate::committee_provider::{
     CommitteeProvider,
     CommitteeProviderError,
     CommitteeProviderResult,
-    ExecutionContext,
     Staker,
 };
 use crate::config::StakingManagerConfig;
-use crate::contract_types::{
-    ContractStaker,
-    EPOCH_LENGTH,
-    GET_CURRENT_EPOCH_DATA_ENTRY_POINT,
-    GET_STAKERS_ENTRY_POINT,
-};
+use crate::staking_contract::StakingContract;
 use crate::utils::BlockRandomGenerator;
 
 pub type StakerSet = Vec<Staker>;
@@ -59,8 +50,8 @@ struct CommitteeDataCache {
     cache: BTreeMap<u64, Arc<CommitteeData>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Epoch {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Epoch {
     pub(crate) epoch_id: u64,
     pub(crate) start_block: BlockNumber,
     pub(crate) epoch_length: u64,
@@ -85,6 +76,8 @@ impl Epoch {
 // The committee is a subset of nodes (proposer and validators) that are selected to participate in
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
 pub struct StakingManager {
+    staking_contract: Arc<dyn StakingContract>,
+    state_sync_client: SharedStateSyncClient,
     committee_data_cache: CommitteeDataCache,
 
     // Caches the current epoch fetched from the state.
@@ -113,10 +106,14 @@ impl CommitteeDataCache {
 
 impl StakingManager {
     pub fn new(
+        staking_contract: Arc<dyn StakingContract>,
+        state_sync_client: SharedStateSyncClient,
         random_generator: Box<dyn BlockRandomGenerator>,
         config: StakingManagerConfig,
     ) -> Self {
         Self {
+            staking_contract,
+            state_sync_client,
             committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs),
             cached_epoch: None,
             random_generator,
@@ -126,10 +123,10 @@ impl StakingManager {
 
     // Returns the committee data for the given epoch.
     // If the data is not cached, it is fetched from the state and cached.
-    fn committee_data_at_epoch<S: StateReader + Clone>(
+    fn committee_data_at_epoch(
         &mut self,
         epoch: u64,
-        execution_context: ExecutionContext<S>,
+        block_context: Arc<BlockContext>,
     ) -> CommitteeProviderResult<Arc<CommitteeData>> {
         // Attempt to read from cache.
         if let Some(committee_data) = self.committee_data_cache.get(epoch) {
@@ -137,8 +134,7 @@ impl StakingManager {
         }
 
         // Otherwise, build the committee from state, and cache the result.
-        let committee_data =
-            Arc::new(self.fetch_and_build_committee_data(epoch, execution_context)?);
+        let committee_data = Arc::new(self.fetch_and_build_committee_data(epoch, block_context)?);
         self.committee_data_cache.insert(epoch, committee_data.clone());
 
         Ok(committee_data)
@@ -147,27 +143,13 @@ impl StakingManager {
     // Queries the state to fetch stakers for the given epoch and builds the full committee data.
     // This includes selecting the committee and preparing cumulative weights for proposer
     // selection.
-    fn fetch_and_build_committee_data<S: StateReader + Clone>(
+    fn fetch_and_build_committee_data(
         &self,
         epoch: u64,
-        execution_context: ExecutionContext<S>,
+        block_context: Arc<BlockContext>,
     ) -> CommitteeProviderResult<CommitteeData> {
-        let call_info = call_view_entry_point(
-            execution_context.state_reader,
-            execution_context.block_context,
-            self.config.staking_contract_address,
-            GET_STAKERS_ENTRY_POINT,
-            Calldata(vec![Felt::from(epoch)].into()),
-        )?;
-
-        let stakers: Vec<Staker> = ContractStaker::from_retdata_many(call_info.execution.retdata)?
-            .into_iter()
-            .filter_map(|contract_staker| {
-                // Filter out stakers that don't have a public key.
-                contract_staker.public_key.map(|_| Staker::from(&contract_staker))
-            })
-            .collect();
-        let committee_members = self.select_committee(stakers);
+        let contract_stakers = self.staking_contract.get_stakers(epoch, block_context.clone())?;
+        let committee_members = self.select_committee(contract_stakers);
 
         // Prepare the data needed for proposer selection.
         let cumulative_weights: Vec<u128> = committee_members
@@ -200,7 +182,6 @@ impl StakingManager {
     async fn proposer_randomness_block_hash(
         &self,
         current_block_number: BlockNumber,
-        state_sync_client: SharedStateSyncClient,
     ) -> CommitteeProviderResult<Option<BlockHash>> {
         let randomness_source_block =
             current_block_number.0.checked_sub(self.config.proposer_prediction_window_in_heights);
@@ -211,7 +192,7 @@ impl StakingManager {
             }
             Some(block_number) => {
                 let block_hash =
-                    state_sync_client.get_block_hash(BlockNumber(block_number)).await?;
+                    self.state_sync_client.get_block_hash(BlockNumber(block_number)).await?;
                 Ok(Some(block_hash))
             }
         }
@@ -256,22 +237,15 @@ impl StakingManager {
         panic!("Inconsistent committee data; cumulative_weights inconsistent with total weight.")
     }
 
-    fn epoch_at_height<S: StateReader + Clone>(
+    fn epoch_at_height(
         &mut self,
         height: BlockNumber,
-        execution_context: ExecutionContext<S>,
+        block_context: Arc<BlockContext>,
     ) -> CommitteeProviderResult<u64> {
         if self.cached_epoch.as_ref().is_none_or(|epoch| !epoch.contains(height)) {
             // Fetch the epoch from the state.
-            let call_info = call_view_entry_point(
-                execution_context.state_reader,
-                execution_context.block_context,
-                self.config.staking_contract_address,
-                GET_CURRENT_EPOCH_DATA_ENTRY_POINT,
-                Calldata(Arc::new(vec![])),
-            )?;
-
-            self.cached_epoch = Some(Epoch::try_from(call_info.execution.retdata)?);
+            let epoch = self.staking_contract.get_current_epoch(block_context.clone())?;
+            self.cached_epoch = Some(epoch);
         }
 
         let cached_epoch = self.cached_epoch.as_ref().expect("cached_epoch should be set");
@@ -287,21 +261,18 @@ impl StakingManager {
 }
 
 #[async_trait]
-impl<S> CommitteeProvider<S> for StakingManager
-where
-    S: StateReader + Clone + Send + 'static,
-{
+impl CommitteeProvider for StakingManager {
     // Returns the committee for the epoch at the given height.
     // The height must be within the bounds of the current epoch, or the next epoch's min bounds
     // (see `MIN_EPOCH_LENGTH`).
     fn get_committee(
         &mut self,
         height: BlockNumber,
-        execution_context: ExecutionContext<S>,
+        block_context: Arc<BlockContext>,
     ) -> CommitteeProviderResult<Arc<Committee>> {
-        let epoch = self.epoch_at_height(height, execution_context.clone())?;
+        let epoch = self.epoch_at_height(height, block_context.clone())?;
 
-        let committee_data = self.committee_data_at_epoch(epoch, execution_context)?;
+        let committee_data = self.committee_data_at_epoch(epoch, block_context)?;
         Ok(committee_data.committee_members.clone())
     }
 
@@ -313,16 +284,14 @@ where
         &mut self,
         height: BlockNumber,
         round: Round,
-        execution_context: ExecutionContext<S>,
+        block_context: Arc<BlockContext>,
     ) -> CommitteeProviderResult<ContractAddress> {
         // Try to get the hash of the block used for proposer selection randomness.
-        let block_hash = self
-            .proposer_randomness_block_hash(height, execution_context.state_sync_client.clone())
-            .await?;
+        let block_hash = self.proposer_randomness_block_hash(height).await?;
 
         // Get the committee for the epoch this height belongs to.
-        let epoch = height.0 / EPOCH_LENGTH; // TODO(Dafna): export to a utility function.
-        let committee_data = self.committee_data_at_epoch(epoch, execution_context)?;
+        let epoch = self.epoch_at_height(height, block_context.clone())?;
+        let committee_data = self.committee_data_at_epoch(epoch, block_context)?;
 
         // Generate a pseudorandom value in the range [0, total_weight) based on the height, round,
         // and block hash.
