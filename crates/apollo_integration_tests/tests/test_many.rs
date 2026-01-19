@@ -3,7 +3,7 @@ use apollo_integration_tests::end_to_end_flow_utils::{
     end_to_end_flow,
     validate_tx_count,
     EndToEndFlowArgs,
-    TestScenario,
+    EndToEndTestScenario,
 };
 use apollo_integration_tests::utils::{create_invoke_txs, ACCOUNT_ID_1};
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
@@ -28,8 +28,8 @@ async fn many_txs_fill_at_least_one_block() {
     .await
 }
 
-fn create_many_txs_scenario() -> TestScenario {
-    TestScenario {
+fn create_many_txs_scenario() -> EndToEndTestScenario {
+    EndToEndTestScenario {
         create_rpc_txs_fn: create_many_invoke_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, N_TXS),
