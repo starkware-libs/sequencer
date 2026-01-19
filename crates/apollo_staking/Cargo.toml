@@ -24,6 +24,7 @@ apollo_state_sync_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+mockall.workspace = true
 rstest.workspace = true
 tokio.workspace = true
 
