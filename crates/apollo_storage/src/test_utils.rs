@@ -137,3 +137,17 @@ impl TestStorageBuilder {
         }
     }
 }
+
+/// Creates a directory and returns the path to the directory and the temporary directory.
+pub fn create_dir_for_testing(path: Option<PathBuf>) -> (PathBuf, Option<TempDir>) {
+    match path {
+        Some(path) => {
+            create_dir_all(&path).expect("Failed to create directory");
+            (path, None)
+        }
+        None => {
+            let temp_dir = tempdir().expect("Failed to create temp directory");
+            (temp_dir.path().to_path_buf(), Some(temp_dir))
+        }
+    }
+}
