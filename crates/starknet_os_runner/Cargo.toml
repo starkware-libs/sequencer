@@ -38,6 +38,7 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+apollo_starknet_os_program.workspace = true
 apollo_transaction_converter.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
