@@ -6,7 +6,6 @@ use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use starknet_api::transaction::fields::ProofFacts;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::Blake2Felt252;
 
 use crate::proving::prover::{prove, resolve_resource_path, BOOTLOADER_FILE};
 
@@ -67,16 +66,8 @@ fn test_simple_bootloader_program_hash_matches_expected() {
     let program_bytes = fs::read(&bootloader_path).expect("Failed to read bootloader file");
     let program =
         Program::from_bytes(&program_bytes, Some("main")).expect("Failed to load bootloader");
-    let stripped_program =
-        program.get_stripped_program().expect("Failed to strip bootloader program");
-    let program_data: Vec<Felt> = stripped_program
-        .data
-        .iter()
-        .map(|entry| {
-            entry.get_int_ref().copied().expect("Bootloader program data must contain felts")
-        })
-        .collect();
-    let program_hash = Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&program_data);
+    let program_hash =
+        compute_program_hash_blake(&program).expect("Failed to compute program hash");
     let expected_hash =
         Felt::from_hex(BOOTLOADER_PROGRAM_HASH.trim()).expect("Invalid bootloader hash");
 
