@@ -6,9 +6,12 @@ use std::sync::Arc;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_metrics::generate_permutation_labels;
-use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use indexmap::IndexSet;
 #[cfg(any(feature = "testing", test))]
@@ -156,6 +159,8 @@ where
     ) -> L1ProviderClientResult<()> {
         let request = L1ProviderRequest::StartBlock { state, height };
         handle_all_response_variants!(
+            self,
+            request,
             L1ProviderResponse,
             StartBlock,
             L1ProviderClientError,
@@ -172,6 +177,8 @@ where
     ) -> L1ProviderClientResult<Vec<L1HandlerTransaction>> {
         let request = L1ProviderRequest::GetTransactions { n_txs, height };
         handle_all_response_variants!(
+            self,
+            request,
             L1ProviderResponse,
             GetTransactions,
             L1ProviderClientError,
@@ -187,6 +194,8 @@ where
     ) -> L1ProviderClientResult<ValidationStatus> {
         let request = L1ProviderRequest::Validate { tx_hash, height };
         handle_all_response_variants!(
+            self,
+            request,
             L1ProviderResponse,
             Validate,
             L1ProviderClientError,
@@ -204,6 +213,8 @@ where
         let request =
             L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, rejected_tx_hashes, height };
         handle_all_response_variants!(
+            self,
+            request,
             L1ProviderResponse,
             CommitBlock,
             L1ProviderClientError,
@@ -216,6 +227,8 @@ where
     async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
         let request = L1ProviderRequest::AddEvents(events);
         handle_all_response_variants!(
+            self,
+            request,
             L1ProviderResponse,
             AddEvents,
             L1ProviderClientError,
@@ -231,6 +244,8 @@ where
     ) -> L1ProviderClientResult<()> {
         let request = L1ProviderRequest::Initialize { historic_l2_height, events };
         handle_all_response_variants!(
+            self,
+            request,
             L1ProviderResponse,
             Initialize,
             L1ProviderClientError,
@@ -242,6 +257,8 @@ where
     async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot> {
         let request = L1ProviderRequest::GetL1ProviderSnapshot;
         handle_all_response_variants!(
+            self,
+            request,
             L1ProviderResponse,
             GetL1ProviderSnapshot,
             L1ProviderClientError,
@@ -253,6 +270,8 @@ where
     async fn get_provider_state(&self) -> L1ProviderClientResult<ProviderState> {
         let request = L1ProviderRequest::GetProviderState;
         handle_all_response_variants!(
+            self,
+            request,
             L1ProviderResponse,
             GetProviderState,
             L1ProviderClientError,
