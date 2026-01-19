@@ -3,11 +3,9 @@ use std::collections::BTreeMap;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ContractAddress;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerConfig {
-    pub staking_contract_address: ContractAddress,
     pub max_cached_epochs: usize,
 
     // The desired number of committee members to select from the available stakers.
@@ -26,12 +24,6 @@ pub struct StakingManagerConfig {
 impl SerializeConfig for StakingManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
-            ser_param(
-                "staking_contract_address",
-                &self.staking_contract_address,
-                "The address of the staking contract",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "max_cached_epochs",
                 &self.max_cached_epochs,
