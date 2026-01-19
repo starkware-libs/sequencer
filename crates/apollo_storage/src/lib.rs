@@ -121,9 +121,9 @@ use validator::Validate;
 use version::{StorageVersionError, Version};
 
 use crate::base_layer::BaseLayerStorageWriter;
-use crate::body::{BodyStorageWriter, TransactionIndex};
+use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::class::ClassStorageWriter;
-use crate::compiled_class::CasmStorageWriter;
+use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::consensus::LastVotedMarker;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
@@ -139,10 +139,10 @@ use crate::db::{
     RO,
     RW,
 };
-use crate::header::{HeaderStorageWriter, StorageBlockHeader};
+use crate::header::{HeaderStorageReader, HeaderStorageWriter, StorageBlockHeader};
 use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
 use crate::state::data::IndexedDeprecatedContractClass;
-use crate::state::StateStorageWriter;
+use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
@@ -389,6 +389,10 @@ fn open_storage_internal(
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
+    
+    // Validate marker consistency and revert incomplete blocks if needed.
+    let writer = validate_markers_and_revert_if_needed(reader.clone(), writer)?;
+    
     Ok((reader, writer))
 }
 
@@ -571,6 +575,81 @@ fn verify_storage_version(reader: StorageReader) -> StorageResult<()> {
         }
         Some(_) => Ok(()),
     }
+}
+
+/// Validates marker consistency at startup and reverts incomplete blocks if needed.
+///
+/// This function implements startup marker validation for ensuring atomicity
+/// with batching. It checks if all data type markers (header, body, state, etc.) are consistent.
+/// If they diverge, it indicates an incomplete block (e.g., due to a crash mid-flush), and the
+/// function reverts all blocks back to the lowest common marker to ensure data consistency.
+fn validate_markers_and_revert_if_needed(
+    reader: StorageReader,
+    mut writer: StorageWriter,
+) -> StorageResult<StorageWriter> {
+    // Only validate if we're in FullArchive mode (StateOnly doesn't have all markers).
+    if writer.scope != StorageScope::FullArchive {
+        return Ok(writer);
+    }
+
+    // Read all markers.
+    let txn = reader.begin_ro_txn()?;
+    let header_marker = txn.get_header_marker()?;
+    let body_marker = txn.get_body_marker()?;
+    let state_marker = txn.get_state_marker()?;
+    let compiled_class_marker = txn.get_compiled_class_marker()?;
+    
+    // Find the minimum marker (the safe point where all data is complete).
+    let min_marker = header_marker
+        .min(body_marker)
+        .min(state_marker)
+        .min(compiled_class_marker);
+    
+    // Find the maximum marker (to know the range of incomplete blocks).
+    let max_marker = header_marker
+        .max(body_marker)
+        .max(state_marker)
+        .max(compiled_class_marker);
+    
+    // If all markers are equal, storage is consistent - no action needed.
+    if min_marker == max_marker {
+        debug!(
+            "Marker validation: All markers consistent at block {}",
+            min_marker
+        );
+        return Ok(writer);
+    }
+    
+    // Markers diverge - we have incomplete blocks. Revert them.
+    // min_marker represents the last complete block, max_marker represents the highest marker.
+    // We need to revert all blocks from min_marker (inclusive) to max_marker-1 (inclusive).
+    warn!(
+        "Marker validation: Inconsistent markers detected! \
+         header={}, body={}, state={}, compiled_class={}. \
+         Reverting incomplete blocks from {} to {}.",
+        header_marker, body_marker, state_marker, compiled_class_marker,
+        min_marker, max_marker.prev().unwrap_or(min_marker)
+    );
+    
+    // Revert all blocks from min_marker to max_marker-1 (inclusive).
+    // This removes incomplete data and resets all markers to min_marker.
+    for block_number in min_marker.iter_up_to(max_marker) {
+        info!("Reverting incomplete block {}", block_number);
+        let (txn, _, _) = writer.begin_rw_txn()?.revert_header(block_number)?;
+        txn.commit()?;
+        let (txn, _) = writer.begin_rw_txn()?.revert_body(block_number)?;
+        txn.commit()?;
+        let (txn, _) = writer.begin_rw_txn()?.revert_state_diff(block_number)?;
+        txn.commit()?;
+    }
+    
+    info!(
+        "Marker validation: Successfully reverted incomplete blocks. \
+         All markers now at block {}. Sync will resume from block {}.",
+        min_marker, min_marker
+    );
+    
+    Ok(writer)
 }
 
 /// The categories of data to save in the storage.
