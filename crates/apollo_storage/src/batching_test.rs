@@ -486,3 +486,92 @@ fn test_auto_flush_resumes_after_commit() {
     assert!(read_header1.is_some(), "Block1 should be written after auto-flush");
     assert!(read_header2.is_some(), "Block2 should be written after auto-flush");
 }
+
+#[test]
+fn test_marker_validation_reverts_incomplete_blocks() {
+    use crate::body::{BodyStorageReader, BodyStorageWriter};
+    use crate::state::{StateStorageReader, StateStorageWriter};
+
+    // Create storage WITHOUT batching initially (to use transaction API for setup).
+    let (config, _temp_dir) = get_test_config(Some(StorageScope::FullArchive));
+    let (reader, mut writer) = open_storage(config).unwrap();
+
+    // Write block 0 completely (header, body, state) using transaction API.
+    let block0 = BlockNumber(0);
+    let header0 = BlockHeader {
+        block_hash: starknet_api::block::BlockHash(starknet_api::hash::StarkHash::from(0_u128)),
+        ..Default::default()
+    };
+    let body0 = BlockBody::default();
+    let state0 = ThinStateDiff::default();
+
+    writer.begin_rw_txn().unwrap().append_header(block0, &header0).unwrap().commit().unwrap();
+    writer.begin_rw_txn().unwrap().append_body(block0, body0.clone()).unwrap().commit().unwrap();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_state_diff(block0, state0.clone())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Write block 1 INCOMPLETELY - only header and body, no state.
+    // This simulates a crash mid-block.
+    let block1 = BlockNumber(1);
+    let header1 = BlockHeader {
+        block_hash: starknet_api::block::BlockHash(starknet_api::hash::StarkHash::from(1_u128)),
+        ..Default::default()
+    };
+    let body1 = BlockBody::default();
+
+    writer.begin_rw_txn().unwrap().append_header(block1, &header1).unwrap().commit().unwrap();
+    writer.begin_rw_txn().unwrap().append_body(block1, body1.clone()).unwrap().commit().unwrap();
+    // Intentionally NOT writing state for block 1 to create marker mismatch.
+
+    // Verify markers are inconsistent.
+    let header_marker = reader.begin_ro_txn().unwrap().get_header_marker().unwrap();
+    let body_marker = reader.begin_ro_txn().unwrap().get_body_marker().unwrap();
+    let state_marker = reader.begin_ro_txn().unwrap().get_state_marker().unwrap();
+
+    let block2 = BlockNumber(2);
+    assert_eq!(header_marker, block2, "Header marker should be at block 2 (next to write)");
+    assert_eq!(body_marker, block2, "Body marker should be at block 2 (next to write)");
+    assert_eq!(
+        state_marker,
+        block1,
+        "State marker should be at block 1 (incomplete - no state written for block 1!)"
+    );
+
+    // Close and reopen storage - this triggers marker validation.
+    drop(reader);
+    drop(writer);
+
+    let config = get_test_config_with_path(Some(StorageScope::FullArchive), _temp_dir.path().to_path_buf());
+    let (reader, _writer) = open_storage(config).unwrap();
+
+    // After validation, all markers should be at block 1 (next to write after safe point block 0).
+    let header_marker = reader.begin_ro_txn().unwrap().get_header_marker().unwrap();
+    let body_marker = reader.begin_ro_txn().unwrap().get_body_marker().unwrap();
+    let state_marker = reader.begin_ro_txn().unwrap().get_state_marker().unwrap();
+
+    assert_eq!(
+        header_marker, block1,
+        "Header marker should be reverted to block 1 (next after safe point)"
+    );
+    assert_eq!(
+        body_marker, block1,
+        "Body marker should be reverted to block 1 (next after safe point)"
+    );
+    assert_eq!(
+        state_marker, block1,
+        "State marker should be at block 1 (next after safe point)"
+    );
+
+    // Verify block 1 was completely removed.
+    let read_header1 = reader.begin_ro_txn().unwrap().get_block_header(block1).unwrap();
+    assert!(read_header1.is_none(), "Block 1 should be reverted (incomplete)");
+
+    // Verify block 0 is still intact.
+    let read_header0 = reader.begin_ro_txn().unwrap().get_block_header(block0).unwrap();
+    assert!(read_header0.is_some(), "Block 0 should still exist (complete)");
+}
