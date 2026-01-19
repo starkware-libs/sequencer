@@ -53,7 +53,7 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{
     Event,
     L1ToL2Payload,
-    L2ToL1Payload,
+    MessageToL1,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionVersion,
@@ -86,13 +86,6 @@ impl From<starknet_api::transaction::L1HandlerTransaction> for L1ToL2Message {
             nonce: L1ToL2Nonce(l1_handler_transaction.nonce.0),
         }
     }
-}
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
-pub struct L2ToL1Message {
-    pub from_address: ContractAddress,
-    pub to_address: EthAddress,
-    pub payload: L2ToL1Payload,
 }
 
 // Note: the serialization is different from the one in starknet_api.
@@ -183,7 +176,7 @@ pub struct StarknetClientTransactionReceipt {
     pub transaction_hash: TransactionHash,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub l1_to_l2_consumed_message: Option<L1ToL2Message>,
-    pub l2_to_l1_messages: Vec<L2ToL1Message>,
+    pub l2_to_l1_messages: Vec<MessageToL1>,
     pub events: Vec<Event>,
     #[serde(default)]
     pub execution_resources: ExecutionResources,
@@ -287,12 +280,12 @@ trait OrderedItem {
 }
 
 impl OrderedItem for OrderedL2ToL1Message {
-    type UnorderedItem = L2ToL1Message;
+    type UnorderedItem = MessageToL1;
 
     fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
         (
             self.order,
-            L2ToL1Message {
+            MessageToL1 {
                 from_address,
                 to_address: EthAddress::try_from(self.message.to_address)
                     .expect("Failed to convert L1Address to EthAddress"),
@@ -311,7 +304,7 @@ impl OrderedItem for OrderedL2ToL1Message {
     }
 }
 
-fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL1Message> {
+fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<MessageToL1> {
     OrderedL2ToL1Message::accumulated_sorted_items(execution_info)
 }
 
