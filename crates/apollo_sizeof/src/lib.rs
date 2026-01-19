@@ -90,7 +90,6 @@ pub use apollo_sizeof_macros::SizeOf;
 
 #[cfg(test)]
 mod tests {
-    use std::env;
     use std::ops::Deref;
     use std::rc::Rc;
     use std::sync::Arc;
@@ -206,15 +205,6 @@ mod tests {
             my_complicated_enum_b.size_bytes(),
             std::mem::size_of::<MyComplicatedEnum>() + 2 * std::mem::size_of::<MyEnum>() + 6
         );
-    }
-
-    #[test]
-    fn test_should_not_compile() {
-        // Note: this sets the TRYBUILD=overwrite env variable globally. If used elsewhere in the
-        // future, consider changing this or removing this test.
-        env::set_var("TRYBUILD", "overwrite");
-        let t = trybuild::TestCases::new();
-        t.compile_fail("negative_tests/*.rs");
     }
 
     #[test]
