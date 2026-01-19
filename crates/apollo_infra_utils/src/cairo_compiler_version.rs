@@ -2,4 +2,4 @@
 #[path = "cairo_compiler_version_test.rs"]
 mod cairo_compiler_version_test;
 
-pub const CAIRO1_COMPILER_VERSION: &str = "2.14.1-dev.1";
+pub const CAIRO1_COMPILER_VERSION: &str = "2.15.0";
