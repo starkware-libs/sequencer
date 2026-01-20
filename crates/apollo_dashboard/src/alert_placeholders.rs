@@ -80,6 +80,12 @@ impl From<String> for ExpressionOrExpressionWithPlaceholder {
     }
 }
 
+impl From<&str> for ExpressionOrExpressionWithPlaceholder {
+    fn from(value: &str) -> Self {
+        ExpressionOrExpressionWithPlaceholder::ConcreteValue(value.to_string())
+    }
+}
+
 impl From<(Template, String)> for ExpressionOrExpressionWithPlaceholder {
     fn from((template, placeholder): (Template, String)) -> Self {
         ExpressionOrExpressionWithPlaceholder::Placeholder(template, vec![placeholder])
