@@ -886,6 +886,7 @@ dependencies = [
  "apollo_state_reader",
  "apollo_state_sync_types",
  "apollo_storage",
+ "apollo_transaction_converter",
  "assert_matches",
  "async-trait",
  "blockifier",
@@ -1043,7 +1044,6 @@ dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
  "apollo_proc_macros",
- "apollo_proof_manager_types",
  "assert_matches",
  "async-trait",
  "blockifier",
@@ -1058,8 +1058,6 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1341,6 +1339,7 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_time",
+ "apollo_transaction_converter",
  "async-trait",
  "futures",
  "mockall",
@@ -1388,6 +1387,7 @@ dependencies = [
  "apollo_storage",
  "apollo_test_utils",
  "apollo_time",
+ "apollo_transaction_converter",
  "assert_matches",
  "async-trait",
  "blockifier",
@@ -1506,6 +1506,7 @@ dependencies = [
  "apollo_proof_manager_types",
  "apollo_state_sync_types",
  "apollo_test_utils",
+ "apollo_transaction_converter",
  "assert_matches",
  "async-trait",
  "axum 0.6.20",
@@ -1944,6 +1945,7 @@ dependencies = [
  "apollo_proof_manager_types",
  "apollo_protobuf",
  "apollo_test_utils",
+ "apollo_transaction_converter",
  "async-trait",
  "futures",
  "libp2p",
@@ -2778,6 +2780,26 @@ dependencies = [
  "chrono",
  "mockall",
  "tokio",
+]
+
+[[package]]
+name = "apollo_transaction_converter"
+version = "0.0.0"
+dependencies = [
+ "apollo_class_manager_types",
+ "apollo_proof_manager_types",
+ "assert_matches",
+ "async-trait",
+ "blockifier",
+ "blockifier_test_utils",
+ "mempool_test_utils",
+ "mockall",
+ "rstest",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
