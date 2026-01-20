@@ -56,7 +56,22 @@ impl TreeHashFunction<ContractState> for TreeHashFunctionImpl {
 
 impl TreeHashFunction<IndexLayoutContractState> for TreeHashFunctionImpl {
     fn compute_leaf_hash(contract_state: &IndexLayoutContractState) -> HashOutput {
-        compute_contract_state_leaf_hash(contract_state)
+        #[cfg(not(test))]
+        {
+            compute_contract_state_leaf_hash(contract_state)
+        }
+        #[cfg(test)]
+        {
+            use starknet_patricia::patricia_merkle_tree::external_test_utils::AdditionHash;
+            HashOutput(AdditionHash::hash_array(
+                vec![
+                    contract_state.0.class_hash.0,
+                    contract_state.0.storage_root_hash.0,
+                    contract_state.0.nonce.0,
+                ]
+                .as_slice(),
+            ))
+        }
     }
     fn compute_node_hash(node_data: &NodeData<IndexLayoutContractState, HashOutput>) -> HashOutput {
         Self::compute_node_hash_with_inner_hash_function::<PedersenHashFunction>(node_data)
@@ -90,7 +105,14 @@ impl TreeHashFunction<CompiledClassHash> for TreeHashFunctionImpl {
 
 impl TreeHashFunction<IndexLayoutCompiledClassHash> for TreeHashFunctionImpl {
     fn compute_leaf_hash(compiled_class_hash: &IndexLayoutCompiledClassHash) -> HashOutput {
-        compute_compiled_class_leaf_hash(compiled_class_hash)
+        #[cfg(not(test))]
+        {
+            compute_compiled_class_leaf_hash(compiled_class_hash)
+        }
+        #[cfg(test)]
+        {
+            HashOutput(compiled_class_hash.0.0)
+        }
     }
     fn compute_node_hash(
         node_data: &NodeData<IndexLayoutCompiledClassHash, HashOutput>,
