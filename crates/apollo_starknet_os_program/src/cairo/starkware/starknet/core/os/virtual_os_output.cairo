@@ -7,5 +7,5 @@ struct VirtualOsOutputHeader {
     starknet_os_config_hash: felt,
     // The account address that is authorized to run transactions.
     authorized_account_address: felt,
-    messages_to_l1_segment_size: felt,
+    n_messages_to_l1: felt,
 }
