@@ -124,7 +124,8 @@ pub async fn create_node_components(
             ApolloCommitter::new(
                 config.committer_config.clone().expect("Committer config should be set"),
             )
-            .await,
+            .await
+            .expect("Failed to initialize Apollo Committer"),
         ),
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
