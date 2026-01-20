@@ -4,7 +4,7 @@ use apollo_batcher::batcher::{create_batcher, Batcher};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
-use apollo_committer::committer::ApolloCommitter;
+use apollo_committer::committer::{init_apollo_committer_storage, ApolloCommitter};
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
@@ -123,8 +123,10 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
             ApolloCommitter::new(
                 config.committer_config.clone().expect("Committer config should be set"),
+                init_apollo_committer_storage,
             )
-            .await,
+            .await
+            .expect("Failed to initialize Apollo Committer"),
         ),
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
