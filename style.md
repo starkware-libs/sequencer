@@ -88,7 +88,7 @@ Whenever possible, implement `PartialEq` on error enums, otherwise it's not poss
 
 ### Arithmetic
 
-Always _consider_ using `checked_add` or `saturating_add` (depending on usage) instead of raw arithmetic operations like `+`, ditto for other mathematical operations.
+Always _consider_ using `checked_add` or `saturating_add` (depending on usage) instead of raw arithmetic operations like `+`.
 **Rationale**: On debug builds, overflows and underflows panic, but in production they saturate, which might not be the intended behavior!
 
 ### Assertions
