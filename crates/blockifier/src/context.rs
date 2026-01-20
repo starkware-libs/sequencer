@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::constants::STARKNET_OS_CONFIG_HASH_VERSION;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Fee,
@@ -14,6 +15,9 @@ use starknet_api::transaction::fields::{
     Tip,
     ValidResourceBounds,
 };
+use starknet_api::StarknetApiError;
+use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Pedersen, StarkHash};
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::BouncerConfig;
@@ -211,6 +215,17 @@ impl ChainInfo {
     // That is, add to BlockContext with the signature `pub fn fee_token_address(&self)`.
     pub fn fee_token_address(&self, fee_type: &FeeType) -> ContractAddress {
         self.fee_token_addresses.get_by_fee_type(fee_type)
+    }
+
+    /// Computes the OS config hash for the os config as you can (without public keys).
+    /// See [starknet_os::io::os_input::OsChainInfo].
+    pub fn compute_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
+        let data = vec![
+            STARKNET_OS_CONFIG_HASH_VERSION,
+            (&self.chain_id).try_into()?,
+            self.fee_token_addresses.strk_fee_token_address.into(),
+        ];
+        Ok(Pedersen::hash_array(&data))
     }
 }
 

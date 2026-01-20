@@ -18,6 +18,10 @@ pub const TRANSFER_EVENT_NAME: &str = "Transfer";
 pub const FELT_FALSE: u64 = 0;
 pub const FELT_TRUE: u64 = 1;
 
+/// Hex of 'StarknetOsConfig3'.
+pub const STARKNET_OS_CONFIG_HASH_VERSION: Felt =
+    Felt::from_hex_unchecked("0x537461726b6e65744f73436f6e66696733");
+
 // Expected return value of a `validate` entry point: `VALID`.
 pub static VALIDATE_RETDATA: LazyLock<Felt> =
     LazyLock::new(|| ascii_as_felt("VALID").expect("Failed to parse ASCII"));
