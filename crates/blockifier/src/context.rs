@@ -5,7 +5,7 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
-use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::core::{ChainId, ContractAddress, OsChainInfo};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -14,6 +14,8 @@ use starknet_api::transaction::fields::{
     Tip,
     ValidResourceBounds,
 };
+use starknet_api::StarknetApiError;
+use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::BouncerConfig;
@@ -211,6 +213,25 @@ impl ChainInfo {
     // That is, add to BlockContext with the signature `pub fn fee_token_address(&self)`.
     pub fn fee_token_address(&self, fee_type: &FeeType) -> ContractAddress {
         self.fee_token_addresses.get_by_fee_type(fee_type)
+    }
+
+    // Computes the virtual OS config hash (similar to the regular hash, just without the public
+    // keys).
+    pub fn compute_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
+        let os_chain_info = OsChainInfo {
+            chain_id: self.chain_id.clone(),
+            strk_fee_token_address: self.fee_token_addresses.strk_fee_token_address,
+        };
+        os_chain_info.compute_virtual_os_config_hash()
+    }
+}
+
+impl From<&ChainInfo> for OsChainInfo {
+    fn from(chain_info: &ChainInfo) -> Self {
+        OsChainInfo {
+            chain_id: chain_info.chain_id.clone(),
+            strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
+        }
     }
 }
 

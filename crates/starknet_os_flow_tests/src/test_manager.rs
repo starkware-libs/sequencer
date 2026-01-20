@@ -32,6 +32,7 @@ use starknet_api::core::{
     EthAddress,
     GlobalRoot,
     Nonce,
+    OsChainInfo,
     PatriciaKey,
 };
 use starknet_api::executable_transaction::{
@@ -57,13 +58,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
-use starknet_os::io::os_input::{
-    OsBlockInput,
-    OsChainInfo,
-    OsHints,
-    OsHintsConfig,
-    StarknetOsInput,
-};
+use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::io::os_output::{MessageToL2, OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::io::os_output_types::{
     FullOsStateDiff,
@@ -492,6 +487,13 @@ impl<S: FlowTestState> TestBuilder<S> {
     /// Returns the chain ID from the initial state's block context.
     pub(crate) fn chain_id(&self) -> ChainId {
         self.initial_state.block_context.chain_info().chain_id.clone()
+    }
+
+    /// Computes the OS config hash for proof facts validation using the test environment's
+    /// chain info.
+    pub(crate) fn compute_os_config_hash(&self) -> Felt {
+        let chain_info = self.initial_state.block_context.chain_info();
+        chain_info.compute_os_config_hash().unwrap()
     }
 
     /// Advances the manager to the next block when adding new transactions.
