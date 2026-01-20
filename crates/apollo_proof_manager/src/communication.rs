@@ -4,7 +4,6 @@ use apollo_proof_manager_types::{ProofManagerError, ProofManagerRequest, ProofMa
 use async_trait::async_trait;
 
 use crate::proof_manager::ProofManager;
-use crate::proof_storage::ProofStorage;
 pub type LocalProofManagerServer =
     ConcurrentLocalComponentServer<ProofManager, ProofManagerRequest, ProofManagerResponse>;
 pub type RemoteProofManagerServer =
