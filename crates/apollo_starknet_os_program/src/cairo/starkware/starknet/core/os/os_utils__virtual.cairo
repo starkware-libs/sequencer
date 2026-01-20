@@ -1,15 +1,53 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext, VirtualOsConfig
 from starkware.starknet.core.os.block_hash import get_block_hashes
-from starkware.starknet.core.os.output import OsOutput, OsOutputHeader
+from starkware.starknet.core.os.output import MessageToL1Header, OsOutput, OsOutputHeader
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate
 from starkware.starknet.core.os.virtual_os_output import VirtualOsOutputHeader
 
 const VIRTUAL_OS_OUTPUT_VERSION = 0;
+
+// Recursively hashes each L2-to-L1 message separately and stores the hashes in an array.
+func hash_messages_to_l1_recursive{poseidon_ptr: PoseidonBuiltin*}(
+    current_message_ptr: MessageToL1Header*, end_ptr: MessageToL1Header*, hashes_ptr: felt*
+) -> (hashes_ptr: felt*) {
+    alloc_locals;
+
+    // Base case: if we've processed all messages, return.
+    if (current_message_ptr == end_ptr) {
+        return (hashes_ptr=hashes_ptr);
+    }
+
+    // Read the message header.
+    let message_header = [current_message_ptr];
+    let payload_size = message_header.payload_size;
+
+    // Hash the message (header + payload).
+    // The message consists of: from_address, to_address, payload_size, ...payload
+    let message_size = MessageToL1Header.SIZE + payload_size;
+    let (message_hash) = poseidon_hash_many(
+        n=message_size, elements=cast(current_message_ptr, felt*)
+    );
+
+    // Store the hash.
+    assert [hashes_ptr] = message_hash;
+    let hashes_ptr = hashes_ptr + 1;
+
+    // Move to the next message.
+    let next_message_ptr = cast(
+        current_message_ptr + MessageToL1Header.SIZE + payload_size, MessageToL1Header*
+    );
+
+    // Recursively process the remaining messages.
+    return hash_messages_to_l1_recursive(
+        current_message_ptr=next_message_ptr, end_ptr=end_ptr, hashes_ptr=hashes_ptr
+    );
+}
 
 // Does nothing for the virtual OS.
 func pre_process_block{
@@ -69,33 +107,37 @@ func process_os_output{
     // Serialize the header using memcpy to enforce struct field order.
     let header = os_output.header;
 
-    // TODO(Yoni): output the hash of the messages instead.
-    let messages_to_l1_segment_size = (
-        os_output.final_carried_outputs.messages_to_l1 -
-        os_output.initial_carried_outputs.messages_to_l1
+    let initial_messages_ptr = os_output.initial_carried_outputs.messages_to_l1;
+    let final_messages_ptr = os_output.final_carried_outputs.messages_to_l1;
+
+    // Hash each message to L1 separately and write hashes to output.
+    // We'll write hashes starting after the header (which we'll write later).
+    tempvar initial_hashes_ptr = output_ptr + VirtualOsOutputHeader.SIZE;
+    let (final_hashes_ptr) = hash_messages_to_l1_recursive(
+        current_message_ptr=initial_messages_ptr,
+        end_ptr=final_messages_ptr,
+        hashes_ptr=initial_hashes_ptr,
     );
 
-    // Create the virtual OS output header.
+    // Calculate the number of messages from the pointer difference.
+    let n_messages_to_l1 = final_hashes_ptr - initial_hashes_ptr;
+
+    // Create the virtual OS output header with count of messages.
     tempvar virtual_os_output_header = new VirtualOsOutputHeader(
         version=VIRTUAL_OS_OUTPUT_VERSION,
         base_block_number=header.prev_block_number,
         base_block_hash=header.prev_block_hash,
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
         authorized_account_address=os_global_context.virtual_os_config.authorized_account_address,
-        messages_to_l1_segment_size=messages_to_l1_segment_size,
+        n_messages_to_l1=n_messages_to_l1,
     );
 
     // Copy the header to the output.
     memcpy(dst=output_ptr, src=virtual_os_output_header, len=VirtualOsOutputHeader.SIZE);
-    let output_ptr = &output_ptr[VirtualOsOutputHeader.SIZE];
 
-    // Copy 'messages_to_l1_segment' to the correct place in the output segment.
-    memcpy(
-        dst=output_ptr,
-        src=os_output.initial_carried_outputs.messages_to_l1,
-        len=messages_to_l1_segment_size,
-    );
-    let output_ptr = &output_ptr[messages_to_l1_segment_size];
+    // Hashes are already written, so update output_ptr to point past them.
+    let output_ptr = final_hashes_ptr;
+
     return ();
 }
 

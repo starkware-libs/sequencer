@@ -13,16 +13,20 @@ fn test_virtual_os_output_roundtrip() {
         base_block_hash: StarkHash::from(0x1234u64),
         starknet_os_config_hash: StarkHash::from(0x5678u64),
         authorized_account_address: ContractAddress::from(0x9ABCu64),
-        messages_to_l1: vec![],
+        messages_to_l1_hash: vec![StarkHash::from(0x9ABCu64), StarkHash::from(0x9ABCu64)],
     };
 
-    let raw_output: Vec<Felt> = vec![
+    let mut raw_output: Vec<Felt> = vec![
         expected.version,
         Felt::from(expected.base_block_number.0),
         expected.base_block_hash,
         expected.starknet_os_config_hash,
         *expected.authorized_account_address.0.key(),
-        Felt::ZERO, // messages_to_l1_segment_size = 0
+        // Number of messages from l2 to l1.
+        Felt::from(expected.messages_to_l1_hash.len()),
+        // The hashes of the messages from l2 to l1.
+        expected.messages_to_l1_hash[0],
+        expected.messages_to_l1_hash[1],
     ];
 
     let parsed = VirtualOsOutput::from_raw_output(&raw_output).unwrap();
