@@ -164,6 +164,7 @@ impl<S: Storage> CachedStorage<S> {
 
 impl<S: Storage> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
+    // TODO(Ariel): Use a non-empty config.
     type Config = EmptyStorageConfig;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
