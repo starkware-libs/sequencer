@@ -37,7 +37,7 @@ pub struct IndexLayoutCompiledClassHash(pub CompiledClassHash);
 pub struct IndexLayoutStarknetStorageValue(pub StarknetStorageValue);
 
 /// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
-static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
+pub(crate) static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
     LazyLock::new(|| Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND) + Felt::ONE);
 
 /// The db key prefix of nodes in the contracts trie.
