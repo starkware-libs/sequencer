@@ -1,6 +1,6 @@
 use std::fs;
 
-use apollo_class_manager_types::proof_verification::run_stwo_verify_on_proof;
+use apollo_class_manager_types::proof_verification::verify_proof_in_memory;
 use apollo_class_manager_types::transaction_converter::BOOTLOADER_PROGRAM_HASH;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
@@ -8,7 +8,7 @@ use starknet_api::transaction::fields::ProofFacts;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
-use crate::proving::prover::{prove, resolve_resource_path, BOOTLOADER_FILE};
+use crate::proving::prover::{BOOTLOADER_FILE, prove, resolve_resource_path};
 
 /// Test resource file names.
 const CAIRO_PIE_FILE: &str = "cairo_pie_10_transfers.zip";
@@ -33,7 +33,7 @@ async fn test_prove_cairo_pie_10_transfers() {
 
     // Verify the proof.
     let verify_output =
-        run_stwo_verify_on_proof(output.proof.clone()).await.expect("Failed to verify proof");
+        verify_proof_in_memory(output.proof.clone()).expect("Failed to verify proof");
 
     // Check that the verified proof facts match the prover output.
     assert_eq!(
