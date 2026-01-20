@@ -96,6 +96,29 @@ pub struct OrderedL2ToL1Message {
     pub message: MessageToL1,
 }
 
+impl OrderedItem for OrderedL2ToL1Message {
+    type UnorderedItem = StarknetAPIMessageToL1;
+
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
+        (
+            self.order,
+            StarknetAPIMessageToL1 {
+                from_address,
+                to_address: self
+                    .message
+                    .to_address
+                    .try_into()
+                    .expect("Failed to convert L1Address to EthAddress"),
+                payload: self.message.payload.clone(),
+            },
+        )
+    }
+
+    fn get_items_from_call_execution(execution: &CallExecution) -> &[Self] {
+        &execution.l2_to_l1_messages
+    }
+}
+
 /// Represents the effects of executing a single entry point.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -389,29 +412,7 @@ impl CallInfo {
     /// Returns a vector of Starknet MessageToL1 objects collected during the execution,
     /// sorted by the order in which they were sent.
     pub fn get_sorted_l2_to_l1_messages(&self) -> Vec<StarknetAPIMessageToL1> {
-        self.iter()
-            .flat_map(|call_info| {
-                call_info.execution.l2_to_l1_messages.iter().map(
-                    |OrderedL2ToL1Message {
-                         order,
-                         message: MessageToL1 { to_address, payload },
-                     }| {
-                        (
-                            *order,
-                            StarknetAPIMessageToL1 {
-                                from_address: call_info.call.storage_address,
-                                to_address: (*to_address)
-                                    .try_into()
-                                    .expect("Failed to convert L1Address to EthAddress"),
-                                payload: payload.clone(),
-                            },
-                        )
-                    },
-                )
-            })
-            .sorted_by_key(|(order, _)| *order)
-            .map(|(_, message)| message)
-            .collect()
+        OrderedL2ToL1Message::sorted_items(self)
     }
 }
 
