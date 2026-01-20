@@ -1,6 +1,6 @@
 use std::fs;
 
-use apollo_class_manager_types::proof_verification::verify_proof_in_memory;
+use apollo_class_manager_types::proof_verification::verify_proof;
 use apollo_class_manager_types::transaction_converter::BOOTLOADER_PROGRAM_HASH;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
@@ -33,7 +33,7 @@ async fn test_prove_cairo_pie_10_transfers() {
 
     // Verify the proof.
     let verify_output =
-        verify_proof_in_memory(output.proof.clone()).expect("Failed to verify proof");
+        verify_proof(output.proof.clone()).expect("Failed to verify proof");
 
     // Check that the verified proof facts match the prover output.
     assert_eq!(
