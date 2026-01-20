@@ -18,7 +18,13 @@ use starknet_patricia_storage::storage_trait::{
 };
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
-use crate::db::forest_trait::{ForestMetadata, ForestMetadataType, ForestReader, ForestWriter};
+use crate::db::forest_trait::{
+    ForestMetadata,
+    ForestMetadataType,
+    ForestReader,
+    ForestWriter,
+    StorageInitializer,
+};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -27,7 +33,7 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 pub const EMPTY_DB_KEY_SEPARATOR: &[u8] = b"";
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct MockIndexInitialRead {}
 
 impl InputContext for MockIndexInitialRead {}
@@ -107,5 +113,12 @@ impl<S: Storage> ForestWriter for MockForestStorage<S> {
         let n_updates = updates.len();
         self.storage.mset(updates).await.expect("Write of updates to storage failed");
         n_updates
+    }
+}
+
+impl<S: Storage> StorageInitializer for MockForestStorage<S> {
+    type Storage = S;
+    fn new(storage: Self::Storage) -> Self {
+        Self { storage }
     }
 }
