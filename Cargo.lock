@@ -1850,7 +1850,6 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
- "apollo_proc_macros",
  "async-trait",
  "indexmap 2.12.0",
  "mockall",
