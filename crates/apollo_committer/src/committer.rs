@@ -3,7 +3,7 @@ use std::error::Error;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
-use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
@@ -45,8 +45,6 @@ use crate::metrics::register_metrics;
 #[path = "committer_test.rs"]
 mod committer_test;
 
-pub type ApolloStorage = RocksDbStorage;
-
 // TODO(Yoav): Move this to committer_test.rs and use index db reader.
 pub struct CommitBlockMock;
 
@@ -77,18 +75,18 @@ impl CommitBlockTrait for CommitBlockMock {
 pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockMock>;
 
 pub trait StorageConstructor: Storage {
-    fn create_storage(db_path: PathBuf) -> Self;
+    fn create_storage(db_path: PathBuf, storage_config: Self::Config) -> Self;
 }
 
 #[cfg(test)]
 impl StorageConstructor for starknet_patricia_storage::map_storage::MapStorage {
-    fn create_storage(_db_path: PathBuf) -> Self {
+    fn create_storage(_db_path: PathBuf, _map_storage_config: Self::Config) -> Self {
         Self::default()
     }
 }
 
 impl StorageConstructor for RocksDbStorage {
-    fn create_storage(db_path: PathBuf) -> Self {
+    fn create_storage(db_path: PathBuf, _rocksdb_config: Self::Config) -> Self {
         Self::open(Path::new(&db_path), RocksDbOptions::default()).unwrap()
     }
 }
@@ -98,7 +96,7 @@ pub struct Committer<S: StorageConstructor, CB: CommitBlockTrait> {
     /// Storage for forest operations.
     forest_storage: MockForestStorage<S>,
     /// Committer config.
-    config: CommitterConfig,
+    config: CommitterConfig<S::Config>,
     /// The next block number to commit.
     offset: BlockNumber,
     // Allow define the generic type CB and not use it.
@@ -106,9 +104,10 @@ pub struct Committer<S: StorageConstructor, CB: CommitBlockTrait> {
 }
 
 impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
-    pub async fn new(config: CommitterConfig) -> Self {
-        let mut forest_storage =
-            MockForestStorage { storage: S::create_storage(config.db_path.clone()) };
+    pub async fn new(config: CommitterConfig<S::Config>) -> Self {
+        let mut forest_storage = MockForestStorage {
+            storage: S::create_storage(config.db_path.clone(), config.storage_config.clone()),
+        };
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
         info!("Initializing committer with offset: {offset}");
         Self { forest_storage, config, offset, phantom: PhantomData }
