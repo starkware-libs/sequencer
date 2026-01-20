@@ -1,5 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
+from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.memcpy import memcpy
@@ -69,10 +70,13 @@ func process_os_output{
     // Serialize the header using memcpy to enforce struct field order.
     let header = os_output.header;
 
-    // TODO(Yoni): output the hash of the messages instead.
+    // Compute the hash of the messages to L1 segment.
     let messages_to_l1_segment_size = (
         os_output.final_carried_outputs.messages_to_l1 -
         os_output.initial_carried_outputs.messages_to_l1
+    );
+    let (messages_to_l1_hash) = poseidon_hash_many(
+        n=messages_to_l1_segment_size, elements=os_output.initial_carried_outputs.messages_to_l1
     );
 
     // Create the virtual OS output header.
@@ -82,20 +86,13 @@ func process_os_output{
         base_block_hash=header.prev_block_hash,
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
         authorized_account_address=os_global_context.virtual_os_config.authorized_account_address,
-        messages_to_l1_segment_size=messages_to_l1_segment_size,
+        messages_to_l1_hash=messages_to_l1_hash,
     );
 
     // Copy the header to the output.
     memcpy(dst=output_ptr, src=virtual_os_output_header, len=VirtualOsOutputHeader.SIZE);
     let output_ptr = &output_ptr[VirtualOsOutputHeader.SIZE];
 
-    // Copy 'messages_to_l1_segment' to the correct place in the output segment.
-    memcpy(
-        dst=output_ptr,
-        src=os_output.initial_carried_outputs.messages_to_l1,
-        len=messages_to_l1_segment_size,
-    );
-    let output_ptr = &output_ptr[messages_to_l1_segment_size];
     return ();
 }
 
