@@ -32,6 +32,7 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidReso
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::forest_trait::ForestStorageInitializer;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -267,7 +268,7 @@ fn create_default_initial_state_txs_and_contracts<const N: usize>(
 pub(crate) async fn commit_initial_state_diff(
     committer_state_diff: StateDiff,
 ) -> (StateRoots, MapStorage) {
-    let mut facts_db = FactsDb::new(MapStorage::default());
+    let mut facts_db: FactsDb<MapStorage> = ForestStorageInitializer::new(MapStorage::default());
     let classes_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let contract_trie_root = HashOutput::ROOT_OF_EMPTY_TREE;
     let state_roots = commit_state_diff(

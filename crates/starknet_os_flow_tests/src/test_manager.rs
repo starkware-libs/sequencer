@@ -44,6 +44,7 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::forest_trait::ForestStorageInitializer;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
     OsBlockInput,
@@ -62,6 +63,7 @@ use starknet_os::io::os_output_types::{
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -649,7 +651,7 @@ impl<S: FlowTestState> TestManager<S> {
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
             entire_state_diff.extend(committer_state_diff.clone());
-            let mut db = FactsDb::new(map_storage);
+            let mut db: FactsDb<MapStorage> = ForestStorageInitializer::new(map_storage);
             let new_state_roots = commit_state_diff(
                 &mut db,
                 previous_state_roots.contracts_trie_root_hash,

@@ -16,7 +16,13 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, PatriciaStorage
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
-use crate::db::forest_trait::{read_forest, serialize_forest, ForestReader, ForestWriter};
+use crate::db::forest_trait::{
+    read_forest,
+    serialize_forest,
+    ForestReader,
+    ForestStorageInitializer,
+    ForestWriter,
+};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -78,8 +84,9 @@ pub struct FactsDb<S: Storage> {
     pub storage: S,
 }
 
-impl<S: Storage> FactsDb<S> {
-    pub fn new(storage: S) -> Self {
+impl<S: Storage> ForestStorageInitializer for FactsDb<S> {
+    type Storage = S;
+    fn new(storage: Self::Storage) -> Self {
         Self { storage }
     }
 }
