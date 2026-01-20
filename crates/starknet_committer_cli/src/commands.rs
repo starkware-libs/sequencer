@@ -27,7 +27,7 @@ use starknet_committer::block_committer::state_diff_generator::generate_random_s
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurementTrait};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
-use starknet_committer::db::forest_trait::ForestWriter;
+use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;

@@ -29,6 +29,7 @@ use crate::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
     ForestReader,
+    ForestStorageInitializer,
     ForestWriter,
 };
 use crate::db::index_db::leaves::{
@@ -79,8 +80,9 @@ pub struct IndexDb<S: Storage> {
     storage: S,
 }
 
-impl<S: Storage> IndexDb<S> {
-    pub fn new(storage: S) -> Self {
+impl<S: Storage> ForestStorageInitializer for IndexDb<S> {
+    type Storage = S;
+    fn new(storage: Self::Storage) -> Self {
         Self { storage }
     }
 }
