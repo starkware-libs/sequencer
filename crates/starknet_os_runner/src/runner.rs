@@ -10,12 +10,11 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
-use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
+use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, OsChainInfo};
 use starknet_api::transaction::{InvokeTransaction, TransactionHash};
 use starknet_os::io::os_input::{
     CommitmentInfo,
     OsBlockInput,
-    OsChainInfo,
     OsHints,
     OsHintsConfig,
     StarknetOsInput,

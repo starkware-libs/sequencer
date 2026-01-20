@@ -97,6 +97,63 @@ impl ChainId {
     }
 }
 
+/// Hex of 'StarknetOsConfig3'.
+pub const STARKNET_OS_CONFIG_HASH_VERSION: Felt =
+    Felt::from_hex_unchecked("0x537461726b6e65744f73436f6e66696733");
+
+const DEFAULT_PUBLIC_KEYS_HASH: Felt = Felt::ZERO;
+
+fn compute_public_keys_hash(public_keys: Option<&Vec<Felt>>) -> Felt {
+    match public_keys {
+        Some(public_keys) if !public_keys.is_empty() => Pedersen::hash_array(public_keys),
+        _ => DEFAULT_PUBLIC_KEYS_HASH,
+    }
+}
+
+/// Chain information for OS execution.
+/// Contains minimal chain configuration needed for OS config hash computation.
+// TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OsChainInfo {
+    pub chain_id: ChainId,
+    pub strk_fee_token_address: ContractAddress,
+}
+
+impl Default for OsChainInfo {
+    fn default() -> Self {
+        OsChainInfo {
+            chain_id: ChainId::Other("0x0".to_string()),
+            strk_fee_token_address: ContractAddress::default(),
+        }
+    }
+}
+
+impl OsChainInfo {
+    /// Computes the OS config hash for the given chain info.
+    pub fn compute_os_config_hash(
+        &self,
+        public_keys: Option<&Vec<Felt>>,
+    ) -> Result<Felt, StarknetApiError> {
+        let mut data = vec![
+            STARKNET_OS_CONFIG_HASH_VERSION,
+            (&self.chain_id).try_into().map_err(|_| StarknetApiError::OutOfRange {
+                string: format!("Invalid chain ID (cannot convert to Felt): {:?}", self.chain_id),
+            })?,
+            self.strk_fee_token_address.into(),
+        ];
+        let public_keys_hash = compute_public_keys_hash(public_keys);
+        if public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH {
+            data.push(public_keys_hash);
+        }
+        Ok(Pedersen::hash_array(&data))
+    }
+
+    /// Computes the virtual OS config hash (without public keys).
+    pub fn compute_virtual_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
+        self.compute_os_config_hash(None)
+    }
+}
+
 /// Parses a hex string (e.g., "0x534e5f4d41494e") into a ChainId.
 pub fn chain_id_from_hex_str(hex_str: &str) -> StarknetApiResult<ChainId> {
     let chain_id_str =
