@@ -295,32 +295,26 @@ foo(bar(foo(generate_nonce()))); // This won't compile, which is good. It would'
 type Nonce = u64;
 type Timestamp = u64;
 
-fn foo(nonce: Nonce) -> Nonce {...}
-fn bar(nonce: Nonce) -> Timestamp {...} // Now it's clearer what bar returns
-fn generate_nonce() -> Nonce {...}
+// Define functions as before
 
-bar(foo(generate_nonce()));
 foo(bar(foo(generate_nonce()))); // This will compile, even though it shouldn't.
 ```
 
 ### Newtypes
 
-If newtyping as a "pass-through" wrapper (`Foo(pub Bar)`), add `Deref` and `DerefMut` in order to avoid patterns of `foo.0.0.1`.
+If newtyping as a "pass-through" wrapper (`Foo(pub u64)`), add `Deref` and `DerefMut` in order to avoid patterns of `foo.0.0.1`.
 
 ```rust
 // BAD
-struct Bar(pub u64);
-struct Foo(pub Bar);
+struct Foo(pub u64);
 ...
 if foo.0.0 > 0 {...}
 
 // GOOD
-struct Bar(u64)
-struct Foo(Bar)
+struct Foo(u64)
 
-// Do the same for Bar. Not written here to save space.
 impl Deref for Foo {
-    type Target = Bar;
+    type Target = u64;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -333,7 +327,7 @@ impl DerefMut for Foo {
     }
 }
 ...
-if **foo > 0 {...}
+if *foo > 0 {...}
 ```
 
 ## Performance & Allocations
