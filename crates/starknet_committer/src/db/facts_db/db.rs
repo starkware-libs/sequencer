@@ -91,7 +91,8 @@ impl FactsDb<MapStorage> {
 }
 
 #[async_trait]
-impl<S: Storage> ForestReader<FactsDbInitialRead> for FactsDb<S> {
+impl<S: Storage> ForestReader for FactsDb<S> {
+    type InitialReadContext = FactsDbInitialRead;
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
