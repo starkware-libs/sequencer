@@ -30,6 +30,7 @@ use crate::db::forest_trait::{
     ForestMetadataType,
     ForestReader,
     ForestStorageInitializer,
+    ForestStorageWithDefaultReadContext,
     ForestWriter,
 };
 use crate::db::index_db::leaves::{
@@ -239,6 +240,8 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
         Ok(self.storage.get(&db_key).await?)
     }
 }
+
+impl<S: Storage> ForestStorageWithDefaultReadContext for IndexDb<S> {}
 
 fn extract_root_hash<L: Leaf>(root: &Option<DbValue>) -> Result<HashOutput, DeserializationError>
 where
