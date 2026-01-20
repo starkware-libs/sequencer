@@ -3,9 +3,12 @@ use std::sync::Arc;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_metrics::generate_permutation_labels;
-use apollo_proc_macros::handle_all_response_variants;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -143,6 +146,8 @@ where
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::ProposeBlock(input);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             ProposeBlock,
             BatcherClientError,
@@ -154,6 +159,8 @@ where
     async fn get_block_hash(&self, block_number: BlockNumber) -> BatcherClientResult<BlockHash> {
         let request = BatcherRequest::GetBlockHash(block_number);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             GetBlockHash,
             BatcherClientError,
@@ -168,6 +175,8 @@ where
     ) -> BatcherClientResult<GetProposalContentResponse> {
         let request = BatcherRequest::GetProposalContent(input);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             GetProposalContent,
             BatcherClientError,
@@ -179,6 +188,8 @@ where
     async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::ValidateBlock(input);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             ValidateBlock,
             BatcherClientError,
@@ -193,6 +204,8 @@ where
     ) -> BatcherClientResult<SendProposalContentResponse> {
         let request = BatcherRequest::SendProposalContent(input);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             SendProposalContent,
             BatcherClientError,
@@ -204,6 +217,8 @@ where
     async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::StartHeight(input);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             StartHeight,
             BatcherClientError,
@@ -215,6 +230,8 @@ where
     async fn get_height(&self) -> BatcherClientResult<GetHeightResponse> {
         let request = BatcherRequest::GetCurrentHeight;
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             GetCurrentHeight,
             BatcherClientError,
@@ -229,6 +246,8 @@ where
     ) -> BatcherClientResult<DecisionReachedResponse> {
         let request = BatcherRequest::DecisionReached(input);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             DecisionReached,
             BatcherClientError,
@@ -240,6 +259,8 @@ where
     async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()> {
         let request = BatcherRequest::AddSyncBlock(sync_block);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             AddSyncBlock,
             BatcherClientError,
@@ -251,6 +272,8 @@ where
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::RevertBlock(input);
         handle_all_response_variants!(
+            self,
+            request,
             BatcherResponse,
             RevertBlock,
             BatcherClientError,
