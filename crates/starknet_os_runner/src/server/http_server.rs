@@ -197,7 +197,8 @@ async fn prove_transaction(
     let response = ProveTransactionResponse {
         proof: prover_output.proof,
         proof_facts: prover_output.proof_facts,
-        l2_to_l1_messages: virtual_os_output.messages_to_l1,
+        // TODO(Aviv): Add l2_to_l1_messages to the runner output and use it here.
+        l2_to_l1_messages: Vec::new(),
     };
 
     Ok(Json(response))
