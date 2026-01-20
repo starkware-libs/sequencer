@@ -5,7 +5,7 @@ use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::fields::Proof;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
@@ -15,9 +15,9 @@ mod proof_storage_test;
 
 pub trait ProofStorage: Send + Sync {
     type Error: Error;
-    fn set_proof(&self, proof_facts: ProofFacts, proof: Proof) -> Result<(), Self::Error>;
-    fn get_proof(&self, proof_facts: ProofFacts) -> Result<Option<Proof>, Self::Error>;
-    fn contains_proof(&self, proof_facts: ProofFacts) -> Result<bool, Self::Error>;
+    fn set_proof(&self, facts_hash: Felt, proof: Proof) -> Result<(), Self::Error>;
+    fn get_proof(&self, facts_hash: Felt) -> Result<Option<Proof>, Self::Error>;
+    fn contains_proof(&self, facts_hash: Felt) -> Result<bool, Self::Error>;
 }
 
 #[derive(Debug, Error)]
@@ -152,27 +152,20 @@ impl FsProofStorage {
         std::fs::rename(tmp_dir, persistent_dir)?;
         Ok(())
     }
-
-    fn contains_proof_by_hash(&self, facts_hash: Felt) -> bool {
-        self.get_persistent_dir(facts_hash).exists()
-    }
 }
 
 impl ProofStorage for FsProofStorage {
     type Error = FsProofStorageError;
 
-    fn set_proof(&self, proof_facts: ProofFacts, proof: Proof) -> Result<(), Self::Error> {
-        let facts_hash = proof_facts.hash();
-
-        if self.contains_proof_by_hash(facts_hash) {
+    fn set_proof(&self, facts_hash: Felt, proof: Proof) -> Result<(), Self::Error> {
+        if self.contains_proof(facts_hash)? {
             return Ok(());
         }
         self.write_proof_atomically(facts_hash, proof)
     }
 
-    fn get_proof(&self, proof_facts: ProofFacts) -> Result<Option<Proof>, Self::Error> {
-        let facts_hash = proof_facts.hash();
-        if !self.contains_proof_by_hash(facts_hash) {
+    fn get_proof(&self, facts_hash: Felt) -> Result<Option<Proof>, Self::Error> {
+        if !self.contains_proof(facts_hash)? {
             return Ok(None);
         }
 
@@ -185,7 +178,7 @@ impl ProofStorage for FsProofStorage {
         }
     }
 
-    fn contains_proof(&self, proof_facts: ProofFacts) -> Result<bool, Self::Error> {
-        Ok(self.contains_proof_by_hash(proof_facts.hash()))
+    fn contains_proof(&self, facts_hash: Felt) -> Result<bool, Self::Error> {
+        Ok(self.get_persistent_dir(facts_hash).exists())
     }
 }

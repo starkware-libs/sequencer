@@ -15,6 +15,10 @@ fn sample_proof_facts() -> ProofFacts {
     ProofFacts::from(vec![Felt::from(0x1234_u64), Felt::from(0x5678_u64)])
 }
 
+fn sample_facts_hash() -> Felt {
+    sample_proof_facts().hash()
+}
+
 fn sample_proof() -> Proof {
     Proof::from(vec![1_u32, 2_u32, 3_u32, 4_u32, 5_u32])
 }
@@ -22,9 +26,9 @@ fn sample_proof() -> Proof {
 #[test]
 fn fs_proof_storage_get_before_set_returns_none() {
     let storage = new_fs_proof_storage();
-    let proof_facts = sample_proof_facts();
+    let facts_hash = sample_facts_hash();
 
-    let res = storage.get_proof(proof_facts);
+    let res = storage.get_proof(facts_hash);
     assert!(res.is_ok());
     assert!(res.unwrap().is_none());
 }
@@ -33,9 +37,10 @@ fn fs_proof_storage_get_before_set_returns_none() {
 fn fs_proof_storage_roundtrip() {
     let storage = new_fs_proof_storage();
     let proof = sample_proof();
+    let facts_hash = sample_facts_hash();
 
-    storage.set_proof(sample_proof_facts(), proof.clone()).unwrap();
+    storage.set_proof(facts_hash, proof.clone()).unwrap();
 
-    let retrieved = storage.get_proof(sample_proof_facts()).unwrap();
+    let retrieved = storage.get_proof(facts_hash).unwrap();
     assert_eq!(retrieved, Some(proof));
 }
