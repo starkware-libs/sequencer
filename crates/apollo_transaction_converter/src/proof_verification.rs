@@ -1,8 +1,14 @@
 //! In-memory proof verification using cairo-air.
 
+use std::sync::Arc;
+
+use cairo_air::utils::{get_verification_output, to_cairo_proof, VerificationOutput};
+use cairo_air::verifier::verify_cairo;
+use cairo_air::{CairoProofSorted, PreProcessedTraceVariant};
 use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_types_core::felt::{Felt, FromStrError};
+use stwo::core::vcs_lifted::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher};
 use thiserror::Error;
 
 /// Output from verifying a proof.
@@ -14,9 +20,8 @@ pub struct VerifyProofOutput {
     pub program_hash: Felt,
 }
 
-/// Errors that can occur during proof verification.
 #[derive(Error, Debug)]
-pub enum VerifyProofError {
+pub enum VerifyProofAndFactsError {
     #[error("Proof is empty.")]
     EmptyProof,
     #[error("Proof facts do not match proof output.")]
@@ -26,10 +31,10 @@ pub enum VerifyProofError {
     #[error("Bootloader program hash mismatch.")]
     BootloaderHashMismatch,
     #[error(transparent)]
-    InMemoryVerify(#[from] InMemoryVerifyError),
+    Verify(#[from] VerifyProofError),
 }
 
-impl PartialEq for VerifyProofError {
+impl PartialEq for VerifyProofAndFactsError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::EmptyProof, Self::EmptyProof) => true,
@@ -38,15 +43,14 @@ impl PartialEq for VerifyProofError {
                 lhs.to_string() == rhs.to_string()
             }
             (Self::BootloaderHashMismatch, Self::BootloaderHashMismatch) => true,
-            (Self::InMemoryVerify(lhs), Self::InMemoryVerify(rhs)) => lhs == rhs,
+            (Self::Verify(lhs), Self::Verify(rhs)) => lhs == rhs,
             _ => false,
         }
     }
 }
 
-/// Errors that can occur when verifying a proof in memory.
 #[derive(Error, Debug)]
-pub enum InMemoryVerifyError {
+pub enum VerifyProofError {
     #[error("Failed to encode proof: {0}")]
     EncodeProof(#[from] ProofEncodingError),
     #[error("Failed to deserialize proof: {0}")]
@@ -57,7 +61,7 @@ pub enum InMemoryVerifyError {
     OutputConversion(String),
 }
 
-impl PartialEq for InMemoryVerifyError {
+impl PartialEq for VerifyProofError {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::EncodeProof(lhs), Self::EncodeProof(rhs)) => lhs.to_string() == rhs.to_string(),
@@ -69,43 +73,26 @@ impl PartialEq for InMemoryVerifyError {
     }
 }
 
-/// Verifies a proof in memory using cairo-air directly.
-///
-/// This function performs proof verification without subprocess spawning or temp file I/O:
-/// - Decodes the proof from the packed representation to raw bytes
-/// - Deserializes the proof using bincode
-/// - Extracts verification output (proof facts and program hash)
-/// - Verifies the proof using cairo-air's verifier
-///
-/// Returns the verified proof facts and program hash as in-memory objects.
-pub fn verify_proof(proof: Proof) -> Result<VerifyProofOutput, InMemoryVerifyError> {
-    use std::sync::Arc;
-
-    use cairo_air::CairoProofSorted;
-    use stwo::core::vcs_lifted::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher};
-
+pub fn verify_proof(proof: Proof) -> Result<VerifyProofOutput, VerifyProofError> {
     // Convert proof to raw bytes.
     let proof_bytes = ProofBytes::try_from(proof)?;
 
     // Deserialize proof from bincode format (using bincode v1 API).
-    // Note: The prover serializes CairoProofSorted, not CairoProof.
     let cairo_proof_sorted: CairoProofSorted<Blake2sMerkleHasher> =
         bincode::deserialize(&proof_bytes.0)
-            .map_err(|e| InMemoryVerifyError::DeserializeProof(e.to_string()))?;
+            .map_err(|e| VerifyProofError::DeserializeProof(e.to_string()))?;
 
     // Extract verification output from the proof's public memory.
-    let verification_output = cairo_air::utils::get_verification_output(
-        &cairo_proof_sorted.claim.public_data.public_memory,
-    );
+    let verification_output =
+        get_verification_output(&cairo_proof_sorted.claim.public_data.public_memory);
 
     // Convert CairoProofSorted to CairoProof for verification.
-    let preprocessed_trace = cairo_air::PreProcessedTraceVariant::Canonical;
-    let cairo_proof =
-        cairo_air::utils::to_cairo_proof(cairo_proof_sorted, preprocessed_trace.clone());
+    let preprocessed_trace = PreProcessedTraceVariant::Canonical;
+    let cairo_proof = to_cairo_proof(cairo_proof_sorted, preprocessed_trace);
 
     // Verify the proof.
-    cairo_air::verifier::verify_cairo::<Blake2sMerkleChannel>(cairo_proof, preprocessed_trace)
-        .map_err(|e| InMemoryVerifyError::Verification(format!("{e:?}")))?;
+    verify_cairo::<Blake2sMerkleChannel>(cairo_proof, preprocessed_trace)
+        .map_err(|e| VerifyProofError::Verification(format!("{e:?}")))?;
 
     // Convert starknet_ff::FieldElement values to starknet_types_core::felt::Felt.
     let facts = convert_verification_output_to_felts(&verification_output)?;
@@ -117,8 +104,8 @@ pub fn verify_proof(proof: Proof) -> Result<VerifyProofOutput, InMemoryVerifyErr
 
 /// Converts cairo-air VerificationOutput output field to a Vec of Felt.
 fn convert_verification_output_to_felts(
-    output: &cairo_air::utils::VerificationOutput,
-) -> Result<Vec<Felt>, InMemoryVerifyError> {
+    output: &VerificationOutput,
+) -> Result<Vec<Felt>, VerifyProofError> {
     let mut facts = Vec::new();
     for fact in &output.output {
         facts.push(felt_from_starknet_ff(*fact));

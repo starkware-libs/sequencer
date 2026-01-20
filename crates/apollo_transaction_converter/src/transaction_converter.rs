@@ -33,7 +33,7 @@ use starknet_types_core::felt::Felt;
 use thiserror::Error;
 use tracing::info;
 
-use crate::proof_verification::{verify_proof, VerifyProofError};
+use crate::proof_verification::{verify_proof, VerifyProofAndFactsError};
 
 /// The expected bootloader program hash for proof verification.
 pub const BOOTLOADER_PROGRAM_HASH: &str =
@@ -54,7 +54,7 @@ pub enum TransactionConverterError {
     #[error(transparent)]
     ProofManagerClientError(#[from] ProofManagerClientError),
     #[error(transparent)]
-    ProofVerificationError(#[from] VerifyProofError),
+    ProofVerificationError(#[from] VerifyProofAndFactsError),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
@@ -398,7 +398,7 @@ impl TransactionConverter {
         }
 
         let verify_start = Instant::now();
-        self.verify_client_proof(proof_facts.clone(), proof.clone()).await?;
+        self.verify_proof_and_validate_facts(proof_facts.clone(), proof.clone())?;
         let verify_duration = verify_start.elapsed();
         let proof_facts_hash = proof_facts.hash();
         info!(
@@ -408,16 +408,16 @@ impl TransactionConverter {
         Ok(())
     }
 
-    /// Verifies a client-side proof in memory using cairo-air, validating the emitted proof
-    /// facts, and comparing the bootloader program hash to the expected value.
-    async fn verify_client_proof(
+    /// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
+    /// program hash to the expected value.
+    fn verify_proof_and_validate_facts(
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
-    ) -> Result<(), VerifyProofError> {
+    ) -> Result<(), VerifyProofAndFactsError> {
         // Reject empty proof payloads before running the verifier.
         if proof.is_empty() {
-            return Err(VerifyProofError::EmptyProof);
+            return Err(VerifyProofAndFactsError::EmptyProof);
         }
 
         // Verify proof and extract proof facts and program hash.
@@ -425,15 +425,15 @@ impl TransactionConverter {
 
         // Validate that the extracted proof facts match the expected facts.
         if proof_facts != output.proof_facts {
-            return Err(VerifyProofError::ProofFactsMismatch);
+            return Err(VerifyProofAndFactsError::ProofFactsMismatch);
         }
 
         // Validate the bootloader program hash output against the expected bootloader hash.
         let expected_program_hash = Felt::from_hex(BOOTLOADER_PROGRAM_HASH.trim())
-            .map_err(VerifyProofError::ParseExpectedHash)?;
+            .map_err(VerifyProofAndFactsError::ParseExpectedHash)?;
 
         if output.program_hash != expected_program_hash {
-            return Err(VerifyProofError::BootloaderHashMismatch);
+            return Err(VerifyProofAndFactsError::BootloaderHashMismatch);
         }
 
         Ok(())

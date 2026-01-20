@@ -2787,6 +2787,7 @@ name = "apollo_transaction_converter"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_infra_utils",
  "apollo_proof_manager_types",
  "assert_matches",
  "async-trait",
@@ -2798,6 +2799,7 @@ dependencies = [
  "mockall",
  "proving_utils",
  "rstest",
+ "serde_json",
  "starknet-ff",
  "starknet-types-core",
  "starknet_api",
@@ -12396,8 +12398,8 @@ dependencies = [
 name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
- "apollo_class_manager_types",
  "apollo_infra_utils",
+ "apollo_transaction_converter",
  "async-trait",
  "axum 0.6.20",
  "blockifier",
