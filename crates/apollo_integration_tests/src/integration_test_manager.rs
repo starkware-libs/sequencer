@@ -644,16 +644,11 @@ impl IntegrationTestManager {
         self.rpc_verify_last_block(wait_for_block).await;
     }
 
-    /// Create a simulator that's connected to the http server of Node 0.
+    /// Create a simulator that's connected to the http server of a node.
     pub fn create_simulator(&self) -> SequencerSimulator {
-        // Always connect to node 0 (the consolidated node) which is never shut down during tests
-        let node_0_setup = self
-            .running_nodes
-            .get(&0)
-            .map(|node| &(node.node_setup))
-            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
+        let node_setup = self.get_node_setup();
 
-        let http_server = node_0_setup.get_http_server();
+        let http_server = node_setup.get_http_server();
         let (_, http_server_port) = http_server
             .get_config()
             .http_server_config
@@ -720,14 +715,16 @@ impl IntegrationTestManager {
         join_all(await_alive_tasks).await;
     }
 
-    // TODO(Tsabary): resembles `create_simulator` and `fn chain_id`, consider unifying.
-    fn get_rpc_server_socket(&self) -> SocketAddr {
-        let node_setup = self
-            .idle_nodes
+    // Get a node setup from a running node.
+    fn get_node_setup(&self) -> &NodeSetup {
+        self.running_nodes
             .values()
-            .next()
-            .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
-            .expect("There should be at least one running or idle node");
+            .next().map(|node| &node.node_setup)
+            .expect("There should be at least one running or idle node")
+    }
+
+    fn get_rpc_server_socket(&self) -> SocketAddr {
+        let node_setup = self.get_node_setup();
 
         let state_sync_config =
             node_setup.get_state_sync().get_config().clone().state_sync_config.unwrap();
@@ -919,12 +916,7 @@ impl IntegrationTestManager {
 
     pub fn chain_id(&self) -> ChainId {
         // TODO(Arni): Get the chain ID from a shared canonic location.
-        let node_setup = self
-            .idle_nodes
-            .values()
-            .next()
-            .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
-            .expect("There should be at least one running or idle node");
+        let node_setup = self.get_node_setup();
 
         node_setup
             .get_batcher()
