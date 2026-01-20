@@ -6,9 +6,12 @@
 
 use libp2p::identity::PeerId;
 
-use crate::types::PeerSetError;
+use crate::types::{PeerSetError, ShardIndex, TreeGenerationError};
+use crate::ShardValidationError;
 
 pub type Stake = u64;
+
+// TODO(AndrewL): add the concept of shard_owner when naming
 
 /// Propeller tree manager that computes tree topology on-demand for each publisher.
 ///
@@ -21,7 +24,7 @@ pub type Stake = u64;
 /// - Each peer broadcasts received shards to all other peers (full mesh)
 #[derive(Debug, Clone)]
 pub struct PropellerScheduleManager {
-    /// All nodes in the channel with their stake, sorted by (stake, peer_id) descending.
+    /// All nodes in the channel with their stake, sorted by peer_id
     channel_nodes: Vec<(PeerId, Stake)>,
     /// This node's peer ID.
     local_peer_id: PeerId,
@@ -45,9 +48,10 @@ impl PropellerScheduleManager {
             return Err(PeerSetError::LocalPeerNotInChannel);
         }
 
-        nodes.sort_by(|(a_peer_id, a_stake), (b_peer_id, b_stake)| {
-            b_stake.cmp(a_stake).then_with(|| a_peer_id.cmp(b_peer_id))
-        });
+        nodes.sort();
+        if nodes.windows(2).any(|window| window[0].0 == window[1].0) {
+            return Err(PeerSetError::DuplicatePeerIds);
+        }
 
         let local_peer_index = nodes
             .iter()
@@ -99,5 +103,75 @@ impl PropellerScheduleManager {
             return self.should_build(shard_count);
         }
         shard_count >= 2 * self.num_data_shards
+    }
+
+    /// Returns the peer responsible for broadcasting a specific shard.
+    ///
+    /// In the Propeller protocol, each shard is assigned to a specific peer (excluding the
+    /// publisher). This method maps a shard index to its designated broadcaster.
+    ///
+    /// # Arguments
+    ///
+    /// * `publisher` - The peer ID of the node that published the original message
+    /// * `shard_index` - The index of the shard (0-based, ranges from 0 to total_shards-1)
+    pub fn get_peer_for_shard_index(
+        &self,
+        publisher: &PeerId,
+        shard_index: ShardIndex,
+    ) -> Result<PeerId, TreeGenerationError> {
+        let original_shard_index = shard_index;
+        let shard_index: usize = shard_index.0.try_into().expect("Failed converting u64 to usize");
+        let publisher_index = self
+            .channel_nodes
+            .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
+            .map_err(|_| TreeGenerationError::PublisherNotInChannel { publisher: *publisher })?;
+        let index =
+            if shard_index < publisher_index { shard_index } else { shard_index.saturating_add(1) };
+        self.channel_nodes.get(index).map(|(peer, _)| *peer).ok_or({
+            TreeGenerationError::ShardIndexOutOfBounds { shard_index: original_shard_index }
+        })
+    }
+
+    /// Validates that a shard unit was received from the expected sender.
+    ///
+    /// Verifies that the sender is either the publisher (for direct shards) or the designated
+    /// broadcaster for this shard index.
+    ///
+    /// # Arguments
+    ///
+    /// * `sender` - The peer ID that sent this shard unit
+    /// * `unit` - The shard unit to validate
+    pub fn validate_origin(
+        &self,
+        sender: PeerId,
+        stated_publisher: PeerId,
+        stated_index: ShardIndex,
+    ) -> Result<(), ShardValidationError> {
+        let local_peer_id = self.get_local_peer_id();
+        if local_peer_id == sender {
+            return Err(ShardValidationError::SelfSending);
+        }
+
+        if stated_publisher == local_peer_id {
+            return Err(ShardValidationError::ReceivedSelfPublishedShard);
+        }
+
+        let expected_broadcaster_for_index = self
+            .get_peer_for_shard_index(&stated_publisher, stated_index)
+            .map_err(ShardValidationError::ScheduleManagerError)?;
+
+        if expected_broadcaster_for_index == local_peer_id && sender == stated_publisher {
+            // I received my shard from the publisher
+            return Ok(());
+        }
+        if sender == expected_broadcaster_for_index {
+            return Ok(());
+        }
+        // TODO(AndrewL): Make sure that the returned error allows for
+        // distinguishing between the two cases.
+        Err(ShardValidationError::UnexpectedSender {
+            expected_sender: expected_broadcaster_for_index,
+            shard_index: stated_index,
+        })
     }
 }
