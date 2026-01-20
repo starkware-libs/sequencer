@@ -3,7 +3,6 @@ use std::sync::Arc;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_rpc_execution::ExecutionConfig;
 use apollo_starknet_client::reader::PendingData;
-use apollo_starknet_client::writer::StarknetWriter;
 use apollo_storage::StorageReader;
 use jsonrpsee::{Methods, RpcModule};
 use papyrus_common::pending_classes::PendingClasses;
@@ -62,7 +61,6 @@ pub fn get_methods_from_supported_apis(
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
-    starknet_writer: Arc<dyn StarknetWriter>,
     class_manager_client: Option<SharedClassManagerClient>,
 ) -> Methods {
     let mut methods: Methods = Methods::new();
@@ -76,7 +74,6 @@ pub fn get_methods_from_supported_apis(
         shared_highest_block,
         pending_data,
         pending_classes,
-        starknet_writer,
         class_manager_client,
     };
     version_config::VERSION_CONFIG
@@ -116,7 +113,6 @@ pub trait JsonRpcServerTrait: Sized {
         shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
         pending_data: Arc<RwLock<PendingData>>,
         pending_classes: Arc<RwLock<PendingClasses>>,
-        starknet_writer: Arc<dyn StarknetWriter>,
         class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self;
 
@@ -134,8 +130,6 @@ struct JsonRpcServerImplGenerator {
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
-    // TODO(shahak): Change this struct to be with a generic type of StarknetWriter.
-    starknet_writer: Arc<dyn StarknetWriter>,
     class_manager_client: Option<SharedClassManagerClient>,
 }
 
@@ -149,7 +143,6 @@ type JsonRpcServerImplParams = (
     Arc<RwLock<Option<BlockHashAndNumber>>>,
     Arc<RwLock<PendingData>>,
     Arc<RwLock<PendingClasses>>,
-    Arc<dyn StarknetWriter>,
     Option<SharedClassManagerClient>,
 );
 
@@ -165,7 +158,6 @@ impl JsonRpcServerImplGenerator {
             self.shared_highest_block,
             self.pending_data,
             self.pending_classes,
-            self.starknet_writer,
             self.class_manager_client,
         )
     }
@@ -184,7 +176,6 @@ impl JsonRpcServerImplGenerator {
             shared_highest_block,
             pending_data,
             pending_classes,
-            starknet_writer,
             class_manager_client,
         ) = self.get_params();
         Into::<Methods>::into(
@@ -198,7 +189,6 @@ impl JsonRpcServerImplGenerator {
                 shared_highest_block,
                 pending_data,
                 pending_classes,
-                starknet_writer,
                 class_manager_client,
             )
             .into_rpc_module(),
