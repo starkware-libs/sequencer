@@ -25,7 +25,7 @@ CMD ["cached-rocksdb", \
     "--n-iterations", "1000000", \
     "--flavor", "constant", \
     "--n-updates", "1000", \
-    "--cache-size", "1000000000", \
+    "--cache-size", "200000000", \
     "--include-inner-stats", \
     "--checkpoint-interval", "1000", \
     "--log-level", "info", \
