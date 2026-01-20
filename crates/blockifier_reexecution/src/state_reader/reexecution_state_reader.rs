@@ -11,7 +11,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
-use starknet_api::test_utils::MAX_FEE;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 
@@ -19,6 +19,9 @@ use crate::assert_eq_state_diff;
 use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
 use crate::errors::ReexecutionResult;
 use crate::utils::contract_class_to_compiled_classes;
+
+// TODO(Aviv): Use MAX FEE from starknet_api.
+const MAX_FEE_FOR_L1_HANDLER: Fee = Fee(u128::pow(10, 17));
 
 pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
@@ -82,7 +85,7 @@ pub trait ReexecutionStateReader {
                     tx,
                     tx_hash,
                     None,
-                    Some(MAX_FEE),
+                    Some(MAX_FEE_FOR_L1_HANDLER),
                     None,
                     execution_flags.clone(),
                 )?),
