@@ -304,8 +304,7 @@ impl AccountTransaction {
 
     fn validate_proof_facts(
         &self,
-        os_constants: &OsConstants,
-        current_block_number: BlockNumber,
+        block_context: &BlockContext,
         state: &mut dyn State,
     ) -> TransactionPreValidationResult<()> {
         // Only Invoke V3 transactions can carry proof facts.
@@ -324,6 +323,7 @@ impl AccountTransaction {
             ProofFactsVariant::Empty => return Ok(()),
             ProofFactsVariant::Snos(snos_proof_facts) => snos_proof_facts,
         };
+        let os_constants = &block_context.versioned_constants.os_constants;
 
         // Validate the program hash.
         let allowed = &os_constants.allowed_virtual_os_program_hashes;
@@ -337,8 +337,27 @@ impl AccountTransaction {
         // Validate the block hash and block number.
         let proof_block_hash = snos_proof_facts.block_hash.0;
         let proof_block_number = snos_proof_facts.block_number.0;
-        Self::validate_proof_block_number(proof_block_number, current_block_number)?;
+        Self::validate_proof_block_number(
+            proof_block_number,
+            block_context.block_info.block_number,
+        )?;
         Self::validate_proof_block_hash(proof_block_hash, proof_block_number, os_constants, state)?;
+
+        // Validate the config hash.
+        let chain_info = &block_context.chain_info;
+        // TODO(Meshi): Cache this computation as part of the chain context.
+        let os_config_hash = chain_info.compute_os_config_hash().map_err(|e| {
+            TransactionPreValidationError::InvalidProofFacts(format!(
+                "Failed to compute OS config hash: {e}"
+            ))
+        })?;
+        let proof_config_hash = snos_proof_facts.config_hash;
+        if os_config_hash != proof_config_hash {
+            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                "OS config hash mismatch. Computed OS config hash: {os_config_hash}, expected OS \
+                 config hash: {proof_config_hash}."
+            )));
+        }
 
         Ok(())
     }
@@ -359,11 +378,7 @@ impl AccountTransaction {
             verify_can_pay_committed_bounds(state, tx_context).map_err(Box::new)?;
         }
 
-        self.validate_proof_facts(
-            &tx_context.block_context.versioned_constants.os_constants,
-            tx_context.block_context.block_info.block_number,
-            state,
-        )?;
+        self.validate_proof_facts(&tx_context.block_context, state)?;
 
         Ok(())
     }
