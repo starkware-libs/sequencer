@@ -5,7 +5,7 @@ use std::vec::Vec;
 
 use apollo_batcher_config::config::BatcherConfig;
 use apollo_class_manager_config::config::FsClassManagerConfig;
-use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::dumping::{
     generate_optional_struct_pointer,
     generate_struct_pointer,
@@ -213,7 +213,7 @@ pub struct SequencerNodeConfig {
     #[validate(nested)]
     pub class_manager_config: Option<FsClassManagerConfig>,
     #[validate(nested)]
-    pub committer_config: Option<CommitterConfig>,
+    pub committer_config: Option<ApolloCommitterConfig>,
     #[validate(nested)]
     pub consensus_manager_config: Option<ConsensusManagerConfig>,
     #[validate(nested)]
@@ -287,7 +287,7 @@ impl Default for SequencerNodeConfig {
             base_layer_config: Some(EthereumBaseLayerConfig::default()),
             batcher_config: Some(BatcherConfig::default()),
             class_manager_config: Some(FsClassManagerConfig::default()),
-            committer_config: Some(CommitterConfig::default()),
+            committer_config: Some(ApolloCommitterConfig::default()),
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),

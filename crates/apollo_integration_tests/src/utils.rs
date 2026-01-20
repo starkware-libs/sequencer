@@ -12,7 +12,7 @@ use apollo_class_manager_config::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
-use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{
@@ -205,8 +205,10 @@ pub fn create_node_config(
         chain_info.clone(),
         block_max_capacity_gas,
     );
-    let committer_config =
-        CommitterConfig { db_path: storage_config.committer_db_path.clone(), ..Default::default() };
+    let committer_config = ApolloCommitterConfig {
+        db_path: storage_config.committer_db_path.clone(),
+        ..Default::default()
+    };
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
