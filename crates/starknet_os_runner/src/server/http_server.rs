@@ -21,7 +21,6 @@ use starknet_api::transaction::{
     TransactionHasher,
 };
 use starknet_os::io::os_output::OsOutputError;
-use starknet_os::io::virtual_os_output::VirtualOsOutput;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -179,9 +178,6 @@ async fn prove_transaction(
         "OS execution completed"
     );
 
-    // Parse OS output to get L1 messages.
-    let virtual_os_output = VirtualOsOutput::from_raw_output(&runner_output.raw_output)?;
-
     // Run the prover.
     let prove_start = Instant::now();
     let prover_output: ProverOutput = prove(runner_output.cairo_pie).await?;
@@ -197,7 +193,8 @@ async fn prove_transaction(
     let response = ProveTransactionResponse {
         proof: prover_output.proof,
         proof_facts: prover_output.proof_facts,
-        l2_to_l1_messages: virtual_os_output.messages_to_l1,
+        // TODO(Aviv): Add l2_to_l1_messages to the runner output and use it here.
+        l2_to_l1_messages: Vec::new(),
     };
 
     Ok(Json(response))
