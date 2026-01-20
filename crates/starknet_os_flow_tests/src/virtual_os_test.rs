@@ -1,3 +1,4 @@
+use blockifier::execution::contract_class::TrackedResource;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -106,12 +107,29 @@ async fn test_cairo0_contract_os_error() {
     let calldata = create_calldata(contract_address, "foo", &[]);
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
 
+    let mut test_runner = test_builder.build().await;
+    // Patch the tracked resources of the Cairo 0 call to bypass this validation and get the
+    // expected Cairo 0 error from the OS.
+    test_runner
+        .os_hints
+        .os_input
+        .os_block_inputs
+        .first_mut()
+        .unwrap()
+        .tx_execution_infos
+        .first_mut()
+        .unwrap()
+        .execute_call_info
+        .as_mut()
+        .unwrap()
+        .inner_calls
+        .first_mut()
+        .unwrap()
+        .tracked_resource = TrackedResource::SierraGas;
+
     // The OS tries to run it as a Cairo 1 contract and cannot find the compiled class.
     // (the key 0 is the "compiled class hash" of the Cairo 0 contract).
-    test_builder
-        .build()
-        .await
-        .run_virtual_expect_error("find_element(): No value found for key: 0");
+    test_runner.run_virtual_expect_error("find_element(): No value found for key: 0");
 }
 
 // TODO(Yoni): add a test for a Cairo 1 contract that is not a Sierra 1.7.0+ contract.

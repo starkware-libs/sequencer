@@ -1,4 +1,5 @@
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM, VIRTUAL_OS_PROGRAM};
+use blockifier::execution::contract_class::TrackedResource;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
@@ -19,7 +20,7 @@ use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
-use crate::io::os_input::{OsHints, StarknetOsInput};
+use crate::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::io::virtual_os_output::VirtualOsRunnerOutput;
 use crate::metrics::{AggregatorMetrics, OsMetrics};
@@ -196,6 +197,26 @@ pub fn run_aggregator(
     })
 }
 
+/// Validates that all tracked resources in all execution infos are SierraGas.
+/// Called before execution to provide informative error message.
+fn validate_tracked_resources(os_block_inputs: &[OsBlockInput]) -> Result<(), StarknetOsError> {
+    for block_input in os_block_inputs.iter() {
+        for (tx, tx_execution_info) in
+            block_input.transactions.iter().zip(&block_input.tx_execution_infos)
+        {
+            for call_info in tx_execution_info.call_info_iter(tx.tx_type()) {
+                if call_info.tracked_resource != TrackedResource::SierraGas {
+                    return Err(StarknetOsError::InvalidTrackedResource {
+                        expected: TrackedResource::SierraGas,
+                        actual: call_info.tracked_resource,
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Runs the virtual OS.
 pub fn run_virtual_os(
     OsHints {
@@ -203,6 +224,9 @@ pub fn run_virtual_os(
         os_input: StarknetOsInput { os_block_inputs, deprecated_compiled_classes, compiled_classes },
     }: OsHints,
 ) -> Result<VirtualOsRunnerOutput, StarknetOsError> {
+    // Validate that all tracked resources are SierraGas.
+    validate_tracked_resources(&os_block_inputs)?;
+
     // Create the hint processor - reuse the SNOS hint processor with the virtual OS program.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &VIRTUAL_OS_PROGRAM,

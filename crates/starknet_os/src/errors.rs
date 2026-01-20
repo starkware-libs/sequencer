@@ -1,3 +1,4 @@
+use blockifier::execution::contract_class::TrackedResource;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
@@ -8,6 +9,8 @@ use crate::io::os_output::OsOutputError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum StarknetOsError {
+    #[error("Invalid tracked resource: expected {expected:?}, got {actual:?}.")]
+    InvalidTrackedResource { expected: TrackedResource, actual: TrackedResource },
     #[error(transparent)]
     LoadProgramError(#[from] ProgramError),
     #[error(transparent)]
