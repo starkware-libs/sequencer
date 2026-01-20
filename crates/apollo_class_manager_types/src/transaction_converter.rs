@@ -82,6 +82,8 @@ pub trait TransactionConverterTrait: Send + Sync {
         &self,
         tx: InternalConsensusTransaction,
     ) -> TransactionConverterResult<ExecutableTransaction>;
+
+    fn get_proof_manager_client(&self) -> SharedProofManagerClient;
 }
 
 #[derive(Clone)]
@@ -143,10 +145,11 @@ impl TransactionConverterTrait for TransactionConverter {
         tx: ConsensusTransaction,
     ) -> TransactionConverterResult<InternalConsensusTransaction> {
         match tx {
-            ConsensusTransaction::RpcTransaction(tx) => self
-                .convert_rpc_tx_to_internal_rpc_tx(tx)
-                .await
-                .map(InternalConsensusTransaction::RpcTransaction),
+            ConsensusTransaction::RpcTransaction(tx) => {
+                let internal_tx =
+                    self.extract_proof_and_convert_rpc_tx_to_internal_rpc_tx(tx).await?;
+                Ok(InternalConsensusTransaction::RpcTransaction(internal_tx))
+            }
             ConsensusTransaction::L1Handler(tx) => self
                 .convert_consensus_l1_handler_to_internal_l1_handler(tx)
                 .map(InternalConsensusTransaction::L1Handler),
@@ -299,6 +302,10 @@ impl TransactionConverterTrait for TransactionConverter {
             InternalConsensusTransaction::L1Handler(tx) => Ok(ExecutableTransaction::L1Handler(tx)),
         }
     }
+
+    fn get_proof_manager_client(&self) -> SharedProofManagerClient {
+        self.proof_manager_client.clone()
+    }
 }
 
 impl TransactionConverter {
@@ -314,6 +321,27 @@ impl TransactionConverter {
         )?)
     }
 
+    async fn extract_proof_and_convert_rpc_tx_to_internal_rpc_tx(
+        &self,
+        tx: RpcTransaction,
+    ) -> TransactionConverterResult<InternalRpcTransaction> {
+        // Extract proof and proof facts from v3 invoke transaction before conversion.
+        let proof_data = match &tx {
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
+                if !invoke_tx.proof_facts.is_empty() {
+                    Some((invoke_tx.proof_facts.clone(), invoke_tx.proof.clone()))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        let internal_tx = self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
+        if let Some((proof_facts, proof)) = proof_data {
+            self.proof_manager_client.set_proof(proof_facts, proof).await?;
+        }
+        Ok(internal_tx)
+    }
     async fn handle_proof_verification(
         &self,
         proof_facts: &ProofFacts,
@@ -335,7 +363,6 @@ impl TransactionConverter {
         }
 
         self.verify_proof(proof_facts.clone(), proof.clone())?;
-        self.proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await?;
         Ok(())
     }
 
