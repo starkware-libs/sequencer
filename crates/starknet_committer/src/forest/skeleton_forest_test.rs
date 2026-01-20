@@ -322,7 +322,7 @@ async fn test_create_original_skeleton_forest(
     let actual_classes_updates = input.state_diff.actual_classes_updates();
     let (actual_forest, original_contracts_trie_leaves) = FactsDb::new(storage)
         .read(
-            input.initial_read_context,
+            input.initial_read_context.0,
             &actual_storage_updates,
             &actual_classes_updates,
             &forest_sorted_indices,

@@ -43,13 +43,13 @@ static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
 /// The db key prefix of nodes in the contracts trie.
 ///
 /// Set to FIRST_AVAILABLE_PREFIX_FELT
-static CONTRACTS_TREE_PREFIX: LazyLock<[u8; 32]> =
+pub(crate) static CONTRACTS_TREE_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| FIRST_AVAILABLE_PREFIX_FELT.to_bytes_be());
 
 /// The db key prefix of nodes in the contracts trie.
 ///
 /// Set to FIRST_AVAILABLE_PREFIX_FELT + 1
-static CLASSES_TREE_PREFIX: LazyLock<[u8; 32]> =
+pub(crate) static CLASSES_TREE_PREFIX: LazyLock<[u8; 32]> =
     LazyLock::new(|| (*FIRST_AVAILABLE_PREFIX_FELT + Felt::ONE).to_bytes_be());
 
 macro_rules! impl_has_static_prefix_empty_context {

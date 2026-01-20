@@ -10,6 +10,7 @@ use crate::block_committer::input::{contract_address_into_node_index, Input, Sta
 use crate::block_committer::timing_util::{Action, TimeMeasurement};
 use crate::db::forest_trait::ForestReader;
 use crate::forest::filled_forest::FilledForest;
+use crate::forest::forest_errors::ForestError;
 use crate::forest::original_skeleton_forest::ForestSortedIndices;
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::TreeHashFunctionImpl;
@@ -42,9 +43,12 @@ pub trait CommitBlockTrait: Send {
         if let Some(ref mut tm) = time_measurement {
             tm.start_measurement(Action::Read);
         }
+
+        let roots =
+            trie_reader.read_roots(input.initial_read_context).await.map_err(ForestError::from)?;
         let (mut original_forest, original_contracts_trie_leaves) = trie_reader
             .read(
-                input.initial_read_context,
+                roots,
                 &actual_storage_updates,
                 &actual_classes_updates,
                 &forest_sorted_indices,
