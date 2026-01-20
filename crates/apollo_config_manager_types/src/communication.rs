@@ -5,11 +5,14 @@ use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_metrics::generate_permutation_labels;
 use apollo_node_config::node_config::NodeDynamicConfig;
-use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use strum::{EnumVariantNames, VariantNames};
@@ -99,6 +102,8 @@ where
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig> {
         let request = ConfigManagerRequest::GetConsensusDynamicConfig;
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             GetConsensusDynamicConfig,
             ConfigManagerClientError,
@@ -110,6 +115,8 @@ where
     async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig> {
         let request = ConfigManagerRequest::GetContextDynamicConfig;
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             GetContextDynamicConfig,
             ConfigManagerClientError,
@@ -123,6 +130,8 @@ where
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig> {
         let request = ConfigManagerRequest::GetHttpServerDynamicConfig;
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             GetHttpServerDynamicConfig,
             ConfigManagerClientError,
@@ -134,6 +143,8 @@ where
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig> {
         let request = ConfigManagerRequest::GetMempoolDynamicConfig;
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             GetMempoolDynamicConfig,
             ConfigManagerClientError,
@@ -148,6 +159,8 @@ where
     ) -> ConfigManagerClientResult<()> {
         let request = ConfigManagerRequest::SetNodeDynamicConfig(config);
         handle_all_response_variants!(
+            self,
+            request,
             ConfigManagerResponse,
             SetNodeDynamicConfig,
             ConfigManagerClientError,

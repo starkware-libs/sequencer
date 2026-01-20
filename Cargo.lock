@@ -1252,7 +1252,6 @@ dependencies = [
  "apollo_mempool_config",
  "apollo_metrics",
  "apollo_node_config",
- "apollo_proc_macros",
  "async-trait",
  "mockall",
  "serde",
