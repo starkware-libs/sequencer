@@ -24,6 +24,7 @@ class _TxTracker:
     currently_pending: Dict[str, int]  # tx_hash -> source block number
     ever_seen_pending: Set[str]  # cumulative set of tx hashes ever observed pending
     committed: Dict[str, int]  # cumulative map: tx_hash -> commit block number
+    l1_tx_hashes: Set[str]  # set of L1_HANDLER transaction hashes
     total_forwarded_tx_count: int  # count of forwarded txs (counted once per block)
     max_forwarded_block: int  # highest block included in total_forwarded_tx_count
 
@@ -33,19 +34,59 @@ class _TxTracker:
             currently_pending={},
             ever_seen_pending=set(),
             committed={},
+            l1_tx_hashes=set(),
             total_forwarded_tx_count=0,
             max_forwarded_block=0,
         )
 
-    def record_sent(self, tx_hash: str, source_block_number: int) -> None:
+    def record_sent(self, tx_hash: str, source_block_number: int) -> None: # list! 
         """Record a transaction as sent - add to the pending set (transactions sent but not committed yet)"""
         self.currently_pending[tx_hash] = source_block_number
         if tx_hash not in self.ever_seen_pending and tx_hash not in self.committed:
             self.ever_seen_pending.add(tx_hash)
 
+    def record_l1_tx(self, tx_hash: str) -> None:
+        """Record an L1_HANDLER transaction hash."""
+        self.l1_tx_hashes.add(tx_hash)
+
     def record_committed(self, tx_hash: str, block_number: int) -> None:
         """Record a transaction as committed - add to the committed set (transactions that have been committed) and remove from the pending set"""
         self.committed[tx_hash] = block_number
+        
+        # Before popping, check if tx hash is the next in order of the queue
+        # Get the first (oldest) transaction in currently_pending (dict maintains insertion order in Python 3.7+)
+        next_in_queue = next(iter(self.currently_pending), None) if self.currently_pending else None
+        matches = (next_in_queue == tx_hash) if next_in_queue else False
+        
+        # Find the position of tx_hash in the queue (1-indexed)
+        # If matches, we know it's position 1 with distance 0, no need to loop
+        if matches:
+            tx_hash_location = 1
+            distance = 0
+        elif tx_hash in self.currently_pending:
+            # Find position by enumerating through the dict (maintains insertion order)
+            # In Python 3.7+, dict.keys() maintains insertion order
+            for idx, pending_tx_hash in enumerate(self.currently_pending.keys(), start=1):
+                if pending_tx_hash == tx_hash:
+                    tx_hash_location = idx
+                    distance = idx - 1  # Distance from front (0-indexed distance)
+                    break
+        else:
+            tx_hash_location = None
+            distance = None
+        
+        # If match=false, check if it wasn't matched because of L1 tx
+        # If next_in_queue is an L1 tx and distance=1 (tx right after L1 tx), set matches=True
+        if not matches:
+            if next_in_queue and next_in_queue in self.l1_tx_hashes and distance == 1:
+                matches = True
+        
+        logger.info(
+            f"record_committed: tx_hash={tx_hash}, next_in_queue={next_in_queue}, "
+            f"matches={matches}, tx_hash_location={tx_hash_location}, distance={distance}, "
+            f"pending_count={len(self.currently_pending)}"
+        )
+        
         self.currently_pending.pop(tx_hash, None)
 
     def record_forwarded_block(self, block_number: int, tx_count: int) -> None:
@@ -320,6 +361,11 @@ class SharedContext:
         with self._lock:
             self._tx.record_sent(tx_hash, source_block_number)
 
+    def record_l1_tx(self, tx_hash: str) -> None:
+        """Record an L1_HANDLER transaction hash."""
+        with self._lock:
+            self._tx.record_l1_tx(tx_hash)
+
     def record_forwarded_block(self, block_number: int, tx_count: int) -> None:
         with self._lock:
             self._tx.record_forwarded_block(block_number, tx_count)
@@ -372,6 +418,7 @@ class SharedContext:
             snapshot_items = self._blocks.snapshot_items()
             archive_dir = self._blocks._ensure_archive_dir()
             self._tx.currently_pending.clear()
+            self._tx.l1_tx_hashes.clear()
             self._errors.clear_live()
             self._blocks.clear_live()
             self._progress.last_echo_center_block = None
