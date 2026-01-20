@@ -27,13 +27,13 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::map_storage::MapStorage;
 
-const CONCURRENCY_MODE: bool = true;
+const CONCURRENCY_MODE: bool = false;
 const SINGLE_TREE_FLOW_INPUT: &str = include_str!("../test_inputs/tree_flow_inputs.json");
 const FLOW_TEST_INPUT: &str = include_str!("../test_inputs/committer_flow_inputs.json");
 const OUTPUT_PATH: &str = "benchmark_output.txt";
-const COMMITTER_FLOW_N_TIMES: usize = 100;
-const TREE_COMPUTATION_FLOW_N_TIMES: usize = 100;
-const MEASUREMENT_TIME: Duration = Duration::from_secs(200);
+const COMMITTER_FLOW_N_TIMES: usize = 25;
+const TREE_COMPUTATION_FLOW_N_TIMES: usize = 25;
+const MEASUREMENT_TIME: Duration = Duration::from_secs(50);
 
 /// Runs the tree computation flow sequentially for smoother results.
 async fn repeat_tree_computation_flow(
