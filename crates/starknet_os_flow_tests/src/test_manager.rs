@@ -494,6 +494,13 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.initial_state.block_context.chain_info().chain_id.clone()
     }
 
+    /// Computes the OS config hash for proof facts validation using the test environment's
+    /// chain info.
+    pub(crate) fn compute_os_config_hash(&self) -> Felt {
+        let chain_info = self.initial_state.block_context.chain_info();
+        chain_info.compute_os_config_hash().expect("Failed to compute OS config hash")
+    }
+
     /// Advances the manager to the next block when adding new transactions.
     pub(crate) fn move_to_next_block(&mut self) {
         // TODO(Yoni): add here useful block info fields like timestamp.
