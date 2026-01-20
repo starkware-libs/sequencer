@@ -452,18 +452,55 @@ impl IntegrationTestManager {
     ) {
         get_node_executable_path();
         info!("Rerunning shut-down services for specified nodes: {nodes_services_to_run:?}.");
-        // TODO(Tsabary): run these in parallel.
-        nodes_services_to_run.into_iter().for_each(|(node_index, services)| {
-            let running_node = self
-                .running_nodes
-                .get_mut(&node_index)
-                .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
 
-            // TODO(Tsabary): run these in parallel.
-            for service in services {
-                running_node.run_service(service);
-            }
-        });
+        // Collect spawn info and validate (releases borrows)
+        let spawn_info: Vec<_> = nodes_services_to_run
+            .into_iter()
+            .flat_map(|(node_index, services)| {
+                let running_node = self
+                    .running_nodes
+                    .get(&node_index)
+                    .unwrap_or_else(|| panic!("Node {node_index} is not in the running map."));
+
+                services.into_iter().map(move |service| {
+                    assert!(
+                        !running_node.executable_handles.contains_key(&service),
+                        "Service {service:?} is already running."
+                    );
+                    let executable_setup =
+                        running_node.node_setup.get_executable_by_service(service);
+                    (
+                        node_index,
+                        service,
+                        executable_setup.node_config_path.clone(),
+                        executable_setup.node_executable_id.clone(),
+                    )
+                })
+            })
+            .collect();
+
+        // Spawn all services in parallel
+        let spawn_futures: Vec<_> = spawn_info
+            .into_iter()
+            .map(|(node_index, service, config_path, exec_id)| {
+                tokio::spawn(async move {
+                    let handle = spawn_run_node(vec![config_path], exec_id.into());
+                    (node_index, service, handle)
+                })
+            })
+            .collect();
+
+        let results = join_all(spawn_futures).await;
+
+        // Insert all handles
+        for result in results {
+            let (node_index, service, handle) = result.expect("Spawn task panicked");
+            self.running_nodes
+                .get_mut(&node_index)
+                .unwrap()
+                .executable_handles
+                .insert(service, handle);
+        }
 
         // Wait for the rerun executables to start
         self.await_alive(AWAIT_ALIVE_INTERVAL_MS, AWAIT_ALIVE_ATTEMPTS).await;
