@@ -28,6 +28,7 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    EmptyStorageConfig,
     NoStats,
     PatriciaStorageResult,
     Storage,
@@ -114,6 +115,7 @@ impl AerospikeStorage {
 
 impl Storage for AerospikeStorage {
     type Stats = NoStats;
+    type Config = EmptyStorageConfig;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let record = self

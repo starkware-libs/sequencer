@@ -11650,6 +11650,7 @@ name = "starknet_patricia_storage"
 version = "0.17.0-rc.0"
 dependencies = [
  "aerospike",
+ "apollo_config",
  "blake2",
  "digest 0.10.7",
  "hex",
@@ -11664,6 +11665,7 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
+ "validator",
 ]
 
 [[package]]
