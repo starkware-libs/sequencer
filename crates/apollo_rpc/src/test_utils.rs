@@ -1,3 +1,4 @@
+use std::net::Ipv4Addr;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -34,7 +35,7 @@ pub fn get_test_rpc_config() -> RpcConfig {
             strk_fee_contract_address: contract_address!("0x1001"),
             default_initial_gas_cost: 10000000000,
         },
-        ip: "127.0.0.1".parse().unwrap(),
+        ip: Ipv4Addr::LOCALHOST.into(),
         port: 0,
         max_events_chunk_size: 10,
         max_events_keys: 10,

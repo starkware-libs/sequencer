@@ -15,7 +15,7 @@ mod v0_8;
 mod version_config;
 
 use std::collections::BTreeMap;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -88,7 +88,7 @@ impl Default for RpcConfig {
     fn default() -> Self {
         RpcConfig {
             chain_id: ChainId::Mainnet,
-            ip: "0.0.0.0".parse().unwrap(),
+            ip: Ipv4Addr::UNSPECIFIED.into(),
             port: RPC_CONFIG_DEFAULT_PORT,
             max_events_chunk_size: 1000,
             max_events_keys: 100,
