@@ -1,34 +1,18 @@
 use std::collections::{BTreeMap, HashMap};
 
-use blockifier::context::ChainInfo;
 use blockifier::state::cached_state::StateMaps;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
-#[cfg(feature = "deserialize")]
-use starknet_api::core::deserialize_chain_id_from_hex;
-use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, OsChainInfo};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::HashOutput;
 use starknet_api::state::ContractClassComponentHashes;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::{Pedersen, StarkHash};
 use tracing::level_filters::LevelFilter;
-
-use crate::io::os_output::STARKNET_OS_CONFIG_HASH_VERSION;
-
-const DEFAULT_PUBLIC_KEYS_HASH: Felt = Felt::ZERO;
-
-fn compute_public_keys_hash(public_keys: Option<&Vec<Felt>>) -> Felt {
-    match public_keys {
-        Some(public_keys) if !public_keys.is_empty() => Pedersen::hash_array(public_keys),
-        _ => DEFAULT_PUBLIC_KEYS_HASH,
-    }
-}
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
@@ -84,55 +68,6 @@ pub struct StarknetOsInput {
     pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
 
-// TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct OsChainInfo {
-    #[cfg_attr(feature = "deserialize", serde(deserialize_with = "deserialize_chain_id_from_hex"))]
-    pub chain_id: ChainId,
-    pub strk_fee_token_address: ContractAddress,
-}
-
-impl Default for OsChainInfo {
-    fn default() -> Self {
-        OsChainInfo {
-            chain_id: ChainId::Other("0x0".to_string()),
-            strk_fee_token_address: ContractAddress::default(),
-        }
-    }
-}
-
-impl From<&ChainInfo> for OsChainInfo {
-    fn from(chain_info: &ChainInfo) -> Self {
-        OsChainInfo {
-            chain_id: chain_info.chain_id.clone(),
-            strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
-        }
-    }
-}
-
-impl OsChainInfo {
-    /// Computes the OS config hash for the given chain info.
-    pub fn compute_os_config_hash(
-        &self,
-        public_keys: Option<&Vec<Felt>>,
-    ) -> Result<Felt, OsInputError> {
-        let mut data = vec![
-            *STARKNET_OS_CONFIG_HASH_VERSION,
-            (&self.chain_id)
-                .try_into()
-                .map_err(|_| OsInputError::InvalidChainId(self.chain_id.clone()))?,
-            self.strk_fee_token_address.into(),
-        ];
-        let public_keys_hash = compute_public_keys_hash(public_keys);
-        if public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH {
-            data.push(public_keys_hash);
-        }
-        Ok(Pedersen::hash_array(&data))
-    }
-}
-
 /// All input needed to initialize the execution helper.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
@@ -175,7 +110,6 @@ pub struct OsHintsConfig {
     pub public_keys: Option<Vec<Felt>>,
     pub rng_seed_salt: Option<Felt>,
 }
-
 impl OsHintsConfig {
     pub fn log_level(&self) -> LevelFilter {
         if self.debug_mode { LevelFilter::DEBUG } else { LevelFilter::INFO }
@@ -184,8 +118,6 @@ impl OsHintsConfig {
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsInputError {
-    #[error("Invalid chain ID (cannot convert to Felt): {0:?}")]
-    InvalidChainId(ChainId),
     #[error("Invalid length of state readers: {0}. Should match size of block inputs: {1}")]
     InvalidLengthOfStateReaders(usize, usize),
 }

@@ -2244,17 +2244,25 @@ fn proof_facts_with_mismatched_hash() -> ProofFacts {
 
 /// Returns invalid proof_facts with a zero block hash.
 fn proof_facts_with_zero_block_hash() -> ProofFacts {
-    let mut snos_proof_facts = SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing())
-        .expect("Invalid proof facts");
+    let mut snos_proof_facts =
+        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
     snos_proof_facts.block_hash = BlockHash(Felt::ZERO);
     snos_to_proof_facts(snos_proof_facts)
 }
 
 /// Returns invalid proof_facts with an invalid program hash.
 fn proof_facts_with_invalid_program_hash() -> ProofFacts {
-    let mut snos_proof_facts = SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing())
-        .expect("Invalid proof facts");
+    let mut snos_proof_facts =
+        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
     snos_proof_facts.program_hash = Felt::from(0x12345678_u64);
+    snos_to_proof_facts(snos_proof_facts)
+}
+
+/// Returns invalid proof_facts with a mismatched config hash.
+fn proof_facts_with_invalid_config_hash() -> ProofFacts {
+    let mut snos_proof_facts =
+        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
+    snos_proof_facts.config_hash = Felt::from(0x12345678_u64);
     snos_to_proof_facts(snos_proof_facts)
 }
 
@@ -2287,6 +2295,11 @@ fn proof_facts_with_invalid_program_hash() -> ProofFacts {
     proof_facts_with_invalid_program_hash(),
     CURRENT_BLOCK_NUMBER,
     Some("is not allowed")
+)]
+#[case::config_hash_invalid(
+    proof_facts_with_invalid_config_hash(),
+    CURRENT_BLOCK_NUMBER,
+    Some("OS config hash mismatch")
 )]
 fn test_validate_proof_facts(
     default_all_resource_bounds: ValidResourceBounds,

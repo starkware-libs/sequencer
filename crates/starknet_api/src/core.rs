@@ -17,6 +17,7 @@ use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 use crate::crypto::utils::PublicKey;
 use crate::hash::{HashOutput, PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
+use crate::transaction::constants::STARKNET_OS_CONFIG_HASH_VERSION;
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
 use crate::{impl_from_through_intermediate, StarknetApiError, StarknetApiResult};
 
@@ -94,6 +95,59 @@ impl TryFrom<&ChainId> for Felt {
 impl ChainId {
     pub fn as_hex(&self) -> String {
         format!("0x{}", hex::encode(self.to_string()))
+    }
+}
+
+const DEFAULT_PUBLIC_KEYS_HASH: Felt = Felt::ZERO;
+
+fn compute_public_keys_hash(public_keys: Option<&Vec<Felt>>) -> Felt {
+    match public_keys {
+        Some(public_keys) if !public_keys.is_empty() => Pedersen::hash_array(public_keys),
+        _ => DEFAULT_PUBLIC_KEYS_HASH,
+    }
+}
+
+/// Chain information for OS execution.
+/// Contains minimal chain configuration needed for OS config hash computation.
+// TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OsChainInfo {
+    pub chain_id: ChainId,
+    pub strk_fee_token_address: ContractAddress,
+}
+
+impl Default for OsChainInfo {
+    fn default() -> Self {
+        OsChainInfo {
+            chain_id: ChainId::Other("0x0".to_string()),
+            strk_fee_token_address: ContractAddress::default(),
+        }
+    }
+}
+
+impl OsChainInfo {
+    /// Computes the OS config hash for the given chain info.
+    pub fn compute_os_config_hash(
+        &self,
+        public_keys: Option<&Vec<Felt>>,
+    ) -> Result<Felt, StarknetApiError> {
+        let mut data = vec![
+            STARKNET_OS_CONFIG_HASH_VERSION,
+            (&self.chain_id).try_into().map_err(|_| StarknetApiError::OutOfRange {
+                string: format!("Invalid chain ID (cannot convert to Felt): {:?}", self.chain_id),
+            })?,
+            self.strk_fee_token_address.into(),
+        ];
+        let public_keys_hash = compute_public_keys_hash(public_keys);
+        if public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH {
+            data.push(public_keys_hash);
+        }
+        Ok(Pedersen::hash_array(&data))
+    }
+
+    /// Computes the virtual OS config hash (without public keys).
+    pub fn compute_virtual_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
+        self.compute_os_config_hash(None)
     }
 }
 

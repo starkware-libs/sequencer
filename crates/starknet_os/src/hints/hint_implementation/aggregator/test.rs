@@ -16,7 +16,7 @@ use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::ToPrimitive;
 use rstest::rstest;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, OsChainInfo};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
@@ -38,7 +38,6 @@ use crate::hints::hint_implementation::kzg::utils::{
 };
 use crate::hints::hint_implementation::output::{MAX_PAGE_SIZE, OUTPUT_ATTRIBUTE_FACT_TOPOLOGY};
 use crate::hints::hint_implementation::stateless_compression::utils::compress;
-use crate::io::os_input::OsChainInfo;
 use crate::io::os_output_types::{
     FullContractChanges,
     FullContractStorageUpdate,
