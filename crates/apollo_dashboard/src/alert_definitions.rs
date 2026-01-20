@@ -542,6 +542,8 @@ fn get_class_manager_storage_open_read_transactions_alert() -> Alert {
 
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let mut alerts = vec![
+        get_batcher_storage_open_read_transactions_alert(),
+        get_class_manager_storage_open_read_transactions_alert(),
         get_consensus_proposal_fin_mismatch_once(),
         get_cende_write_blob_failure_once_alert(),
         get_cende_write_prev_height_blob_latency_too_high(),
@@ -560,6 +562,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_general_pod_state_crashloopbackoff(),
         get_general_pod_high_cpu_utilization(),
         get_http_server_high_deprecated_transaction_failure_ratio(),
+        get_http_server_high_transaction_failure_ratio(),
         get_http_server_internal_error_once(),
         get_http_server_no_successful_transactions(),
         get_l1_gas_price_reorg_detected_alert(),
@@ -570,9 +573,6 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_mempool_p2p_disconnections(),
         get_native_compilation_error_increase(),
         get_sync_storage_open_read_transactions_alert(),
-        get_batcher_storage_open_read_transactions_alert(),
-        get_class_manager_storage_open_read_transactions_alert(),
-        get_http_server_high_transaction_failure_ratio(),
     ];
 
     alerts.append(&mut get_batched_transactions_stuck_vec());
