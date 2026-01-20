@@ -67,7 +67,7 @@ pub trait ForestMetadata {
 #[async_trait]
 pub trait ForestReader {
     /// Input required to start reading the storage trie.
-    type InitialReadContext: InputContext + Send;
+    type InitialReadContext: InputContext + Send + Default;
 
     async fn read<'a>(
         &mut self,
@@ -182,5 +182,14 @@ pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
 
 impl<T: ForestWriter + ForestMetadata> ForestWriterWithMetadata for T {}
 
-pub trait ForestStorage: ForestReader + ForestWriterWithMetadata {}
-impl<T: ForestReader + ForestWriterWithMetadata> ForestStorage for T {}
+pub trait ForestStorageInitializer {
+    type Storage: Storage;
+    fn new(storage: Self::Storage) -> Self;
+}
+
+pub trait ForestStorage:
+    ForestReader + ForestWriterWithMetadata + ForestStorageInitializer
+{
+}
+
+impl<T: ForestReader + ForestWriterWithMetadata + ForestStorageInitializer> ForestStorage for T {}
