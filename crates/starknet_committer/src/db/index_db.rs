@@ -7,3 +7,5 @@ pub mod serde_tests;
 #[cfg(test)]
 pub mod test_utils;
 pub mod types;
+
+pub use db::{IndexDb, IndexNodeLayout};
