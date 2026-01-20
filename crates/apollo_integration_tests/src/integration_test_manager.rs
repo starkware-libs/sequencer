@@ -644,16 +644,11 @@ impl IntegrationTestManager {
         self.rpc_verify_last_block(wait_for_block).await;
     }
 
-    /// Create a simulator that's connected to the http server of Node 0.
+    /// Create a simulator that's connected to the http server of a node.
     pub fn create_simulator(&self) -> SequencerSimulator {
-        // Always connect to node 0 (the consolidated node) which is never shut down during tests
-        let node_0_setup = self
-            .running_nodes
-            .get(&0)
-            .map(|node| &(node.node_setup))
-            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
-
-        let http_server = node_0_setup.get_http_server();
+        // Always connect to node 0 (the consolidated node) which is never shut down during tests.
+        let node_setup = self.get_node_setup(Some(0));
+        let http_server = node_setup.get_http_server();
         let (_, http_server_port) = http_server
             .get_config()
             .http_server_config
@@ -720,14 +715,26 @@ impl IntegrationTestManager {
         join_all(await_alive_tasks).await;
     }
 
-    // TODO(Tsabary): resembles `create_simulator` and `fn chain_id`, consider unifying.
+    // Get a node setup. If node_index is Some(x), get node x (checking idle first, then running).
+    // If node_index is None, get the first available node, preferring idle nodes first.
+    fn get_node_setup(&self, node_index: Option<usize>) -> &NodeSetup {
+        match node_index {
+            Some(index) => self
+                .idle_nodes
+                .get(&index)
+                .or_else(|| self.running_nodes.get(&index).map(|node| &node.node_setup))
+                .unwrap_or_else(|| panic!("Node {index} does not exist in idle or running nodes")),
+            None => self
+                .idle_nodes
+                .values()
+                .next()
+                .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
+                .expect("There should be at least one running or idle node"),
+        }
+    }
+
     fn get_rpc_server_socket(&self) -> SocketAddr {
-        let node_setup = self
-            .idle_nodes
-            .values()
-            .next()
-            .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
-            .expect("There should be at least one running or idle node");
+        let node_setup = self.get_node_setup(None);
 
         let state_sync_config =
             node_setup.get_state_sync().get_config().clone().state_sync_config.unwrap();
@@ -804,8 +811,12 @@ impl IntegrationTestManager {
             )
         };
         let send_rpc_tx_fn = &mut |rpc_tx| async {
-            let node_0 = self.running_nodes.get(&0).expect("Node 0 should be running.");
-            node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
+            let node_0_setup = self
+                .idle_nodes
+                .get(&0)
+                .or_else(|| self.running_nodes.get(&0).map(|node| &node.node_setup))
+                .expect("Node 0 should be running.");
+            node_0_setup.send_rpc_tx_fn(rpc_tx).await
         };
 
         send_consensus_txs(
@@ -919,12 +930,7 @@ impl IntegrationTestManager {
 
     pub fn chain_id(&self) -> ChainId {
         // TODO(Arni): Get the chain ID from a shared canonic location.
-        let node_setup = self
-            .idle_nodes
-            .values()
-            .next()
-            .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
-            .expect("There should be at least one running or idle node");
+        let node_setup = self.get_node_setup(None);
 
         node_setup
             .get_batcher()
