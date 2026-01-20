@@ -9,6 +9,7 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Pedersen, StarkHash as StarkHashTrait};
 
 use crate::block::{
     BlockInfo,
@@ -27,6 +28,7 @@ use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
+use crate::transaction::constants::STARKNET_OS_CONFIG_HASH_VERSION;
 use crate::transaction::fields::{
     AllResourceBounds,
     Fee,
@@ -37,6 +39,15 @@ use crate::transaction::fields::{
     VIRTUAL_SNOS,
 };
 use crate::transaction::{Transaction, TransactionHash};
+
+/// OS config hash for testing.
+/// This is the Pedersen hash of [STARKNET_OS_CONFIG_HASH_VERSION, chain_id, strk_fee_token_address]
+/// computed with the test chain ID and fee token address.
+pub static TEST_OS_CONFIG_HASH: LazyLock<Felt> = LazyLock::new(|| {
+    let chain_id_felt: Felt = (&*CHAIN_ID_FOR_TESTS).try_into().expect("Invalid chain ID");
+    let strk_fee_token_address: Felt = contract_address!(TEST_ERC20_CONTRACT_ADDRESS2).into();
+    Pedersen::hash_array(&[STARKNET_OS_CONFIG_HASH_VERSION, chain_id_felt, strk_fee_token_address])
+});
 use crate::{contract_address, felt};
 
 pub mod declare;
@@ -379,9 +390,19 @@ pub(crate) fn py_json_dumps<T: ?Sized + Serialize>(value: &T) -> Result<String, 
 
 impl ProofFacts {
     /// Returns a ProofFacts instance for testing with SNOS proof facts structure.
+    /// Uses the default `TEST_OS_CONFIG_HASH` which is computed with
+    /// `TEST_ERC20_CONTRACT_ADDRESS2`.
     ///
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
+        Self::snos_proof_facts_for_testing_with_config_hash(*TEST_OS_CONFIG_HASH)
+    }
+
+    /// Returns a ProofFacts instance for testing with SNOS proof facts structure
+    /// using a custom config hash.
+    ///
+    /// Use this when the test environment uses different chain info than the defaults.
+    pub fn snos_proof_facts_for_testing_with_config_hash(config_hash: Felt) -> Self {
         let version = Felt::ZERO;
         let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
         let block_number = felt!(block_hash_history_start + 2);
@@ -393,8 +414,6 @@ impl ProofFacts {
              block hash is populated in the block-hash contract. block_number: {block_number}, \
              block_hash_history_start: {block_hash_history_start}"
         );
-        // TODO(AvivG): Change to valid values when available.
-        let config_hash = felt!("0x1");
         // These fields are not verified by the OS (they are application-related).
         let authorized_account_address = felt!("0x10");
         let messages_to_l1_segment_size = Felt::ZERO;

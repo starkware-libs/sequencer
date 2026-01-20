@@ -64,7 +64,12 @@ use starknet_os::io::os_input::{
     OsHintsConfig,
     StarknetOsInput,
 };
-use starknet_os::io::os_output::{MessageToL2, OsStateDiff, StarknetOsRunnerOutput};
+use starknet_os::io::os_output::{
+    MessageToL2,
+    OsStateDiff,
+    StarknetOsRunnerOutput,
+    STARKNET_OS_CONFIG_HASH_VERSION,
+};
 use starknet_os::io::os_output_types::{
     FullOsStateDiff,
     PartialCommitmentOsStateDiff,
@@ -492,6 +497,13 @@ impl<S: FlowTestState> TestBuilder<S> {
     /// Returns the chain ID from the initial state's block context.
     pub(crate) fn chain_id(&self) -> ChainId {
         self.initial_state.block_context.chain_info().chain_id.clone()
+    }
+
+    /// Computes the OS config hash for proof facts validation using the test environment's
+    /// chain info.
+    pub(crate) fn compute_os_config_hash(&self) -> Felt {
+        let chain_info = self.initial_state.block_context.chain_info();
+        chain_info.compute_os_config_hash().expect("Failed to compute OS config hash")
     }
 
     /// Advances the manager to the next block when adding new transactions.

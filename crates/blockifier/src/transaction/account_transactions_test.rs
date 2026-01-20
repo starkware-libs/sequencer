@@ -2244,6 +2244,14 @@ fn proof_facts_with_invalid_program_hash() -> ProofFacts {
     snos_to_proof_facts(snos_proof_facts)
 }
 
+/// Returns invalid proof_facts with a mismatched config hash.
+fn proof_facts_with_invalid_config_hash() -> ProofFacts {
+    let mut snos_proof_facts = SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing())
+        .expect("Invalid proof facts");
+    snos_proof_facts.config_hash = Felt::from(0x12345678_u64);
+    snos_to_proof_facts(snos_proof_facts)
+}
+
 /// Tests the `validate_proof_facts` function for Invoke V3 transactions.
 /// The test runs `perform_pre_validation_stage` and asserts that invalid cases
 /// fail with `InvalidProofFacts`, while valid cases pass.
@@ -2258,6 +2266,7 @@ fn proof_facts_with_invalid_program_hash() -> ProofFacts {
 #[case::block_hash_mismatched(proof_facts_with_mismatched_hash(), CURRENT_BLOCK_NUMBER, true)]
 #[case::block_hash_zero(proof_facts_with_zero_block_hash(), CURRENT_BLOCK_NUMBER, true)]
 #[case::program_hash_invalid(proof_facts_with_invalid_program_hash(), CURRENT_BLOCK_NUMBER, true)]
+#[case::config_hash_invalid(proof_facts_with_invalid_config_hash(), CURRENT_BLOCK_NUMBER, true)]
 fn test_validate_proof_facts(
     default_all_resource_bounds: ValidResourceBounds,
     #[case] proof_facts: ProofFacts,
