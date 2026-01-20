@@ -94,7 +94,9 @@ impl DbLayout for IndexNodeLayout {
 // TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
 // create_xxx_trie.
 #[async_trait]
-impl<S: Storage> ForestReader<FactsDbInitialRead> for IndexDb<S> {
+impl<S: Storage> ForestReader for IndexDb<S> {
+    type InitialReadContext = FactsDbInitialRead;
+
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.

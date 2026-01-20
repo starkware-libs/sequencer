@@ -59,10 +59,13 @@ pub trait ForestMetadata {
 /// Trait for reading an original skeleton forest from some storage.
 /// The implementation may depend on the underlying storage layout.
 #[async_trait]
-pub trait ForestReader<I: InputContext> {
+pub trait ForestReader {
+    /// Input required to start reading the storage trie.
+    type InitialReadContext: InputContext + Send;
+
     async fn read<'a>(
         &mut self,
-        context: I,
+        context: Self::InitialReadContext,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -168,5 +171,5 @@ pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
 
 impl<T: ForestWriter + ForestMetadata> ForestWriterWithMetadata for T {}
 
-pub trait ForestStorage<I: InputContext>: ForestReader<I> + ForestWriterWithMetadata {}
-impl<I: InputContext, T: ForestReader<I> + ForestWriterWithMetadata> ForestStorage<I> for T {}
+pub trait ForestStorage: ForestReader + ForestWriterWithMetadata {}
+impl<T: ForestReader + ForestWriterWithMetadata> ForestStorage for T {}

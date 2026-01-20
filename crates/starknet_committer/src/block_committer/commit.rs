@@ -6,12 +6,7 @@ use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndice
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
-use crate::block_committer::input::{
-    contract_address_into_node_index,
-    Input,
-    InputContext,
-    StateDiff,
-};
+use crate::block_committer::input::{contract_address_into_node_index, Input, StateDiff};
 use crate::block_committer::timing_util::{Action, TimeMeasurement};
 use crate::db::forest_trait::ForestReader;
 use crate::forest::filled_forest::FilledForest;
@@ -26,8 +21,8 @@ pub type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 // TODO(Yoav): Remove this trait when the index layout is ready.
 #[async_trait]
 pub trait CommitBlockTrait: Send {
-    async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
-        input: Input<I>,
+    async fn commit_block<Reader: ForestReader + Send>(
+        input: Input<Reader::InitialReadContext>,
         trie_reader: &mut Reader,
         mut time_measurement: Option<&mut TimeMeasurement>,
     ) -> BlockCommitmentResult<FilledForest> {

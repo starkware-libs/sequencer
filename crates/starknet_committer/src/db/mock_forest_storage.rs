@@ -59,7 +59,9 @@ impl<S: Storage> ForestMetadata for MockForestStorage<S> {
 }
 
 #[async_trait]
-impl<S: Storage> ForestReader<MockIndexInitialRead> for MockForestStorage<S> {
+impl<S: Storage> ForestReader for MockForestStorage<S> {
+    type InitialReadContext = MockIndexInitialRead;
+
     async fn read<'a>(
         &mut self,
         _context: MockIndexInitialRead,
