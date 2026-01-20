@@ -34,10 +34,9 @@ impl<S: FlowTestState> TestRunner<S> {
     pub(crate) fn run_virtual(self) -> VirtualOsTestOutput {
         // Create expected values before running the virtual OS (os_hints is consumed).
         let first_block = self.os_hints.os_input.os_block_inputs.first().unwrap();
-        // The virtual os does support state diff encryption.
-        let public_keys = None;
+        // The virtual os does not support state diff encryption.
         let config_hash =
-            self.os_hints.os_hints_config.chain_info.compute_os_config_hash(public_keys).unwrap();
+            self.os_hints.os_hints_config.chain_info.compute_virtual_os_config_hash().unwrap();
 
         let messages_to_l1_hashes = compute_messages_to_l1_hashes(&self.messages_to_l1);
         let expected_virtual_os_output = VirtualOsOutput {

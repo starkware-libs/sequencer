@@ -5,7 +5,7 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
-use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::core::{ChainId, ContractAddress, OsChainInfo};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -211,6 +211,15 @@ impl ChainInfo {
     // That is, add to BlockContext with the signature `pub fn fee_token_address(&self)`.
     pub fn fee_token_address(&self, fee_type: &FeeType) -> ContractAddress {
         self.fee_token_addresses.get_by_fee_type(fee_type)
+    }
+}
+
+impl From<&ChainInfo> for OsChainInfo {
+    fn from(chain_info: &ChainInfo) -> Self {
+        OsChainInfo {
+            chain_id: chain_info.chain_id.clone(),
+            strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
+        }
     }
 }
 
