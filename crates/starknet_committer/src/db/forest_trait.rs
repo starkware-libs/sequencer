@@ -3,16 +3,22 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
+use starknet_api::hash::StateRoots;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::errors::SerializationResult;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
+use starknet_patricia_storage::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageResult,
+    Storage,
+};
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
-use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
 use crate::forest::filled_forest::FilledForest;
@@ -65,18 +71,23 @@ pub trait ForestReader {
 
     async fn read<'a>(
         &mut self,
-        context: Self::InitialReadContext,
+        roots: StateRoots,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>;
+
+    async fn read_roots(
+        &mut self,
+        initial_read_context: Self::InitialReadContext,
+    ) -> PatriciaStorageResult<StateRoots>;
 }
 
 /// Helper function containing layout-common read logic.
 pub(crate) async fn read_forest<'a, S, Layout>(
     storage: &mut S,
-    context: FactsDbInitialRead,
+    roots: StateRoots,
     storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     classes_updates: &'a LeafModifications<CompiledClassHash>,
     forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -89,7 +100,7 @@ where
     let (contracts_trie, original_contracts_trie_leaves) =
         create_contracts_trie::<Layout::NodeLayout>(
             storage,
-            context.0.contracts_trie_root_hash,
+            roots.contracts_trie_root_hash,
             forest_sorted_indices.contracts_trie_sorted_indices,
         )
         .await?;
@@ -104,7 +115,7 @@ where
     let classes_trie = create_classes_trie::<Layout::NodeLayout>(
         storage,
         classes_updates,
-        context.0.classes_trie_root_hash,
+        roots.classes_trie_root_hash,
         &config,
         forest_sorted_indices.classes_trie_sorted_indices,
     )
