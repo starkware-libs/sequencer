@@ -5,11 +5,14 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_committer::block_committer::input::ReaderConfig;
+use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
 use starknet_patricia_storage::storage_trait::{Storage, StorageConfigTrait};
 use validator::Validate;
 
-pub type ApolloStorage = RocksDbStorage;
+pub type ApolloStorage = CachedStorage<RocksDbStorage>;
+
+pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct CommitterConfig<C: StorageConfigTrait> {
@@ -18,8 +21,6 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
     pub storage_config: C,
     pub verify_state_diff_hash: bool,
 }
-
-pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
 
 impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {

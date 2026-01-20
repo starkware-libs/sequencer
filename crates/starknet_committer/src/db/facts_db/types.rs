@@ -58,7 +58,7 @@ impl<'a> SubTreeTrait<'a> for FactsSubTree<'a> {
     }
 }
 /// Used for reading the roots in facts layout case.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FactsDbInitialRead(pub StateRoots);
 
 impl InputContext for FactsDbInitialRead {}

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
@@ -16,9 +17,9 @@ use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
-use starknet_api::hash::{HashOutput, PoseidonHash};
+use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
+use starknet_committer::block_committer::commit::CommitBlockTrait;
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::timing_util::{
     Action,
@@ -28,19 +29,18 @@ use starknet_committer::block_committer::timing_util::{
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
-    ForestReader,
-    ForestWriterWithMetadata,
+    ForestStorageWithDefaultReadContext,
 };
-use starknet_committer::db::mock_forest_storage::{MockForestStorage, MockIndexInitialRead};
+use starknet_committer::db::index_db::db::IndexDb;
 use starknet_committer::db::serde_db_utils::{
     deserialize_felt_no_packing,
     serialize_felt_no_packing,
     DbBlockNumber,
 };
 use starknet_committer::forest::filled_forest::FilledForest;
-use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
+use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig};
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
-use starknet_patricia_storage::storage_trait::{DbValue, Storage};
+use starknet_patricia_storage::storage_trait::{DbValue, PatriciaStorageResult, Storage};
 use tracing::{debug, error, info, warn};
 
 use crate::metrics::{
@@ -59,72 +59,64 @@ use crate::metrics::{
 #[path = "committer_test.rs"]
 mod committer_test;
 
-// TODO(Yoav): Move this to committer_test.rs and use index db reader.
-pub struct CommitBlockMock;
+// 1M size cache.
+pub const CACHE_MAX_ENTRIES: usize = 1000000;
 
-#[async_trait]
-impl CommitBlockTrait for CommitBlockMock {
-    /// Sets the class trie root hash to the first class hash in the state diff.
-    async fn commit_block<Reader: ForestReader + Send, TM: TimeMeasurementTrait + Send>(
-        input: Input<Reader::InitialReadContext>,
-        _trie_reader: &mut Reader,
-        _time_measurement: &mut TM,
-    ) -> BlockCommitmentResult<FilledForest> {
-        let root_class_hash = match input.state_diff.class_hash_to_compiled_class_hash.iter().next()
-        {
-            Some(class_hash) => HashOutput(class_hash.0.0),
-            None => HashOutput::ROOT_OF_EMPTY_TREE,
-        };
-        Ok(FilledForest {
-            storage_tries: HashMap::new(),
-            contracts_trie: FilledTreeImpl {
-                tree_map: HashMap::new(),
-                root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
-            },
-            classes_trie: FilledTreeImpl { tree_map: HashMap::new(), root_hash: root_class_hash },
-        })
-    }
-}
+pub type ApolloCommitterDb = IndexDb<ApolloStorage>;
 
-pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockMock>;
+pub struct BlockCommitter;
+impl CommitBlockTrait for BlockCommitter {}
+
+pub type ApolloCommitter = Committer<ApolloStorage, ApolloCommitterDb, BlockCommitter>;
 
 pub trait StorageConstructor: Storage {
     fn create_storage(db_path: PathBuf, storage_config: Self::Config) -> Self;
 }
 
-#[cfg(test)]
-impl StorageConstructor for starknet_patricia_storage::map_storage::MapStorage {
-    fn create_storage(_db_path: PathBuf, _map_storage_config: Self::Config) -> Self {
-        Self::default()
-    }
-}
-
-impl StorageConstructor for RocksDbStorage {
+impl StorageConstructor for ApolloStorage {
     fn create_storage(db_path: PathBuf, _rocksdb_config: Self::Config) -> Self {
-        Self::open(Path::new(&db_path), RocksDbOptions::default()).unwrap()
+        let rocksdb_storage = RocksDbStorage::open(Path::new(&db_path), RocksDbOptions::default())
+            .inspect_err(|e| error!("Failed to open committer DB: {e}"))
+            .unwrap();
+        let cached_storage_config = CachedStorageConfig {
+            cache_size: NonZeroUsize::new(CACHE_MAX_ENTRIES).unwrap(),
+            cache_on_write: true,
+            include_inner_stats: true,
+        };
+        CachedStorage::new(rocksdb_storage, cached_storage_config)
     }
 }
 
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
-pub struct Committer<S: StorageConstructor, CB: CommitBlockTrait> {
+pub struct Committer<S: Storage, ForestDB, BlockCommitter>
+where
+    ForestDB: ForestStorageWithDefaultReadContext,
+    ForestDB::InitialReadContext: Default,
+    BlockCommitter: CommitBlockTrait,
+{
     /// Storage for forest operations.
-    forest_storage: MockForestStorage<S>,
+    forest_storage: ForestDB,
     /// Committer config.
     config: CommitterConfig<S::Config>,
     /// The next block number to commit.
     offset: BlockNumber,
     // Allow define the generic type CB and not use it.
-    phantom: PhantomData<CB>,
+    phantom: PhantomData<BlockCommitter>,
 }
 
-impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
-    pub async fn new(config: CommitterConfig<S::Config>) -> Self {
-        let mut forest_storage = MockForestStorage {
-            storage: S::create_storage(config.db_path.clone(), config.storage_config.clone()),
-        };
+impl<S, ForestDB, BlockCommitter> Committer<S, ForestDB, BlockCommitter>
+where
+    S: StorageConstructor,
+    ForestDB: ForestStorageWithDefaultReadContext<Storage = S>,
+    ForestDB::InitialReadContext: Default,
+    BlockCommitter: CommitBlockTrait,
+{
+    pub async fn new(config: CommitterConfig<S::Config>) -> PatriciaStorageResult<Self> {
+        let storage = S::create_storage(config.db_path.clone(), config.storage_config.clone());
+        let mut forest_storage = ForestDB::new(storage);
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
         info!("Initializing committer with offset: {offset}");
-        Self { forest_storage, config, offset, phantom: PhantomData }
+        Ok(Self { forest_storage, config, offset, phantom: PhantomData })
     }
 
     /// Commits a block to the forest.
@@ -364,7 +356,9 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         Ok(GlobalRoot(deserialize_felt_no_packing(&db_value)))
     }
 
-    async fn load_offset_or_panic(forest_storage: &mut MockForestStorage<S>) -> BlockNumber {
+    async fn load_offset_or_panic(
+        forest_storage: &mut (impl ForestMetadata + Send),
+    ) -> BlockNumber {
         let db_offset = forest_storage
             .read_metadata(ForestMetadataType::CommitmentOffset)
             .await
@@ -397,12 +391,13 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     ) -> CommitterResult<(FilledForest, GlobalRoot)> {
         let input = Input {
             state_diff: state_diff.into(),
-            initial_read_context: MockIndexInitialRead {},
+            initial_read_context: ForestDB::InitialReadContext::default(),
             config: self.config.reader_config.clone(),
         };
-        let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
+        let filled_forest =
+            BlockCommitter::commit_block(input, &mut self.forest_storage, time_measurement)
+                .await
+                .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();
         Ok((filled_forest, global_root))
     }

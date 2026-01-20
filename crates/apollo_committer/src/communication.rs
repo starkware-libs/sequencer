@@ -3,6 +3,7 @@ use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
 use starknet_committer::block_committer::commit::CommitBlockTrait;
+use starknet_committer::db::forest_trait::ForestStorageWithDefaultReadContext;
 
 use crate::committer::{ApolloCommitter, Committer, StorageConstructor};
 
@@ -11,8 +12,14 @@ pub type LocalCommitterServer =
 pub type RemoteCommitterServer = RemoteComponentServer<CommitterRequest, CommitterResponse>;
 
 #[async_trait]
-impl<S: StorageConstructor, CB: CommitBlockTrait>
-    ComponentRequestHandler<CommitterRequest, CommitterResponse> for Committer<S, CB>
+impl<
+    S: StorageConstructor,
+    ForestDB: ForestStorageWithDefaultReadContext<Storage = S>,
+    BlockCommitter: CommitBlockTrait,
+> ComponentRequestHandler<CommitterRequest, CommitterResponse>
+    for Committer<S, ForestDB, BlockCommitter>
+where
+    ForestDB::InitialReadContext: Default,
 {
     async fn handle_request(&mut self, request: CommitterRequest) -> CommitterResponse {
         match request {
