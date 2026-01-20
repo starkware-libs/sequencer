@@ -9,6 +9,7 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    EmptyStorageConfig,
     NoStats,
     NullStorage,
     PatriciaStorageResult,
@@ -26,6 +27,7 @@ pub struct BorrowedStorage<'a, S: Storage> {
 
 impl Storage for MapStorage {
     type Stats = NoStats;
+    type Config = EmptyStorageConfig;
 
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.0.insert(key, value);
@@ -158,6 +160,7 @@ impl<S: Storage> CachedStorage<S> {
 
 impl<S: Storage> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
+    type Config = EmptyStorageConfig;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads += 1;
