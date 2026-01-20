@@ -1,5 +1,6 @@
 use std::env;
 
+use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use rstest::fixture;
 use starknet_api::block::BlockNumber;
@@ -33,7 +34,7 @@ pub fn rpc_state_reader() -> RpcStateReader {
     RpcStateReader::new_with_config_from_url(
         node_url,
         ChainId::Mainnet,
-        BlockNumber(TEST_BLOCK_NUMBER),
+        BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
     )
 }
 

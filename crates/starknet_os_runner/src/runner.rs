@@ -4,10 +4,11 @@ use std::sync::Arc;
 use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
+use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
 use starknet_api::transaction::{InvokeTransaction, TransactionHash};
@@ -121,7 +122,7 @@ where
     pub(crate) storage_proofs_provider: S,
     pub(crate) virtual_block_executor: V,
     pub(crate) contract_class_manager: ContractClassManager,
-    pub(crate) block_number: BlockNumber,
+    pub(crate) block_id: BlockId,
 }
 
 #[allow(dead_code)]
@@ -136,19 +137,19 @@ where
         storage_proofs_provider: S,
         virtual_block_executor: V,
         contract_class_manager: ContractClassManager,
-        block_number: BlockNumber,
+        block_id: BlockId,
     ) -> Self {
         Self {
             classes_provider,
             storage_proofs_provider,
             virtual_block_executor,
             contract_class_manager,
-            block_number,
+            block_id,
         }
     }
 
     /// Creates the OS hints required to run the given transactions virtually
-    /// on top of the block number specified in the runner.
+    /// on top of the block ID specified in the runner.
     ///
     /// Consumes the runner.
     pub(crate) async fn create_virtual_os_hints(
@@ -161,7 +162,7 @@ where
             storage_proofs_provider,
             virtual_block_executor,
             contract_class_manager,
-            block_number,
+            block_id,
         } = self;
 
         // Clone txs since we need them after spawn_blocking for VirtualOsBlockInput.
@@ -170,7 +171,7 @@ where
         // Execute virtual block in a blocking thread pool to avoid blocking the async runtime.
         // The RPC state reader uses request::blocking which would block the tokio runtime.
         let mut execution_data = tokio::task::spawn_blocking(move || {
-            virtual_block_executor.execute(block_number, contract_class_manager, txs_for_execute)
+            virtual_block_executor.execute(block_id, contract_class_manager, txs_for_execute)
         })
         .await??;
 
@@ -180,6 +181,9 @@ where
             chain_id: chain_info.chain_id.clone(),
             strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
         };
+
+        // Extract block number from base block info for storage proofs.
+        let block_number = execution_data.base_block_info.block_context.block_info().block_number;
 
         // Fetch classes and storage proofs in parallel.
         let (classes, storage_proofs) = tokio::join!(
@@ -284,7 +288,7 @@ pub(crate) type RpcRunner = Runner<
 ///     contract_class_manager,
 /// );
 ///
-/// let runner = factory.create_runner(BlockNumber(800000));
+/// let runner = factory.create_runner(BlockId::Number(BlockNumber(800000)));
 /// let output = runner.run_os(txs).await?;
 /// ```
 #[allow(dead_code)]
@@ -308,16 +312,16 @@ impl RpcRunnerFactory {
         Self { node_url, chain_id, contract_class_manager }
     }
 
-    /// Creates a runner configured for the given block number.
+    /// Creates a runner configured for the given block ID.
     ///
     /// The runner is ready to execute transactions on top of the specified block.
     /// Each runner is single-use (consumed when `run_os` is called).
-    pub(crate) fn create_runner(&self, block_number: BlockNumber) -> RpcRunner {
+    pub(crate) fn create_runner(&self, block_id: BlockId) -> RpcRunner {
         // Create the virtual block executor for this block.
         let virtual_block_executor = RpcVirtualBlockExecutor::new(
             self.node_url.to_string(),
             self.chain_id.clone(),
-            block_number,
+            block_id,
         );
 
         // Create the storage proofs provider.
@@ -327,7 +331,7 @@ impl RpcRunnerFactory {
         let rpc_state_reader = RpcStateReader::new_with_config_from_url(
             self.node_url.to_string(),
             self.chain_id.clone(),
-            block_number,
+            block_id,
         );
 
         // Wrap in StateReaderAndContractManager for class resolution.
@@ -342,7 +346,7 @@ impl RpcRunnerFactory {
             storage_proofs_provider,
             virtual_block_executor,
             self.contract_class_manager.clone(),
-            block_number,
+            block_id,
         )
     }
 }

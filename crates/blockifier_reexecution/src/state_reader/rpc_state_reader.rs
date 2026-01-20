@@ -157,14 +157,21 @@ impl RpcStateReader {
         }
     }
 
-    /// Creates an RpcStateReader from a node URL, chain ID, and block number.
+    /// Creates an RpcStateReader from a node URL, chain ID, and block ID.
     pub fn new_with_config_from_url(
         node_url: String,
         chain_id: ChainId,
-        block_number: BlockNumber,
+        block_id: BlockId,
     ) -> Self {
         let config = RpcStateReaderConfig::from_url(node_url);
-        Self::new(&config, chain_id, block_number, false)
+        let contract_class_mapping_dumper = Arc::new(Mutex::new(None));
+        Self {
+            config,
+            block_id,
+            retry_config: RetryConfig::default(),
+            chain_id,
+            contract_class_mapping_dumper,
+        }
     }
 
     pub fn new_for_testing(block_number: BlockNumber) -> Self {
