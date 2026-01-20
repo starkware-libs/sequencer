@@ -8,7 +8,8 @@ use tracing::info;
 async fn main() {
     integration_test_setup("positive").await;
     const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(15);
-    const N_INVOKE_TXS: usize = 50;
+    const N_INVOKE_TXS: usize = 25;
+    const N_INVOKE_TXS_WITH_PROOF: usize = 25;
     const N_L1_HANDLER_TXS: usize = 2;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 3;
@@ -42,7 +43,12 @@ async fn main() {
 
     // Run the test.
     integration_test_manager
-        .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR)
+        .send_txs_and_verify(
+            N_INVOKE_TXS,
+            N_INVOKE_TXS_WITH_PROOF,
+            N_L1_HANDLER_TXS,
+            BLOCK_TO_WAIT_FOR,
+        )
         .await;
 
     info!("Shutting down nodes.");

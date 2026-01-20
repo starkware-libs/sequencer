@@ -104,7 +104,8 @@ impl SequencerSimulator {
             self.send_txs(
                 tx_generator,
                 &ConsensusTxs {
-                    n_invoke_txs: N_TXS,
+                    n_invoke_txs: N_TXS / 2,
+                    n_invoke_txs_with_proof: N_TXS / 2,
                     // TODO(Arni): Add non-zero value.
                     n_l1_handler_txs: 0,
                 },

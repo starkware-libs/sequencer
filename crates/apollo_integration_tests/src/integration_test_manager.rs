@@ -628,15 +628,16 @@ impl IntegrationTestManager {
     pub async fn send_txs_and_verify(
         &mut self,
         n_invoke_txs: usize,
+        n_invoke_txs_with_proof: usize,
         n_l1_handler_txs: usize,
         wait_for_block: BlockNumber,
     ) {
         info!(
-            "Sending {} invoke + {} l1handler txs and waiting for block {}.",
-            n_invoke_txs, n_l1_handler_txs, wait_for_block
+            "Sending {} invoke + {} invoke with proof + {} l1handler txs and waiting for block {}.",
+            n_invoke_txs, n_invoke_txs_with_proof, n_l1_handler_txs, wait_for_block
         );
         self.test_and_verify(
-            ConsensusTxs { n_invoke_txs, n_l1_handler_txs },
+            ConsensusTxs { n_invoke_txs, n_invoke_txs_with_proof, n_l1_handler_txs },
             DEFAULT_SENDER_ACCOUNT,
             wait_for_block,
         )
