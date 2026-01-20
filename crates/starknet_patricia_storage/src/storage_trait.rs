@@ -11,6 +11,8 @@ use validator::Validate;
 
 use crate::errors::DeserializationError;
 
+use crate::errors::DeserializationError;
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
 
