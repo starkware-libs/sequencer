@@ -1,10 +1,9 @@
-use std::convert::TryInto;
 use std::error::Error;
 use std::fs::OpenOptions;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
+use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
@@ -26,6 +25,8 @@ pub enum FsProofStorageError {
     IoError(#[from] std::io::Error),
     #[error("Proof for facts_hash {facts_hash} not found.")]
     ProofNotFound { facts_hash: Felt },
+    #[error(transparent)]
+    ProofEncodingError(#[from] ProofEncodingError),
 }
 
 type FsProofStorageResult<T> = Result<T, FsProofStorageError>;
@@ -107,22 +108,15 @@ impl FsProofStorage {
             .expect("Failing to open file with given options is impossible");
 
         let mut writer = BufWriter::new(file);
-        // Pre-allocate exactly enough space, 4 bytes per u32.
-        // TODO(Einat): Use the struct `ProofBytes` for this conversion.
-        let mut buf: Vec<u8> = Vec::with_capacity(proof.len() * std::mem::size_of::<u32>());
-
-        for &value in proof.iter() {
-            buf.extend_from_slice(&value.to_be_bytes());
-        }
+        let proof_bytes = ProofBytes::try_from(proof.clone())?;
 
         // Single write.
-        writer.write_all(&buf)?;
+        writer.write_all(&proof_bytes.0)?;
         writer.flush()?;
         Ok(())
     }
 
     /// Reads a proof from a file in binary format.
-    #[allow(dead_code)]
     fn read_proof_from_file(&self, facts_hash: Felt) -> FsProofStorageResult<Proof> {
         let file_path = self.get_persistent_dir(facts_hash).join("proof");
         let mut file = std::fs::File::open(file_path)?;
@@ -130,16 +124,8 @@ impl FsProofStorage {
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
 
-        if buffer.len() % 4 != 0 {
-            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "Corrupt file").into());
-        }
-
-        let proof_data = buffer
-            .chunks_exact(4)
-            .map(|c| u32::from_be_bytes(c.try_into().expect("4 bytes should fit in a u32")))
-            .collect();
-
-        Ok(Proof(Arc::new(proof_data)))
+        let proof_bytes = ProofBytes(buffer);
+        Ok(proof_bytes.into())
     }
 
     fn write_proof_atomically(&self, facts_hash: Felt, proof: Proof) -> FsProofStorageResult<()> {

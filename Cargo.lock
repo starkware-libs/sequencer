@@ -2283,6 +2283,7 @@ dependencies = [
  "apollo_proof_manager_types",
  "async-trait",
  "hex",
+ "proving_utils",
  "starknet-types-core",
  "starknet_api",
  "tempfile",

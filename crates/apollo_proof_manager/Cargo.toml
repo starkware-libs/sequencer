@@ -19,6 +19,7 @@ apollo_proof_manager_config.workspace = true
 apollo_proof_manager_types.workspace = true
 async-trait.workspace = true
 hex.workspace = true
+proving_utils.workspace = true
 starknet-types-core = { workspace = true, features = ["hash"] }
 starknet_api.workspace = true
 tempfile.workspace = true
