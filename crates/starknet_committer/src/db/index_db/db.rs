@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use async_trait::async_trait;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, PATRICIA_KEY_UPPER_BOUND};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
@@ -18,10 +19,18 @@ use starknet_patricia_storage::storage_trait::{
     PatriciaStorageResult,
     Storage,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
-use crate::db::forest_trait::{read_forest, serialize_forest, ForestReader, ForestWriter};
+use crate::db::forest_trait::{
+    read_forest,
+    serialize_forest,
+    ForestMetadata,
+    ForestMetadataType,
+    ForestReader,
+    ForestWriter,
+};
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
     IndexLayoutContractState,
@@ -39,6 +48,40 @@ use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkele
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
+
+/// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
+pub(crate) static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
+    LazyLock::new(|| Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND) + Felt::ONE);
+
+/// The db key prefix of nodes in the contracts trie.
+///
+/// Set to FIRST_AVAILABLE_PREFIX_FELT
+pub(crate) static CONTRACTS_TREE_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| FIRST_AVAILABLE_PREFIX_FELT.to_bytes_be());
+
+/// The db key prefix of nodes in the contracts trie.
+///
+/// Set to FIRST_AVAILABLE_PREFIX_FELT + 1
+pub(crate) static CLASSES_TREE_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (*FIRST_AVAILABLE_PREFIX_FELT + Felt::ONE).to_bytes_be());
+
+/// The db key prefix of the commitment offset.
+///
+/// Set to FIRST_AVAILABLE_PREFIX_FELT + 2
+static COMMITMENT_OFFSET_METADATA_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (*FIRST_AVAILABLE_PREFIX_FELT + Felt::TWO).to_bytes_be());
+
+/// The db key prefix of the block number to state diff hash mapping.
+///
+/// Set to FIRST_AVAILABLE_PREFIX_FELT + 3
+static STATE_DIFF_HASH_METADATA_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (*FIRST_AVAILABLE_PREFIX_FELT + Felt::THREE).to_bytes_be());
+
+/// The db key prefix of the block number to state root mapping.
+///
+/// Set to FIRST_AVAILABLE_PREFIX_FELT + 4
+static STATE_ROOT_METADATA_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (*FIRST_AVAILABLE_PREFIX_FELT + Felt::from_hex_unchecked("4")).to_bytes_be());
 
 pub struct IndexDb<S: Storage> {
     storage: S,
@@ -168,6 +211,42 @@ impl<S: Storage> ForestWriter for IndexDb<S> {
             .await
             .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
         n_updates
+    }
+}
+
+#[async_trait]
+impl<S: Storage> ForestMetadata for IndexDb<S> {
+    fn metadata_key(metadata_type: ForestMetadataType) -> DbKey {
+        match metadata_type {
+            // Padding to 64byte keys to keep the 32byte prefix aligned between metadata and
+            // patricia nodes.
+            ForestMetadataType::CommitmentOffset => {
+                let mut key = Vec::with_capacity(64);
+                key.extend_from_slice(&*COMMITMENT_OFFSET_METADATA_PREFIX);
+                key.extend_from_slice(&[0u8; 32]);
+                DbKey(key)
+            }
+            ForestMetadataType::StateDiffHash(block_number) => {
+                let mut key = Vec::with_capacity(64);
+                key.extend_from_slice(&*STATE_DIFF_HASH_METADATA_PREFIX);
+                let block_number_bytes: [u8; 8] = block_number.serialize();
+                key.extend_from_slice(&block_number_bytes);
+                key.extend_from_slice(&[0u8; 24]);
+                DbKey(key)
+            }
+            ForestMetadataType::StateRoot(block_number) => {
+                let mut key = Vec::with_capacity(64);
+                key.extend_from_slice(&*STATE_ROOT_METADATA_PREFIX);
+                let block_number_bytes: [u8; 8] = block_number.serialize();
+                key.extend_from_slice(&block_number_bytes);
+                key.extend_from_slice(&[0u8; 24]);
+                DbKey(key)
+            }
+        }
+    }
+
+    async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
+        Ok(self.storage.get(&db_key).await?)
     }
 }
 
