@@ -29,8 +29,9 @@ use crate::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
     ForestReader,
-    ForestStorageInitializer,
+    ForestStorageWithDefaultReadContext,
     ForestWriter,
+    StorageInitializer,
 };
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
@@ -80,7 +81,7 @@ pub struct IndexDb<S: Storage> {
     storage: S,
 }
 
-impl<S: Storage> ForestStorageInitializer for IndexDb<S> {
+impl<S: Storage> StorageInitializer for IndexDb<S> {
     type Storage = S;
     fn new(storage: Self::Storage) -> Self {
         Self { storage }
@@ -239,6 +240,8 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
         Ok(self.storage.get(&db_key).await?)
     }
 }
+
+impl<S: Storage> ForestStorageWithDefaultReadContext for IndexDb<S> {}
 
 fn extract_root_hash<L: Leaf>(root: &Option<DbValue>) -> Result<HashOutput, DeserializationError>
 where

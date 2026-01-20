@@ -22,8 +22,8 @@ use crate::db::forest_trait::{
     ForestMetadata,
     ForestMetadataType,
     ForestReader,
-    ForestStorageInitializer,
     ForestWriter,
+    StorageInitializer,
 };
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
@@ -116,7 +116,7 @@ impl<S: Storage> ForestWriter for MockForestStorage<S> {
     }
 }
 
-impl<S: Storage> ForestStorageInitializer for MockForestStorage<S> {
+impl<S: Storage> StorageInitializer for MockForestStorage<S> {
     type Storage = S;
     fn new(storage: Self::Storage) -> Self {
         Self { storage }
