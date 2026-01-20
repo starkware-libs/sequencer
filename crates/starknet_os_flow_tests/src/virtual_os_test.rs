@@ -195,8 +195,14 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
     };
 
     let selector = selector_from_name("test_get_execution_info_v3");
-    let proof_facts =
-        if virtual_os { ProofFacts::default() } else { ProofFacts::snos_proof_facts_for_testing() };
+    let proof_facts = if virtual_os {
+        // Non-empty proof facts are not supported in virtual OS mode.
+        ProofFacts::default()
+    } else {
+        ProofFacts::snos_proof_facts_for_testing_with_config_hash(
+            test_builder.compute_os_config_hash(),
+        )
+    };
     let expected_execution_info = ExpectedExecutionInfo {
         version: TransactionVersion::THREE,
         account_address: *FUNDED_ACCOUNT_ADDRESS,
