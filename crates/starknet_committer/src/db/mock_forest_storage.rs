@@ -19,6 +19,7 @@ use starknet_patricia_storage::storage_trait::{
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::db::forest_trait::{
+    EmptyInitialReadContext,
     ForestMetadata,
     ForestMetadataType,
     ForestReader,
@@ -33,10 +34,16 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 pub const EMPTY_DB_KEY_SEPARATOR: &[u8] = b"";
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct MockIndexInitialRead {}
 
 impl InputContext for MockIndexInitialRead {}
+
+impl EmptyInitialReadContext for MockIndexInitialRead {
+    fn create_empty() -> Self {
+        Self {}
+    }
+}
 
 // TODO(Yoav): Remove this once we have a real storage implementation.
 pub struct MockForestStorage<S: Storage> {

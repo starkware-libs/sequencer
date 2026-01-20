@@ -67,7 +67,7 @@ pub trait ForestMetadata {
 #[async_trait]
 pub trait ForestReader {
     /// Input required to start reading the storage trie.
-    type InitialReadContext: InputContext + Send + Default;
+    type InitialReadContext: InputContext + Send;
 
     async fn read<'a>(
         &mut self,
@@ -190,3 +190,33 @@ pub trait StorageInitializer {
 pub trait ForestStorage: ForestReader + ForestWriterWithMetadata + StorageInitializer {}
 
 impl<T: ForestReader + ForestWriterWithMetadata + StorageInitializer> ForestStorage for T {}
+
+/// Trait for initial read contexts that can be created without external input.
+pub trait EmptyInitialReadContext: InputContext {
+    fn create_empty() -> Self;
+}
+
+/// ForestReader with empty initial read context.
+pub trait ForestReaderWithEmptyContext:
+    ForestReader<InitialReadContext: EmptyInitialReadContext>
+{
+}
+
+impl<T> ForestReaderWithEmptyContext for T where
+    T: ForestReader<InitialReadContext: EmptyInitialReadContext>
+{
+}
+
+/// Marker trait for storage types that can initialize their read context without external input.
+///
+/// Types that require external context (e.g., `FactsDb` which needs roots provided externally as
+/// they are not part of the committer storage) should NOT implement this trait.
+pub trait ForestStorageWithEmptyReadContext:
+    ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
+{
+}
+
+impl<T> ForestStorageWithEmptyReadContext for T where
+    T: ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
+{
+}
