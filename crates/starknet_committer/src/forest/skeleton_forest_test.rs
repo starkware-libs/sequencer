@@ -307,6 +307,8 @@ async fn test_create_original_skeleton_forest(
     #[case] expected_contracts_trie_sorted_indices: Vec<u128>,
     #[case] expected_classes_trie_sorted_indices: Vec<u128>,
 ) {
+    use crate::db::forest_trait::ForestStorageInitializer;
+
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
         get_all_modified_indices(&input.state_diff);
     let forest_sorted_indices = ForestSortedIndices {
@@ -320,7 +322,8 @@ async fn test_create_original_skeleton_forest(
 
     let actual_storage_updates = input.state_diff.actual_storage_updates();
     let actual_classes_updates = input.state_diff.actual_classes_updates();
-    let (actual_forest, original_contracts_trie_leaves) = FactsDb::new(storage)
+    let mut facts_db: FactsDb<MapStorage> = ForestStorageInitializer::new(storage);
+    let (actual_forest, original_contracts_trie_leaves) = facts_db
         .read(
             input.initial_read_context.0,
             &actual_storage_updates,
