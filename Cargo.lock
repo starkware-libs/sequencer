@@ -1041,7 +1041,6 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
- "apollo_proc_macros",
  "assert_matches",
  "async-trait",
  "blockifier",
