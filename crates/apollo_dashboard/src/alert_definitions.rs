@@ -52,6 +52,7 @@ use crate::alert_scenarios::infra_alerts::{
     get_general_pod_memory_utilization_vec,
     get_general_pod_state_crashloopbackoff,
     get_general_pod_state_not_ready,
+    get_periodic_ping,
 };
 use crate::alert_scenarios::l1_gas_prices::{
     get_eth_to_strk_success_count_alert_vec,
@@ -572,6 +573,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_mempool_add_tx_idle(),
         get_mempool_p2p_disconnections(),
         get_native_compilation_error_increase(),
+        get_periodic_ping(),
         get_sync_storage_open_read_transactions_alert(),
     ];
 

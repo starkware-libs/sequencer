@@ -187,3 +187,25 @@ pub(crate) fn get_general_pod_disk_utilization_vec() -> Vec<Alert> {
         ),
     ]
 }
+
+pub(crate) fn get_periodic_ping() -> Alert {
+    Alert::new(
+        "periodic_ping",
+        "Periodic Ping",
+        AlertGroup::General,
+        // Checks if the UTC time is 7:55 AM on Sunday.
+        "(day_of_week() == bool 0) * (hour() == bool 7) * (minute() == bool 55)",
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        // The alert will be evaluated every 30 seconds, which should suffice to catch the 1-minute
+        // long ping.
+        "30s",
+        30,
+        AlertSeverity::Regular,
+        ObserverApplicability::Applicable,
+        AlertEnvFiltering::All,
+    )
+}
