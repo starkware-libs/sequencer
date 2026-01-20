@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -12,6 +13,7 @@ use starknet_patricia_storage::storage_trait::{
     DbKey,
     DbKeyPrefix,
     DbValue,
+    PatriciaStorageResult,
     Storage,
 };
 
@@ -64,7 +66,7 @@ impl<S: Storage> ForestReader for MockForestStorage<S> {
 
     async fn read<'a>(
         &mut self,
-        _context: MockIndexInitialRead,
+        _roots: StateRoots,
         _storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         _classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -82,6 +84,16 @@ impl<S: Storage> ForestReader for MockForestStorage<S> {
             },
             HashMap::new(),
         ))
+    }
+
+    async fn read_roots(
+        &mut self,
+        _initial_read_context: Self::InitialReadContext,
+    ) -> PatriciaStorageResult<StateRoots> {
+        Ok(StateRoots {
+            contracts_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+            classes_trie_root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        })
     }
 }
 
