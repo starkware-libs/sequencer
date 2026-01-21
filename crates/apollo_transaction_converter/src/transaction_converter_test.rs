@@ -28,6 +28,17 @@ fn invoke_tx_with_proof(proof_facts: ProofFacts, proof: Proof) -> RpcTransaction
     invoke_tx_client_side_proving(CairoVersion::Cairo1(RunnableCairo1::Casm), proof_facts, proof)
 }
 
+/// Creates a transaction converter with empty class manager mock.
+fn create_transaction_converter(
+    mock_proof_manager_client: MockProofManagerClient,
+) -> TransactionConverter {
+    TransactionConverter::new(
+        Arc::new(MockClassManagerClient::new()),
+        Arc::new(mock_proof_manager_client),
+        ChainInfo::create_for_testing().chain_id,
+    )
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_compiled_class_hash_mismatch() {
@@ -84,13 +95,7 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts() {
         .with(eq(proof_facts))
         .return_once(|_| Ok(false));
 
-    let mock_class_manager_client = MockClassManagerClient::new();
-
-    let transaction_converter = TransactionConverter::new(
-        Arc::new(mock_class_manager_client),
-        Arc::new(mock_proof_manager_client),
-        ChainInfo::create_for_testing().chain_id,
-    );
+    let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
     // Convert the RPC transaction to an internal RPC transaction.
     transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
@@ -104,13 +109,7 @@ async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
 
     // Mock proof manager client expects NO calls to contains proof or set proof.
     let mock_proof_manager_client = MockProofManagerClient::new();
-    let mock_class_manager_client = MockClassManagerClient::new();
-
-    let transaction_converter = TransactionConverter::new(
-        Arc::new(mock_class_manager_client),
-        Arc::new(mock_proof_manager_client),
-        ChainInfo::create_for_testing().chain_id,
-    );
+    let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
     // Convert the RPC transaction to an internal RPC transaction.
     // This should succeed without calling contains proof or set proof.
@@ -143,13 +142,7 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
         .with(eq(proof_facts), eq(proof))
         .return_once(|_, _| Ok(()));
 
-    let mock_class_manager_client = MockClassManagerClient::new();
-
-    let transaction_converter = TransactionConverter::new(
-        Arc::new(mock_class_manager_client),
-        Arc::new(mock_proof_manager_client),
-        ChainInfo::create_for_testing().chain_id,
-    );
+    let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
     // Convert the consensus transaction to an internal consensus transaction.
     // This should call contains proof and set proof.
@@ -185,11 +178,7 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof() {
         .with(eq(proof_facts))
         .return_once(move |_| Ok(Some(proof)));
 
-    let transaction_converter = TransactionConverter::new(
-        Arc::new(MockClassManagerClient::new()),
-        Arc::new(mock_proof_manager_client),
-        ChainInfo::create_for_testing().chain_id,
-    );
+    let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
     // Execute round-trip conversion.
     let internal_tx =
