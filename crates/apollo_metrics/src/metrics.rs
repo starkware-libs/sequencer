@@ -58,6 +58,7 @@ impl Metric {
 // Access common metric details.
 pub trait MetricDetails {
     fn get_name(&self) -> &'static str;
+    fn get_name_with_node_index(&self, node_idx: usize) -> &'static str;
     fn get_scope(&self) -> MetricScope;
     fn get_description(&self) -> &'static str;
 }
@@ -106,6 +107,13 @@ impl MetricDetails for Metric {
         self.name
     }
 
+    fn get_name_with_node_index(&self, node_idx: usize) -> &'static str {
+        println!("TEMPDEBUG33: Node {node_idx}");
+        let a = self.get_name();
+        println!("TEMPDEBUG34: Node {node_idx}");
+        a
+    }
+
     fn get_scope(&self) -> MetricScope {
         self.scope
     }
@@ -124,6 +132,13 @@ impl<T> MetricDetails for T
 where
     T: HasMetricDetails,
 {
+    fn get_name_with_node_index(&self, node_idx: usize) -> &'static str {
+        println!("TEMPDEBUG31: Node {node_idx}");
+        let a = self.get_metric_description().get_name();
+        println!("TEMPDEBUG32: Node {node_idx}");
+        a
+    }
+
     fn get_name(&self) -> &'static str {
         self.get_metric_description().get_name()
     }

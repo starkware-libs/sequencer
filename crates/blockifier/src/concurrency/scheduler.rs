@@ -165,7 +165,10 @@ impl Scheduler {
     }
 
     pub fn get_n_committed_txs(&self) -> usize {
-        *self.commit_index.lock().unwrap()
+        println!("TEMPDEBUG414");
+        let res = self.commit_index.lock();
+        println!("TEMPDEBUG415: {:?}", res);
+        *res.expect("Failed to lock commit index")
     }
 
     pub fn halt(&self) {

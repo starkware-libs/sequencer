@@ -550,6 +550,7 @@ impl IntegrationTestManager {
                     max_attempts,
                     running_node_setup.batcher_monitoring_client(),
                     batcher_logger,
+                    39,
                 ),
                 await_sync_block(
                     interval_ms,

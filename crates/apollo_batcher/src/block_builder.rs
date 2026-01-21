@@ -320,8 +320,11 @@ impl BlockBuilder {
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let res = self.build_block_inner().await;
+        info!("TEMPDEBUG219");
         if res.is_err() {
+            info!("TEMPDEBUG220");
             self.executor.lock().await.abort_block();
+            info!("TEMPDEBUG221");
         }
         res
     }
@@ -331,16 +334,21 @@ impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut final_n_executed_txs: Option<usize> = None;
         while !self.finished_block_txs(final_n_executed_txs) {
+            info!("TEMPDEBUG101");
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
                 if self.execution_params.is_validator {
+                    info!("TEMPDEBUG201");
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
+                info!("TEMPDEBUG202");
                 record_block_close_reason(BlockCloseReason::Deadline);
                 break;
             }
 
+            info!("TEMPDEBUG203");
             if self.should_finish_due_to_timeout_while_propose() {
+                info!("TEMPDEBUG204");
                 let now = tokio::time::Instant::now();
                 let time_since_start = now.duration_since(self.block_building_start);
                 info!(
@@ -348,36 +356,53 @@ impl BlockBuilder {
                      started (timeout is set to {:?}), finishing block building.",
                     time_since_start, self.execution_params.proposer_idle_detection_delay,
                 );
+                info!("TEMPDEBUG205");
                 record_block_close_reason(BlockCloseReason::IdleExecutionTimeout);
                 break;
             }
+            info!("TEMPDEBUG206");
             if final_n_executed_txs.is_none() {
+                info!("TEMPDEBUG207");
                 if let Some(res) = self.tx_provider.get_final_n_executed_txs().await {
                     info!("Received final number of transactions in block proposal: {res}.");
+                    info!("TEMPDEBUG208");
                     final_n_executed_txs = Some(res);
                 }
             }
+            info!("TEMPDEBUG209");
             if self.abort_signal_receiver.try_recv().is_ok() {
+                info!("TEMPDEBUG210");
                 info!("Received abort signal. Aborting block builder.");
                 return Err(BlockBuilderError::Aborted);
             }
 
+            info!("TEMPDEBUG211");
             self.handle_executed_txs().await?;
 
+            info!("TEMPDEBUG212");
             // Check if the block is full. This is only relevant in propose mode.
             // In validate mode, this is ignored and we simply wait for the proposer to send the
             // final number of transactions in the block.
-            if !self.execution_params.is_validator && lock_executor(&self.executor).is_done() {
+            if !self.execution_params.is_validator && lock_executor(&self.executor, 0).is_done() {
+                info!("TEMPDEBUG213");
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
+                info!("TEMPDEBUG214");
                 info!("Block is full.");
                 record_block_close_reason(BlockCloseReason::FullBlock);
+                info!("TEMPDEBUG215");
                 break;
             }
 
+            info!("TEMPDEBUG216");
             match self.add_txs_to_executor().await? {
-                AddTxsToExecutorResult::NoNewTxs => self.sleep().await,
-                AddTxsToExecutorResult::NewTxs => {}
+                AddTxsToExecutorResult::NoNewTxs => {
+                    info!("TEMPDEBUG217");
+                    self.sleep().await;
+                }
+                AddTxsToExecutorResult::NewTxs => {
+                    info!("TEMPDEBUG218");
+                }
             }
         }
 
@@ -394,15 +419,19 @@ impl BlockBuilder {
             self.n_executed_txs
         };
 
+        info!("TEMPDEBUG102");
         if self.execution_params.is_validator {
             // Validator wasted txs: executed locally but not included in final block.
             let wasted = self.n_executed_txs.saturating_sub(final_n_executed_txs_nonopt);
+            info!("TEMPDEBUG103");
             VALIDATOR_WASTED_TXS.set_lossy(wasted);
         } else {
             // Proposer deferred txs: started but not executed by end of proposal.
             let not_executed = self.block_txs.len().saturating_sub(self.n_executed_txs);
+            info!("TEMPDEBUG104");
             PROPOSER_DEFERRED_TXS.set_lossy(not_executed);
         }
+        info!("TEMPDEBUG105");
         info!(
             "Finished building block as {}. Started executing {} transactions. Finished executing \
              {} transactions. Final number of transactions (as set by the proposer): {}.",
@@ -411,10 +440,12 @@ impl BlockBuilder {
             self.n_executed_txs,
             final_n_executed_txs_nonopt,
         );
+        info!("TEMPDEBUG106");
         // Sanity check to avoid panic and skip logging if numbers aren't aligned
         if final_n_executed_txs_nonopt <= self.n_executed_txs
             && self.n_executed_txs <= self.block_txs.len()
         {
+            info!("TEMPDEBUG107");
             debug!(
                 "Finished building block as {}. Transaction hashes: included in block: {:?}, \
                  proposer excluded but we executed: {:?}, not finished executing: {:?}",
@@ -434,16 +465,22 @@ impl BlockBuilder {
             );
         }
 
+        info!("TEMPDEBUG108");
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
+        info!("TEMPDEBUG109");
         let block_summary = tokio::task::spawn_blocking(move || {
-            lock_executor(&executor).close_block(final_n_executed_txs_nonopt)
+            info!("TEMPDEBUG1091");
+            lock_executor(&executor, 3).close_block(final_n_executed_txs_nonopt)
         })
         .await
         .expect("Failed to spawn blocking executor task.")?;
 
+        info!("TEMPDEBUG110");
         let mut execution_data = std::mem::take(&mut self.execution_data);
+        info!("TEMPDEBUG111");
         if let Some(final_n_executed_txs) = final_n_executed_txs {
+            info!("TEMPDEBUG112");
             // Remove the transactions that were executed, but eventually not included in the block.
             // This can happen if the proposer sends some transactions but closes the block before
             // including them, while the validator already executed those transactions.
@@ -451,6 +488,7 @@ impl BlockBuilder {
                 self.block_txs[final_n_executed_txs..].iter().map(|tx| tx.tx_hash()).collect();
             execution_data.remove_last_txs(&remove_tx_hashes);
         }
+        info!("TEMPDEBUG113");
         Ok(BlockExecutionArtifacts::new(block_summary, execution_data, final_n_executed_txs_nonopt)
             .await)
     }
@@ -523,12 +561,15 @@ impl BlockBuilder {
 
         // Start the execution of the transactions on the worker pool.
         info!("Starting execution of {} transactions.", n_txs);
-        lock_executor(&self.executor).add_txs_to_block(executor_input_chunk.as_slice());
+        info!("TEMPDEBUG99");
+        lock_executor(&self.executor, 1).add_txs_to_block(executor_input_chunk.as_slice());
+        info!("TEMPDEBUG999");
 
         if let Some(output_content_sender) = &self.output_content_sender {
             // Send the transactions to the validators.
             // Only reached in proposal flow.
             for tx in next_txs.into_iter() {
+                info!("TEMPDEBUG100");
                 output_content_sender.send(tx).map_err(Box::new)?;
             }
         }
@@ -538,12 +579,16 @@ impl BlockBuilder {
 
     /// Handles the transactions that were executed so far by the executor.
     async fn handle_executed_txs(&mut self) -> BlockBuilderResult<()> {
-        let results = lock_executor(&self.executor).get_new_results();
+        info!("TEMPDEBUG301");
+        let results = lock_executor(&self.executor, 2).get_new_results();
 
+        info!("TEMPDEBUG302");
         if results.is_empty() {
+            info!("TEMPDEBUG303");
             return Ok(());
         }
 
+        info!("TEMPDEBUG304");
         let old_n_executed_txs = self.n_executed_txs;
         self.n_executed_txs += results.len();
 
@@ -553,6 +598,7 @@ impl BlockBuilder {
             self.n_executed_txs
         );
 
+        info!("TEMPDEBUG305");
         collect_execution_results_and_stream_txs(
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
@@ -622,8 +668,17 @@ impl BlockBuilder {
 
 fn lock_executor(
     executor: &Arc<Mutex<dyn TransactionExecutorTrait>>,
+    index: usize,
 ) -> MutexGuard<'_, dyn TransactionExecutorTrait> {
-    executor.try_lock().expect("Only a single task should use the executor.")
+    info!("TEMPDEBUG401: {index}");
+    let a = executor.try_lock();
+    if a.is_err() {
+        info! {"TEMPDEBUG402: {index} {:?}", a.err()}
+        println!("TEMPDEBUG403: {index}");
+        panic!("TEMPDEBUG404: {index}");
+    }
+    info!("TEMPDEBUG405: {index}");
+    a.unwrap()
 }
 
 async fn convert_to_executable_blockifier_tx(
@@ -641,12 +696,14 @@ async fn collect_execution_results_and_stream_txs(
     execution_data: &mut BlockTransactionExecutionData,
     pre_confirmed_tx_sender: &mut Option<PreconfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
+    info!("TEMPDEBUG306");
     assert!(
         results.len() == tx_chunk.len(),
         "The number of results match the number of transactions."
     );
 
     for (input_tx, result) in tx_chunk.iter().zip(results.into_iter()) {
+        info!("TEMPDEBUG307");
         let optional_l1_handler_tx =
             if let InternalConsensusTransaction::L1Handler(l1_handler_tx) = input_tx {
                 Some(l1_handler_tx.tx.clone())

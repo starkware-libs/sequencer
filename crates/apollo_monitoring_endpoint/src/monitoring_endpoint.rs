@@ -71,7 +71,7 @@ impl MonitoringEndpoint {
         let endpoint_addr = SocketAddr::new(ip, port);
 
         let app = self.app();
-        info!("MonitoringEndpoint running using socket: {}", endpoint_addr);
+        info!("TEMPDEBUG11: MonitoringEndpoint running using socket: {}", endpoint_addr);
 
         let listener = TcpListener::bind(&endpoint_addr).await?;
         axum_08::serve(listener, app).await

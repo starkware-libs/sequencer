@@ -3,7 +3,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 
 use anyhow::Result;
-use apollo_infra_utils::run_until::run_until;
+use apollo_infra_utils::run_until::{run_until, run_until_with_node_index};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::test_utils::parse_numeric_metric;
 // TODO(victork): finalise migration to hyper 1.x
@@ -42,7 +42,7 @@ impl MonitoringClient {
     }
 
     /// Returns 'true' if the server is 'alive'.
-    async fn query_alive(&self) -> bool {
+    pub async fn query_alive(&self) -> bool {
         info!("Querying the node for aliveness.");
 
         self.client
@@ -64,6 +64,53 @@ impl MonitoringClient {
             .await
             .ok_or(())
             .map(|_| ())
+    }
+
+    pub async fn get_metrics_with_node_index(
+        &self,
+        node_idx: usize,
+    ) -> Result<String, MonitoringClientError> {
+        let interval_ms = 200;
+        let max_attempts = 25;
+
+        let logger =
+            CustomLogger::new(TraceLevel::Info, Some("Polling metrics endpoint".to_string()));
+
+        println!("TEMPDEBUG41: Node {node_idx}");
+        let executable =
+            || self.client.request(build_request(&self.socket.ip(), self.socket.port(), METRICS));
+
+        let result = run_until_with_node_index(
+            interval_ms,
+            max_attempts,
+            executable,
+            |response_result| {
+                response_result.as_ref().map(|res| res.status().is_success()).unwrap_or(false)
+            },
+            Some(logger),
+            node_idx,
+        )
+        .await;
+
+        println!("TEMPDEBUG42: Node {node_idx}");
+        match result {
+            Some(Ok(response)) => {
+                println!("TEMPDEBUG43: Node {node_idx}");
+                // Parse the response body.
+                let body_bytes = response.into_body().collect().await.unwrap().to_bytes();
+                Ok(String::from_utf8(body_bytes.to_vec()).unwrap())
+            }
+            Some(Err(err)) => {
+                println!("TEMPDEBUG44: Node {node_idx}");
+                Err(MonitoringClientError::ConnectionError { connection_error: err.to_string() })
+            }
+            None => {
+                println!("TEMPDEBUG45: Node {node_idx}");
+                Err(MonitoringClientError::ResponseStatusError {
+                    status: "Timeout or condition not met".into(),
+                })
+            }
+        }
     }
 
     pub async fn get_metrics(&self) -> Result<String, MonitoringClientError> {
@@ -103,7 +150,46 @@ impl MonitoringClient {
         }
     }
 
-    // TODO(Yael/Tsabary): add labels support
+    pub async fn get_metric_with_node_index<T: Num + FromStr + Send + Debug + 'static>(
+        &self,
+        metric_name: &str,
+        node_idx: usize,
+    ) -> Result<T, MonitoringClientError> {
+        // Todo(Tsabary): consider if these should be configurable.
+        const INTERVAL_MS: u64 = 10;
+        const MAX_ATTEMPTS: usize = 25;
+
+        let logger = CustomLogger::new(
+            TraceLevel::Info,
+            Some(format!("Polling for metric '{}'", metric_name)),
+        );
+
+        println!("TEMPDEBUG28: Node {node_idx}");
+        // Todo(Tsabary): consider changing `run_until` to return a `Result` instead of an `Option`.
+        let result = run_until(
+            INTERVAL_MS,
+            MAX_ATTEMPTS,
+            || async {
+                println!("TEMPDEBUG29: Node {node_idx}");
+                let body_string = self.get_metrics_with_node_index(node_idx).await?;
+                println!("TEMPDEBUG291: Node {node_idx}");
+                parse_numeric_metric::<T>(&body_string, metric_name, None).ok_or(
+                    MonitoringClientError::MetricNotFound { metric_name: metric_name.to_string() },
+                )
+            },
+            |result: &Result<T, MonitoringClientError>| result.is_ok(),
+            Some(logger),
+        )
+        .await;
+
+        println!("TEMPDEBUG292: Node {node_idx}");
+        result.unwrap_or(Err(MonitoringClientError::MetricNotFound {
+            metric_name: metric_name.to_string(),
+        }))
+    }
+
+    // TODO(Yael/Itay): add labels support
+    // TODO(Itay): Consider making this private
     pub async fn get_metric<T: Num + FromStr + Send + Debug + 'static>(
         &self,
         metric_name: &str,

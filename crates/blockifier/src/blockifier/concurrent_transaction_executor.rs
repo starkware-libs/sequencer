@@ -93,8 +93,11 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
     pub fn get_new_results(
         &mut self,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        println!("TEMPDEBUG406");
         let res = self.worker_executor.extract_execution_outputs(self.n_output_txs);
+        println!("TEMPDEBUG407");
         self.worker_pool.check_panic();
+        println!("TEMPDEBUG408");
         self.n_output_txs += res.len();
         res
     }

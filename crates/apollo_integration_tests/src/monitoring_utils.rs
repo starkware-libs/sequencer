@@ -1,6 +1,6 @@
 use apollo_batcher::metrics::{BUILDING_HEIGHT, REVERTED_TRANSACTIONS};
 use apollo_consensus::metrics::CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS;
-use apollo_infra_utils::run_until::run_until;
+use apollo_infra_utils::run_until::{run_until, run_until_with_node_index};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::metrics::MetricDetails;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -26,15 +26,19 @@ const ATTEMPTS_FOR_AWAIT_TXS: usize = 2500;
 /// Gets the latest block number from the batcher's metrics.
 pub async fn get_batcher_latest_block_number(
     batcher_monitoring_client: &MonitoringClient,
+    node_index: usize,
 ) -> BlockNumber {
-    BlockNumber(
+    info!("TEMPDEBUG19: Node {node_index}");
+    let a = BlockNumber(
         batcher_monitoring_client
-            .get_metric::<u64>(BUILDING_HEIGHT.get_name())
+            .get_metric_with_node_index::<u64>(BUILDING_HEIGHT.get_name_with_node_index(node_index), node_index)
             .await
             .expect("Failed to get storage height metric."),
     )
     .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
-    .expect("The height being built should be at least 1.")
+    .expect("The height being built should be at least 1.");
+    println!("TEMPDEBUG20: Node {node_index}, {a}");
+    a
 }
 
 /// Gets the latest decisions reached by consensus from the consensus metrics.
@@ -84,13 +88,21 @@ pub async fn await_batcher_block(
     max_attempts: usize,
     batcher_monitoring_client: &MonitoringClient,
     logger: CustomLogger,
+    node_index: usize,
 ) -> Result<BlockNumber, ()> {
     let get_latest_block_number_closure =
-        || get_batcher_latest_block_number(batcher_monitoring_client);
+        || get_batcher_latest_block_number(batcher_monitoring_client, node_index);
 
-    run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
-        .await
-        .ok_or(())
+    run_until_with_node_index(
+        interval,
+        max_attempts,
+        get_latest_block_number_closure,
+        condition,
+        Some(logger),
+        node_index,
+    )
+    .await
+    .ok_or(())
 }
 
 pub async fn await_sync_block(
@@ -130,6 +142,13 @@ pub async fn await_block(
             )),
         )
     });
+
+    println!("TEMPDEBUG15.");
+    let a = batcher_monitoring_client.query_alive().await;
+    println!("TEMPDEBUG16: {a}");
+    let b = state_sync_monitoring_client.query_alive().await;
+    println!("TEMPDEBUG17: {b}");
+
     // TODO(noamsp): Change this so we get both values with one metrics query.
     try_join!(
         await_batcher_block(
@@ -137,7 +156,8 @@ pub async fn await_block(
             condition,
             ATTEMPTS_FOR_BLOCK,
             batcher_monitoring_client,
-            batcher_logger
+            batcher_logger,
+            node_index
         ),
         await_sync_block(
             INTERVAL_MS,
@@ -153,6 +173,10 @@ pub async fn await_block(
             haven't been met."
         )
     });
+
+    // if node_index == 2 {
+    //     panic!("TEMPDEBUG");
+    // }
 }
 
 pub async fn verify_txs_accepted(

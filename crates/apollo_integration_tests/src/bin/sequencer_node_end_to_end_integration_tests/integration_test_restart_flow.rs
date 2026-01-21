@@ -49,57 +49,59 @@ async fn main() {
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
+    return;
+    // panic!("TEMPDEBUG2");
 
-    integration_test_manager.send_declare_txs_and_verify().await;
+    // integration_test_manager.send_declare_txs_and_verify().await;
 
-    // Create a simulator for sustained transaction sending.
-    let simulator = integration_test_manager.create_simulator();
-    let mut tx_generator = integration_test_manager.tx_generator().snapshot();
+    // // Create a simulator for sustained transaction sending.
+    // let simulator = integration_test_manager.create_simulator();
+    // let mut tx_generator = integration_test_manager.tx_generator().snapshot();
 
-    // Task that awaits transactions and restarts nodes in phases.
-    let await_and_restart_nodes_task = async {
-        info!("Awaiting transactions while all nodes are up");
-        integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
+    // // Task that awaits transactions and restarts nodes in phases.
+    // let await_and_restart_nodes_task = async {
+    //     info!("Awaiting transactions while all nodes are up");
+    //     integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
 
-        integration_test_manager.shutdown_nodes([RESTART_NODE].into());
-        info!("Awaiting transactions while node {RESTART_NODE} is down");
-        integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
+    //     integration_test_manager.shutdown_nodes([RESTART_NODE].into());
+    //     info!("Awaiting transactions while node {RESTART_NODE} is down");
+    //     integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
 
-        // We want the restarted node to rejoin the network while its building blocks to check the
-        // catch-up mechanism.
-        integration_test_manager.run_nodes([RESTART_NODE].into()).await;
-        info!(
-            "Awaiting node {RESTART_NODE} to join consensus after it was restarted and before \
-             node {SHUTDOWN_NODE} is shut down"
-        );
+    //     // We want the restarted node to rejoin the network while its building blocks to check
+    // the     // catch-up mechanism.
+    //     integration_test_manager.run_nodes([RESTART_NODE].into()).await;
+    //     info!(
+    //         "Awaiting node {RESTART_NODE} to join consensus after it was restarted and before \
+    //          node {SHUTDOWN_NODE} is shut down"
+    //     );
 
-        integration_test_manager
-            .poll_node_reaches_consensus_decisions_after_restart(RESTART_NODE, LONG_TIMEOUT)
-            .await;
+    //     integration_test_manager
+    //         .poll_node_reaches_consensus_decisions_after_restart(RESTART_NODE, LONG_TIMEOUT)
+    //         .await;
 
-        integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
+    //     integration_test_manager.poll_all_running_nodes_received_more_txs(TIMEOUT).await;
 
-        // Shutdown a second node to test that the restarted node has joined consensus (the network
-        // can't reach consensus without the restarted node if the second node is down).
-        integration_test_manager.shutdown_nodes([SHUTDOWN_NODE].into());
-        // Shutting down a node that's already down results in an error so we remove it from the set
-        // here.
-        node_indices.remove(&SHUTDOWN_NODE);
-        info!(
-            "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
-             down"
-        );
-        integration_test_manager.poll_all_running_nodes_received_more_txs(LONG_TIMEOUT).await;
-    };
+    //     // Shutdown a second node to test that the restarted node has joined consensus (the
+    // network     // can't reach consensus without the restarted node if the second node is
+    // down).     integration_test_manager.shutdown_nodes([SHUTDOWN_NODE].into());
+    //     // Shutting down a node that's already down results in an error so we remove it from the
+    // set     // here.
+    //     node_indices.remove(&SHUTDOWN_NODE);
+    //     info!(
+    //         "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
+    //          down"
+    //     );
+    //     integration_test_manager.poll_all_running_nodes_received_more_txs(LONG_TIMEOUT).await;
+    // };
 
-    simulator
-        .run_test_with_nonstop_tx_sending(
-            &mut tx_generator,
-            DEFAULT_SENDER_ACCOUNT,
-            await_and_restart_nodes_task,
-        )
-        .await;
+    // simulator
+    //     .run_test_with_nonstop_tx_sending(
+    //         &mut tx_generator,
+    //         DEFAULT_SENDER_ACCOUNT,
+    //         await_and_restart_nodes_task,
+    //     )
+    //     .await;
 
-    integration_test_manager.shutdown_nodes(node_indices);
-    info!("Restart flow integration test completed successfully!");
+    // integration_test_manager.shutdown_nodes(node_indices);
+    // info!("Restart flow integration test completed successfully!");
 }

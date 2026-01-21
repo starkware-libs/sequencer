@@ -184,8 +184,10 @@ impl<S: StateReader> WorkerExecutor<S> {
         &self,
         from_tx: usize,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        println!("TEMPDEBUG409");
         let n_committed_txs = self.scheduler.get_n_committed_txs();
-        (from_tx..n_committed_txs)
+        println!("TEMPDEBUG410");
+        let res = (from_tx..n_committed_txs)
             .map(|tx_index| {
                 let execution_output = self.extract_execution_output(tx_index);
                 execution_output
@@ -193,7 +195,9 @@ impl<S: StateReader> WorkerExecutor<S> {
                     .map(|tx_execution_info| (tx_execution_info, execution_output.state_diff))
                     .map_err(TransactionExecutorError::from)
             })
-            .collect()
+            .collect();
+        println!("TEMPDEBUG413");
+        res
     }
 
     /// Returns the transaction at the given index.
@@ -412,7 +416,10 @@ impl<S: StateReader> WorkerExecutor<S> {
 
     /// Removes the execution output of the given transaction and returns it.
     pub fn extract_execution_output(&self, tx_index: TxIndex) -> ExecutionTaskOutput {
-        self.execution_outputs.remove(&tx_index).expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).1
+        println!("TEMPDEBUG411");
+        let res = self.execution_outputs.remove(&tx_index).expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).1;
+        println!("TEMPDEBUG412");
+        res
     }
 }
 
