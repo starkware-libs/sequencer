@@ -185,3 +185,42 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
         .await
         .unwrap();
 }
+
+/// Tests round-trip conversion: RPC → Internal → RPC preserves all transaction data.
+#[rstest]
+#[tokio::test]
+async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFacts, proof: Proof) {
+    let rpc_tx =
+        invoke_tx_client_side_proving(CairoVersion::default(), proof_facts.clone(), proof.clone());
+
+    let mut mock_proof_manager_client = MockProofManagerClient::new();
+
+    // Step 1 (RPC → Internal): Converter checks if proof exists.
+    mock_proof_manager_client
+        .expect_contains_proof()
+        .once()
+        .with(eq(proof_facts.clone()))
+        .return_once(|_| Ok(false));
+
+    // Step 2 (Internal → RPC): Converter retrieves the proof to reconstruct the RPC tx.
+    mock_proof_manager_client
+        .expect_get_proof()
+        .once()
+        .with(eq(proof_facts))
+        .return_once(move |_| Ok(Some(proof)));
+
+    let transaction_converter = TransactionConverter::new(
+        Arc::new(MockClassManagerClient::new()),
+        Arc::new(mock_proof_manager_client),
+        ChainInfo::create_for_testing().chain_id,
+    );
+
+    // Execute round-trip conversion.
+    let internal_tx =
+        transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone()).await.unwrap();
+    let rpc_tx_from_internal =
+        transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
+
+    // Verify: no data lost in round-trip.
+    assert_eq!(rpc_tx, rpc_tx_from_internal);
+}
