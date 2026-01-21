@@ -3,6 +3,7 @@ use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use async_trait::async_trait;

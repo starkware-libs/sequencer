@@ -4,7 +4,7 @@ use std::process::{Command, Output, Stdio};
 
 use apollo_infra_utils::cairo0_compiler::{verify_cairo0_compiler_deps, Cairo0Script};
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
-use apollo_infra_utils::path::project_path;
+use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
 use tempfile::NamedTempFile;
 use tracing::info;
 
@@ -30,6 +30,14 @@ fn starknet_compile_binary_path(version: &String) -> PathBuf {
 /// Path to starknet-sierra-compile binary, of the specified version.
 fn starknet_sierra_compile_binary_path(version: &String) -> PathBuf {
     cairo1_package_dir(version).join("cairo/bin/starknet-sierra-compile")
+}
+
+/// Returns the path to the allowed_libfuncs.json file.
+pub fn allowed_libfuncs_json_path() -> String {
+    resolve_project_relative_path("crates/apollo_compile_to_casm/src/allowed_libfuncs.json")
+        .unwrap()
+        .to_string_lossy()
+        .to_string()
 }
 
 /// Downloads the cairo package to the local directory.
