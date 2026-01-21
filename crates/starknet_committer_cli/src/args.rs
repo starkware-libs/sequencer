@@ -39,6 +39,10 @@ pub enum BenchmarkFlavor {
     /// Use SN-MAINNET state diffs for the benchmark.
     #[value(alias("mainnet"))]
     Mainnet,
+    /// Similar to [Self::Mainnet] but with sleeps between iterations based on block timestamps:
+    /// After committing block N, sleep max(time(N+1) - time(N) - commitment_time(N), 0).
+    #[value(alias("mainnet-with-sleeps"))]
+    MainnetWithSleeps,
 }
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
