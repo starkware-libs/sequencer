@@ -27,9 +27,9 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{Action, TimeMeasurementTrait};
-use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::ForestWriter;
+use starknet_committer::db::index_db::db::IndexDb;
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;
@@ -428,7 +428,7 @@ pub async fn run_storage_benchmark<S: Storage>(
     let n_iterations = flavor.n_iterations(n_iterations);
 
     let mut classes_trie_root_hash = HashOutput::default();
-    let mut facts_db = FactsDb::new(storage);
+    let mut index_db = IndexDb::new(storage);
     for block_number in curr_block_number..n_iterations {
         info!("Committer storage benchmark iteration {}/{}", block_number + 1, n_iterations);
         // Seed is created from block number, to be independent of restarts using checkpoints.
@@ -449,12 +449,12 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         time_measurement.start_measurement(Action::EndToEnd);
         let filled_forest =
-            CommitBlockImpl::commit_block(input, &mut facts_db, &mut time_measurement)
+            CommitBlockImpl::commit_block(input, &mut index_db, &mut time_measurement)
                 .await
                 .expect("Failed to commit the given block.");
         time_measurement.start_measurement(Action::Write);
         let n_new_facts =
-            facts_db.write(&filled_forest).await.expect("failed to serialize db values");
+            index_db.write(&filled_forest).await.expect("failed to serialize db values");
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.attempt_to_stop_measurement(Action::Write, n_new_facts).unwrap();
 
@@ -462,8 +462,8 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
-            let storage_stats = facts_db.storage.get_stats();
-            facts_db.storage.reset_stats().unwrap();
+            let storage_stats = index_db.get_storage().get_stats();
+            index_db.get_mut_storage().reset_stats().unwrap();
             time_measurement.to_csv(
                 &format!("{}.csv", block_number + 1),
                 output_dir,
@@ -496,7 +496,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
 
         // If the storage supports interference (is async), apply interference.
-        if let Some(async_storage) = facts_db.storage.get_async_self() {
+        if let Some(async_storage) = index_db.get_storage().get_async_self() {
             // First, try joining all completed interference tasks.
             // Log all failed tasks but do not panic - the benchmark is still running.
             while let Some(result) = interference_task_set.try_join_next() {
@@ -529,7 +529,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         time_measurement.to_csv(
             &format!("{n_iterations}.csv"),
             output_dir,
-            facts_db.storage.get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
+            index_db.get_storage().get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
         );
     }
 
