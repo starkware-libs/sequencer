@@ -209,7 +209,7 @@ impl BenchmarkFlavor {
         rng: &mut SmallRng,
         batcher_storage_reader: Option<&StorageReader>,
     ) -> StateDiff {
-        if self == &BenchmarkFlavor::Mainnet {
+        if [BenchmarkFlavor::Mainnet, BenchmarkFlavor::MainnetWithSleeps].contains(self) {
             let block_number = u64::try_from(block_number).unwrap();
             info!("Getting state diff for mainnet block number {block_number} from storage.");
             let state_diff = batcher_storage_reader
@@ -440,7 +440,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             None
         };
 
-    let curr_block_number = time_measurement.block_number;
+    let curr_block_number = 4_000_000;
     let n_iterations = flavor.n_iterations(n_iterations);
 
     let mut classes_trie_root_hash = HashOutput::default();
