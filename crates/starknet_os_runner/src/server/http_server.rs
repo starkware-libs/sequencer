@@ -4,9 +4,15 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::{Deserialize, Serialize};
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::core::ChainId;
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
-use starknet_api::transaction::MessageToL1;
+use starknet_api::transaction::{
+    InvokeTransaction,
+    MessageToL1,
+    TransactionHash,
+    TransactionHasher,
+};
 use starknet_os::io::os_output::OsOutputError;
 
 use crate::errors::{ProvingError, RunnerError};
@@ -85,4 +91,34 @@ impl IntoResponse for HttpServerError {
 
         (status, Json(body)).into_response()
     }
+}
+
+#[allow(dead_code)]
+/// Validates that the transaction is an Invoke transaction and extracts it.
+fn extract_invoke_tx(tx: RpcTransaction) -> Result<InvokeTransaction, HttpServerError> {
+    match tx {
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_v3)) => {
+            Ok(InvokeTransaction::V3(invoke_v3.into()))
+        }
+        RpcTransaction::Declare(_) => Err(HttpServerError::InvalidTransactionType(
+            "Declare transactions are not supported; only Invoke transactions are allowed"
+                .to_string(),
+        )),
+        RpcTransaction::DeployAccount(_) => Err(HttpServerError::InvalidTransactionType(
+            "DeployAccount transactions are not supported; only Invoke transactions are allowed"
+                .to_string(),
+        )),
+    }
+}
+
+#[allow(dead_code)]
+/// Calculates the transaction hash for an invoke transaction.
+fn calculate_tx_hash(
+    invoke_tx: &InvokeTransaction,
+    chain_id: &ChainId,
+) -> Result<TransactionHash, HttpServerError> {
+    let version = invoke_tx.version();
+    invoke_tx.calculate_transaction_hash(chain_id, &version).map_err(|e| {
+        HttpServerError::ValidationError(format!("Failed to calculate transaction hash: {e}"))
+    })
 }
