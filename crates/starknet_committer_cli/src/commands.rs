@@ -55,7 +55,7 @@ static BATCHER_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| Storag
     db_config: DbConfig {
         path_prefix: PathBuf::from_str("/core-data/batcher").unwrap(),
         chain_id: ChainId::Mainnet,
-        enforce_file_exists: false,
+        enforce_file_exists: true,
         min_size: 1048576,
         max_size: 1099511627776,
         growth_step: 67108864,
@@ -67,6 +67,25 @@ static BATCHER_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| Storag
         max_object_size: 1073741824,
     },
     scope: StorageScope::StateOnly,
+});
+
+// This is based on the state sync's storage configuration on mainnet.
+static STATE_SYNC_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| StorageConfig {
+    db_config: DbConfig {
+        path_prefix: PathBuf::from_str("/core-data/state_sync").unwrap(),
+        chain_id: ChainId::Mainnet,
+        enforce_file_exists: true,
+        min_size: 1048576,
+        max_size: 1099511627776,
+        growth_step: 67108864,
+        max_readers: 8192,
+    },
+    mmap_file_config: MmapFileConfig {
+        max_size: 1099511627776,
+        growth_step: 2147483648,
+        max_object_size: 1073741824,
+    },
+    scope: StorageScope::FullArchive,
 });
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
@@ -191,7 +210,7 @@ impl BenchmarkFlavor {
         rng: &mut SmallRng,
         batcher_storage_reader: Option<&StorageReader>,
     ) -> StateDiff {
-        if self == &BenchmarkFlavor::Mainnet {
+        if self.is_mainnet_flavor() {
             let block_number = u64::try_from(block_number).unwrap();
             info!("Getting state diff for mainnet block number {block_number} from storage.");
             let state_diff = batcher_storage_reader
@@ -413,18 +432,32 @@ pub async fn run_storage_benchmark<S: Storage>(
         None => HashOutput::default(),
     };
 
-    let batcher_storage_reader: Option<StorageReader> = if flavor == BenchmarkFlavor::Mainnet {
+    let batcher_storage_reader: Option<StorageReader> = if flavor.is_mainnet_flavor() {
         Some(open_storage(BATCHER_STORAGE_CONFIG.clone()).unwrap().0)
     } else {
         None
     };
 
-    // TODO(Nimrod): Get real reader for MainnetWithSleeps flavor.
-    let state_sync_storage_reader = None;
-    // TODO(Nimrod): Calculate real time offset for MainnetWithSleeps flavor.
-    let time_offset = 0_u64;
-
     let curr_block_number = time_measurement.block_number;
+    let state_sync_storage_reader_and_time_offset: Option<(StorageReader, u64)> =
+        if flavor == BenchmarkFlavor::MainnetWithSleeps {
+            let storage_reader = open_storage(STATE_SYNC_STORAGE_CONFIG.clone()).unwrap().0;
+            let first_block_timestamp = storage_reader
+                .begin_ro_txn()
+                .unwrap()
+                .get_block_header(BlockNumber(u64::try_from(curr_block_number).unwrap()))
+                .unwrap()
+                .unwrap()
+                .block_header_without_hash
+                .timestamp
+                .0;
+            let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+            let time_offset = now.checked_sub(first_block_timestamp).unwrap();
+            Some((storage_reader, time_offset))
+        } else {
+            None
+        };
+
     let n_iterations = flavor.n_iterations(n_iterations);
 
     let mut classes_trie_root_hash = HashOutput::default();
@@ -487,8 +520,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         maybe_sleep_between_iterations(
             flavor,
             block_number,
-            state_sync_storage_reader.as_ref().unwrap(),
-            time_offset,
+            &state_sync_storage_reader_and_time_offset,
         )
         .await;
 
@@ -567,12 +599,12 @@ fn time_to_sleep_between_iterations(
 async fn maybe_sleep_between_iterations(
     flavor: BenchmarkFlavor,
     block_number: usize,
-    state_sync_storage_reader: &StorageReader,
-    time_offset: u64,
+    state_sync_storage_reader: &Option<(StorageReader, u64)>,
 ) {
     if flavor == BenchmarkFlavor::MainnetWithSleeps {
+        let (state_sync_storage_reader, time_offset) = state_sync_storage_reader.as_ref().unwrap();
         let milliseconds_to_sleep =
-            time_to_sleep_between_iterations(block_number, state_sync_storage_reader, time_offset);
+            time_to_sleep_between_iterations(block_number, state_sync_storage_reader, *time_offset);
 
         info!("Sleeping for {milliseconds_to_sleep} milliseconds before next iteration.");
         sleep(Duration::from_millis(milliseconds_to_sleep)).await;
