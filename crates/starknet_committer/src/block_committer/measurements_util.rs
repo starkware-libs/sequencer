@@ -98,6 +98,7 @@ pub struct BlockModificationsCounts {
     pub storage_tries: usize,
     pub contracts_trie: usize,
     pub classes_trie: usize,
+    pub emptied_storage_leaves: usize,
 }
 
 #[derive(Default, Clone)]
