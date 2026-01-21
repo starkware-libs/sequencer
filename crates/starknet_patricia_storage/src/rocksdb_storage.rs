@@ -97,14 +97,14 @@ impl RocksDbOptions {
 #[derive(Clone)]
 pub struct RocksDbStorage {
     db: Arc<DB>,
-    write_options: Arc<WriteOptions>,
+    options: Arc<RocksDbOptions>,
 }
 
 impl RocksDbStorage {
     pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
         let db = Arc::new(DB::open(&options.db_options, path)?);
-        let write_options = Arc::new(options.write_options);
-        Ok(Self { db, write_options })
+        let options = Arc::new(options);
+        Ok(Self { db, options })
     }
 }
 
@@ -116,7 +116,7 @@ impl Storage for RocksDbStorage {
     }
 
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
-        Ok(self.db.put_opt(&key.0, &value.0, &self.write_options)?)
+        Ok(self.db.put_opt(&key.0, &value.0, &self.options.write_options)?)
     }
 
     async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
@@ -135,11 +135,11 @@ impl Storage for RocksDbStorage {
         for key in key_to_value.keys() {
             batch.put(&key.0, &key_to_value[key].0);
         }
-        Ok(self.db.write_opt(&batch, &self.write_options)?)
+        Ok(self.db.write_opt(&batch, &self.options.write_options)?)
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        Ok(self.db.delete_opt(&key.0, &self.write_options)?)
+        Ok(self.db.delete_opt(&key.0, &self.options.write_options)?)
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
