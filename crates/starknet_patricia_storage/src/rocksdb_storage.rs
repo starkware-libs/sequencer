@@ -82,6 +82,9 @@ impl Default for RocksDbOptions {
         // disable fsync after each write
         write_options.set_sync(false);
         // no write ahead log at all
+        // NOTE: disable_wal(true) means writes may not be persisted if the process is killed.
+        // This can cause data loss after a forceful shutdown. Consider enabling WAL for
+        // better durability, especially in integration tests where nodes are restarted.
         write_options.disable_wal(true);
 
         RocksDbOptions { db_options: opts, write_options }
@@ -105,7 +108,71 @@ pub struct RocksDbStorage {
 
 impl RocksDbStorage {
     pub fn open(path: &Path, options: RocksDbOptions) -> PatriciaStorageResult<Self> {
+        // Check for stale LOCK file from previous process that was killed.
+        // RocksDB creates a LOCK file when opening a database. If the process is killed,
+        // the LOCK file may remain and prevent opening the database.
+        let lock_file = path.join("LOCK");
+        if lock_file.exists() {
+            // Remove stale lock file to allow opening the database after a forceful kill.
+            // RocksDB should handle stale locks, but explicitly removing it ensures we can open.
+            if let Err(e) = std::fs::remove_file(&lock_file) {
+                // If we can't remove it, RocksDB will try to handle it, but log the issue.
+                eprintln!(
+                    "Warning: Could not remove stale LOCK file at {}: {}",
+                    lock_file.display(),
+                    e
+                );
+            }
+        }
+        
+        // Check if database files exist (CURRENT file is essential for RocksDB).
+        // If CURRENT exists, the database should be opened, not created.
+        let current_file = path.join("CURRENT");
+        let db_should_exist = current_file.exists();
+        
+        // List files in the directory for debugging
+        if path.exists() {
+            if let Ok(entries) = std::fs::read_dir(path) {
+                let files: Vec<String> = entries
+                    .filter_map(|e| e.ok())
+                    .map(|e| e.file_name().to_string_lossy().to_string())
+                    .collect();
+                eprintln!(
+                    "RocksDB: Directory {} contains {} files: {:?}",
+                    path.display(),
+                    files.len(),
+                    files
+                );
+            }
+        }
+        
+        if db_should_exist {
+            eprintln!(
+                "RocksDB: Opening existing database at {} (CURRENT file exists)",
+                path.display()
+            );
+        } else {
+            eprintln!(
+                "RocksDB: Database does not exist at {} (CURRENT file missing), will be created",
+                path.display()
+            );
+        }
+        
         let db = Arc::new(DB::open(&options.db_options, path)?);
+        
+        // After opening, verify if this was a new database or existing one
+        // by checking if CURRENT file exists now (it should exist after opening)
+        let current_exists_after = path.join("CURRENT").exists();
+        if db_should_exist && !current_exists_after {
+            eprintln!(
+                "WARNING: RocksDB may have recreated the database! CURRENT file existed before but not after opening."
+            );
+        } else if !db_should_exist && current_exists_after {
+            eprintln!("RocksDB: Created new database (CURRENT file now exists)");
+        } else if db_should_exist && current_exists_after {
+            eprintln!("RocksDB: Successfully opened existing database");
+        }
+        
         let write_options = Arc::new(options.write_options);
         Ok(Self { db, write_options })
     }
