@@ -68,6 +68,25 @@ static BATCHER_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| Storag
     scope: StorageScope::StateOnly,
 });
 
+// This is based on the state sync's storage configuration on mainnet.
+static STATE_SYNC_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| StorageConfig {
+    db_config: DbConfig {
+        path_prefix: PathBuf::from_str("/core-data/state_sync").unwrap(),
+        chain_id: ChainId::Mainnet,
+        enforce_file_exists: false,
+        min_size: 1048576,
+        max_size: 1099511627776,
+        growth_step: 67108864,
+        max_readers: 8192,
+    },
+    mmap_file_config: MmapFileConfig {
+        max_size: 1099511627776,
+        growth_step: 2147483648,
+        max_object_size: 1073741824,
+    },
+    scope: StorageScope::FullArchive,
+});
+
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
 const FLAVOR_PERIOD_PERIOD: usize = 500;
 
@@ -407,14 +426,19 @@ pub async fn run_storage_benchmark<S: Storage>(
         None => HashOutput::default(),
     };
 
-    let batcher_storage_reader: Option<StorageReader> = if flavor == BenchmarkFlavor::Mainnet {
-        Some(open_storage(BATCHER_STORAGE_CONFIG.clone()).unwrap().0)
-    } else {
-        None
-    };
+    let batcher_storage_reader: Option<StorageReader> =
+        if [BenchmarkFlavor::Mainnet, BenchmarkFlavor::MainnetWithSleeps].contains(&flavor) {
+            Some(open_storage(BATCHER_STORAGE_CONFIG.clone()).unwrap().0)
+        } else {
+            None
+        };
 
-    // TODO(Nimrod): Get real reader for MainnetWithSleeps flavor.
-    let state_sync_storage_reader = None;
+    let state_sync_storage_reader: Option<StorageReader> =
+        if flavor == BenchmarkFlavor::MainnetWithSleeps {
+            Some(open_storage(STATE_SYNC_STORAGE_CONFIG.clone()).unwrap().0)
+        } else {
+            None
+        };
 
     let curr_block_number = time_measurement.block_number;
     let n_iterations = flavor.n_iterations(n_iterations);
