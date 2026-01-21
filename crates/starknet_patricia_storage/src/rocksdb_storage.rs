@@ -81,8 +81,6 @@ impl Default for RocksDbOptions {
 
         // disable fsync after each write
         write_options.set_sync(false);
-        // no write ahead log at all
-        write_options.disable_wal(true);
 
         RocksDbOptions { db_options: opts, write_options }
     }
