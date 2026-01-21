@@ -16,10 +16,10 @@ use blockifier::state::state_reader_and_contract_manager::{
 };
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use blockifier_reexecution::state_reader::rpc_objects::BlockHeader;
+use blockifier_reexecution::state_reader::rpc_objects::{BlockHeader, BlockId};
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use blockifier_reexecution::utils::get_chain_info;
-use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash};
@@ -133,18 +133,18 @@ pub(crate) struct VirtualBlockExecutionData {
 /// let executor = RpcVirtualBlockExecutor::new(
 ///     node_url: "http://localhost:9545".to_string(),
 ///     chain_id: ChainId::Mainnet,
-///     block_number: BlockNumber(1000),
+///     block_id: BlockId::Number(BlockNumber(1000)),
 /// );
-/// let execution_data = executor.execute(block_number, contract_class_manager, transactions)?;
+/// let execution_data = executor.execute(block_id, contract_class_manager, transactions)?;
 /// // Use execution_data to build OS input for proving...
 /// ```
 #[allow(dead_code)]
 pub(crate) trait VirtualBlockExecutor: Send + 'static {
-    /// Executes a virtual block based on the state and context at the given block number.
+    /// Executes a virtual block based on the state and context at the given block ID.
     ///
     /// # Arguments
     ///
-    /// * `block_number` - The block number to use for state and context
+    /// * `block_id` - The block ID to use for state and context
     /// * `contract_class_manager` - Manager for compiled contract classes
     /// * `txs` - Invoke transactions to execute (with their hashes)
     ///
@@ -154,13 +154,13 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
     /// transactions, or an error if any transaction fails.
     fn execute(
         &self,
-        block_number: BlockNumber,
+        block_id: BlockId,
         contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
         let blockifier_txs = self.convert_invoke_txs(txs)?;
-        let base_block_info = self.base_block_info(block_number)?;
-        let state_reader = self.state_reader(block_number)?;
+        let base_block_info = self.base_block_info(block_id)?;
+        let state_reader = self.state_reader(block_id)?;
 
         // Create state reader with contract manager.
         let state_reader_and_contract_manager =
@@ -253,17 +253,17 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
             .collect()
     }
 
-    /// Returns the base block info for the given block number.
+    /// Returns the base block info for the given block ID.
     fn base_block_info(
         &self,
-        block_number: BlockNumber,
+        block_id: BlockId,
     ) -> Result<BaseBlockInfo, VirtualBlockExecutorError>;
 
-    /// Returns a state reader that implements `FetchCompiledClasses` for the given block number.
+    /// Returns a state reader that implements `FetchCompiledClasses` for the given block ID.
     /// Must be `Send + Sync + 'static` to be used in the transaction executor.
     fn state_reader(
         &self,
-        block_number: BlockNumber,
+        block_id: BlockId,
     ) -> Result<impl FetchCompiledClasses + Send + Sync + 'static, VirtualBlockExecutorError>;
 
     /// Returns whether transaction validation is enabled during execution.
@@ -280,12 +280,10 @@ pub(crate) struct RpcVirtualBlockExecutor {
 
 #[allow(dead_code)]
 impl RpcVirtualBlockExecutor {
-    pub(crate) fn new(node_url: String, chain_id: ChainId, block_number: BlockNumber) -> Self {
+    pub(crate) fn new(node_url: String, chain_id: ChainId, block_id: BlockId) -> Self {
         Self {
             rpc_state_reader: RpcStateReader::new_with_config_from_url(
-                node_url,
-                chain_id,
-                block_number,
+                node_url, chain_id, block_id,
             ),
             validate_txs: true,
         }
@@ -300,7 +298,7 @@ impl RpcVirtualBlockExecutor {
 impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
     fn base_block_info(
         &self,
-        _block_number: BlockNumber,
+        _block_id: BlockId,
     ) -> Result<BaseBlockInfo, VirtualBlockExecutorError> {
         let block_header = self
             .rpc_state_reader
@@ -311,7 +309,7 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
 
     fn state_reader(
         &self,
-        _block_number: BlockNumber,
+        _block_id: BlockId,
     ) -> Result<impl FetchCompiledClasses + Send + Sync + 'static, VirtualBlockExecutorError> {
         // Clone the RpcStateReader to avoid lifetime issues ( not a big struct).
         Ok(self.rpc_state_reader.clone())

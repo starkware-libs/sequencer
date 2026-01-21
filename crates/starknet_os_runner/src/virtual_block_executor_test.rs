@@ -1,5 +1,6 @@
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::BlockNumber;
@@ -80,7 +81,11 @@ fn test_execute_constructed_balance_of_transaction(
 
     // Execute the transaction.
     let result = rpc_virtual_block_executor
-        .execute(BlockNumber(TEST_BLOCK_NUMBER), contract_class_manager, vec![(tx, tx_hash)])
+        .execute(
+            BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
+            contract_class_manager,
+            vec![(tx, tx_hash)],
+        )
         .unwrap();
 
     // Verify execution produced output.
