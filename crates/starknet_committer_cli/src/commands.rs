@@ -2,8 +2,10 @@ use std::cmp::min;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use apollo_storage::db::DbConfig;
+use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::mmap_file::MmapFileConfig;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageScope};
@@ -31,6 +33,7 @@ use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 use tracing::{error, info, warn};
 
 use crate::args::{
@@ -214,6 +217,36 @@ impl BenchmarkFlavor {
             Self::Constant | Self::Continuous | Self::Overlap | Self::PeriodicPeaks => n_iterations,
             Self::Mainnet | Self::MainnetWithSleeps => min(n_iterations, MAINNET_BLOCK_NUMBER),
         }
+    }
+
+    fn sleep_between_iterations(
+        &self,
+        block_number: usize,
+        state_sync_storage_reader: Option<&StorageReader>,
+    ) -> Option<u64> {
+        let reader = state_sync_storage_reader?;
+
+        // Sanity check.
+        assert_eq!(self, &BenchmarkFlavor::MainnetWithSleeps, "Unexpected flavor.");
+        let block_number = u64::try_from(block_number).unwrap();
+        let next_block_number = block_number + 1;
+        let current_block_timestamp = reader
+            .begin_ro_txn()
+            .unwrap()
+            .get_block_header(BlockNumber(block_number))
+            .unwrap()
+            .unwrap()
+            .block_header_without_hash
+            .timestamp;
+        let next_block_timestamp = reader
+            .begin_ro_txn()
+            .unwrap()
+            .get_block_header(BlockNumber(next_block_number))
+            .unwrap()
+            .unwrap()
+            .block_header_without_hash
+            .timestamp;
+        Some(next_block_timestamp.0 - current_block_timestamp.0)
     }
 }
 
@@ -410,6 +443,9 @@ pub async fn run_storage_benchmark<S: Storage>(
         None
     };
 
+    // TODO(Nimrod): Get real reader for MainnetWithSleeps flavor.
+    let state_sync_storage_reader = None;
+
     let curr_block_number = time_measurement.block_number;
     let n_iterations = flavor.n_iterations(n_iterations);
 
@@ -469,6 +505,15 @@ pub async fn run_storage_benchmark<S: Storage>(
                     .unwrap_or_else(|e| format!("Failed to retrieve statistics: {e}"))
             );
         }
+
+        // If we should sleep between iterations, do so now.
+        if let Some(sleep_duration) =
+            flavor.sleep_between_iterations(block_number, state_sync_storage_reader.as_ref())
+        {
+            info!("Sleeping for {sleep_duration} seconds before next iteration.");
+            sleep(Duration::from_secs(sleep_duration)).await;
+        }
+
         contracts_trie_root_hash = filled_forest.get_contract_root_hash();
         classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
 
