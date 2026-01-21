@@ -51,6 +51,7 @@ use crate::metrics::{
     COMPUTE_DURATION_PER_BLOCK_HIST,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_EMPTY_LEAVES_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
     OFFSET,
     READ_DB_ENTRIES_PER_BLOCK,
@@ -462,4 +463,5 @@ fn update_metrics(
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.contracts_trie);
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.classes_trie);
+    COUNT_EMPTY_LEAVES_PER_BLOCK.set_lossy(modifications_counts.emptied_storage_leaves);
 }

@@ -33,6 +33,11 @@ define_metrics!(
             "count_classes_trie_modifications_per_block",
             "Number of classes trie modifications"
         },
+        MetricGauge {
+            COUNT_EMPTY_LEAVES_PER_BLOCK,
+            "count_empty_leaves_per_block",
+            "Number of leaves emptied in the storage tries per block"
+        },
         MetricHistogram {
             READ_DURATION_PER_BLOCK_HIST,
             "read_duration_per_block_hist",
@@ -82,6 +87,7 @@ pub fn register_metrics(offset: BlockNumber) {
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.register();
+    COUNT_EMPTY_LEAVES_PER_BLOCK.register();
     READ_DURATION_PER_BLOCK_HIST.register();
     READ_DURATION_PER_BLOCK.register();
     READ_DB_ENTRIES_PER_BLOCK.register();
