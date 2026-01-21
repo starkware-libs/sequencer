@@ -108,6 +108,7 @@ pub(crate) async fn build_proposal(
 ) -> BuildProposalResult<ProposalCommitment> {
     let init = initiate_build(&mut args).await?;
     let height = init.height;
+    let round = init.round;
 
     args.stream_sender
         .send(ProposalPart::Init(init.clone()))
@@ -119,8 +120,9 @@ pub(crate) async fn build_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
-    valid_proposals.insert_proposal_for_height(
+    valid_proposals.insert_proposal_for_height_and_round(
         &height,
+        &round,
         &proposal_commitment,
         init,
         content,

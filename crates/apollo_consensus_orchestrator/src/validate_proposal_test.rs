@@ -10,6 +10,7 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentResponse,
 };
 use apollo_batcher_types::communication::BatcherClientError;
+use apollo_consensus::types::Round;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{
@@ -55,6 +56,7 @@ struct TestProposalValidateArguments {
     pub deps: TestDeps,
     pub init: ProposalInit,
     pub block_info_validation: BlockInfoValidation,
+    pub round: Round,
     pub proposal_id: ProposalId,
     pub timeout: Duration,
     pub batcher_timeout_margin: Duration,
@@ -70,6 +72,7 @@ impl From<TestProposalValidateArguments> for ProposalValidateArguments {
             deps: args.deps.into(),
             init: args.init,
             block_info_validation: args.block_info_validation,
+            round: args.round,
             proposal_id: args.proposal_id,
             timeout: args.timeout,
             batcher_timeout_margin: args.batcher_timeout_margin,
@@ -107,6 +110,7 @@ fn create_proposal_validate_arguments()
             deps,
             init,
             block_info_validation,
+            round: 0,
             proposal_id,
             timeout,
             batcher_timeout_margin,

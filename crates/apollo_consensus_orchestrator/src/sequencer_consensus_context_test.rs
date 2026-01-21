@@ -5,6 +5,7 @@ use apollo_batcher_types::batcher_types::{
     CentralObjects,
     DecisionReachedResponse,
     ProposalCommitment as BatcherProposalCommitment,
+    ProposalId,
     ProposalStatus,
     SendProposalContent,
     SendProposalContentResponse,
@@ -142,7 +143,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
-    let build_param = BuildParam { round: 1, ..Default::default() };
+    let build_param = BuildParam { round: 1, valid_round: Some(0), ..Default::default() };
     context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), build_param).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
@@ -495,7 +496,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     context
         .repropose(
             ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
-            BuildParam { round: 1, ..Default::default() },
+            BuildParam { round: 1, valid_round: Some(0), ..Default::default() },
         )
         .await;
     // Re-propose sends the same proposal.
@@ -652,13 +653,73 @@ async fn decision_reached_sends_correct_values() {
     // At this point we should have a valid proposal in the context which contains the timestamp.
 
     context
-        .decision_reached(BlockNumber(0), ProposalCommitment(STATE_DIFF_COMMITMENT.0.0))
+        .decision_reached(BlockNumber(0), 0, ProposalCommitment(STATE_DIFF_COMMITMENT.0.0))
         .await
         .unwrap();
 
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
+}
+
+#[tokio::test]
+async fn decision_reached_uses_round_to_disambiguate_commitment_collision_across_rounds() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+
+    // Initialize the context for a specific height, starting with round 0.
+    deps.batcher.expect_start_height().times(1).return_const(Ok(()));
+
+    // Decision reached should use the proposal_id from round 0, not the one from round 1.
+    let validated_proposal_id = ProposalId(10);
+    let expected_validated_proposal_id = validated_proposal_id;
+    let built_proposal_id = ProposalId(11);
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .withf(move |input| input.proposal_id == expected_validated_proposal_id)
+        .return_once(move |_| Ok(DecisionReachedResponse::default()));
+
+    const VALIDATED_TIMESTAMP: u64 = 111;
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|block_info| {
+        assert_eq!(block_info.block_header_without_hash.timestamp.0, VALIDATED_TIMESTAMP);
+        Ok(())
+    });
+
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_height| Ok(()));
+
+    let mut context = deps.build_context();
+    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+
+    let commitment = ProposalCommitment(STATE_DIFF_COMMITMENT.0.0);
+    let txs = vec![INTERNAL_TX_BATCH.clone()];
+
+    // Round 0: validated proposal (should win).
+    let mut validated_block_info = block_info(BlockNumber(0), 0);
+    validated_block_info.timestamp = VALIDATED_TIMESTAMP;
+    context.valid_proposals.lock().unwrap().insert_proposal_for_height_and_round(
+        &BlockNumber(0),
+        &0u32,
+        &commitment,
+        validated_block_info,
+        txs.clone(),
+        &validated_proposal_id,
+    );
+
+    // Round 1: locally built proposal with the same commitment but different timestamp (must not
+    // overwrite / be selected for decision).
+    let mut built_block_info = block_info(BlockNumber(0), 1);
+    built_block_info.timestamp = 222;
+    context.valid_proposals.lock().unwrap().insert_proposal_for_height_and_round(
+        &BlockNumber(0),
+        &1u32,
+        &commitment,
+        built_block_info,
+        txs,
+        &built_proposal_id,
+    );
+
+    context.decision_reached(BlockNumber(0), 0, commitment).await.unwrap();
 }
 
 #[rstest]
@@ -813,7 +874,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
 
     // Decision reached
 
-    context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
+    context.decision_reached(BlockNumber(0), 0, proposal_commitment).await.unwrap();
 
     // Build proposal for block number 1.
     let build_param = BuildParam { height: BlockNumber(1), ..Default::default() };
@@ -977,7 +1038,7 @@ async fn override_prices_behavior(
     }
 
     context
-        .decision_reached(BlockNumber(0), ProposalCommitment(STATE_DIFF_COMMITMENT.0.0))
+        .decision_reached(BlockNumber(0), 0, ProposalCommitment(STATE_DIFF_COMMITMENT.0.0))
         .await
         .unwrap();
 
@@ -1110,7 +1171,7 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
-    context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
+    context.decision_reached(BlockNumber(0), 0, proposal_commitment).await.unwrap();
 
     let new_dynamic_config = ContextDynamicConfig {
         override_l2_gas_price_fri: Some(ODDLY_SPECIFIC_L2_GAS_PRICE),
@@ -1167,7 +1228,7 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
-    context.decision_reached(BlockNumber(1), proposal_commitment).await.unwrap();
+    context.decision_reached(BlockNumber(1), 0, proposal_commitment).await.unwrap();
 
     // Now build a proposal for height 2.
     let new_dynamic_config = ContextDynamicConfig {
