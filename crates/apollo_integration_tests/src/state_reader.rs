@@ -207,6 +207,18 @@ impl StorageTestSetup {
             storage_exec_paths.as_ref().map(|p| p.get_committer_path_with_db_suffix());
         let (committer_db_path, committer_storage_handle) =
             create_dir_for_testing(committer_db_path);
+        // Log the storage path for debugging - the handle must be kept alive to prevent deletion
+        if committer_storage_handle.is_some() {
+            tracing::info!(
+                "Created committer storage in temp directory: {} (handle will preserve it)",
+                committer_db_path.display()
+            );
+        } else {
+            tracing::info!(
+                "Created committer storage in persistent directory: {}",
+                committer_db_path.display()
+            );
+        }
         Self {
             storage_config: StorageTestConfig::new(
                 batcher_storage_config,

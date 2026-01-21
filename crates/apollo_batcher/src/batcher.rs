@@ -826,7 +826,20 @@ impl Batcher {
         );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
+        // INSERT_YOUR_CODE
         let state_diff_commitment = calculate_state_diff_hash(&state_diff);
+        info!(
+            "Calculate state diff commitment {} of the current height: height {}: \
+             deployed_contracts = {:?}, declared_classes = {:?}, deprecated_declared_classes = \
+             {:?}, storage_diffs = {:?}, nonces = {:?}",
+            format!("{:?}", state_diff_commitment.0),
+            height,
+            state_diff.deployed_contracts,
+            state_diff.class_hash_to_compiled_class_hash,
+            state_diff.deprecated_declared_classes,
+            state_diff.storage_diffs,
+            state_diff.nonces,
+        );
 
         // Commit the proposal to the storage.
         self.storage_writer
@@ -1148,9 +1161,20 @@ impl Batcher {
                 // TODO(dafna): Remove once the state sync bug is fixed.
                 state_diff.deprecated_declared_classes = Vec::new();
 
-                Ok(Some(ProposalCommitment {
-                    state_diff_commitment: calculate_state_diff_hash(&state_diff),
-                }))
+                let state_diff_commitment = calculate_state_diff_hash(&state_diff);
+                info!(
+                    "Calculate state diff commitment {} of prev height: height {}: \
+                     deployed_contracts = {:?}, declared_classes = {:?}, \
+                     deprecated_declared_classes = {:?}, storage_diffs = {:?}, nonces = {:?}",
+                    format!("{:?}", state_diff_commitment.0),
+                    prev_height,
+                    state_diff.deployed_contracts,
+                    state_diff.class_hash_to_compiled_class_hash,
+                    state_diff.deprecated_declared_classes,
+                    state_diff.storage_diffs,
+                    state_diff.nonces,
+                );
+                Ok(Some(ProposalCommitment { state_diff_commitment }))
             }
         }
     }
