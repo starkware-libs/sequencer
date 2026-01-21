@@ -392,9 +392,11 @@ pub(crate) fn maybe_dummy_block_hash_and_number(
     if block_number.0 < STORED_BLOCK_HASH_BUFFER {
         return None;
     }
-    let block_hash = BlockHash(Felt::from(block_number.0));
-    let block_number = BlockNumber(block_number.0 - STORED_BLOCK_HASH_BUFFER);
-    Some((block_number, block_hash))
+    // Use (old_block_number * 100) as the hash to be consistent with
+    // generate_block_hash_storage_updates and snos_proof_facts_for_testing.
+    let old_block_number = block_number.0 - STORED_BLOCK_HASH_BUFFER;
+    let block_hash = BlockHash(Felt::from(old_block_number * 100));
+    Some((BlockNumber(old_block_number), block_hash))
 }
 
 pub(crate) fn divide_vec_into_n_parts<T>(mut vec: Vec<T>, n: usize) -> Vec<Vec<T>> {
