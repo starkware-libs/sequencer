@@ -40,6 +40,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url.workspace = true
 
 [dev-dependencies]
+apollo_transaction_converter.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 rstest.workspace = true

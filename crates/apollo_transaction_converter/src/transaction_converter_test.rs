@@ -11,18 +11,40 @@ use mempool_test_utils::starknet_api_test_utils::{
     invoke_tx_client_side_proving,
 };
 use mockall::predicate::eq;
-use rstest::rstest;
+use proving_utils::proof_encoding::ProofBytes;
+use rstest::{fixture, rstest};
+use starknet_api::compiled_class_hash;
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
-use starknet_api::transaction::fields::Proof;
-use starknet_api::{compiled_class_hash, felt, proof_facts};
+use starknet_api::test_utils::{path_in_resources, read_json_file};
+use starknet_api::transaction::fields::{Proof, ProofFacts};
 
 use crate::transaction_converter::{
     TransactionConverter,
     TransactionConverterError,
     TransactionConverterTrait,
 };
+
+/// Resource file names for testing.
+const EXAMPLE_PROOF_FILE: &str = "example_proof.bz2";
+const EXAMPLE_PROOF_FACTS_FILE: &str = "example_proof_facts.json";
+
+/// Loads the example proof from the resources directory.
+/// Uses `ProofBytes::from_file()` to load the bz2-compressed proof file.
+#[fixture]
+fn proof() -> Proof {
+    let proof_path = path_in_resources(EXAMPLE_PROOF_FILE);
+    let proof_bytes = ProofBytes::from_file(&proof_path)
+        .expect("Failed to load example_proof.bz2 from resources directory");
+    proof_bytes.into()
+}
+
+/// Loads the example proof facts from the resources directory.
+#[fixture]
+fn proof_facts() -> ProofFacts {
+    read_json_file(EXAMPLE_PROOF_FACTS_FILE)
+}
 
 #[rstest]
 #[tokio::test]
@@ -66,10 +88,10 @@ async fn test_compiled_class_hash_mismatch() {
 
 #[rstest]
 #[tokio::test]
-async fn test_proof_verification_called_for_invoke_v3_with_proof_facts() {
-    // Create an invoke transaction with proof facts and proof.
-    let proof_facts = proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")];
-    let proof = Proof::from(vec![1u32, 2u32, 3u32]);
+async fn test_proof_verification_called_for_invoke_v3_with_proof_facts(
+    proof_facts: ProofFacts,
+    proof: Proof,
+) {
     let invoke_tx = invoke_tx_client_side_proving(
         CairoVersion::Cairo1(RunnableCairo1::Casm),
         proof_facts.clone(),
@@ -119,9 +141,10 @@ async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
 
 #[rstest]
 #[tokio::test]
-async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof() {
-    let proof_facts = proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")];
-    let proof = Proof::from(vec![1u32, 2u32, 3u32]);
+async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
+    proof_facts: ProofFacts,
+    proof: Proof,
+) {
     let invoke_tx = invoke_tx_client_side_proving(
         CairoVersion::Cairo1(RunnableCairo1::Casm),
         proof_facts.clone(),

@@ -16,9 +16,14 @@ workspace = true
 apollo_class_manager_types.workspace = true
 apollo_proof_manager_types.workspace = true
 async-trait.workspace = true
+bincode.workspace = true
+cairo-air.workspace = true
 mockall = { workspace = true, optional = true }
+proving_utils.workspace = true
+starknet-ff.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+stwo.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true

@@ -20,7 +20,7 @@ use tempfile::NamedTempFile;
 use crate::errors::ProvingError;
 
 /// Bootloader program file name.
-const BOOTLOADER_FILE: &str = "simple_bootloader_compiled.json";
+pub(crate) const BOOTLOADER_FILE: &str = "simple_bootloader_compiled.json";
 
 /// Output from the prover containing the compressed proof and associated facts.
 #[derive(Debug, Clone)]
