@@ -1069,7 +1069,6 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
         TestBuilderConfig { use_kzg_da, ..Default::default() },
     )
     .await;
-
     let chain_id = &test_builder.chain_id();
     let current_block_number = test_builder.first_block_number();
 
