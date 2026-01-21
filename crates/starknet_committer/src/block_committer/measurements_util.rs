@@ -67,6 +67,7 @@ pub trait MeasurementsTrait {
         n_storage_tries_modifications: usize,
         n_contracts_trie_modifications: usize,
         n_classes_trie_modifications: usize,
+        n_empty_leaves: usize,
     );
 }
 
@@ -88,6 +89,7 @@ impl MeasurementsTrait for NoMeasurements {
         _n_storage_tries_modifications: usize,
         _n_contracts_trie_modifications: usize,
         _n_classes_trie_modifications: usize,
+        _n_empty_leaves: usize,
     ) {
     }
 }
@@ -105,6 +107,7 @@ pub struct BlockModificationsCounts {
     pub storage_tries: usize,
     pub contracts_trie: usize,
     pub classes_trie: usize,
+    pub empty_leaves: usize,
 }
 
 #[derive(Default, Clone)]
@@ -167,11 +170,13 @@ impl MeasurementsTrait for SingleBlockMeasurements {
         n_storage_tries_modifications: usize,
         n_contracts_trie_modifications: usize,
         n_classes_trie_modifications: usize,
+        n_empty_leaves: usize,
     ) {
         self.block_measurement.modifications_counts = BlockModificationsCounts {
             storage_tries: n_storage_tries_modifications,
             contracts_trie: n_contracts_trie_modifications,
             classes_trie: n_classes_trie_modifications,
+            empty_leaves: n_empty_leaves,
         };
     }
 }

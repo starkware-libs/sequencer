@@ -81,11 +81,13 @@ impl MeasurementsTrait for BenchmarkMeasurements {
         n_storage_tries_modifications: usize,
         n_contracts_trie_modifications: usize,
         n_classes_trie_modifications: usize,
+        n_empty_leaves: usize,
     ) {
         self.current_measurement.set_number_of_modifications(
             n_storage_tries_modifications,
             n_contracts_trie_modifications,
             n_classes_trie_modifications,
+            n_empty_leaves,
         );
     }
 }
