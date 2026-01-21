@@ -23,3 +23,5 @@ pub use tree::{PropellerScheduleManager, Stake};
 pub use types::{Channel, MessageRoot, ShardIndex, ShardValidationError};
 pub use unit::PropellerUnit;
 pub use unit_validator::UnitValidator;
+
+// TODO(AndrewL): Make tests in this crate have deterministic random peer IDs.
