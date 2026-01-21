@@ -22,8 +22,6 @@ use crate::storage_trait::{
 };
 
 // General database Options.
-
-const DB_BLOCK_SIZE: usize = 4 * 1024; // 4MB
 const DB_CACHE_SIZE: usize = 2 * 1024 * 1024 * 1024; // 2GB
 // Number of bits in the bloom filter (increase to reduce false positives at the cost of more
 // memory).
@@ -67,7 +65,6 @@ impl Default for RocksDbOptions {
         block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
         block.set_partition_filters(true);
 
-        block.set_block_size(DB_BLOCK_SIZE);
         block.set_cache_index_and_filter_blocks(true);
         // Make sure filter blocks are cached.
         block.set_pin_l0_filter_and_index_blocks_in_cache(true);
@@ -79,10 +76,8 @@ impl Default for RocksDbOptions {
         // Set write options.
         let mut write_options = WriteOptions::default();
 
-        // disable fsync after each write
-        write_options.set_sync(false);
-        // no write ahead log at all
-        write_options.disable_wal(true);
+        // enable WAL fsync after each write
+        write_options.set_sync(true);
 
         RocksDbOptions { db_options: opts, write_options }
     }
