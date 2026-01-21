@@ -101,8 +101,10 @@ class BenchmarkData:
         except (KeyError, ValueError) as e:
             raise ValueError(f"Error processing CSV data: missing or invalid columns: {e}")
 
-    def _duration_per_fact(self, duration_millis: List[float], n_facts: List[int]) -> List[float]:
-        return [ms * 1000 / n if n > 0 else 0 for ms, n in zip(duration_millis, n_facts)]
+    def _duration_per_entry(
+        self, duration_millis: List[float], n_entries: List[int]
+    ) -> List[float]:
+        return [ms * 1000 / n if n > 0 else 0 for ms, n in zip(duration_millis, n_entries)]
 
     def _update_figure_layout(self, figure: go.Figure, title: str):
         figure.update_layout(
@@ -115,19 +117,19 @@ class BenchmarkData:
         )
 
     def create_durations_figure(self) -> go.Figure:
-        read_duration_per_read_fact = self._duration_per_fact(
+        read_duration_per_read_entry = self._duration_per_entry(
             self.read_duration_millis, self.n_reads
         )
-        read_duration_per_new_fact = self._duration_per_fact(
+        read_duration_per_write_entry = self._duration_per_entry(
             self.read_duration_millis, self.n_writes
         )
-        compute_duration_per_new_fact = self._duration_per_fact(
+        compute_duration_per_write_entry = self._duration_per_entry(
             self.compute_duration_millis, self.n_writes
         )
-        write_duration_per_new_fact = self._duration_per_fact(
+        write_duration_per_write_entry = self._duration_per_entry(
             self.write_duration_millis, self.n_writes
         )
-        total_duration_per_new_fact = self._duration_per_fact(
+        total_duration_per_write_entry = self._duration_per_entry(
             self.block_duration_millis, self.n_writes
         )
 
@@ -145,42 +147,42 @@ class BenchmarkData:
         durations_figure.add_trace(
             go.Scatter(
                 x=self.time_of_measurement,
-                y=read_duration_per_read_fact,
+                y=read_duration_per_read_entry,
                 mode="lines+markers",
-                name="Read Duration per read fact (µs)",
+                name="Read Duration per read entry (µs)",
             )
         )
         durations_figure.add_trace(
             go.Scatter(
                 x=self.time_of_measurement,
-                y=read_duration_per_new_fact,
+                y=read_duration_per_write_entry,
                 mode="lines+markers",
-                name="Read Duration per new fact (µs)",
+                name="Read Duration per write entry (µs)",
             )
         )
 
         durations_figure.add_trace(
             go.Scatter(
                 x=self.time_of_measurement,
-                y=compute_duration_per_new_fact,
+                y=compute_duration_per_write_entry,
                 mode="lines+markers",
-                name="Compute Duration per new fact (µs)",
+                name="Compute Duration per write entry (µs)",
             )
         )
         durations_figure.add_trace(
             go.Scatter(
                 x=self.time_of_measurement,
-                y=write_duration_per_new_fact,
+                y=write_duration_per_write_entry,
                 mode="lines+markers",
-                name="Write Duration per new fact (µs)",
+                name="Write Duration per write entry (µs)",
             )
         )
         durations_figure.add_trace(
             go.Scatter(
                 x=self.time_of_measurement,
-                y=total_duration_per_new_fact,
+                y=total_duration_per_write_entry,
                 mode="lines+markers",
-                name="Total Duration per new fact (µs)",
+                name="Total Duration per write entry (µs)",
             )
         )
 
@@ -189,25 +191,25 @@ class BenchmarkData:
         )  # show full trace name if included
 
         # Customize layout
-        self._update_figure_layout(durations_figure, "Time per Fact")
+        self._update_figure_layout(durations_figure, "Time per DB Entry")
 
         return durations_figure
 
-    def create_total_facts_figure(self) -> go.Figure:
-        total_facts_figure = go.Figure()
-        total_facts_figure.add_trace(
+    def create_total_db_entries_figure(self) -> go.Figure:
+        total_db_entries_figure = go.Figure()
+        total_db_entries_figure.add_trace(
             go.Scatter(
                 x=self.time_of_measurement,
                 y=self.initial_db_entry_count,
                 mode="lines+markers",
-                name="Total facts in the DB",
+                name="Total entries in the DB",
             )
         )
-        total_facts_figure.update_traces(
+        total_db_entries_figure.update_traces(
             hoverlabel=dict(namelength=-1)
         )  # show full trace name if included
-        self._update_figure_layout(total_facts_figure, "Total facts in the DB")
-        return total_facts_figure
+        self._update_figure_layout(total_db_entries_figure, "Total entries in the DB")
+        return total_db_entries_figure
 
     def create_storage_stats_figure(self) -> go.Figure:
         storage_stats_figure = go.Figure()
@@ -226,25 +228,27 @@ class BenchmarkData:
 
     def plot(self, output_dir: Optional[str] = None):
         durations_figure = self.create_durations_figure()
-        total_facts_figure = self.create_total_facts_figure()
+        total_db_entries_figure = self.create_total_db_entries_figure()
         if self.storage_stats_type != StorageStats.NONE:
             storage_stats_figure = self.create_storage_stats_figure()
 
         if output_dir is not None:
             durations_output_file = Path(f"{output_dir}/{self.file_stem}_durations.html")
-            total_facts_output_file = Path(f"{output_dir}/{self.file_stem}_total_facts.html")
+            total_db_entries_output_file = Path(
+                f"{output_dir}/{self.file_stem}_total_db_entries.html"
+            )
             storage_stats_output_file = Path(f"{output_dir}/{self.file_stem}_storage_stats.html")
             durations_output_file.parent.mkdir(parents=True, exist_ok=True)
 
             durations_figure.write_html(str(durations_output_file))
-            total_facts_figure.write_html(str(total_facts_output_file))
+            total_db_entries_figure.write_html(str(total_db_entries_output_file))
             if self.storage_stats_type != StorageStats.NONE:
                 storage_stats_figure.write_html(str(storage_stats_output_file))
             print(f"Plot saved to {str(durations_output_file)}")
-            print(f"Plot saved to {str(total_facts_output_file)}")
+            print(f"Plot saved to {str(total_db_entries_output_file)}")
         else:
             durations_figure.show()
-            total_facts_figure.show()
+            total_db_entries_figure.show()
             if self.storage_stats_type != StorageStats.NONE:
                 storage_stats_figure.show()
 
