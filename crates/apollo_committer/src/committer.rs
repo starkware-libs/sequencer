@@ -50,7 +50,9 @@ use crate::metrics::{
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_EMPTIED_LEAVES_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
+    EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
     OFFSET,
     READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
@@ -446,6 +448,7 @@ impl ComponentStarter for ApolloCommitter {
     }
 }
 
+#[allow(clippy::as_conversions)]
 fn update_metrics(
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
@@ -457,4 +460,11 @@ fn update_metrics(
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.contracts_trie);
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.classes_trie);
+    COUNT_EMPTIED_LEAVES_PER_BLOCK.record_lossy(modifications_counts.emptied_storage_leaves);
+    if modifications_counts.storage_tries > 0 {
+        EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.record_lossy(
+            modifications_counts.emptied_storage_leaves as f64
+                / modifications_counts.storage_tries as f64,
+        );
+    }
 }
