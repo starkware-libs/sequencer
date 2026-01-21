@@ -200,13 +200,7 @@ pub(crate) async fn validate_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
-    valid_proposals.insert_proposal_for_height(
-        &args.block_info_validation.height,
-        &built_block,
-        args.init,
-        content,
-        &args.proposal_id,
-    );
+    valid_proposals.insert_proposal(&built_block, args.init, content, &args.proposal_id);
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
