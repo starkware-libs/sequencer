@@ -121,7 +121,7 @@ impl BenchmarkFlavor {
                 (block_number / FLAVOR_PERIOD_PERIOD) * updates_per_period
                     + total_leaves_added_in_period
             }
-            Self::Mainnet => unimplemented!(),
+            Self::Mainnet | Self::MainnetWithSleeps => unimplemented!(),
         }
     }
 
@@ -173,7 +173,7 @@ impl BenchmarkFlavor {
                 };
                 leaf_preimages_to_storage_keys(total_leaves..(total_leaves + new_leaves))
             }
-            Self::Mainnet => unimplemented!(),
+            Self::Mainnet | Self::MainnetWithSleeps => unimplemented!(),
         }
     }
 
@@ -212,7 +212,14 @@ impl BenchmarkFlavor {
     fn n_iterations(&self, n_iterations: usize) -> usize {
         match self {
             Self::Constant | Self::Continuous | Self::Overlap | Self::PeriodicPeaks => n_iterations,
-            Self::Mainnet => min(n_iterations, MAINNET_BLOCK_NUMBER),
+            Self::Mainnet | Self::MainnetWithSleeps => min(n_iterations, MAINNET_BLOCK_NUMBER),
+        }
+    }
+
+    fn is_mainnet_flavor(&self) -> bool {
+        match self {
+            Self::Mainnet | Self::MainnetWithSleeps => true,
+            Self::Constant | Self::Continuous | Self::Overlap | Self::PeriodicPeaks => false,
         }
     }
 }
@@ -353,11 +360,10 @@ fn apply_interference<S: AsyncStorage>(
     match interference_type {
         InterferenceType::None => {}
         InterferenceType::Read1KEveryBlock => {
-            // TODO(Nimrod): Implement interference for mainnet-flavor.
-            if benchmark_flavor == BenchmarkFlavor::Mainnet {
+            // TODO(Nimrod): Implement interference for mainnet flavors.
+            if benchmark_flavor.is_mainnet_flavor() {
                 return;
             }
-
             let total_leaves =
                 benchmark_flavor.total_nonzero_leaves_up_to(n_updates_arg, block_number + 1);
             // Avoid creating an iterator over the entire range - select random leaves, with
