@@ -2,8 +2,10 @@ use std::cmp::min;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use apollo_storage::db::DbConfig;
+use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::mmap_file::MmapFileConfig;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageScope};
@@ -31,6 +33,7 @@ use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 use tracing::{error, info, warn};
 
 use crate::args::{
@@ -414,6 +417,9 @@ pub async fn run_storage_benchmark<S: Storage>(
         None
     };
 
+    // TODO(Nimrod): Get real reader for MainnetWithSleeps flavor.
+    let state_sync_storage_reader = None;
+
     let curr_block_number = time_measurement.block_number;
     let n_iterations = flavor.n_iterations(n_iterations);
 
@@ -448,7 +454,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         info!("Written {n_new_facts} new facts to storage");
         time_measurement.stop_measurement(Action::Write, n_new_facts);
 
-        time_measurement.stop_measurement(Action::EndToEnd, 0);
+        let end_to_end_time = time_measurement.stop_measurement(Action::EndToEnd, 0);
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
@@ -473,6 +479,20 @@ pub async fn run_storage_benchmark<S: Storage>(
                     .unwrap_or_else(|e| format!("Failed to retrieve statistics: {e}"))
             );
         }
+
+        // If we should sleep between iterations, do so now.
+        if flavor == BenchmarkFlavor::MainnetWithSleeps {
+            let milliseconds_to_sleep = time_to_sleep_between_iterations(
+                block_number,
+                state_sync_storage_reader.as_ref().unwrap(),
+                end_to_end_time.try_into().unwrap(),
+            )
+            .unwrap_or_default();
+
+            info!("Sleeping for {milliseconds_to_sleep} milliseconds before next iteration.");
+            sleep(Duration::from_millis(milliseconds_to_sleep)).await;
+        }
+
         contracts_trie_root_hash = filled_forest.get_contract_root_hash();
         classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
 
@@ -522,4 +542,36 @@ pub async fn run_storage_benchmark<S: Storage>(
     info!("Waiting for {} interference tasks to complete.", interference_task_set.len());
     interference_task_set.join_all().await;
     info!("All interference tasks completed.");
+}
+
+/// Determines the time to sleep between iterations in milliseconds based on block timestamps.
+/// See [BenchmarkFlavor::MainnetWithSleeps] for more details.
+fn time_to_sleep_between_iterations(
+    block_number: usize,
+    state_sync_storage_reader: &StorageReader,
+    end_to_end_time: u64,
+) -> Option<u64> {
+    let block_number = u64::try_from(block_number).unwrap();
+    let next_block_number = block_number + 1;
+    let current_block_timestamp = state_sync_storage_reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_header(BlockNumber(block_number))
+        .unwrap()
+        .unwrap()
+        .block_header_without_hash
+        .timestamp
+        .0;
+    let next_block_timestamp = state_sync_storage_reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_header(BlockNumber(next_block_number))
+        .unwrap()
+        .unwrap()
+        .block_header_without_hash
+        .timestamp
+        .0;
+    let timestamp_diff_ms =
+        next_block_timestamp.checked_sub(current_block_timestamp).unwrap() * 1000;
+    timestamp_diff_ms.checked_sub(end_to_end_time)
 }

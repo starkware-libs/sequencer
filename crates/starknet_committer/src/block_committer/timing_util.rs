@@ -140,7 +140,8 @@ impl TimeMeasurement {
     /// Stops the measurement for the given action and adds the duration to the corresponding
     /// vector. For Read/Write actions, `entries_count` is the number of entries read from / written
     /// to the DB. For other actions, it is ignored.
-    pub fn stop_measurement(&mut self, action: Action, entries_count: usize) {
+    /// Returns the duration in milliseconds.
+    pub fn stop_measurement(&mut self, action: Action, entries_count: usize) -> u128 {
         let duration_in_millis = self
             .block_timers
             .attempt_to_stop_measurement(&action)
@@ -171,7 +172,8 @@ impl TimeMeasurement {
                 self.current_block_measurement = BlockMeasurement::default();
             }
             _ => {}
-        }
+        };
+        duration_in_millis
     }
 
     pub fn n_results(&self) -> usize {
