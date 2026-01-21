@@ -43,6 +43,9 @@ pub enum PatriciaStorageError {
     #[cfg(feature = "rocksdb_storage")]
     #[error(transparent)]
     Rocksdb(#[from] rust_rocksdb::Error),
+    #[cfg(feature = "rocksdb_storage")]
+    #[error("Failed to fetch RocksDb stats.")]
+    NoStats,
 }
 
 pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;

@@ -1,6 +1,8 @@
+use core::fmt;
 use std::path::Path;
 use std::sync::Arc;
 
+use rust_rocksdb::statistics::StatsLevel;
 use rust_rocksdb::{
     BlockBasedIndexType,
     BlockBasedOptions,
@@ -18,9 +20,10 @@ use crate::storage_trait::{
     DbKey,
     DbValue,
     EmptyStorageConfig,
-    NoStats,
+    PatriciaStorageError,
     PatriciaStorageResult,
     Storage,
+    StorageStats,
 };
 
 // General database Options.
@@ -77,6 +80,11 @@ impl Default for RocksDbOptions {
 
         block.set_bloom_filter(BLOOM_FILTER_NUM_BITS, false);
 
+        // TODO(Nimrod): Make statistics collection configurable.
+        // Enable statistics collection.
+        opts.enable_statistics();
+        opts.set_statistics_level(StatsLevel::ExceptDetailedTimers);
+
         opts.set_block_based_table_factory(&block);
 
         let mut write_options = WriteOptions::default();
@@ -109,8 +117,28 @@ impl RocksDbStorage {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct RocksDbStats(String);
+
+impl fmt::Display for RocksDbStats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "RocksDbStats({})", self.0)
+    }
+}
+
+impl StorageStats for RocksDbStats {
+    // TODO(Nimrod): See if you can extract actual columns and not all in one column.
+    fn column_titles() -> Vec<&'static str> {
+        vec!["rocksdb_stats"]
+    }
+
+    fn column_values(&self) -> Vec<String> {
+        vec![self.0.clone()]
+    }
+}
+
 impl Storage for RocksDbStorage {
-    type Stats = NoStats;
+    type Stats = RocksDbStats;
     type Config = EmptyStorageConfig;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
@@ -145,7 +173,9 @@ impl Storage for RocksDbStorage {
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
-        Ok(NoStats)
+        Ok(RocksDbStats(
+            self.options.db_options.get_statistics().ok_or(PatriciaStorageError::NoStats)?,
+        ))
     }
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
