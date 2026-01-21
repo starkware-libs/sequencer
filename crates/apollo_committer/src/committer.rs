@@ -50,15 +50,20 @@ pub struct CommitBlockMock;
 
 #[async_trait]
 impl CommitBlockTrait for CommitBlockMock {
-    /// Sets the class trie root hash to the first class hash in the state diff.
+    /// Sets the class trie root hash to the first class hash in the state diff (sorted
+    /// deterministically).
     async fn commit_block<Reader: ForestReader + Send, TM: TimeMeasurementTrait + Send>(
         input: Input<Reader::InitialReadContext>,
         _trie_reader: &mut Reader,
         _time_measurement: &mut TM,
     ) -> BlockCommitmentResult<FilledForest> {
-        let root_class_hash = match input.state_diff.class_hash_to_compiled_class_hash.iter().next()
-        {
-            Some(class_hash) => HashOutput(class_hash.0.0),
+        // Sort class hashes deterministically to ensure all nodes get the same "first" class hash
+        let mut sorted_class_hashes: Vec<_> =
+            input.state_diff.class_hash_to_compiled_class_hash.keys().collect();
+        sorted_class_hashes.sort();
+
+        let root_class_hash = match sorted_class_hashes.first() {
+            Some(class_hash) => HashOutput(class_hash.0),
             None => HashOutput::ROOT_OF_EMPTY_TREE,
         };
         Ok(FilledForest {
@@ -87,6 +92,20 @@ impl StorageConstructor for starknet_patricia_storage::map_storage::MapStorage {
 
 impl StorageConstructor for RocksDbStorage {
     fn create_storage(db_path: PathBuf, _rocksdb_config: Self::Config) -> Self {
+        use std::fs;
+
+        // Log the db_path content before creating storage
+        match fs::read_dir(&db_path) {
+            Ok(entries) => {
+                info!("Listing files in db_path: {:?}", db_path);
+                for entry in entries.flatten() {
+                    info!("File in db_path: {:?}", entry.path());
+                }
+            }
+            Err(e) => {
+                info!("Could not read db_path {:?}: {}", db_path, e);
+            }
+        }
         Self::open(Path::new(&db_path), RocksDbOptions::default()).unwrap()
     }
 }
@@ -113,9 +132,25 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         Self { forest_storage, config, offset, phantom: PhantomData }
     }
 
+    pub async fn commit_block(
+        &mut self,
+        CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
+    ) -> CommitterResult<CommitBlockResponse> {
+        let result = self
+            .commit_block_inner(CommitBlockRequest { state_diff, state_diff_commitment, height })
+            .await;
+        match &result {
+            Ok(_) => {
+                info!("Committed block number {height} with state diff {state_diff_commitment:?}")
+            }
+            Err(err) => error!("Failed to commit block number {height}: {err:?}"),
+        }
+        result
+    }
+
     /// Commits a block to the forest.
     /// In the happy flow, the given height equals to the committer offset.
-    pub async fn commit_block(
+    pub async fn commit_block_inner(
         &mut self,
         CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
     ) -> CommitterResult<CommitBlockResponse> {
@@ -136,10 +171,13 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             Some(commitment) => {
                 if self.config.verify_state_diff_hash {
                     let calculated_commitment = calculate_state_diff_hash(&state_diff);
-                    assert_eq!(
-                        commitment, calculated_commitment,
-                        "State diff hash mismatch for block number {height}."
-                    );
+                    if commitment != calculated_commitment {
+                        return Err(CommitterError::StateDiffHashMismatch {
+                            provided_commitment: commitment,
+                            calculated_commitment,
+                            height,
+                        });
+                    }
                 }
                 commitment
             }
@@ -301,7 +339,8 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             .await
             .expect("Failed to read commitment offset");
 
-        db_offset
+        let offset_exists = db_offset.is_some();
+        let offset = db_offset
             .map(|value| {
                 let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
                     panic!("Failed to deserialize commitment offset from {value:?}")
@@ -309,7 +348,18 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
                 DbBlockNumber::deserialize(array_value)
             })
             .unwrap_or_default()
-            .0
+            .0;
+
+        if !offset_exists {
+            warn!(
+                "CommitmentOffset metadata not found in storage, using default offset: {}",
+                offset
+            );
+        } else {
+            info!("Loaded CommitmentOffset from storage: {}", offset);
+        }
+
+        offset
     }
 
     // Reads metadata from the storage, returns an error if it is not found.
