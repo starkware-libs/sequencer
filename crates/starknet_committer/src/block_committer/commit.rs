@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_types_core::felt::Felt;
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
@@ -45,15 +46,21 @@ pub trait CommitBlockTrait: Send {
         let actual_storage_updates = input.state_diff.actual_storage_updates();
         let actual_classes_updates = input.state_diff.actual_classes_updates();
         // Record the number of modifications.
+        let n_empty_leaves = actual_storage_updates
+            .values()
+            .map(|storage_entry| {
+                storage_entry.values().filter(|value| value.0 == Felt::ZERO).count()
+            })
+            .sum::<usize>();
         let n_storage_tries_modifications =
             actual_storage_updates.values().map(|value| value.len()).sum();
         measurements.set_number_of_modifications(BlockModificationsCounts {
             storage_tries: n_storage_tries_modifications,
             contracts_trie: n_contracts_trie_modifications,
             classes_trie: actual_classes_updates.len(),
+            emptied_storage_leaves: n_empty_leaves,
         });
         // Reads - fetch_nodes.
-
         measurements.start_measurement(Action::Read);
         let roots =
             trie_reader.read_roots(input.initial_read_context).await.map_err(ForestError::from)?;
