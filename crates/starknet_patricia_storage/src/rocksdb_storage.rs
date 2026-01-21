@@ -76,15 +76,7 @@ impl Default for RocksDbOptions {
 
         opts.set_block_based_table_factory(&block);
 
-        // Set write options.
-        let mut write_options = WriteOptions::default();
-
-        // disable fsync after each write
-        write_options.set_sync(false);
-        // no write ahead log at all
-        write_options.disable_wal(true);
-
-        RocksDbOptions { db_options: opts, write_options }
+        RocksDbOptions { db_options: opts, write_options: WriteOptions::default() }
     }
 }
 
