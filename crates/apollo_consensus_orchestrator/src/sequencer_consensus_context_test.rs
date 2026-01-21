@@ -161,7 +161,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 
-    let build_param = BuildParam { round: 1, ..Default::default() };
+    let build_param = BuildParam { round: 1, valid_round: Some(0), ..Default::default() };
     context.repropose(TEST_PROPOSAL_COMMITMENT, build_param).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Reproposal sends init with updated round, proposer, valid_round.
@@ -178,7 +178,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     assert!(receiver.next().await.is_none());
 
     // Verify decision_reached uses the updated init (from reproposal round) for finalize.
-    context.decision_reached(BlockNumber(0), TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(BlockNumber(0), 1, TEST_PROPOSAL_COMMITMENT).await.unwrap();
 }
 
 #[tokio::test]
@@ -542,7 +542,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 
     // Re-propose.
-    let build_param = BuildParam { round: 1, ..Default::default() };
+    let build_param = BuildParam { round: 1, valid_round: Some(0), ..Default::default() };
     context.repropose(TEST_PROPOSAL_COMMITMENT, build_param).await;
     // Re-propose sends the same proposal content but with updated init (round, proposer,
     // valid_round).
@@ -560,7 +560,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     assert!(receiver.next().await.is_none());
 
     // Verify decision_reached uses the updated init (from reproposal round) for finalize.
-    context.decision_reached(BlockNumber(0), TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(BlockNumber(0), 1, TEST_PROPOSAL_COMMITMENT).await.unwrap();
 }
 
 #[tokio::test]
@@ -705,7 +705,7 @@ async fn decision_reached_sends_correct_values() {
     let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     // At this point we should have a valid proposal in the context which contains the timestamp.
 
-    context.decision_reached(BlockNumber(0), TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(BlockNumber(0), 0, TEST_PROPOSAL_COMMITMENT).await.unwrap();
 
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
@@ -864,7 +864,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
 
     // Decision reached
 
-    context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
+    context.decision_reached(BlockNumber(0), 0, proposal_commitment).await.unwrap();
 
     // Build proposal for block number 1.
     let build_param = BuildParam { height: BlockNumber(1), ..Default::default() };
@@ -1027,7 +1027,7 @@ async fn override_prices_behavior(
         return;
     }
 
-    context.decision_reached(BlockNumber(0), TEST_PROPOSAL_COMMITMENT).await.unwrap();
+    context.decision_reached(BlockNumber(0), 0, TEST_PROPOSAL_COMMITMENT).await.unwrap();
 
     let actual_l2_gas_price = context.l2_gas_price.0;
 
@@ -1158,7 +1158,7 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
-    context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
+    context.decision_reached(BlockNumber(0), 0, proposal_commitment).await.unwrap();
 
     let new_dynamic_config = ContextDynamicConfig {
         override_l2_gas_price_fri: Some(ODDLY_SPECIFIC_L2_GAS_PRICE),
@@ -1215,7 +1215,7 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment, TEST_PROPOSAL_COMMITMENT);
 
-    context.decision_reached(BlockNumber(1), proposal_commitment).await.unwrap();
+    context.decision_reached(BlockNumber(1), 0, proposal_commitment).await.unwrap();
 
     // Now build a proposal for height 2.
     let new_dynamic_config = ContextDynamicConfig {

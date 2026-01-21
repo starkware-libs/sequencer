@@ -95,81 +95,87 @@ use crate::validate_proposal::{
 
 type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
 
-type HeightToIdToContent = BTreeMap<
-    BlockNumber,
-    BTreeMap<
-        ProposalCommitment,
-        (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
-    >,
->;
+type ProposalContent = (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId);
+
+/// Assumption: at most one proposal is tracked per (height, round).
+/// We still keep the `ProposalCommitment` alongside the content for:
+/// - verifying `decision_reached(height, round, commitment)` matches what we stored, and
+/// - supporting `repropose(id, init)` where `init.round` may differ from the round the proposal was
+///   originally built/validated in.
+type HeightToRoundToProposal =
+    BTreeMap<BlockNumber, BTreeMap<Round, (ProposalCommitment, ProposalContent)>>;
 
 pub(crate) struct BuiltProposals {
-    // {height: {proposal_commitment: (init, content, [proposal_ids])}}
-    // Note that multiple proposals IDs can be associated with the same content, but we only need
-    // to store one of them.
+    // {height: {round: (proposal_commitment, (init, content, proposal_id))}}
     //
     // The tranasactions are stored as a vector of batches (as returned from the batcher) and not
     // flattened. This is since we might need to repropose, in which case we need to send the
     // transactions in batches.
-    data: HeightToIdToContent,
+    data: HeightToRoundToProposal,
 }
 
 impl BuiltProposals {
     pub fn new() -> Self {
-        Self { data: HeightToIdToContent::default() }
+        Self { data: HeightToRoundToProposal::default() }
     }
 
     fn get_proposal(
         &self,
         height: &BlockNumber,
+        round: &Round,
         commitment: &ProposalCommitment,
-    ) -> &(ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId) {
-        self.data
+    ) -> &ProposalContent {
+        let by_round = self
+            .data
             .get(height)
-            .unwrap_or_else(|| panic!("No proposals found for height {height}"))
-            .get(commitment)
-            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {commitment}"))
+            .unwrap_or_else(|| panic!("No proposals found for height {height}"));
+        let (stored_commitment, stored_content) = by_round
+            .get(round)
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and round {round}"));
+        assert_eq!(
+            stored_commitment, commitment,
+            "Proposal commitment mismatch for height {height} round {round}: \
+             stored={stored_commitment}, requested={commitment}"
+        );
+        stored_content
     }
 
     fn remove_proposals_below_or_at_height(&mut self, height: &BlockNumber) {
         self.data.retain(|&h, _| h > *height);
     }
 
-    pub(crate) fn insert_proposal_for_height(
+    pub(crate) fn insert_proposal(
         &mut self,
-        height: &BlockNumber,
         proposal_commitment: &ProposalCommitment,
         init: ProposalInit,
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         proposal_id: &ProposalId,
     ) {
         self.data
-            .entry(*height)
+            .entry(init.height)
             .or_default()
-            .insert(*proposal_commitment, (init, transactions, *proposal_id));
+            .insert(init.round, (*proposal_commitment, (init, transactions, *proposal_id)));
     }
 
-    /// Gets the proposal, updates init with build_param for reproposal (timestamp remains unchanged
-    /// since it is part of PartialBlockHashComponents and must match the initial proposal for
-    /// commitment consistency), stores the updated init (so decision_reached retrieves the correct
-    /// init for finalize_decision), and returns (init, transactions) for sending the
-    /// reproposal.
+    /// Gets the proposal from (height, valid_round), creates updated init with build_param for
+    /// reproposal (timestamp remains unchanged since it is part of PartialBlockHashComponents and
+    /// must match the initial proposal for commitment consistency), inserts a new entry at
+    /// (height, build_param.round) so decision_reached can find it, and returns (init,
+    /// transactions) for sending the reproposal.
     fn update_for_reproposal(
         &mut self,
         height: &BlockNumber,
         id: &ProposalCommitment,
         build_param: &BuildParam,
     ) -> (ProposalInit, Vec<Vec<InternalConsensusTransaction>>) {
-        let entry = self
-            .data
-            .get_mut(height)
-            .expect("No proposals found for height {height}")
-            .get_mut(id)
-            .expect("No proposal found for height {height} and id {id}");
-        entry.0.round = build_param.round;
-        entry.0.proposer = build_param.proposer;
-        entry.0.valid_round = build_param.valid_round;
-        (entry.0.clone(), entry.1.clone())
+        let lookup_round = build_param.valid_round.expect("Valid round must be set for reproposal");
+        let (mut init, transactions, proposal_id) =
+            self.get_proposal(height, &lookup_round, id).clone();
+        init.round = build_param.round;
+        init.proposer = build_param.proposer;
+        init.valid_round = build_param.valid_round;
+        self.insert_proposal(id, init.clone(), transactions.clone(), &proposal_id);
+        (init, transactions)
     }
 }
 
@@ -679,6 +685,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn decision_reached(
         &mut self,
         height: BlockNumber,
+        round: Round,
         commitment: ProposalCommitment,
     ) -> Result<(), ConsensusError> {
         info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", commitment.0);
@@ -690,7 +697,7 @@ impl ConsensusContext for SequencerConsensusContext {
         {
             let mut proposals = self.valid_proposals.lock().unwrap();
             (init, transactions, proposal_id) =
-                proposals.get_proposal(&height, &commitment).clone();
+                proposals.get_proposal(&height, &round, &commitment).clone();
 
             proposals.remove_proposals_below_or_at_height(&height);
         }
@@ -865,6 +872,7 @@ impl SequencerConsensusContext {
             deps: self.deps.clone(),
             init,
             block_info_validation,
+            round: self.current_round,
             proposal_id,
             timeout,
             batcher_timeout_margin,

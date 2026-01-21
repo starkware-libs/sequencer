@@ -15,7 +15,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
-use apollo_consensus::types::ProposalCommitment;
+use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch};
@@ -57,6 +57,7 @@ pub(crate) struct ProposalValidateArguments {
     pub deps: SequencerConsensusContextDeps,
     pub init: ProposalInit,
     pub block_info_validation: BlockInfoValidation,
+    pub round: Round,
     pub proposal_id: ProposalId,
     pub timeout: Duration,
     pub batcher_timeout_margin: Duration,
@@ -200,13 +201,7 @@ pub(crate) async fn validate_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
-    valid_proposals.insert_proposal_for_height(
-        &args.block_info_validation.height,
-        &built_block,
-        args.init,
-        content,
-        &args.proposal_id,
-    );
+    valid_proposals.insert_proposal(&built_block, args.init, content, &args.proposal_id);
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {

@@ -107,7 +107,6 @@ pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
     let init = initiate_build(&mut args).await?;
-    let height = init.height;
 
     args.stream_sender
         .send(ProposalPart::Init(init.clone()))
@@ -119,13 +118,7 @@ pub(crate) async fn build_proposal(
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
-    valid_proposals.insert_proposal_for_height(
-        &height,
-        &proposal_commitment,
-        init,
-        content,
-        &args.proposal_id,
-    );
+    valid_proposals.insert_proposal(&proposal_commitment, init, content, &args.proposal_id);
     Ok(proposal_commitment)
 }
 

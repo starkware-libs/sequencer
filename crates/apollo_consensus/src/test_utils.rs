@@ -110,6 +110,7 @@ mock! {
         async fn decision_reached(
             &mut self,
             height: BlockNumber,
+            round: Round,
             commitment: ProposalCommitment,
         ) -> Result<(), ConsensusError>;
 
