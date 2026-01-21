@@ -30,7 +30,7 @@ use starknet_api::executable_transaction::{AccountTransaction, DeclareTransactio
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
+use starknet_api::test_utils::{test_block_hash, NonceManager, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
@@ -392,10 +392,8 @@ pub(crate) fn maybe_dummy_block_hash_and_number(
     if block_number.0 < STORED_BLOCK_HASH_BUFFER {
         return None;
     }
-    // Use (old_block_number * 100) as the hash to be consistent with
-    // generate_block_hash_storage_updates and snos_proof_facts_for_testing.
     let old_block_number = block_number.0 - STORED_BLOCK_HASH_BUFFER;
-    let block_hash = BlockHash(Felt::from(old_block_number * 100));
+    let block_hash = test_block_hash(old_block_number);
     Some((BlockNumber(old_block_number), block_hash))
 }
 
