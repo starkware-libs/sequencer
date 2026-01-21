@@ -107,10 +107,32 @@ pub struct Committer<S: StorageConstructor, CB: CommitBlockTrait> {
 
 impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
     pub async fn new(config: CommitterConfig) -> Self {
+        let storage_path = &config.storage_config.path;
+        info!("Initializing committer with storage path: {}", storage_path.display());
+
+        // Check if the storage directory exists before creating storage
+        if storage_path.exists() {
+            info!("Committer storage directory exists: {}", storage_path.display());
+            if let Ok(entries) = std::fs::read_dir(storage_path) {
+                let file_count: usize = entries.count();
+                info!("Committer storage directory contains {} entries", file_count);
+            }
+        } else {
+            warn!(
+                "Committer storage directory does not exist: {} (will be created)",
+                storage_path.display()
+            );
+        }
+
+        info!("Creating RocksDB storage at path: {}", storage_path.display());
         let mut forest_storage =
             MockForestStorage { storage: S::create_storage(config.storage_config.clone()) };
+        info!("RocksDB storage created successfully");
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
-        info!("Initializing committer with offset: {offset}");
+        info!(
+            "Initializing committer with offset: {offset} (storage path: {})",
+            storage_path.display()
+        );
         Self { forest_storage, config, offset, phantom: PhantomData }
     }
 
@@ -161,6 +183,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
         let (filled_forest, global_root) = self.commit_state_diff(state_diff).await?;
         let next_offset = height.unchecked_next();
+        info!(
+            "Writing CommitmentOffset to storage: {} (updating from {})",
+            next_offset, self.offset
+        );
         let metadata = HashMap::from([
             (
                 ForestMetadataType::CommitmentOffset,
@@ -290,7 +316,8 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             .await
             .expect("Failed to read commitment offset");
 
-        db_offset
+        let offset_exists = db_offset.is_some();
+        let offset = db_offset
             .map(|value| {
                 let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
                     panic!("Failed to deserialize commitment offset from {value:?}")
@@ -298,7 +325,18 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
                 DbBlockNumber::deserialize(array_value)
             })
             .unwrap_or_default()
-            .0
+            .0;
+
+        if !offset_exists {
+            warn!(
+                "CommitmentOffset metadata not found in storage, using default offset: {}",
+                offset
+            );
+        } else {
+            info!("Loaded CommitmentOffset from storage: {}", offset);
+        }
+
+        offset
     }
 
     // Reads metadata from the storage, returns an error if it is not found.
