@@ -114,7 +114,16 @@
             "transaction_index":16,
             "transaction_hash":"0xa07cd0a966655216edb9bf3982e8c3ee6321c7fb7a218c5c25e30c462f3f39",
             "l2_to_l1_messages":[
-
+                {
+                    "from_address":"0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",
+                    "to_address":"0x2",
+                    "payload":["0x2000","0x2001","0x2002","0x2003","0x2004"]
+                },
+                {
+                    "from_address":"0x67e7555f9ff00f5c4e9b353ad1f400e2274964ea0942483fae97363fd5d7958",
+                    "to_address":"0x3",
+                    "payload":["0x3000","0x3001"]
+                }
             ],
             "events":[
                 {
