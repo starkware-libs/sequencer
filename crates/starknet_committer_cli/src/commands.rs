@@ -26,7 +26,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
 use starknet_committer::block_committer::timing_util::{
     Action,
-    TimeMeasurement,
+    BenchmarkTimeMeasurement,
     TimeMeasurementTrait,
 };
 use starknet_committer::db::facts_db::db::FactsDb;
@@ -398,7 +398,8 @@ pub async fn run_storage_benchmark<S: Storage>(
     checkpoint_interval: usize,
 ) {
     let mut interference_task_set = JoinSet::new();
-    let mut time_measurement = TimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
+    let mut time_measurement =
+        BenchmarkTimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
             time_measurement.try_load_from_checkpoint(checkpoint_dir).unwrap_or_default()
@@ -444,9 +445,9 @@ pub async fn run_storage_benchmark<S: Storage>(
         let n_new_facts =
             facts_db.write(&filled_forest).await.expect("failed to serialize db values");
         info!("Written {n_new_facts} new facts to storage");
-        time_measurement.attempt_to_stop_measurement(Action::Write, n_new_facts);
+        time_measurement.attempt_to_stop_measurement(Action::Write, n_new_facts).unwrap();
 
-        time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0);
+        time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).unwrap();
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
