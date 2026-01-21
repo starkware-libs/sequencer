@@ -19,7 +19,7 @@ use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
-use starknet_committer::block_committer::input::{Input, InputContext};
+use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::timing_util::TimeMeasurement;
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
@@ -53,8 +53,8 @@ pub struct CommitBlockMock;
 #[async_trait]
 impl CommitBlockTrait for CommitBlockMock {
     /// Sets the class trie root hash to the first class hash in the state diff.
-    async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
-        input: Input<I>,
+    async fn commit_block<Reader: ForestReader + Send>(
+        input: Input<Reader::InitialReadContext>,
         _trie_reader: &mut Reader,
         _time_measurement: Option<&mut TimeMeasurement>,
     ) -> BlockCommitmentResult<FilledForest> {
