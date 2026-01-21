@@ -42,6 +42,16 @@ impl<S: Storage> IndexDb<S> {
     pub fn new(storage: S) -> Self {
         Self { storage }
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_storage(&self) -> &S {
+        &self.storage
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_mut_storage(&mut self) -> &mut S {
+        &mut self.storage
+    }
 }
 
 pub struct IndexNodeLayout {}
