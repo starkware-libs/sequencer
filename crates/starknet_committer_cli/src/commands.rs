@@ -209,7 +209,7 @@ impl BenchmarkFlavor {
         rng: &mut SmallRng,
         batcher_storage_reader: Option<&StorageReader>,
     ) -> StateDiff {
-        if self == &BenchmarkFlavor::Mainnet {
+        if [BenchmarkFlavor::Mainnet, BenchmarkFlavor::MainnetWithSleeps].contains(self) {
             let block_number = u64::try_from(block_number).unwrap();
             info!("Getting state diff for mainnet block number {block_number} from storage.");
             let state_diff = batcher_storage_reader
