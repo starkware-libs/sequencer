@@ -225,6 +225,8 @@ impl TransactionConverterTrait for TransactionConverter {
     ) -> TransactionConverterResult<InternalRpcTransaction> {
         let tx_without_hash = match tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
+                // Verify proof here; storage happens in the caller after successful
+                // conversion/validation.
                 self.handle_proof_verification(&tx.proof_facts, &tx.proof).await?;
                 InternalRpcTransactionWithoutTxHash::Invoke(tx.into())
             }
