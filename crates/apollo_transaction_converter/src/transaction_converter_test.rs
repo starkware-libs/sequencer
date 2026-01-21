@@ -12,17 +12,29 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use mockall::predicate::eq;
 use rstest::rstest;
+use starknet_api::compiled_class_hash;
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
-use starknet_api::{compiled_class_hash, felt, proof_facts};
 
 use crate::transaction_converter::{
     TransactionConverter,
     TransactionConverterError,
     TransactionConverterTrait,
 };
+
+fn test_proof_facts() -> ProofFacts {
+    ProofFacts::snos_proof_facts_for_testing()
+}
+
+fn test_proof() -> Proof {
+    Proof::proof_for_testing()
+}
+
+fn invoke_tx_with_proof() -> RpcTransaction {
+    invoke_tx_client_side_proving(CairoVersion::default(), test_proof_facts(), test_proof())
+}
 
 #[rstest]
 #[tokio::test]
@@ -67,21 +79,14 @@ async fn test_compiled_class_hash_mismatch() {
 #[rstest]
 #[tokio::test]
 async fn test_proof_verification_called_for_invoke_v3_with_proof_facts() {
-    // Create an invoke transaction with proof facts and proof.
-    let proof_facts = proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")];
-    let proof = Proof::from(vec![1u32, 2u32, 3u32]);
-    let invoke_tx = invoke_tx_client_side_proving(
-        CairoVersion::Cairo1(RunnableCairo1::Casm),
-        proof_facts.clone(),
-        proof.clone(),
-    );
+    let invoke_tx = invoke_tx_with_proof();
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
     // Expect contains proof to be called and return false (proof does not exist).
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
-        .with(eq(proof_facts.clone()))
+        .with(eq(test_proof_facts()))
         .return_once(|_| Ok(false));
 
     let mock_class_manager_client = MockClassManagerClient::new();
@@ -120,13 +125,9 @@ async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
 #[rstest]
 #[tokio::test]
 async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof() {
-    let proof_facts = proof_facts![felt!("0x1"), felt!("0x2"), felt!("0x3")];
-    let proof = Proof::from(vec![1u32, 2u32, 3u32]);
-    let invoke_tx = invoke_tx_client_side_proving(
-        CairoVersion::Cairo1(RunnableCairo1::Casm),
-        proof_facts.clone(),
-        proof.clone(),
-    );
+    let proof_facts = test_proof_facts();
+    let proof = test_proof();
+    let invoke_tx = invoke_tx_with_proof();
 
     let consensus_tx = ConsensusTransaction::RpcTransaction(invoke_tx);
 
@@ -169,11 +170,9 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
 #[rstest]
 #[tokio::test]
 async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof() {
-    // Create an RPC transaction with proof data.
-    let proof_facts = ProofFacts::snos_proof_facts_for_testing();
-    let proof = Proof::proof_for_testing();
-    let rpc_tx =
-        invoke_tx_client_side_proving(CairoVersion::default(), proof_facts.clone(), proof.clone());
+    let proof_facts = test_proof_facts();
+    let proof = test_proof();
+    let rpc_tx = invoke_tx_with_proof();
 
     // Configure mock: define what methods will be called and what they should return.
     // Note: The mock doesn't have real storage - it just returns pre-programmed responses.
