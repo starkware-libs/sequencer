@@ -68,6 +68,8 @@ pub trait TimeMeasurementTrait {
         n_contracts_trie_modifications: usize,
         n_classes_trie_modifications: usize,
     );
+
+    fn set_number_of_empty_leaves(&mut self, n_empty_leaves: usize);
 }
 
 pub struct NoTimeMeasurement;
@@ -90,6 +92,8 @@ impl TimeMeasurementTrait for NoTimeMeasurement {
         _n_classes_trie_modifications: usize,
     ) {
     }
+
+    fn set_number_of_empty_leaves(&mut self, _n_empty_leaves: usize) {}
 }
 
 #[derive(Default, Clone)]
@@ -103,6 +107,7 @@ pub struct BlockMeasurement {
     pub n_storage_tries_modifications: usize,
     pub n_contracts_trie_modifications: usize,
     pub n_classes_trie_modifications: usize,
+    pub n_empty_leaves: usize,
 }
 
 impl BlockMeasurement {
@@ -161,5 +166,9 @@ impl TimeMeasurementTrait for SingleBlockTimeMeasurement {
         self.block_measurement.n_storage_tries_modifications = n_storage_tries_modifications;
         self.block_measurement.n_contracts_trie_modifications = n_contracts_trie_modifications;
         self.block_measurement.n_classes_trie_modifications = n_classes_trie_modifications;
+    }
+
+    fn set_number_of_empty_leaves(&mut self, n_empty_leaves: usize) {
+        self.block_measurement.n_empty_leaves = n_empty_leaves;
     }
 }

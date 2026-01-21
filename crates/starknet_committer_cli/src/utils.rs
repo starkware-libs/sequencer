@@ -88,6 +88,10 @@ impl TimeMeasurementTrait for BenchmarkTimeMeasurement {
             n_classes_trie_modifications,
         );
     }
+
+    fn set_number_of_empty_leaves(&mut self, n_empty_leaves: usize) {
+        self.current_measurement.set_number_of_empty_leaves(n_empty_leaves);
+    }
 }
 
 impl BenchmarkTimeMeasurement {

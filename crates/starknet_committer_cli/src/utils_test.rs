@@ -11,9 +11,11 @@ const WRITE_DURATION: u64 = 100;
 const N_READ_ENTRIES: usize = 100;
 const N_WRITE_ENTRIES: usize = 100;
 const N_MODIFICATIONS: usize = 100;
+const N_EMPTY_LEAVES: usize = 10;
 
 async fn measure_block(btm: &mut BenchmarkTimeMeasurement) {
     btm.set_number_of_modifications(N_MODIFICATIONS, N_MODIFICATIONS, N_MODIFICATIONS);
+    btm.set_number_of_empty_leaves(N_EMPTY_LEAVES);
     btm.start_measurement(Action::EndToEnd);
     btm.start_measurement(Action::Read);
     sleep(Duration::from_millis(READ_DURATION)).await;
@@ -52,6 +54,7 @@ fn assert_block_time_measurement(btm: &BenchmarkTimeMeasurement, number_of_block
         assert_eq!(measurement.n_storage_tries_modifications, N_MODIFICATIONS);
         assert_eq!(measurement.n_contracts_trie_modifications, N_MODIFICATIONS);
         assert_eq!(measurement.n_classes_trie_modifications, N_MODIFICATIONS);
+        assert_eq!(measurement.n_empty_leaves, N_EMPTY_LEAVES);
     }
 }
 
