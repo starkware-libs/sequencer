@@ -186,12 +186,12 @@ impl BenchmarkFlavor {
         n_updates_arg: usize,
         block_number: usize,
         rng: &mut SmallRng,
-        storage_reader: Option<&StorageReader>,
+        batcher_storage_reader: Option<&StorageReader>,
     ) -> StateDiff {
         if self == &BenchmarkFlavor::Mainnet {
             let block_number = u64::try_from(block_number).unwrap();
             info!("Getting state diff for mainnet block number {block_number} from storage.");
-            let state_diff = storage_reader
+            let state_diff = batcher_storage_reader
                 .unwrap()
                 .begin_ro_txn()
                 .unwrap()
@@ -410,7 +410,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         None => HashOutput::default(),
     };
 
-    let storage_reader: Option<StorageReader> = if flavor == BenchmarkFlavor::Mainnet {
+    let batcher_storage_reader: Option<StorageReader> = if flavor == BenchmarkFlavor::Mainnet {
         Some(open_storage(BATCHER_STORAGE_CONFIG.clone()).unwrap().0)
     } else {
         None
@@ -430,7 +430,7 @@ pub async fn run_storage_benchmark<S: Storage>(
                 n_updates_arg,
                 block_number,
                 &mut rng,
-                storage_reader.as_ref(),
+                batcher_storage_reader.as_ref(),
             ),
             initial_read_context: FactsDbInitialRead(StateRoots {
                 contracts_trie_root_hash,
