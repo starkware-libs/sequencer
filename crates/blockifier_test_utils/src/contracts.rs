@@ -14,7 +14,13 @@ use starknet_api::{class_hash, contract_address, felt};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts, LibfuncArg};
+use crate::cairo_compile::{
+    allowed_libfuncs_json_path,
+    cairo0_compile,
+    cairo1_compile,
+    CompilationArtifacts,
+    LibfuncArg,
+};
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
 
 pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo1";
@@ -534,7 +540,7 @@ impl FeatureContract {
                     Self::Experimental => {
                         LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
                     }
-                    _ => LibfuncArg::ListName("all".to_string()),
+                    _ => LibfuncArg::ListFile(allowed_libfuncs_json_path()),
                 };
                 cairo1_compile(self.get_source_path(), self.fixed_version(), libfunc_list_arg)
             }
