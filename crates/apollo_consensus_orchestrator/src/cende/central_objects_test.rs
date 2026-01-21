@@ -9,6 +9,7 @@ use apollo_batcher::cende_client_types::{
     CendePreconfirmedTransaction,
     ExecutionResources as CendeClientExecutionResources,
     IntermediateInvokeTransaction,
+    L2ToL1Message,
     StarknetClientTransactionReceipt,
     TransactionExecutionStatus,
 };
@@ -82,7 +83,7 @@ use starknet_api::block::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, L1Address};
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress, L1Address};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
@@ -721,6 +722,19 @@ fn central_blob_with_empty_or_none_fields() -> AerospikeBlob {
         .unwrap()
 }
 
+fn message_to_l1_from_serialized_fields(
+    from_address: &str,
+    to_address: &str,
+    payload: Vec<&str>,
+) -> L2ToL1Message {
+    L2ToL1Message {
+        from_address: contract_address!(from_address),
+        to_address: EthAddress::try_from(felt!(to_address))
+            .expect("Failed to convert to_address to EthAddress"),
+        payload: L2ToL1Payload(payload.into_iter().map(|s| felt!(s)).collect::<Vec<_>>()),
+    }
+}
+
 fn event_from_serialized_fields(from_address: &str, keys: Vec<&str>, data: Vec<&str>) -> Event {
     Event {
         from_address: contract_address!(from_address),
@@ -883,7 +897,18 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
             "0xa07cd0a966655216edb9bf3982e8c3ee6321c7fb7a218c5c25e30c462f3f39"
         )),
         l1_to_l2_consumed_message: None,
-        l2_to_l1_messages: vec![],
+        l2_to_l1_messages: vec![
+            message_to_l1_from_serialized_fields(
+                "0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",
+                "0x2",
+                vec!["0x2000", "0x2001", "0x2002", "0x2003", "0x2004"],
+            ),
+            message_to_l1_from_serialized_fields(
+                "0x67e7555f9ff00f5c4e9b353ad1f400e2274964ea0942483fae97363fd5d7958",
+                "0x3",
+                vec!["0x3000", "0x3001"],
+            ),
+        ],
         events: vec![
             event_from_serialized_fields(
                 "0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",
