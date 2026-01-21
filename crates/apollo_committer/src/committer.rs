@@ -290,7 +290,8 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             .await
             .expect("Failed to read commitment offset");
 
-        db_offset
+        let offset_exists = db_offset.is_some();
+        let offset = db_offset
             .map(|value| {
                 let array_value: [u8; 8] = value.0.try_into().unwrap_or_else(|value| {
                     panic!("Failed to deserialize commitment offset from {value:?}")
@@ -298,7 +299,18 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
                 DbBlockNumber::deserialize(array_value)
             })
             .unwrap_or_default()
-            .0
+            .0;
+
+        if !offset_exists {
+            warn!(
+                "CommitmentOffset metadata not found in storage, using default offset: {}",
+                offset
+            );
+        } else {
+            info!("Loaded CommitmentOffset from storage: {}", offset);
+        }
+
+        offset
     }
 
     // Reads metadata from the storage, returns an error if it is not found.
