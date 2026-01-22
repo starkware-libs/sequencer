@@ -149,7 +149,7 @@ def expand_simple_placeholders(
     return expanded_items
 
 
-def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
+def load_config_file(alert_rules_overrids_config_path: Optional[str], logger_instance=None) -> dict:
     """
     Load YAML config file with overrides.
     Returns empty dict if file doesn't exist or path is None.
@@ -161,13 +161,13 @@ def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
     Returns:
         Dictionary with config overrides
     """
-    if not config_path or not os.path.isfile(config_path):
+    if not alert_rules_overrids_config_path or not os.path.isfile(alert_rules_overrids_config_path):
         return {}
 
     log = logger_instance
     if log:
-        log.debug(f"Loading config file: {config_path}")
-    with open(config_path, "r") as f:
+        log.debug(f"Loading config file: {alert_rules_overrids_config_path}")
+    with open(alert_rules_overrids_config_path, "r") as f:
         config = yaml.safe_load(f) or {}
     if log:
         log.debug(f"Loaded config: {config}")

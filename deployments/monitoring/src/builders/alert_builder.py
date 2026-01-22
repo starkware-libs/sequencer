@@ -273,12 +273,12 @@ def alert_builder(args: argparse.Namespace):
     # Load config overrides if provided
     args_dict = vars(args)
     config = (
-        load_config_file(args_dict.get("config_file"), logger_instance=logger)
-        if args_dict.get("config_file")
+        load_config_file(args_dict.get("alert_rules_overrids_config_file"), logger_instance=logger)
+        if args_dict.get("alert_rules_overrids_config_file")
         else {}
     )
     if config:
-        logger.info(f"Loaded {len(config)} override(s) from config file")
+        logger.info(f"Loaded {len(config)} override(s) from alert rules overrids config file")
 
     if not args.dry_run:
         client = GrafanaApi.from_url(args.grafana_url)
@@ -287,7 +287,7 @@ def alert_builder(args: argparse.Namespace):
         folder_uid = args.folder_uid
 
     # Get config file path for error messages
-    config_file_path = args_dict.get("config_file", "")
+    alert_rules_overrids_config_file_path = args_dict.get("alert_rules_overrids_config_file", "")
 
     # Expand simple placeholders ($$$_X_$$$) to full path-based placeholders ($$$_ALERT_NAME.FIELD_$$$)
     # This must happen BEFORE validation, so validation sees the expanded format
@@ -303,7 +303,7 @@ def alert_builder(args: argparse.Namespace):
             dev_alerts["alerts"],
             config,
             source_json_path=alert_file_path,
-            config_override_path=config_file_path,
+            config_override_path=alert_rules_overrids_config_file_path,
             logger_instance=logger,
             item_type_name="alert",
         )

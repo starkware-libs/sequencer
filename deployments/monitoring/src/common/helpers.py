@@ -141,16 +141,16 @@ def arg_parser() -> argparse.ArgumentParser:
         required=True,
     )
     parser.add_argument(
-        "--dashboard-overrides-file",
+        "--dashboard-overrids-config-file",
         type=str,
         required=False,
-        help="Path to YAML file with dashboard overrides (e.g., dashboard_name.field: value). Optional.",
+        help="Path to YAML file with dashboard overrids (e.g., dashboard_name.field: value). Optional.",
     )
     parser.add_argument(
-        "--alert-rules-overrides-file",
+        "--alert-rules-overrids-config-file",
         type=str,
         required=True,
-        help="Path to YAML file with alert rule overrides (e.g., alert_name.field: value). Required.",
+        help="Path to YAML file with alert rule overrids (e.g., alert_name.field: value). Required.",
     )
 
     args = parser.parse_args()
