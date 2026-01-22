@@ -4,7 +4,6 @@ from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.find_element import find_element, search_sorted_lower
 from starkware.cairo.common.math import assert_le_felt, assert_nn_le
 from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.common.squash_dict import squash_dict
 from starkware.starknet.core.os.constants import ALIAS_CONTRACT_ADDRESS
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.state.output import (

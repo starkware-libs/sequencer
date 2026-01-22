@@ -2,7 +2,6 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.hash_state import (
     hash_finalize,
     hash_init,
-    hash_update,
     hash_update_single,
     hash_update_with_hashchain,
 )

@@ -1,17 +1,6 @@
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import FALSE, TRUE
+from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
-from starkware.cairo.common.hash_state_poseidon import (
-    HashState,
-    hash_finalize,
-    hash_init,
-    hash_update_single,
-    hash_update_with_nested_hash,
-    poseidon_hash_many,
-)
 from starkware.cairo.common.math import assert_lt_felt
-from starkware.cairo.common.poseidon_state import PoseidonBuiltinState
-from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.core.os.constants import (
     ADD_MOD_GAS_COST,
     BITWISE_BUILTIN_GAS_COST,
@@ -24,7 +13,6 @@ from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import 
     compiled_class_hash as blake_compiled_class_hash,
 )
 from starkware.starknet.core.os.contract_class.compiled_class_struct import (
-    COMPILED_CLASS_VERSION,
     CompiledClass,
     CompiledClassEntryPoint,
     CompiledClassFact,
