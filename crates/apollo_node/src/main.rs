@@ -4,6 +4,7 @@ use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::set_global_allocator;
 use apollo_node::servers::run_component_servers;
+use apollo_node::signal_handling::handle_signals;
 use apollo_node::utils::create_node_modules;
 use apollo_node_config::config_utils::load_and_validate_config;
 use tracing::info;
@@ -35,7 +36,14 @@ async fn main() -> anyhow::Result<()> {
     let (_clients, servers) = create_node_modules(&config, prometheus_handle, cli_args).await;
 
     info!("START_UP: Starting components!");
-    run_component_servers(servers).await;
+    tokio::select! {
+        _ = run_component_servers(servers) => {
+            // Servers completed normally
+        }
+        _ = handle_signals() => {
+            // Signal received and logged
+        }
+    }
 
     // TODO(Tsabary): Add graceful shutdown.
     Ok(())

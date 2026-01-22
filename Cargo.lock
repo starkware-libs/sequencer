@@ -2130,12 +2130,16 @@ dependencies = [
  "apollo_state_sync_types",
  "futures",
  "metrics-exporter-prometheus",
+ "nix 0.20.2",
  "papyrus_base_layer",
  "pretty_assertions",
+ "rstest",
  "tikv-jemallocator",
  "tokio",
  "tokio-util",
  "tracing",
+ "tracing-subscriber",
+ "tracing-test",
 ]
 
 [[package]]

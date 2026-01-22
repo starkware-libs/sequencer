@@ -58,8 +58,12 @@ tracing.workspace = true
 [dev-dependencies]
 apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
+nix.workspace = true
 pretty_assertions.workspace = true
+rstest.workspace = true
 tokio-util = { workspace = true, features = ["rt"] }
+tracing-subscriber.workspace = true
+tracing-test.workspace = true
 
 [package.metadata.cargo-machete]
 ignored = ["tikv-jemallocator"]
