@@ -139,10 +139,10 @@ pub fn create_facts_db_from_storage_proof(
     }
 
     // Add dummy edges for orphan child hashes (sibling hashes without preimages)
-    add_orphan_child_hashes(&mut storage, &rpc_proof.contracts_proof.nodes);
-    for storage_proof in &rpc_proof.contracts_storage_proofs {
-        add_orphan_child_hashes(&mut storage, storage_proof);
-    }
+    // add_orphan_child_hashes(&mut storage, &rpc_proof.contracts_proof.nodes);
+    // for storage_proof in &rpc_proof.contracts_storage_proofs {
+    //     add_orphan_child_hashes(&mut storage, storage_proof);
+    // }
 
     // Compute and add missing nodes for modified leaves
     let computed_nodes = compute_missing_nodes_for_modified_leaves(rpc_proof, state_diff);
@@ -189,6 +189,7 @@ fn contract_leaf_to_filled_node(
     };
 
     let hash = TreeHashFunctionImpl::compute_leaf_hash(&contract_state);
+    println!(" The hash of the contract state {:?} is {:?}", contract_state, hash);
 
     FilledNode { hash, data: NodeData::Leaf(contract_state) }
 }
