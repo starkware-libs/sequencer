@@ -1,29 +1,14 @@
-use std::sync::Arc;
-use std::time::Instant;
-
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
-use apollo_test_utils::{prometheus_is_contained, send_request};
-use jsonrpsee::server::logger::{Logger, TransportProtocol};
-use jsonrpsee::Methods;
+use apollo_test_utils::send_request;
 use metrics_exporter_prometheus::PrometheusBuilder;
-use pretty_assertions::assert_eq;
-use prometheus_parse::Value::Counter;
 use starknet_api::block::{BlockBody, BlockHeader, BlockNumber};
 use starknet_api::state::ThinStateDiff;
 
-use crate::rpc_metrics::{
-    get_method_and_version,
-    MetricLogger,
-    FAILED_REQUESTS,
-    ILLEGAL_METHOD,
-    INCOMING_REQUEST,
-    METHOD_LABEL,
-    VERSION_LABEL,
-};
+use crate::rpc_metrics::get_method_and_version;
 use crate::run_server;
 use crate::test_utils::{
     get_test_highest_block,
@@ -38,106 +23,6 @@ fn get_method_and_version_test() {
     let (method, version) = get_method_and_version(method_name);
     assert_eq!(method, "blockNumber");
     assert_eq!(version, "V0_8_0");
-}
-
-// Ignored because server_metrics test is running in parallel and we are unable to install multiple
-// recorders.
-#[ignore]
-#[test]
-fn logger_test() {
-    let full_method_name = "starknet_V0_8_0_blockNumber";
-    let (method, version) = get_method_and_version(full_method_name);
-    let labels = vec![(METHOD_LABEL, method.as_str()), (VERSION_LABEL, version.as_str())];
-    let illegal_method_label = vec![(METHOD_LABEL, ILLEGAL_METHOD)];
-    let handle = PrometheusBuilder::new().install_recorder().unwrap();
-    let callback = jsonrpsee::MethodCallback::Unsubscription(Arc::new(|_, _, _, _| {
-        jsonrpsee::MethodResponse {
-            result: String::new(),
-            success_or_error: jsonrpsee::helpers::MethodResponseResult::Success,
-        }
-    }));
-    let mut methods = Methods::new();
-    methods.verify_and_insert(full_method_name, callback).unwrap();
-    let logger = MetricLogger::new(&methods);
-
-    // The counters are initialized with zero.
-    assert_eq!(
-        prometheus_is_contained(handle.render(), INCOMING_REQUEST, &labels),
-        Some(Counter(0f64))
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), INCOMING_REQUEST, &illegal_method_label),
-        Some(Counter(0f64))
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), FAILED_REQUESTS, &labels),
-        Some(Counter(0f64))
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), FAILED_REQUESTS, &illegal_method_label),
-        Some(Counter(0f64))
-    );
-
-    // Successful call.
-    logger.on_result(
-        full_method_name,
-        jsonrpsee::helpers::MethodResponseResult::Success,
-        Instant::now(),
-        TransportProtocol::Http,
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), INCOMING_REQUEST, &labels),
-        Some(Counter(1f64))
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), FAILED_REQUESTS, &labels),
-        Some(Counter(0f64))
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), FAILED_REQUESTS, &illegal_method_label),
-        Some(Counter(0f64))
-    );
-
-    // Failed call.
-    logger.on_result(
-        full_method_name,
-        jsonrpsee::helpers::MethodResponseResult::Failed(0),
-        Instant::now(),
-        TransportProtocol::Http,
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), INCOMING_REQUEST, &labels),
-        Some(Counter(2f64))
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), FAILED_REQUESTS, &labels),
-        Some(Counter(1f64))
-    );
-    assert_eq!(
-        prometheus_is_contained(handle.render(), FAILED_REQUESTS, &illegal_method_label),
-        Some(Counter(0f64))
-    );
-
-    // Illegal method.
-    let bad_method_name = "starknet_V0_8_0_illegal_method";
-    let (method, version) = get_method_and_version(bad_method_name);
-    let bad_labels = vec![(METHOD_LABEL, method.as_str()), (VERSION_LABEL, version.as_str())];
-    logger.on_result(
-        bad_method_name,
-        jsonrpsee::helpers::MethodResponseResult::Failed(0),
-        Instant::now(),
-        TransportProtocol::Http,
-    );
-    assert_eq!(prometheus_is_contained(handle.render(), INCOMING_REQUEST, &bad_labels), None);
-    assert_eq!(
-        prometheus_is_contained(handle.render(), INCOMING_REQUEST, &illegal_method_label),
-        Some(Counter(1f64))
-    );
-    assert_eq!(prometheus_is_contained(handle.render(), FAILED_REQUESTS, &bad_labels), None);
-    assert_eq!(
-        prometheus_is_contained(handle.render(), FAILED_REQUESTS, &illegal_method_label),
-        Some(Counter(1f64))
-    );
 }
 
 #[tokio::test]
