@@ -15,6 +15,7 @@ use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::Storage;
+use tracing::info;
 
 use crate::commands::run_storage_benchmark_wrapper;
 
@@ -280,11 +281,9 @@ pub struct RocksdbArgs {
 
 impl StorageFromArgs for RocksdbArgs {
     async fn storage(&self) -> impl Storage {
-        RocksDbStorage::open(
-            Path::new(&self.file_storage_args.initialize_storage_path(StorageType::Rocksdb)),
-            self.rocksdb_options(),
-        )
-        .unwrap()
+        let storage_path = self.file_storage_args.initialize_storage_path(StorageType::Rocksdb);
+        info!("Opening RocksDB at path: {:?}", storage_path);
+        RocksDbStorage::open(Path::new(&storage_path), self.rocksdb_options()).unwrap()
     }
 }
 

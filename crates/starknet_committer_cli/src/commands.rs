@@ -410,7 +410,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         None
     };
 
-    let curr_block_number = time_measurement.block_number;
+    let curr_block_number = 4_000_000;
     let n_iterations = flavor.n_iterations(n_iterations);
 
     let mut classes_trie_root_hash = HashOutput::default();
