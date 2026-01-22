@@ -140,7 +140,7 @@ pub fn get_integration_test_storage(
                 .join(CLASSES_STORAGE_DB_PATH_SUFFIX);
             storage_config.consensus_storage_config.db_config.path_prefix =
                 custom_storage_exec_paths.get_consensus_exec_path().join(CONSENSUS_DB_PATH_SUFFIX);
-            storage_config.committer_storage_config.path =
+            storage_config.committer_db_path =
                 custom_storage_exec_paths.get_committer_exec_path().join(COMMITTER_DB_PATH_SUFFIX);
         }
     }
@@ -151,7 +151,7 @@ pub fn get_integration_test_storage(
             storage_config.state_sync_storage_config,
             storage_config.class_manager_storage_config,
             storage_config.consensus_storage_config,
-            storage_config.committer_storage_config,
+            storage_config.committer_db_path,
         ),
         storage_handles,
     }

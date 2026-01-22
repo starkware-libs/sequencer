@@ -499,15 +499,15 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "committer_config.db_path": {
+    "description": "Path to the committer storage directory.",
+    "privacy": "Public",
+    "value": "/data/committer"
+  },
   "committer_config.reader_config.warn_on_trivial_modifications": {
     "description": "Whether to warn on trivial state update.",
     "privacy": "Public",
     "value": false
-  },
-  "committer_config.storage_config.path": {
-    "description": "Path to the committer storage directory.",
-    "privacy": "Public",
-    "value": "/data/committer"
   },
   "committer_config.verify_state_diff_hash": {
     "description": "If true, the committer will verify the state diff hash.",
