@@ -9,6 +9,7 @@ pub mod virtual_block_executor;
 
 #[cfg(test)]
 mod classes_provider_test;
+#[cfg(test)]
 mod commit_test;
 #[cfg(test)]
 mod storage_proofs_test;

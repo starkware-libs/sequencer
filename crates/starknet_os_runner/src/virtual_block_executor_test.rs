@@ -84,7 +84,7 @@ fn test_execute_constructed_balance_of_transaction(
 
     // Execute the transaction.
     let result = rpc_virtual_block_executor
-        .execute(latest_block_number, contract_class_manager, vec![(tx, tx_hash)])
+        .execute(BlockId::Number(latest_block_number), contract_class_manager, vec![(tx, tx_hash)])
         .unwrap();
 
     // Verify execution produced output.

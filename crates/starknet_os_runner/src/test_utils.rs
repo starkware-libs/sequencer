@@ -43,19 +43,14 @@ pub fn latest_block_number(rpc_provider: RpcStorageProofsProvider) -> BlockNumbe
 #[fixture]
 pub fn rpc_state_reader(latest_block_number: BlockNumber) -> RpcStateReader {
     let node_url = get_rpc_url();
-    RpcStateReader::new_with_config_from_url(
-        node_url,
-        ChainId::Mainnet,
-        BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
-    )
-    RpcStateReader::new_with_config_from_url(node_url, ChainId::Mainnet, latest_block_number)
+    RpcStateReader::new_with_config_from_url(node_url, ChainId::Mainnet, BlockId::Number(latest_block_number))
 }
 
 /// Fixture that creates an RpcStateReader for a specific block.
 /// Use this in async tests where you've already fetched the block number.
 pub fn rpc_state_reader_for_block(block_number: BlockNumber) -> RpcStateReader {
     let node_url = get_rpc_url();
-    RpcStateReader::new_with_config_from_url(node_url, ChainId::Mainnet, block_number)
+    RpcStateReader::new_with_config_from_url(node_url, ChainId::Mainnet, BlockId::Number(block_number))
 }
 
 #[fixture]

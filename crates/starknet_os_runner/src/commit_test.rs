@@ -2,6 +2,7 @@
 
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
@@ -94,7 +95,7 @@ async fn test_commit_with_rpc_proofs(rpc_provider: RpcStorageProofsProvider) {
         let contract_class_manager =
             ContractClassManager::start(ContractClassManagerConfig::default());
         rpc_virtual_block_executor
-            .execute(block_number, contract_class_manager, vec![(tx, tx_hash)])
+            .execute(BlockId::Number(block_number), contract_class_manager, vec![(tx, tx_hash)])
             .expect("Transaction execution should succeed")
     })
     .await
@@ -134,8 +135,23 @@ async fn test_commit_with_rpc_proofs(rpc_provider: RpcStorageProofsProvider) {
     println!("Contract leaves: {}", rpc_proof.contracts_proof.contract_leaves_data.len());
     println!("Storage proofs count: {}", rpc_proof.contracts_storage_proofs.len());
 
-    // Step 3: Create FactsDb from storage proof
-    let mut facts_db = create_facts_db_from_storage_proof(&rpc_proof);
+    // Step 3: Extract state diff from execution outputs BEFORE creating FactsDb
+    let state_diff = create_state_diff_from_execution_outputs(&execution_result.execution_outputs);
+
+    println!("State diff created:");
+    println!("  - Nonce updates: {}", state_diff.address_to_nonce.len());
+    for (addr, nonce) in &state_diff.address_to_nonce {
+        println!("      Address: 0x{:x}, New nonce: {:?}", addr.0.key(), nonce);
+    }
+    println!("  - Class hash updates: {}", state_diff.address_to_class_hash.len());
+    println!(
+        "  - Compiled class hash updates: {}",
+        state_diff.class_hash_to_compiled_class_hash.len()
+    );
+    println!("  - Storage updates: {} contracts", state_diff.storage_updates.len());
+
+    // Step 4: Create FactsDb from storage proof with state diff
+    let mut facts_db = create_facts_db_from_storage_proof(&rpc_proof, &state_diff);
 
     println!("Created FactsDb with {} entries", facts_db.storage.0.len());
 
@@ -155,14 +171,62 @@ async fn test_commit_with_rpc_proofs(rpc_provider: RpcStorageProofsProvider) {
         patricia_node_count, contract_state_count, class_leaf_count, storage_leaf_count
     );
 
-    // Debug: Print all node hashes from RPC proof
-    println!("\n=== DEBUG: Nodes from RPC proof ===");
-    println!("Classes proof node hashes:");
-    for (hash, _node) in &rpc_proof.classes_proof {
-        println!("  0x{:x}", hash);
+    // Debug: Print full node structure from RPC proof
+    println!("\n=== DEBUG: Contracts proof nodes (full structure) ===");
+    for (hash, node) in &rpc_proof.contracts_proof.nodes {
+        match node {
+            starknet_rust_core::types::MerkleNode::BinaryNode(bn) => {
+                println!(
+                    "  0x{:x} = Binary {{ left: 0x{:x}, right: 0x{:x} }}",
+                    hash, bn.left, bn.right
+                );
+            }
+            starknet_rust_core::types::MerkleNode::EdgeNode(en) => {
+                println!(
+                    "  0x{:x} = Edge {{ path: 0x{:x}, length: {}, child: 0x{:x} }}",
+                    hash, en.path, en.length, en.child
+                );
+            }
+        }
     }
-    println!("Contracts proof node hashes:");
-    for (hash, _node) in &rpc_proof.contracts_proof.nodes {
+
+    // Print contract leaves with their computed hashes
+    println!("\n=== DEBUG: Contract leaves ===");
+    for (i, leaf_data) in rpc_proof.contracts_proof.contract_leaves_data.iter().enumerate() {
+        println!(
+            "  Leaf {}: class_hash=0x{:x}, nonce=0x{:x}, storage_root={:?}",
+            i, leaf_data.class_hash, leaf_data.nonce, leaf_data.storage_root
+        );
+    }
+
+    // Check if missing node is referenced by any node
+    let missing_hash = starknet_rust_core::types::Felt::from_hex(
+        "0x04d98632fb3e5f38c33da393365035cd51231a9cde03e8c6fe15db4fc109ab1d",
+    )
+    .unwrap();
+    println!("\n=== DEBUG: Searching for missing node 0x04d98632... ===");
+    for (hash, node) in &rpc_proof.contracts_proof.nodes {
+        match node {
+            starknet_rust_core::types::MerkleNode::BinaryNode(bn) => {
+                if bn.left == missing_hash || bn.right == missing_hash {
+                    println!("  FOUND! Node 0x{:x} references missing hash as child", hash);
+                    println!("    Binary {{ left: 0x{:x}, right: 0x{:x} }}", bn.left, bn.right);
+                }
+            }
+            starknet_rust_core::types::MerkleNode::EdgeNode(en) => {
+                if en.child == missing_hash {
+                    println!("  FOUND! Node 0x{:x} references missing hash as child", hash);
+                    println!(
+                        "    Edge {{ path: 0x{:x}, length: {}, child: 0x{:x} }}",
+                        en.path, en.length, en.child
+                    );
+                }
+            }
+        }
+    }
+
+    println!("\n=== DEBUG: Classes proof node hashes ===");
+    for (hash, _node) in &rpc_proof.classes_proof {
         println!("  0x{:x}", hash);
     }
     for (i, storage_proof) in rpc_proof.contracts_storage_proofs.iter().enumerate() {
@@ -179,35 +243,18 @@ async fn test_commit_with_rpc_proofs(rpc_provider: RpcStorageProofsProvider) {
         if key.0.starts_with(b"patricia_node:") {
             let hash_bytes = &key.0[14..]; // "patricia_node:" is 14 bytes
             if hash_bytes.len() == 32 {
-                let hash_hex: String =
-                    hash_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+                let hash_hex: String = hash_bytes.iter().map(|b| format!("{:02x}", b)).collect();
                 println!("  patricia_node: 0x{}", hash_hex);
             }
         } else if key.0.starts_with(b"contract_state:") {
             let hash_bytes = &key.0[15..];
             if hash_bytes.len() == 32 {
-                let hash_hex: String =
-                    hash_bytes.iter().map(|b| format!("{:02x}", b)).collect();
+                let hash_hex: String = hash_bytes.iter().map(|b| format!("{:02x}", b)).collect();
                 println!("  contract_state: 0x{}", hash_hex);
             }
         }
     }
     println!("=== END DEBUG ===\n");
-
-    // Step 4: Extract state diff from execution outputs
-    let state_diff = create_state_diff_from_execution_outputs(&execution_result.execution_outputs);
-
-    println!("State diff created:");
-    println!("  - Nonce updates: {}", state_diff.address_to_nonce.len());
-    for (addr, nonce) in &state_diff.address_to_nonce {
-        println!("      Address: 0x{:x}, New nonce: {:?}", addr.0.key(), nonce);
-    }
-    println!("  - Class hash updates: {}", state_diff.address_to_class_hash.len());
-    println!(
-        "  - Compiled class hash updates: {}",
-        state_diff.class_hash_to_compiled_class_hash.len()
-    );
-    println!("  - Storage updates: {} contracts", state_diff.storage_updates.len());
 
     // Step 5: Get previous state roots from the RPC proof
     let prev_contracts_root = HashOutput(rpc_proof.global_roots.contracts_tree_root);
@@ -219,13 +266,8 @@ async fn test_commit_with_rpc_proofs(rpc_provider: RpcStorageProofsProvider) {
 
     // Step 6: Run the committer
     println!("\n=== Attempting to commit... ===");
-    let commit_result = commit_state_diff(
-        &mut facts_db,
-        prev_contracts_root,
-        prev_classes_root,
-        state_diff,
-    )
-    .await;
+    let commit_result =
+        commit_state_diff(&mut facts_db, prev_contracts_root, prev_classes_root, state_diff).await;
 
     // If commit failed, try to decode the missing key
     let new_roots = match commit_result {
@@ -237,10 +279,8 @@ async fn test_commit_with_rpc_proofs(rpc_provider: RpcStorageProofsProvider) {
                 let after_start = &err_str[start + 18..];
                 if let Some(end) = after_start.find("]))") {
                     let bytes_str = &after_start[..end];
-                    let bytes: Vec<u8> = bytes_str
-                        .split(", ")
-                        .filter_map(|s| s.trim().parse::<u8>().ok())
-                        .collect();
+                    let bytes: Vec<u8> =
+                        bytes_str.split(", ").filter_map(|s| s.trim().parse::<u8>().ok()).collect();
 
                     if bytes.len() > 14 {
                         let prefix = String::from_utf8_lossy(&bytes[..14]);
@@ -298,7 +338,7 @@ async fn test_create_facts_db_from_storage_proof(rpc_provider: RpcStorageProofsP
         let contract_class_manager =
             ContractClassManager::start(ContractClassManagerConfig::default());
         rpc_virtual_block_executor
-            .execute(block_number, contract_class_manager, vec![(tx, tx_hash)])
+            .execute(BlockId::Number(block_number), contract_class_manager, vec![(tx, tx_hash)])
             .expect("Transaction execution should succeed")
     })
     .await
@@ -311,8 +351,11 @@ async fn test_create_facts_db_from_storage_proof(rpc_provider: RpcStorageProofsP
         .await
         .expect("Fetching RPC proofs should succeed");
 
+    // Extract state diff from execution outputs
+    let state_diff = create_state_diff_from_execution_outputs(&execution_result.execution_outputs);
+
     // Create FactsDb
-    let facts_db = create_facts_db_from_storage_proof(&rpc_proof);
+    let facts_db = create_facts_db_from_storage_proof(&rpc_proof, &state_diff);
 
     // Verify FactsDb has entries
     assert!(!facts_db.storage.0.is_empty(), "FactsDb should contain entries");

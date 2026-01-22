@@ -8,6 +8,7 @@
 //! The implementation uses `FilledNode` and the `DBObject` trait for serialization,
 //! ensuring consistency with the rest of the codebase.
 
+use std::collections::HashSet;
 use std::hash::BuildHasher;
 
 use blockifier::blockifier::transaction_executor::TransactionExecutionOutput;
@@ -16,9 +17,8 @@ use ethnum::U256;
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_committer::block_committer::commit::commit_block;
+use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
-    FactsDbInitialRead,
     Input,
     ReaderConfig,
     StarknetStorageKey,
@@ -26,6 +26,7 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -43,12 +44,39 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKeyPrefix, DbValue};
 use starknet_rust_core::types::{
     ContractLeafData,
     Felt,
     MerkleNode,
     StorageProof as RpcStorageProof,
 };
+
+/// Computes missing parent nodes for modified leaves.
+///
+/// RPC proofs contain nodes along paths to leaves, sufficient for verification (bottom-up).
+/// However, the committer needs node data for traversal (top-down). For modified leaves,
+/// we reconstruct parent nodes from the proof data.
+///
+/// This function:
+/// 1. Identifies modified contract addresses, storage keys, and class hashes from the state diff
+/// 2. For each modified leaf, examines the proof nodes
+/// 3. Reconstructs parent nodes from child + sibling information when needed
+///
+/// The key insight: when we have both children of a binary node (or an edge's child),
+/// we can reconstruct the parent node's data structure.
+fn compute_missing_nodes_for_modified_leaves(
+    _rpc_proof: &RpcStorageProof,
+    _state_diff: &StateDiff,
+) -> MapStorage {
+    // TODO: Implement node reconstruction logic
+    // For now, return empty storage as a placeholder
+    // The actual implementation will:
+    // 1. Trace paths in the proof for each modified address/key
+    // 2. Identify missing parent nodes
+    // 3. Reconstruct them from available data
+    MapStorage::default()
+}
 
 /// Creates a FactsDb directly from RpcStorageProof.
 ///
@@ -64,7 +92,16 @@ use starknet_rust_core::types::{
 ///
 /// For edge nodes with `length == 1`, the `child` field contains the leaf value directly
 /// (for classes and storage tries).
-pub fn create_facts_db_from_storage_proof(rpc_proof: &RpcStorageProof) -> FactsDb<MapStorage> {
+///
+/// # Arguments
+///
+/// * `rpc_proof` - The RPC storage proof containing merkle nodes and leaves
+/// * `state_diff` - The state diff to determine which leaves were modified (used for computing
+///   missing nodes)
+pub fn create_facts_db_from_storage_proof(
+    rpc_proof: &RpcStorageProof,
+    state_diff: &StateDiff,
+) -> FactsDb<MapStorage> {
     let mut storage = MapStorage::default();
     let key_context = EmptyKeyContext;
 
@@ -79,15 +116,37 @@ pub fn create_facts_db_from_storage_proof(rpc_proof: &RpcStorageProof) -> FactsD
     for leaf_data in &rpc_proof.contracts_proof.contract_leaves_data {
         let filled_node = contract_leaf_to_filled_node(leaf_data);
         let db_key = filled_node.db_key(&key_context);
-        let db_value = filled_node.serialize();
+        let db_value = filled_node.serialize().expect("ContractState serialization should succeed");
         storage.0.insert(db_key, db_value);
     }
 
-    // Process storage proofs - inner nodes + leaves for edges with length == 1
-    // For storage, edge.child IS the leaf value (StarknetStorageValue)
+    // Process storage proofs - add all inner nodes
+    // Storage proofs contain nodes that are referenced by contract leaves (via storage_root)
+    // We add the inner nodes (Binary/Edge) without trying to create leaf nodes
+    // Note: We use ContractState as the leaf type parameter because inner nodes always use
+    // the patricia_node prefix regardless of actual leaf type, and ContractState uses
+    // EmptyKeyContext
     for storage_proof in &rpc_proof.contracts_storage_proofs {
-        add_nodes_with_simple_leaves(&mut storage, storage_proof, StarknetStorageValue);
+        for (hash, node) in storage_proof {
+            // Add inner nodes only - these use patricia_node prefix regardless of leaf type
+            let filled_node: FilledNode<ContractState, HashOutput> =
+                merkle_node_to_filled_node(*hash, node);
+            let db_key = filled_node.db_key(&key_context);
+            let db_value =
+                filled_node.serialize().expect("Storage node serialization should succeed");
+            storage.0.insert(db_key, db_value);
+        }
     }
+
+    // Add dummy edges for orphan child hashes (sibling hashes without preimages)
+    add_orphan_child_hashes(&mut storage, &rpc_proof.contracts_proof.nodes);
+    for storage_proof in &rpc_proof.contracts_storage_proofs {
+        add_orphan_child_hashes(&mut storage, storage_proof);
+    }
+
+    // Compute and add missing nodes for modified leaves
+    let computed_nodes = compute_missing_nodes_for_modified_leaves(rpc_proof, state_diff);
+    storage.0.extend(computed_nodes.0);
 
     FactsDb::new(storage)
 }
@@ -146,7 +205,7 @@ fn add_filled_nodes<L: Leaf>(
     for (hash, node) in nodes {
         let filled_node: FilledNode<L, HashOutput> = merkle_node_to_filled_node(*hash, node);
         let db_key = filled_node.db_key(key_context);
-        let db_value = filled_node.serialize();
+        let db_value = filled_node.serialize().expect("Node serialization should succeed");
         storage.0.insert(db_key, db_value);
     }
 }
@@ -171,7 +230,7 @@ fn add_nodes_with_simple_leaves<L>(
         // Store the inner node (binary or edge)
         let filled_node: FilledNode<L, HashOutput> = merkle_node_to_filled_node(*hash, node);
         let db_key = filled_node.db_key(&key_context);
-        let db_value = filled_node.serialize();
+        let db_value = filled_node.serialize().expect("Node serialization should succeed");
         storage.0.insert(db_key, db_value);
 
         // For edge nodes with length == 1, also store the leaf
@@ -181,9 +240,87 @@ fn add_nodes_with_simple_leaves<L>(
                 let leaf_hash = TreeHashFunctionImpl::compute_leaf_hash(&leaf_value);
                 let leaf_node = FilledNode { hash: leaf_hash, data: NodeData::Leaf(leaf_value) };
                 let leaf_db_key = leaf_node.db_key(&key_context);
-                let leaf_db_value = leaf_node.serialize();
+                let leaf_db_value =
+                    leaf_node.serialize().expect("Leaf serialization should succeed");
                 storage.0.insert(leaf_db_key, leaf_db_value);
             }
+        }
+    }
+}
+
+/// Adds dummy edge nodes for orphan child hashes that don't have preimages.
+///
+/// RPC storage proofs provide sibling hashes for verification but don't include their preimages.
+/// The committer needs to read these nodes, so we create dummy edge nodes pointing to a dummy leaf.
+/// This allows the committer to traverse without errors, as it won't traverse into unmodified
+/// subtrees.
+///
+/// For each child hash referenced in nodes but not present in storage:
+/// 1. Create a dummy edge node at `patricia_node:<hash>` pointing to a shared dummy leaf
+/// 2. The dummy leaf is a ContractState with all-zero values
+fn add_orphan_child_hashes(
+    storage: &mut MapStorage,
+    nodes: &IndexMap<Felt, MerkleNode, impl BuildHasher>,
+) {
+    // Build set of all hashes already in storage (extract from keys)
+    let mut existing_hashes: HashSet<[u8; 32]> = HashSet::new();
+    for key in storage.0.keys() {
+        // Keys are formatted as "prefix:hash" where hash is 32 bytes at the end
+        if key.0.len() >= 32 {
+            let suffix = &key.0[key.0.len() - 32..];
+            if let Ok(arr) = <[u8; 32]>::try_from(suffix) {
+                existing_hashes.insert(arr);
+            }
+        }
+    }
+
+    // Also add all hashes from nodes (they're stored as patricia_node)
+    for (hash, _) in nodes {
+        existing_hashes.insert(hash.to_bytes_be());
+    }
+
+    // Collect all child hashes referenced by nodes
+    let mut child_hashes: HashSet<Felt> = HashSet::new();
+    for (_, node) in nodes {
+        match node {
+            MerkleNode::BinaryNode(bn) => {
+                child_hashes.insert(bn.left);
+                child_hashes.insert(bn.right);
+            }
+            MerkleNode::EdgeNode(en) => {
+                child_hashes.insert(en.child);
+            }
+        }
+    }
+
+    // Create dummy leaf (only once)
+    let dummy_leaf = ContractState {
+        class_hash: ClassHash(Felt::ZERO),
+        nonce: Nonce(Felt::ZERO),
+        storage_root_hash: HashOutput(Felt::ZERO),
+    };
+    let dummy_leaf_hash = TreeHashFunctionImpl::compute_leaf_hash(&dummy_leaf);
+
+    let leaf_prefix = DbKeyPrefix::new(b"contract_state".into());
+    let leaf_key = create_db_key(leaf_prefix, &dummy_leaf_hash.0.to_bytes_be());
+    let leaf_value = dummy_leaf.serialize().expect("Leaf serialization should succeed");
+    storage.0.insert(leaf_key, leaf_value);
+
+    // Binary node value with both children pointing to dummy leaf: [left_hash (32)] [right_hash
+    // (32)]
+    const SERIALIZE_HASH_BYTES: usize = 32;
+    let mut binary_bytes = Vec::with_capacity(SERIALIZE_HASH_BYTES * 2);
+    binary_bytes.extend_from_slice(&dummy_leaf_hash.0.to_bytes_be()); // left = dummy leaf
+    binary_bytes.extend_from_slice(&dummy_leaf_hash.0.to_bytes_be()); // right = dummy leaf
+    let binary_value = DbValue(binary_bytes);
+
+    // Add dummy binary for any child hash not already in storage
+    for child_hash in child_hashes {
+        let hash_bytes = child_hash.to_bytes_be();
+        if !existing_hashes.contains(&hash_bytes) {
+            let node_prefix = DbKeyPrefix::new(b"patricia_node".into());
+            let db_key = create_db_key(node_prefix, &hash_bytes);
+            storage.0.insert(db_key, binary_value.clone());
         }
     }
 }
@@ -264,7 +401,7 @@ pub async fn commit_state_diff(
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
 
-    let filled_forest = commit_block(input, facts_db, None).await?;
+    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, None).await?;
 
     // Write the new commitments to the FactsDb
     facts_db.write(&filled_forest).await;

@@ -34,8 +34,8 @@ starknet_api.workspace = true
 starknet_committer.workspace = true
 starknet_os.workspace = true
 starknet_patricia.workspace = true
-tempfile.workspace = true
 starknet_patricia_storage.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }
 tracing.workspace = true
