@@ -19,7 +19,6 @@ from starkware.starknet.core.os.block_context import (
     BlockContext,
     CompiledClassFactsBundle,
     OsGlobalContext,
-    VirtualOsConfig,
     get_block_context,
 )
 from starkware.starknet.core.os.builtins import get_builtin_params
@@ -40,9 +39,9 @@ from starkware.starknet.core.os.os_config.os_config import (
 from starkware.starknet.core.os.os_utils import (
     get_block_os_output_header,
     get_execute_deprecated_syscalls_ptr,
-    get_virtual_os_config,
     pre_process_block,
     process_os_output,
+    should_allocate_aliases,
 )
 from starkware.starknet.core.os.output import (
     MessageToL1Header,
@@ -228,7 +227,6 @@ func execute_blocks{
     let final_carried_outputs = outputs;
 
     // Update the state.
-    let should_allocate_aliases = 1 - os_global_context.virtual_os_config.enabled;
     %{ EnterScopeWithAliases %}
     let (squashed_os_state_update, state_update_output) = state_update{hash_ptr=pedersen_ptr}(
         os_state_update=OsStateUpdate(
@@ -237,7 +235,7 @@ func execute_blocks{
             contract_class_changes_start=contract_class_changes_start,
             contract_class_changes_end=contract_class_changes,
         ),
-        should_allocate_aliases=should_allocate_aliases,
+        should_allocate_aliases=should_allocate_aliases(),
     );
     %{ vm_exit_scope() %}
 
@@ -310,11 +308,9 @@ func get_os_global_context{
     let (execute_syscalls_ptr) = get_label_location(label_value=execute_syscalls);
     let (execute_deprecated_syscalls_ptr) = get_execute_deprecated_syscalls_ptr();
 
-    let virtual_os_config = get_virtual_os_config();
     tempvar os_global_context: OsGlobalContext* = new OsGlobalContext(
         starknet_os_config=[starknet_os_config],
         starknet_os_config_hash=starknet_os_config_hash,
-        virtual_os_config=virtual_os_config,
         compiled_class_facts_bundle=CompiledClassFactsBundle(
             n_compiled_class_facts=n_compiled_class_facts,
             compiled_class_facts=compiled_class_facts,
