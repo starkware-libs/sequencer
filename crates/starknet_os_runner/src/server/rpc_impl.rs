@@ -7,6 +7,15 @@ use jsonrpsee::types::ErrorObjectOwned;
 use starknet_api::rpc_transaction::RpcTransaction;
 
 use crate::server::config::ServiceConfig;
+use crate::server::metrics::{
+    register_metrics,
+    PROVING_OS_EXECUTION_LATENCY,
+    PROVING_PROVER_LATENCY,
+    PROVING_REQUESTS_FAILURE,
+    PROVING_REQUESTS_SUCCESS,
+    PROVING_REQUESTS_TOTAL,
+    PROVING_TOTAL_LATENCY,
+};
 use crate::server::rpc_trait::ProvingRpcServer;
 use crate::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 
@@ -43,12 +52,28 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
         block_id: BlockId,
         transaction: RpcTransaction,
     ) -> RpcResult<ProveTransactionResult> {
-        let output = self
-            .prover
-            .prove_transaction(block_id, transaction)
-            .await
-            .map_err(ErrorObjectOwned::from)?;
+        // Record that we received a request.
+        PROVING_REQUESTS_TOTAL.increment(1);
 
-        Ok(output.result)
+        // Delegate to the prover.
+        let result = self.prover.prove_transaction(block_id, transaction).await;
+
+        match result {
+            Ok(output) => {
+                // Record success metrics.
+                PROVING_REQUESTS_SUCCESS.increment(1);
+                PROVING_OS_EXECUTION_LATENCY.record(output.os_duration.as_secs_f64());
+                PROVING_PROVER_LATENCY.record(output.prove_duration.as_secs_f64());
+                PROVING_TOTAL_LATENCY.record(output.total_duration.as_secs_f64());
+
+                // Build response.
+                Ok(output.result)
+            }
+            Err(e) => {
+                // Record failure metric.
+                PROVING_REQUESTS_FAILURE.increment(1);
+                Err(ErrorObjectOwned::from(e))
+            }
+        }
     }
 }
