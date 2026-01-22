@@ -75,11 +75,12 @@ impl TimeMeasurementTrait for BenchmarkTimeMeasurement {
 
 impl BenchmarkTimeMeasurement {
     pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
+        let first_block_number = 5_000_000; // Change as you like.
         Self {
             current_measurement: SingleBlockTimeMeasurement::default(),
             total_time: 0,
             block_measurements: Vec::with_capacity(size),
-            block_number: 0,
+            block_number: first_block_number,
             total_db_entry_count: 0,
             initial_db_entry_count: Vec::with_capacity(size),
             time_of_measurement: Vec::with_capacity(size),
