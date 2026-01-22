@@ -210,9 +210,17 @@ fn handle_child_subtree<'a, SubTree: SubTreeTrait<'a>>(
 ) {
     let is_modified = !subtree.is_unmodified();
 
-    // Internal node → always traverse.
+    // Internal node.
     if !subtree.is_leaf() {
-        next_subtrees.push(subtree);
+        if is_modified {
+            // Traversing the subtree.
+            next_subtrees.push(subtree);
+            return;
+        }
+        // Pushing the unmodified subtree to the skeleton tree.
+        skeleton_tree
+        .nodes
+        .insert(subtree.get_root_index(), OriginalSkeletonNode::UnmodifiedSubTree(subtree_data.into()));
         return;
     }
 
