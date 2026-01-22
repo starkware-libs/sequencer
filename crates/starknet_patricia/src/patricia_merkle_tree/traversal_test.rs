@@ -1,6 +1,7 @@
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 
@@ -19,7 +20,7 @@ struct TestSubTree<'a> {
 }
 
 impl<'a> SubTreeTrait<'a> for TestSubTree<'a> {
-    type NodeData = ();
+    type NodeData = HashOutput;
     type NodeDeserializeContext = ();
 
     fn create(
@@ -226,7 +227,8 @@ fn test_get_bottom_subtree(
     let tree = TestSubTree { sorted_leaf_indices, root_index };
 
     // Get the bottom subtree.
-    let (subtree, previously_empty_leaf_indices) = tree.get_bottom_subtree(&path_to_bottom, ());
+    let (subtree, previously_empty_leaf_indices) =
+        tree.get_bottom_subtree(&path_to_bottom, HashOutput::ROOT_OF_EMPTY_TREE);
 
     let expected_root_index = small_tree_index_to_full(expected_root_index, height);
 

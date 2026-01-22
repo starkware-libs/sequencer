@@ -39,7 +39,7 @@ pub type TraversalResult<T> = Result<T, TraversalError>;
 /// storage layout.
 pub trait SubTreeTrait<'a>: Sized {
     /// Extra data a node can carry (e.g. its hash).
-    type NodeData;
+    type NodeData: Into<HashOutput>;
 
     /// Extra context needed to deserialize a node from a raw DbValue. For more info, see
     /// `DeserializeContext` in the `DBObject` trait.
