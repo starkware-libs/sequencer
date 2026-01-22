@@ -9,6 +9,7 @@ from typing import Optional
 from common import const
 from common.config_overrides import apply_config_overrides as apply_config_overrides_generic
 from common.config_overrides import (
+    expand_simple_placeholders,
     load_config_file,
     validate_config_overrides,
 )
@@ -287,6 +288,13 @@ def alert_builder(args: argparse.Namespace):
 
     # Get config file path for error messages
     config_file_path = args_dict.get("config_file", "")
+
+    # Expand simple placeholders ($$$_X_$$$) to full path-based placeholders ($$$_ALERT_NAME.FIELD_$$$)
+    # This must happen BEFORE validation, so validation sees the expanded format
+    dev_alerts["alerts"] = expand_simple_placeholders(
+        dev_alerts["alerts"],
+        logger_instance=logger,
+    )
 
     # Validate all placeholders from all alerts first (before processing any)
     # Always validate, even if config is empty, to catch missing placeholders
