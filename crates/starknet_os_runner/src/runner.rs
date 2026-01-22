@@ -348,4 +348,8 @@ impl RpcRunnerFactory {
             block_id,
         )
     }
+
+    pub(crate) fn node_url(&self) -> &Url {
+        &self.node_url
+    }
 }

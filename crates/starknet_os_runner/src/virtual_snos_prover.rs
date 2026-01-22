@@ -146,6 +146,14 @@ impl VirtualSnosProver {
             total_duration,
         })
     }
+
+    pub(crate) fn rpc_url(&self) -> &Url {
+        self.runner_factory.node_url()
+    }
+
+    pub(crate) fn chain_id(&self) -> &ChainId {
+        &self.chain_id
+    }
 }
 
 /// Validates that the transaction is an Invoke transaction and extracts it.
