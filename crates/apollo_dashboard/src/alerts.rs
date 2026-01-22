@@ -27,16 +27,27 @@ impl Alerts {
             .into_iter()
             .filter(|alert| alert.alert_env_filtering.matches(&alert_env_filtering))
             .collect();
-        let mut alert_names: HashSet<&str> = HashSet::new();
 
-        for alert in &filtered_alerts {
-            if !alert_names.insert(alert.name.as_str()) {
-                panic!(
-                    "Duplicate alert name found: {} for env: {}",
-                    alert.name, alert.alert_env_filtering
-                );
-            }
-        }
+        // Validate that there are no duplicate alert names.
+        filtered_alerts
+            .iter()
+            .map(|alert| alert.name.as_str())
+            .try_fold(HashSet::new(), |mut set, name| set.insert(name).then_some(set).ok_or(name))
+            .unwrap_or_else(|duplicate| {
+                panic!("Duplicate alert name found: {duplicate} for env: {alert_env_filtering}")
+            });
+
+        // Validate that there are no duplicate placeholder names across all alerts.
+        filtered_alerts
+            .iter()
+            .flat_map(|alert| alert.get_placeholder_names().iter())
+            .try_fold(HashSet::new(), |mut set, name| {
+                set.insert(name.clone()).then_some(set).ok_or(name)
+            })
+            .unwrap_or_else(|duplicate| {
+                panic!("Duplicate placeholder name found across alerts: {duplicate}")
+            });
+
         Self { alerts: filtered_alerts }
     }
 }
@@ -296,7 +307,6 @@ impl Alert {
         }
     }
 
-    // TODO(Tsabary): Remove `#[allow(dead_code)]` once used.
     #[allow(dead_code)]
     pub(crate) fn get_placeholder_names(&self) -> &HashSet<String> {
         &self.placeholder_names
