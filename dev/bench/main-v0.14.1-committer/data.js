@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769090691130,
+  "lastUpdate": 1769115907735,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -169,6 +169,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1383.41936723,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f5a4ae6d423beff2cf0bc39bd20b2652fff2a371",
+          "message": "apollo_node: signal handling (#11894)",
+          "timestamp": "2026-01-22T20:33:39Z",
+          "tree_id": "352746a66ada3fe7740af3607231a31f3604ab8e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f5a4ae6d423beff2cf0bc39bd20b2652fff2a371"
+        },
+        "date": 1769115907421,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 899.04739037,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1340.14108681,
             "unit": "ms"
           }
         ]
