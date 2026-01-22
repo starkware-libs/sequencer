@@ -26,14 +26,23 @@ RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
     fi
 
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json
+RUN --mount=type=cache,target=${CARGO_HOME}/registry \
+    --mount=type=cache,target=${CARGO_HOME}/git \
+    cargo chef cook --recipe-path recipe.json
 COPY . .
 
-RUN BUILD_FLAGS=""; \
+RUN --mount=type=cache,target=${CARGO_HOME}/registry \
+    --mount=type=cache,target=${CARGO_HOME}/git \
+    --mount=type=cache,target=${CARGO_HOME}/target \
+    BUILD_FLAGS=""; \
     if [ "$BUILD_MODE" = "release" ]; then \
         BUILD_FLAGS="--release"; \
     fi; \
-    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
+    CARGO_TARGET_DIR=${CARGO_HOME}/target cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native && \
+    mkdir -p /app/target/${BUILD_MODE}/shared_executables && \
+    cp ${CARGO_HOME}/target/${BUILD_MODE}/apollo_node /app/target/${BUILD_MODE}/ && \
+    cp ${CARGO_HOME}/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile /app/target/${BUILD_MODE}/shared_executables/ && \
+    cp ${CARGO_HOME}/target/${BUILD_MODE}/shared_executables/starknet-native-compile /app/target/${BUILD_MODE}/shared_executables/
 
 
 FROM ubuntu:24.04 AS final_stage

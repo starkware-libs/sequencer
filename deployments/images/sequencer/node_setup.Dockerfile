@@ -16,9 +16,14 @@ FROM base AS builder
 WORKDIR /app
 RUN curl -L https://github.com/foundry-rs/foundry/releases/download/v1.5.1/foundry_v1.5.1_linux_amd64.tar.gz | tar -xz --wildcards 'anvil'
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json --bin sequencer_node_setup
+RUN --mount=type=cache,target=${CARGO_HOME}/registry \
+    --mount=type=cache,target=${CARGO_HOME}/git \
+    cargo chef cook --recipe-path recipe.json --bin sequencer_node_setup
 COPY . .
-RUN cargo build --bin sequencer_node_setup
+RUN --mount=type=cache,target=${CARGO_HOME}/registry \
+    --mount=type=cache,target=${CARGO_HOME}/git \
+    --mount=type=cache,target=/app/target \
+    cargo build --bin sequencer_node_setup
 
 FROM ubuntu:24.04 AS final_stage
 

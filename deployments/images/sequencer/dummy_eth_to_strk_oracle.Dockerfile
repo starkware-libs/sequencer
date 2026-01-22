@@ -15,9 +15,14 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM base AS builder
 WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json --bin dummy_eth_to_strk_oracle
+RUN --mount=type=cache,target=${CARGO_HOME}/registry \
+    --mount=type=cache,target=${CARGO_HOME}/git \
+    cargo chef cook --recipe-path recipe.json --bin dummy_eth_to_strk_oracle
 COPY . .
-RUN cargo build --bin dummy_eth_to_strk_oracle
+RUN --mount=type=cache,target=${CARGO_HOME}/registry \
+    --mount=type=cache,target=${CARGO_HOME}/git \
+    --mount=type=cache,target=/app/target \
+    cargo build --bin dummy_eth_to_strk_oracle
 
 FROM ubuntu:24.04 AS final_stage
 

@@ -15,9 +15,14 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM base AS builder
 WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --recipe-path recipe.json --bin sequencer_simulator
+RUN --mount=type=cache,target=${CARGO_HOME}/registry \
+    --mount=type=cache,target=${CARGO_HOME}/git \
+    cargo chef cook --recipe-path recipe.json --bin sequencer_simulator
 COPY . .
-RUN cargo build --bin sequencer_simulator
+RUN --mount=type=cache,target=${CARGO_HOME}/registry \
+    --mount=type=cache,target=${CARGO_HOME}/git \
+    --mount=type=cache,target=/app/target \
+    cargo build --bin sequencer_simulator
 
 FROM ubuntu:24.04 AS final_stage
 
