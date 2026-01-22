@@ -64,8 +64,7 @@ pub fn compute_os_program_hash() -> Result<Felt, ProgramHashError> {
 }
 
 pub fn compute_virtual_os_program_hash() -> Result<Felt, ProgramHashError> {
-    // TODO(Yoni): use blake.
-    compute_program_hash(&VIRTUAL_OS_PROGRAM)
+    compute_program_hash_blake(&VIRTUAL_OS_PROGRAM)
 }
 
 pub fn compute_aggregator_program_hash() -> Result<AggregatorHash, ProgramHashError> {
