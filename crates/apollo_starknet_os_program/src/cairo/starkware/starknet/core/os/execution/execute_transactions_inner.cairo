@@ -2,7 +2,6 @@ from starkware.cairo.common.dict_access import DictAccess
 from starkware.starknet.common.new_syscalls import ResourceBounds
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import BuiltinPointers
-from starkware.starknet.core.os.execution.execution_constraints import check_tx_type
 from starkware.starknet.core.os.execution.transaction_impls import (
     execute_declare_transaction,
     execute_deploy_account_transaction,
@@ -34,15 +33,9 @@ func execute_transactions_inner{
         return ();
     }
 
-    alloc_locals;
-    local tx_type;
-    local n_resource_bounds: felt;
-    local resource_bounds: ResourceBounds*;
-
+    tempvar tx_type;
     // Guess the current transaction's type.
     %{ LoadNextTx %}
-
-    check_tx_type(tx_type=tx_type);
 
     if (tx_type == 'INVOKE_FUNCTION') {
         // Handle the invoke-function transaction.
