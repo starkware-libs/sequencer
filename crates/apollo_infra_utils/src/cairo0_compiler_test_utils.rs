@@ -1,4 +1,5 @@
-use std::io::{Read, Write};
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::Command;
 
 use regex::Regex;
@@ -171,31 +172,56 @@ fn is_import_used(import_item: &str, code: &str) -> bool {
 }
 
 /// Runs the Cairo0 formatter on the input source code.
-pub fn cairo0_format(unformatted: &str) -> String {
+/// For processing multiple files, use `cairo0_format_batch` for better performance.
+pub fn cairo0_format(unformatted: &String) -> String {
+    let files: HashMap<String, &String> =
+        [("single_file.cairo".to_string(), unformatted)].into_iter().collect();
+    let results = cairo0_format_batch(files);
+    results.into_values().next().unwrap()
+}
+
+/// Runs the Cairo0 formatter on multiple files in a single batch.
+/// This is much faster than calling `cairo0_format` multiple times because it only
+/// spawns the external cairo-format and isort processes once.
+///
+/// Takes a map of (filename -> content) and returns a map of (filename -> formatted_content).
+pub fn cairo0_format_batch<S: AsRef<str>>(files: HashMap<String, S>) -> HashMap<String, String> {
+    if files.is_empty() {
+        return HashMap::new();
+    }
+
     let script_type = Cairo0Script::Format;
     verify_cairo0_compiler_deps(&script_type);
 
-    // Remove unused imports first (before formatting, since removal might break formatting).
-    let without_unused_imports = remove_unused_cairo0_imports(unformatted);
+    // Create a temporary directory and write all files to it.
+    let temp_dir = tempfile::TempDir::new().unwrap();
+    let mut file_paths: Vec<PathBuf> = Vec::with_capacity(files.len());
+    let mut filenames: Vec<String> = Vec::with_capacity(files.len());
 
-    // Dump string to temporary file.
-    let mut temp_file = tempfile::NamedTempFile::new().unwrap();
-    temp_file.write_all(without_unused_imports.as_bytes()).unwrap();
+    // First stage: remove unused imports before writing to temp files.
+    for (filename, content) in files {
+        let without_unused = remove_unused_cairo0_imports(content.as_ref());
+        let file_path = temp_dir.path().join(&filename);
+        // Create parent directories if needed.
+        if let Some(parent) = file_path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(&file_path, without_unused).unwrap();
+        file_paths.push(file_path);
+        filenames.push(filename);
+    }
 
-    // Run formatter.
-    let mut command = Command::new(script_type.script_name());
-    command.arg(temp_file.path().to_str().unwrap());
-    let format_output = command.output().unwrap();
-    let stderr_output = String::from_utf8(format_output.stderr).unwrap();
-    assert!(format_output.status.success(), "{stderr_output}");
+    // Run cairo-format on all files at once with -i (in-place).
+    let mut format_command = Command::new(script_type.script_name());
+    format_command.arg("-i");
+    for path in &file_paths {
+        format_command.arg(path);
+    }
+    let format_output = format_command.output().unwrap();
+    let stderr_output = String::from_utf8_lossy(&format_output.stderr);
+    assert!(format_output.status.success(), "cairo-format failed: {stderr_output}");
 
-    // Run isort on the formatted file.
-    // Note: cairo-format writes to stdout, so we write that to a temp file for isort.
-    let formatted_content = format_output.stdout;
-    let mut temp_file_formatted = tempfile::NamedTempFile::new().unwrap();
-    temp_file_formatted.write_all(&formatted_content).unwrap();
-
-    // Run isort.
+    // Run isort on all files at once.
     let mut isort_command = Command::new("isort");
     let isort_config_path = resolve_project_relative_path(".isort.cfg").unwrap();
     isort_command.args([
@@ -208,17 +234,19 @@ pub fn cairo0_format(unformatted: &str) -> String {
         // Checks that imports with parentheses include a trailing comma.
         "--tc",
     ]);
-    isort_command.arg(temp_file_formatted.path().to_str().unwrap());
-
+    for path in &file_paths {
+        isort_command.arg(path);
+    }
     let isort_output = isort_command.output().unwrap();
-    let isort_stderr = String::from_utf8(isort_output.stderr).unwrap();
-    assert!(isort_output.status.success(), "{isort_stderr}");
+    let isort_stderr = String::from_utf8_lossy(&isort_output.stderr);
+    assert!(isort_output.status.success(), "isort failed: {isort_stderr}");
 
-    // Read and return the final result.
-    let mut final_content = String::new();
-    std::fs::File::open(temp_file_formatted.path())
-        .unwrap()
-        .read_to_string(&mut final_content)
-        .unwrap();
-    final_content
+    // Read back all formatted files.
+    let mut results = HashMap::with_capacity(filenames.len());
+    for (filename, file_path) in filenames.into_iter().zip(file_paths.iter()) {
+        let content = std::fs::read_to_string(file_path).unwrap();
+        results.insert(filename, content);
+    }
+
+    results
 }
