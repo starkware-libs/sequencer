@@ -5,7 +5,5 @@ struct VirtualOsOutputHeader {
     base_block_number: felt,
     base_block_hash: felt,
     starknet_os_config_hash: felt,
-    // The account address that is authorized to run transactions.
-    authorized_account_address: felt,
     messages_to_l1_segment_size: felt,
 }

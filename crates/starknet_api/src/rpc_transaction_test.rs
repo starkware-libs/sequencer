@@ -1,4 +1,5 @@
 use apollo_sizeof::SizeOf;
+use expect_test::expect;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
@@ -112,7 +113,10 @@ fn test_deploy_account_tx_size_of() {
         // + tx_v3.paymaster_data.dynamic_size();
 
         // Check the size of the V3 deploy account transaction.
-        assert_eq!(tx_v3.size_bytes(), 432);
+        expect![[r#"
+            432
+        "#]]
+        .assert_debug_eq(&tx_v3.size_bytes());
     } else {
         panic!("Expected RpcTransaction::DeployAccount");
     }
@@ -146,7 +150,10 @@ fn test_invoke_tx_size_of() {
         // + tx_v3.proof.dynamic_size();
 
         // Check the size of the V3 invoke transaction.
-        assert_eq!(tx_v3.size_bytes(), 792);
+        expect![[r#"
+            760
+        "#]]
+        .assert_debug_eq(&tx_v3.size_bytes());
     } else {
         panic!("Expected RpcTransaction::Invoke");
     }

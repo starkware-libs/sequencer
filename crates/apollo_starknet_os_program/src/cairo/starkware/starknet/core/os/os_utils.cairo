@@ -192,9 +192,7 @@ func process_os_output{
 
 // Returns the virtual OS config, which is always disabled in the Starknet sequencer OS.
 func get_virtual_os_config() -> VirtualOsConfig* {
-    tempvar virtual_os_config: VirtualOsConfig* = new VirtualOsConfig(
-        enabled=FALSE, authorized_account_address=0
-    );
+    tempvar virtual_os_config: VirtualOsConfig* = new VirtualOsConfig(enabled=FALSE);
     return virtual_os_config;
 }
 

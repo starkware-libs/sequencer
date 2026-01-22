@@ -22,10 +22,6 @@ func check_tx_type(tx_type: felt) {
     return ();
 }
 
-func check_sender_address(sender_address: felt, block_context: BlockContext*) {
-    return ();
-}
-
 func check_is_reverted(is_reverted: felt) {
     return ();
 }
