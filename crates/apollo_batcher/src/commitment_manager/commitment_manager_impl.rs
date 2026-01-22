@@ -33,6 +33,7 @@ use crate::commitment_manager::types::{
 use crate::metrics::{
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY_HIST,
+    COMMITMENT_MANAGER_COUNT_COMMIT_RESULTS,
 };
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
@@ -159,6 +160,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 }
             }
         }
+        COMMITMENT_MANAGER_COUNT_COMMIT_RESULTS.record_lossy(results.len());
         results
     }
 

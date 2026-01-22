@@ -61,6 +61,7 @@ define_metrics!(
         MetricHistogram { COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY_HIST, "batcher_commitment_manager_revert_block_latency_hist", "The latency of revert tasks in the commitment manager in milliseconds" },
         MetricGauge { COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY, "batcher_commitment_manager_commit_block_latency", "The latency of commit tasks in the commitment manager in milliseconds" },
         MetricGauge { COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY, "batcher_commitment_manager_revert_block_latency", "The latency of revert tasks in the commitment manager in milliseconds" },
+        MetricHistogram { COMMITMENT_MANAGER_COUNT_COMMIT_RESULTS, "batcher_commitment_manager_count_commit_results", "The number of commit results received from the commitment manager" },
 
     },
 );
@@ -124,6 +125,7 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY_HIST.register();
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.register();
     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.register();
+    COMMITMENT_MANAGER_COUNT_COMMIT_RESULTS.register();
 
     // Blockifier's metrics
     BATCHER_CLASS_CACHE_METRICS.register();
