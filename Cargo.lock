@@ -1614,6 +1614,7 @@ dependencies = [
  "apollo_config",
  "apollo_infra_utils",
  "apollo_metrics",
+ "apollo_proc_macros",
  "assert_matches",
  "async-trait",
  "bytes",
