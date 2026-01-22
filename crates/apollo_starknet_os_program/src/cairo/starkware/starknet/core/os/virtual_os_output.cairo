@@ -1,3 +1,6 @@
+// The version of the virtual OS output (short string 'VIRTUAL_SNOS0').
+const VIRTUAL_OS_OUTPUT_VERSION = 'VIRTUAL_SNOS0';
+
 // The header of the virtual OS output.
 struct VirtualOsOutputHeader {
     version: felt,

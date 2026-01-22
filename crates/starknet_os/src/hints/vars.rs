@@ -364,6 +364,10 @@ define_string_enum! {
         (StarknetOsConfigVersion, "starkware.starknet.core.os.os_config.os_config.STARKNET_OS_CONFIG_VERSION"),
         (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
         (Validated, "starkware.starknet.core.os.constants.VALIDATED"),
+        (
+            VirtualOsOutputVersion,
+            "starkware.starknet.core.os.virtual_os_output.VIRTUAL_OS_OUTPUT_VERSION"
+        ),
     }
 }
 

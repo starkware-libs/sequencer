@@ -7,9 +7,10 @@ from starkware.starknet.core.os.block_context import BlockContext, OsGlobalConte
 from starkware.starknet.core.os.block_hash import get_block_hashes
 from starkware.starknet.core.os.output import OsOutput, OsOutputHeader
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate
-from starkware.starknet.core.os.virtual_os_output import VirtualOsOutputHeader
-
-const VIRTUAL_OS_OUTPUT_VERSION = 0;
+from starkware.starknet.core.os.virtual_os_output import (
+    VIRTUAL_OS_OUTPUT_VERSION,
+    VirtualOsOutputHeader,
+)
 
 // Does nothing for the virtual OS.
 func pre_process_block{
