@@ -1,4 +1,3 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess

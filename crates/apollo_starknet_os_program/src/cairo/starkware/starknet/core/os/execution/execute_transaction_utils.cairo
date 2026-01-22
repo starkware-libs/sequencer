@@ -13,7 +13,7 @@ from starkware.starknet.core.os.constants import (
 )
 from starkware.starknet.core.os.execution.entry_point_utils import select_execute_entry_point_func
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
-from starkware.starknet.core.os.execution.revert import RevertLogEntry, init_revert_log
+from starkware.starknet.core.os.execution.revert import init_revert_log
 from starkware.starknet.core.os.output import OsCarriedOutputs
 from starkware.starknet.core.os.state.commitment import StateEntry
 

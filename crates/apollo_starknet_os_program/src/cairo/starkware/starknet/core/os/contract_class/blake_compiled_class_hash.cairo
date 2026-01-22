@@ -1,16 +1,5 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_blake2s.blake2s import encode_felt252_data_and_calc_blake_hash
-from starkware.cairo.common.math import assert_lt_felt
-from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.starknet.core.os.constants import (
-    ADD_MOD_GAS_COST,
-    BITWISE_BUILTIN_GAS_COST,
-    ECOP_GAS_COST,
-    MUL_MOD_GAS_COST,
-    PEDERSEN_GAS_COST,
-    POSEIDON_GAS_COST,
-)
 from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     COMPILED_CLASS_VERSION,
     CompiledClass,

@@ -1,5 +1,4 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin
 from starkware.cairo.common.ec import StarkCurve, ec_mul, recover_y
 from starkware.cairo.common.ec_point import EcPoint

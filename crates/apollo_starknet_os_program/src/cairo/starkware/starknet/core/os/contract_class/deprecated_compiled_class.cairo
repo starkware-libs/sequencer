@@ -4,12 +4,10 @@ from starkware.cairo.common.hash_state import (
     HashState,
     hash_finalize,
     hash_init,
-    hash_update,
     hash_update_single,
     hash_update_with_hashchain,
 )
 from starkware.cairo.common.math import assert_lt_felt
-from starkware.cairo.common.registers import get_fp_and_pc
 
 const DEPRECATED_COMPILED_CLASS_VERSION = 0;
 
