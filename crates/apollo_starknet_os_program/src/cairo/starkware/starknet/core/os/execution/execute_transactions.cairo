@@ -21,7 +21,6 @@ from starkware.starknet.core.os.builtins import (
 from starkware.starknet.core.os.execution.execute_transactions_inner import (
     execute_transactions_inner,
 )
-from starkware.starknet.core.os.execution.execution_constraints import check_n_txs
 from starkware.starknet.core.os.output import OsCarriedOutputs
 
 // Executes the transactions in the hint variable block_input.transactions.
@@ -80,8 +79,6 @@ func execute_transactions{
     local n_txs;
     %{ OsInputTransactions %}
     %{ EnterScopeExecuteTransactionsInner %}
-
-    check_n_txs(n_txs=n_txs);
 
     execute_transactions_inner{
         builtin_ptrs=builtin_ptrs,

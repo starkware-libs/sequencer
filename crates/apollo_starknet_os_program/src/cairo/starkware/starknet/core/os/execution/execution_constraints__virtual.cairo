@@ -2,23 +2,6 @@
 
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.starknet.core.os.block_context import BlockContext
-
-// Checks that the number of transactions is one.
-func check_n_txs(n_txs: felt) {
-    with_attr error_message("Expected exactly one transaction") {
-        assert n_txs = 1;
-    }
-    return ();
-}
-
-// Checks that the transaction type is INVOKE_FUNCTION.
-func check_tx_type(tx_type: felt) {
-    with_attr error_message("Expected INVOKE_FUNCTION transaction") {
-        assert tx_type = 'INVOKE_FUNCTION';
-    }
-    return ();
-}
 
 // Checks that the transaction is not reverted.
 func check_is_reverted(is_reverted: felt) {
