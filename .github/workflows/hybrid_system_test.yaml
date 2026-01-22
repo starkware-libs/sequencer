@@ -44,7 +44,6 @@ jobs:
           fetch-depth: 0
 
       - uses: actions/setup-python@v6
-        id: setup-pypy
         if: github.event_name != 'workflow_dispatch'
         with:
           python-version: "pypy3.9"
@@ -126,13 +125,6 @@ jobs:
                 password: $(cat $NSC_TOKEN_FILE | jq -r .bearer_token)
           EOF
 
-      - name: Set up Rust cache
-        uses: namespacelabs/nscloud-cache-action@v1
-        continue-on-error: true
-        with:
-          cache: rust
-
-      # Install rust components.
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -164,22 +156,22 @@ jobs:
         run: |
           echo "🔧 Installing local-path-provisioner..."
           kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
-      
+
           echo "⏳ Waiting for local-path-provisioner pod to be ready..."
           kubectl wait --for=condition=Ready pod -l app=local-path-provisioner -n local-path-storage --timeout=60s
-      
+
           echo "✅ local-path-provisioner is ready."
-      
+
           echo "📦 Setting default StorageClass and volumeBindingMode..."
           # First, set as default StorageClass
           kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-          
+
           # Then, patch the volumeBindingMode in spec
           kubectl patch storageclass local-path --type='merge' -p '{"volumeBindingMode":"WaitForFirstConsumer"}'
-      
+
           echo "📦 Verifying StorageClass configuration..."
           kubectl get storageclass local-path -o yaml
-      
+
           echo "🎉 StorageClasses available:"
           kubectl get storageclass
 
@@ -334,7 +326,7 @@ jobs:
           kubectl port-forward -n anvil "$ANVIL_POD" ${{ env.anvil_port }}:${{ env.anvil_port }} &
           echo "⏳ Waiting a few seconds to ensure port-forward is established..."
           sleep 2
-      
+
       - name: Print Second ConfigMap on the list
         run: |
           CONFIGMAP_NAME=$(kubectl get configmap -n "${{ env.namespace }}" -o jsonpath='{.items[1].metadata.name}')
