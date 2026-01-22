@@ -2,6 +2,7 @@ use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::StarkHash;
+use starknet_api::transaction::fields::VIRTUAL_OS_OUTPUT_VERSION;
 use starknet_api::transaction::MessageToL1;
 use starknet_types_core::felt::Felt;
 
@@ -14,7 +15,7 @@ mod virtual_os_output_test;
 /// The parsed output of the virtual OS.
 #[derive(Debug, PartialEq)]
 pub struct VirtualOsOutput {
-    /// The output version (currently always 0).
+    /// The output version (should be `VIRTUAL_SNOS0`).
     pub version: Felt,
     /// The base block number.
     pub base_block_number: BlockNumber,
@@ -34,6 +35,14 @@ impl VirtualOsOutput {
         let mut iter = raw_output.iter().copied();
 
         let version = wrap_missing(iter.next(), "version")?;
+        let expected_version = Felt::from(VIRTUAL_OS_OUTPUT_VERSION);
+        if version != expected_version {
+            return Err(OsOutputError::InvalidOsOutputField {
+                value_name: "version".to_string(),
+                val: version,
+                message: format!("expected {expected_version}"),
+            });
+        }
         let base_block_number = BlockNumber(wrap_missing_as(iter.next(), "base_block_number")?);
         let base_block_hash = wrap_missing(iter.next(), "base_block_hash")?;
         let starknet_os_config_hash = wrap_missing(iter.next(), "starknet_os_config_hash")?;

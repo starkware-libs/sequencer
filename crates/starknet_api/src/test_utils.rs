@@ -34,6 +34,7 @@ use crate::transaction::fields::{
     ProofFacts,
     ResourceBounds,
     ValidResourceBounds,
+    VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
 };
 use crate::transaction::{Transaction, TransactionHash};
@@ -382,7 +383,7 @@ impl ProofFacts {
     ///
     /// See [`crate::transaction::fields::ProofFacts`].
     pub fn snos_proof_facts_for_testing() -> Self {
-        let version = Felt::ZERO;
+        let version = felt!(VIRTUAL_OS_OUTPUT_VERSION);
         let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
         let block_number = felt!(block_hash_history_start + 2);
         let block_hash = block_number * felt!(100_u64);

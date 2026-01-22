@@ -619,6 +619,10 @@ impl AccountDeploymentData {
 // Represent the `VIRTUAL_SNOS` as a Felt.
 pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
 
+/// The version of the virtual OS output (short string 'VIRTUAL_SNOS0').
+/// This must match the Cairo constant `VIRTUAL_OS_OUTPUT_VERSION` in `virtual_os_output.cairo`.
+pub const VIRTUAL_OS_OUTPUT_VERSION: u128 = 0x5649525455414c5f534e4f5330;
+
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
 #[derive(
@@ -662,13 +666,23 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
             )));
         }
 
-        let [program_hash, _version, block_number_felt, block_hash, config_hash, ..] = snos_fields
+        let [program_hash, version, block_number_felt, block_hash, config_hash, ..] = snos_fields
         else {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "SNOS proof facts must have at least 5 fields, got {}",
                 proof_facts.0.len()
             )));
         };
+
+        // TODO(Yoni): reuse VirtualOsOutput parsing.
+        let expected_version = Felt::from(VIRTUAL_OS_OUTPUT_VERSION);
+        if *version != expected_version {
+            return Err(StarknetApiError::InvalidProofFacts(format!(
+                "Expected SNOS proof facts version to be {} (VIRTUAL_OS_OUTPUT_VERSION), but got \
+                 {}",
+                expected_version, version
+            )));
+        }
 
         let block_number = BlockNumber((*block_number_felt).try_into().map_err(|_| {
             StarknetApiError::InvalidProofFacts(format!(

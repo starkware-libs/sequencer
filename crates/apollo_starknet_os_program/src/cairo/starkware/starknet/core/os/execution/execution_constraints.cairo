@@ -10,7 +10,10 @@ from starkware.starknet.core.os.constants import (
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
 from starkware.starknet.core.os.state.commitment import StateEntry
-from starkware.starknet.core.os.virtual_os_output import VirtualOsOutputHeader
+from starkware.starknet.core.os.virtual_os_output import (
+    VIRTUAL_OS_OUTPUT_VERSION,
+    VirtualOsOutputHeader,
+)
 
 // These are no-op implementations for the Sequencer OS.
 
@@ -45,6 +48,11 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     let program_hash = proof_facts[1];
 
     let os_output_header = cast(&proof_facts[2], VirtualOsOutputHeader*);
+
+    with_attr error_message("Virtual OS output version is not supported") {
+        assert os_output_header.version = VIRTUAL_OS_OUTPUT_VERSION;
+    }
+
     // validate that the proof facts block number is not too recent
     // (the first check is to avoid underflow in the second one).
     assert_le(STORED_BLOCK_HASH_BUFFER, current_block_number);

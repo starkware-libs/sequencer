@@ -1,5 +1,6 @@
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::transaction::fields::VIRTUAL_OS_OUTPUT_VERSION;
 use starknet_os::io::virtual_os_output::{VirtualOsOutput, VirtualOsRunnerOutput};
 use starknet_os::runner::run_virtual_os;
 use starknet_types_core::felt::Felt;
@@ -41,7 +42,7 @@ impl<S: FlowTestState> TestRunner<S> {
             Transaction::L1Handler(_) => ContractAddress::from(0_u8),
         };
         let expected_virtual_os_output = VirtualOsOutput {
-            version: Felt::ZERO,
+            version: Felt::from(VIRTUAL_OS_OUTPUT_VERSION),
             base_block_number: first_block.block_info.block_number,
             base_block_hash: first_block.new_block_hash.0,
             starknet_os_config_hash: config_hash,

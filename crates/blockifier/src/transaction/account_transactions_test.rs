@@ -61,6 +61,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     SnosProofFacts,
     ValidResourceBounds,
+    VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
 };
 use starknet_api::transaction::{
@@ -2202,6 +2203,7 @@ fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
     vec![
         felt!(VIRTUAL_SNOS),
         snos.program_hash,
+        felt!(VIRTUAL_OS_OUTPUT_VERSION),
         felt!(snos.block_number.0),
         snos.block_hash.0,
         snos.config_hash,
