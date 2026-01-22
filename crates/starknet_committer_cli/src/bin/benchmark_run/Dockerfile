@@ -25,7 +25,9 @@ CMD ["cached-rocksdb", \
     "--n-iterations", "10000000", \
     "--flavor", "mainnet-with-sleeps", \
     "--n-updates", "1000", \
-    "--checkpoint-interval", "1000", \
+    "--checkpoint-interval", "10", \
+    "--cache-size", "800000", \
+    "--include-inner-stats", \
     "--log-level", "info", \
     "--data-path", "/mnt/data/committer_storage_benchmark", \
     "--storage-path", "/mnt/data/storage", \
