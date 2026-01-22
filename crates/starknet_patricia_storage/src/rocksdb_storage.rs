@@ -16,6 +16,7 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    EmptyStorageConfig,
     NoStats,
     PatriciaStorageResult,
     Storage,
@@ -108,6 +109,7 @@ impl RocksDbStorage {
 
 impl Storage for RocksDbStorage {
     type Stats = NoStats;
+    type Config = EmptyStorageConfig;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.db.get(&key.0)?.map(DbValue))
