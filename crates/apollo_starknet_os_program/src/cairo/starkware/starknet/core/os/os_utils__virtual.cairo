@@ -81,7 +81,6 @@ func process_os_output{
         base_block_number=header.prev_block_number,
         base_block_hash=header.prev_block_hash,
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
-        authorized_account_address=os_global_context.virtual_os_config.authorized_account_address,
         messages_to_l1_segment_size=messages_to_l1_segment_size,
     );
 
@@ -101,10 +100,7 @@ func process_os_output{
 
 // Returns the virtual OS config.
 func get_virtual_os_config() -> VirtualOsConfig* {
-    let (virtual_os_config: VirtualOsConfig*) = alloc();
-    static_assert VirtualOsConfig.SIZE == 2;
-    assert virtual_os_config.enabled = TRUE;
-    // The authorized account address will be set during transaction execution.
+    tempvar virtual_os_config = new VirtualOsConfig(enabled=TRUE);
     return virtual_os_config;
 }
 
