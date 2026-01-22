@@ -195,23 +195,25 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
             l1_gas_price: block_info.l1_gas_price_fri,
             l1_data_gas_price: block_info.l1_data_gas_price_fri,
         };
-        // This calculation can panic if gas price is too high, or zero.
-        // It can succeed but still give a zero rate if the price ratio is too small.
+        // This calculation can fail if gas price is too high, or zero, or if the prices cause the
+        // rate to be zero.
         let eth_to_fri_rate = calculate_eth_to_fri_rate(block_info);
-        if eth_to_fri_rate > 0 {
-            info!(
-                "Using previous block info: wei prices: {:?}, fri prices: {:?}, eth to fri rate: \
-                 {:?}",
-                prev_l1_gas_price_wei, prev_l1_gas_price, eth_to_fri_rate
-            );
-            return (prev_l1_gas_price, prev_l1_gas_price_wei, eth_to_fri_rate);
-        } else {
-            // Do not use previous block info. Prefer the default values instead.
-            warn!(
-                "Previous block info: {:?} implies a zero eth to fri rate. Using default values \
-                 instead.",
-                block_info
-            );
+        match eth_to_fri_rate {
+            Ok(eth_to_fri_rate) => {
+                info!(
+                    "Using previous block info: wei prices: {:?}, fri prices: {:?}, eth to fri \
+                     rate: {:?}",
+                    prev_l1_gas_price_wei, prev_l1_gas_price, eth_to_fri_rate
+                );
+                return (prev_l1_gas_price, prev_l1_gas_price_wei, eth_to_fri_rate);
+            }
+            Err(error) => {
+                warn!(
+                    "Error calculating eth to fri rate from previous block info: {:?}: {:?}",
+                    block_info, error
+                );
+                // Do not use previous block info. Prefer the default values instead.
+            }
         }
     }
 
@@ -311,7 +313,7 @@ pub(crate) fn convert_to_sn_api_block_info(
     let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei)?;
     let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei)?;
     let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri)?;
-    let eth_to_fri_rate = calculate_eth_to_fri_rate(block_info);
+    let eth_to_fri_rate = calculate_eth_to_fri_rate(block_info)?;
 
     let l2_gas_price_wei =
         NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(eth_to_fri_rate)?)
@@ -474,12 +476,30 @@ pub(crate) fn make_gas_price_params(config: &ContextDynamicConfig) -> GasPricePa
     }
 }
 
-fn calculate_eth_to_fri_rate(block_info: &ConsensusBlockInfo) -> u128 {
-    block_info
+fn calculate_eth_to_fri_rate(block_info: &ConsensusBlockInfo) -> Result<u128, StarknetApiError> {
+    let eth_to_fri_rate = block_info
         .l1_gas_price_fri
         .0
         .checked_mul(WEI_PER_ETH)
-        .expect("Gas price in Fri should be small enough to multiply by WEI_PER_ETH")
+        .ok_or_else(|| {
+            StarknetApiError::GasPriceConversionError(format!(
+                "Gas price in Fri should be small enough to multiply by WEI_PER_ETH. Block info: \
+                 {:?}",
+                block_info
+            ))
+        })?
         .checked_div(block_info.l1_gas_price_wei.0)
-        .expect("Gas price in Wei should be non-zero")
+        .ok_or_else(|| {
+            StarknetApiError::GasPriceConversionError(format!(
+                "Gas price in Wei should be non-zero. Block info: {:?}",
+                block_info
+            ))
+        })?;
+    if eth_to_fri_rate == 0 {
+        return Err(StarknetApiError::GasPriceConversionError(format!(
+            "Eth to fri rate is zero. Block info: {:?}",
+            block_info
+        )));
+    }
+    Ok(eth_to_fri_rate)
 }
