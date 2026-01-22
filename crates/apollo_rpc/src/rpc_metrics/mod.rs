@@ -2,23 +2,26 @@
 mod rpc_metrics_test;
 
 use std::collections::HashSet;
-use std::net::SocketAddr;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Instant;
 
-use jsonrpsee::server::logger::{HttpRequest, Logger, MethodKind, TransportProtocol};
-use jsonrpsee::types::Params;
+use jsonrpsee::server::middleware::rpc::RpcServiceT;
+use jsonrpsee::server::MethodResponse;
+use jsonrpsee::types::Request;
 use jsonrpsee::Methods;
 use metrics::{counter, histogram};
 
 // Name of the metrics.
-const INCOMING_REQUEST: &str = "rpc_incoming_requests";
-const FAILED_REQUESTS: &str = "rpc_failed_requests";
+pub(crate) const INCOMING_REQUEST: &str = "rpc_incoming_requests";
+pub(crate) const FAILED_REQUESTS: &str = "rpc_failed_requests";
 const REQUEST_LATENCY: &str = "rpc_request_latency_seconds";
 
 // Labels for the metrics.
-const METHOD_LABEL: &str = "method";
-const VERSION_LABEL: &str = "version";
-const ILLEGAL_METHOD: &str = "illegal_method";
+pub(crate) const METHOD_LABEL: &str = "method";
+pub(crate) const VERSION_LABEL: &str = "version";
+pub(crate) const ILLEGAL_METHOD: &str = "illegal_method";
 
 // Register the metrics and returns a set of the method names.
 fn init_metrics(methods: &Methods) -> HashSet<String> {
@@ -46,22 +49,12 @@ impl MetricLogger {
         let methods_set = init_metrics(methods);
         Self { methods_set }
     }
-}
 
-impl Logger for MetricLogger {
-    type Instant = Instant;
-
-    fn on_result(
-        &self,
-        method_name: &str,
-        success_or_error: jsonrpsee::helpers::MethodResponseResult,
-        started_at: Self::Instant,
-        _transport: TransportProtocol,
-    ) {
+    pub(crate) fn on_result(&self, method_name: &str, is_success: bool, started_at: Instant) {
         // To prevent creating metrics for illegal methods.
         if self.methods_set.contains(method_name) {
             let (method, version) = get_method_and_version(method_name);
-            if let jsonrpsee::helpers::MethodResponseResult::Failed(_) = success_or_error {
+            if !is_success {
                 counter!(FAILED_REQUESTS, METHOD_LABEL=> method.clone(), VERSION_LABEL=> version.clone()).increment(1);
             }
             counter!(INCOMING_REQUEST, METHOD_LABEL=> method.clone(), VERSION_LABEL=> version.clone()).increment(1);
@@ -73,37 +66,60 @@ impl Logger for MetricLogger {
             counter!(FAILED_REQUESTS, METHOD_LABEL => ILLEGAL_METHOD).increment(1);
         }
     }
+}
 
-    #[cfg_attr(coverage_nightly, coverage_attribute)]
-    fn on_request(&self, _transport: TransportProtocol) -> Self::Instant {
-        Instant::now()
+impl<S> tower::Layer<S> for MetricLogger {
+    type Service = MetricLoggerService<S>;
+
+    fn layer(&self, service: S) -> Self::Service {
+        MetricLoggerService { service, logger: self.clone() }
     }
+}
 
-    // Required methods.
-    #[cfg_attr(coverage_nightly, coverage_attribute)]
-    fn on_connect(&self, _remote_addr: SocketAddr, _request: &HttpRequest, _t: TransportProtocol) {}
+/// A middleware service that logs metrics for each RPC call.
+#[derive(Clone)]
+pub(crate) struct MetricLoggerService<S> {
+    service: S,
+    logger: MetricLogger,
+}
 
-    #[cfg_attr(coverage_nightly, coverage_attribute)]
-    fn on_call(
-        &self,
-        _method_name: &str,
-        _params: Params<'_>,
-        _kind: MethodKind,
-        _transport: TransportProtocol,
-    ) {
+impl<'a, S> RpcServiceT<'a> for MetricLoggerService<S>
+where
+    S: RpcServiceT<'a> + Send + Sync + Clone + 'static,
+{
+    type Future = MetricResponseFuture<S::Future>;
+
+    fn call(&self, request: Request<'a>) -> Self::Future {
+        let method_name = request.method_name().to_string();
+        MetricResponseFuture {
+            fut: Box::pin(self.service.call(request)),
+            method_name,
+            logger: self.logger.clone(),
+            started_at: Instant::now(),
+        }
     }
+}
 
-    #[cfg_attr(coverage_nightly, coverage_attribute)]
-    fn on_response(
-        &self,
-        _result: &str,
-        _started_at: Self::Instant,
-        _transport: TransportProtocol,
-    ) {
+/// Response future that records metrics when the response is ready.
+pub(crate) struct MetricResponseFuture<F> {
+    fut: Pin<Box<F>>,
+    method_name: String,
+    logger: MetricLogger,
+    started_at: Instant,
+}
+
+impl<F: Future<Output = MethodResponse>> Future for MetricResponseFuture<F> {
+    type Output = MethodResponse;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let res = self.fut.as_mut().poll(cx);
+
+        if let Poll::Ready(ref response) = res {
+            self.logger.on_result(&self.method_name, response.is_success(), self.started_at);
+        }
+
+        res
     }
-
-    #[cfg_attr(coverage_nightly, coverage_attribute)]
-    fn on_disconnect(&self, _remote_addr: SocketAddr, _transport: TransportProtocol) {}
 }
 
 // Given method_name returns (method, version).
