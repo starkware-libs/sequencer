@@ -375,6 +375,8 @@ impl BenchmarkTimeMeasurement {
 struct Checkpoint {
     block_number: usize,
     contracts_trie_root_hash: Felt,
+    // TODO(Rotem): remove this serde alias once all benchmarks are updated to use the new name.
+    #[serde(alias = "total_facts")]
     total_db_entry_count: usize,
 }
 

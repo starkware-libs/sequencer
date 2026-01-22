@@ -10,6 +10,29 @@ import plotly.graph_objects as go
 
 TICK_FORMAT = "%d/%m/%Y %H:%M:%S.%L"
 
+# Mapping from old CSV column names to new ones for backward compatibility.
+COLUMN_NAME_MIGRATIONS = {
+    "n_read_facts": "n_reads",
+    "n_new_facts": "n_writes",
+    "initial_facts_in_db": "initial_db_entry_count",
+}
+
+
+def normalize_csv_columns(data: List[dict]) -> List[dict]:
+    """Rename old CSV column names to new ones for backward compatibility."""
+    if not data:
+        return data
+
+    # Check if any old column names exist in the header (first row's keys)
+    header_keys = data[0].keys()
+    renames_needed = {old: new for old, new in COLUMN_NAME_MIGRATIONS.items() if old in header_keys}
+
+    if not renames_needed:
+        return data
+
+    # Rename keys in each row's dictionary
+    return [{renames_needed.get(key, key): value for key, value in row.items()} for row in data]
+
 
 class StorageStats(Enum):
     NONE = 0
@@ -60,6 +83,9 @@ class BenchmarkData:
             with open(file, "r", newline="") as csvfile:
                 reader = csv.DictReader(csvfile)
                 data = list(reader)
+            # Normalize old column names for backward compatibility.
+            # TODO(Rotem): remove this once all benchmarks are updated to use the new field names.
+            data = normalize_csv_columns(data)
         except Exception as e:
             raise ValueError(f"Error reading CSV file {file}: {e}")
 
