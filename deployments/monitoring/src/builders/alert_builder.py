@@ -13,13 +13,14 @@ from common.config_overrides import (
     load_config_file,
     validate_config_overrides,
 )
+from common.env import EnvironmentName, alert_env_filename_suffix
 from common.grafana10_objects import (
     alert_expression_model_object,
     alert_query_model_object,
     alert_query_object,
     alert_rule_object,
 )
-from common.helpers import EnvironmentName, alert_env_filename_suffix, get_logger
+from common.logger import get_logger
 from grafana_client import GrafanaApi
 from grafana_client.client import (
     GrafanaBadInputError,
@@ -134,7 +135,10 @@ def dump_alert(output_dir: str, alert: dict[str, any]) -> None:
     os.makedirs(output_dir, exist_ok=True)
     with open(alert_full_path, "w") as f:
         json.dump(alert, f, indent=2)
-    logger.info(f'Alert "{alert["name"]}" saved to {alert_full_path}')
+    # Format with professional colors: Alert (white bold), name (cyan), saved to (white bold), path (dim cyan)
+    logger.info(
+        f'[bold white]Alert[/bold white] "[blue]{alert["name"]}[/blue]" [bold white]saved to[/bold white] [dim white]{alert_full_path}[/dim white]'
+    )
 
 
 def get_alert_rule_group(client: GrafanaApi, folder_uid: str, group_uid: str) -> str:
