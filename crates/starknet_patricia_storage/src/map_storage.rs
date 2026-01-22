@@ -118,7 +118,11 @@ impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
                 self.writes.to_string(),
                 self.cache_hit_rate().to_string(),
             ],
-            self.inner_stats.as_ref().map(|s| s.column_values()).unwrap_or_default(),
+            self.inner_stats.as_ref().map(|s| s.column_values()).unwrap_or(vec![
+                "".to_string();
+                S::column_titles()
+                    .len()
+            ]),
         ]
         .concat()
     }
