@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769088098599,
+  "lastUpdate": 1769090691130,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -135,6 +135,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1277.49075618,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9feb0065af0e3cdfd47310ca953e746e453058c9",
+          "message": "starknet_patricia_storage: enhance storage trait with EmptyStorageConfig (#11857)\n\n- Introduced EmptyStorageConfig struct for storage implementations that do not require configuration.\n- Updated Storage trait to include a Config associated type, defaulting to EmptyStorageConfig for various storage implementations (NullStorage, MapStorage, MdbxStorage, RocksDbStorage, AerospikeStorage, ShortKeyStorage).\n- Added necessary dependencies in Cargo.toml for apollo_config and validator.",
+          "timestamp": "2026-01-22T13:35:35Z",
+          "tree_id": "d9bf29f5d784323c990fede6687d80f86db863e1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9feb0065af0e3cdfd47310ca953e746e453058c9"
+        },
+        "date": 1769090690785,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 816.48741884,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1383.41936723,
             "unit": "ms"
           }
         ]
