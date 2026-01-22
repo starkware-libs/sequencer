@@ -1,4 +1,3 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.hash_state_poseidon import (

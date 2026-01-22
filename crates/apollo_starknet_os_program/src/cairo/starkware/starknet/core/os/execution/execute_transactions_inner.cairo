@@ -1,5 +1,4 @@
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.starknet.common.new_syscalls import ResourceBounds
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import BuiltinPointers
 from starkware.starknet.core.os.execution.transaction_impls import (

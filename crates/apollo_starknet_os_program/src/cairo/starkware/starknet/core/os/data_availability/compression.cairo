@@ -1,11 +1,10 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.copy_indices import copy_indices
-from starkware.cairo.common.dict import dict_new, dict_read, dict_squash, dict_update, dict_write
+from starkware.cairo.common.dict import dict_new, dict_squash, dict_update, dict_write
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.log2_ceil import log2_ceil
-from starkware.cairo.common.math import assert_in_range, unsigned_div_rem
+from starkware.cairo.common.math import unsigned_div_rem
 from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.common.pow import pow
 
 const COMPRESSION_VERSION = 0;
 

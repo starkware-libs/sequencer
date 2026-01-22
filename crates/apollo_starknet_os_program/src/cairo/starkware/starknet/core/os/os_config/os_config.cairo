@@ -5,7 +5,6 @@ from starkware.cairo.common.hash_state import (
     hash_update,
     hash_update_single,
 )
-from starkware.cairo.common.registers import get_fp_and_pc
 
 const STARKNET_OS_CONFIG_VERSION = 'StarknetOsConfig3';
 
