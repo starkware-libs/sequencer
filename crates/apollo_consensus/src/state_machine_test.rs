@@ -11,6 +11,8 @@ use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
 use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
+type LeaderFn = fn(Round) -> ValidatorId;
+
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
     static ref VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
@@ -32,10 +34,7 @@ fn mk_vote(
 }
 
 #[track_caller]
-fn assert_decision_reached<LeaderFn: Fn(Round) -> ValidatorId>(
-    wrapper: &mut TestWrapper<LeaderFn>,
-    expected_block: Option<ProposalCommitment>,
-) {
+fn assert_decision_reached(wrapper: &mut TestWrapper, expected_block: Option<ProposalCommitment>) {
     match wrapper.next_request().unwrap() {
         SMRequest::DecisionReached(dec) => {
             assert_eq!(dec.block, expected_block.unwrap());
@@ -46,19 +45,21 @@ fn assert_decision_reached<LeaderFn: Fn(Round) -> ValidatorId>(
     assert!(wrapper.next_request().is_none());
 }
 
-struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
+struct TestWrapper {
     state_machine: StateMachine,
     leader_fn: LeaderFn,
+    virtual_leader_fn: LeaderFn,
     requests: VecDeque<SMRequest>,
     peer_voters: Vec<ValidatorId>,
     next_peer_idx: usize,
 }
 
-impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
+impl TestWrapper {
     pub fn new(
         id: ValidatorId,
         total_weight: u64,
         leader_fn: LeaderFn,
+        virtual_leader_fn: LeaderFn,
         is_observer: bool,
         quorum_type: QuorumType,
     ) -> Self {
@@ -71,6 +72,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         Self {
             state_machine: StateMachine::new(HEIGHT, id, total_weight, is_observer, quorum_type),
             leader_fn,
+            virtual_leader_fn,
             requests: VecDeque::new(),
             peer_voters,
             next_peer_idx: 0,
@@ -88,7 +90,8 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
     }
 
     pub fn start(&mut self) {
-        self.requests.append(&mut self.state_machine.start(&self.leader_fn))
+        self.requests
+            .append(&mut self.state_machine.start(&self.leader_fn, &self.virtual_leader_fn))
     }
 
     pub fn send_finished_building(
@@ -107,6 +110,19 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         self.send_event(StateMachineEvent::FinishedValidation(proposal_id, round, None))
     }
 
+    pub fn send_finished_validation_with_valid_round(
+        &mut self,
+        proposal_id: Option<ProposalCommitment>,
+        round: Round,
+        valid_round: Round,
+    ) {
+        self.send_event(StateMachineEvent::FinishedValidation(
+            proposal_id,
+            round,
+            Some(valid_round),
+        ))
+    }
+
     pub fn send_prevote(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
         let voter = self.next_peer();
         self.send_event(StateMachineEvent::Prevote(mk_vote(
@@ -117,8 +133,36 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         )))
     }
 
+    pub fn send_prevote_from(
+        &mut self,
+        proposal_id: Option<ProposalCommitment>,
+        round: Round,
+        voter: ValidatorId,
+    ) {
+        self.send_event(StateMachineEvent::Prevote(mk_vote(
+            VoteType::Prevote,
+            round,
+            proposal_id,
+            voter,
+        )))
+    }
+
     pub fn send_precommit(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
         let voter = self.next_peer();
+        self.send_event(StateMachineEvent::Precommit(mk_vote(
+            VoteType::Precommit,
+            round,
+            proposal_id,
+            voter,
+        )))
+    }
+
+    pub fn send_precommit_from(
+        &mut self,
+        proposal_id: Option<ProposalCommitment>,
+        round: Round,
+        voter: ValidatorId,
+    ) {
         self.send_event(StateMachineEvent::Precommit(mk_vote(
             VoteType::Precommit,
             round,
@@ -140,7 +184,11 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
     }
 
     fn send_event(&mut self, event: StateMachineEvent) {
-        self.requests.append(&mut self.state_machine.handle_event(event, &self.leader_fn));
+        self.requests.append(&mut self.state_machine.handle_event(
+            event,
+            &self.leader_fn,
+            &self.virtual_leader_fn,
+        ));
     }
 }
 
@@ -148,8 +196,14 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
 #[test_case(false; "validator")]
 fn events_arrive_in_ideal_order(is_proposer: bool) {
     let id = if is_proposer { *PROPOSER_ID } else { *VALIDATOR_ID };
-    let mut wrapper =
-        TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        id,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     if is_proposer {
@@ -193,8 +247,14 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
 
 #[test]
 fn validator_receives_votes_first() {
-    let mut wrapper =
-        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     // Waiting for the proposal.
@@ -230,8 +290,14 @@ fn validator_receives_votes_first() {
 #[test_case(PROPOSAL_ID ; "valid_proposal")]
 #[test_case(None ; "invalid_proposal")]
 fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
-    let mut wrapper =
-        TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *PROPOSER_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(0));
@@ -258,8 +324,14 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
 
 #[test]
 fn only_send_precommit_with_prevote_quorum_and_proposal() {
-    let mut wrapper =
-        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     // Waiting for the proposal.
@@ -288,8 +360,14 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
 
 #[test]
 fn only_decide_with_prcommit_quorum_and_proposal() {
-    let mut wrapper =
-        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     // Waiting for the proposal.
@@ -321,8 +399,14 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
 
 #[test]
 fn advance_to_the_next_round() {
-    let mut wrapper =
-        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     // Waiting for the proposal.
@@ -357,8 +441,14 @@ fn advance_to_the_next_round() {
 
 #[test]
 fn prevote_when_receiving_proposal_in_current_round() {
-    let mut wrapper =
-        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
@@ -389,8 +479,14 @@ fn prevote_when_receiving_proposal_in_current_round() {
 #[test_case(true ; "send_proposal")]
 #[test_case(false ; "send_timeout_propose")]
 fn mixed_quorum(send_proposal: bool) {
-    let mut wrapper =
-        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     // Waiting for the proposal.
@@ -432,8 +528,14 @@ fn mixed_quorum(send_proposal: bool) {
 
 #[test]
 fn dont_handle_enqueued_while_awaiting_get_proposal() {
-    let mut wrapper =
-        TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *PROPOSER_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(ROUND));
@@ -496,8 +598,14 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
 
 #[test]
 fn return_proposal_if_locked_value_is_set() {
-    let mut wrapper =
-        TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        *PROPOSER_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(ROUND));
@@ -545,7 +653,14 @@ fn return_proposal_if_locked_value_is_set() {
 #[test]
 fn observer_node_reaches_decision() {
     let id = *VALIDATOR_ID;
-    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, true, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        id,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        true,
+        QuorumType::Byzantine,
+    );
 
     wrapper.start();
 
@@ -567,8 +682,14 @@ fn observer_node_reaches_decision() {
 #[test_case(QuorumType::Byzantine; "byzantine")]
 #[test_case(QuorumType::Honest; "honest")]
 fn number_of_required_votes(quorum_type: QuorumType) {
-    let mut wrapper =
-        TestWrapper::new(*VALIDATOR_ID, 3, |_: Round| *PROPOSER_ID, false, quorum_type);
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        3,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        false,
+        quorum_type,
+    );
 
     wrapper.start();
     // Waiting for the proposal.
@@ -606,8 +727,8 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     );
     assert!(wrapper.next_request().is_none());
 
-    // Another node sends a Precommit (vote 2).
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    // The virtual proposer sends a Precommit (vote 2).
+    wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *PROPOSER_ID);
 
     // Byzantine quorum requires 3 votes, so we need one more vote.
     if quorum_type == QuorumType::Byzantine {
@@ -615,7 +736,7 @@ fn number_of_required_votes(quorum_type: QuorumType) {
         assert!(wrapper.next_request().is_none());
 
         // Another node sends a Precommit (vote 3).
-        wrapper.send_precommit(PROPOSAL_ID, ROUND);
+        wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2);
     }
     // In honest case, the second vote is enough for a quorum.
 
@@ -628,7 +749,14 @@ fn number_of_required_votes(quorum_type: QuorumType) {
 fn observer_does_not_record_self_votes() {
     // Set up as an observer.
     let id = *VALIDATOR_ID;
-    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, true, QuorumType::Byzantine);
+    let mut wrapper = TestWrapper::new(
+        id,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *PROPOSER_ID,
+        true,
+        QuorumType::Byzantine,
+    );
 
     // Start and receive proposal validation completion.
     wrapper.start();
@@ -656,4 +784,122 @@ fn observer_does_not_record_self_votes() {
     assert!(wrapper.next_request().is_none());
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+}
+
+#[test]
+fn quorums_require_virtual_leader_in_favor_for_value() {
+    // Virtual leader is fixed to VALIDATOR_ID_3 and must be one of the voters in favor for:
+    // - LOC 35 (prevote quorum for a value -> precommit)
+    // - LOC 49 (precommit quorum for a value -> decision)
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *VALIDATOR_ID_3,
+        false,
+        QuorumType::Byzantine,
+    );
+
+    wrapper.start();
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
+    assert!(wrapper.next_request().is_none());
+
+    // Receive (validated) proposal -> self prevote for the value.
+    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    assert!(wrapper.next_request().is_none());
+
+    // Reach prevote quorum without the virtual leader's prevote (self + 2 peers).
+    wrapper.send_prevote(PROPOSAL_ID, ROUND); // peer 1
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_prevote(PROPOSAL_ID, ROUND); // peer 2
+
+    // Mixed prevote quorum still schedules timeout, but we must NOT precommit yet.
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
+    assert!(wrapper.next_request().is_none());
+
+    // Now the virtual leader prevotes for the value -> we can precommit.
+    wrapper.send_prevote(PROPOSAL_ID, ROUND); // peer 3 (virtual leader)
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    assert!(wrapper.next_request().is_none());
+
+    // Reach precommit quorum without the virtual leader's precommit (self + 2 peers).
+    wrapper.send_precommit(PROPOSAL_ID, ROUND); // peer 1
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_precommit(PROPOSAL_ID, ROUND); // peer 2
+
+    // Mixed precommit quorum still schedules timeout, but we must NOT decide yet.
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    assert!(wrapper.next_request().is_none());
+
+    // Now the virtual leader precommits for the value -> we can decide.
+    wrapper.send_precommit(PROPOSAL_ID, ROUND); // peer 3 (virtual leader)
+    assert_decision_reached(&mut wrapper, PROPOSAL_ID);
+}
+
+#[test]
+fn reproposal_requires_virtual_leader_prevote_in_valid_round() {
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *VALIDATOR_ID_3, // virtual leader is VALIDATOR_ID_3
+        false,
+        QuorumType::Byzantine,
+    );
+
+    wrapper.start();
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
+    assert!(wrapper.next_request().is_none());
+
+    // Round 0: receive proposal and self-prevote for it.
+    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    assert!(wrapper.next_request().is_none());
+
+    // Reach prevote quorum in round 0 WITHOUT the virtual leader's prevote (self + 2 peers).
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *PROPOSER_ID);
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
+    assert!(wrapper.next_request().is_none());
+
+    // Advance to round 1 via timeouts (no need to reach any decision in round 0).
+    wrapper.send_timeout_prevote(ROUND);
+    // We broadcast a nil precommit due to timeout.
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, None, *VALIDATOR_ID))
+    );
+    assert!(wrapper.next_request().is_none());
+
+    wrapper.send_timeout_precommit(ROUND);
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::ScheduleTimeout(Step::Propose, ROUND + 1)
+    );
+    assert!(wrapper.next_request().is_none());
+
+    // Round 1: receive a reproposal referring to valid_round=0.
+    wrapper.send_finished_validation_with_valid_round(PROPOSAL_ID, ROUND + 1, ROUND);
+    // Should NOT prevote yet: virtual leader hasn't prevoted for the value in valid_round.
+    assert!(wrapper.next_request().is_none());
+
+    // Now inject the missing virtual leader prevote in round 0 for the value.
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_3);
+    // Now the reproposal condition can be accepted -> we prevote in round 1.
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND + 1, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    assert!(wrapper.next_request().is_none());
 }

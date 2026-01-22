@@ -475,7 +475,7 @@ impl DiscreteEventSimulation {
         };
 
         // Start the single height consensus
-        let requests = self.shc.start(&leader_fn);
+        let requests = self.shc.start(&leader_fn, &leader_fn);
         if let Some(decision) = self.handle_requests(requests) {
             return Some(decision);
         }
@@ -493,7 +493,7 @@ impl DiscreteEventSimulation {
             let requests = match timed_event.event {
                 InputEvent::Vote(v) => {
                     self.track_precommit(&v);
-                    self.shc.handle_vote(&leader_fn, v)
+                    self.shc.handle_vote(&leader_fn, &leader_fn, v)
                 }
                 InputEvent::Proposal(p) => self.shc.handle_proposal(&leader_fn, p),
                 InputEvent::Internal(StateMachineEvent::FinishedValidation(
@@ -504,6 +504,7 @@ impl DiscreteEventSimulation {
                     self.track_finished_proposal(round, commitment);
                     self.shc.handle_event(
                         &leader_fn,
+                        &leader_fn,
                         StateMachineEvent::FinishedValidation(commitment, round, None),
                     )
                 }
@@ -511,10 +512,11 @@ impl DiscreteEventSimulation {
                     self.track_finished_proposal(round, commitment);
                     self.shc.handle_event(
                         &leader_fn,
+                        &leader_fn,
                         StateMachineEvent::FinishedBuilding(commitment, round),
                     )
                 }
-                InputEvent::Internal(e) => self.shc.handle_event(&leader_fn, e),
+                InputEvent::Internal(e) => self.shc.handle_event(&leader_fn, &leader_fn, e),
             };
 
             if let Some(decision) = self.handle_requests(requests) {
@@ -594,6 +596,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
     // A decision should be reached when:
     // 1. Proposal finished (validation or building)
     // 2. At least THRESHOLD precommits from validators for that round+commitment
+    // 3. The virtual proposer for that round precommitted in favor of the block
     let expected_decision =
         sim.round_stats.iter().find_map(|((r, commitment), (precommits, proposal_ready))| {
             if !*proposal_ready {
@@ -611,8 +614,19 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
                 .iter()
                 .count();
             let total_precommits = peer_precommits + self_vote;
+            // Match the state machine's `virtual_leader_in_favor` gating for decision.
+            // In this simulation the virtual leader function is the same as the leader function.
+            let virtual_proposer = {
+                let idx = get_leader_index(sim.seed, sim.total_nodes, *r);
+                sim.validators[idx]
+            };
+            let virtual_proposer_precommitted_in_favor = if virtual_proposer == *NODE_0 {
+                self_vote == 1
+            } else {
+                precommits.iter().any(|v| v.voter == virtual_proposer)
+            };
 
-            if total_precommits >= sim.quorum_threshold {
+            if total_precommits >= sim.quorum_threshold && virtual_proposer_precommitted_in_favor {
                 Some((*r, *commitment, precommits.clone()))
             } else {
                 None

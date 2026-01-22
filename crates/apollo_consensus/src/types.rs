@@ -96,9 +96,12 @@ pub trait ConsensusContext {
     // 2. BTreeMap - We want a stable ordering of the nodes for deterministic leader selection.
     async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
-    /// Calculates the ID of the Proposer based on the inputs.
+    /// Calculates the ID of the Actual Proposer based on the inputs.
     // TODO(matan): Consider passing the validator set in order to keep this sync.
     fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
+
+    /// Calculates the ID of the Virtual Proposer based on the inputs.
+    fn virtual_proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 

@@ -569,7 +569,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         self.cache.report_cached_votes_metric(height);
         let mut pending_requests = {
             let leader_fn = make_leader_fn(context, height);
-            shc.start(&leader_fn)
+            let virtual_leader_fn = make_virtual_leader_fn(context, height);
+            shc.start(&leader_fn, &virtual_leader_fn)
         };
 
         let cached_proposals = self.cache.get_current_height_proposals(height);
@@ -591,7 +592,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
             let leader_fn = make_leader_fn(context, height);
-            let new_requests = shc.handle_vote(&leader_fn, msg);
+            let virtual_leader_fn = make_virtual_leader_fn(context, height);
+            let new_requests = shc.handle_vote(&leader_fn, &virtual_leader_fn, msg);
             pending_requests.extend(new_requests);
         }
 
@@ -633,7 +635,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 Some(shc_event) = shc_events.next() => {
                     let leader_fn = make_leader_fn(context, height);
-                    shc.handle_event(&leader_fn, shc_event)
+                    let virtual_leader_fn = make_virtual_leader_fn(context, height);
+                    shc.handle_event(&leader_fn, &virtual_leader_fn, shc_event)
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
@@ -766,8 +769,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     ) -> Requests {
         // Store the stream; requests will reference it by (height, round)
         self.current_height_proposals_streams.insert((height, block_info.round), content_receiver);
-        let leader_fn = make_leader_fn(context, height);
-        shc.handle_proposal(&leader_fn, block_info)
+        let virtual_leader_fn = make_virtual_leader_fn(context, height);
+        shc.handle_proposal(&virtual_leader_fn, block_info)
     }
 
     // Handle a single consensus message.
@@ -830,7 +833,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 Some(shc) => {
                     if self.cache.should_cache_vote(&height, shc.current_round(), &message) {
                         let leader_fn = make_leader_fn(context, height);
-                        Ok(shc.handle_vote(&leader_fn, message))
+                        let virtual_leader_fn = make_virtual_leader_fn(context, height);
+                        Ok(shc.handle_vote(&leader_fn, &virtual_leader_fn, message))
                     } else {
                         Ok(VecDeque::new())
                     }
@@ -882,7 +886,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 let init = ProposalInit {
                     height,
                     round,
-                    proposer: self.consensus_config.dynamic_config.validator_id,
+                    proposer: context.virtual_proposer(height, round),
                     valid_round: None,
                 };
                 // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded
@@ -981,4 +985,12 @@ fn make_leader_fn<ContextT: ConsensusContext>(
     height: BlockNumber,
 ) -> impl Fn(Round) -> ValidatorId + '_ {
     move |round| context.proposer(height, round)
+}
+
+/// Creates a closure that returns the virtual proposer for a given round at the specified height.
+fn make_virtual_leader_fn<ContextT: ConsensusContext>(
+    context: &ContextT,
+    height: BlockNumber,
+) -> impl Fn(Round) -> ValidatorId + '_ {
+    move |round| context.virtual_proposer(height, round)
 }
