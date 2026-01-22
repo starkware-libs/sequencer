@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769087257945,
+  "lastUpdate": 1769088098599,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -101,6 +101,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1388.48199098,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2a42d11469c00d9964c0f0b34042e42b054f5293",
+          "message": "starknet_patricia_storage: fix CSV stats columns in CachedStorage (#11896)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-01-22T12:51:42Z",
+          "tree_id": "aaa5d1034665c1d0dcee59dcb5c0dd5722e790c4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2a42d11469c00d9964c0f0b34042e42b054f5293"
+        },
+        "date": 1769088098313,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 935.4181202799999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1277.49075618,
             "unit": "ms"
           }
         ]
