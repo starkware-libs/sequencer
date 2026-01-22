@@ -1,4 +1,7 @@
 //! Configuration for the HTTP proving service.
+//!
+//! This module provides both static configuration (set at startup) and dynamic
+//! configuration (can be updated at runtime via a watch channel).
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
@@ -7,6 +10,7 @@ use blockifier::blockifier::config::ContractClassManagerConfig;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
+use tokio::sync::watch;
 use tracing::info;
 
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
@@ -138,4 +142,37 @@ pub enum ConfigError {
     InvalidArgument(String),
     #[error("Missing required field: {0}")]
     MissingRequiredField(String),
+}
+
+/// Dynamic configuration that can be updated at runtime.
+///
+/// Changes to dynamic configuration are propagated via a watch channel,
+/// allowing for polling-free updates across all server components.
+#[derive(Clone, Debug, Default)]
+pub struct DynamicConfig {
+    /// Whether the server should accept new proving requests.
+    /// When set to `false`, new requests will be rejected with HTTP 503.
+    pub accept_new_requests: bool,
+}
+
+impl DynamicConfig {
+    /// Creates a new dynamic config with default values.
+    pub fn new() -> Self {
+        Self { accept_new_requests: true }
+    }
+}
+
+/// Handle for sending dynamic configuration updates.
+pub type DynamicConfigSender = watch::Sender<DynamicConfig>;
+
+/// Handle for receiving dynamic configuration updates.
+pub type DynamicConfigReceiver = watch::Receiver<DynamicConfig>;
+
+/// Creates a new dynamic configuration channel.
+///
+/// Returns a sender and receiver pair. The sender can be used to update
+/// the configuration, and the receiver can be cloned and shared with
+/// components that need to react to configuration changes.
+pub fn create_dynamic_config_channel() -> (DynamicConfigSender, DynamicConfigReceiver) {
+    watch::channel(DynamicConfig::new())
 }
