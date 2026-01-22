@@ -1,13 +1,23 @@
 use async_trait::async_trait;
+use blockifier::execution::errors::EntryPointExecutionError;
 #[cfg(test)]
 use mockall::automock;
 use thiserror::Error;
 
+use crate::cairo_staking_contract::ExtendedStateReaderError;
 use crate::committee_provider::Staker;
+use crate::contract_types::RetdataDeserializationError;
 use crate::staking_manager::Epoch;
 
 #[derive(Debug, Error)]
-pub enum StakingContractError {}
+pub enum StakingContractError {
+    #[error(transparent)]
+    EntryPointExecutionError(#[from] EntryPointExecutionError),
+    #[error(transparent)]
+    RetdataDeserializationError(#[from] RetdataDeserializationError),
+    #[error(transparent)]
+    ExtendedStateReaderError(#[from] ExtendedStateReaderError),
+}
 
 pub type StakingContractResult<T> = Result<T, StakingContractError>;
 
