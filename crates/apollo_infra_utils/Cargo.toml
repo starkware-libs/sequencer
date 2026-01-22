@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Infrastructure utility."
 
 [features]
-testing = ["colored", "dep:assert-json-diff", "socket2", "strum", "strum_macros", "tempfile"]
+testing = ["colored", "dep:assert-json-diff", "regex", "socket2", "strum", "strum_macros", "tempfile"]
 
 [lints]
 workspace = true
@@ -17,6 +17,7 @@ apollo_proc_macros.workspace = true
 assert-json-diff = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
 num_enum.workspace = true
+regex = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 socket2 = { workspace = true, optional = true }
@@ -31,6 +32,7 @@ url.workspace = true
 
 [dev-dependencies]
 assert-json-diff.workspace = true
+regex.workspace = true
 colored.workspace = true
 nix.workspace = true
 pretty_assertions.workspace = true

@@ -1,12 +1,10 @@
 from starkware.cairo.builtin_selection.select_input_builtins import select_input_builtins
-from starkware.cairo.builtin_selection.validate_builtins import validate_builtins
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.dict import dict_read
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.find_element import find_element, search_sorted_optimistic
-from starkware.cairo.common.math import assert_lt, assert_nn, assert_not_zero
+from starkware.cairo.common.math import assert_lt, assert_nn
 from starkware.cairo.common.registers import get_ap
 from starkware.starknet.builtins.segment_arena.segment_arena import (
     SegmentArenaBuiltin,
@@ -19,19 +17,16 @@ from starkware.starknet.core.os.builtins import (
     BuiltinEncodings,
     BuiltinParams,
     BuiltinPointers,
-    NonSelectableBuiltins,
     SelectableBuiltins,
     update_builtin_ptrs,
 )
 from starkware.starknet.core.os.constants import (
-    DEFAULT_ENTRY_POINT_SELECTOR,
     ENTRY_POINT_INITIAL_BUDGET,
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
     ENTRY_POINT_TYPE_L1_HANDLER,
     ERROR_ENTRY_POINT_NOT_FOUND,
     ERROR_OUT_OF_GAS,
-    NOP_ENTRY_POINT_OFFSET,
     SIERRA_ARRAY_LEN_BOUND,
 )
 from starkware.starknet.core.os.contract_class.compiled_class import (
@@ -45,7 +40,6 @@ from starkware.starknet.core.os.execution.revert import (
     init_revert_log,
 )
 from starkware.starknet.core.os.output import OsCarriedOutputs
-from starkware.starknet.core.os.state.commitment import StateEntry
 
 // Represents the execution context during the execution of contract code.
 struct ExecutionContext {

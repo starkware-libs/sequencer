@@ -2,7 +2,6 @@
 
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.starknet.core.os.block_context import BlockContext
 
 // Checks that the number of transactions is one.
 func check_n_txs(n_txs: felt) {

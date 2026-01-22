@@ -1,8 +1,7 @@
-from starkware.cairo.common.cairo_builtins import HashBuiltin, PoseidonBuiltin
 from starkware.cairo.common.math import unsigned_div_rem
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.new_syscalls import BlockInfo
-from starkware.starknet.core.os.builtins import BuiltinParams, get_builtin_params
+from starkware.starknet.core.os.builtins import BuiltinParams
 from starkware.starknet.core.os.constants import (
     VALIDATE_BLOCK_NUMBER_ROUNDING,
     VALIDATE_TIMESTAMP_ROUNDING,

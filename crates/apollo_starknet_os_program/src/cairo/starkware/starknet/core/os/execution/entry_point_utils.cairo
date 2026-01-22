@@ -1,4 +1,3 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.starknet.core.os.block_context import BlockContext

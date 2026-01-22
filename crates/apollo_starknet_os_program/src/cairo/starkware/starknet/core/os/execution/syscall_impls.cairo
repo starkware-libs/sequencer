@@ -4,7 +4,6 @@ from starkware.cairo.common.builtin_keccak.keccak import (
     KECCAK_FULL_RATE_IN_WORDS,
     keccak_padded_input,
 )
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
 from starkware.cairo.common.cairo_secp.bigint import bigint_to_uint256, uint256_to_bigint
 from starkware.cairo.common.cairo_secp.bigint3 import BigInt3
 from starkware.cairo.common.cairo_secp.constants import SECP_PRIME_HIGH as SECP256K1_PRIME_HIGH
@@ -112,12 +111,10 @@ from starkware.starknet.core.os.constants import (
     REPLACE_CLASS_GAS_COST,
     SECP256K1_ADD_GAS_COST,
     SECP256K1_GET_POINT_FROM_X_GAS_COST,
-    SECP256K1_GET_XY_GAS_COST,
     SECP256K1_MUL_GAS_COST,
     SECP256K1_NEW_GAS_COST,
     SECP256R1_ADD_GAS_COST,
     SECP256R1_GET_POINT_FROM_X_GAS_COST,
-    SECP256R1_GET_XY_GAS_COST,
     SECP256R1_MUL_GAS_COST,
     SECP256R1_NEW_GAS_COST,
     SEND_MESSAGE_TO_L1_GAS_COST,
