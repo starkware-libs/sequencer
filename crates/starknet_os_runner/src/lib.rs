@@ -3,6 +3,7 @@ pub mod errors;
 pub mod proving;
 pub mod runner;
 pub mod server;
+pub mod virtual_snos_prover;
 pub mod storage_proofs;
 pub mod virtual_block_executor;
 

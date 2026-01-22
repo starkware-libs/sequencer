@@ -1,0 +1,172 @@
+//! Virtual SNOS prover for generating transaction proofs.
+//!
+//! This module contains the core proving logic, extracted from the HTTP layer
+//! to enable better separation of concerns and testability.
+
+use std::time::Instant;
+
+use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier_reexecution::state_reader::rpc_objects::BlockId;
+use starknet_api::core::ChainId;
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
+use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::{
+    InvokeTransaction, MessageToL1, TransactionHash, TransactionHasher,
+};
+use starknet_os::io::os_output::OsOutputError;
+use tracing::{info, instrument};
+use url::Url;
+
+use crate::errors::{ProvingError, RunnerError};
+use crate::proving::prover::prove;
+use crate::runner::RpcRunnerFactory;
+use crate::server::config::ServiceConfig;
+
+/// Error type for the virtual SNOS prover.
+#[derive(Debug, thiserror::Error)]
+pub enum VirtualSnosProverError {
+    #[error("Invalid transaction type: {0}")]
+    InvalidTransactionType(String),
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+    #[error(transparent)]
+    // Boxed to reduce the size of Result on the stack (RunnerError is >128 bytes).
+    RunnerError(#[from] Box<RunnerError>),
+    #[error(transparent)]
+    ProvingError(#[from] ProvingError),
+    #[error(transparent)]
+    OutputParseError(#[from] OsOutputError),
+}
+
+/// Output from a successful proving operation.
+#[derive(Debug, Clone)]
+pub struct VirtualSnosProverOutput {
+    /// The generated proof.
+    pub proof: Proof,
+    /// The proof facts.
+    pub proof_facts: ProofFacts,
+    /// Messages sent from L2 to L1 during execution.
+    pub l2_to_l1_messages: Vec<MessageToL1>,
+    /// Duration of OS execution.
+    pub os_duration: std::time::Duration,
+    /// Duration of proving.
+    pub prove_duration: std::time::Duration,
+    /// Total duration from start to finish.
+    pub total_duration: std::time::Duration,
+}
+
+/// Virtual SNOS prover for Starknet transactions.
+///
+/// Encapsulates all proving logic, including OS execution and proof generation.
+/// This prover is independent of the HTTP layer and can be used directly for testing.
+#[derive(Clone)]
+pub struct VirtualSnosProver {
+    /// Factory for creating RPC-based runners.
+    runner_factory: RpcRunnerFactory,
+    /// Chain ID for transaction hash calculation.
+    chain_id: ChainId,
+}
+
+impl VirtualSnosProver {
+    /// Creates a new VirtualSnosProver from configuration.
+    pub fn new(config: &ServiceConfig) -> Self {
+        let contract_class_manager =
+            ContractClassManager::start(config.contract_class_manager_config.clone());
+        let node_url = Url::parse(&config.rpc_node_url).expect("Invalid RPC node URL in config");
+        let runner_factory =
+            RpcRunnerFactory::new(node_url, config.chain_id.clone(), contract_class_manager);
+        Self { runner_factory, chain_id: config.chain_id.clone() }
+    }
+
+    /// Proves a transaction on top of the specified block.
+    ///
+    /// This method:
+    /// 1. Validates and extracts the invoke transaction.
+    /// 2. Calculates the transaction hash.
+    /// 3. Runs the Starknet OS.
+    /// 4. Generates a proof.
+    #[instrument(skip(self), fields(block_id, tx_hash))]
+    pub async fn prove_transaction(
+        &self,
+        block_id: BlockId,
+        transaction: RpcTransaction,
+    ) -> Result<VirtualSnosProverOutput, VirtualSnosProverError> {
+        let start_time = Instant::now();
+
+        let invoke_tx = extract_invoke_tx(transaction)?;
+        let tx_hash = calculate_tx_hash(&invoke_tx, &self.chain_id)?;
+
+        info!(
+            block_id = ?block_id,
+            tx_hash = %tx_hash,
+            "Starting transaction proving"
+        );
+
+        // Run OS and get output.
+        let os_start = Instant::now();
+
+        // Create a runner using the factory.
+        let runner = self.runner_factory.create_runner(block_id);
+
+        let txs = vec![(invoke_tx, tx_hash)];
+        let runner_output = runner
+            .run_virtual_os(txs)
+            .await
+            .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
+
+        let os_duration = os_start.elapsed();
+        info!(
+            os_duration_ms = %os_duration.as_millis(),
+            "OS execution completed"
+        );
+
+        // Run the prover.
+        let prove_start = Instant::now();
+        let prover_output = prove(runner_output.cairo_pie).await?;
+        let prove_duration = prove_start.elapsed();
+        let total_duration = start_time.elapsed();
+
+        info!(
+            prove_duration_ms = %prove_duration.as_millis(),
+            total_duration_ms = %total_duration.as_millis(),
+            "Proving completed"
+        );
+
+        Ok(VirtualSnosProverOutput {
+            proof: prover_output.proof,
+            proof_facts: prover_output.proof_facts,
+            l2_to_l1_messages: Vec::new(),
+            os_duration,
+            prove_duration,
+            total_duration,
+        })
+    }
+}
+
+/// Validates that the transaction is an Invoke transaction and extracts it.
+pub fn extract_invoke_tx(tx: RpcTransaction) -> Result<InvokeTransaction, VirtualSnosProverError> {
+    match tx {
+        RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_v3)) => {
+            Ok(InvokeTransaction::V3(invoke_v3.into()))
+        }
+        RpcTransaction::Declare(_) => Err(VirtualSnosProverError::InvalidTransactionType(
+            "Declare transactions are not supported; only Invoke transactions are allowed"
+                .to_string(),
+        )),
+        RpcTransaction::DeployAccount(_) => Err(VirtualSnosProverError::InvalidTransactionType(
+            "DeployAccount transactions are not supported; only Invoke transactions are allowed"
+                .to_string(),
+        )),
+    }
+}
+
+/// Calculates the transaction hash for an invoke transaction.
+pub fn calculate_tx_hash(
+    invoke_tx: &InvokeTransaction,
+    chain_id: &ChainId,
+) -> Result<TransactionHash, VirtualSnosProverError> {
+    let version = invoke_tx.version();
+    invoke_tx.calculate_transaction_hash(chain_id, &version).map_err(|e| {
+        VirtualSnosProverError::ValidationError(format!("Failed to calculate transaction hash: {e}"))
+    })
+}
