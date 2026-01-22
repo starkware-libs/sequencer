@@ -12400,6 +12400,7 @@ name = "starknet_os_runner"
 version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
+ "apollo_metrics",
  "apollo_starknet_os_program",
  "apollo_transaction_converter",
  "async-trait",

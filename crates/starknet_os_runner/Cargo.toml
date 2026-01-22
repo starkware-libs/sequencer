@@ -8,9 +8,11 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
+testing = ["apollo_metrics/testing"]
 
 [dependencies]
 apollo_infra_utils.workspace = true
+apollo_metrics.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 blockifier.workspace = true

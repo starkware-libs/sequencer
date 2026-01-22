@@ -22,6 +22,15 @@ use tracing::{info, instrument};
 
 use crate::proving::prover::{resolve_resource_path, BOOTLOADER_FILE};
 use crate::server::config::ServiceConfig;
+use crate::server::metrics::{
+    register_metrics,
+    PROVING_OS_EXECUTION_LATENCY,
+    PROVING_PROVER_LATENCY,
+    PROVING_REQUESTS_FAILURE,
+    PROVING_REQUESTS_SUCCESS,
+    PROVING_REQUESTS_TOTAL,
+    PROVING_TOTAL_LATENCY,
+};
 use crate::virtual_snos_prover::{VirtualSnosProver, VirtualSnosProverError};
 
 /// Request body for the prove_transaction endpoint.
@@ -119,17 +128,35 @@ async fn prove_transaction(
     State(app_state): State<AppState>,
     Json(request): Json<ProveTransactionRequest>,
 ) -> Result<Json<ProveTransactionResponse>, HttpServerError> {
+    // Record that we received a request.
+    PROVING_REQUESTS_TOTAL.increment(1);
+
     // Delegate to the prover.
-    let output = app_state.prover.prove_transaction(request.block_id, request.transaction).await?;
+    let result = app_state.prover.prove_transaction(request.block_id, request.transaction).await;
 
-    // Build response.
-    let response = ProveTransactionResponse {
-        proof: output.proof,
-        proof_facts: output.proof_facts,
-        l2_to_l1_messages: output.l2_to_l1_messages,
-    };
+    match result {
+        Ok(output) => {
+            // Record success metrics.
+            PROVING_REQUESTS_SUCCESS.increment(1);
+            PROVING_OS_EXECUTION_LATENCY.record(output.os_duration.as_secs_f64());
+            PROVING_PROVER_LATENCY.record(output.prove_duration.as_secs_f64());
+            PROVING_TOTAL_LATENCY.record(output.total_duration.as_secs_f64());
 
-    Ok(Json(response))
+            // Build response.
+            let response = ProveTransactionResponse {
+                proof: output.proof,
+                proof_facts: output.proof_facts,
+                l2_to_l1_messages: output.l2_to_l1_messages,
+            };
+
+            Ok(Json(response))
+        }
+        Err(e) => {
+            // Record failure metric.
+            PROVING_REQUESTS_FAILURE.increment(1);
+            Err(e.into())
+        }
+    }
 }
 
 /// Handler for the is_alive (liveness) endpoint.
@@ -232,6 +259,9 @@ impl ProvingHttpServer {
 
     /// Runs the server.
     pub async fn run(&self) -> Result<(), hyper::Error> {
+        // Register metrics before starting the server.
+        register_metrics();
+
         let addr = SocketAddr::new(self.config.ip, self.config.port);
         let app = create_router(self.app_state.clone());
         info!("ProvingHttpServer running on {}", addr);
