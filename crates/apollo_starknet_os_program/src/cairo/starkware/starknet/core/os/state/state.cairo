@@ -9,7 +9,6 @@ from starkware.cairo.common.squash_dict import squash_dict
 from starkware.starknet.core.os.constants import ALIAS_CONTRACT_ADDRESS
 from starkware.starknet.core.os.state.aliases import allocate_aliases
 from starkware.starknet.core.os.state.commitment import (
-    MERKLE_HEIGHT,
     CommitmentUpdate,
     StateEntry,
     calculate_global_state_root,

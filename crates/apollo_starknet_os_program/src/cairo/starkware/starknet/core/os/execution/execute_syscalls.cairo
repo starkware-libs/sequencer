@@ -1,4 +1,3 @@
-from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_secp.constants import SECP_PRIME_HIGH as SECP256K1_PRIME_HIGH
 from starkware.cairo.common.cairo_secp.constants import SECP_PRIME_LOW as SECP256K1_PRIME_LOW
 from starkware.cairo.common.dict_access import DictAccess

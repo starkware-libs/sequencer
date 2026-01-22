@@ -1,4 +1,3 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
@@ -52,11 +51,7 @@ from starkware.starknet.common.syscalls import (
     TxInfo,
 )
 from starkware.starknet.core.os.block_context import BlockContext
-from starkware.starknet.core.os.builtins import (
-    BuiltinPointers,
-    NonSelectableBuiltins,
-    SelectableBuiltins,
-)
+from starkware.starknet.core.os.builtins import BuiltinPointers, SelectableBuiltins
 from starkware.starknet.core.os.constants import (
     CONSTRUCTOR_ENTRY_POINT_SELECTOR,
     DEFAULT_INITIAL_GAS_COST,

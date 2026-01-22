@@ -10,7 +10,6 @@ from starkware.starknet.core.os.state.aliases import (
     INITIAL_AVAILABLE_ALIAS,
     MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
     Aliases,
-    allocate_aliases,
     get_alias,
     get_full_contract_state_diff,
     get_next_available_alias,

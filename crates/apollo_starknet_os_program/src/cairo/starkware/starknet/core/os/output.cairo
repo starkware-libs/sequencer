@@ -7,12 +7,10 @@ from starkware.cairo.common.segments import relocate_segment
 from starkware.cairo.common.serialize import serialize_word
 from starkware.starknet.core.os.data_availability.commitment import (
     OsKzgCommitmentInfo,
-    Uint256,
-    Uint384,
     compute_os_kzg_commitment_info,
 )
 from starkware.starknet.core.os.data_availability.compression import compress
-from starkware.starknet.core.os.encrypt import encrypt, encrypt_state_diff
+from starkware.starknet.core.os.encrypt import encrypt_state_diff
 from starkware.starknet.core.os.state.aliases import (
     replace_aliases_and_serialize_full_contract_state_diff,
 )
