@@ -1662,6 +1662,7 @@ dependencies = [
  "nix 0.20.2",
  "num_enum",
  "pretty_assertions",
+ "regex",
  "rstest",
  "serde",
  "serde_json",

@@ -1,6 +1,6 @@
 {
-  "os": "0x31f37811276eae5dab83cda0d28edafec53b3061d19830dfe488e543802647a",
-  "virtual_os": "0x70e3d35306d107eb1689a62f6f1f6334dbae30cbee457570fc652892f7891c5",
-  "aggregator": "0x63868c8dbf389119d95bae88b80043f5d237d3ddec072fb8f2095fcfacb9b1c",
-  "aggregator_with_prefix": "0xd892fd2fd978d8c2749a6678457ca99161f3d1822e4c3b8c03914817c6de1a"
+  "os": "0x255a5c5fca272b9d123d32f8a0c0c6830a5bfc231009f5ee573a2b4cdb0be66",
+  "virtual_os": "0x7d8fabfc40c1a816ce963a429978fbd7c9014fcb36b0a5b521c8fbeabeda873",
+  "aggregator": "0x4a50066445fdceb87b7ed1211dbff1f544ad4fa879a678a79355ed812dea346",
+  "aggregator_with_prefix": "0x5af6c0904619be30798f335358f96ba742a8f23c7b0df1080d0c24e2224c6f6"
 }

@@ -1,7 +1,6 @@
 %builtins output pedersen range_check ecdsa bitwise ec_op keccak poseidon range_check96 add_mod mul_mod
 
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import TRUE
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
     EcOpBuiltin,
@@ -19,7 +18,6 @@ from starkware.starknet.core.os.block_context import (
     BlockContext,
     CompiledClassFactsBundle,
     OsGlobalContext,
-    VirtualOsConfig,
     get_block_context,
 )
 from starkware.starknet.core.os.builtins import get_builtin_params
