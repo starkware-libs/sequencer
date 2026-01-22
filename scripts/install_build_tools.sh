@@ -71,12 +71,6 @@ function install_rust() {
     log_step "install_build_tools" "Rust installed successfully"
 }
 
-function install_cargo_tools() {
-    log_step "install_build_tools" "Installing cargo-insta..."
-    curl --proto '=https' --tlsv1.2 -LsSf https://github.com/mitsuhiko/insta/releases/download/1.42.0/cargo-insta-installer.sh | sh
-    log_step "install_build_tools" "cargo-insta installed successfully"
-}
-
 cd "$(dirname "$0")"
 
 log_step "install_build_tools" "Starting build tools installation..."
@@ -86,7 +80,7 @@ install_common_packages
 log_step "install_build_tools" "Starting parallel installations (PyPy, Rust, cargo tools)..."
 install_pypy &
 install_rust &
-install_cargo_tools &
+./install_cargo_tools.sh &
 wait
 log_step "install_build_tools" "Parallel installations completed"
 
