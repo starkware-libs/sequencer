@@ -11,7 +11,7 @@ use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
@@ -51,7 +51,7 @@ impl StreamSender {
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum RetrospectiveBlockHashError {
     #[error(
-        "Failed retrieving block hash for block {block_number:?}, because both Batcher and 
+        "Failed retrieving block hash for block {block_number:?}, because both Batcher and
     State Sync returned errors, and both errors weren't caused from simply not being ready.
     Batcher error: {batcher_error:?}, State sync error: {state_sync_error:?}"
     )]
@@ -348,7 +348,7 @@ pub(crate) fn convert_to_sn_api_block_info(
 /// First try to get the block hash from the batcher. If that fails, fall back to state sync.
 pub(crate) async fn retrospective_block_hash(
     batcher_client: Arc<dyn BatcherClient>,
-    state_sync_client: Arc<dyn StateSyncClient>,
+    state_sync_client: SharedStateSyncClient,
     block_info: &ConsensusBlockInfo,
 ) -> RetrospectiveBlockHashResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
@@ -387,7 +387,7 @@ pub(crate) async fn retrospective_block_hash(
 
 pub(crate) async fn wait_for_retrospective_block_hash(
     batcher_client: Arc<dyn BatcherClient>,
-    state_sync_client: Arc<dyn StateSyncClient>,
+    state_sync_client: SharedStateSyncClient,
     block_info: &ConsensusBlockInfo,
     clock: &dyn Clock,
     deadline: DateTime,
