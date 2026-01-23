@@ -49,9 +49,9 @@ pub trait CommitBlockTrait: Send {
                 input.config.clone(),
             )
             .await?;
-        let n_read_facts =
+        let n_read_entries =
             original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
-        time_measurement.attempt_to_stop_measurement(Action::Read, n_read_facts).ok();
+        time_measurement.attempt_to_stop_measurement(Action::Read, n_read_entries).ok();
         info!("Original skeleton forest created successfully.");
 
         if input.config.warn_on_trivial_modifications() {
