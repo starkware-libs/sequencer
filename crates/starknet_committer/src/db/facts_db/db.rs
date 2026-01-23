@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
@@ -11,7 +11,7 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, PatriciaStorageResult, Storage};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
@@ -93,12 +93,13 @@ impl FactsDb<MapStorage> {
 #[async_trait]
 impl<S: Storage> ForestReader for FactsDb<S> {
     type InitialReadContext = FactsDbInitialRead;
+
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
     async fn read<'a>(
         &mut self,
-        context: FactsDbInitialRead,
+        roots: StateRoots,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -106,13 +107,20 @@ impl<S: Storage> ForestReader for FactsDb<S> {
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         read_forest::<S, FactsNodeLayout>(
             &mut self.storage,
-            context,
+            roots,
             storage_updates,
             classes_updates,
             forest_sorted_indices,
             config,
         )
         .await
+    }
+
+    async fn read_roots(
+        &mut self,
+        initial_read_context: Self::InitialReadContext,
+    ) -> PatriciaStorageResult<StateRoots> {
+        Ok(initial_read_context.0)
     }
 }
 

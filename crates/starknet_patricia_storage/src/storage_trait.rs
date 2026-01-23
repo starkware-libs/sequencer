@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use validator::Validate;
 
+use crate::errors::DeserializationError;
+
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
 
@@ -33,6 +35,8 @@ pub enum PatriciaStorageError {
     #[cfg(feature = "aerospike_storage")]
     #[error(transparent)]
     AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
+    #[error(transparent)]
+    Deserialization(#[from] DeserializationError),
     #[cfg(feature = "mdbx_storage")]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
