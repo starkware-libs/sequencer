@@ -5,9 +5,10 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
-use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::BlockTimestamp;
 use starknet_api::core::EthAddress;
+use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{CURRENT_BLOCK_TIMESTAMP, TEST_SEQUENCER_ADDRESS};
 use starknet_api::transaction::fields::{ProofFacts, TransactionSignature};
 use starknet_api::transaction::{
@@ -248,4 +249,52 @@ async fn test_reverted_tx_os_error() {
         .build()
         .await
         .run_virtual_expect_error("Reverted transactions are not supported in virtual OS mode");
+}
+
+#[tokio::test]
+/// Test that the virtual OS validates reads in the Patricia update.
+/// Modifies the state AFTER the Patricia tree is built but BEFORE the transaction executes.
+/// The transaction reads the corrupted value, but the Patricia tree has the original value,
+/// causing Patricia validation to fail.
+async fn test_corrupted_storage_value_patricia_error() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    // Constructor args: my_storage_var = arg1 + arg2 = 3.
+    let arg1 = Felt::ONE;
+    let arg2 = Felt::TWO;
+    let original_value = arg1 + arg2;
+    let corrupted_value = original_value + Felt::ONE; // = 4
+
+    let (mut test_builder, [contract_address]) =
+        TestBuilder::create_standard_virtual([(test_contract, calldata![arg1, arg2])]).await;
+
+    // Get the storage key for my_storage_var.
+    let my_storage_var_key = get_storage_var_address("my_storage_var", &[]);
+    let storage_key = StorageKey(my_storage_var_key.0);
+
+    // === KEY STEP: Corrupt the state AFTER the Patricia tree is built ===
+    // The Patricia tree (in commitment_storage) was built with my_storage_var = 3.
+    // Now we modify the state so the transaction will read 4.
+    test_builder
+        .initial_state
+        .updatable_state
+        .storage_view
+        .insert((contract_address, storage_key), corrupted_value);
+
+    // Add a transaction that reads my_storage_var.
+    let calldata =
+        create_calldata(contract_address, "test_storage_read", &[*my_storage_var_key.0.key()]);
+    test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
+
+    // Build the test runner.
+    // During build():
+    // - Transaction executes and reads from state → gets 4 (corrupted)
+    // - initial_reads is populated with 4 (from what was read)
+    // - But the Patricia tree still has 3 (from initial commitment)
+    let test_runner = test_builder.build().await;
+
+    // Run the virtual OS - Patricia validation should fail because:
+    // - The transaction claims to have read 4
+    // - But the Patricia tree proves the value was 3
+    test_runner.run_virtual_expect_error("patricia");
 }
