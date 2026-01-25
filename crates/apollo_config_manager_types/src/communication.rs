@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
@@ -34,16 +35,20 @@ pub type SharedConfigManagerClient = Arc<dyn ConfigManagerClient>;
 #[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
 pub trait ConfigManagerClient: Send + Sync {
+    async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
+
     async fn get_consensus_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
     async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+
     async fn get_http_server_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
 
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
+
     async fn get_staking_manager_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
@@ -54,6 +59,7 @@ pub trait ConfigManagerClient: Send + Sync {
     ) -> ConfigManagerClientResult<()>;
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(ConfigManagerRequestLabelValue),
@@ -61,6 +67,7 @@ pub trait ConfigManagerClient: Send + Sync {
     strum(serialize_all = "snake_case")
 )]
 pub enum ConfigManagerRequest {
+    GetBatcherDynamicConfig,
     GetConsensusDynamicConfig,
     GetContextDynamicConfig,
     GetHttpServerDynamicConfig,
@@ -81,6 +88,7 @@ generate_permutation_labels! {
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
+    GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
     GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
@@ -103,6 +111,19 @@ impl<ComponentClientType> ConfigManagerClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentClient<ConfigManagerRequest, ConfigManagerResponse>,
 {
+    async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig> {
+        let request = ConfigManagerRequest::GetBatcherDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetBatcherDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
     async fn get_consensus_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig> {

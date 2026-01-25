@@ -679,6 +679,7 @@ pub fn create_batcher_config(
             contract_class_manager_config: cairo_native_class_manager_config(),
             ..Default::default()
         },
+        ..Default::default()
     }
 }
 

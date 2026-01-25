@@ -44,6 +44,7 @@ fn mock_dependencies() -> MockDependencies {
     };
     let batcher_config = BatcherConfig {
         static_config: BatcherStaticConfig { commitment_manager_config, ..Default::default() },
+        ..Default::default()
     };
     let mut committer_client = MockCommitterClient::new();
     committer_client
