@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use thiserror::Error;
 
-use super::{LocalComponentClient, RemoteComponentClient};
+use super::{LocalComponentClient, NoopComponentClient, RemoteComponentClient};
 use crate::component_definitions::ServerError;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
@@ -32,6 +32,7 @@ where
 {
     local_client: Option<LocalComponentClient<Request, Response>>,
     remote_client: Option<RemoteComponentClient<Request, Response>>,
+    noop_client: Option<NoopComponentClient<Request, Response>>,
 }
 
 impl<Request, Response> Client<Request, Response>
@@ -42,11 +43,17 @@ where
     pub fn new(
         local_client: Option<LocalComponentClient<Request, Response>>,
         remote_client: Option<RemoteComponentClient<Request, Response>>,
+        noop_client: Option<NoopComponentClient<Request, Response>>,
     ) -> Self {
-        if local_client.is_some() && remote_client.is_some() {
-            panic!("Cannot have both local_client and remote_client simultaneously.");
-        }
-        Self { local_client, remote_client }
+        let client_count = [local_client.is_some(), remote_client.is_some(), noop_client.is_some()]
+            .iter()
+            .filter(|&&is_present| is_present)
+            .count();
+        assert!(
+            client_count <= 1,
+            "Cannot have multiple client types (local, remote, noop) simultaneously."
+        );
+        Self { local_client, remote_client, noop_client }
     }
 
     pub fn get_local_client(&self) -> Option<LocalComponentClient<Request, Response>> {
@@ -55,5 +62,9 @@ where
 
     pub fn get_remote_client(&self) -> Option<RemoteComponentClient<Request, Response>> {
         self.remote_client.clone()
+    }
+
+    pub fn get_noop_client(&self) -> Option<NoopComponentClient<Request, Response>> {
+        self.noop_client.clone()
     }
 }
