@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherStaticConfig,
+    FirstBlockWithPartialBlockHash,
+};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
@@ -299,13 +303,15 @@ impl Default for MockDependencies {
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
 
         let batcher_config = BatcherConfig {
-            outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
-            first_block_with_partial_block_hash: Some(FirstBlockWithPartialBlockHash {
-                block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-                parent_block_hash: DUMMY_BLOCK_HASH,
+            static_config: BatcherStaticConfig {
+                outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+                first_block_with_partial_block_hash: Some(FirstBlockWithPartialBlockHash {
+                    block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+                    parent_block_hash: DUMMY_BLOCK_HASH,
+                    ..Default::default()
+                }),
                 ..Default::default()
-            }),
-            ..Default::default()
+            },
         };
         Self {
             storage_reader,

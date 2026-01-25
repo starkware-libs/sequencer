@@ -25,7 +25,7 @@ pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
 /// Configuration for the block builder component of the batcher.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BlockBuilderConfig {
     pub chain_info: ChainInfo,
     pub execute_config: WorkerPoolConfig,
@@ -86,7 +86,7 @@ impl SerializeConfig for BlockBuilderConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CommitmentManagerConfig {
     pub tasks_channel_size: usize,
     pub results_channel_size: usize,
@@ -130,7 +130,7 @@ impl SerializeConfig for CommitmentManagerConfig {
 }
 
 /// Configuration for the preconfirmed block writer component of the batcher.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PreconfirmedBlockWriterConfig {
     pub channel_buffer_capacity: usize,
     pub write_block_interval_millis: u64,
@@ -163,7 +163,7 @@ impl SerializeConfig for PreconfirmedBlockWriterConfig {
 }
 
 /// Configuration for the preconfirmed Cende client component of the batcher.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct PreconfirmedCendeConfig {
     pub recorder_url: Url,
 }
@@ -189,7 +189,7 @@ impl SerializeConfig for PreconfirmedCendeConfig {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct FirstBlockWithPartialBlockHash {
     pub block_number: BlockNumber,
     pub block_hash: BlockHash,
@@ -222,10 +222,9 @@ impl SerializeConfig for FirstBlockWithPartialBlockHash {
     }
 }
 
-/// The batcher related configuration.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-#[validate(schema(function = "validate_batcher_config"))]
-pub struct BatcherConfig {
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+#[validate(schema(function = "validate_batcher_static_config"))]
+pub struct BatcherStaticConfig {
     pub storage: StorageConfig,
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
@@ -241,7 +240,7 @@ pub struct BatcherConfig {
     pub storage_reader_server_config: ServerConfig,
 }
 
-impl SerializeConfig for BatcherConfig {
+impl SerializeConfig for BatcherStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         // TODO(yair): create nicer function to append sub configs.
         let mut dump = BTreeMap::from([
@@ -304,7 +303,7 @@ impl SerializeConfig for BatcherConfig {
     }
 }
 
-impl Default for BatcherConfig {
+impl Default for BatcherStaticConfig {
     fn default() -> Self {
         Self {
             storage: StorageConfig {
@@ -332,9 +331,24 @@ impl Default for BatcherConfig {
     }
 }
 
-fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), ValidationError> {
-    if batcher_config.input_stream_content_buffer_size
-        < batcher_config.block_builder_config.n_concurrent_txs
+// The batcher related configuration.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Validate)]
+pub struct BatcherConfig {
+    #[validate(nested)]
+    pub static_config: BatcherStaticConfig,
+}
+
+impl SerializeConfig for BatcherConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(self.static_config.dump(), "static_config")
+    }
+}
+
+fn validate_batcher_static_config(
+    batcher_static_config: &BatcherStaticConfig,
+) -> Result<(), ValidationError> {
+    if batcher_static_config.input_stream_content_buffer_size
+        < batcher_static_config.block_builder_config.n_concurrent_txs
     {
         return Err(ValidationError::new(
             "input_stream_content_buffer_size must be at least n_concurrent_txs",
@@ -343,9 +357,11 @@ fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), Validat
 
     // Idle detection delay must be > polling interval to allow time for polling to find
     // transactions.
-    let idle_delay = batcher_config.block_builder_config.proposer_idle_detection_delay_millis;
-    let polling_interval =
-        Duration::from_millis(batcher_config.block_builder_config.tx_polling_interval_millis);
+    let idle_delay =
+        batcher_static_config.block_builder_config.proposer_idle_detection_delay_millis;
+    let polling_interval = Duration::from_millis(
+        batcher_static_config.block_builder_config.tx_polling_interval_millis,
+    );
     if idle_delay <= polling_interval {
         return Err(ValidationError::new(
             "proposer_idle_detection_delay_millis must be greater than tx_polling_interval_millis",

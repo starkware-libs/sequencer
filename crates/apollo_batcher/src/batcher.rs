@@ -298,7 +298,9 @@ impl Batcher {
                 BATCHER_L1_PROVIDER_ERRORS.increment(1);
             });
 
-        let start_phase = if self.proposals_counter.is_multiple_of(self.config.propose_l1_txs_every)
+        let start_phase = if self
+            .proposals_counter
+            .is_multiple_of(self.config.static_config.propose_l1_txs_every)
         {
             TxProviderPhase::L1
         } else {
@@ -307,7 +309,7 @@ impl Batcher {
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
             self.l1_provider_client.clone(),
-            self.config.max_l1_handler_txs_per_block_proposal,
+            self.config.static_config.max_l1_handler_txs_per_block_proposal,
             propose_block_input.block_info.block_number,
             start_phase,
         );
@@ -335,6 +337,7 @@ impl Batcher {
                     is_validator: false,
                     proposer_idle_detection_delay: self
                         .config
+                        .static_config
                         .block_builder_config
                         .proposer_idle_detection_delay_millis,
                 },
@@ -400,7 +403,7 @@ impl Batcher {
 
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
-            tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
+            tokio::sync::mpsc::channel(self.config.static_config.input_stream_content_buffer_size);
         let (final_n_executed_txs_sender, final_n_executed_txs_receiver) =
             tokio::sync::oneshot::channel();
 
@@ -422,6 +425,7 @@ impl Batcher {
                     is_validator: true,
                     proposer_idle_detection_delay: self
                         .config
+                        .static_config
                         .block_builder_config
                         .proposer_idle_detection_delay_millis,
                 },
@@ -586,8 +590,9 @@ impl Batcher {
 
         // Blocking until we have some txs to stream or the proposal is done.
         let mut txs = Vec::new();
-        let n_executed_txs =
-            tx_stream.recv_many(&mut txs, self.config.outstream_content_buffer_size).await;
+        let n_executed_txs = tx_stream
+            .recv_many(&mut txs, self.config.static_config.outstream_content_buffer_size)
+            .await;
 
         if n_executed_txs != 0 {
             debug!("Streaming {} txs", n_executed_txs);
@@ -671,6 +676,7 @@ impl Batcher {
         } else {
             let first_block_with_partial_block_hash_number = self
                 .config
+                .static_config
                 .first_block_with_partial_block_hash
                 .as_ref()
                 .expect(
@@ -709,7 +715,7 @@ impl Batcher {
                 height,
                 state_diff,
                 optional_state_diff_commitment,
-                &self.config.first_block_with_partial_block_hash,
+                &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -776,7 +782,7 @@ impl Batcher {
                 height,
                 state_diff.clone(), // TODO(Nimrod): Remove the clone here.
                 Some(state_diff_commitment),
-                &self.config.first_block_with_partial_block_hash,
+                &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -1020,17 +1026,17 @@ impl Batcher {
         }
     }
 
-    /// If the optional configuration [BatcherConfig::first_block_with_partial_block_hash] is set,
-    /// and the given height is the first block with partial block hash components, we will set
-    /// the parent hash of this block and verify the configured value.
-    /// Assumption: we call this function only for new blocks.
+    /// If the optional configuration [`FirstBlockWithPartialBlockHash`] in
+    /// [`BatcherConfig::static_config`] is set, and the given height is the first block with
+    /// partial block hash components, we will set the parent hash of this block and verify the
+    /// configured value. Assumption: we call this function only for new blocks.
     fn maybe_handle_first_block_with_partial_block_hash(
         &mut self,
         parent_block_hash_from_sync: BlockHash,
         height: BlockNumber,
     ) -> StorageResult<()> {
         let Some(FirstBlockWithPartialBlockHash { block_number, parent_block_hash, .. }) =
-            self.config.first_block_with_partial_block_hash.as_ref()
+            self.config.static_config.first_block_with_partial_block_hash.as_ref()
         else {
             // No config is set, nothing to do.
             return Ok(());
@@ -1180,7 +1186,7 @@ impl Batcher {
             .add_revert_task(
                 height,
                 reversed_state_diff,
-                &self.config.first_block_with_partial_block_hash,
+                &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -1191,7 +1197,7 @@ impl Batcher {
         self.commitment_manager
             .write_commitment_results_to_storage(
                 commitment_results,
-                &self.config.first_block_with_partial_block_hash,
+                &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -1248,7 +1254,7 @@ impl Batcher {
     async fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
-                &self.config.first_block_with_partial_block_hash,
+                &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -1312,38 +1318,40 @@ pub async fn create_batcher(
 ) -> Batcher {
     let (storage_reader, storage_writer, storage_reader_server) =
         open_storage_with_metric_and_server(
-            config.storage.clone(),
+            config.static_config.storage.clone(),
             &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-            config.storage_reader_server_config.clone(),
+            config.static_config.storage_reader_server_config.clone(),
         )
         .expect("Failed to open batcher's storage");
 
     let storage_reader_server_handle =
         GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
 
-    let execute_config = &config.block_builder_config.execute_config;
+    let execute_config = &config.static_config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
     let pre_confirmed_block_writer_factory = Box::new(PreconfirmedBlockWriterFactory {
-        config: config.pre_confirmed_block_writer_config,
+        config: config.static_config.pre_confirmed_block_writer_config,
         cende_client: pre_confirmed_cende_client,
     });
     let block_builder_factory = Box::new(BlockBuilderFactory {
-        block_builder_config: config.block_builder_config.clone(),
+        block_builder_config: config.static_config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
         contract_class_manager: ContractClassManager::start(
-            config.contract_class_manager_config.clone(),
+            config.static_config.contract_class_manager_config.clone(),
         ),
         class_manager_client: class_manager_client.clone(),
         worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
     let mut storage_writer = Box::new(storage_writer);
-    let transaction_converter =
-        TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
+    let transaction_converter = TransactionConverter::new(
+        class_manager_client,
+        config.static_config.storage.db_config.chain_id.clone(),
+    );
 
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
-        &config.commitment_manager_config,
+        &config.static_config.commitment_manager_config,
         storage_reader.clone(),
         &mut storage_writer,
         committer_client.clone(),
