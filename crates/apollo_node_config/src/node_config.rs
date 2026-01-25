@@ -3,7 +3,7 @@ use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
-use apollo_batcher_config::config::BatcherConfig;
+use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
 use apollo_class_manager_config::config::FsClassManagerConfig;
 use apollo_committer_config::config::CommitterConfig;
 use apollo_config::dumping::{
@@ -307,6 +307,8 @@ impl Default for SequencerNodeConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
 pub struct NodeDynamicConfig {
     #[validate(nested)]
+    pub batcher_dynamic_config: Option<BatcherDynamicConfig>,
+    #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
     pub context_dynamic_config: Option<ContextDynamicConfig>,
@@ -319,6 +321,7 @@ pub struct NodeDynamicConfig {
 impl SerializeConfig for NodeDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = [
+            ser_optional_sub_config(&self.batcher_dynamic_config, "batcher_dynamic_config"),
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
             ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
@@ -331,6 +334,10 @@ impl SerializeConfig for NodeDynamicConfig {
 impl From<&SequencerNodeConfig> for NodeDynamicConfig {
     fn from(sequencer_node_config: &SequencerNodeConfig) -> Self {
         // TODO(Nadin/Tsabary): consider creating a macro for this.
+        let batcher_dynamic_config = sequencer_node_config
+            .batcher_config
+            .as_ref()
+            .map(|batcher_config| batcher_config.dynamic_config.clone());
         let consensus_dynamic_config = sequencer_node_config.consensus_manager_config.as_ref().map(
             |consensus_manager_config| {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
@@ -350,6 +357,7 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
         Self {
+            batcher_dynamic_config,
             consensus_dynamic_config,
             context_dynamic_config,
             http_server_dynamic_config,

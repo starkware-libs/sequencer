@@ -224,6 +224,25 @@ impl SerializeConfig for FirstBlockWithPartialBlockHash {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
+pub struct BatcherDynamicConfig {
+    // TODO(Arni): replace this placeholder with a struct that holds the
+    // static_config.contract_class_manager_config.cairo_native_run_config.
+    // native_classes_whitelist.
+    pub placeholder: bool,
+}
+
+impl SerializeConfig for BatcherDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "placeholder",
+            &self.placeholder,
+            "Placeholder field for batcher dynamic config.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 #[validate(schema(function = "validate_batcher_static_config"))]
 pub struct BatcherStaticConfig {
@@ -332,16 +351,21 @@ impl Default for BatcherStaticConfig {
     }
 }
 
-// The batcher related configuration.
+/// Configuration for consensus containing both static and dynamic configs.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Default)]
 pub struct BatcherConfig {
+    #[validate(nested)]
+    pub dynamic_config: BatcherDynamicConfig,
     #[validate(nested)]
     pub static_config: BatcherStaticConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(self.static_config.dump(), "static_config")
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        config
     }
 }
 
