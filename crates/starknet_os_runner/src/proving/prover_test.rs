@@ -8,6 +8,8 @@ use starknet_api::transaction::fields::ProofFacts;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
+#[cfg(feature = "in_memory_proving")]
+use crate::proving::prover::prove_in_memory;
 use crate::proving::prover::{prove, resolve_resource_path, BOOTLOADER_FILE};
 
 /// Test resource file names.
@@ -59,6 +61,64 @@ async fn test_prove_cairo_pie_10_transfers() {
         output.proof_facts, expected_proof_facts,
         "Generated proof facts do not match expected proof facts"
     );
+}
+
+/// Integration test that verifies in-memory proving works with a real Cairo PIE.
+///
+/// Run with: `cargo test -p starknet_os_runner --features in_memory_proving -- test_prove_in_memory_cairo_pie_10_transfers --nocapture`
+#[cfg(feature = "in_memory_proving")]
+#[test]
+fn test_prove_in_memory_cairo_pie_10_transfers() {
+    use std::time::Instant;
+
+    let test_start = Instant::now();
+
+    let cairo_pie_path = resolve_resource_path(CAIRO_PIE_FILE).unwrap();
+    let expected_proof_facts_path = resolve_resource_path(EXPECTED_PROOF_FACTS_FILE).unwrap();
+
+    // Read CairoPie from zip file.
+    let step_start = Instant::now();
+    let cairo_pie =
+        CairoPie::read_zip_file(&cairo_pie_path).expect("Failed to read Cairo PIE from zip file");
+    println!("[TIMING] Read CairoPie from zip: {:?}", step_start.elapsed());
+
+    // Prove the Cairo PIE using in-memory approach.
+    let step_start = Instant::now();
+    let output = prove_in_memory(cairo_pie).expect("Failed to prove Cairo PIE in-memory");
+    println!("[TIMING] In-memory proving: {:?}", step_start.elapsed());
+
+    // Verify the proof.
+    let step_start = Instant::now();
+    let verify_output = verify_proof(output.proof.clone()).expect("Failed to verify proof");
+    println!("[TIMING] Proof verification: {:?}", step_start.elapsed());
+
+    // Check that the verified proof facts match the prover output.
+    assert_eq!(
+        verify_output.proof_facts, output.proof_facts,
+        "Verified proof facts do not match prover output"
+    );
+
+    // Check that the program hash matches the expected bootloader hash.
+    let expected_program_hash =
+        Felt::from_hex(BOOTLOADER_PROGRAM_HASH).expect("Invalid bootloader hash");
+    assert_eq!(
+        verify_output.program_hash, expected_program_hash,
+        "Program hash does not match expected bootloader hash"
+    );
+
+    // Read expected proof facts.
+    let expected_proof_facts_str = fs::read_to_string(&expected_proof_facts_path)
+        .expect("Failed to read expected proof facts file");
+    let expected_proof_facts: ProofFacts = serde_json::from_str(&expected_proof_facts_str)
+        .expect("Failed to parse expected proof facts");
+
+    // Compare proof facts.
+    assert_eq!(
+        output.proof_facts, expected_proof_facts,
+        "Generated proof facts do not match expected proof facts"
+    );
+
+    println!("[TIMING] Total test duration: {:?}", test_start.elapsed());
 }
 
 #[test]
