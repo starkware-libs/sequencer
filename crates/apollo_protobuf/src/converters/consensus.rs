@@ -290,7 +290,8 @@ impl TryFrom<protobuf::ProposalFin> for ProposalFin {
         let proposal_commitment: ProposalCommitment =
             value.proposal_commitment.ok_or(missing("proposal_commitment"))?.try_into()?;
         let executed_transaction_count = value.executed_transaction_count;
-        Ok(ProposalFin { proposal_commitment, executed_transaction_count })
+        let concatenated_counts = value.concatenated_counts.map(|c| c.try_into()).transpose()?;
+        Ok(ProposalFin { proposal_commitment, executed_transaction_count, concatenated_counts })
     }
 }
 
@@ -299,6 +300,7 @@ impl From<ProposalFin> for protobuf::ProposalFin {
         protobuf::ProposalFin {
             proposal_commitment: Some(value.proposal_commitment.into()),
             executed_transaction_count: value.executed_transaction_count,
+            concatenated_counts: value.concatenated_counts.map(|f| f.into()),
         }
     }
 }
