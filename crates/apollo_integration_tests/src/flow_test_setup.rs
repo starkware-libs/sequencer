@@ -193,6 +193,7 @@ impl FlowTestSetup {
             .batcher_config
             .as_ref()
             .unwrap()
+            .static_config
             .block_builder_config
             .chain_info
             .chain_id

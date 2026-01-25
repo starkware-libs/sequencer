@@ -217,7 +217,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             Ok(None) => panic!("Missing state diff for height {height}."),
             Err(err) => panic!("Failed to read state diff for height {height}: {err}"),
         };
-        let no_state_diff_commitment = matches!(&batcher_config.first_block_with_partial_block_hash,
+        let no_state_diff_commitment = matches!(&batcher_config.static_config.first_block_with_partial_block_hash,
             Some(config) if height < config.block_number);
 
         let state_diff_commitment = if no_state_diff_commitment {
