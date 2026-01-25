@@ -13,8 +13,9 @@ use starknet_api::core::ContractAddress;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
-use starknet_api::transaction::TransactionOffsetInBlock;
+use starknet_api::transaction::{InvokeTransactionV3, TransactionOffsetInBlock};
 
+use crate::compression_utils::IsCompressed;
 use crate::consensus::LastVotedMarker;
 use crate::db::serialization::StorageSerde;
 pub trait StorageSerdeTest: StorageSerde {
@@ -209,4 +210,36 @@ fn fix_casm_regression_files() {
                 .expect("Failed to create bin file {bin_file_name}\n");
         hardcoded_file.write_all(&casm_bytes).unwrap();
     }
+}
+
+// NOTE: Temporary migration test for backward compatibility.
+// Once all nodes have re-synced and no legacy InvokeTransactionV3 records (without `proof_facts`)
+// remain in storage, this test, along with the compatibility code in `serializers.rs`, can be
+// safely removed.
+#[test]
+fn invoke_transaction_v3_backward_compatibility() {
+    let mut rng = get_rng();
+    let tx = InvokeTransactionV3::get_test_instance(&mut rng);
+
+    // Serialize all fields EXCEPT proof_facts, simulating the legacy on-disk format.
+    let mut inner: Vec<u8> = Vec::new();
+    tx.resource_bounds.serialize_into(&mut inner).unwrap();
+    tx.tip.serialize_into(&mut inner).unwrap();
+    tx.signature.serialize_into(&mut inner).unwrap();
+    tx.nonce.serialize_into(&mut inner).unwrap();
+    tx.sender_address.serialize_into(&mut inner).unwrap();
+    tx.calldata.serialize_into(&mut inner).unwrap();
+    tx.nonce_data_availability_mode.serialize_into(&mut inner).unwrap();
+    tx.fee_data_availability_mode.serialize_into(&mut inner).unwrap();
+    tx.paymaster_data.serialize_into(&mut inner).unwrap();
+    tx.account_deployment_data.serialize_into(&mut inner).unwrap();
+    // proof_facts intentionally omitted
+
+    let mut old_format: Vec<u8> = Vec::new();
+    IsCompressed::No.serialize_into(&mut old_format).unwrap();
+    inner.serialize_into(&mut old_format).unwrap();
+
+    // Deserialization should succeed and default `proof_facts` to empty.
+    let deserialized = InvokeTransactionV3::deserialize_from(&mut old_format.as_slice()).unwrap();
+    assert!(deserialized.proof_facts.is_empty());
 }
