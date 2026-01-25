@@ -61,6 +61,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     SnosProofFacts,
     ValidResourceBounds,
+    PROOF0,
     VIRTUAL_SNOS,
 };
 use starknet_api::transaction::{
@@ -2200,6 +2201,7 @@ fn test_missing_validate_entrypoint_rejects(
 /// Converts SnosProofFacts to ProofFacts for testing.
 fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
     vec![
+        felt!(PROOF0),
         felt!(VIRTUAL_SNOS),
         snos.program_hash,
         felt!(snos.block_number.0),

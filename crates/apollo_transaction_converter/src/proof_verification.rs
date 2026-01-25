@@ -6,7 +6,7 @@ use cairo_air::utils::{get_verification_output, to_cairo_proof, VerificationOutp
 use cairo_air::verifier::verify_cairo;
 use cairo_air::{CairoProofSorted, PreProcessedTraceVariant};
 use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
-use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::fields::{ProgramOutput, Proof};
 use starknet_types_core::felt::{Felt, FromStrError};
 use stwo::core::vcs_lifted::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher};
 use thiserror::Error;
@@ -14,8 +14,8 @@ use thiserror::Error;
 /// Output from verifying a proof.
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerifyProofOutput {
-    /// The proof facts extracted from the proof.
-    pub proof_facts: ProofFacts,
+    /// The raw program output extracted from the proof.
+    pub program_output: ProgramOutput,
     /// The program hash extracted from the proof.
     pub program_hash: Felt,
 }
@@ -30,6 +30,10 @@ pub enum VerifyProofAndFactsError {
     ParseExpectedHash(#[source] FromStrError),
     #[error("Bootloader program hash mismatch.")]
     BootloaderHashMismatch,
+    #[error("Invalid number of tasks in program output: expected 1, got {0}.")]
+    InvalidNumberOfTasks(Felt),
+    #[error("Invalid PROOF0 marker: expected {expected}, got {actual}.")]
+    InvalidProof0Marker { expected: Felt, actual: Felt },
     #[error(transparent)]
     Verify(#[from] VerifyProofError),
 }
@@ -43,6 +47,11 @@ impl PartialEq for VerifyProofAndFactsError {
                 lhs.to_string() == rhs.to_string()
             }
             (Self::BootloaderHashMismatch, Self::BootloaderHashMismatch) => true,
+            (Self::InvalidNumberOfTasks(lhs), Self::InvalidNumberOfTasks(rhs)) => lhs == rhs,
+            (
+                Self::InvalidProof0Marker { expected: exp_l, actual: act_l },
+                Self::InvalidProof0Marker { expected: exp_r, actual: act_r },
+            ) => exp_l == exp_r && act_l == act_r,
             (Self::Verify(lhs), Self::Verify(rhs)) => lhs == rhs,
             _ => false,
         }
@@ -95,11 +104,11 @@ pub fn verify_proof(proof: Proof) -> Result<VerifyProofOutput, VerifyProofError>
         .map_err(|e| VerifyProofError::Verification(format!("{e:?}")))?;
 
     // Convert starknet_ff::FieldElement values to starknet_types_core::felt::Felt.
-    let facts = convert_verification_output_to_felts(&verification_output)?;
-    let proof_facts = ProofFacts(Arc::new(facts));
+    let output = convert_verification_output_to_felts(&verification_output)?;
+    let program_output = ProgramOutput(Arc::new(output));
     let program_hash = felt_from_starknet_ff(verification_output.program_hash);
 
-    Ok(VerifyProofOutput { proof_facts, program_hash })
+    Ok(VerifyProofOutput { program_output, program_hash })
 }
 
 /// Converts cairo-air VerificationOutput output field to a Vec of Felt.
