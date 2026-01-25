@@ -24,6 +24,27 @@ use starknet_api::core::ContractAddress;
 // TODO(matan): Determine the actual type of NodeId.
 pub type ValidatorId = ContractAddress;
 
+/// Wrapper struct for leader functions used in consensus.
+pub(crate) struct LeaderElection<F>
+where
+    F: Fn(Round) -> ValidatorId,
+{
+    proposer: F,
+}
+
+impl<F> LeaderElection<F>
+where
+    F: Fn(Round) -> ValidatorId,
+{
+    pub(crate) fn new(proposer: F) -> Self {
+        Self { proposer }
+    }
+
+    pub(crate) fn proposer(&self, round: Round) -> ValidatorId {
+        (self.proposer)(round)
+    }
+}
+
 /// Interface for consensus to call out to the node.
 ///
 /// Function calls should be assumed to not be cancel safe.

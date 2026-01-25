@@ -50,6 +50,7 @@ use crate::types::{
     ConsensusContext,
     ConsensusError,
     Decision,
+    LeaderElection,
     Round,
     ValidatorId,
 };
@@ -568,8 +569,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     ) -> Result<Option<Decision>, ConsensusError> {
         self.cache.report_cached_votes_metric(height);
         let mut pending_requests = {
-            let leader_fn = make_leader_fn(context, height);
-            shc.start(&leader_fn)
+            let leader_election = make_leader_election(context, height);
+            shc.start(&leader_election)
         };
 
         let cached_proposals = self.cache.get_current_height_proposals(height);
@@ -590,8 +591,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let cached_votes = self.cache.get_current_height_votes(height);
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
-            let leader_fn = make_leader_fn(context, height);
-            let new_requests = shc.handle_vote(&leader_fn, msg);
+            let leader_election = make_leader_election(context, height);
+            let new_requests = shc.handle_vote(&leader_election, msg);
             pending_requests.extend(new_requests);
         }
 
@@ -632,8 +633,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     .await?
                 },
                 Some(shc_event) = shc_events.next() => {
-                    let leader_fn = make_leader_fn(context, height);
-                    shc.handle_event(&leader_fn, shc_event)
+                    let leader_election = make_leader_election(context, height);
+                    shc.handle_event(&leader_election, shc_event)
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
@@ -766,8 +767,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     ) -> Requests {
         // Store the stream; requests will reference it by (height, round)
         self.current_height_proposals_streams.insert((height, block_info.round), content_receiver);
-        let leader_fn = make_leader_fn(context, height);
-        shc.handle_proposal(&leader_fn, block_info)
+        let leader_election = make_leader_election(context, height);
+        shc.handle_proposal(&leader_election, block_info)
     }
 
     // Handle a single consensus message.
@@ -829,8 +830,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
                     if self.cache.should_cache_vote(&height, shc.current_round(), &message) {
-                        let leader_fn = make_leader_fn(context, height);
-                        Ok(shc.handle_vote(&leader_fn, message))
+                        let leader_election = make_leader_election(context, height);
+                        Ok(shc.handle_vote(&leader_election, message))
                     } else {
                         Ok(VecDeque::new())
                     }
@@ -975,10 +976,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     }
 }
 
-/// Creates a closure that returns the proposer for a given round at the specified height.
-fn make_leader_fn<ContextT: ConsensusContext>(
+/// Creates a LeaderElection struct that holds the proposer function.
+fn make_leader_election<ContextT: ConsensusContext>(
     context: &ContextT,
     height: BlockNumber,
-) -> impl Fn(Round) -> ValidatorId + '_ {
-    move |round| context.proposer(height, round)
+) -> LeaderElection<impl Fn(Round) -> ValidatorId + '_> {
+    LeaderElection::new(move |round| context.proposer(height, round))
 }
