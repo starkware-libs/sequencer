@@ -102,7 +102,7 @@ pub struct NodeSetup {
     executables: HashMap<NodeService, ExecutableSetup>,
 
     // Client for adding transactions to the sequencer node.
-    pub add_tx_http_client: HttpTestClient,
+    pub add_tx_http_client: Option<HttpTestClient>,
 
     // Handles for the storage files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handles, private visibility suffices, and
@@ -115,18 +115,12 @@ fn get_executable_by_component(
     node_type: NodeType,
     executables: &HashMap<NodeService, ExecutableSetup>,
     component: ComponentConfigInService,
-) -> &ExecutableSetup {
-    executables
-        .get(
-            &node_type
-                .get_services_of_components(component.clone())
-                .into_iter()
-                .next()
-                .unwrap_or_else(|| {
-                    panic!("Expected at least one executable with component {:?}", component)
-                }),
-        )
-        .unwrap()
+) -> Option<&ExecutableSetup> {
+    executables.get(
+        &node_type.get_services_of_components(component.clone()).into_iter().next().unwrap_or_else(
+            || panic!("Expected at least one executable with component {:?}", component),
+        ),
+    )
 }
 
 impl NodeSetup {
@@ -135,25 +129,30 @@ impl NodeSetup {
         executables: HashMap<NodeService, ExecutableSetup>,
         storage_handles: StorageTestHandles,
     ) -> Self {
-        let http_server_config = get_executable_by_component(
+        let add_tx_http_client = match get_executable_by_component(
             node_type,
             &executables,
             ComponentConfigInService::HttpServer,
-        )
-        .base_app_config
-        .get_config()
-        .http_server_config
-        .as_ref()
-        .unwrap_or_else(|| panic!("Http server config should be set for this node"));
-
-        let (ip, port) = http_server_config.ip_and_port();
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(ip, port));
+        ) {
+            Some(executable) => {
+                let http_server_config = executable
+                    .base_app_config
+                    .get_config()
+                    .http_server_config
+                    .as_ref()
+                    .unwrap_or_else(|| panic!("Http server config should be set for this node"));
+                let (ip, port) = http_server_config.ip_and_port();
+                let add_tx_http_client = HttpTestClient::new(SocketAddr::new(ip, port));
+                Some(add_tx_http_client)
+            }
+            None => None,
+        };
 
         Self { node_type, executables, add_tx_http_client, storage_handles }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.add_tx_http_client.assert_add_tx_success(rpc_tx).await
+        self.add_tx_http_client.as_ref().unwrap().assert_add_tx_success(rpc_tx).await
     }
 
     pub fn batcher_monitoring_client(&self) -> &MonitoringClient {
@@ -185,14 +184,22 @@ impl NodeSetup {
     pub fn generate_simulator_ports_json(&self, path: &str) {
         let (_, http_port) = self
             .get_http_server()
+            .unwrap()
             .get_config()
             .http_server_config
             .as_ref()
             .expect("Should have http server config")
             .ip_and_port();
+        let monitoring_port = self
+            .get_batcher()
+            .get_config()
+            .monitoring_endpoint_config
+            .as_ref()
+            .expect("Should have monitoring endpoint config")
+            .port;
         let json_data = serde_json::json!({
             HTTP_PORT_ARG: http_port,
-            MONITORING_PORT_ARG: self.get_batcher().get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
+            MONITORING_PORT_ARG: monitoring_port
         });
         serialize_to_file(&json_data, path);
     }
@@ -203,9 +210,10 @@ impl NodeSetup {
             &self.executables,
             ComponentConfigInService::Batcher,
         )
+        .unwrap()
     }
 
-    pub fn get_http_server(&self) -> &ExecutableSetup {
+    pub fn get_http_server(&self) -> Option<&ExecutableSetup> {
         get_executable_by_component(
             self.node_type,
             &self.executables,
@@ -219,6 +227,7 @@ impl NodeSetup {
             &self.executables,
             ComponentConfigInService::StateSync,
         )
+        .unwrap()
     }
 
     pub fn get_consensus_manager(&self) -> &ExecutableSetup {
@@ -227,6 +236,7 @@ impl NodeSetup {
             &self.executables,
             ComponentConfigInService::ConsensusManager,
         )
+        .unwrap()
     }
 
     pub fn run_service(&self, service: NodeService) -> AbortOnDropHandle<()> {
@@ -266,6 +276,7 @@ impl NodeSetup {
             &self.executables,
             ComponentConfigInService::L1GasPriceScraper,
         )
+        .unwrap()
         .get_config()
         .l1_gas_price_scraper_config
         .clone()
@@ -278,6 +289,7 @@ impl NodeSetup {
             &self.executables,
             ComponentConfigInService::BaseLayer,
         )
+        .unwrap()
         .get_config()
         .base_layer_config
         .clone()
@@ -656,7 +668,7 @@ impl IntegrationTestManager {
             .map(|node| &(node.node_setup))
             .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
 
-        let http_server = node_0_setup.get_http_server();
+        let http_server = node_0_setup.get_http_server().unwrap();
         let (_, http_server_port) = http_server
             .get_config()
             .http_server_config
