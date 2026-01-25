@@ -1,0 +1,114 @@
+use libp2p::identity::Keypair;
+
+use crate::sharding::{create_units_to_publish, reconstruct_message_from_shards};
+use crate::types::{Channel, ReconstructionError};
+
+const NUM_DATA_SHARDS: usize = 5;
+const NUM_CODING_SHARDS: usize = 5;
+const MESSAGE_LEN: usize = 103;
+const MY_SHARD_INDEX: usize = 2;
+const CHANNEL: Channel = Channel(42);
+
+// Statically assert that MESSAGE_LEN is not divisible by NUM_DATA_SHARDS, to exercise padding.
+#[allow(clippy::manual_is_multiple_of)]
+const _: () = assert!(MESSAGE_LEN % NUM_DATA_SHARDS != 0);
+
+// TODO(AndrewL): Consolidate all pseudo-random keypair generation into a single function
+fn get_keypair(index: u8) -> Keypair {
+    let key = [index; 32];
+    Keypair::ed25519_from_bytes(key).unwrap()
+}
+
+#[test]
+fn test_create_units_to_publish_all_units_have_same_signature_and_root() {
+    let units = create_units_to_publish(
+        vec![42u8; MESSAGE_LEN],
+        CHANNEL,
+        get_keypair(0),
+        NUM_DATA_SHARDS,
+        NUM_CODING_SHARDS,
+    )
+    .unwrap();
+    assert_eq!(units.len(), NUM_DATA_SHARDS + NUM_CODING_SHARDS);
+    let message_root = units[0].root();
+    assert!(units.iter().all(|unit| unit.root() == message_root));
+    assert!(units.iter().all(|unit| !unit.signature().is_empty()));
+    let signature = units[0].signature();
+    assert!(units.iter().all(|unit| unit.signature() == signature));
+}
+
+#[test]
+fn test_reconstruct_message_from_shards_success() {
+    let message = vec![42u8; MESSAGE_LEN];
+    let units = create_units_to_publish(
+        message.clone(),
+        CHANNEL,
+        get_keypair(0),
+        NUM_DATA_SHARDS,
+        NUM_CODING_SHARDS,
+    )
+    .unwrap();
+    let message_root = units[0].root();
+
+    // Pick an arbitrary subset of shards (not just the first N).
+    let received_indices: Vec<usize> = vec![1, 3, 5, 7, 9];
+    let received_units: Vec<_> = received_indices.iter().map(|&i| units[i].clone()).collect();
+
+    let (reconstructed_message, my_shard, proof) = reconstruct_message_from_shards(
+        received_units,
+        message_root,
+        MY_SHARD_INDEX,
+        NUM_DATA_SHARDS,
+        NUM_CODING_SHARDS,
+    )
+    .unwrap();
+    assert_eq!(reconstructed_message, message);
+    assert_eq!(my_shard, units[MY_SHARD_INDEX].shard());
+    assert!(!proof.siblings.is_empty());
+}
+
+#[test]
+fn test_reconstruct_message_from_shards_wrong_root() {
+    let units = create_units_to_publish(
+        vec![42u8; MESSAGE_LEN],
+        CHANNEL,
+        get_keypair(0),
+        NUM_DATA_SHARDS,
+        NUM_CODING_SHARDS,
+    )
+    .unwrap();
+    let wrong_root = crate::types::MessageRoot([0u8; 32]);
+    let received_units: Vec<_> = units.iter().take(NUM_DATA_SHARDS).cloned().collect();
+    let result = reconstruct_message_from_shards(
+        received_units,
+        wrong_root,
+        MY_SHARD_INDEX,
+        NUM_DATA_SHARDS,
+        NUM_CODING_SHARDS,
+    );
+    assert!(matches!(result, Err(ReconstructionError::MismatchedMessageRoot)));
+}
+
+#[test]
+fn test_verify_message_id_signature_rejects_wrong_public_key() {
+    let keypair_publisher = get_keypair(0);
+    let keypair_other = get_keypair(1);
+
+    let units = create_units_to_publish(
+        vec![42u8; MESSAGE_LEN],
+        CHANNEL,
+        keypair_publisher,
+        NUM_DATA_SHARDS,
+        NUM_CODING_SHARDS,
+    )
+    .unwrap();
+    let message_root = units[0].root();
+
+    // The signature was created by keypair_publisher but verified against keypair_other's
+    // public key — verification should fail.
+    let other_public_key = keypair_other.public();
+    let signature = units[0].signature();
+    let result =
+        crate::signature::verify_message_id_signature(&message_root, signature, &other_public_key);
+    assert!(result.is_err());
+}
