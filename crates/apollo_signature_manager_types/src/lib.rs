@@ -15,7 +15,6 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
-use starknet_api::core::Nonce;
 use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
@@ -55,7 +54,7 @@ pub trait SignatureManagerClient: Send + Sync {
     async fn identify(
         &self,
         peer_id: PeerId,
-        nonce: Nonce,
+        challenge: Vec<u8>,
     ) -> SignatureManagerClientResult<RawSignature>;
 
     async fn sign_precommit_vote(
@@ -91,7 +90,7 @@ pub enum SignatureManagerClientError {
     strum(serialize_all = "snake_case")
 )]
 pub enum SignatureManagerRequest {
-    Identify(PeerId, Nonce),
+    Identify(PeerId, Vec<u8>),
     SignPrecommitVote(BlockHash),
 }
 impl_debug_for_infra_requests_and_responses!(SignatureManagerRequest);
@@ -118,9 +117,9 @@ where
     async fn identify(
         &self,
         peer_id: PeerId,
-        nonce: Nonce,
+        challenge: Vec<u8>,
     ) -> SignatureManagerClientResult<RawSignature> {
-        let request = SignatureManagerRequest::Identify(peer_id, nonce);
+        let request = SignatureManagerRequest::Identify(peer_id, challenge);
         handle_all_response_variants!(
             self,
             request,
