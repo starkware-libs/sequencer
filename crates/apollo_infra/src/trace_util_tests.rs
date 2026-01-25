@@ -86,6 +86,7 @@ fn rename_error_to_message_preserves_existing_message_field() {
 #[test]
 fn rename_error_to_message_does_not_modify_error_values() {
     // Values equal to "error" should NOT be modified - only keys named "error"
+    // When there's no "error" key, level should remain unchanged
     let input = br#"{"status":"error","type":"error","level":"ERROR"}"#;
     let output = rename_error_to_message(input).unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&output).unwrap();
@@ -93,6 +94,19 @@ fn rename_error_to_message_does_not_modify_error_values() {
     assert_eq!(parsed["status"], "error");
     assert_eq!(parsed["type"], "error");
     assert_eq!(parsed["level"], "ERROR");
+}
+
+#[test]
+fn rename_error_to_message_changes_error_level_to_warning() {
+    // When "error" key is removed and level is "ERROR", it should change to "WARNING"
+    let input = br#"{"level":"ERROR","error":"something failed","file":"test.rs"}"#;
+    let output = rename_error_to_message(input).unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&output).unwrap();
+
+    assert_eq!(parsed["message"], "something failed");
+    assert_eq!(parsed["level"], "WARNING");
+    assert_eq!(parsed["file"], "test.rs");
+    assert!(parsed.get("error").is_none(), "error key should be removed");
 }
 
 /// A shared buffer for capturing log output.

@@ -12,11 +12,20 @@ use tracing_subscriber::{fmt, reload, EnvFilter};
 
 // Renames the "error" key to "message" in a JSON object, if present.
 // If "message" already exists, leaves the object unchanged.
+// If the "error" key is removed, and the log level is "error", changes it to "warning".
 pub(crate) fn rename_error_to_message(buf: &[u8]) -> Option<Vec<u8>> {
     let mut obj: serde_json::Map<String, serde_json::Value> = serde_json::from_slice(buf).ok()?;
     if !obj.contains_key("message") {
         if let Some(v) = obj.remove("error") {
             obj.insert("message".into(), v);
+            // If log level is "ERROR", change it to "WARNING"
+            if let Some(level_value) = obj.get("level") {
+                if let Some(level_str) = level_value.as_str() {
+                    if level_str == "ERROR" {
+                        obj.insert("level".into(), serde_json::Value::String("WARNING".into()));
+                    }
+                }
+            }
         }
     }
     let mut out = serde_json::to_vec(&obj).ok()?;
