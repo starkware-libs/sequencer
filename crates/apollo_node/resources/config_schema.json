@@ -3154,6 +3154,11 @@
     "privacy": "Public",
     "value": 100000
   },
+  "state_sync_config.p2p_sync_client_config.max_cairo0_program_size": {
+    "description": "Maximum size for decompressed Cairo0 programs (for DoS protection).",
+    "privacy": "Public",
+    "value": 4194304
+  },
   "state_sync_config.p2p_sync_client_config.num_block_classes_per_query": {
     "description": "The maximum amount of block's classes to ask from peers in each iteration.",
     "privacy": "Public",

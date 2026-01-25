@@ -128,6 +128,7 @@ impl P2pSyncClientChannels {
             config.wait_period_for_new_data,
             config.wait_period_for_other_protocol,
             config.num_block_classes_per_query,
+            config.max_cairo0_program_size,
         );
 
         header_stream.merge(state_diff_stream).merge(transaction_stream).merge(class_stream)

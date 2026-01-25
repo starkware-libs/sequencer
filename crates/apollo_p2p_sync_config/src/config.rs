@@ -21,6 +21,7 @@ pub struct P2pSyncClientConfig {
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub wait_period_for_other_protocol: Duration,
     pub buffer_size: usize,
+    pub max_cairo0_program_size: usize,
 }
 
 impl SerializeConfig for P2pSyncClientConfig {
@@ -71,6 +72,12 @@ impl SerializeConfig for P2pSyncClientConfig {
                 "Size of the buffer for read from the storage and for incoming responses.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "max_cairo0_program_size",
+                &self.max_cairo0_program_size,
+                "Maximum size for decompressed Cairo0 programs (for DoS protection).",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -88,6 +95,7 @@ impl Default for P2pSyncClientConfig {
             wait_period_for_other_protocol: Duration::from_millis(50),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
+            max_cairo0_program_size: DEFAULT_MAX_CAIRO0_PROGRAM_SIZE,
         }
     }
 }
