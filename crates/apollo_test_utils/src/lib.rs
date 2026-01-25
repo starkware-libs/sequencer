@@ -69,7 +69,7 @@ use starknet_api::core::{
     StateDiffCommitment,
     TransactionCommitment,
 };
-use starknet_api::crypto::utils::Signature;
+use starknet_api::crypto::utils::{RawSignature, Signature};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::deprecated_contract_class::{
     ConstructorType,
@@ -1138,6 +1138,7 @@ default_impl_get_test_instance!(ContractAddress);
 default_impl_get_test_instance!(StarkHash);
 default_impl_get_test_instance!(StorageKey);
 default_impl_get_test_instance!(BigUint);
+default_impl_get_test_instance!(RawSignature);
 
 impl GetTestInstance for StructAbiEntry {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {

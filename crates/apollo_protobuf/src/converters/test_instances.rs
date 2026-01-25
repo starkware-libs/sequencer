@@ -6,6 +6,7 @@ use rand::Rng;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
+use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
 
@@ -29,6 +30,7 @@ auto_impl_get_test_instance! {
         pub round: u32,
         pub proposal_commitment: Option<ProposalCommitment>,
         pub voter: ContractAddress,
+        pub signature: RawSignature,
     }
     pub enum VoteType {
         Prevote = 0,
