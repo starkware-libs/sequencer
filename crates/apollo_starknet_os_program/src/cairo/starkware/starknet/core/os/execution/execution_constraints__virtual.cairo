@@ -12,7 +12,7 @@ func check_is_reverted(is_reverted: felt) {
 }
 
 func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
-    proof_facts_size: felt, proof_facts: felt*, current_block_number: felt
+    proof_facts_size: felt, proof_facts: felt*, current_block_number: felt, os_config_hash: felt
 ) {
     with_attr error_message("Proof facts are not supported in virtual OS mode") {
         assert proof_facts_size = 0;
