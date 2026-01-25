@@ -144,7 +144,7 @@ where
                 // We expect there to be under 100 validators, so this is a reasonable number of
                 // precommits to print.
                 let round = decision.precommits[0].round;
-                let proposer = context.proposer(current_height, round);
+                let proposer = context.virtual_proposer(current_height, round);
 
                 if proposer == run_consensus_args.consensus_config.dynamic_config.validator_id {
                     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.increment(1);
@@ -713,7 +713,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         };
 
         // Check that the proposer matches the leader_fn for this height.
-        let proposer = context.proposer(height, block_info.round);
+        let proposer = context.virtual_proposer(height, block_info.round);
         if proposer != block_info.proposer {
             warn!(
                 "Invalid proposer for height {height} and round {}: expected {:?}, got {:?}",
@@ -892,7 +892,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 let init = ProposalInit {
                     height,
                     round,
-                    proposer: self.consensus_config.dynamic_config.validator_id,
+                    proposer: context.virtual_proposer(height, round),
                     valid_round: None,
                 };
                 // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded
