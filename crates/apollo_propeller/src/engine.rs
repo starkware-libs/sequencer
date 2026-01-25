@@ -13,7 +13,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
 use crate::message_processor::{MessageProcessor, StateManagerToEngine, UnitToValidate};
-use crate::metrics::PropellerMetrics;
+use crate::metrics::{CollectionLabel, PropellerMetrics, ShardSendFailureReason};
 use crate::sharding::prepare_units;
 use crate::signature;
 use crate::time_cache::TimeCache;
@@ -134,6 +134,12 @@ impl Engine {
             ChannelData { tree_manager: Arc::new(new_tree_manager), peer_public_keys };
         self.channels.insert(channel, channel_data);
 
+        if let Some(metrics) = &self.metrics {
+            metrics.trees_generated.increment(1);
+            metrics
+                .update_collection_length(CollectionLabel::RegisteredChannels, self.channels.len());
+        }
+
         Ok(())
     }
 
@@ -141,6 +147,10 @@ impl Engine {
     #[allow(clippy::result_unit_err)] // TODO(AndrewL): remove this
     pub fn unregister_channel(&mut self, channel: Channel) -> Result<(), ()> {
         self.channels.remove(&channel).ok_or(())?;
+        if let Some(metrics) = &self.metrics {
+            metrics
+                .update_collection_length(CollectionLabel::RegisteredChannels, self.channels.len());
+        }
         Ok(())
     }
 
@@ -196,11 +206,23 @@ impl Engine {
     /// Handle a peer connection.
     pub(crate) fn handle_connected(&mut self, peer_id: PeerId) {
         self.connected_peers.insert(peer_id);
+        if let Some(metrics) = &self.metrics {
+            metrics.update_collection_length(
+                CollectionLabel::ConnectedPeers,
+                self.connected_peers.len(),
+            );
+        }
     }
 
     /// Handle a peer disconnection.
     pub(crate) fn handle_disconnected(&mut self, peer_id: PeerId) {
         self.connected_peers.remove(&peer_id);
+        if let Some(metrics) = &self.metrics {
+            metrics.update_collection_length(
+                CollectionLabel::ConnectedPeers,
+                self.connected_peers.len(),
+            );
+        }
     }
 
     /// Handle an incoming unit from a peer.
@@ -212,6 +234,7 @@ impl Engine {
         // Track received shard.
         if let Some(metrics) = &self.metrics {
             metrics.shards_received.increment(1);
+            metrics.shard_bytes_received.increment(unit.shard().len().try_into().unwrap());
         }
 
         // Check if channel is registered.
@@ -271,6 +294,12 @@ impl Engine {
             tokio::spawn(processor.run());
 
             self.message_tasks.insert(message_key, unit_tx);
+            if let Some(metrics) = &self.metrics {
+                metrics.update_collection_length(
+                    CollectionLabel::ActiveProcessors,
+                    self.message_tasks.len(),
+                );
+            }
         }
 
         // Send unit to message processor
@@ -282,6 +311,10 @@ impl Engine {
 
     /// Handle a send error from the handler.
     pub(crate) async fn handle_send_error(&mut self, peer_id: PeerId, error: String) {
+        if let Some(metrics) = &self.metrics {
+            metrics.increment_send_failure(ShardSendFailureReason::HandlerError);
+        }
+
         self.emit_event(Event::ShardSendFailed {
             sent_from: None,
             sent_to: Some(peer_id),
@@ -295,11 +328,18 @@ impl Engine {
     }
 
     async fn emit_event(&mut self, event: Event) {
+        // Track metrics for this event
+        if let Some(metrics) = &self.metrics {
+            metrics.track_event(&event);
+        }
         self.emit_output(EngineOutput::GenerateEvent(event)).await;
     }
 
     async fn emit_handler_event(&mut self, peer_id: PeerId, event: HandlerIn) {
         if !self.connected_peers.contains(&peer_id) {
+            if let Some(metrics) = &self.metrics {
+                metrics.increment_send_failure(ShardSendFailureReason::NotConnectedToPeer);
+            }
             self.emit_event(Event::ShardSendFailed {
                 sent_from: None,
                 sent_to: Some(peer_id),
@@ -355,6 +395,17 @@ impl Engine {
                         message_root
                     );
                 }
+
+                if let Some(metrics) = &self.metrics {
+                    metrics.update_collection_length(
+                        CollectionLabel::FinalizedMessages,
+                        self.finalized_messages.len(),
+                    );
+                    metrics.update_collection_length(
+                        CollectionLabel::ActiveProcessors,
+                        self.message_tasks.len(),
+                    );
+                }
             }
             StateManagerToEngine::BroadcastUnit { unit, peers } => {
                 tracing::trace!(
@@ -362,6 +413,11 @@ impl Engine {
                     unit.index(),
                     peers.len()
                 );
+
+                // Track forwarded shards
+                if let Some(metrics) = &self.metrics {
+                    metrics.shards_forwarded.increment(1);
+                }
 
                 for peer in peers {
                     self.send_unit_to_peer(unit.clone(), peer).await;
@@ -409,6 +465,10 @@ impl Engine {
             .tree_manager
             .clone();
 
+        if let Some(metrics) = &self.metrics {
+            metrics.shards_published.increment(units.len().try_into().unwrap());
+        }
+
         let peers_in_order = tree_manager.make_broadcast_list();
         debug_assert_eq!(peers_in_order.len(), units.len());
 
@@ -425,6 +485,11 @@ impl Engine {
     }
 
     async fn send_unit_to_peer(&mut self, unit: PropellerUnit, peer: PeerId) {
+        if let Some(metrics) = &self.metrics {
+            metrics.shards_sent.increment(1);
+            metrics.shard_bytes_sent.increment(unit.shard().len().try_into().unwrap());
+        }
+
         self.emit_handler_event(peer, HandlerIn::SendUnit(unit)).await;
     }
 
