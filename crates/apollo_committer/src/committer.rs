@@ -150,10 +150,13 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             Some(commitment) => {
                 if self.config.verify_state_diff_hash {
                     let calculated_commitment = calculate_state_diff_hash(&state_diff);
-                    assert_eq!(
-                        commitment, calculated_commitment,
-                        "State diff hash mismatch for block number {height}."
-                    );
+                    if commitment != calculated_commitment {
+                        return Err(CommitterError::StateDiffHashMismatch {
+                            provided_commitment: commitment,
+                            calculated_commitment,
+                            height,
+                        });
+                    }
                 }
                 commitment
             }
