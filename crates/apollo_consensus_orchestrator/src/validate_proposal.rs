@@ -411,6 +411,8 @@ async fn handle_proposal_part(
             HandledProposalPart::Finished(batcher_block_id, fin)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
+            // TODO(guyn): check that the length of txs and the number of batches we receive is not
+            // so big it would fill up the memory (in case of a malicious proposal)
             debug!("Received transaction batch with {} txs", txs.len());
             let txs =
                 futures::future::join_all(txs.into_iter().map(|tx| {
