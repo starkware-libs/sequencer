@@ -15,14 +15,10 @@ const CAIRO_PIE_FILE: &str = "cairo_pie_10_transfers.zip";
 const EXPECTED_PROOF_FACTS_FILE: &str = "proof_facts_10_transfers.json";
 
 /// Integration test that verifies proving works with a real Cairo PIE.
-///
-/// This test is ignored by default because it requires the `stwo_run_and_prove` binary.
-/// Run with: `cargo test -p starknet_os_runner -- --ignored test_prove_cairo_pie_10_transfers`
 #[tokio::test]
-#[ignore]
 async fn test_prove_cairo_pie_10_transfers() {
     let cairo_pie_path = resolve_resource_path(CAIRO_PIE_FILE).unwrap();
-    let expected_proof_facts_path = resolve_resource_path(EXPECTED_PROOF_FACTS_FILE).unwrap();
+    let expected_program_output_path = resolve_resource_path(EXPECTED_PROOF_FACTS_FILE).unwrap();
 
     // Read CairoPie from zip file.
     let cairo_pie =
@@ -47,7 +43,7 @@ async fn test_prove_cairo_pie_10_transfers() {
     );
 
     // Read expected program output.
-    let expected_program_output_str = fs::read_to_string(&expected_proof_facts_path)
+    let expected_program_output_str = fs::read_to_string(&expected_program_output_path)
         .expect("Failed to read expected program output file");
     let expected_program_output: ProgramOutput = serde_json::from_str(&expected_program_output_str)
         .expect("Failed to parse expected program output");
