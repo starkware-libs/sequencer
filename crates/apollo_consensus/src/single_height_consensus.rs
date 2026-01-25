@@ -33,7 +33,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_VALID_INIT,
 };
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent};
-use crate::types::{ProposalCommitment, Round, ValidatorId};
+use crate::types::{LeaderElection, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 /// Type alias for the requests returned by SHC.
@@ -82,23 +82,23 @@ impl SingleHeightConsensus {
     }
 
     #[instrument(skip_all)]
-    pub(crate) fn start<LeaderFn>(&mut self, leader_fn: &LeaderFn) -> Requests
+    pub(crate) fn start<F>(&mut self, leader_election: &LeaderElection<F>) -> Requests
     where
-        LeaderFn: Fn(Round) -> ValidatorId,
+        F: Fn(Round) -> ValidatorId,
     {
-        self.state_machine.start(leader_fn)
+        self.state_machine.start(leader_election)
     }
 
     /// Process the proposal block info message and initiate block validation by returning
     /// `SMRequest::StartValidateProposal` to the manager.
     #[instrument(skip_all)]
-    pub(crate) fn handle_proposal<LeaderFn>(
+    pub(crate) fn handle_proposal<F>(
         &mut self,
-        leader_fn: &LeaderFn,
+        leader_election: &LeaderElection<F>,
         block_info: ConsensusBlockInfo,
     ) -> Requests
     where
-        LeaderFn: Fn(Round) -> ValidatorId,
+        F: Fn(Round) -> ValidatorId,
     {
         debug!("Received {block_info:?}");
         let height = self.state_machine.height();
@@ -106,7 +106,7 @@ impl SingleHeightConsensus {
             warn!("Invalid proposal height: expected {:?}, got {:?}", height, block_info.height);
             return VecDeque::new();
         }
-        let proposer_id = leader_fn(block_info.round);
+        let proposer_id = leader_election.proposer(block_info.round);
         if block_info.proposer != proposer_id {
             warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, block_info.proposer);
             return VecDeque::new();
@@ -136,25 +136,27 @@ impl SingleHeightConsensus {
     }
 
     #[instrument(skip_all)]
-    pub(crate) fn handle_event<LeaderFn>(
+    pub(crate) fn handle_event<F>(
         &mut self,
-        leader_fn: &LeaderFn,
+        leader_election: &LeaderElection<F>,
         event: StateMachineEvent,
     ) -> Requests
     where
-        LeaderFn: Fn(Round) -> ValidatorId,
+        F: Fn(Round) -> ValidatorId,
     {
         trace!("Received StateMachineEvent: {:?}", event);
         match event {
             StateMachineEvent::TimeoutPropose(_)
             | StateMachineEvent::TimeoutPrevote(_)
-            | StateMachineEvent::TimeoutPrecommit(_) => self.handle_timeout_event(leader_fn, event),
+            | StateMachineEvent::TimeoutPrecommit(_) => {
+                self.handle_timeout_event(leader_election, event)
+            }
             StateMachineEvent::VoteBroadcasted(vote) => self.handle_vote_broadcasted(vote),
             StateMachineEvent::FinishedValidation(proposal_id, round, valid_round) => {
-                self.handle_finished_validation(leader_fn, proposal_id, round, valid_round)
+                self.handle_finished_validation(leader_election, proposal_id, round, valid_round)
             }
             StateMachineEvent::FinishedBuilding(proposal_id, round) => {
-                self.handle_finished_building(leader_fn, proposal_id, round)
+                self.handle_finished_building(leader_election, proposal_id, round)
             }
             StateMachineEvent::Prevote(_) | StateMachineEvent::Precommit(_) => {
                 unreachable!("Peer votes must be handled via handle_vote")
@@ -162,15 +164,15 @@ impl SingleHeightConsensus {
         }
     }
 
-    fn handle_timeout_event<LeaderFn>(
+    fn handle_timeout_event<F>(
         &mut self,
-        leader_fn: &LeaderFn,
+        leader_election: &LeaderElection<F>,
         event: StateMachineEvent,
     ) -> Requests
     where
-        LeaderFn: Fn(Round) -> ValidatorId,
+        F: Fn(Round) -> ValidatorId,
     {
-        self.state_machine.handle_event(event, leader_fn)
+        self.state_machine.handle_event(event, leader_election)
     }
 
     fn handle_vote_broadcasted(&mut self, vote: Vote) -> Requests {
@@ -188,18 +190,18 @@ impl SingleHeightConsensus {
         VecDeque::from([SMRequest::BroadcastVote(last_vote)])
     }
 
-    fn handle_finished_validation<LeaderFn>(
+    fn handle_finished_validation<F>(
         &mut self,
-        leader_fn: &LeaderFn,
+        leader_election: &LeaderElection<F>,
         proposal_id: Option<ProposalCommitment>,
         round: Round,
         valid_round: Option<Round>,
     ) -> Requests
     where
-        LeaderFn: Fn(Round) -> ValidatorId,
+        F: Fn(Round) -> ValidatorId,
     {
         debug!(
-            proposer = %leader_fn(round),
+            proposer = %leader_election.proposer(round),
             %round,
             ?valid_round,
             proposal_commitment = ?proposal_id,
@@ -216,18 +218,18 @@ impl SingleHeightConsensus {
         self.pending_validation_rounds.remove(&round);
         self.state_machine.handle_event(
             StateMachineEvent::FinishedValidation(proposal_id, round, None),
-            leader_fn,
+            leader_election,
         )
     }
 
-    fn handle_finished_building<LeaderFn>(
+    fn handle_finished_building<F>(
         &mut self,
-        leader_fn: &LeaderFn,
+        leader_election: &LeaderElection<F>,
         proposal_id: Option<ProposalCommitment>,
         round: Round,
     ) -> Requests
     where
-        LeaderFn: Fn(Round) -> ValidatorId,
+        F: Fn(Round) -> ValidatorId,
     {
         if proposal_id.is_none() {
             CONSENSUS_BUILD_PROPOSAL_FAILED.increment(1);
@@ -245,14 +247,18 @@ impl SingleHeightConsensus {
         );
         debug!(%round, proposal_commitment = ?proposal_id, "Built proposal.");
         self.state_machine
-            .handle_event(StateMachineEvent::FinishedBuilding(proposal_id, round), leader_fn)
+            .handle_event(StateMachineEvent::FinishedBuilding(proposal_id, round), leader_election)
     }
 
     /// Handle vote messages from peer nodes.
     #[instrument(skip_all)]
-    pub(crate) fn handle_vote<LeaderFn>(&mut self, leader_fn: &LeaderFn, vote: Vote) -> Requests
+    pub(crate) fn handle_vote<F>(
+        &mut self,
+        leader_election: &LeaderElection<F>,
+        vote: Vote,
+    ) -> Requests
     where
-        LeaderFn: Fn(Round) -> ValidatorId,
+        F: Fn(Round) -> ValidatorId,
     {
         trace!("Received {:?}", vote);
         let height = self.state_machine.height();
@@ -291,6 +297,6 @@ impl SingleHeightConsensus {
             VoteType::Prevote => StateMachineEvent::Prevote(vote),
             VoteType::Precommit => StateMachineEvent::Precommit(vote),
         };
-        self.state_machine.handle_event(sm_vote, leader_fn)
+        self.state_machine.handle_event(sm_vote, leader_election)
     }
 }
