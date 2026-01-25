@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769334111849,
+  "lastUpdate": 1769346780624,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -339,6 +339,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1208.46151001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0a5ddc7ec832258bdc7a51f1ec19333460178c42",
+          "message": "apollo_committer_config: add storage config to apollo_committer_config (#11858)",
+          "timestamp": "2026-01-25T12:46:09Z",
+          "tree_id": "a3c19d3a8b27c001409b73a90050ed0ed994ad9a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0a5ddc7ec832258bdc7a51f1ec19333460178c42"
+        },
+        "date": 1769346780344,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 821.57126535,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1255.16215511,
             "unit": "ms"
           }
         ]
