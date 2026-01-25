@@ -340,7 +340,10 @@ macro_rules! create_client {
                 ));
                 Client::new(None, remote_client)
             }
-            ReactiveComponentExecutionMode::Disabled => Client::new(None, None),
+            // TODO(Tsabary): add a noop client.
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Noop => {
+                Client::new(None, None)
+            }
         }
     };
 }

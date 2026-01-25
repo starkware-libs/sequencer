@@ -162,7 +162,8 @@ macro_rules! create_remote_server {
 
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::Remote
-            | ReactiveComponentExecutionMode::Disabled => None,
+            | ReactiveComponentExecutionMode::Disabled
+            | ReactiveComponentExecutionMode::Noop => None,
         }
     };
 }
@@ -231,7 +232,7 @@ macro_rules! create_local_server {
                     $server_metrics,
                 )))
             }
-            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            ReactiveComponentExecutionMode::Disabled |  ReactiveComponentExecutionMode::Noop | ReactiveComponentExecutionMode::Remote => {
                 None
             }
         }

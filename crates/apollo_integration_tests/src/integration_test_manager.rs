@@ -116,11 +116,8 @@ fn get_executable_by_component(
     executables: &HashMap<NodeService, ExecutableSetup>,
     component: ComponentConfigInService,
 ) -> Option<&ExecutableSetup> {
-    executables.get(
-        &node_type.get_services_of_components(component.clone()).into_iter().next().unwrap_or_else(
-            || panic!("Expected at least one executable with component {:?}", component),
-        ),
-    )
+    let service = node_type.get_services_of_components(component.clone()).into_iter().next()?;
+    executables.get(&service)
 }
 
 impl NodeSetup {
