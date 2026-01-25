@@ -276,14 +276,14 @@ async fn verify_state_diff_hash_succeeds() {
 }
 
 #[tokio::test]
-#[should_panic(expected = "State diff hash mismatch for block number 0.")]
 async fn verify_state_diff_hash_fails() {
     let mut committer = new_test_committer().await;
     committer.config.verify_state_diff_hash = true;
     let state_diff = get_state_diff(1);
     let state_diff_commitment = Some(StateDiffCommitment(PoseidonHash(17.into())));
     let height = BlockNumber(0);
-    let _ = committer
+    let result = committer
         .commit_block(CommitBlockRequest { state_diff, state_diff_commitment, height })
         .await;
+    assert_matches!(result, Err(CommitterError::StateDiffHashMismatch { .. }));
 }
