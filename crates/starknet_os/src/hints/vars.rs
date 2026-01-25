@@ -368,6 +368,8 @@ define_string_enum! {
             VirtualOsOutputVersion,
             "starkware.starknet.core.os.virtual_os_output.VIRTUAL_OS_OUTPUT_VERSION"
         ),
+        (VirtualSnos, "starkware.starknet.core.os.virtual_os_output.VIRTUAL_SNOS"),
+        (ProofVersion, "starkware.starknet.core.os.virtual_os_output.PROOF_VERSION"),
     }
 }
 

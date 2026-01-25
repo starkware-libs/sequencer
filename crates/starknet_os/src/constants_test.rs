@@ -2,7 +2,7 @@ use apollo_starknet_os_program::OS_PROGRAM;
 use blockifier::abi::constants::{L1_TO_L2_MSG_HEADER_SIZE, L2_TO_L1_MSG_HEADER_SIZE};
 use starknet_api::contract_class::compiled_class_hash::COMPILED_CLASS_V1;
 use starknet_api::core::{GLOBAL_STATE_VERSION, L2_ADDRESS_UPPER_BOUND};
-use starknet_api::transaction::fields::VIRTUAL_OS_OUTPUT_VERSION;
+use starknet_api::transaction::fields::{PROOF_VERSION, VIRTUAL_OS_OUTPUT_VERSION, VIRTUAL_SNOS};
 use starknet_committer::hash_function::hash::CONTRACT_CLASS_LEAF_V0;
 use starknet_types_core::felt::Felt;
 
@@ -64,4 +64,16 @@ fn test_virtual_os_output_version() {
         Const::VirtualOsOutputVersion.fetch_from_os_program().unwrap(),
         Felt::from(VIRTUAL_OS_OUTPUT_VERSION)
     );
+}
+
+/// Asserts that the Rust VIRTUAL_SNOS constant matches the Cairo constant.
+#[test]
+fn test_virtual_snos() {
+    assert_eq!(Const::VirtualSnos.fetch_from_os_program().unwrap(), Felt::from(VIRTUAL_SNOS));
+}
+
+/// Asserts that the Rust PROOF_VERSION constant matches the Cairo constant.
+#[test]
+fn test_proof_version() {
+    assert_eq!(Const::ProofVersion.fetch_from_os_program().unwrap(), Felt::from(PROOF_VERSION));
 }
