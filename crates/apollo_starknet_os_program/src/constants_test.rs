@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use apollo_infra_utils::cairo0_compiler::cairo0_format;
+use apollo_infra_utils::cairo0_compiler_test_utils::cairo0_format;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants};
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
