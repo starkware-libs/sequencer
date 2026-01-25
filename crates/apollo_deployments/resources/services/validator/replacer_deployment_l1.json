@@ -1,0 +1,11 @@
+[
+  "crates/apollo_deployments/resources/app_configs/replacer_base_layer_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_config_manager_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_general_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_l1_gas_price_provider_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_l1_gas_price_scraper_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_l1_provider_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_l1_scraper_config.json",
+  "crates/apollo_deployments/resources/app_configs/replacer_monitoring_endpoint_config.json",
+  "crates/apollo_deployments/resources/services/validator/replacer_l1.json"
+]
