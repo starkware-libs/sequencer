@@ -13,14 +13,16 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
-use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::fields::{Proof, ProofFacts, VIRTUAL_SNOS};
 use starknet_api::transaction::{
     InvokeTransaction,
     MessageToL1,
     TransactionHash,
     TransactionHasher,
 };
+use starknet_api::StarknetApiError;
 use starknet_os::io::os_output::OsOutputError;
+use starknet_types_core::felt::Felt;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -74,6 +76,8 @@ pub enum HttpServerError {
     ProvingError(#[from] ProvingError),
     #[error(transparent)]
     OutputParseError(#[from] OsOutputError),
+    #[error(transparent)]
+    StarknetApiError(#[from] StarknetApiError),
 }
 
 impl IntoResponse for HttpServerError {
@@ -96,6 +100,9 @@ impl IntoResponse for HttpServerError {
             }
             HttpServerError::OutputParseError(e) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "OUTPUT_PARSE_ERROR", e.to_string())
+            }
+            HttpServerError::StarknetApiError(e) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "STARKNET_API_ERROR", e.to_string())
             }
         };
 
@@ -189,10 +196,13 @@ async fn prove_transaction(
         "Proving completed"
     );
 
+    // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
+    let proof_facts = prover_output.program_output.try_into_proof_facts(Felt::from(VIRTUAL_SNOS))?;
+
     // Build response.
     let response = ProveTransactionResponse {
         proof: prover_output.proof,
-        proof_facts: prover_output.proof_facts,
+        proof_facts,
         // TODO(Aviv): Add l2_to_l1_messages to the runner output and use it here.
         l2_to_l1_messages: Vec::new(),
     };
