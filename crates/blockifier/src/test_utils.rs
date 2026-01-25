@@ -435,8 +435,8 @@ pub fn block_hash_contract_address() -> ContractAddress {
 pub fn generate_block_hash_storage_updates() -> StateMaps {
     let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
     // On-chain, block hashes are guaranteed only for blocks up to:
-    // current - STORED_BLOCK_HASH_BUFFER - 1.
-    let block_hash_history_end = CURRENT_BLOCK_NUMBER - constants::STORED_BLOCK_HASH_BUFFER - 1;
+    // current - STORED_BLOCK_HASH_BUFFER.
+    let block_hash_history_end = CURRENT_BLOCK_NUMBER - constants::STORED_BLOCK_HASH_BUFFER;
     let block_hash_contract = block_hash_contract_address();
     let storage = (block_hash_history_start..=block_hash_history_end)
         .map(|block_num| {

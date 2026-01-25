@@ -40,6 +40,7 @@ use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
+    test_block_hash,
     NonceManager,
     CURRENT_BLOCK_NUMBER,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
@@ -2211,14 +2212,25 @@ fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
     .into()
 }
 
+/// Returns valid proof_facts with the maximum allowed block number.
+fn proof_facts_with_max_allowed_block() -> ProofFacts {
+    let mut snos_proof_facts =
+        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
+    let block_number = CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER;
+    snos_proof_facts.block_number = BlockNumber(block_number);
+    snos_proof_facts.block_hash = test_block_hash(block_number);
+    snos_to_proof_facts(snos_proof_facts)
+}
+
 /// Returns invalid proof_facts with a too recent block number (at the boundary).
 fn proof_facts_with_too_recent_block() -> ProofFacts {
     let mut snos_proof_facts =
         SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
     // Set the proof block number to the first invalid value:
-    // `current_block_number - STORED_BLOCK_HASH_BUFFER`
+    // `current_block_number - STORED_BLOCK_HASH_BUFFER + 1`
     // (i.e. last allowed block + 1).
-    snos_proof_facts.block_number = BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER);
+    snos_proof_facts.block_number =
+        BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER + 1);
     snos_to_proof_facts(snos_proof_facts)
 }
 
@@ -2250,21 +2262,37 @@ fn proof_facts_with_invalid_program_hash() -> ProofFacts {
 /// The test runs `perform_pre_validation_stage` and asserts that invalid cases
 /// fail with `InvalidProofFacts`, while valid cases pass.
 #[rstest]
-#[case::valid(ProofFacts::snos_proof_facts_for_testing(), CURRENT_BLOCK_NUMBER, false)]
-#[case::block_number_too_recent(proof_facts_with_too_recent_block(), CURRENT_BLOCK_NUMBER, true)]
+#[case::valid(proof_facts_with_max_allowed_block(), CURRENT_BLOCK_NUMBER, None)]
+#[case::block_number_too_recent(
+    proof_facts_with_too_recent_block(),
+    CURRENT_BLOCK_NUMBER,
+    Some("is too recent")
+)]
 #[case::current_block_number_too_small(
     ProofFacts::snos_proof_facts_for_testing(),
     STORED_BLOCK_HASH_BUFFER - 1,
-    true,
+    Some("is below the required")
 )]
-#[case::block_hash_mismatched(proof_facts_with_mismatched_hash(), CURRENT_BLOCK_NUMBER, true)]
-#[case::block_hash_zero(proof_facts_with_zero_block_hash(), CURRENT_BLOCK_NUMBER, true)]
-#[case::program_hash_invalid(proof_facts_with_invalid_program_hash(), CURRENT_BLOCK_NUMBER, true)]
+#[case::block_hash_mismatched(
+    proof_facts_with_mismatched_hash(),
+    CURRENT_BLOCK_NUMBER,
+    Some("Block hash mismatch")
+)]
+#[case::block_hash_zero(
+    proof_facts_with_zero_block_hash(),
+    CURRENT_BLOCK_NUMBER,
+    Some("block hash is zero")
+)]
+#[case::program_hash_invalid(
+    proof_facts_with_invalid_program_hash(),
+    CURRENT_BLOCK_NUMBER,
+    Some("is not allowed")
+)]
 fn test_validate_proof_facts(
     default_all_resource_bounds: ValidResourceBounds,
     #[case] proof_facts: ProofFacts,
     #[case] current_block_number: u64,
-    #[case] should_fail: bool,
+    #[case] expected_error: Option<&str>,
 ) {
     let mut block_context = BlockContext::create_for_account_testing();
     block_context.block_info.block_number = BlockNumber(current_block_number);
@@ -2285,9 +2313,13 @@ fn test_validate_proof_facts(
     let tx_context = block_context.to_tx_context(&tx);
     let result = tx.perform_pre_validation_stage(&mut state, &tx_context);
 
-    if should_fail {
-        assert_matches!(result, Err(TransactionPreValidationError::InvalidProofFacts(_)));
-    } else {
-        assert_matches!(result, Ok(()));
+    match expected_error {
+        Some(expected_msg) => {
+            let err = result.expect_err("Expected validation to fail");
+            assert_matches!(err, TransactionPreValidationError::InvalidProofFacts(msg) if msg.contains(expected_msg));
+        }
+        None => {
+            assert_matches!(result, Ok(()));
+        }
     }
 }

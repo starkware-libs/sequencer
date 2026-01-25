@@ -263,7 +263,7 @@ impl AccountTransaction {
                 ))
             })?;
 
-        if proof_block_number >= max_allowed {
+        if proof_block_number > max_allowed {
             return Err(TransactionPreValidationError::InvalidProofFacts(format!(
                 "The proof block number {proof_block_number} is too recent. The maximum allowed \
                  block number is {max_allowed}."
