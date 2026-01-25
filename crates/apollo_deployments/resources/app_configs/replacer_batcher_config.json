@@ -1,4 +1,5 @@
 {
+  "batcher_config.dynamic_config.placeholder": false,
   "batcher_config.static_config.block_builder_config.bouncer_config.blake_weight": 3334,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 4400000,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
@@ -44,6 +45,8 @@ pub trait ConfigManagerClient: Send + Sync {
 
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
 
+    async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
+
     async fn set_node_dynamic_config(
         &self,
         config: NodeDynamicConfig,
@@ -61,6 +64,7 @@ pub enum ConfigManagerRequest {
     GetContextDynamicConfig,
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
+    GetBatcherDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
@@ -80,6 +84,7 @@ pub enum ConfigManagerResponse {
     GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
+    GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -147,6 +152,19 @@ where
             request,
             ConfigManagerResponse,
             GetMempoolDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig> {
+        let request = ConfigManagerRequest::GetBatcherDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetBatcherDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
