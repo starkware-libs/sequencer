@@ -420,11 +420,18 @@ impl TransactionConverter {
             return Err(VerifyProofAndFactsError::EmptyProof);
         }
 
-        // Verify proof and extract proof facts and program hash.
+        // Verify proof and extract program output and program hash.
         let output = verify_proof(proof)?;
 
-        // Validate that the extracted proof facts match the expected facts.
-        if proof_facts != output.proof_facts {
+        // Validate that the number of tasks is 1 (first element of program output).
+        let num_tasks = output.program_output.0.first().copied().unwrap_or_default();
+        if num_tasks != Felt::ONE {
+            return Err(VerifyProofAndFactsError::InvalidNumberOfTasks(num_tasks));
+        }
+
+        // Convert program output to proof facts and validate against expected facts.
+        let converted_proof_facts = output.program_output.to_proof_facts();
+        if proof_facts != converted_proof_facts {
             return Err(VerifyProofAndFactsError::ProofFactsMismatch);
         }
 

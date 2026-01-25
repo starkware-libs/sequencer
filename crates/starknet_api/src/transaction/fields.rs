@@ -702,6 +702,31 @@ impl From<Vec<Felt>> for ProofFacts {
     }
 }
 
+/// Raw program output from the bootloader.
+/// First element is the number of tasks, followed by the actual output.
+#[derive(
+    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
+)]
+pub struct ProgramOutput(pub Arc<Vec<Felt>>);
+
+impl ProgramOutput {
+    /// Converts program output to proof facts by replacing the first element (number of tasks)
+    /// with `VIRTUAL_SNOS`.
+    pub fn to_proof_facts(&self) -> ProofFacts {
+        let mut facts = (*self.0).clone();
+        if !facts.is_empty() {
+            facts[0] = Felt::from(VIRTUAL_SNOS);
+        }
+        ProofFacts(Arc::new(facts))
+    }
+}
+
+impl From<Vec<Felt>> for ProgramOutput {
+    fn from(value: Vec<Felt>) -> Self {
+        Self(Arc::new(value))
+    }
+}
+
 impl TryFrom<ProofFacts> for SnosProofFacts {
     type Error = StarknetApiError;
     fn try_from(proof_facts: ProofFacts) -> Result<Self, Self::Error> {
