@@ -52,7 +52,6 @@ use crate::types::{
     Decision,
     LeaderElection,
     Round,
-    ValidatorId,
 };
 use crate::votes_threshold::QuorumType;
 
@@ -986,10 +985,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     }
 }
 
-/// Creates a LeaderElection struct that holds the proposer function.
-fn make_leader_election<ContextT: ConsensusContext>(
-    context: &ContextT,
+/// Creates a LeaderElection struct that holds the proposer and virtual_proposer functions.
+fn make_leader_election<'a, ContextT: ConsensusContext>(
+    context: &'a ContextT,
     height: BlockNumber,
-) -> LeaderElection<impl Fn(Round) -> ValidatorId + '_> {
-    LeaderElection::new(move |round| context.proposer(height, round))
+) -> LeaderElection<'a> {
+    LeaderElection::new(
+        Box::new(move |round| context.proposer(height, round)),
+        Box::new(move |round| context.virtual_proposer(height, round)),
+    )
 }

@@ -24,20 +24,18 @@ use starknet_api::core::ContractAddress;
 // TODO(matan): Determine the actual type of NodeId.
 pub type ValidatorId = ContractAddress;
 
+/// Function type for leader selection.
+pub(crate) type LeaderFn<'a> = Box<dyn Fn(Round) -> ValidatorId + 'a>;
+
 /// Wrapper struct for leader functions used in consensus.
-pub(crate) struct LeaderElection<F>
-where
-    F: Fn(Round) -> ValidatorId,
-{
-    proposer: F,
+pub(crate) struct LeaderElection<'a> {
+    proposer: LeaderFn<'a>,
+    _virtual_proposer: LeaderFn<'a>,
 }
 
-impl<F> LeaderElection<F>
-where
-    F: Fn(Round) -> ValidatorId,
-{
-    pub(crate) fn new(proposer: F) -> Self {
-        Self { proposer }
+impl<'a> LeaderElection<'a> {
+    pub(crate) fn new(proposer: LeaderFn<'a>, virtual_proposer: LeaderFn<'a>) -> Self {
+        Self { proposer, _virtual_proposer: virtual_proposer }
     }
 
     pub(crate) fn proposer(&self, round: Round) -> ValidatorId {
@@ -117,9 +115,11 @@ pub trait ConsensusContext {
     // 2. BTreeMap - We want a stable ordering of the nodes for deterministic leader selection.
     async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
 
-    /// Calculates the ID of the Proposer based on the inputs.
-    // TODO(matan): Consider passing the validator set in order to keep this sync.
+    /// Calculates the ID of the Actual Proposer based on the inputs.
     fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
+
+    /// Calculates the ID of the Virtual Proposer based on the inputs.
+    fn virtual_proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
