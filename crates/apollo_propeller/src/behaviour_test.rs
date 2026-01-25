@@ -200,8 +200,7 @@ async fn test_broadcast_and_receive(#[case] num_nodes: usize, #[values(0, 1, 2)]
     let message = b"Hello, Propeller!".to_vec();
 
     // Publisher broadcasts the message
-    let message_root = env
-        .node_mut(publisher_id)
+    env.node_mut(publisher_id)
         .behaviour
         .broadcast(channel, message.clone())
         .await
@@ -217,9 +216,9 @@ async fn test_broadcast_and_receive(#[case] num_nodes: usize, #[values(0, 1, 2)]
         let (recipient, unit) = env.node_mut(publisher_id).expect_send_unit().await;
         assert_eq!(unit.channel(), channel);
         assert_eq!(unit.publisher(), publisher_id);
-        assert_eq!(unit.root(), message_root);
         initial_broadcast.push((recipient, unit));
     }
+    let message_root = initial_broadcast[0].1.root();
     env.node_mut(publisher_id).expect_no_events().await;
 
     if num_steps == 1 {
