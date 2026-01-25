@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
+use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
 
@@ -54,6 +55,7 @@ pub struct Vote {
     pub round: Round,
     pub proposal_commitment: Option<ProposalCommitment>,
     pub voter: ContractAddress,
+    pub signature: RawSignature,
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
