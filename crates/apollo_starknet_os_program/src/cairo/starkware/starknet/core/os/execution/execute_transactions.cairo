@@ -479,6 +479,7 @@ func execute_invoke_function_transaction{
         proof_facts_size=proof_facts_size,
         proof_facts=proof_facts,
         current_block_number=block_context.block_info_for_execute.block_number,
+        os_config_hash=block_context.os_global_context.starknet_os_config_hash,
     );
 
     %{ StartTx %}

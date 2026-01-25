@@ -43,7 +43,7 @@ func is_program_hash_allowed(program_hash: felt) -> felt {
 
 // Validates that the proof facts of an invoke transaction are of a valid virtual OS run.
 func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
-    proof_facts_size: felt, proof_facts: felt*, current_block_number: felt
+    proof_facts_size: felt, proof_facts: felt*, current_block_number: felt, os_config_hash: felt
 ) {
     if (proof_facts_size == 0) {
         return ();
@@ -73,6 +73,9 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
         block_number=os_output_header.base_block_number,
         expected_block_hash=os_output_header.base_block_hash,
     );
+
+    // validate that the proof facts config hash is the true hash of the proof facts config hash.
+    assert os_output_header.starknet_os_config_hash = os_config_hash;
 
     return ();
 }
