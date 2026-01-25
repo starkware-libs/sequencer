@@ -110,6 +110,9 @@ mod test_instances;
 #[cfg(test)]
 mod open_storage_test;
 
+#[cfg(test)]
+mod read_your_own_writes_test;
+
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 
