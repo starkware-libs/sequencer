@@ -619,6 +619,9 @@ impl AccountDeploymentData {
 // Represent the `VIRTUAL_SNOS` as a Felt.
 pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
 
+// Represent the `PROOF0` marker as a Felt.
+pub const PROOF_VERSION: u128 = 0x50524f4f4630;
+
 /// The version of the virtual OS output (short string 'VIRTUAL_SNOS0').
 /// This must match the Cairo constant `VIRTUAL_OS_OUTPUT_VERSION` in `virtual_os_output.cairo`.
 pub const VIRTUAL_OS_OUTPUT_VERSION: u128 = 0x5649525455414c5f534e4f5330;
@@ -653,34 +656,54 @@ pub enum ProofFactsVariant {
 impl TryFrom<&ProofFacts> for ProofFactsVariant {
     type Error = StarknetApiError;
     fn try_from(proof_facts: &ProofFacts) -> Result<Self, Self::Error> {
-        let Some((variant_marker, snos_fields)) = proof_facts.0.as_slice().split_first() else {
+        if proof_facts.0.is_empty() {
             return Ok(ProofFactsVariant::Empty);
+        }
+
+        let Some(([proof_version, variant_marker], snos_fields)) =
+            proof_facts.0.split_at_checked(2)
+        else {
+            return Err(StarknetApiError::InvalidProofFacts(format!(
+                "Proof facts must have at least 2 fields, got {}",
+                proof_facts.0.len()
+            )));
         };
 
+        // Validate that the first element is PROOF0.
+        if *proof_version != Felt::from(PROOF_VERSION) {
+            return Err(StarknetApiError::InvalidProofFacts(format!(
+                "Expected first field to be {} (PROOF0), but got {}",
+                Felt::from(PROOF_VERSION),
+                proof_version
+            )));
+        }
+
+        // Validate that the second element is VIRTUAL_SNOS.
         if *variant_marker != Felt::from(VIRTUAL_SNOS) {
             return Err(StarknetApiError::InvalidProofFacts(format!(
-                "Non-SNOS proofs are not currently supported. Expected first field to be {} \
+                "Non-SNOS proofs are not currently supported. Expected second field to be {} \
                  (VIRTUAL_SNOS), but got {}",
                 Felt::from(VIRTUAL_SNOS),
                 variant_marker
             )));
         }
 
-        let [program_hash, version, block_number_felt, block_hash, config_hash, ..] = snos_fields
+        let [program_hash, virtual_os_version, block_number_felt, block_hash, config_hash, ..] =
+            snos_fields
         else {
             return Err(StarknetApiError::InvalidProofFacts(format!(
-                "SNOS proof facts must have at least 5 fields, got {}",
+                "SNOS proof facts is too small with {} fields",
                 proof_facts.0.len()
             )));
         };
 
         // TODO(Yoni): reuse VirtualOsOutput parsing.
         let expected_version = Felt::from(VIRTUAL_OS_OUTPUT_VERSION);
-        if *version != expected_version {
+        if *virtual_os_version != expected_version {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "Expected SNOS proof facts version to be {} (VIRTUAL_OS_OUTPUT_VERSION), but got \
                  {}",
-                expected_version, version
+                expected_version, virtual_os_version
             )));
         }
 
@@ -692,6 +715,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         })?);
 
         Ok(ProofFactsVariant::Snos(SnosProofFacts {
+            proof_version: *proof_version,
             program_hash: *program_hash,
             block_number,
             block_hash: BlockHash(*block_hash),
@@ -704,6 +728,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
 ///
 /// A valid SNOS proof facts structure must include these fields as its first five entries.
 pub struct SnosProofFacts {
+    pub proof_version: Felt,
     pub program_hash: StarkHash,
     pub block_number: BlockNumber,
     pub block_hash: BlockHash,

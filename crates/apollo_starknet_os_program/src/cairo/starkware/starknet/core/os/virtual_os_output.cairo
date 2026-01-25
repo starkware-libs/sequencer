@@ -3,7 +3,7 @@ const VIRTUAL_OS_OUTPUT_VERSION = 'VIRTUAL_SNOS0';
 
 // The header of the virtual OS output.
 struct VirtualOsOutputHeader {
-    version: felt,
+    virtual_os_version: felt,
     // The block number and hash that this run is based on.
     base_block_number: felt,
     base_block_hash: felt,

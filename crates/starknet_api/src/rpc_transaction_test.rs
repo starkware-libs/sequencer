@@ -151,7 +151,7 @@ fn test_invoke_tx_size_of() {
 
         // Check the size of the V3 invoke transaction.
         expect![[r#"
-            760
+            792
         "#]]
         .assert_debug_eq(&tx_v3.size_bytes());
     } else {
