@@ -61,6 +61,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     SnosProofFacts,
     ValidResourceBounds,
+    PROOF_VERSION,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
 };
