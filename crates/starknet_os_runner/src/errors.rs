@@ -106,4 +106,8 @@ pub enum ProvingError {
 
     #[error("Failed to parse proof facts: {0}")]
     ParseProofFacts(#[source] serde_json::Error),
+
+    #[cfg(feature = "in_memory_proving")]
+    #[error("In-memory prover execution failed: {0}")]
+    InMemoryProverExecution(#[from] proving_utils::in_memory_proving::StwoRunAndProveError),
 }
