@@ -36,6 +36,7 @@
   "state_sync_config.network_config.session_timeout": 120,
   "state_sync_config.p2p_sync_client_config.#is_none": "",
   "state_sync_config.p2p_sync_client_config.buffer_size": 100000,
+  "state_sync_config.p2p_sync_client_config.max_cairo0_program_size": 4194304,
   "state_sync_config.p2p_sync_client_config.num_block_classes_per_query": 100,
   "state_sync_config.p2p_sync_client_config.num_block_state_diffs_per_query": 100,
   "state_sync_config.p2p_sync_client_config.num_block_transactions_per_query": 100,

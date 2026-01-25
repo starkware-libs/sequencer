@@ -74,6 +74,7 @@ lazy_static! {
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
         wait_period_for_other_protocol: WAIT_PERIOD_FOR_OTHER_PROTOCOL,
         buffer_size: BUFFER_SIZE,
+        max_cairo0_program_size: apollo_p2p_sync_config::config::DEFAULT_MAX_CAIRO0_PROGRAM_SIZE,
     };
 }
 pub(crate) type HeaderTestPayload =
@@ -196,6 +197,7 @@ pub async fn run_test(
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
         wait_period_for_other_protocol: WAIT_PERIOD_FOR_OTHER_PROTOCOL,
         buffer_size: BUFFER_SIZE,
+        max_cairo0_program_size: apollo_p2p_sync_config::config::DEFAULT_MAX_CAIRO0_PROGRAM_SIZE,
     };
     let class_manager_client = class_manager_client.unwrap_or_default();
     let class_manager_client = Arc::new(class_manager_client);
