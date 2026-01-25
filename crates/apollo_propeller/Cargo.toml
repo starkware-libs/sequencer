@@ -21,6 +21,8 @@ rand = { workspace = true, features = ["std", "std_rng"] }
 rayon.workspace = true
 reed-solomon-simd.workspace = true
 sha2.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
