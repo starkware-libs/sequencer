@@ -107,10 +107,14 @@ impl SingleHeightConsensus {
             return VecDeque::new();
         }
         let proposer_id = leader_fn(block_info.round);
-        if block_info.proposer != proposer_id {
-            warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, block_info.proposer);
-            return VecDeque::new();
-        }
+        // This is already checked in the manager, we should never accept a proposal with an invalid
+        // proposer.
+        assert_eq!(
+            block_info.proposer, proposer_id,
+            "Invalid proposer for height {height} and round {}: expected {:?}, got {:?}",
+            block_info.round, proposer_id, block_info.proposer
+        );
+
         // Avoid duplicate validations:
         // - If SM already has an entry for this round, a (re)proposal was already recorded.
         // - If we already started validating this round, ignore repeats.
