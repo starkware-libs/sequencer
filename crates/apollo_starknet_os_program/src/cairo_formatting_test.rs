@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use apollo_infra_utils::cairo0_compiler::cairo0_format;
+use apollo_infra_utils::cairo0_compiler_test_utils::cairo0_format;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use expect_test::expect_file;
 use rstest::rstest;
