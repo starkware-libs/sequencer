@@ -712,6 +712,16 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
         };
 
+        // Check that the proposer matches the leader_fn for this height.
+        let proposer = context.proposer(height, block_info.round);
+        if proposer != block_info.proposer {
+            warn!(
+                "Invalid proposer for height {height} and round {}: expected {:?}, got {:?}",
+                block_info.round, proposer, block_info.proposer
+            );
+            return Ok(VecDeque::new());
+        }
+
         match block_info.height.cmp(&height) {
             std::cmp::Ordering::Greater => {
                 if self.cache.should_cache_proposal(&height, 0, &block_info) {

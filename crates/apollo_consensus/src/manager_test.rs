@@ -356,6 +356,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // Check that, even when sync is immediately ready, consensus still handles queued messages.
     let mut context = MockTestContext::new();
     context.expect_try_sync().returning(|_| true);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
 
     // Send messages
     let (mut proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(0);
@@ -879,6 +880,7 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
     // from storage. We wait 3 retries to make sure it retries.
     context.expect_try_sync().with(eq(LAST_VOTED_HEIGHT)).times(3).returning(|_| false);
     context.expect_try_sync().with(eq(LAST_VOTED_HEIGHT)).times(1).returning(|_| true);
+    context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
 
     let mut manager = MultiHeightManager::new(
         consensus_config,
