@@ -4,12 +4,13 @@ Generic configuration override mechanism for replacing placeholders in JSON obje
 
 This module provides functions to:
 - Load YAML configuration files
-- Replace placeholders in the format $$$_ITEM_NAME.FIELD_$$$ with values from config
+- Replace generic placeholders in the format $$$XXX$$$ with values from config
 - Validate that all placeholders have corresponding config entries
 - Detect unused config keys
 
-The placeholder format is: $$$_ITEM_NAME.FIELD_$$$ or $$$_ITEM_NAME.PART1.PART2_$$$
-The config key format is: item_name.field or item_name.part1.part2 (all lowercase)
+All placeholders use the generic format: $$$XXX$$$
+The placeholder key (XXX) is looked up directly in the config file (case-sensitive).
+Example: $$$MY_KEY$$$ is looked up as 'MY_KEY' in the YAML config.
 """
 
 import os
@@ -19,22 +20,22 @@ from typing import Any, Callable, Optional
 import yaml
 from rich.console import Console
 
-# Pattern to match $$$_ITEM_NAME.FIELD_$$$ or $$$_ITEM_NAME.PART1.PART2_$$$
-# Allow digits in item name and field path (e.g., L1_MESSAGE_SCRAPER, EXPR)
-# Must have: $$$_ at start (exactly 3 $ and exactly 1 _), ITEM_NAME (cannot start with _), dot, FIELD_PATH (cannot end with underscore), underscore, $$$ at end
-# Field path cannot end with underscore to avoid ambiguity with the required underscore before $$$
-# Item name cannot start with underscore to avoid matching double underscores like $$$__ITEM
-PLACEHOLDER_PATTERN = r"\$\$\$_(?![_])([A-Z0-9_]+)\.([A-Z0-9_.]*[A-Z0-9.])_\$\$\$"
+# Pattern to match generic placeholders ($$$XXX$$$) that are looked up directly in config
+# All placeholders are treated as generic - they are looked up by their key (case-sensitive) in the config
+# Pattern matches exactly $$$ at start and end, with no $ characters in the key
+# Valid: $$$MY_KEY$$$, $$$_MY_KEY_$$$, $$$Some_Value$$$, $$$BATCHED_TRANSACTIONS_STUCK-SEVERITY$$$
+# Invalid: $$$MY$KEY$$$ (has $ in key)
+PLACEHOLDER_PATTERN = r"\$\$\$([^$]+)\$\$\$"
 
 # Pattern to detect any potential placeholder (to catch malformed ones)
 # Matches anything that looks like it might be a placeholder
-# This is a broad pattern to catch all variations (wrong number of $, etc.)
+# This pattern matches the exact format: $$$XXX$$$ where XXX doesn't contain $
+# Single $ signs elsewhere in the content are ignored
 # We'll then validate each match strictly against PLACEHOLDER_PATTERN
-# Matches: $...$_...$...$ (any number of $ at start, underscore, content, any number of $ at end)
-POTENTIAL_PLACEHOLDER_PATTERN = r"\$+_[A-Z0-9_.]+\$+"
+POTENTIAL_PLACEHOLDER_PATTERN = r"\$\$\$[^$]+\$\$\$"
 
 
-def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
+def load_config_file(alert_rules_overrids_config_path: Optional[str], logger_instance=None) -> dict:
     """
     Load YAML config file with overrides.
     Returns empty dict if file doesn't exist or path is None.
@@ -46,13 +47,13 @@ def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
     Returns:
         Dictionary with config overrides
     """
-    if not config_path or not os.path.isfile(config_path):
+    if not alert_rules_overrids_config_path or not os.path.isfile(alert_rules_overrids_config_path):
         return {}
 
     log = logger_instance
     if log:
-        log.debug(f"Loading config file: {config_path}")
-    with open(config_path, "r") as f:
+        log.debug(f"Loading config file: {alert_rules_overrids_config_path}")
+    with open(alert_rules_overrids_config_path, "r") as f:
         config = yaml.safe_load(f) or {}
     if log:
         log.debug(f"Loaded config: {config}")
@@ -64,16 +65,14 @@ def extract_config_key_from_placeholder(placeholder: str) -> Optional[str]:
     Extract the config key from a placeholder string.
 
     Args:
-        placeholder: Placeholder string in format $$$_ITEM_NAME.FIELD_$$$
+        placeholder: Placeholder string in format $$$XXX$$$
 
     Returns:
-        Config key in format item_name.field (lowercase), or None if invalid format
+        Config key as-is (case-sensitive, e.g., 'MY_KEY'), or None if invalid format
     """
     match = re.fullmatch(PLACEHOLDER_PATTERN, placeholder)
     if match:
-        item_name = match.group(1).lower()
-        field_path = match.group(2).lower()
-        return f"{item_name}.{field_path}"
+        return match.group(1)
     return None
 
 
@@ -86,15 +85,14 @@ def replace_placeholder_in_string(
 ) -> str:
     """
     Replace placeholders in a string with values from config.
-    Supports nested fields like LABELS.OG_PRIORITY.
+    All placeholders are treated as generic: $$$XXX$$$ (looked up directly as key 'XXX' in config).
 
     Args:
         value: The string that may contain placeholders
         config: The YAML config dictionary
         logger_instance: Optional logger instance
-        item_name: Optional item name for validation (e.g., alert name, dashboard name)
-        item_name_validator: Optional function(item_name, placeholder_item_name) -> bool
-                           to validate if placeholder should be replaced
+        item_name: Optional item name (not used)
+        item_name_validator: Optional validator (not used)
 
     Returns:
         The value with placeholders replaced, or original value if no match found
@@ -102,40 +100,16 @@ def replace_placeholder_in_string(
     log = logger_instance
 
     def replace_match(match):
-        placeholder_item_name = match.group(1).lower()
-        placeholder_field_path = match.group(2).lower()
+        """Handle placeholders ($$$XXX$$$)"""
+        config_key = match.group(1)  # Keep case-sensitive
         full_placeholder = match.group(0)
 
-        # Construct the config key: item_name.field or item_name.labels.og_priority
-        config_key = f"{placeholder_item_name}.{placeholder_field_path}"
-
-        # Optional validation: check if placeholder matches current item
-        if item_name_validator:
-            if not item_name_validator(item_name, placeholder_item_name):
-                if log:
-                    log.warning(
-                        f"Placeholder {full_placeholder} doesn't match item '{item_name}'. "
-                        f"Expected item name '{item_name.lower()}', got '{placeholder_item_name}'. "
-                        f"Skipping replacement."
-                    )
-                return full_placeholder
-        elif item_name:
-            # Default validation: check if placeholder item name matches current item name
-            if placeholder_item_name != item_name.lower():
-                if log:
-                    log.warning(
-                        f"Placeholder {full_placeholder} doesn't match item '{item_name}'. "
-                        f"Expected item name '{item_name.lower()}', got '{placeholder_item_name}'. "
-                        f"Skipping replacement."
-                    )
-                return full_placeholder
-
-        # Look up in config
+        # Look up directly in config using the key
         if config_key in config:
             replacement = str(config[config_key])
             if log:
                 log.info(
-                    f"Replacing {full_placeholder} with '{replacement}' "
+                    f"Replacing placeholder {full_placeholder} with '{replacement}' "
                     f"(config key: '{config_key}')"
                 )
             return replacement
@@ -159,17 +133,15 @@ def collect_invalid_placeholders_recursive(
 ) -> list[tuple[str, str]]:
     """
     Recursively collect all invalid placeholders from an object.
-    Invalid placeholders are those:
-    - Missing the field path (e.g., $$$_ITEM_NAME_$$$)
-    - Having item name that doesn't match the expected item name
+    Invalid placeholders are those that don't match the generic format: $$$XXX$$$
 
     Args:
         obj: The object to process (dict, list, or primitive)
         path: Current path in the object (for error messages)
-        expected_item_name: Optional expected item name (e.g., alert name) to validate against
+        expected_item_name: Optional expected item name (not used)
 
     Returns:
-        List of tuples: (full_placeholder, field_path)
+        List of tuples: (full_placeholder, location_path)
     """
     invalid_placeholders = []
 
@@ -191,24 +163,11 @@ def collect_invalid_placeholders_recursive(
         for match in re.finditer(POTENTIAL_PLACEHOLDER_PATTERN, obj):
             full_placeholder = match.group(0)
             # Check if this placeholder matches the valid pattern EXACTLY (full match)
-            # Valid pattern requires: $$$_ITEM_NAME.FIELD_$$$ (exactly 3 $ at start, dot, field, underscore, exactly 3 $ at end)
-            # Use fullmatch to ensure the entire string matches, not just the beginning
+            # Valid pattern requires: $$$XXX$$$ (exactly 3 $ at start, key, exactly 3 $ at end)
             placeholder_match = re.fullmatch(PLACEHOLDER_PATTERN, full_placeholder)
-            if placeholder_match:
-                # This is a valid placeholder format, but we need to check:
-                # 1. If the entire string is JUST this placeholder (no extra text before or after)
-                if full_placeholder != obj:
-                    # There's extra text - the entire string is invalid
-                    invalid_placeholders.append((obj, path))
-                # 2. If the item name in the placeholder matches the expected item name
-                elif expected_item_name:
-                    placeholder_item_name = placeholder_match.group(1).lower()
-                    if placeholder_item_name != expected_item_name.lower():
-                        # Item name doesn't match - this is invalid
-                        invalid_placeholders.append((full_placeholder, path))
-            else:
+            if not placeholder_match:
                 # This placeholder looks like a placeholder but doesn't match the valid format exactly
-                # It's invalid (could be missing dot, missing underscore, wrong number of $, etc.)
+                # It's invalid (could be wrong format, wrong number of $, etc.)
                 invalid_placeholders.append((full_placeholder, path))
 
     return invalid_placeholders
@@ -224,15 +183,13 @@ def validate_placeholder_format(
 ) -> None:
     """
     Validate that all placeholders follow the correct format.
-    Placeholders must include a field path: $$$_ITEM_NAME.FIELD_$$$
-    Invalid format: $$$_ITEM_NAME_$$$ (missing field path)
+    All placeholders must be in the generic format: $$$XXX$$$
 
     Args:
         items: List of item dictionaries (e.g., alerts, dashboards)
         source_json_path: Path to the source JSON file (for error messages)
         logger_instance: Optional logger instance
-        item_name_extractor: Optional function(item) -> str to extract item name
-                           Default: item["name"]
+        item_name_extractor: Optional function(item) -> str to extract item name (not used)
         item_title_extractor: Optional function(item) -> str to extract item title/description
                             Default: item.get("title", "N/A")
         item_type_name: Name of the item type for error messages (e.g., "alert", "dashboard")
@@ -241,27 +198,22 @@ def validate_placeholder_format(
         ValueError: If any invalid placeholder format is detected
     """
     # Default extractors
-    if item_name_extractor is None:
-        item_name_extractor = lambda item: item["name"]
     if item_title_extractor is None:
         item_title_extractor = lambda item: item.get("title", "N/A")
 
     # Collect all invalid placeholders from all items
-    all_invalid_placeholders = []  # List of (item_name, item_title, placeholder, field_path)
+    all_invalid_placeholders = []  # List of (item_name, item_title, placeholder, location_path)
 
     for item in items:
-        item_name = item_name_extractor(item)
+        item_name = item_name_extractor(item) if item_name_extractor else "unknown"
         item_title = item_title_extractor(item)
 
         # Collect all invalid placeholders for this item
-        # Pass the item name to validate that placeholders match the actual item name
-        invalid_placeholders = collect_invalid_placeholders_recursive(
-            item, expected_item_name=item_name
-        )
+        invalid_placeholders = collect_invalid_placeholders_recursive(item)
 
         # Add to the list with item context
-        for placeholder, field_path in invalid_placeholders:
-            all_invalid_placeholders.append((item_name, item_title, placeholder, field_path))
+        for placeholder, location_path in invalid_placeholders:
+            all_invalid_placeholders.append((item_name, item_title, placeholder, location_path))
 
     # If no invalid placeholders found, validation passed
     if not all_invalid_placeholders:
@@ -281,18 +233,15 @@ def validate_placeholder_format(
         f"[cyan]{len(set(p[0] for p in all_invalid_placeholders))}[/cyan] {item_type_name}(s):",
         "",
         "[bold]Invalid Format:[/bold]",
-        "  Placeholders must include a field path after the item name.",
-        f"  The item name in the placeholder must match the actual {item_type_name} name.",
+        "  Placeholders must be in the format: $$$XXX$$$",
         "",
         "[bold]Valid Examples:[/bold]",
-        "  [green]$$$_ALERT_NAME.FIELD_$$$[/green]  (item name matches alert name)",
-        "  [green]$$$_ALERT_NAME.FIELD.NESTED_$$$[/green]",
-        "  [green]$$$_ALERT_NAME.FIELD.NESTED.DEEPER_$$$[/green]",
+        "  [green]$$$MY_KEY$$$[/green]",
+        "  [green]$$$SOME_VALUE$$$[/green]",
+        "  [green]$$$BATCHED_TRANSACTIONS_STUCK-SEVERITY$$$[/green]",
         "",
         "[bold]Invalid Examples:[/bold]",
-        "  [red]$$$_ALERT_NAME_$$$[/red]  (missing field path)",
-        "  [red]$$$_WRONG_NAME.FIELD_$$$[/red]  (item name doesn't match alert name)",
-        "  [red]$$$_STRING.FIELD_$$$[/red]  (generic placeholder, item name doesn't match)",
+        "  [red]$$_MY_$KEY_$$$[/red] (contains $)",
         "",
         "[bold]File Paths:[/bold]",
     ]
@@ -308,21 +257,10 @@ def validate_placeholder_format(
     error_parts.append("[bold]" + "-" * 80 + "[/bold]")
 
     # Display invalid placeholders with context
-    for item_name, item_title, placeholder, field_path in all_invalid_placeholders:
+    for item_name, item_title, placeholder, location_path in all_invalid_placeholders:
         error_parts.append(f"[bold]Item:[/bold] [cyan]{item_name}[/cyan] ({item_title})")
-        error_parts.append(f"[bold]Field:[/bold] [yellow]{field_path}[/yellow]")
+        error_parts.append(f"[bold]Location:[/bold] [yellow]{location_path}[/yellow]")
         error_parts.append(f"[bold]Invalid Placeholder:[/bold] [red]{placeholder}[/red]")
-
-        # Check if it's an item name mismatch (placeholder format is valid but item name doesn't match)
-        placeholder_match = re.fullmatch(PLACEHOLDER_PATTERN, placeholder)
-        if placeholder_match:
-            placeholder_item_name = placeholder_match.group(1).lower()
-            if placeholder_item_name != item_name.lower():
-                error_parts.append(
-                    f"[bold]Reason:[/bold] [yellow]Item name in placeholder ('{placeholder_item_name}') "
-                    f"does not match actual {item_type_name} name ('{item_name.lower()}')[/yellow]"
-                )
-
         error_parts.append("")  # Empty line between items
 
     # Remove trailing empty line
@@ -332,9 +270,8 @@ def validate_placeholder_format(
     error_parts.append("")
     error_parts.append("[bold]To fix:[/bold]")
     error_parts.append(
-        "  Add the field path to your placeholder. For example:\n"
-        "  - If you want to override the 'for' field: [green]$$$_ALERT_NAME.FOR_$$$[/green]\n"
-        "  - If you want to override nested field: [green]$$$_ALERT_NAME.LABELS.OG_PRIORITY_$$$[/green]"
+        "  Use the generic placeholder format: [green]$$$YOUR_KEY$$$[/green]\n"
+        "  Then add the corresponding key (case-sensitive) to your YAML config file."
     )
     error_parts.append("")
     error_parts.append("[bold red]" + "=" * 80 + "[/bold red]")
@@ -362,7 +299,6 @@ def validate_placeholder_format(
 def collect_placeholders_recursive(
     obj: Any,
     path: str = "",
-    item_name_filter: Optional[str] = None,
 ) -> set[tuple[str, str, str]]:
     """
     Recursively collect all placeholders from an object.
@@ -370,38 +306,25 @@ def collect_placeholders_recursive(
     Args:
         obj: The object to process (dict, list, or primitive)
         path: Current path in the object (for error messages)
-        item_name_filter: Optional item name to filter placeholders (e.g., alert name)
-                        If provided, only placeholders matching this item name are collected
 
     Returns:
-        Set of tuples: (full_placeholder, config_key, field_path)
+        Set of tuples: (full_placeholder, config_key, location_path)
     """
     placeholders = set()
 
     if isinstance(obj, dict):
         for key, value in obj.items():
             current_path = f"{path}.{key}" if path else key
-            placeholders.update(
-                collect_placeholders_recursive(value, current_path, item_name_filter)
-            )
+            placeholders.update(collect_placeholders_recursive(value, current_path))
     elif isinstance(obj, list):
         for i, item in enumerate(obj):
             current_path = f"{path}[{i}]" if path else f"[{i}]"
-            placeholders.update(
-                collect_placeholders_recursive(item, current_path, item_name_filter)
-            )
+            placeholders.update(collect_placeholders_recursive(item, current_path))
     elif isinstance(obj, str):
-        # Find all placeholders in this string
+        # Find all placeholders in this string ($$$XXX$$$)
         for match in re.finditer(PLACEHOLDER_PATTERN, obj):
-            placeholder_item_name = match.group(1).lower()
-            placeholder_field_path = match.group(2).lower()
+            config_key = match.group(1)  # Keep case-sensitive
             full_placeholder = match.group(0)
-
-            # Optional filtering by item name
-            if item_name_filter and placeholder_item_name != item_name_filter.lower():
-                continue
-
-            config_key = f"{placeholder_item_name}.{placeholder_field_path}"
             placeholders.add((full_placeholder, config_key, path))
 
     return placeholders
@@ -461,7 +384,7 @@ def replace_placeholders_recursive(
             if log:
                 item_context = f"item '{item_name}'" if item_name else "item"
                 log.info(
-                    f"Applied override for {item_context}, field '{path}': "
+                    f"Applied override for {item_context}, location '{path}': "
                     f"'{original_value}' -> '{replaced_value}'"
                 )
             return replaced_value
@@ -527,21 +450,21 @@ def validate_config_overrides(
     all_placeholders = set()  # Set of all config keys that have placeholders
     all_missing_placeholders = (
         []
-    )  # List of (item_name, item_title, placeholder, config_key, field_path)
+    )  # List of (item_name, item_title, placeholder, config_key, location_path)
 
     for item in items:
         item_name = item_name_extractor(item)
         item_title = item_title_extractor(item)
 
         # Collect all placeholders for this item
-        placeholders = collect_placeholders_recursive(item, item_name_filter=item_name)
+        placeholders = collect_placeholders_recursive(item)
 
         # Check which placeholders are missing from config
-        for full_placeholder, config_key, field_path in placeholders:
+        for full_placeholder, config_key, location_path in placeholders:
             all_placeholders.add(config_key)  # Track all placeholder config keys
             if config_key not in config:
                 all_missing_placeholders.append(
-                    (item_name, item_title, full_placeholder, config_key, field_path)
+                    (item_name, item_title, full_placeholder, config_key, location_path)
                 )
 
     # Check for unused config keys (keys in config that don't have corresponding placeholders)
@@ -595,7 +518,13 @@ def validate_config_overrides(
         error_parts.append("[bold]" + "-" * 80 + "[/bold]")
 
         # Simple list: placeholder on one line, config key on next line
-        for item_name, item_title, placeholder, config_key, field_path in all_missing_placeholders:
+        for (
+            item_name,
+            item_title,
+            placeholder,
+            config_key,
+            location_path,
+        ) in all_missing_placeholders:
             error_parts.append(f"[red]{placeholder}[/red]")
             error_parts.append(f"[green]{config_key}[/green]")
             error_parts.append("")  # Empty line between pairs
@@ -612,8 +541,7 @@ def validate_config_overrides(
         # Convert config keys to placeholder format for display
         for config_key in sorted(unused_config_keys):
             # Convert config key back to placeholder format
-            # item.field -> $$$_ITEM_FIELD_$$$
-            placeholder = f"$$$_{config_key.upper().replace('.', '_')}_$$$"
+            placeholder = f"$$${config_key.upper().replace('-', '_')}$$$"
             error_parts.append(f"[yellow]{config_key}[/yellow]")
             error_parts.append(f"[dim]{placeholder}[/dim]")
             error_parts.append("")  # Empty line between pairs
@@ -676,17 +604,17 @@ def apply_config_overrides(
     post_process: Optional[Callable[[dict], dict]] = None,
 ) -> dict[str, Any]:
     """
-    Apply config overrides to item fields that contain placeholders.
-    Recursively searches through the entire item object to find and replace placeholders in ANY field.
+    Apply config overrides to items that contain generic placeholders.
+    Recursively searches through the entire item object to find and replace placeholders.
 
     Args:
         item: The item dictionary (e.g., alert, dashboard)
         config: The YAML config dictionary
         logger_instance: Optional logger instance
-        item_name: Optional item name for validation
-        item_name_validator: Optional function to validate item name matching
+        item_name: Optional item name (not used)
+        item_name_validator: Optional validator (not used)
         post_process: Optional function(item) -> item to apply post-processing
-                    (e.g., type conversions, field transformations)
+                    (e.g., type conversions, transformations)
 
     Returns:
         A copy of item with placeholders replaced

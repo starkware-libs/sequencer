@@ -1,25 +1,21 @@
 # Alert Override Configuration
-# This file contains environment-specific overrides for alert rule fields.
+# This file contains environment-specific overrides for alert rule placeholders.
 # 
-# Format: alert_name.field: value
-# 
-# The alert_name should match the alert name in dev_grafana_alerts_*.json (lowercase).
-# The field should match the field name in the placeholder (lowercase).
+# All placeholders use the generic format: $$$KEY$$$
+# The key in this YAML file must match the placeholder key exactly (case-sensitive).
 #
-# Example placeholders in JSON:
-#   "for": "$$$_CONSENSUS_PROPOSAL_FIN_MISMATCH_ONCE.FOR_$$$"
-#   "severity": "$$$_CONSENSUS_PROPOSAL_FIN_MISMATCH_ONCE.LABELS.OG_PRIORITY_$$$"
-#   "conditions": [{"evaluator": {"params": ["$$$_ALERT_NAME.CONDITIONS.0.EVALUATOR.PARAMS.0_$$$"]}}]
+# Example:
+#   In JSON: "severity": "$$$BATCHED_TRANSACTIONS_STUCK-SEVERITY$$$"
+#   In YAML: BATCHED_TRANSACTIONS_STUCK-SEVERITY: "p5"
 #
-# Config keys (lowercase):
-#   consensus_proposal_fin_mismatch_once.for: "5m"
-#   consensus_proposal_fin_mismatch_once.labels.og_priority: "p4"
-#   l1_message_scraper_baselayer_error_count.conditions.0.evaluator.params.0: 5.0
+# The placeholder $$$BATCHED_TRANSACTIONS_STUCK-SEVERITY$$$ will be replaced with "p5"
 #
-# Note: For numeric values in nested structures (like conditions.params), convert the number
-# to a string placeholder in JSON, then provide the numeric value in YAML. The system will
-# automatically convert it back to a number during processing.
+# Note: For numeric values, provide the numeric value in YAML. The system will
+# automatically convert it back to a number during processing if needed.
 
-# Add more overrides as needed
-# cende_write_blob_failure_once.for: "1m"
-# cende_write_prev_height_blob_latency_too_high.for: "2m"
+# Generic placeholder overrides
+batched_transactions_stuck-severity: "p5"
+batched_transactions_stuck_long_time-severity: "p5"
+get_consensus_block_number_progress_is_slow-comparison: 6.666666666666667
+consensus_block_number_stuck-expression: 120
+consensus_block_number_stuck_long_time-expression: 1800
