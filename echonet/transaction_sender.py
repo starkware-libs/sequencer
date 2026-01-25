@@ -257,7 +257,7 @@ class TransactionSenderService:
 
                     revert_errors = _extract_revert_errors_by_tx_hash(block)
                     if revert_errors:
-                        shared.record_mainnet_revert_errors(revert_errors)
+                        shared.record_mainnet_revert_errors(block_number, revert_errors)
 
                     all_txs = block["transactions"]
                     valid_txs = TxSelector.filter_blocked(all_txs, CONFIG.tx_filter.blocked_senders)
