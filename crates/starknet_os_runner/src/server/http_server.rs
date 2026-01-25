@@ -6,6 +6,7 @@
 
 use std::net::SocketAddr;
 
+use apollo_transaction_converter::ProgramOutputError;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -81,6 +82,9 @@ impl IntoResponse for HttpServerError {
                 VirtualSnosProverError::OutputParseError(err) => {
                     (StatusCode::INTERNAL_SERVER_ERROR, "OUTPUT_PARSE_ERROR", err.to_string())
                 }
+                VirtualSnosProverError::ProgramOutputError(e) => {
+                    (StatusCode::INTERNAL_SERVER_ERROR, "PROGRAM_OUTPUT_ERROR", e.to_string())
+                }
             },
         };
 
@@ -109,7 +113,7 @@ async fn prove_transaction(
     // Build response.
     let response = ProveTransactionResponse {
         proof: output.proof,
-        proof_facts: output.proof_facts,
+        proof_facts,
         l2_to_l1_messages: output.l2_to_l1_messages,
     };
 

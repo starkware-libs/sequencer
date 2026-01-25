@@ -8,6 +8,7 @@ use std::time::Instant;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use starknet_api::core::ChainId;
+use starknet_api::felt::Felt;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_api::transaction::{
@@ -136,9 +137,13 @@ impl VirtualSnosProver {
             "Proving completed"
         );
 
+        // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
+        let proof_facts =
+            prover_output.program_output.try_into_proof_facts(Felt::from(VIRTUAL_SNOS))?;
+
         Ok(VirtualSnosProverOutput {
             proof: prover_output.proof,
-            proof_facts: prover_output.proof_facts,
+            proof_facts,
             // TODO(Aviv): Add l2_to_l1_messages to the runner output and use it here.
             l2_to_l1_messages: Vec::new(),
             os_duration,
