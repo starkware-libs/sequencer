@@ -328,6 +328,14 @@ class SharedContext:
         with self._lock:
             self._tx.record_committed(tx_hash, block_number)
 
+    def is_pending_tx(self, tx_hash: str) -> bool:
+        with self._lock:
+            return tx_hash in self._tx.currently_pending
+
+    def get_pending_tx_count(self) -> int:
+        with self._lock:
+            return len(self._tx.currently_pending)
+
     def get_sent_block_number(self, tx_hash: str) -> int:
         with self._lock:
             return self._tx.currently_pending[tx_hash]

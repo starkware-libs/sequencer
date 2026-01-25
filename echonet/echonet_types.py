@@ -133,6 +133,14 @@ class SleepConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class TxSenderTuning:
+    """Tuning parameters for transaction_sender consumer."""
+
+    max_pending_txs_before_pausing: int = 15
+    poll_interval_seconds: float = 0.25
+
+
+@dataclass(frozen=True, slots=True)
 class PathsConfig:
     """Filesystem locations for auxiliary artifacts (reports, snapshots, etc.)."""
 
@@ -166,6 +174,7 @@ class EchonetConfig:
     sequencer: SequencerGatewayConfig
     blocks: BlockRangeDefaults
     sleep: SleepConfig
+    tx_sender: TxSenderTuning
     paths: PathsConfig
     tx_filter: TxFilterConfig
     resync: ResyncConfig
@@ -185,6 +194,7 @@ class EchonetConfig:
         start_block = int(keys["start_block"])
         resync_threshold = int(keys.get("resync_error_threshold", 1))
         blocked_senders_csv = str(keys.get("blocked_senders", ""))
+        max_pending_txs_before_pausing = int(keys.get("max_pending_txs_before_pausing", 15))
 
         feeder_bypass = str(secrets.get("feeder_x_throttling_bypass", "")).strip()
         feeder_headers = MappingProxyType(
@@ -209,6 +219,9 @@ class EchonetConfig:
                 end_block=int(keys.get("end_block_default", MAX_BLOCK_NUMBER)),
             ),
             sleep=SleepConfig(),
+            tx_sender=TxSenderTuning(
+                max_pending_txs_before_pausing=max_pending_txs_before_pausing,
+            ),
             paths=PathsConfig(),
             tx_filter=TxFilterConfig(
                 blocked_senders=helpers.parse_csv_to_lower_set(blocked_senders_csv),
