@@ -4,12 +4,8 @@ use std::time::Duration;
 
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::communication::MockCommitterClient;
-use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
-use mockall::predicate::eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::StateDiffCommitment;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, timeout};
@@ -46,14 +42,6 @@ fn mock_dependencies() -> MockDependencies {
 fn add_initial_heights(mock_dependencies: &mut MockDependencies) {
     mock_dependencies.storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     mock_dependencies.storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
-}
-
-fn get_dummy_parent_hash_and_partial_block_hash_components(
-    height: &BlockNumber,
-) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)> {
-    let partial_block_hash_components =
-        PartialBlockHashComponents { block_number: *height, ..Default::default() };
-    Ok((Some(BlockHash::default()), Some(partial_block_hash_components)))
 }
 
 fn get_number_of_tasks_in_sender<T>(sender: &Sender<T>) -> usize {
@@ -130,25 +118,11 @@ async fn test_create_commitment_manager_with_missing_tasks(
         .storage_reader
         .expect_global_root_height()
         .returning(move || Ok(global_root_height));
-    mock_dependencies
-        .storage_reader
-        .expect_get_parent_hash_and_partial_block_hash_components()
-        .with(eq(global_root_height))
-        .returning(|height| get_dummy_parent_hash_and_partial_block_hash_components(&height));
-    mock_dependencies
-        .storage_reader
-        .expect_get_state_diff()
-        .with(eq(global_root_height))
-        .returning(|_| Ok(Some(test_state_diff())));
 
-    let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
+    let commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
 
     assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT,);
-    assert_eq!(get_number_of_tasks_in_sender(&commitment_manager.tasks_sender), 1,);
-    commitment_manager.state_committer.pop_task_and_insert_result().await;
-    let results = await_results(&mut commitment_manager.results_receiver, 1).await;
-    let result = (results.first().unwrap()).clone().expect_commitment();
-    assert_eq!(result.height, global_root_height);
+    assert_eq!(get_number_of_tasks_in_sender(&commitment_manager.tasks_sender), 0,);
 }
 
 #[rstest]

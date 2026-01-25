@@ -59,17 +59,21 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let global_root_height = storage_reader
             .global_root_height()
             .expect("Failed to get global root height from storage.");
-        info!("Initializing commitment manager.");
-        let mut commitment_manager = CommitmentManager::initialize(
-            commitment_manager_config,
-            global_root_height,
-            committer_client,
-        );
         let block_height =
             storage_reader.state_diff_height().expect("Failed to get block height from storage.");
-        commitment_manager
-            .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
-            .await;
+
+        info!("Initializing commitment manager.");
+        info!(
+            "Startup commitment backfill is disabled. Initializing commitment_task_offset to \
+             current block height {block_height} (instead of global_root_height \
+             {global_root_height})."
+        );
+        let commitment_manager = CommitmentManager::initialize(
+            commitment_manager_config,
+            block_height,
+            committer_client,
+        );
+        let _ = (batcher_config, storage_reader);
         commitment_manager
     }
 
