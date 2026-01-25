@@ -116,7 +116,8 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-aerospike = "2.0.0-alpha.6"
+# Aerospike minor version bump includes breaking change.
+aerospike = "=2.0.0-alpha.6"
 alloy = "1.1.0"
 alloy-primitives = "1.5"
 anyhow = "1.0.44"
