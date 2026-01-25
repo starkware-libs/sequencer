@@ -9,4 +9,5 @@ pub use transaction_converter::{
     TransactionConverterError,
     TransactionConverterResult,
     TransactionConverterTrait,
+    VerificationHandle,
 };

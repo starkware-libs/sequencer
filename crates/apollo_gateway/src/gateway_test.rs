@@ -37,6 +37,7 @@ use apollo_transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
     TransactionConverterResult,
+    VerificationHandle,
 };
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
@@ -270,7 +271,7 @@ fn setup_transaction_converter_mock(
         .expect_convert_rpc_tx_to_internal_rpc_tx()
         .once()
         .with(eq(rpc_tx))
-        .return_once(move |_| Ok(internal_tx));
+        .return_once(move |_| Ok((internal_tx, None)));
 
     let internal_tx = tx_args.get_internal_tx();
     let executable_tx = tx_args.get_executable_tx();
@@ -461,12 +462,15 @@ async fn test_add_tx_positive(
     Ok(executable_invoke_tx(invoke_args())),
 )]
 #[case::internal_to_executable_fails(
-    Ok(invoke_args().get_internal_tx()),
+    Ok((invoke_args().get_internal_tx(), None)),
     Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() })
 )]
 #[tokio::test]
 async fn test_transaction_converter_error(
-    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<InternalRpcTransaction>,
+    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<(
+        InternalRpcTransaction,
+        Option<VerificationHandle>,
+    )>,
     #[case] expect_executable_tx_result: TransactionConverterResult<AccountTransaction>,
     mut mock_dependencies: MockDependencies,
 ) {
