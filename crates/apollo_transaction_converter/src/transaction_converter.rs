@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Instant;
 
 use apollo_class_manager_types::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};
@@ -27,10 +28,12 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, PROOF_VERSION};
-use starknet_api::transaction::CalculateContractAddress;
+use starknet_api::transaction::{CalculateContractAddress, TransactionHash};
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
+use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::proof_verification::{stwo_verify, VerifyProofError};
@@ -63,6 +66,17 @@ pub enum TransactionConverterError {
 
 pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
 
+pub type VerificationTask = Arc<Mutex<Option<JoinHandle<Result<(), TransactionConverterError>>>>>;
+
+#[derive(Debug)]
+pub struct VerificationHandle {
+    // TODO(Dori): add a field for the class hash.
+    pub tx_hash: TransactionHash,
+    pub proof_facts: ProofFacts,
+    pub proof: Proof,
+    pub verification_task: VerificationTask,
+}
+
 #[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
 pub trait TransactionConverterTrait: Send + Sync {
@@ -74,7 +88,7 @@ pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
         tx: ConsensusTransaction,
-    ) -> TransactionConverterResult<InternalConsensusTransaction>;
+    ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerificationHandle>)>;
 
     async fn convert_internal_rpc_tx_to_rpc_tx(
         &self,
@@ -84,7 +98,7 @@ pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
-    ) -> TransactionConverterResult<InternalRpcTransaction>;
+    ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)>;
 
     async fn convert_internal_rpc_tx_to_executable_tx(
         &self,
@@ -162,16 +176,18 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
         tx: ConsensusTransaction,
-    ) -> TransactionConverterResult<InternalConsensusTransaction> {
+    ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerificationHandle>)>
+    {
         match tx {
             ConsensusTransaction::RpcTransaction(tx) => {
-                let internal_tx =
-                    self.extract_proof_and_convert_rpc_tx_to_internal_rpc_tx(tx).await?;
-                Ok(InternalConsensusTransaction::RpcTransaction(internal_tx))
+                let (internal_tx, verification_handle) =
+                    self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
+                Ok((InternalConsensusTransaction::RpcTransaction(internal_tx), verification_handle))
             }
-            ConsensusTransaction::L1Handler(tx) => self
-                .convert_consensus_l1_handler_to_internal_l1_handler(tx)
-                .map(InternalConsensusTransaction::L1Handler),
+            ConsensusTransaction::L1Handler(tx) => {
+                let internal_tx = self.convert_consensus_l1_handler_to_internal_l1_handler(tx)?;
+                Ok((InternalConsensusTransaction::L1Handler(internal_tx), None))
+            }
         }
     }
 
@@ -230,16 +246,18 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
-    ) -> TransactionConverterResult<InternalRpcTransaction> {
-        let tx_without_hash = match tx {
+    ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)> {
+        let (tx_without_hash, verification_handle) = match tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
-                // Verify proof here; storage happens in the caller after successful
+                // Spawn proof verification task; storage happens in the caller after successful
                 // conversion/validation.
-                self.handle_proof_verification(&tx.proof_facts, &tx.proof).await?;
-                InternalRpcTransactionWithoutTxHash::Invoke(tx.into())
+                let verification_handle =
+                    self.spawn_proof_verification(&tx.proof_facts, &tx.proof)?;
+                (InternalRpcTransactionWithoutTxHash::Invoke(tx.into()), verification_handle)
             }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
                 let ClassHashes { class_hash, executable_class_hash_v2 } =
+                // TODO(Dori): Make this async and spawn a task to compile and add it to the class manager.
                     self.class_manager_client.add_class(tx.contract_class).await?;
                 // TODO(Aviv): Ensure that we do not want to
                 // allow declare with compiled class hash v1.
@@ -251,33 +269,46 @@ impl TransactionConverterTrait for TransactionConverter {
                         },
                     ));
                 }
-                InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
-                    sender_address: tx.sender_address,
-                    compiled_class_hash: tx.compiled_class_hash,
-                    signature: tx.signature,
-                    nonce: tx.nonce,
-                    class_hash,
-                    resource_bounds: tx.resource_bounds,
-                    tip: tx.tip,
-                    paymaster_data: tx.paymaster_data,
-                    account_deployment_data: tx.account_deployment_data,
-                    nonce_data_availability_mode: tx.nonce_data_availability_mode,
-                    fee_data_availability_mode: tx.fee_data_availability_mode,
-                })
+                (
+                    InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
+                        sender_address: tx.sender_address,
+                        compiled_class_hash: tx.compiled_class_hash,
+                        signature: tx.signature,
+                        nonce: tx.nonce,
+                        class_hash,
+                        resource_bounds: tx.resource_bounds,
+                        tip: tx.tip,
+                        paymaster_data: tx.paymaster_data,
+                        account_deployment_data: tx.account_deployment_data,
+                        nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                        fee_data_availability_mode: tx.fee_data_availability_mode,
+                    }),
+                    None,
+                )
             }
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
                 let contract_address = tx.calculate_contract_address()?;
-                InternalRpcTransactionWithoutTxHash::DeployAccount(
-                    InternalRpcDeployAccountTransaction {
-                        tx: RpcDeployAccountTransaction::V3(tx),
-                        contract_address,
-                    },
+                (
+                    InternalRpcTransactionWithoutTxHash::DeployAccount(
+                        InternalRpcDeployAccountTransaction {
+                            tx: RpcDeployAccountTransaction::V3(tx),
+                            contract_address,
+                        },
+                    ),
+                    None,
                 )
             }
         };
         let tx_hash = tx_without_hash.calculate_transaction_hash(&self.chain_id)?;
 
-        Ok(InternalRpcTransaction { tx: tx_without_hash, tx_hash })
+        // Update the tx_hash in the verification handle
+        // do I need this?
+        let verification_handle = verification_handle.map(|mut handle| {
+            handle.tx_hash = tx_hash;
+            handle
+        });
+
+        Ok((InternalRpcTransaction { tx: tx_without_hash, tx_hash }, verification_handle))
     }
 
     async fn convert_internal_rpc_tx_to_executable_tx(
@@ -351,97 +382,89 @@ impl TransactionConverter {
         )?)
     }
 
-    async fn extract_proof_and_convert_rpc_tx_to_internal_rpc_tx(
-        &self,
-        tx: RpcTransaction,
-    ) -> TransactionConverterResult<InternalRpcTransaction> {
-        // Extract proof and proof facts from v3 invoke transaction before conversion.
-        let proof_data = match &tx {
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
-                if !invoke_tx.proof_facts.is_empty() {
-                    Some((invoke_tx.proof_facts.clone(), invoke_tx.proof.clone()))
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-        let internal_tx = self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
-        if let Some((proof_facts, proof)) = proof_data {
-            let proof_manager_store_start = Instant::now();
-            self.proof_manager_client.set_proof(proof_facts, proof).await?;
-            let proof_manager_store_duration = proof_manager_store_start.elapsed();
-            let tx_hash = internal_tx.tx_hash;
-            info!(
-                "Proof manager store in the consensus took: {proof_manager_store_duration:?} for \
-                 tx hash: {tx_hash:?}"
-            );
-        }
-        Ok(internal_tx)
-    }
-    async fn handle_proof_verification(
+    fn spawn_proof_verification(
         &self,
         proof_facts: &ProofFacts,
         proof: &Proof,
-    ) -> TransactionConverterResult<()> {
+    ) -> TransactionConverterResult<Option<VerificationHandle>> {
         // If the proof facts are empty, it is a standard transaction that does not use client-side
         // proving and we skip proof verification. We return Ok only if the proof facts are
         // empty (and not the proof) because the proof facts are trusted and we do not want
         // transactions that are missing proofs but contain proof facts to be accepted.
         if proof_facts.is_empty() {
-            return Ok(());
+            return Ok(None);
         }
 
-        let contains_proof = self.proof_manager_client.contains_proof(proof_facts.clone()).await?;
-        // If the proof already exists in the proof manager, indicating it has already been
-        // verified, we skip proof verification.
-        if contains_proof {
-            return Ok(());
-        }
+        // Clone data needed for the spawned task.
+        let proof_facts_for_task = proof_facts.clone();
+        let proof_for_task = proof.clone();
+        let proof_facts_for_handle = proof_facts.clone();
+        let proof_for_handle = proof.clone();
+        let proof_manager_client = self.proof_manager_client.clone();
 
-        let verify_start = Instant::now();
-        self.verify_proof(proof_facts.clone(), proof.clone())?;
-        let verify_duration = verify_start.elapsed();
-        let proof_facts_hash = proof_facts.hash();
-        info!(
-            "Proof verification took: {verify_duration:?} for proof facts hash: \
-             {proof_facts_hash:?}"
-        );
-        Ok(())
+        // Spawn verification task.
+        let verification_task = tokio::spawn(async move {
+            let contains_proof =
+                proof_manager_client.contains_proof(proof_facts_for_task.clone()).await?;
+
+            // If the proof already exists in the proof manager, indicating it has already been
+            // verified, we skip proof verification.
+            if contains_proof {
+                return Ok(());
+            }
+
+            let verify_start = Instant::now();
+            verify_proof(proof_facts_for_task.clone(), proof_for_task)?;
+            let verify_duration = verify_start.elapsed();
+            let proof_facts_hash = proof_facts_for_task.hash();
+            info!(
+                "Proof verification took: {verify_duration:?} for proof facts hash: \
+                 {proof_facts_hash:?}"
+            );
+
+            Ok(())
+        });
+
+        Ok(Some(VerificationHandle {
+            tx_hash: TransactionHash::default(), // Will be filled in by caller.
+            proof_facts: proof_facts_for_handle.clone(),
+            proof: proof_for_handle.clone(),
+            verification_task: Arc::new(Mutex::new(Some(verification_task))),
+        }))
+    }
+}
+
+/// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
+/// program hash to the expected value.
+fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
+    // Reject empty proof payloads before running the verifier.
+    if proof.is_empty() {
+        return Err(VerifyProofError::EmptyProof);
     }
 
-    /// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
-    /// program hash to the expected value.
-    fn verify_proof(&self, proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
-        // Reject empty proof payloads before running the verifier.
-        if proof.is_empty() {
-            return Err(VerifyProofError::EmptyProof);
-        }
-
-        // Validate that the first element of proof facts is PROOF_VERSION.
-        let expected_proof_version = PROOF_VERSION;
-        let actual_first = proof_facts.0.first().copied().unwrap_or_default();
-        if actual_first != expected_proof_version {
-            return Err(VerifyProofError::InvalidProofVersion {
-                expected: expected_proof_version,
-                actual: actual_first,
-            });
-        }
-
-        // Verify proof and extract program output and program hash.
-        let output = stwo_verify(proof)?;
-
-        let program_variant = proof_facts.0.get(1).copied().unwrap_or_default();
-        let expected_proof_facts = output.program_output.try_into_proof_facts(program_variant)?;
-        if expected_proof_facts != proof_facts {
-            return Err(VerifyProofError::ProofFactsMismatch);
-        }
-
-        // Validate the bootloader program hash output against the expected bootloader hash.
-        if output.program_hash != BOOTLOADER_PROGRAM_HASH {
-            return Err(VerifyProofError::BootloaderHashMismatch);
-        }
-
-        Ok(())
+    // Validate that the first element of proof facts is PROOF_VERSION.
+    let expected_proof_version = PROOF_VERSION;
+    let actual_first = proof_facts.0.first().copied().unwrap_or_default();
+    if actual_first != expected_proof_version {
+        return Err(VerifyProofError::InvalidProofVersion {
+            expected: expected_proof_version,
+            actual: actual_first,
+        });
     }
+
+    // Verify proof and extract program output and program hash.
+    let output = stwo_verify(proof)?;
+
+    let program_variant = proof_facts.0.get(1).copied().unwrap_or_default();
+    let expected_proof_facts = output.program_output.try_into_proof_facts(program_variant)?;
+    if expected_proof_facts != proof_facts {
+        return Err(VerifyProofError::ProofFactsMismatch);
+    }
+
+    // Validate the bootloader program hash output against the expected bootloader hash.
+    if output.program_hash != BOOTLOADER_PROGRAM_HASH {
+        return Err(VerifyProofError::BootloaderHashMismatch);
+    }
+
+    Ok(())
 }

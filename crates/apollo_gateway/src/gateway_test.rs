@@ -37,6 +37,7 @@ use apollo_transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
     TransactionConverterResult,
+    VerificationHandle,
 };
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
@@ -266,11 +267,31 @@ fn setup_transaction_converter_mock(
 ) {
     let rpc_tx = tx_args.get_rpc_tx();
     let internal_tx = tx_args.get_internal_tx();
+
+    // Create verification handle if the transaction has proof facts.
+    let verification_handle =
+        if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = rpc_tx {
+            if !invoke_tx.proof_facts.is_empty() {
+                // Create a simple task that just returns Ok (verification is mocked).
+                let verification_task = tokio::spawn(async { Ok(()) });
+                Some(VerificationHandle {
+                    tx_hash: internal_tx.tx_hash,
+                    proof_facts: invoke_tx.proof_facts.clone(),
+                    proof: invoke_tx.proof.clone(),
+                    verification_task: Arc::new(tokio::sync::Mutex::new(Some(verification_task))),
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
     mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
         .once()
         .with(eq(rpc_tx))
-        .return_once(move |_| Ok(internal_tx));
+        .return_once(move |_| Ok((internal_tx, verification_handle)));
 
     let internal_tx = tx_args.get_internal_tx();
     let executable_tx = tx_args.get_executable_tx();
@@ -461,12 +482,15 @@ async fn test_add_tx_positive(
     Ok(executable_invoke_tx(invoke_args())),
 )]
 #[case::internal_to_executable_fails(
-    Ok(invoke_args().get_internal_tx()),
+    Ok((invoke_args().get_internal_tx(), None)),
     Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() })
 )]
 #[tokio::test]
 async fn test_transaction_converter_error(
-    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<InternalRpcTransaction>,
+    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<(
+        InternalRpcTransaction,
+        Option<VerificationHandle>,
+    )>,
     #[case] expect_executable_tx_result: TransactionConverterResult<AccountTransaction>,
     mut mock_dependencies: MockDependencies,
 ) {
