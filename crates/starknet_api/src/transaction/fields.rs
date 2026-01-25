@@ -619,6 +619,9 @@ impl AccountDeploymentData {
 // Represent the `VIRTUAL_SNOS` as a Felt.
 pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
 
+// Represent the `PROOF0` marker as a Felt.
+pub const PROOF0: u128 = 0x50524f4f4630;
+
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
 #[derive(
@@ -649,13 +652,29 @@ pub enum ProofFactsVariant {
 impl TryFrom<&ProofFacts> for ProofFactsVariant {
     type Error = StarknetApiError;
     fn try_from(proof_facts: &ProofFacts) -> Result<Self, Self::Error> {
-        let Some((variant_marker, snos_fields)) = proof_facts.0.as_slice().split_first() else {
+        // ProofFacts structure: [PROOF0, variant_marker, ...fields].
+        let Some((proof0_marker, rest)) = proof_facts.0.as_slice().split_first() else {
             return Ok(ProofFactsVariant::Empty);
+        };
+
+        // Validate that the first element is PROOF0.
+        if *proof0_marker != Felt::from(PROOF0) {
+            return Err(StarknetApiError::InvalidProofFacts(format!(
+                "Expected first field to be {} (PROOF0), but got {}",
+                Felt::from(PROOF0),
+                proof0_marker
+            )));
+        }
+
+        let Some((variant_marker, snos_fields)) = rest.split_first() else {
+            return Err(StarknetApiError::InvalidProofFacts(
+                "Proof facts missing variant marker after PROOF0".to_string(),
+            ));
         };
 
         if *variant_marker != Felt::from(VIRTUAL_SNOS) {
             return Err(StarknetApiError::InvalidProofFacts(format!(
-                "Non-SNOS proofs are not currently supported. Expected first field to be {} \
+                "Non-SNOS proofs are not currently supported. Expected second field to be {} \
                  (VIRTUAL_SNOS), but got {}",
                 Felt::from(VIRTUAL_SNOS),
                 variant_marker
@@ -665,7 +684,8 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         let [program_hash, _version, block_number_felt, block_hash, config_hash, ..] = snos_fields
         else {
             return Err(StarknetApiError::InvalidProofFacts(format!(
-                "SNOS proof facts must have at least 5 fields, got {}",
+                "SNOS proof facts must have at least 7 fields (PROOF0 + VIRTUAL_SNOS + 5 data \
+                 fields), got {}",
                 proof_facts.0.len()
             )));
         };
@@ -697,6 +717,38 @@ pub struct SnosProofFacts {
 }
 
 impl From<Vec<Felt>> for ProofFacts {
+    fn from(value: Vec<Felt>) -> Self {
+        Self(Arc::new(value))
+    }
+}
+
+/// Raw program output from the bootloader.
+/// First element is the number of tasks, followed by the actual output.
+#[derive(
+    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
+)]
+pub struct ProgramOutput(pub Arc<Vec<Felt>>);
+
+impl ProgramOutput {
+    /// Converts program output to proof facts by:
+    /// - Prepending `PROOF0` as the first element.
+    /// - Replacing the first element (number of tasks) with `VIRTUAL_SNOS`.
+    ///
+    /// This method is used by our starknet_os_runner crate. Other proof generation methods may
+    /// produce valid proofs without the `VIRTUAL_SNOS` marker.
+    pub fn to_proof_facts(&self) -> ProofFacts {
+        let mut facts = vec![Felt::from(PROOF0)];
+        if !self.0.is_empty() {
+            // Add VIRTUAL_SNOS in place of num_tasks.
+            facts.push(Felt::from(VIRTUAL_SNOS));
+            // Add the rest of the program output (everything after num_tasks).
+            facts.extend_from_slice(&self.0[1..]);
+        }
+        ProofFacts(Arc::new(facts))
+    }
+}
+
+impl From<Vec<Felt>> for ProgramOutput {
     fn from(value: Vec<Felt>) -> Self {
         Self(Arc::new(value))
     }

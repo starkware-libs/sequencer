@@ -34,6 +34,7 @@ use crate::transaction::fields::{
     ProofFacts,
     ResourceBounds,
     ValidResourceBounds,
+    PROOF0,
     VIRTUAL_SNOS,
 };
 use crate::transaction::{Transaction, TransactionHash};
@@ -399,6 +400,7 @@ impl ProofFacts {
         let authorized_account_address = felt!("0x10");
         let messages_to_l1_segment_size = Felt::ZERO;
         proof_facts![
+            felt!(PROOF0),
             felt!(VIRTUAL_SNOS),
             VIRTUAL_OS_PROGRAM_HASH,
             version,
