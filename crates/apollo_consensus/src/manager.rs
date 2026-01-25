@@ -882,7 +882,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 let init = ProposalInit {
                     height,
                     round,
-                    proposer: self.consensus_config.dynamic_config.validator_id,
+                    proposer: context.virtual_proposer(height, round),
                     valid_round: None,
                 };
                 // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded

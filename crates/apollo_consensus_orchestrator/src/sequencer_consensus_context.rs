@@ -521,6 +521,7 @@ impl ConsensusContext for SequencerConsensusContext {
             proposal_id,
             cende_write_success,
             l2_gas_price,
+            // TODO(Asmaa): Get it from the CommitteeProvider once we have it.
             builder_address: self.config.static_config.builder_address,
             cancel_token,
             previous_block_info: self.previous_block_info.clone(),
