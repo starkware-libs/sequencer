@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769351129314,
+  "lastUpdate": 1769358236324,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -407,6 +407,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1252.99139396,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "143319383+nimrod-starkware@users.noreply.github.com",
+            "name": "nimrod-starkware",
+            "username": "nimrod-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "080e95f08fb7a46c97454a6ca4ccd33051d01663",
+          "message": "starknet_patricia_storage: rocksDB stats (#11876)",
+          "timestamp": "2026-01-25T15:56:29Z",
+          "tree_id": "5880552152c753b368394db3a845d9f50ce16c21",
+          "url": "https://github.com/starkware-libs/sequencer/commit/080e95f08fb7a46c97454a6ca4ccd33051d01663"
+        },
+        "date": 1769358236023,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 794.4543970599999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1168.94950674,
             "unit": "ms"
           }
         ]
