@@ -266,7 +266,7 @@ impl<
             self.shared_highest_block.clone(),
             self.pending_data.clone(),
             self.pending_classes.clone(),
-            self.config.block_propagation_sleep_duration,
+            self.config.latest_block_poll_interval_millis,
             self.config.collect_pending_data,
             PENDING_SLEEP_DURATION,
             self.config.blocks_max_stream_size,
@@ -275,14 +275,14 @@ impl<
         let state_diff_stream = stream_new_state_diffs(
             self.reader.clone(),
             self.central_source.clone(),
-            self.config.block_propagation_sleep_duration,
+            self.config.latest_block_poll_interval_millis,
             self.config.state_updates_max_stream_size,
         )
         .fuse();
         let compiled_class_stream = stream_new_compiled_classes(
             self.reader.clone(),
             self.central_source.clone(),
-            self.config.block_propagation_sleep_duration,
+            self.config.latest_block_poll_interval_millis,
             // TODO(yair): separate config param.
             self.config.state_updates_max_stream_size,
             self.config.store_sierras_and_casms,
@@ -746,7 +746,7 @@ fn stream_new_blocks<
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
-    block_propagation_sleep_duration: Duration,
+    latest_block_poll_interval_millis: Duration,
     collect_pending_data: bool,
     pending_sleep_duration: Duration,
     max_stream_size: u32,
@@ -776,7 +776,7 @@ fn stream_new_blocks<
                 }
                 else{
                     trace!("Blocks syncing reached the last known block {:?}, waiting for blockchain to advance.", header_marker.prev());
-                    tokio::time::sleep(block_propagation_sleep_duration).await;
+                    tokio::time::sleep(latest_block_poll_interval_millis).await;
                 };
                 continue;
             }
@@ -796,7 +796,7 @@ fn stream_new_blocks<
 fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
     reader: StorageReader,
     central_source: Arc<TCentralSource>,
-    block_propagation_sleep_duration: Duration,
+    latest_block_poll_interval_millis: Duration,
     max_stream_size: u32,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
@@ -807,7 +807,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
             drop(txn);
             if state_marker == last_block_number {
                 trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
-                tokio::time::sleep(block_propagation_sleep_duration).await;
+                tokio::time::sleep(latest_block_poll_interval_millis).await;
                 continue;
             }
             let up_to = min(last_block_number, BlockNumber(state_marker.0 + u64::from(max_stream_size)));
@@ -883,7 +883,7 @@ impl StateSync {
 fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>(
     reader: StorageReader,
     central_source: Arc<TCentralSource>,
-    block_propagation_sleep_duration: Duration,
+    latest_block_poll_interval_millis: Duration,
     max_stream_size: u32,
     store_sierras_and_casms: bool,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
@@ -910,7 +910,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                     "Compiled classes syncing reached the last downloaded state update{:?}, waiting \
                      for more state updates.", state_marker.prev()
                 );
-                tokio::time::sleep(block_propagation_sleep_duration).await;
+                tokio::time::sleep(latest_block_poll_interval_millis).await;
                 continue;
             }
             let mut up_to = min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size)));
