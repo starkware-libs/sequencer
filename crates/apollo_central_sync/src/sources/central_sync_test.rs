@@ -100,7 +100,7 @@ async fn check_storage(
 
 fn get_test_sync_config(verify_blocks: bool) -> SyncConfig {
     SyncConfig {
-        block_propagation_sleep_duration: SYNC_SLEEP_DURATION,
+        latest_block_poll_interval_millis: SYNC_SLEEP_DURATION,
         base_layer_propagation_sleep_duration: BASE_LAYER_SLEEP_DURATION,
         recoverable_error_sleep_duration: SYNC_SLEEP_DURATION,
         blocks_max_stream_size: STREAM_SIZE,
@@ -588,7 +588,7 @@ async fn sequencer_pub_key_management() {
     );
 
     let sync_result =
-        tokio::time::timeout(config.block_propagation_sleep_duration * 4, sync_future)
+        tokio::time::timeout(config.latest_block_poll_interval_millis * 4, sync_future)
             .await
             .unwrap()
             .expect_err("Expecting sync to fail due to sequencer pub key change.");
