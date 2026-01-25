@@ -29,6 +29,7 @@ auto_impl_get_test_instance! {
         pub round: u32,
         pub proposal_commitment: Option<ProposalCommitment>,
         pub voter: ContractAddress,
+        pub signature: StarkHash,
     }
     pub enum VoteType {
         Prevote = 0,

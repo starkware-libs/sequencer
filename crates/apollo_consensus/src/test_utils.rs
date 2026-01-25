@@ -16,6 +16,7 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
 use starknet_api::block::BlockNumber;
+use starknet_api::hash::StarkHash;
 use starknet_types_core::felt::Felt;
 
 use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait};
@@ -119,7 +120,14 @@ pub fn prevote(
     voter: ValidatorId,
 ) -> Vote {
     let proposal_commitment = block_felt.map(ProposalCommitment);
-    Vote { vote_type: VoteType::Prevote, height, round, proposal_commitment, voter }
+    Vote {
+        vote_type: VoteType::Prevote,
+        height,
+        round,
+        proposal_commitment,
+        voter,
+        signature: StarkHash::default(),
+    }
 }
 
 pub fn precommit(
@@ -129,7 +137,14 @@ pub fn precommit(
     voter: ValidatorId,
 ) -> Vote {
     let proposal_commitment = block_felt.map(ProposalCommitment);
-    Vote { vote_type: VoteType::Precommit, height, round, proposal_commitment, voter }
+    Vote {
+        vote_type: VoteType::Precommit,
+        height,
+        round,
+        proposal_commitment,
+        voter,
+        signature: StarkHash::default(),
+    }
 }
 
 pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -> ProposalInit {

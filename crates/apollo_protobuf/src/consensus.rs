@@ -54,6 +54,7 @@ pub struct Vote {
     pub round: Round,
     pub proposal_commitment: Option<ProposalCommitment>,
     pub voter: ContractAddress,
+    pub signature: StarkHash,
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]

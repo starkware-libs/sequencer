@@ -16,6 +16,7 @@ use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
 use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockNumber;
+use starknet_api::hash::StarkHash;
 use starknet_types_core::felt::Felt;
 use strum::{EnumIter, IntoEnumIterator};
 use test_case::test_case;
@@ -284,6 +285,7 @@ impl DiscreteEventSimulation {
                 round,
                 proposal_commitment: commitment,
                 voter,
+                signature: StarkHash::default(),
             }),
         );
         self.schedule_at_tick(
@@ -294,6 +296,7 @@ impl DiscreteEventSimulation {
                 round,
                 proposal_commitment: commitment,
                 voter,
+                signature: StarkHash::default(),
             }),
         );
     }

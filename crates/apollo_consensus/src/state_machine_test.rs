@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use apollo_protobuf::consensus::{Vote, VoteType, DEFAULT_VALIDATOR_ID};
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
+use starknet_api::hash::StarkHash;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -28,7 +29,14 @@ fn mk_vote(
     proposal_id: Option<ProposalCommitment>,
     voter: ValidatorId,
 ) -> Vote {
-    Vote { vote_type, height: HEIGHT, round, proposal_commitment: proposal_id, voter }
+    Vote {
+        vote_type,
+        height: HEIGHT,
+        round,
+        proposal_commitment: proposal_id,
+        voter,
+        signature: StarkHash::default(),
+    }
 }
 
 #[track_caller]

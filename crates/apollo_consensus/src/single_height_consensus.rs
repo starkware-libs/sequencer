@@ -254,6 +254,7 @@ impl SingleHeightConsensus {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
+        // TODO(Asmaa): verify the signature
         trace!("Received {:?}", vote);
         let height = self.state_machine.height();
         if vote.height != height {
