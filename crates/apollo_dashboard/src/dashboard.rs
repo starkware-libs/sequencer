@@ -365,7 +365,6 @@ impl Panel {
         .with_legends(HISTOGRAM_QUANTILES.iter().map(|q| format!("{q:.2} {{{{{group_label}}}}}")))
     }
 
-    #[allow(dead_code)]
     pub(crate) fn from_gauge_histogram(metric: &MetricGaugeHistogram) -> Self {
         // Current value from gauge
         let current_value = metric.get_gauge_name_with_filter();
