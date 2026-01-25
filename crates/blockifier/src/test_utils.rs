@@ -26,6 +26,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{
+    test_block_hash,
     BLOCK_HASH_HISTORY_RANGE,
     CURRENT_BLOCK_NUMBER,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
@@ -430,7 +431,7 @@ pub fn block_hash_contract_address() -> ContractAddress {
 }
 
 /// Generates deterministic block hash storage updates for historical blocks.
-/// Populates a range of blocks with deterministic hash values (block_num * 100).
+/// Populates a range of blocks with deterministic hash values.
 pub fn generate_block_hash_storage_updates() -> StateMaps {
     let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
     // On-chain, block hashes are guaranteed only for blocks up to:
@@ -439,7 +440,7 @@ pub fn generate_block_hash_storage_updates() -> StateMaps {
     let block_hash_contract = block_hash_contract_address();
     let storage = (block_hash_history_start..=block_hash_history_end)
         .map(|block_num| {
-            ((block_hash_contract, StorageKey::from(block_num)), Felt::from(block_num * 100))
+            ((block_hash_contract, StorageKey::from(block_num)), test_block_hash(block_num).0)
         })
         .collect();
     StateMaps { storage, ..Default::default() }

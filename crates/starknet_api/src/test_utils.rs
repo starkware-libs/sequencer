@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
 use crate::block::{
+    BlockHash,
     BlockInfo,
     BlockNumber,
     BlockTimestamp,
@@ -223,6 +224,11 @@ pub const VIRTUAL_OS_PROGRAM_HASH: StarkHash = StarkHash::from_hex_unchecked(
     "0x130206a40921880628605041292e995870334451179c63090221210893986a2",
 );
 
+/// Computes a deterministic block hash for testing purposes.
+pub fn test_block_hash(block_number: u64) -> BlockHash {
+    BlockHash(Felt::from(block_number * 100))
+}
+
 impl BlockInfo {
     pub fn create_for_testing() -> Self {
         Self {
@@ -384,8 +390,9 @@ impl ProofFacts {
     pub fn snos_proof_facts_for_testing() -> Self {
         let version = Felt::ZERO;
         let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
-        let block_number = felt!(block_hash_history_start + 2);
-        let block_hash = block_number * felt!(100_u64);
+        let block_number_u64 = block_hash_history_start + 2;
+        let block_number = felt!(block_number_u64);
+        let block_hash = test_block_hash(block_number_u64).0;
         assert!(
             block_number < felt!(CURRENT_BLOCK_NUMBER)
                 && block_number >= felt!(block_hash_history_start),
