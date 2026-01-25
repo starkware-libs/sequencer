@@ -49,15 +49,17 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
         return ();
     }
     alloc_locals;
-    assert_le(VirtualOsOutputHeader.SIZE + 2, proof_facts_size);
-    let proof_type = proof_facts[0];
+    assert_le(VirtualOsOutputHeader.SIZE + 3, proof_facts_size);
+    let proof_version = proof_facts[0];
+    assert proof_version = 'PROOF0';
+    let proof_type = proof_facts[1];
     assert proof_type = 'VIRTUAL_SNOS';
-    let program_hash = proof_facts[1];
+    let program_hash = proof_facts[2];
     assert is_program_hash_allowed(program_hash) = TRUE;
-    let os_output_header = cast(&proof_facts[2], VirtualOsOutputHeader*);
+    let os_output_header = cast(&proof_facts[3], VirtualOsOutputHeader*);
 
     with_attr error_message("Virtual OS output version is not supported") {
-        assert os_output_header.version = VIRTUAL_OS_OUTPUT_VERSION;
+        assert os_output_header.virtual_os_version = VIRTUAL_OS_OUTPUT_VERSION;
     }
 
     // validate that the proof facts block number is not too recent
