@@ -26,7 +26,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_api::transaction::fields::{Fee, Proof, ProofFacts};
+use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, PROOF_VERSION};
 use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use starknet_types_core::felt::Felt;
@@ -422,11 +422,22 @@ impl TransactionConverter {
             return Err(VerifyProofAndFactsError::EmptyProof);
         }
 
-        // Verify proof and extract proof facts and program hash.
+        // Validate that the first element of proof facts is PROOF_VERSION.
+        let expected_proof_version = Felt::from(PROOF_VERSION);
+        let actual_first = proof_facts.0.first().copied().unwrap_or_default();
+        if actual_first != expected_proof_version {
+            return Err(VerifyProofAndFactsError::InvalidProofVersion {
+                expected: expected_proof_version,
+                actual: actual_first,
+            });
+        }
+
+        // Verify proof and extract program output and program hash.
         let output = verify_proof(proof)?;
 
-        // Validate that the extracted proof facts match the expected facts.
-        if proof_facts != output.proof_facts {
+        let program_variant = proof_facts.0.get(1).copied().unwrap_or_default();
+        let expected_proof_facts = output.program_output.try_into_proof_facts(program_variant)?;
+        if expected_proof_facts != proof_facts {
             return Err(VerifyProofAndFactsError::ProofFactsMismatch);
         }
 

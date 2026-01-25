@@ -11,6 +11,7 @@ cairo_native = ["blockifier/cairo_native"]
 
 [dependencies]
 apollo_infra_utils.workspace = true
+apollo_transaction_converter.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 blockifier.workspace = true
@@ -41,7 +42,6 @@ url.workspace = true
 
 [dev-dependencies]
 apollo_starknet_os_program.workspace = true
-apollo_transaction_converter.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 rstest.workspace = true
