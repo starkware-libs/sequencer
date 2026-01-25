@@ -193,10 +193,13 @@ async fn prove_transaction(
         "Proving completed"
     );
 
+    // Convert program output to proof facts.
+    let proof_facts = prover_output.program_output.into();
+
     // Build response.
     let response = ProveTransactionResponse {
         proof: prover_output.proof,
-        proof_facts: prover_output.proof_facts,
+        proof_facts,
         l2_to_l1_messages: virtual_os_output.messages_to_l1,
     };
 
