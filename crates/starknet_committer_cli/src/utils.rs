@@ -94,6 +94,7 @@ impl BenchmarkTimeMeasurement {
     fn clear_measurements(&mut self) {
         self.block_measurements.clear();
         self.initial_db_entry_count.clear();
+        self.time_of_measurement.clear();
     }
 
     pub fn n_results(&self) -> usize {
