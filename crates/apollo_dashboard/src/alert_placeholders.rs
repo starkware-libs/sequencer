@@ -4,12 +4,12 @@ use serde::{Serialize, Serializer};
 use crate::alerts::AlertSeverity;
 
 const ALERT_PLACEHOLDER_FORMAT: &str = "$$${}-{}$$$";
-const SEVERITY_CONTEXT: &str = "SEVERITY";
-const COMPARISON_CONTEXT: &str = "COMPARISON";
-const EXPRESSION_CONTEXT: &str = "EXPRESSION";
+const SEVERITY_CONTEXT: &str = "severity";
+const COMPARISON_CONTEXT: &str = "comparison_value";
+const EXPRESSION_CONTEXT: &str = "expression";
 
 fn format_alert_placeholder(key: &String, context: &String) -> String {
-    Template::new(ALERT_PLACEHOLDER_FORMAT).format(&[&key, &context]).to_uppercase()
+    Template::new(ALERT_PLACEHOLDER_FORMAT).format(&[&key, &context])
 }
 
 #[derive(Clone, Debug, PartialEq)]

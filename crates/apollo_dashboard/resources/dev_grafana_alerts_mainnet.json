@@ -921,7 +921,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "$$$BATCHED_TRANSACTIONS_STUCK-SEVERITY$$$",
+      "severity": "$$$batched_transactions_stuck-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -933,7 +933,7 @@
         {
           "evaluator": {
             "params": [
-              "$$$GET_CONSENSUS_BLOCK_NUMBER_PROGRESS_IS_SLOW-COMPARISON$$$"
+              "$$$get_consensus_block_number_progress_is_slow-comparison_value$$$"
             ],
             "type": "lt"
           },
@@ -984,7 +984,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$CONSENSUS_BLOCK_NUMBER_STUCK-EXPRESSION$$$s])) or vector(0)",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck-expression$$$s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
