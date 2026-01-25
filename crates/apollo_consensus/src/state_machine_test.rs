@@ -8,7 +8,7 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
-use crate::types::{ProposalCommitment, ValidatorId};
+use crate::types::{LeaderElection, ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 lazy_static! {
@@ -32,8 +32,8 @@ fn mk_vote(
 }
 
 #[track_caller]
-fn assert_decision_reached<LeaderFn: Fn(Round) -> ValidatorId>(
-    wrapper: &mut TestWrapper<LeaderFn>,
+fn assert_decision_reached<F: Fn(Round) -> ValidatorId>(
+    wrapper: &mut TestWrapper<F>,
     expected_block: Option<ProposalCommitment>,
 ) {
     match wrapper.next_request().unwrap() {
@@ -46,19 +46,19 @@ fn assert_decision_reached<LeaderFn: Fn(Round) -> ValidatorId>(
     assert!(wrapper.next_request().is_none());
 }
 
-struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
+struct TestWrapper<F: Fn(Round) -> ValidatorId> {
     state_machine: StateMachine,
-    leader_fn: LeaderFn,
+    leader_election: LeaderElection<F>,
     requests: VecDeque<SMRequest>,
     peer_voters: Vec<ValidatorId>,
     next_peer_idx: usize,
 }
 
-impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
+impl<F: Fn(Round) -> ValidatorId> TestWrapper<F> {
     pub fn new(
         id: ValidatorId,
         total_weight: u64,
-        leader_fn: LeaderFn,
+        proposer: F,
         is_observer: bool,
         quorum_type: QuorumType,
     ) -> Self {
@@ -70,7 +70,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         peer_voters.sort();
         Self {
             state_machine: StateMachine::new(HEIGHT, id, total_weight, is_observer, quorum_type),
-            leader_fn,
+            leader_election: LeaderElection::new(proposer),
             requests: VecDeque::new(),
             peer_voters,
             next_peer_idx: 0,
@@ -88,7 +88,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
     }
 
     pub fn start(&mut self) {
-        self.requests.append(&mut self.state_machine.start(&self.leader_fn))
+        self.requests.append(&mut self.state_machine.start(&self.leader_election))
     }
 
     pub fn send_finished_building(
@@ -140,7 +140,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
     }
 
     fn send_event(&mut self, event: StateMachineEvent) {
-        self.requests.append(&mut self.state_machine.handle_event(event, &self.leader_fn));
+        self.requests.append(&mut self.state_machine.handle_event(event, &self.leader_election));
     }
 }
 
