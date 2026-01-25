@@ -6,6 +6,7 @@ use rust_rocksdb::{
     BlockBasedOptions,
     Cache,
     Options,
+    SliceTransform,
     WriteBatch,
     WriteOptions,
     DB,
@@ -24,11 +25,11 @@ use crate::storage_trait::{
 
 // General database Options.
 
-const DB_BLOCK_SIZE: usize = 4 * 1024; // 4MB
-const DB_CACHE_SIZE: usize = 2 * 1024 * 1024 * 1024; // 2GB
+const DB_CACHE_SIZE: usize = 8 * 1024 * 1024 * 1024; // 8GB
 // Number of bits in the bloom filter (increase to reduce false positives at the cost of more
 // memory).
 const BLOOM_FILTER_NUM_BITS: f64 = 10.0;
+const KEY_PREFIX_BYTES_LENGTH: usize = 32;
 
 // Write Options.
 
@@ -39,7 +40,7 @@ const WRITE_BUFFER_SIZE: usize = 128 * 1024 * 1024; // 128MB
 const MAX_WRITE_BUFFERS: i32 = 4;
 
 // Concurrency Options.
-
+// TODO(Nimrod): Make this configurable based on the machine's CPU cores.
 const NUM_THREADS: i32 = 8;
 // Maximum number of background compactions (STT files merge and rewrite) and flushes.
 const MAX_BACKGROUND_JOBS: i32 = 8;
@@ -57,8 +58,10 @@ impl Default for RocksDbOptions {
         opts.set_bytes_per_sync(BYTES_PER_SYNC);
         opts.set_write_buffer_size(WRITE_BUFFER_SIZE);
         opts.increase_parallelism(NUM_THREADS);
+        opts.set_max_subcompactions(NUM_THREADS.try_into().unwrap());
         opts.set_max_background_jobs(MAX_BACKGROUND_JOBS);
         opts.set_max_write_buffer_number(MAX_WRITE_BUFFERS);
+        opts.set_prefix_extractor(SliceTransform::create_fixed_prefix(KEY_PREFIX_BYTES_LENGTH));
 
         let mut block = BlockBasedOptions::default();
         let cache = Cache::new_lru_cache(DB_CACHE_SIZE);
@@ -68,7 +71,6 @@ impl Default for RocksDbOptions {
         block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
         block.set_partition_filters(true);
 
-        block.set_block_size(DB_BLOCK_SIZE);
         block.set_cache_index_and_filter_blocks(true);
         // Make sure filter blocks are cached.
         block.set_pin_l0_filter_and_index_blocks_in_cache(true);
