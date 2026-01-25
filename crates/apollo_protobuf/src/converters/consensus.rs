@@ -78,8 +78,14 @@ impl TryFrom<protobuf::Vote> for Vote {
             .transpose()?
             .map(ProposalCommitment);
         let voter = value.voter.ok_or(missing("voter"))?.try_into()?;
+        // Convert Hashes to RawSignature (default to empty if None)
+        let signature = value
+            .signature
+            .map(|hashes| hashes.try_into())
+            .transpose()?
+            .unwrap_or_default();
 
-        Ok(Vote { vote_type, height, round, proposal_commitment, voter })
+        Ok(Vote { vote_type, height, round, proposal_commitment, voter, signature })
     }
 }
 
@@ -96,6 +102,7 @@ impl From<Vote> for protobuf::Vote {
             round: value.round,
             proposal_commitment: value.proposal_commitment.map(|commitment| commitment.0.into()),
             voter: Some(value.voter.into()),
+            signature: Some(value.signature.into()),
         }
     }
 }

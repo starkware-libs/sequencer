@@ -138,7 +138,7 @@ pub struct Message(pub Vec<Felt>);
 ///
 /// This generic container allows higher-level traits to work without the burden of
 /// propagating generic signature types.
-#[derive(Clone, Debug, derive_more::Deref, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, derive_more::Deref, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct RawSignature(pub Vec<Felt>);
 
 impl From<starknet_crypto::Signature> for RawSignature {

@@ -1,4 +1,5 @@
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 
 use super::ProtobufConversionError;
@@ -89,6 +90,37 @@ impl TryFrom<protobuf::Hash> for starknet_api::hash::StarkHash {
         //         value_as_str: format!("{felt:?}"),
         //     })
         // }
+    }
+}
+
+impl TryFrom<protobuf::Hashes> for RawSignature {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::Hashes) -> Result<Self, Self::Error> {
+        let felts: Result<Vec<starknet_types_core::felt::Felt>, ProtobufConversionError> = value
+            .items
+            .into_iter()
+            .map(|hash| {
+                let felt: starknet_types_core::felt::Felt = protobuf::Felt252 {
+                    elements: hash.elements,
+                }
+                .try_into()?;
+                Ok::<starknet_types_core::felt::Felt, ProtobufConversionError>(felt)
+            })
+            .collect();
+        Ok(RawSignature(felts?))
+    }
+}
+
+impl From<RawSignature> for protobuf::Hashes {
+    fn from(value: RawSignature) -> Self {
+        let items: Vec<protobuf::Hash> = value
+            .0
+            .into_iter()
+            .map(|felt| protobuf::Hash {
+                elements: felt.to_bytes_be().to_vec(),
+            })
+            .collect();
+        protobuf::Hashes { items }
     }
 }
 
