@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
+use apollo_protobuf::converters::CompressedApiContractClass;
 use apollo_protobuf::sync::DataOrFin;
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -78,7 +79,7 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
 
 pub(crate) struct ClassStreamBuilder;
 
-impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilder {
+impl BlockDataStreamBuilder<(CompressedApiContractClass, ClassHash)> for ClassStreamBuilder {
     type Output = (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber);
 
     const TYPE_DESCRIPTION: &'static str = "classes";
@@ -86,7 +87,7 @@ impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilde
 
     fn parse_data_for_block<'a>(
         classes_response_manager: &'a mut ClientResponsesManager<
-            DataOrFin<(ApiContractClass, ClassHash)>,
+            DataOrFin<(CompressedApiContractClass, ClassHash)>,
         >,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
@@ -116,7 +117,7 @@ impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilde
                         type_description: Self::TYPE_DESCRIPTION,
                     }),
                 )?;
-                let Some((api_contract_class, class_hash)) = maybe_contract_class?.0 else {
+                let Some((compressed_class, class_hash)) = maybe_contract_class?.0 else {
                     if current_class_len == 0 {
                         return Ok(None);
                     } else {
@@ -127,6 +128,11 @@ impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilde
                         }));
                     }
                 };
+
+                // Decompress the class using the default size limit.
+                // TODO(dan): Pass max_cairo0_program_size from config instead of using default.
+                let api_contract_class = compressed_class
+                    .decompress(apollo_p2p_sync_config::config::DEFAULT_MAX_CAIRO0_PROGRAM_SIZE)?;
 
                 let (is_declared, duplicate_class) = match api_contract_class {
                     ApiContractClass::ContractClass(contract_class) => (

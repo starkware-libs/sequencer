@@ -7,6 +7,9 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+/// Default maximum size for decompressed Cairo0 programs (4MB).
+pub const DEFAULT_MAX_CAIRO0_PROGRAM_SIZE: usize = 4 * 1024 * 1024;
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct P2pSyncClientConfig {
     pub num_headers_per_query: u64,

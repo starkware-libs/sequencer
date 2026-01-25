@@ -1,5 +1,11 @@
 mod class;
 pub(crate) mod common;
+
+pub use class::{
+    CompressedApiContractClass,
+    CompressedDeprecatedContractClass,
+    DEFAULT_MAX_CAIRO0_PROGRAM_SIZE,
+};
 // TODO(matan): Internalize once we remove the dependency on the protobuf crate.
 pub mod consensus;
 mod event;

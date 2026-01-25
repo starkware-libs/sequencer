@@ -19,6 +19,7 @@ mod transaction_test;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::SqmrClientSender;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
+use apollo_protobuf::converters::CompressedApiContractClass;
 use apollo_protobuf::sync::{
     ClassQuery,
     DataOrFin,
@@ -37,7 +38,6 @@ use futures::never::Never;
 use futures::stream::BoxStream;
 use futures::{SinkExt as _, Stream};
 use header::HeaderStreamBuilder;
-use papyrus_common::pending_classes::ApiContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
@@ -69,7 +69,8 @@ pub enum P2pSyncClientError {
 type HeaderSqmrSender = SqmrClientSender<HeaderQuery, DataOrFin<SignedBlockHeader>>;
 type StateSqmrDiffSender = SqmrClientSender<StateDiffQuery, DataOrFin<StateDiffChunk>>;
 type TransactionSqmrSender = SqmrClientSender<TransactionQuery, DataOrFin<FullTransaction>>;
-type ClassSqmrSender = SqmrClientSender<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
+type ClassSqmrSender =
+    SqmrClientSender<ClassQuery, DataOrFin<(CompressedApiContractClass, ClassHash)>>;
 
 pub struct P2pSyncClientChannels {
     header_sender: HeaderSqmrSender,

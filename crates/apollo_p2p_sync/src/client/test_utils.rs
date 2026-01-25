@@ -11,6 +11,7 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network::network_manager::GenericReceiver;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
+use apollo_protobuf::converters::CompressedApiContractClass;
 use apollo_protobuf::sync::{
     ClassQuery,
     DataOrFin,
@@ -82,7 +83,7 @@ pub(crate) type StateDiffTestPayload =
 pub(crate) type TransactionTestPayload =
     MockClientResponsesManager<TransactionQuery, DataOrFin<FullTransaction>>;
 pub(crate) type ClassTestPayload =
-    MockClientResponsesManager<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
+    MockClientResponsesManager<ClassQuery, DataOrFin<(CompressedApiContractClass, ClassHash)>>;
 
 // TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
 pub struct TestArgs {
@@ -281,7 +282,11 @@ pub async fn run_test(
                     Action::SendClass(class_or_fin) => {
                         let responses_manager = class_current_query_responses_manager.as_mut()
                             .expect("Called SendClass without calling ReceiveQuery");
-                        responses_manager.send_response(class_or_fin).await.unwrap();
+                        // Convert ApiContractClass to CompressedApiContractClass for the mock.
+                        let compressed = DataOrFin(class_or_fin.0.map(|(class, hash)| {
+                            (CompressedApiContractClass::from(class), hash)
+                        }));
+                        responses_manager.send_response(compressed).await.unwrap();
                     }
                     Action::CheckStorage(check_storage_fn) => {
                         // We tried avoiding the clone here but it causes lifetime issues.

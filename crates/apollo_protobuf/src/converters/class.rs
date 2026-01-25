@@ -24,6 +24,75 @@ use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
 pub const DOMAIN: DataAvailabilityMode = DataAvailabilityMode::L1;
 
+/// Default maximum size for decompressed Cairo0 programs.
+pub const DEFAULT_MAX_CAIRO0_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
+
+/// A deprecated (Cairo0) contract class with the program still in compressed form.
+/// Use [`Self::decompress`] to convert to [`deprecated_contract_class::ContractClass`].
+#[derive(Debug, Clone)]
+pub struct CompressedDeprecatedContractClass {
+    pub abi: Option<Vec<deprecated_contract_class::ContractClassAbiEntry>>,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<deprecated_contract_class::EntryPointV0>>,
+    /// Base64-encoded, gzip-compressed program JSON.
+    pub compressed_program: String,
+}
+
+impl CompressedDeprecatedContractClass {
+    /// Decompress the program with a size limit and produce the final contract class.
+    pub fn decompress(
+        self,
+        max_program_size: usize,
+    ) -> Result<deprecated_contract_class::ContractClass, ProtobufConversionError> {
+        let program =
+            decode_and_decompress_with_size_limit(&self.compressed_program, max_program_size)?;
+        Ok(deprecated_contract_class::ContractClass {
+            abi: self.abi,
+            program,
+            entry_points_by_type: self.entry_points_by_type,
+        })
+    }
+}
+
+/// A contract class that may contain compressed program data.
+/// Cairo0 classes have compressed programs; Cairo1 classes are stored uncompressed.
+#[derive(Debug, Clone)]
+pub enum CompressedApiContractClass {
+    DeprecatedContractClass(CompressedDeprecatedContractClass),
+    ContractClass(state::SierraContractClass),
+}
+
+impl CompressedApiContractClass {
+    /// Decompress the class (if Cairo0) and produce the final [`ApiContractClass`].
+    pub fn decompress(
+        self,
+        max_cairo0_program_size: usize,
+    ) -> Result<ApiContractClass, ProtobufConversionError> {
+        match self {
+            Self::DeprecatedContractClass(class) => Ok(ApiContractClass::DeprecatedContractClass(
+                class.decompress(max_cairo0_program_size)?,
+            )),
+            Self::ContractClass(class) => Ok(ApiContractClass::ContractClass(class)),
+        }
+    }
+}
+
+impl From<ApiContractClass> for CompressedApiContractClass {
+    fn from(value: ApiContractClass) -> Self {
+        match value {
+            ApiContractClass::DeprecatedContractClass(class) => {
+                let compressed_program = compress_and_encode(&class.program)
+                    .expect("Failed to compress and encode Cairo 0 program");
+                Self::DeprecatedContractClass(CompressedDeprecatedContractClass {
+                    abi: class.abi,
+                    entry_points_by_type: class.entry_points_by_type,
+                    compressed_program,
+                })
+            }
+            ApiContractClass::ContractClass(class) => Self::ContractClass(class),
+        }
+    }
+}
+
 impl TryFrom<protobuf::ClassesResponse> for DataOrFin<(ApiContractClass, ClassHash)> {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ClassesResponse) -> Result<Self, Self::Error> {
@@ -55,6 +124,92 @@ auto_impl_into_and_try_from_vec_u8!(
     DataOrFin<(ApiContractClass, ClassHash)>,
     protobuf::ClassesResponse
 );
+
+// Compressed class conversions - these keep Cairo0 programs compressed until explicitly
+// decompressed with a size limit.
+
+impl TryFrom<protobuf::ClassesResponse> for DataOrFin<(CompressedApiContractClass, ClassHash)> {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::ClassesResponse) -> Result<Self, Self::Error> {
+        match value.class_message {
+            Some(protobuf::classes_response::ClassMessage::Class(class)) => {
+                Ok(Self(Some(class.try_into()?)))
+            }
+            Some(protobuf::classes_response::ClassMessage::Fin(_)) => Ok(Self(None)),
+            None => Err(missing("ClassesResponse::class_message")),
+        }
+    }
+}
+
+auto_impl_into_and_try_from_vec_u8!(
+    DataOrFin<(CompressedApiContractClass, ClassHash)>,
+    protobuf::ClassesResponse
+);
+
+impl TryFrom<protobuf::Class> for (CompressedApiContractClass, ClassHash) {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::Class) -> Result<Self, Self::Error> {
+        let class = match value.class {
+            Some(protobuf::class::Class::Cairo0(class)) => {
+                CompressedApiContractClass::DeprecatedContractClass(
+                    CompressedDeprecatedContractClass::try_from(class)?,
+                )
+            }
+            Some(protobuf::class::Class::Cairo1(class)) => {
+                CompressedApiContractClass::ContractClass(state::SierraContractClass::try_from(
+                    class,
+                )?)
+            }
+            None => {
+                return Err(missing("Class::class"));
+            }
+        };
+        let class_hash =
+            value.class_hash.ok_or(missing("Class::class_hash"))?.try_into().map(ClassHash)?;
+        Ok((class, class_hash))
+    }
+}
+
+impl TryFrom<protobuf::Cairo0Class> for CompressedDeprecatedContractClass {
+    type Error = ProtobufConversionError;
+    fn try_from(value: protobuf::Cairo0Class) -> Result<Self, Self::Error> {
+        let mut entry_points_by_type = HashMap::new();
+
+        if !value.constructors.is_empty() {
+            entry_points_by_type.insert(
+                EntryPointType::Constructor,
+                value
+                    .constructors
+                    .into_iter()
+                    .map(|entry_point| entry_point.try_into())
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+        }
+        if !value.externals.is_empty() {
+            entry_points_by_type.insert(
+                EntryPointType::External,
+                value
+                    .externals
+                    .into_iter()
+                    .map(|entry_point| entry_point.try_into())
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+        }
+        if !value.l1_handlers.is_empty() {
+            entry_points_by_type.insert(
+                EntryPointType::L1Handler,
+                value
+                    .l1_handlers
+                    .into_iter()
+                    .map(|entry_point| entry_point.try_into())
+                    .collect::<Result<Vec<_>, _>>()?,
+            );
+        }
+        let abi = serde_json::from_str(&value.abi)?;
+
+        Ok(Self { abi, entry_points_by_type, compressed_program: value.program })
+    }
+}
 
 impl TryFrom<protobuf::Class> for (ApiContractClass, ClassHash) {
     type Error = ProtobufConversionError;
@@ -96,45 +251,9 @@ impl From<(ApiContractClass, ClassHash)> for protobuf::Class {
 impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Cairo0Class) -> Result<Self, Self::Error> {
-        let mut entry_points_by_type = HashMap::new();
-
-        if !value.constructors.is_empty() {
-            entry_points_by_type.insert(
-                EntryPointType::Constructor,
-                value
-                    .constructors
-                    .into_iter()
-                    .map(|entry_point| entry_point.try_into())
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
-        }
-        if !value.externals.is_empty() {
-            entry_points_by_type.insert(
-                EntryPointType::External,
-                value
-                    .externals
-                    .into_iter()
-                    .map(|entry_point| entry_point.try_into())
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
-        }
-        if !value.l1_handlers.is_empty() {
-            entry_points_by_type.insert(
-                EntryPointType::L1Handler,
-                value
-                    .l1_handlers
-                    .into_iter()
-                    .map(|entry_point| entry_point.try_into())
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
-        }
-        let abi = serde_json::from_str(&value.abi)?;
-        // TODO(dan): use config for this.
-        const MAX_CAIRO0_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
-        let program =
-            decode_and_decompress_with_size_limit(&value.program, MAX_CAIRO0_PROGRAM_SIZE)?;
-
-        Ok(Self { program, entry_points_by_type, abi })
+        // Convert to compressed form first, then decompress with default limit.
+        CompressedDeprecatedContractClass::try_from(value)?
+            .decompress(DEFAULT_MAX_CAIRO0_PROGRAM_SIZE)
     }
 }
 
@@ -186,6 +305,86 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
                 .collect(),
             abi: encoded_abi,
             program: encoded_program,
+        }
+    }
+}
+
+impl From<CompressedDeprecatedContractClass> for protobuf::Cairo0Class {
+    fn from(value: CompressedDeprecatedContractClass) -> Self {
+        let encoded_abi = match value.abi {
+            Some(abi_entries) => {
+                let mut abi_bytes = vec![];
+                abi_entries
+                    .serialize(&mut serde_json::Serializer::with_formatter(
+                        &mut abi_bytes,
+                        PythonJsonFormatter,
+                    ))
+                    .expect("ABI is not in the expected Pythonic JSON byte format");
+                String::from_utf8(abi_bytes).expect("Failed decoding ABI bytes as utf8 string")
+            }
+            None => "".to_string(),
+        };
+
+        protobuf::Cairo0Class {
+            constructors: value
+                .entry_points_by_type
+                .get(&EntryPointType::Constructor)
+                .unwrap_or(&vec![])
+                .iter()
+                .cloned()
+                .map(protobuf::EntryPoint::from)
+                .collect(),
+            externals: value
+                .entry_points_by_type
+                .get(&EntryPointType::External)
+                .unwrap_or(&vec![])
+                .iter()
+                .cloned()
+                .map(protobuf::EntryPoint::from)
+                .collect(),
+            l1_handlers: value
+                .entry_points_by_type
+                .get(&EntryPointType::L1Handler)
+                .unwrap_or(&vec![])
+                .iter()
+                .cloned()
+                .map(protobuf::EntryPoint::from)
+                .collect(),
+            abi: encoded_abi,
+            // Already in compressed+encoded format.
+            program: value.compressed_program,
+        }
+    }
+}
+
+impl From<(CompressedApiContractClass, ClassHash)> for protobuf::Class {
+    fn from(value: (CompressedApiContractClass, ClassHash)) -> Self {
+        let (class, class_hash) = value;
+        let domain = u32::try_from(volition_domain_to_enum_int(DOMAIN))
+            .expect("volition_domain_to_enum_int output should be convertible to u32");
+        let class = match class {
+            CompressedApiContractClass::DeprecatedContractClass(class) => {
+                protobuf::class::Class::Cairo0(class.into())
+            }
+            CompressedApiContractClass::ContractClass(class) => {
+                protobuf::class::Class::Cairo1(class.into())
+            }
+        };
+        protobuf::Class { domain, class: Some(class), class_hash: Some(class_hash.0.into()) }
+    }
+}
+
+impl From<DataOrFin<(CompressedApiContractClass, ClassHash)>> for protobuf::ClassesResponse {
+    fn from(value: DataOrFin<(CompressedApiContractClass, ClassHash)>) -> Self {
+        match value.0 {
+            Some(class) => protobuf::ClassesResponse {
+                class_message: Some(protobuf::classes_response::ClassMessage::Class(class.into())),
+            },
+            None => protobuf::ClassesResponse {
+                class_message: Some(protobuf::classes_response::ClassMessage::Fin(
+                    protobuf::Fin {},
+                )),
+            },
         }
     }
 }
