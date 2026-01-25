@@ -101,7 +101,7 @@ impl SingleHeightConsensus {
             return VecDeque::new();
         }
         // TODO(guyn): replace this with assert_eq, but also need to fix simulation_test.
-        let proposer_id = leader_election.proposer(block_info.round);
+        let proposer_id = leader_election.virtual_proposer(block_info.round);
         if block_info.proposer != proposer_id {
             warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, block_info.proposer);
             return VecDeque::new();
@@ -187,7 +187,7 @@ impl SingleHeightConsensus {
         valid_round: Option<Round>,
     ) -> Requests {
         debug!(
-            proposer = %leader_election.proposer(round),
+            proposer = %leader_election.virtual_proposer(round),
             %round,
             ?valid_round,
             proposal_commitment = ?proposal_id,
