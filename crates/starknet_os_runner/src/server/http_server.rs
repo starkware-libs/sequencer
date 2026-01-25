@@ -3,6 +3,7 @@
 use std::net::SocketAddr;
 use std::time::Instant;
 
+use apollo_transaction_converter::ProgramOutputError;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -13,7 +14,7 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
-use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::fields::{Proof, ProofFacts, VIRTUAL_SNOS};
 use starknet_api::transaction::{
     InvokeTransaction,
     MessageToL1,
@@ -21,6 +22,7 @@ use starknet_api::transaction::{
     TransactionHasher,
 };
 use starknet_os::io::os_output::OsOutputError;
+use starknet_types_core::felt::Felt;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -74,6 +76,8 @@ pub enum HttpServerError {
     ProvingError(#[from] ProvingError),
     #[error(transparent)]
     OutputParseError(#[from] OsOutputError),
+    #[error(transparent)]
+    ProgramOutputError(#[from] ProgramOutputError),
 }
 
 impl IntoResponse for HttpServerError {
@@ -96,6 +100,9 @@ impl IntoResponse for HttpServerError {
             }
             HttpServerError::OutputParseError(e) => {
                 (StatusCode::INTERNAL_SERVER_ERROR, "OUTPUT_PARSE_ERROR", e.to_string())
+            }
+            HttpServerError::ProgramOutputError(e) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "PROGRAM_OUTPUT_ERROR", e.to_string())
             }
         };
 
@@ -189,10 +196,13 @@ async fn prove_transaction(
         "Proving completed"
     );
 
+    // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
+    let proof_facts = prover_output.program_output.to_proof_facts(Felt::from(VIRTUAL_SNOS))?;
+
     // Build response.
     let response = ProveTransactionResponse {
         proof: prover_output.proof,
-        proof_facts: prover_output.proof_facts,
+        proof_facts,
         // TODO(Aviv): Add l2_to_l1_messages to the runner output and use it here.
         l2_to_l1_messages: Vec::new(),
     };
