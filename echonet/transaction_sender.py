@@ -309,8 +309,16 @@ class TransactionSenderService:
                             return
 
                         prepared = transformer.prepare_for_forwarding(item)
-                        if prepared is None:
+                        if prepared is None:  # L1_HANDLER
+                            while shared.is_pending_tx(item.tx["transaction_hash"]):
+                                await asyncio.sleep(CONFIG.tx_sender.l1_handler_wait_poll_seconds)
                             continue
+
+                        while (
+                            shared.get_pending_tx_count()
+                            >= CONFIG.tx_sender.max_pending_txs_before_pausing
+                        ):
+                            await asyncio.sleep(CONFIG.tx_sender.l1_handler_wait_poll_seconds)
 
                         await forwarder.forward(
                             prepared, source_block_number=item.source_block_number
