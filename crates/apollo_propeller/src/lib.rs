@@ -4,6 +4,9 @@ pub mod handler;
 pub mod merkle;
 #[cfg(test)]
 mod merkle_test;
+pub mod padding;
+#[cfg(test)]
+mod padding_test;
 pub mod protocol;
 // TODO(AndrewL): Consider renaming this to `erasure_coding` or `error_correction_code`.
 pub mod reed_solomon;

@@ -3,6 +3,7 @@
 use libp2p::identity::PeerId;
 use thiserror::Error;
 
+use crate::padding::UnpaddingError;
 use crate::MerkleHash;
 
 // TODO(AndrewL): reduce redundant documentation in this file
@@ -112,8 +113,8 @@ pub enum ReconstructionError {
     MismatchedMessageRoot,
     #[error("Unequal shard lengths, the shards are most likely malicious")]
     UnequalShardLengths,
-    #[error("The message was padded incorrectly by the publisher")]
-    MessagePaddingError,
+    #[error("The message was padded incorrectly by the publisher: {0}")]
+    MessagePaddingError(UnpaddingError),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
