@@ -27,6 +27,9 @@ pub(crate) const BOOTLOADER_FILE: &str = "simple_bootloader_compiled.json";
 pub(crate) struct ProverOutput {
     /// The proof packed as u32s (4 bytes per u32, big-endian, with padding prefix).
     pub proof: Proof,
+    /// The raw proof bytes (for verification).
+    #[allow(dead_code)] // Used in tests.
+    pub proof_bytes: ProofBytes,
     pub proof_facts: ProofFacts,
 }
 
@@ -101,7 +104,7 @@ pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingEr
         serde_json::from_str(&proof_facts_str).map_err(ProvingError::ParseProofFacts)?;
 
     // Convert proof bytes to packed u32 format.
-    let proof: Proof = proof_bytes.into();
+    let proof: Proof = proof_bytes.clone().into();
 
-    Ok(ProverOutput { proof, proof_facts })
+    Ok(ProverOutput { proof, proof_bytes, proof_facts })
 }

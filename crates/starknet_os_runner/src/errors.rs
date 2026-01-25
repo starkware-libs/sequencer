@@ -8,6 +8,11 @@ use starknet_os::errors::StarknetOsError;
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
+#[cfg(feature = "stwo_native")]
+use blockifier::execution::contract_class::TrackedResource;
+#[cfg(feature = "stwo_native")]
+use proving_utils_stwo_run_and_prove::StwoRunAndProveError as StwoNativeError;
+
 #[derive(Debug, Error)]
 pub enum VirtualBlockExecutorError {
     #[error(transparent)]
@@ -95,4 +100,25 @@ pub enum ProvingError {
 
     #[error("Failed to parse proof facts: {0}")]
     ParseProofFacts(#[source] serde_json::Error),
+}
+
+/// Errors that can occur during direct stwo proving (using the library, not binary).
+#[cfg(feature = "stwo_native")]
+#[derive(Debug, Error)]
+pub enum StwoDirectProvingError {
+    #[error("Invalid tracked resource: expected {expected:?}, got {actual:?}")]
+    InvalidTrackedResource { expected: TrackedResource, actual: TrackedResource },
+
+    #[error(transparent)]
+    OsError(#[from] StarknetOsError),
+
+    #[error("Stwo proving failed: {0}")]
+    StwoProving(#[source] StwoNativeError),
+
+    #[error("Failed to resolve resource path for {file_name}: {source}")]
+    ResolveResourcePath {
+        file_name: String,
+        #[source]
+        source: std::io::Error,
+    },
 }

@@ -8,9 +8,18 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
+# Enable direct library integration with stwo_run_and_prove (requires nightly Rust).
+stwo_native = [
+    "apollo_starknet_os_program",
+    "blockifier/testing",
+    "proving_utils_cairo_program_runner_lib",
+    "proving_utils_stwo_run_and_prove",
+    "starknet_os/testing",
+]
 
 [dependencies]
 apollo_infra_utils.workspace = true
+apollo_starknet_os_program = { workspace = true, optional = true }
 async-trait.workspace = true
 axum.workspace = true
 blockifier.workspace = true
@@ -23,6 +32,8 @@ futures.workspace = true
 hyper.workspace = true
 indexmap.workspace = true
 proving_utils.workspace = true
+proving_utils_cairo_program_runner_lib = { workspace = true, optional = true }
+proving_utils_stwo_run_and_prove = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true

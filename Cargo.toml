@@ -331,6 +331,8 @@ prost-build = "0.12.1"
 prost-types = "0.12.1"
 protoc-prebuilt = "0.3.0"
 proving_utils.path = "crates/proving_utils"
+proving_utils_cairo_program_runner_lib = { package = "cairo-program-runner-lib", path = "../proving-utils/crates/cairo-program-runner-lib" }
+proving_utils_stwo_run_and_prove = { package = "stwo_run_and_prove", path = "../proving-utils/crates/stwo_run_and_prove" }
 pyo3 = "0.19.1"
 pyo3-log = "0.8.1"
 quote = "1.0.26"
