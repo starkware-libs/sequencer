@@ -98,6 +98,8 @@ mock! {
 
         fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
+        fn virtual_proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
+
         async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
         async fn decision_reached(
