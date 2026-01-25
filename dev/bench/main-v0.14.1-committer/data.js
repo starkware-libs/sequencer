@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769346780624,
+  "lastUpdate": 1769351129314,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -373,6 +373,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1255.16215511,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "70d26f074af4c508a095cc5d91dc01b3e3ddd57a",
+          "message": "starknet_patricia_storage: use fixed aerospike version (#11924)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-01-25T13:58:01Z",
+          "tree_id": "3dad42fd4889857a449bb56e20ad2df4e54ed0c8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/70d26f074af4c508a095cc5d91dc01b3e3ddd57a"
+        },
+        "date": 1769351129018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 817.6031924199999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1252.99139396,
             "unit": "ms"
           }
         ]
