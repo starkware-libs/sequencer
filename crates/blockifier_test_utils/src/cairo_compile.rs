@@ -2,7 +2,8 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
-use apollo_infra_utils::cairo0_compiler::{verify_cairo0_compiler_deps, Cairo0Script};
+use apollo_infra_utils::cairo0_compiler::Cairo0Script;
+use apollo_infra_utils::cairo0_compiler_test_utils::verify_cairo0_compiler_deps;
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
 use tempfile::NamedTempFile;
