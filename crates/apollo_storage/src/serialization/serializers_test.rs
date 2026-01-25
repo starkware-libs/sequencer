@@ -13,7 +13,8 @@ use starknet_api::core::ContractAddress;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::{path_in_resources, read_json_file};
-use starknet_api::transaction::TransactionOffsetInBlock;
+use starknet_api::transaction::fields::ProofFacts;
+use starknet_api::transaction::{InvokeTransactionV3, TransactionOffsetInBlock};
 
 use crate::consensus::LastVotedMarker;
 use crate::db::serialization::StorageSerde;
@@ -209,4 +210,23 @@ fn fix_casm_regression_files() {
                 .expect("Failed to create bin file {bin_file_name}\n");
         hardcoded_file.write_all(&casm_bytes).unwrap();
     }
+}
+
+/// Tests roundtrip serialization/deserialization of InvokeTransactionV3 with
+/// non-empty `proof_facts`
+///
+/// This is intentionally separate from `create_storage_serde_test!(InvokeTransactionV3)`,
+/// which only covers the empty `proof_facts` case.
+#[test]
+fn invoke_transaction_v3_with_proof_facts_roundtrip() {
+    let mut rng = get_rng();
+    let mut tx = InvokeTransactionV3::get_test_instance(&mut rng);
+    tx.proof_facts = ProofFacts::snos_proof_facts_for_testing();
+
+    let mut serialized: Vec<u8> = Vec::new();
+    tx.serialize_into(&mut serialized).unwrap();
+    let deserialized = InvokeTransactionV3::deserialize_from(&mut serialized.as_slice()).unwrap();
+
+    assert_eq!(tx, deserialized);
+    assert!(!deserialized.proof_facts.is_empty());
 }
