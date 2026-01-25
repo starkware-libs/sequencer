@@ -1082,6 +1082,7 @@ dependencies = [
  "apollo_config",
  "serde",
  "starknet_committer",
+ "starknet_patricia_storage",
  "validator",
 ]
 
