@@ -443,6 +443,44 @@
       ],
       "collapsed": true
     },
+    "Committer": {
+      "panels": [
+        {
+          "title": "Read Duration Per Block",
+          "description": "Duration of the read operation per block in milliseconds",
+          "type": "timeseries",
+          "exprs": [
+            "read_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "ms"
+          }
+        },
+        {
+          "title": "Compute Duration Per Block",
+          "description": "Duration of the compute operation per block in milliseconds",
+          "type": "timeseries",
+          "exprs": [
+            "compute_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "ms"
+          }
+        },
+        {
+          "title": "Write Duration Per Block",
+          "description": "Duration of the write operation per block in milliseconds",
+          "type": "timeseries",
+          "exprs": [
+            "write_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "unit": "ms"
+          }
+        }
+      ],
+      "collapsed": true
+    },
     "State Sync": {
       "panels": [
         {
