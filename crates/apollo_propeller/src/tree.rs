@@ -178,4 +178,42 @@ impl PropellerScheduleManager {
             shard_index: stated_index,
         })
     }
+
+    /// Create the initial broadcast list for message sharding.
+    /// Returns a list of peer IDs for all peers except the publisher (local peer).
+    pub fn make_broadcast_list(&self) -> Vec<PeerId> {
+        let publisher = self.get_local_peer_id();
+        self.channel_nodes
+            .iter()
+            .filter(|(peer_id, _)| *peer_id != publisher)
+            .map(|(peer, _)| *peer)
+            .collect()
+    }
+
+    /// Get the shard ID that the local peer is responsible for when the given peer is the
+    /// publisher.
+    ///
+    /// Returns an error if the local peer is the publisher (not in tree) or if the local peer
+    /// is not found in the node list.
+    pub fn get_my_shard_index_given_publisher(
+        &self,
+        publisher: &PeerId,
+    ) -> Result<ShardIndex, TreeGenerationError> {
+        if self.local_peer_id == *publisher {
+            return Err(TreeGenerationError::LocalPeerIsPublisher);
+        }
+
+        let publisher_index = self
+            .channel_nodes
+            .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
+            .map_err(|_| TreeGenerationError::PublisherNotInChannel { publisher: *publisher })?;
+
+        let shard_id = if self.local_peer_index < publisher_index {
+            self.local_peer_index
+        } else {
+            self.local_peer_index - 1
+        };
+
+        Ok(ShardIndex(shard_id.try_into().unwrap()))
+    }
 }

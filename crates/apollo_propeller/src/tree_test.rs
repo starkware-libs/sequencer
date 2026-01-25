@@ -1,8 +1,8 @@
 use libp2p::PeerId;
 use rstest::rstest;
 
-use crate::types::{PeerSetError, ShardIndex, TreeGenerationError};
-use crate::{PropellerScheduleManager, ShardValidationError};
+use crate::tree::PropellerScheduleManager;
+use crate::types::{PeerSetError, ShardIndex, ShardValidationError, TreeGenerationError};
 
 // TODO(AndrewL): Move this to test_utils crate.
 pub fn get_peer_id(index: u8) -> PeerId {
@@ -197,4 +197,37 @@ fn test_validate_origin_failures(
         shard_index,
     )
     .unwrap_err();
+}
+
+#[test]
+fn test_get_my_shard_index_given_publisher() {
+    let mut peers: Vec<_> = (0..4).map(get_peer_id).collect();
+    peers.sort();
+    let (peer0, peer1, peer2, peer3) = (peers[0], peers[1], peers[2], peers[3]);
+    let manager = PropellerScheduleManager::new(
+        peer2,
+        vec![(peer0, 100), (peer1, 75), (peer2, 50), (peer3, 25)],
+    )
+    .unwrap();
+    // When peer0 is publisher, peer2 is at sorted position 2, so shard index is 1
+    assert_eq!(manager.get_my_shard_index_given_publisher(&peer0).unwrap(), ShardIndex(1));
+
+    // When peer1 is publisher, peer2 is at sorted position 2, so shard index is 1
+    assert_eq!(manager.get_my_shard_index_given_publisher(&peer1).unwrap(), ShardIndex(1));
+
+    // When peer3 is publisher, peer2 is at sorted position 2, so shard index is 2
+    assert_eq!(manager.get_my_shard_index_given_publisher(&peer3).unwrap(), ShardIndex(2));
+
+    // When local peer (peer2) is publisher, should return error
+    assert!(matches!(
+        manager.get_my_shard_index_given_publisher(&peer2),
+        Err(TreeGenerationError::LocalPeerIsPublisher)
+    ));
+
+    // When publisher is not in channel, should return error
+    let unknown_peer = get_peer_id(99);
+    assert!(matches!(
+        manager.get_my_shard_index_given_publisher(&unknown_peer),
+        Err(TreeGenerationError::PublisherNotInChannel { .. })
+    ));
 }
