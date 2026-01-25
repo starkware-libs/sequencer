@@ -1214,6 +1214,7 @@ dependencies = [
 name = "apollo_config_manager"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_batcher_config",
  "apollo_config",
  "apollo_config_manager_config",
  "apollo_config_manager_types",
@@ -1248,6 +1249,7 @@ dependencies = [
 name = "apollo_config_manager_types"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_batcher_config",
  "apollo_consensus_config",
  "apollo_consensus_orchestrator_config",
  "apollo_http_server_config",

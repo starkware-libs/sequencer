@@ -317,6 +317,7 @@ impl Default for MockDependencies {
                 }),
                 ..Default::default()
             },
+            ..Default::default()
         };
         Self {
             storage_reader,

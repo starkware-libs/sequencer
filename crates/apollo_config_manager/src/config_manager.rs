@@ -1,3 +1,4 @@
+use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
@@ -35,6 +36,10 @@ impl ConfigManager {
         Ok(())
     }
 
+    pub(crate) fn get_batcher_dynamic_config(&self) -> ConfigManagerResult<BatcherDynamicConfig> {
+        Ok(self.latest_node_dynamic_config.batcher_dynamic_config.as_ref().unwrap().clone())
+    }
+
     pub(crate) fn get_consensus_dynamic_config(
         &self,
     ) -> ConfigManagerResult<ConsensusDynamicConfig> {
@@ -68,6 +73,9 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
         match request {
             // TODO(Nadin/Tsabary): consider using a macro to generate the responses for each type
             // of request.
+            ConfigManagerRequest::GetBatcherDynamicConfig => {
+                ConfigManagerResponse::GetBatcherDynamicConfig(self.get_batcher_dynamic_config())
+            }
             ConfigManagerRequest::GetConsensusDynamicConfig => {
                 ConfigManagerResponse::GetConsensusDynamicConfig(
                     self.get_consensus_dynamic_config(),
