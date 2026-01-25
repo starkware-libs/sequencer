@@ -443,6 +443,72 @@
       ],
       "collapsed": true
     },
+    "Committer": {
+      "panels": [
+        {
+          "title": "Offset",
+          "description": "The next block number to commit",
+          "type": "timeseries",
+          "exprs": [
+            "offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Total Block Duration",
+          "description": "Total block duration",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(total_block_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(total_block_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"Total duration of block\""
+          }
+        },
+        {
+          "title": "Read Duration Per Block",
+          "description": "Read duration per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(read_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(read_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"Read duration of block\""
+          }
+        },
+        {
+          "title": "Compute Duration Per Block",
+          "description": "Compute duration per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(compute_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(compute_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"Compute duration of block\""
+          }
+        },
+        {
+          "title": "Write Duration Per Block",
+          "description": "Write duration per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(write_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(write_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"Write duration of block\""
+          }
+        }
+      ],
+      "collapsed": true
+    },
     "State Sync": {
       "panels": [
         {
