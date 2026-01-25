@@ -4,6 +4,7 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::{
     CentralObjects,
     DecisionReachedResponse,
+    GetParentProposalCommitmentResponse,
     ProposalCommitment as BatcherProposalCommitment,
     ProposalStatus,
     SendProposalContent,
@@ -70,6 +71,9 @@ async fn cancelled_proposal_aborts() {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_default_expectations();
 
+    deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     deps.batcher.expect_propose_block().times(1).return_const(Ok(()));
     deps.batcher.expect_start_height().times(1).return_const(Ok(()));
 
@@ -197,6 +201,10 @@ async fn interrupt_active_proposal() {
     // This test validates two proposals: round 0 (interrupted) and round 1 (successful)
     deps.setup_default_expectations();
 
+    // Expect 2 get_parent_proposal_commitment calls (one for each round)
+    deps.batcher.expect_get_parent_proposal_commitment().times(2).returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     // Expect 2 validate_block calls (one for each round)
     deps.batcher.expect_validate_block().times(2).returning(|_| Ok(()));
     deps.batcher
@@ -427,6 +435,9 @@ async fn batcher_not_ready(#[case] proposer: bool) {
     let (mut deps, _network) = create_test_and_network_deps();
     deps.setup_default_expectations();
     deps.batcher.expect_start_height().times(1).return_const(Ok(()));
+    deps.batcher.expect_get_parent_proposal_commitment().returning(|_| {
+        Ok(GetParentProposalCommitmentResponse { parent_proposal_commitment: None })
+    });
     if proposer {
         deps.batcher
             .expect_propose_block()
