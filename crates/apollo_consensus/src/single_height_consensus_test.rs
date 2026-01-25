@@ -40,7 +40,7 @@ fn proposer() {
         TIMEOUTS.clone(),
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
-    let leader_election = LeaderElection::new(leader_fn);
+    let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     // Start should request to build proposal.
     let start_ret = shc.start(&leader_election);
     assert_matches!(start_ret, mut reqs => {
@@ -109,7 +109,7 @@ fn validator(repeat_proposal: bool) {
         TIMEOUTS.clone(),
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
-    let leader_election = LeaderElection::new(leader_fn);
+    let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
 
     // Accept block info -> should request validation.
     let round = block_info.round;
@@ -183,7 +183,7 @@ fn vote_twice(same_vote: bool) {
         TIMEOUTS.clone(),
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
-    let leader_election = LeaderElection::new(leader_fn);
+    let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     // Validate a proposal so the SM is ready to prevote.
     let round = block_info.round;
     shc.handle_proposal(&leader_election, block_info);
@@ -247,7 +247,7 @@ fn rebroadcast_votes() {
         TIMEOUTS.clone(),
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
-    let leader_election = LeaderElection::new(leader_fn);
+    let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     // Start and build.
     let _ = shc.start(&leader_election);
 
@@ -339,7 +339,7 @@ fn repropose() {
         TIMEOUTS.clone(),
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
-    let leader_election = LeaderElection::new(leader_fn);
+    let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     let _ = shc.start(&leader_election);
     // After building the proposal, the proposer broadcasts a prevote for round 0.
     let ret = shc.handle_event(
@@ -406,7 +406,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         TIMEOUTS.clone(),
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
-    let leader_election = LeaderElection::new(leader_fn);
+    let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     let ret = shc.start(&leader_election);
     assert_matches!(ret, mut reqs => {
         assert_matches!(reqs.pop_front(), Some(SMRequest::StartBuildProposal(ROUND_0)));
@@ -456,7 +456,7 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         TIMEOUTS.clone(),
     );
     let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
-    let leader_election = LeaderElection::new(leader_fn);
+    let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
 
     // 1. Accept proposal -> should request validation
     let round = block_info.round;
