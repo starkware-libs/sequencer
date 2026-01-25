@@ -3,7 +3,7 @@
 use std::task::{Context, Poll};
 
 use libp2p::core::Endpoint;
-use libp2p::identity::PeerId;
+use libp2p::identity::{PeerId, PublicKey};
 use libp2p::swarm::behaviour::{ConnectionClosed, ConnectionEstablished, FromSwarm};
 use libp2p::swarm::{
     ConnectionDenied,
@@ -17,7 +17,7 @@ use libp2p::swarm::{
 
 use crate::config::Config;
 use crate::handler::{Handler, HandlerOut};
-use crate::types::Event;
+use crate::types::{Channel, Event, MessageRoot, PeerSetError, ShardPublishError};
 
 /// The Propeller network behaviour.
 pub struct Behaviour {
@@ -29,6 +29,38 @@ impl Behaviour {
     /// Create a new Propeller behaviour.
     pub fn new(config: Config) -> Self {
         Self { config }
+    }
+
+    pub async fn register_channel_peers(
+        &mut self,
+        _channel: Channel,
+        _peers: Vec<(PeerId, u64)>,
+    ) -> Result<(), PeerSetError> {
+        // TODO(AndrewL): Forward to engine for channel peer registration
+        todo!()
+    }
+
+    pub async fn register_channel_peers_and_optional_keys(
+        &mut self,
+        _channel: Channel,
+        _peers: Vec<(PeerId, u64, Option<PublicKey>)>,
+    ) -> Result<(), PeerSetError> {
+        // TODO(AndrewL): Forward to engine for channel peer registration with optional keys
+        todo!()
+    }
+
+    pub async fn unregister_channel(&mut self, _channel: Channel) -> Result<(), ()> {
+        // TODO(AndrewL): Forward to engine for channel unregistration
+        todo!()
+    }
+
+    pub async fn broadcast(
+        &mut self,
+        _channel: Channel,
+        _message: Vec<u8>,
+    ) -> Result<MessageRoot, ShardPublishError> {
+        // TODO(AndrewL): Forward to engine for message broadcasting
+        todo!()
     }
 }
 
