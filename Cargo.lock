@@ -1432,6 +1432,7 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_batcher",
  "apollo_class_manager",
+ "apollo_committer",
  "apollo_compile_to_casm",
  "apollo_config_manager",
  "apollo_consensus",
@@ -1456,6 +1457,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
+ "starknet_committer",
  "strum 0.25.0",
  "strum_macros 0.25.3",
 ]
