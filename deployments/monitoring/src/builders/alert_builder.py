@@ -18,7 +18,8 @@ from common.grafana10_objects import (
     alert_query_object,
     alert_rule_object,
 )
-from common.helpers import EnvironmentName, alert_env_filename_suffix, get_logger
+from common.env import EnvironmentName, alert_env_filename_suffix
+from common.logger import get_logger
 from grafana_client import GrafanaApi
 from grafana_client.client import (
     GrafanaBadInputError,
@@ -133,7 +134,10 @@ def dump_alert(output_dir: str, alert: dict[str, any]) -> None:
     os.makedirs(output_dir, exist_ok=True)
     with open(alert_full_path, "w") as f:
         json.dump(alert, f, indent=2)
-    logger.info(f'Alert "{alert["name"]}" saved to {alert_full_path}')
+    # Format with professional colors: Alert (white bold), name (cyan), saved to (white bold), path (dim cyan)
+    logger.info(
+        f'[bold white]Alert[/bold white] "[blue]{alert["name"]}[/blue]" [bold white]saved to[/bold white] [dim white]{alert_full_path}[/dim white]'
+    )
 
 
 def get_alert_rule_group(client: GrafanaApi, folder_uid: str, group_uid: str) -> str:
@@ -272,12 +276,12 @@ def alert_builder(args: argparse.Namespace):
     # Load config overrides if provided
     args_dict = vars(args)
     config = (
-        load_config_file(args_dict.get("config_file"), logger_instance=logger)
-        if args_dict.get("config_file")
+        load_config_file(args_dict.get("alert_rules_overrids_config_file"), logger_instance=logger)
+        if args_dict.get("alert_rules_overrids_config_file")
         else {}
     )
     if config:
-        logger.info(f"Loaded {len(config)} override(s) from config file")
+        logger.info(f"Loaded {len(config)} override(s) from alert rules overrids config file")
 
     if not args.dry_run:
         client = GrafanaApi.from_url(args.grafana_url)
@@ -286,7 +290,7 @@ def alert_builder(args: argparse.Namespace):
         folder_uid = args.folder_uid
 
     # Get config file path for error messages
-    config_file_path = args_dict.get("config_file", "")
+    alert_rules_overrids_config_file_path = args_dict.get("alert_rules_overrids_config_file", "")
 
     # Validate all placeholders from all alerts first (before processing any)
     # Always validate, even if config is empty, to catch missing placeholders
@@ -295,7 +299,7 @@ def alert_builder(args: argparse.Namespace):
             dev_alerts["alerts"],
             config,
             source_json_path=alert_file_path,
-            config_override_path=config_file_path,
+            config_override_path=alert_rules_overrids_config_file_path,
             logger_instance=logger,
             item_type_name="alert",
         )
