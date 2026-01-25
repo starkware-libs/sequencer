@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769358236324,
+  "lastUpdate": 1769358942876,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -441,6 +441,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1168.94950674,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "15922d21b039976932d3e83f4dea2a997202deb0",
+          "message": "apollo_committer: remove facts terminology from commit_block (#11915)",
+          "timestamp": "2026-01-25T16:07:22Z",
+          "tree_id": "4af9e9760b31acef86010c1f4b2957071802d26e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/15922d21b039976932d3e83f4dea2a997202deb0"
+        },
+        "date": 1769358942599,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 747.47147549,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1138.44255466,
             "unit": "ms"
           }
         ]
