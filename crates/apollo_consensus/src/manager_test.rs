@@ -168,6 +168,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
@@ -222,6 +223,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     expect_validate_proposal(&mut context, Felt::TWO, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
@@ -288,6 +290,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     send(&mut sender, precommit(None, HEIGHT_1, ROUND_0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     expect_validate_proposal(&mut context, Felt::ONE, 2);
     context
@@ -343,8 +346,8 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_1, *PROPOSER_ID)).await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_1, *VALIDATOR_ID_2)).await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_1, *VALIDATOR_ID_3)).await;
+    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_1, *PROPOSER_ID)).await;
     send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_1, *VALIDATOR_ID_2)).await;
-    send(&mut sender, precommit(Some(Felt::ONE), HEIGHT_1, ROUND_1, *VALIDATOR_ID_3)).await;
 
     manager_handle.await.unwrap();
 }
@@ -446,6 +449,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     expect_validate_proposal(&mut context, Felt::ONE, 1); // Height 1 validation
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     // Set up coordination to detect when node votes Nil for height 2 (indicating proposal was
     // dropped, so the node didn't received the proposal and votes Nil).
@@ -573,6 +577,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         .expect_validators()
         .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_broadcast().returning(move |_| Ok(()));
 
     // Set up coordination for round advancement.
@@ -680,6 +685,9 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
             if h == HEIGHT_1 { *VALIDATOR_ID } else { *PROPOSER_ID }
         },
     );
+    context.expect_virtual_proposer().returning(move |h: BlockNumber, _| {
+        if h == HEIGHT_1 { *VALIDATOR_ID } else { *PROPOSER_ID }
+    });
     context.expect_try_sync().withf(move |h| *h == HEIGHT_1).times(1).returning(|_| true);
     context.expect_try_sync().returning(|_| false);
     context.expect_broadcast().returning(move |_| Ok(()));
@@ -822,6 +830,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     expect_validate_proposal(&mut context, Felt::ONE, 1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
@@ -922,6 +931,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
 
     let mut context = MockTestContext::new();
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
     context
         .expect_validators()
         .returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]);
@@ -1064,6 +1074,7 @@ async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: Conse
     let mut context = MockTestContext::new();
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
 
     // Sync should first fail, so consensus will try to run.
     context.expect_try_sync().times(1).returning(|_| false);
@@ -1107,6 +1118,7 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
     let mut context = MockTestContext::new();
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_virtual_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_try_sync().returning(|_| false);
 
     // Send proposal with no content.

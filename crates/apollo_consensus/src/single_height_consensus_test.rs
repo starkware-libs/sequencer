@@ -140,10 +140,9 @@ fn validator(repeat_proposal: bool) {
         &leader_election,
         prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_2),
     );
-    let ret = shc.handle_vote(
-        &leader_election,
-        prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_3),
-    );
+    // Virtual leader (PROPOSER_ID) must be in favor of the block for the quorum to be accepted.
+    let ret = shc
+        .handle_vote(&leader_election, prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *PROPOSER_ID));
     // Expect a precommit broadcast request present.
     assert_matches!(ret, mut reqs => {
         assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, 0)));

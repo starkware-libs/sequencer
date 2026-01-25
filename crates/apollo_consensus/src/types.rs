@@ -30,16 +30,19 @@ pub(crate) type LeaderFn<'a> = Box<dyn Fn(Round) -> ValidatorId + 'a>;
 /// Wrapper struct for leader functions used in consensus.
 pub(crate) struct LeaderElection<'a> {
     proposer: LeaderFn<'a>,
-    _virtual_proposer: LeaderFn<'a>,
+    virtual_proposer: LeaderFn<'a>,
 }
 
 impl<'a> LeaderElection<'a> {
     pub(crate) fn new(proposer: LeaderFn<'a>, virtual_proposer: LeaderFn<'a>) -> Self {
-        Self { proposer, _virtual_proposer: virtual_proposer }
+        Self { proposer, virtual_proposer }
     }
 
     pub(crate) fn proposer(&self, round: Round) -> ValidatorId {
         (self.proposer)(round)
+    }
+    pub(crate) fn virtual_proposer(&self, round: Round) -> ValidatorId {
+        (self.virtual_proposer)(round)
     }
 }
 
