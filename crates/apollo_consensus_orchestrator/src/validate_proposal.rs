@@ -452,7 +452,10 @@ async fn handle_proposal_part(
                 }
             }
         }
-        _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
+        _ => HandledProposalPart::Failed(format!(
+            "Invalid proposal part: {:?}",
+            proposal_part.clone()
+        )),
     }
 }
 
