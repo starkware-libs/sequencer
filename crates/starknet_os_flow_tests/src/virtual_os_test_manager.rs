@@ -1,5 +1,3 @@
-use starknet_api::core::ContractAddress;
-use starknet_api::executable_transaction::Transaction;
 use starknet_os::io::virtual_os_output::{VirtualOsOutput, VirtualOsRunnerOutput};
 use starknet_os::runner::run_virtual_os;
 use starknet_types_core::felt::Felt;
@@ -36,16 +34,11 @@ impl<S: FlowTestState> TestRunner<S> {
         let config_hash =
             self.os_hints.os_hints_config.chain_info.compute_os_config_hash(public_keys).unwrap();
 
-        let first_tx_sender_address = match first_block.transactions.first().unwrap() {
-            Transaction::Account(tx) => tx.sender_address(),
-            Transaction::L1Handler(_) => ContractAddress::from(0_u8),
-        };
         let expected_virtual_os_output = VirtualOsOutput {
             version: Felt::ZERO,
             base_block_number: first_block.block_info.block_number,
             base_block_hash: first_block.new_block_hash.0,
             starknet_os_config_hash: config_hash,
-            authorized_account_address: first_tx_sender_address,
             messages_to_l1: self.messages_to_l1,
         };
 
