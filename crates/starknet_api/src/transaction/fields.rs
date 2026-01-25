@@ -616,7 +616,7 @@ impl AccountDeploymentData {
     }
 }
 
-// Represent the `VIRTUAL_SNOS` as a Felt.
+// Represent the string `VIRTUAL_SNOS` as a Felt.
 pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
 
 // Represent the `PROOF_VERSION` marker as a Felt ('PROOF0').

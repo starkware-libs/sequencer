@@ -3,9 +3,9 @@ use std::fs;
 use apollo_starknet_os_program::program_hash::compute_program_hash_blake;
 use apollo_transaction_converter::proof_verification::verify_proof;
 use apollo_transaction_converter::transaction_converter::BOOTLOADER_PROGRAM_HASH;
+use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
-use starknet_api::transaction::fields::ProofFacts;
 use starknet_types_core::felt::Felt;
 
 use crate::proving::prover::{prove, resolve_resource_path, BOOTLOADER_FILE};
@@ -34,10 +34,10 @@ async fn test_prove_cairo_pie_10_transfers() {
     // Verify the proof.
     let verify_output = verify_proof(output.proof.clone()).expect("Failed to verify proof");
 
-    // Check that the verified proof facts match the prover output.
+    // Check that the verified program output matches the prover output.
     assert_eq!(
-        verify_output.proof_facts, output.proof_facts,
-        "Verified proof facts do not match prover output"
+        verify_output.program_output, output.program_output,
+        "Verified program output does not match prover output"
     );
 
     // Check that the program hash matches the expected bootloader hash.
@@ -48,16 +48,16 @@ async fn test_prove_cairo_pie_10_transfers() {
         "Program hash does not match expected bootloader hash"
     );
 
-    // Read expected proof facts.
-    let expected_proof_facts_str = fs::read_to_string(&expected_proof_facts_path)
-        .expect("Failed to read expected proof facts file");
-    let expected_proof_facts: ProofFacts = serde_json::from_str(&expected_proof_facts_str)
-        .expect("Failed to parse expected proof facts");
+    // Read expected program output.
+    let expected_program_output_str = fs::read_to_string(&expected_proof_facts_path)
+        .expect("Failed to read expected program output file");
+    let expected_program_output: ProgramOutput = serde_json::from_str(&expected_program_output_str)
+        .expect("Failed to parse expected program output");
 
-    // Compare proof facts.
+    // Compare program output.
     assert_eq!(
-        output.proof_facts, expected_proof_facts,
-        "Generated proof facts do not match expected proof facts"
+        output.program_output, expected_program_output,
+        "Generated program output does not match expected program output"
     );
 }
 

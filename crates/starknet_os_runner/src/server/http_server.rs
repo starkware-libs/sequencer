@@ -72,6 +72,9 @@ impl IntoResponse for HttpServerError {
                 VirtualSnosProverError::ValidationError(msg) => {
                     (StatusCode::UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", msg.clone())
                 }
+                VirtualSnosProverError::TransactionHashError(msg) => {
+                    (StatusCode::UNPROCESSABLE_ENTITY, "TRANSACTION_HASH_ERROR", msg.clone())
+                }
                 VirtualSnosProverError::RunnerError(err) => {
                     (StatusCode::INTERNAL_SERVER_ERROR, "RUNNER_ERROR", err.to_string())
                 }
@@ -80,6 +83,9 @@ impl IntoResponse for HttpServerError {
                 }
                 VirtualSnosProverError::OutputParseError(err) => {
                     (StatusCode::INTERNAL_SERVER_ERROR, "OUTPUT_PARSE_ERROR", err.to_string())
+                }
+                VirtualSnosProverError::ProgramOutputError(e) => {
+                    (StatusCode::INTERNAL_SERVER_ERROR, "PROGRAM_OUTPUT_ERROR", e.to_string())
                 }
             },
         };
