@@ -106,6 +106,8 @@ pub enum StarknetApiError {
     MissingBlockHeaderCommitments { block_number: BlockNumber, version: StarknetVersion },
     #[error("ProofFacts parse error: {0}")]
     InvalidProofFacts(String),
+    #[error("ProgramOutput parse error: {0}")]
+    InvalidProgramOutput(String),
 }
 
 pub type StarknetApiResult<T> = Result<T, StarknetApiError>;
