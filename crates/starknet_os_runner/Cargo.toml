@@ -8,6 +8,7 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
+in_memory_proving = ["proving_utils/in_memory_proving"]
 
 [dependencies]
 anyhow.workspace = true

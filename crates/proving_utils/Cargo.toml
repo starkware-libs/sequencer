@@ -9,11 +9,20 @@ description = "Utilities for proving."
 [lints]
 workspace = true
 
+[features]
+default = []
+in_memory_proving = ["cairo-air", "cairo-program-runner-lib", "cairo-vm", "stwo_run_and_prove_lib", "stwo-cairo-adapter"]
+
 [dependencies]
 apollo_infra_utils.workspace = true
 bzip2 = { workspace = true, features = ["libbz2-rs-sys"] }
+cairo-air = { workspace = true, optional = true }
+cairo-program-runner-lib = { workspace = true, optional = true }
+cairo-vm = { workspace = true, optional = true }
 serde.workspace = true
 starknet_api.workspace = true
+stwo_run_and_prove_lib = { workspace = true, optional = true }
+stwo-cairo-adapter = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
