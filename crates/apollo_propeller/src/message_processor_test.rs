@@ -46,7 +46,7 @@ async fn test_reconstructed_unit_signature_matches_original() {
         num_data_shards,
         num_coding_shards,
     )
-    .expect("Failed to prepare units");
+    .unwrap();
 
     assert_eq!(all_units.len(), 3, "Should have 3 shards total");
 
