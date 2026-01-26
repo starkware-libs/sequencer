@@ -4,15 +4,15 @@ use rstest::rstest;
 use tokio::task::JoinSet;
 
 use crate::mdbx_storage::MdbxStorage;
-use crate::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
+use crate::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
 use crate::storage_trait::{AsyncStorage, DbKey, DbValue};
 
 /// Tests the concurrent access to the storage. Explicitly uses 11 worker threads to get actual
 /// parallelism (one thread for main test, 10 worker threads for concurrent operations).
 #[rstest]
 #[case::rocksdb_storage(
-    RocksDbStorage::open(
-        Path::new("/tmp/test_rocksdb_storage"), RocksDbOptions::default()
+    RocksDbStorage::new(
+        Path::new("/tmp/test_rocksdb_storage"), RocksDbStorageConfig::default()
     ).unwrap()
 )]
 #[case::mdbx_storage(MdbxStorage::open(Path::new("/tmp/test_mdbx_storage")).unwrap())]
