@@ -45,7 +45,10 @@ fn test_cairo0_starknet_compile_version_pip_requirements() {
 
 #[test]
 fn test_remove_unused_imports() {
-    let input = r#"from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
+    let input = r#"// This is a comment at the top of the file.
+// Another comment line.
+
+from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.starknet.core.os.state import (
     StateEntry,
     UnusedType,
@@ -66,7 +69,10 @@ func main{hash_ptr: HashBuiltin*}() {
 }
 "#;
 
-    let expected = r#"from starkware.cairo.common.cairo_builtins import HashBuiltin
+    let expected = r#"// This is a comment at the top of the file.
+// Another comment line.
+
+from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.core.os.state import (
     StateEntry,
 )
