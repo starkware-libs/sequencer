@@ -29,6 +29,7 @@ use apollo_transaction_converter::{
 };
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -205,13 +206,18 @@ impl<
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
         let mut proof_archive_handle = None;
-        if let Some((proof_facts, proof)) = proof_data {
+        if let Some((proof_facts, tx_nonce, sender_address, proof)) = proof_data {
             let tx_hash = internal_tx.tx_hash;
             // Proof is verified during conversion to internal tx. It is stored here, after
             // validation, to avoid storing proofs for rejected transactions.
             let store_result = self
                 .transaction_converter
-                .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
+                .store_proof_in_proof_manager(
+                    proof_facts.clone(),
+                    proof.clone(),
+                    tx_nonce,
+                    sender_address,
+                )
                 .await;
             match store_result {
                 Ok(proof_manager_store_duration) => {
@@ -325,7 +331,11 @@ impl<
         tx: RpcTransaction,
         tx_signature: &TransactionSignature,
     ) -> Result<
-        (InternalRpcTransaction, AccountTransaction, Option<(ProofFacts, Proof)>),
+        (
+            InternalRpcTransaction,
+            AccountTransaction,
+            Option<(ProofFacts, Nonce, ContractAddress, Proof)>,
+        ),
         StarknetError,
     > {
         let (internal_tx, verification_handle) =
@@ -356,7 +366,7 @@ impl<
         &self,
         verification_handle: Option<VerificationHandle>,
         tx_signature: &TransactionSignature,
-    ) -> Result<Option<(ProofFacts, Proof)>, StarknetError> {
+    ) -> Result<Option<(ProofFacts, Nonce, ContractAddress, Proof)>, StarknetError> {
         let Some(handle) = verification_handle else {
             return Ok(None);
         };
@@ -373,7 +383,7 @@ impl<
                 transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
             })?;
 
-        Ok(Some((handle.proof_facts, handle.proof)))
+        Ok(Some((handle.proof_facts, handle.nonce, handle.sender_address, handle.proof)))
     }
 }
 
