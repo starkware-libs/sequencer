@@ -182,9 +182,13 @@ pub struct Batcher {
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
     // TODO(Yoav): Use `apollo_proc_macros::make_visibility` once it supports fields.
+    // TODO(Einat): Remove the allow(dead_code) when the committer should be enabled.
+    #[allow(dead_code)]
     #[cfg(test)]
     pub(crate) commitment_manager: ApolloCommitmentManager,
     #[cfg(not(test))]
+    // TODO(Einat): Remove the allow(dead_code) when the committer should be enabled.
+    #[allow(dead_code)]
     commitment_manager: ApolloCommitmentManager,
 
     // Kept alive to maintain the server running.
@@ -718,6 +722,8 @@ impl Batcher {
             StorageCommitmentBlockHash::ParentHash(block_header_without_hash.parent_hash)
         };
 
+        // TODO(Einat): Remove allow(unused_variables) when the committer should be enabled.
+        #[allow(unused_variables)]
         let optional_state_diff_commitment = match &storage_commitment_block_hash {
             StorageCommitmentBlockHash::ParentHash(_) => None,
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
@@ -735,13 +741,13 @@ impl Batcher {
             storage_commitment_block_hash,
         )
         .await?;
-
-        self.write_commitment_results_and_add_new_task(
-            height,
-            state_diff,
-            optional_state_diff_commitment,
-        )
-        .await?;
+        // TODO(Einat): Uncomment when the committer should be enabled.
+        // self.write_commitment_results_and_add_new_task(
+        //     height,
+        //     state_diff,
+        //     optional_state_diff_commitment,
+        // )
+        // .await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -782,6 +788,8 @@ impl Batcher {
         .expect("Number of reverted transactions should fit in u64");
         let partial_block_hash_components =
             block_execution_artifacts.partial_block_hash_components();
+        // TODO(Einat): Remove allow(unused_variables) when the committer should be enabled.
+        #[allow(unused_variables)]
         let state_diff_commitment =
             partial_block_hash_components.header_commitments.state_diff_commitment;
         let block_header_commitments = partial_block_hash_components.header_commitments.clone();
@@ -796,12 +804,13 @@ impl Batcher {
         )
         .await?;
 
-        self.write_commitment_results_and_add_new_task(
-            height,
-            state_diff.clone(), // TODO(Nimrod): Remove the clone here.
-            Some(state_diff_commitment),
-        )
-        .await?;
+        // TODO(Einat): Uncomment when the committer should be enabled.
+        // self.write_commitment_results_and_add_new_task(
+        //     height,
+        //     state_diff.clone(), // TODO(Nimrod): Remove the clone here.
+        //     Some(state_diff_commitment),
+        // )
+        // .await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1274,7 +1283,8 @@ impl Batcher {
             })?;
         Ok(())
     }
-
+    // TODO(Einat): Remove the allow(dead_code) when the committer should be enabled.
+    #[allow(dead_code)]
     async fn write_commitment_results_and_add_new_task(
         &mut self,
         height: BlockNumber,
