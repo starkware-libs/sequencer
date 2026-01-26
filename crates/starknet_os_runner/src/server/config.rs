@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use tracing::info;
 
+use crate::runner::RunnerConfig;
+
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
 
@@ -26,6 +28,8 @@ pub struct ServiceConfig {
     pub ip: IpAddr,
     /// Port to bind the server to.
     pub port: u16,
+    /// Configuration for the runner.
+    pub runner_config: RunnerConfig,
 }
 
 impl Default for ServiceConfig {
@@ -36,6 +40,7 @@ impl Default for ServiceConfig {
             rpc_node_url: String::new(),
             ip: DEFAULT_IP,
             port: DEFAULT_PORT,
+            runner_config: RunnerConfig::default(),
         }
     }
 }

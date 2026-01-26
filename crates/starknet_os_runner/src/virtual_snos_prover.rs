@@ -83,8 +83,12 @@ impl VirtualSnosProver {
         let contract_class_manager =
             ContractClassManager::start(config.contract_class_manager_config.clone());
         let node_url = Url::parse(&config.rpc_node_url).expect("Invalid RPC node URL in config");
-        let runner_factory =
-            RpcRunnerFactory::new(node_url, config.chain_id.clone(), contract_class_manager);
+        let runner_factory = RpcRunnerFactory::new(
+            node_url,
+            config.chain_id.clone(),
+            contract_class_manager,
+            config.runner_config.clone(),
+        );
         Self { runner_factory, chain_id: config.chain_id.clone() }
     }
 
