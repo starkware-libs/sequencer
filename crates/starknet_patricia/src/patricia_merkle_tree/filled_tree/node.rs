@@ -1,4 +1,5 @@
 use starknet_api::hash::HashOutput;
+use starknet_rust_core::types::MerkleNode;
 
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
@@ -20,3 +21,10 @@ pub type FactDbFilledNode<L> = FilledNode<L, HashOutput>;
 /// While the same underlying type as `FactDbFilledNode`, this alias is not used in the context of
 /// the DB-representation of the node.
 pub type HashFilledNode<L> = FilledNode<L, HashOutput>;
+
+impl<L: Leaf> From<(HashOutput, &MerkleNode)> for FactDbFilledNode<L> {
+    fn from((hash, node): (HashOutput, &MerkleNode)) -> Self {
+        let data: NodeData<L, HashOutput> = NodeData::from(node);
+        Self { hash, data }
+    }
+}
