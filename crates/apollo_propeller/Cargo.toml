@@ -16,6 +16,7 @@ asynchronous-codec.workspace = true
 futures.workspace = true
 libp2p.workspace = true
 prost.workspace = true
+rand = { workspace = true, features = ["std", "std_rng"] }
 rayon.workspace = true
 reed-solomon-simd.workspace = true
 sha2.workspace = true
