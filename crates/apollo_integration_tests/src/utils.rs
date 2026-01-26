@@ -376,6 +376,9 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     num_validators,
                     chain_id: chain_id.clone(),
                     builder_address: ContractAddress::from(4_u128),
+                    // 10 Times less than the default values.
+                    build_proposal_margin_millis: Duration::from_millis(100),
+                    validate_proposal_margin_millis: Duration::from_millis(1_000),
                     ..Default::default()
                 },
                 ..Default::default()
