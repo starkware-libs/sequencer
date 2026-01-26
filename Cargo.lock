@@ -11428,6 +11428,7 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_infra_utils",
  "apollo_storage",
+ "async-trait",
  "blake2",
  "clap",
  "csv",
