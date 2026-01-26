@@ -432,6 +432,35 @@ impl SequencerNodeConfig {
         );
         validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
 
+        // Validate proposer_idle_detection_delay < batcher_deadline.
+        // The batcher_deadline = proposal_timeout - build_proposal_margin.
+        // If idle_delay >= batcher_deadline, idle detection never triggers (hard deadline fires
+        // first).
+        if let (Some(batcher_config), Some(consensus_manager_config)) =
+            (&self.batcher_config, &self.consensus_manager_config)
+        {
+            let idle_delay =
+                batcher_config.block_builder_config.proposer_idle_detection_delay_millis;
+            let proposal_timeout = consensus_manager_config
+                .consensus_manager_config
+                .dynamic_config
+                .timeouts
+                .get_proposal_timeout(0); // base timeout (round 0)
+            let build_margin =
+                consensus_manager_config.context_config.static_config.build_proposal_margin_millis;
+            let batcher_deadline = proposal_timeout.saturating_sub(build_margin);
+
+            if idle_delay >= batcher_deadline {
+                return Err(ConfigError::ComponentConfigMismatch {
+                    component_config_mismatch: format!(
+                        "proposer_idle_detection_delay_millis ({:?}) must be less than \
+                         batcher_deadline ({:?}) = proposal_timeout ({:?}) - build_margin ({:?})",
+                        idle_delay, batcher_deadline, proposal_timeout, build_margin
+                    ),
+                });
+            }
+        }
+
         Ok(())
     }
 }
