@@ -509,7 +509,22 @@
     "privacy": "Public",
     "value": false
   },
-  "committer_config.storage_config.dummy_field": {
+  "committer_config.storage_config.cache_on_write": {
+    "description": "If true, the cache is updated on write operations",
+    "privacy": "Public",
+    "value": true
+  },
+  "committer_config.storage_config.cache_size": {
+    "description": "Max number of entries in the cache",
+    "privacy": "Public",
+    "value": 1000000
+  },
+  "committer_config.storage_config.include_inner_stats": {
+    "description": "If true, the inner stats are included when collecting statistics",
+    "privacy": "Public",
+    "value": true
+  },
+  "committer_config.storage_config.inner_storage_config.dummy_field": {
     "description": "Dummy field for including this struct in the config json file.",
     "privacy": "Public",
     "value": 0
