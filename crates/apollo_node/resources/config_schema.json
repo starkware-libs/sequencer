@@ -2334,222 +2334,222 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "gateway_config.authorized_declarer_accounts": {
+  "gateway_config.static_config.authorized_declarer_accounts": {
     "description": "Authorized declarer accounts. If set, only these accounts can declare new contracts. Addresses are in hex format and separated by a comma with no space.",
     "privacy": "Public",
     "value": ""
   },
-  "gateway_config.authorized_declarer_accounts.#is_none": {
+  "gateway_config.static_config.authorized_declarer_accounts.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "gateway_config.block_declare": {
+  "gateway_config.static_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.chain_info.chain_id": {
+  "gateway_config.static_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
-  "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": {
+  "gateway_config.static_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
     "pointer_target": "eth_fee_token_address",
     "privacy": "Public"
   },
-  "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": {
+  "gateway_config.static_config.chain_info.fee_token_addresses.strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
     "value": 2000
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
     "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
     "pointer_target": "native_classes_whitelist",
     "privacy": "Public"
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
     "description": "Enables Cairo native execution.",
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
     "description": "Block Sequencer main program while compiling sierra, for testing.",
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.contract_cache_size": {
+  "gateway_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",
     "value": 300
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
     "privacy": "Public",
     "value": ""
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "Public",
     "value": 600
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
     "privacy": "Public",
     "value": 52428800
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
     "value": 16106127360
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.optimization_level": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.optimization_level": {
     "description": "The level of optimization to apply during compilation.",
     "privacy": "Public",
     "value": 2
   },
-  "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
+  "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
     "privacy": "Public",
     "value": 200
   },
-  "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
+  "gateway_config.static_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
     "description": "Maximum nonce for which the validation is skipped.",
     "privacy": "Public",
     "value": "0x1"
   },
-  "gateway_config.stateful_tx_validator_config.min_gas_price_percentage": {
+  "gateway_config.static_config.stateful_tx_validator_config.min_gas_price_percentage": {
     "description": "Minimum gas price as percentage of threshold to accept transactions.",
     "privacy": "Public",
     "value": 100
   },
-  "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": {
+  "gateway_config.static_config.stateful_tx_validator_config.reject_future_declare_txs": {
     "description": "If true, rejects declare transactions with future nonces.",
     "privacy": "Public",
     "value": true
   },
-  "gateway_config.stateful_tx_validator_config.validate_resource_bounds": {
+  "gateway_config.static_config.stateful_tx_validator_config.validate_resource_bounds": {
     "description": "If true, ensures the max L2 gas price exceeds (a configurable percentage of) the base gas price of the previous block.",
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.#is_none": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.#is_none": {
     "description": "Flag for an optional field.",
     "pointer_target": "versioned_constants_overrides.#is_none",
     "privacy": "TemporaryValue"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
     "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
     "description": "Maximum number of events that can be emitted from the transaction.",
     "pointer_target": "versioned_constants_overrides.max_n_events",
     "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "pointer_target": "versioned_constants_overrides.max_recursion_depth",
     "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": {
     "description": "Maximum number of steps the validation function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
-  "gateway_config.stateless_tx_validator_config.max_calldata_length": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
     "privacy": "Public",
     "value": 4000
   },
-  "gateway_config.stateless_tx_validator_config.max_contract_bytecode_size": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_contract_bytecode_size": {
     "description": "Limitation of contract class bytecode size.",
     "privacy": "Public",
     "value": 81920
   },
-  "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_contract_class_object_size": {
     "description": "Limitation of contract class object size.",
     "privacy": "Public",
     "value": 4089446
   },
-  "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_l2_gas_amount": {
     "description": "Maximum allowed L2 gas amount for transactions.",
     "privacy": "Public",
     "value": 1200000000
   },
-  "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
     "value": 7
   },
-  "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.patch": {
     "description": "The patch version of the configuration.",
     "privacy": "Public",
     "value": 18446744073709551615
   },
-  "gateway_config.stateless_tx_validator_config.max_signature_length": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_signature_length": {
     "description": "Limitation of signature length.",
     "privacy": "Public",
     "value": 4000
   },
-  "gateway_config.stateless_tx_validator_config.min_gas_price": {
+  "gateway_config.static_config.stateless_tx_validator_config.min_gas_price": {
     "description": "Minimum gas price for transactions.",
     "privacy": "Public",
     "value": 8000000000
   },
-  "gateway_config.stateless_tx_validator_config.min_sierra_version.major": {
+  "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.major": {
     "description": "The major version of the configuration.",
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": {
+  "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": {
+  "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.patch": {
     "description": "The patch version of the configuration.",
     "privacy": "Public",
     "value": 0
   },
-  "gateway_config.stateless_tx_validator_config.validate_resource_bounds": {
+  "gateway_config.static_config.stateless_tx_validator_config.validate_resource_bounds": {
     "description": "If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.",
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"

@@ -25,7 +25,7 @@ use crate::compiler_version::VersionId;
 const JSON_RPC_VERSION: &str = "2.0";
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct GatewayConfig {
+pub struct GatewayStaticConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
     pub contract_class_manager_config: ContractClassManagerConfig,
@@ -35,7 +35,7 @@ pub struct GatewayConfig {
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
 }
 
-impl Default for GatewayConfig {
+impl Default for GatewayStaticConfig {
     fn default() -> Self {
         Self {
             stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
@@ -51,7 +51,7 @@ impl Default for GatewayConfig {
     }
 }
 
-impl SerializeConfig for GatewayConfig {
+impl SerializeConfig for GatewayStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([ser_param(
             "block_declare",
@@ -84,9 +84,21 @@ impl SerializeConfig for GatewayConfig {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Default)]
+pub struct GatewayConfig {
+    #[validate(nested)]
+    pub static_config: GatewayStaticConfig,
+}
+
+impl SerializeConfig for GatewayConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(self.static_config.dump(), "static_config")
+    }
+}
+
 impl GatewayConfig {
     pub fn is_authorized_declarer(&self, declarer_address: &ContractAddress) -> bool {
-        match &self.authorized_declarer_accounts {
+        match &self.static_config.authorized_declarer_accounts {
             Some(allowed_accounts) => allowed_accounts.contains(declarer_address),
             None => true,
         }
