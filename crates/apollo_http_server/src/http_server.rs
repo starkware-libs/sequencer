@@ -23,6 +23,7 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
+use axum::extract::DefaultBodyLimit;
 use axum::{serve, Extension, Json, Router};
 use blockifier_reexecution::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use serde::de::Error;
@@ -132,6 +133,7 @@ impl HttpServer {
                 get(|| futures::future::ready("Gateway is ready".to_owned()))
             )
             .layer(Extension(self.app_state.clone()))
+            .layer(DefaultBodyLimit::disable())
     }
 }
 

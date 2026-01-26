@@ -18,14 +18,17 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use http_body_util::BodyExt;
+use proving_utils::proof_encoding::ProofBytes;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::test_utils::read_json_file;
+use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, tx_hash};
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
 
+use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::HttpServerError;
 use crate::http_server::CLIENT_REGION_HEADER;
 use crate::test_utils::{
@@ -364,5 +367,64 @@ async fn sanitizing_error_message() {
         starknet_error.message.contains(" script alert(1) n  script ''[](){}_            "),
         "Escaped message not found. This is the returned error message: {}",
         starknet_error.message
+    );
+}
+
+/// Test that the server accepts request bodies larger than 2 MB (Axum's default limit).
+/// Uses the example_proof.bz2 and example_proof_facts.json files to construct a realistically
+/// large invoke transaction with proof data.
+#[tokio::test]
+async fn large_request_body_is_accepted() {
+    let mut mock_gateway_client = MockGatewayClient::new();
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(default_gateway_output()));
+    let mock_config_manager_client = get_mock_config_manager_client(true);
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, unique_u16!()).await;
+
+    // Load the example proof from the bz2 file.
+    let proof_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../apollo_transaction_converter/resources/example_proof.bz2");
+    let proof: Proof =
+        ProofBytes::from_file(&proof_path).expect("Failed to load example_proof.bz2").into();
+
+    // Load the example proof facts from the JSON file.
+    let proof_facts_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../apollo_transaction_converter/resources/example_proof_facts.json");
+    let proof_facts: ProofFacts = serde_json::from_str(
+        &std::fs::read_to_string(&proof_facts_path).expect("Failed to read example_proof_facts"),
+    )
+    .expect("Failed to parse example_proof_facts.json");
+
+    // Create a valid invoke transaction with the real proof data.
+    let mut tx = deprecated_gateway_invoke_tx();
+    let DeprecatedGatewayTransactionV3::Invoke(
+        crate::deprecated_gateway_transaction::DeprecatedGatewayInvokeTransaction::V3(
+            ref mut invoke,
+        ),
+    ) = tx
+    else {
+        panic!("Expected an invoke transaction");
+    };
+    invoke.proof = proof;
+    invoke.proof_facts = proof_facts;
+
+    let serialized = serde_json::to_string(&tx).unwrap();
+    assert!(
+        serialized.len() > 2 * 1024 * 1024,
+        "Serialized tx should be larger than 2 MB, but was {} bytes",
+        serialized.len()
+    );
+
+    let response = http_client.send_raw_body("add_transaction", serialized.into_bytes()).await;
+
+    assert_ne!(
+        response.status(),
+        reqwest::StatusCode::PAYLOAD_TOO_LARGE,
+        "Server should not reject large request bodies with 413"
+    );
+    assert!(
+        response.status().is_success(),
+        "Server should return a success status code: {}",
+        response.status()
     );
 }
