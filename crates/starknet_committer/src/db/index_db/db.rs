@@ -32,6 +32,7 @@ use crate::db::forest_trait::{
     ForestMetadataType,
     ForestReader,
     ForestWriter,
+    StorageInitializer,
 };
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
@@ -82,10 +83,6 @@ pub struct IndexDb<S: Storage> {
 }
 
 impl<S: Storage> IndexDb<S> {
-    pub fn new(storage: S) -> Self {
-        Self { storage }
-    }
-
     pub fn get_stats(&self) -> PatriciaStorageResult<S::Stats> {
         self.storage.get_stats()
     }
@@ -97,6 +94,13 @@ impl<S: Storage> IndexDb<S> {
     #[cfg(any(feature = "testing", test))]
     pub fn get_async_underlying_storage<'a>(&'a self) -> Option<impl AsyncStorage + 'a> {
         self.storage.get_async_self()
+    }
+}
+
+impl<S: Storage> StorageInitializer for IndexDb<S> {
+    type Storage = S;
+    fn new(storage: Self::Storage) -> Self {
+        Self { storage }
     }
 }
 
