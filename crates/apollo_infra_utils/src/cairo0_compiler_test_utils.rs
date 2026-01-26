@@ -48,7 +48,8 @@ fn find_imports_end(lines: &[&str]) -> usize {
             }
         } else if is_import_line(trimmed) {
             in_multi_line_import = trimmed.ends_with('(');
-        } else if !trimmed.is_empty() {
+        } else if !trimmed.is_empty() && !trimmed.starts_with("//") {
+            // Non-empty, non-comment line that's not an import marks the end.
             return i;
         }
     }
