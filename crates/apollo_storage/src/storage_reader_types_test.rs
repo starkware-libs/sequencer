@@ -1,6 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
+use apollo_proc_macros::unique_u16;
 use axum::http::StatusCode;
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
@@ -14,6 +15,14 @@ use crate::storage_reader_types::{
     StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
+
+// Creates an `AvailablePorts` instance with a unique `instance_index`.
+// Each test that binds ports should use a different instance_index to get disjoint port ranges.
+// This is necessary to allow running tests concurrently in different processes, which do not have a
+// shared memory.
+fn available_ports_factory(instance_index: u16) -> AvailablePorts {
+    AvailablePorts::new(TestIdentifier::StorageReaderTypesUnitTests.into(), instance_index)
+}
 
 #[tokio::test]
 async fn state_diff_location_request() {
@@ -31,11 +40,11 @@ async fn state_diff_location_request() {
         .commit()
         .unwrap();
 
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::StorageReaderTypesUnitTests.into(), 0);
-
-    let config =
-        ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
+    let config = ServerConfig::new(
+        IpAddr::from(Ipv4Addr::LOCALHOST),
+        available_ports_factory(unique_u16!()).get_next_port(),
+        true,
+    );
 
     let server = GenericStorageReaderServer::new(reader.clone(), config);
     let app = server.app();
