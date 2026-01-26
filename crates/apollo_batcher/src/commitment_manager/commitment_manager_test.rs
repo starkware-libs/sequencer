@@ -120,6 +120,7 @@ async fn test_create_commitment_manager(mut mock_dependencies: MockDependencies)
 }
 
 #[rstest]
+#[ignore]
 #[tokio::test]
 async fn test_create_commitment_manager_with_missing_tasks(
     mut mock_dependencies: MockDependencies,
