@@ -226,7 +226,7 @@ impl BenchmarkTimeMeasurement {
         )
         .unwrap();
         self.total_db_entry_count = checkpoint.total_db_entry_count;
-        self.block_number = checkpoint.block_number + 1;
+        self.block_number = checkpoint.block_number;
         Some(HashOutput(checkpoint.contracts_trie_root_hash))
     }
 
