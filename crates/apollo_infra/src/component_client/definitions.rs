@@ -19,6 +19,8 @@ pub enum ClientError {
     ResponseError(StatusCode, ServerError),
     #[error("Got an unexpected response type: {0}")]
     UnexpectedResponse(String),
+    #[error("Noop client error")]
+    Noop,
 }
 
 pub type ClientResult<T> = Result<T, ClientError>;
