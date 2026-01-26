@@ -2174,6 +2174,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.context_config.dynamic_config.use_different_virtual_proposer": {
+    "description": "When true, the virtual proposer election differs from the actual proposer election.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.context_config.static_config.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",

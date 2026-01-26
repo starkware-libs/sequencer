@@ -164,4 +164,7 @@ pub enum ConsensusError {
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
     InternalNetworkError(String),
+    /// Error from the committee provider (e.g. empty committee, invalid height).
+    #[error("Committee provider error: {0}")]
+    CommitteeProviderError(String),
 }

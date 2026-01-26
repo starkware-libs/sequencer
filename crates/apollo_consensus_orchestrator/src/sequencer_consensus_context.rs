@@ -646,8 +646,16 @@ impl ConsensusContext for SequencerConsensusContext {
         );
     }
 
-    async fn validators(&self, _height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
-        Ok(self.validators.clone())
+    async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
+        if let Some(committee_provider) = &self.deps.committee_provider {
+            let committee = committee_provider
+                .get_committee(height)
+                .await
+                .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))?;
+            Ok(committee.iter().map(|staker| staker.address).collect())
+        } else {
+            Ok(self.validators.clone())
+        }
     }
 
     async fn proposer(
@@ -655,12 +663,19 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<ValidatorId, ConsensusError> {
-        let height: usize = height.0.try_into().expect("Cannot convert to usize");
-        let round: usize = round.try_into().expect("Cannot convert to usize");
-        Ok(*self
-            .validators
-            .get((height + round) % self.validators.len())
-            .expect("There should be at least one validator"))
+        if let Some(committee_provider) = &self.deps.committee_provider {
+            committee_provider
+                .get_actual_proposer(height, round)
+                .await
+                .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))
+        } else {
+            let height: usize = height.0.try_into().expect("Cannot convert to usize");
+            let round: usize = round.try_into().expect("Cannot convert to usize");
+            Ok(*self
+                .validators
+                .get((height + round) % self.validators.len())
+                .expect("There should be at least one validator"))
+        }
     }
 
     async fn virtual_proposer(
@@ -668,8 +683,16 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<ValidatorId, ConsensusError> {
-        // TODO(Asmaa): Update this when using the committee provider.
-        // For now, keep the virtual proposer selection identical to the real proposer selection.
+        // TODO(Asmaa): Remove once the staking manager has a flag for whether to support virtual
+        // proposer.
+        if self.config.dynamic_config.use_different_virtual_proposer {
+            if let Some(committee_provider) = &self.deps.committee_provider {
+                return committee_provider
+                    .get_proposer(height, round)
+                    .await
+                    .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()));
+            }
+        }
         self.proposer(height, round).await
     }
 
