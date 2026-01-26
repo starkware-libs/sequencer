@@ -22,7 +22,14 @@ use test_case::test_case;
 
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
-use crate::types::{Decision, LeaderElection, ProposalCommitment, Round, ValidatorId};
+use crate::types::{
+    ConsensusError,
+    Decision,
+    LeaderElection,
+    ProposalCommitment,
+    Round,
+    ValidatorId,
+};
 use crate::votes_threshold::QuorumType;
 
 const HEIGHT_0: BlockNumber = BlockNumber(0);
@@ -472,16 +479,16 @@ impl DiscreteEventSimulation {
         // Create two separate closures with the same logic (for proposer and virtual_proposer)
         let proposer_fn = {
             let validators = validators.clone();
-            move |r: Round| {
+            move |r: Round| -> Result<ValidatorId, ConsensusError> {
                 let idx = get_leader_index(seed, total_nodes, r);
-                validators[idx]
+                Ok(validators[idx])
             }
         };
         let virtual_proposer_fn = {
             let validators = validators.clone();
-            move |r: Round| {
+            move |r: Round| -> Result<ValidatorId, ConsensusError> {
                 let idx = get_leader_index(seed, total_nodes, r);
-                validators[idx]
+                Ok(validators[idx])
             }
         };
         let leader_election =
