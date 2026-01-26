@@ -31,6 +31,7 @@ use apollo_consensus_orchestrator_config::config::{
 };
 use apollo_gateway_config::config::{
     GatewayConfig,
+    GatewayStaticConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
@@ -643,12 +644,14 @@ pub fn create_gateway_config(
     let contract_class_manager_config = ContractClassManagerStaticConfig::default();
 
     GatewayConfig {
-        stateless_tx_validator_config,
-        stateful_tx_validator_config,
-        contract_class_manager_config,
-        chain_info,
-        block_declare: false,
-        authorized_declarer_accounts: None,
+        static_config: GatewayStaticConfig {
+            stateless_tx_validator_config,
+            stateful_tx_validator_config,
+            contract_class_manager_config,
+            chain_info,
+            block_declare: false,
+            authorized_declarer_accounts: None,
+        },
     }
 }
 

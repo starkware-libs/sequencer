@@ -155,10 +155,10 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> Gateway {
     let class_manager_client = Arc::new(MockClassManagerClient::new());
     let transaction_converter = TransactionConverter::new(
         class_manager_client.clone(),
-        gateway_config.chain_info.chain_id.clone(),
+        gateway_config.static_config.chain_info.chain_id.clone(),
     );
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
-        config: gateway_config.stateless_tx_validator_config.clone(),
+        config: gateway_config.static_config.stateless_tx_validator_config.clone(),
     });
     mempool_client.expect_add_tx().returning(|_| Ok(()));
     mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| Ok(false));
