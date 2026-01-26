@@ -92,6 +92,20 @@ impl MessageProcessor {
 
                     pending_validation = Some(result_rx);
                 }
+
+                // TODO(AndrewL): Handle `Err(RecvError)` from the oneshot. If the
+                // rayon task panics, the sender is dropped and this arm silently
+                // skips the `Err` variant, leaving `pending_validation` stale and
+                // the validator permanently lost.
+                Ok(result) = async {
+                    pending_validation.as_mut().unwrap().await
+                }, if pending_validation.is_some() => {
+                    pending_validation = None;
+                    let flow = self.handle_validation_result(result, &mut validator).await;
+                    if flow.is_break() {
+                        break;
+                    }
+                }
             }
         }
 
@@ -99,6 +113,30 @@ impl MessageProcessor {
             "[MSG_PROC] Stopped for channel={:?} publisher={:?} root={:?}",
             self.channel, self.publisher, self.message_root
         );
+    }
+
+    async fn handle_validation_result(
+        &mut self,
+        result: ValidationResult,
+        validator: &mut Option<UnitValidator>,
+    ) -> ControlFlow<()> {
+        // Restore validator
+        let (validation_result, validator_returned, unit) = result;
+        *validator = Some(validator_returned);
+
+        // Early return for validation errors
+        let Err(err) = validation_result else {
+            tracing::trace!("[MSG_PROC] Unit validated successfully index={:?}", unit.index());
+            // TODO(AndrewL): Process validated units
+            return ControlFlow::Continue(());
+        };
+
+        tracing::trace!(
+            "[MSG_PROC] Unit validation failed index={:?} error={:?}",
+            unit.index(),
+            err
+        );
+        ControlFlow::Continue(())
     }
 
     async fn emit_timeout_and_finalize(&mut self) -> ControlFlow<()> {
