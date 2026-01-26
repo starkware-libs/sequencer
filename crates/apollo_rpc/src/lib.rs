@@ -32,7 +32,8 @@ use apollo_storage::db::TransactionKind;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageReader, StorageScope, StorageTxn};
 use jsonrpsee::core::RpcResult;
-use jsonrpsee::server::{ServerBuilder, ServerHandle};
+use jsonrpsee::server::middleware::rpc::RpcServiceBuilder;
+use jsonrpsee::server::{Server, ServerHandle};
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
@@ -243,15 +244,17 @@ pub async fn run_server(
     );
     let addr;
     let handle;
-    let server_builder = ServerBuilder::default()
+    let server_builder = Server::builder()
         .max_request_body_size(SERVER_MAX_BODY_SIZE)
-        .set_middleware(tower::ServiceBuilder::new().filter_async(proxy_rpc_request));
+        .set_http_middleware(tower::ServiceBuilder::new().filter_async(proxy_rpc_request));
 
     let server_address = SocketAddr::new(config.ip, config.port);
 
     if config.collect_metrics {
-        let server =
-            server_builder.set_logger(MetricLogger::new(&methods)).build(&server_address).await?;
+        let server = server_builder
+            .set_rpc_middleware(RpcServiceBuilder::new().layer(MetricLogger::new(&methods)))
+            .build(&server_address)
+            .await?;
         addr = server.local_addr()?;
         handle = server.start(methods);
     } else {

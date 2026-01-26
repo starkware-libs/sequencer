@@ -61,7 +61,7 @@ use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use itertools::Itertools;
-use jsonrpsee::core::Error;
+use jsonrpsee::core::server::MethodsError;
 use jsonrpsee::Methods;
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
@@ -481,7 +481,7 @@ async fn get_block_transaction_count() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 }
 
 #[tokio::test]
@@ -584,7 +584,7 @@ async fn get_block_w_full_transactions() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 
     // Ask for an invalid block number.
     let err = module
@@ -594,7 +594,7 @@ async fn get_block_w_full_transactions() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 
     // Get pending block.
     let mut rng = get_rng();
@@ -769,7 +769,7 @@ async fn get_block_w_full_transactions_and_receipts() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 
     // Ask for an invalid block number.
     let err = module
@@ -779,7 +779,7 @@ async fn get_block_w_full_transactions_and_receipts() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 
     // Get pending block.
     let mut rng = get_rng();
@@ -978,7 +978,7 @@ async fn get_block_w_transaction_hashes() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 
     // Get pending block.
     let mut rng = get_rng();
@@ -1212,7 +1212,7 @@ async fn get_class() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == CLASS_HASH_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == CLASS_HASH_NOT_FOUND.into());
 
     // Ask for an invalid block hash.
     call_api_then_assert_and_validate_schema_for_err::<_, DeprecatedContractClass>(
@@ -1238,7 +1238,7 @@ async fn get_class() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 }
 
 #[tokio::test]
@@ -1670,7 +1670,7 @@ async fn get_class_at() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == CONTRACT_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == CONTRACT_NOT_FOUND.into());
 
     // Ask for an invalid block hash.
     call_api_then_assert_and_validate_schema_for_err::<_, DeprecatedContractClass>(
@@ -1696,7 +1696,7 @@ async fn get_class_at() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 }
 
 #[tokio::test]
@@ -1859,7 +1859,7 @@ async fn get_class_hash_at() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 }
 
 #[tokio::test]
@@ -2003,7 +2003,7 @@ async fn get_nonce() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 }
 
 #[tokio::test]
@@ -2198,7 +2198,7 @@ async fn get_storage_at() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 }
 
 fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
@@ -2478,7 +2478,7 @@ async fn get_transaction_by_block_id_and_index() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 
     // Ask for an invalid transaction index.
     call_api_then_assert_and_validate_schema_for_err::<_, TransactionWithHash>(
@@ -2658,7 +2658,7 @@ async fn get_state_update() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 }
 
 #[tokio::test]
@@ -3836,7 +3836,7 @@ async fn get_compiled_class() {
         )
         .await
         .unwrap_err();
-    assert_matches!(err, Error::Call(err) if err == CLASS_HASH_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == CLASS_HASH_NOT_FOUND.into());
 }
 
 #[async_trait]
@@ -3922,7 +3922,7 @@ where
             None,
         );
         let result = module.call::<_, Self::Response>(Self::METHOD_NAME, [tx]).await;
-        let jsonrpsee::core::Error::Call(error) = result.unwrap_err() else {
+        let MethodsError::JsonRpc(error) = result.unwrap_err() else {
             panic!("Got an error which is not a call error");
         };
         assert_eq!(error, expected_error);
@@ -3956,7 +3956,7 @@ where
             None,
         );
         let result = module.call::<_, Self::Response>(Self::METHOD_NAME, [tx]).await;
-        let jsonrpsee::core::Error::Call(error) = result.unwrap_err() else {
+        let MethodsError::JsonRpc(error) = result.unwrap_err() else {
             panic!("Got an error which is not a call error");
         };
         assert_eq!(error, expected_error.into());
@@ -3987,7 +3987,7 @@ where
             None,
         );
         let result = module.call::<_, Self::Response>(Self::METHOD_NAME, [tx]).await;
-        let jsonrpsee::core::Error::Call(error) = result.unwrap_err() else {
+        let MethodsError::JsonRpc(error) = result.unwrap_err() else {
             panic!("Got an error which is not a call error");
         };
         assert_eq!(error, unexpected_error(MESSAGE.to_owned()).into());
