@@ -12,7 +12,10 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use blockifier::blockifier::config::ContractClassManagerStaticConfig;
+use blockifier::blockifier::config::{
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
@@ -23,6 +26,20 @@ use validator::Validate;
 use crate::compiler_version::VersionId;
 
 const JSON_RPC_VERSION: &str = "2.0";
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Validate)]
+pub struct GatewayDynamicConfig {
+    pub contract_class_manager_config: ContractClassManagerDynamicConfig,
+}
+
+impl SerializeConfig for GatewayDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(
+            self.contract_class_manager_config.dump(),
+            "contract_class_manager_config",
+        )
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct GatewayStaticConfig {
@@ -84,15 +101,21 @@ impl SerializeConfig for GatewayStaticConfig {
     }
 }
 
+/// Configuration for gateway containing both static and dynamic configs.
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Validate)]
 pub struct GatewayConfig {
+    #[validate(nested)]
+    pub dynamic_config: GatewayDynamicConfig,
     #[validate(nested)]
     pub static_config: GatewayStaticConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(self.static_config.dump(), "static_config")
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        config
     }
 }
 

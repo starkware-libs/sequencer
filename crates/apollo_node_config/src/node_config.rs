@@ -24,7 +24,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
-use apollo_gateway_config::config::GatewayConfig;
+use apollo_gateway_config::config::{GatewayConfig, GatewayDynamicConfig};
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_gas_price_provider_config::config::{
@@ -107,6 +107,8 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ),
             set_pointing_param_paths(&[
                 "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.\
+                native_classes_whitelist",
+                "gateway_config.dynamic_config.contract_class_manager_config.\
                 native_classes_whitelist",
                 "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.\
                 native_classes_whitelist",
@@ -315,6 +317,8 @@ pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub context_dynamic_config: Option<ContextDynamicConfig>,
     #[validate(nested)]
+    pub gateway_dynamic_config: Option<GatewayDynamicConfig>,
+    #[validate(nested)]
     pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
     #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
@@ -328,6 +332,7 @@ impl SerializeConfig for NodeDynamicConfig {
             ser_optional_sub_config(&self.batcher_dynamic_config, "batcher_dynamic_config"),
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
             ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
+            ser_optional_sub_config(&self.gateway_dynamic_config, "gateway_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
             ser_optional_sub_config(
@@ -356,6 +361,10 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
                 consensus_manager_config.context_config.dynamic_config.clone()
             },
         );
+        let gateway_dynamic_config = sequencer_node_config
+            .gateway_config
+            .as_ref()
+            .map(|gateway_config| gateway_config.dynamic_config.clone());
         let http_server_dynamic_config = sequencer_node_config
             .http_server_config
             .as_ref()
@@ -368,6 +377,7 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             batcher_dynamic_config,
             consensus_dynamic_config,
             context_dynamic_config,
+            gateway_dynamic_config,
             http_server_dynamic_config,
             mempool_dynamic_config,
             // TODO(Dafna): take the staking config from `consensus_manager_config` once available.
