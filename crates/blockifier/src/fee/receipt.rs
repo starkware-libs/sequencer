@@ -184,8 +184,7 @@ impl TransactionReceipt {
             tx_type: account_tx.tx_type(),
             reverted_steps,
             reverted_sierra_gas,
-            // TODO(AvivG): Get proof facts length from account_tx when it supports retrieving it.
-            proof_facts_length: 0,
+            proof_facts_length: account_tx.proof_facts_length(),
         })
     }
 }
