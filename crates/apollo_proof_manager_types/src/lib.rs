@@ -13,6 +13,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
@@ -35,12 +36,24 @@ pub trait ProofManagerClient: Send + Sync {
     async fn set_proof(
         &self,
         proof_facts: ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
         proof: Proof,
     ) -> ProofManagerClientResult<()>;
 
-    async fn get_proof(&self, proof_facts: ProofFacts) -> ProofManagerClientResult<Option<Proof>>;
+    async fn get_proof(
+        &self,
+        proof_facts: ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+    ) -> ProofManagerClientResult<Option<Proof>>;
 
-    async fn contains_proof(&self, proof_facts: ProofFacts) -> ProofManagerClientResult<bool>;
+    async fn contains_proof(
+        &self,
+        proof_facts: ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+    ) -> ProofManagerClientResult<bool>;
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
@@ -68,9 +81,9 @@ pub enum ProofManagerClientError {
     strum(serialize_all = "snake_case")
 )]
 pub enum ProofManagerRequest {
-    SetProof(ProofFacts, Proof),
-    GetProof(ProofFacts),
-    ContainsProof(ProofFacts),
+    SetProof(ProofFacts, Nonce, ContractAddress, Proof),
+    GetProof(ProofFacts, Nonce, ContractAddress),
+    ContainsProof(ProofFacts, Nonce, ContractAddress),
 }
 impl_debug_for_infra_requests_and_responses!(ProofManagerRequest);
 impl_labeled_request!(ProofManagerRequest, ProofManagerRequestLabelValue);
@@ -97,9 +110,11 @@ where
     async fn set_proof(
         &self,
         proof_facts: ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
         proof: Proof,
     ) -> ProofManagerClientResult<()> {
-        let request = ProofManagerRequest::SetProof(proof_facts, proof);
+        let request = ProofManagerRequest::SetProof(proof_facts, nonce, sender_address, proof);
         handle_all_response_variants!(
             self,
             request,
@@ -111,8 +126,13 @@ where
         )
     }
 
-    async fn get_proof(&self, proof_facts: ProofFacts) -> ProofManagerClientResult<Option<Proof>> {
-        let request = ProofManagerRequest::GetProof(proof_facts);
+    async fn get_proof(
+        &self,
+        proof_facts: ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+    ) -> ProofManagerClientResult<Option<Proof>> {
+        let request = ProofManagerRequest::GetProof(proof_facts, nonce, sender_address);
         handle_all_response_variants!(
             self,
             request,
@@ -124,8 +144,13 @@ where
         )
     }
 
-    async fn contains_proof(&self, proof_facts: ProofFacts) -> ProofManagerClientResult<bool> {
-        let request = ProofManagerRequest::ContainsProof(proof_facts);
+    async fn contains_proof(
+        &self,
+        proof_facts: ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+    ) -> ProofManagerClientResult<bool> {
+        let request = ProofManagerRequest::ContainsProof(proof_facts, nonce, sender_address);
         handle_all_response_variants!(
             self,
             request,
