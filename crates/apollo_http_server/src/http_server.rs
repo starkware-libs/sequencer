@@ -142,6 +142,7 @@ impl HttpServer {
                 get(|| futures::future::ready("Gateway is ready".to_owned()))
             )
             .layer(Extension(self.app_state.clone()))
+            .layer(DefaultBodyLimit::disable())
     }
 
     fn post_method_router<H, T, S>(&self, handler: H) -> MethodRouter<S>

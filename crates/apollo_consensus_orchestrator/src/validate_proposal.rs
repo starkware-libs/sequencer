@@ -368,7 +368,12 @@ async fn await_verification_and_store_proof(
 
     // Store the proof after successful verification.
     let proof_manager_store_duration = transaction_converter
-        .store_proof_in_proof_manager(handle.proof_facts, handle.proof)
+        .store_proof_in_proof_manager(
+            handle.proof_facts,
+            handle.proof,
+            handle.nonce,
+            handle.sender_address,
+        )
         .await
         .map_err(|e| {
             format!("Failed to store proof for proof facts hash: {proof_facts_hash:?}: {e}")

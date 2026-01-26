@@ -93,6 +93,17 @@ impl HttpTestClient {
             .await
             .unwrap()
     }
+
+    /// Sends a raw body to the given endpoint. Useful for testing body size limits.
+    pub async fn send_raw_body(&self, endpoint: &str, body: Vec<u8>) -> Response {
+        self.client
+            .post(format!("http://{}/gateway/{}", self.socket, endpoint))
+            .header("content-type", "application/text")
+            .body(Body::from(body))
+            .send()
+            .await
+            .unwrap()
+    }
 }
 
 pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
