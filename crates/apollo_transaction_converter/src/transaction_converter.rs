@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
@@ -71,6 +71,8 @@ pub struct VerificationHandle {
     // TODO(Dori): add a field for the class hash.
     pub proof_facts: ProofFacts,
     pub proof: Proof,
+    pub nonce: Nonce,
+    pub sender_address: ContractAddress,
     pub verification_task: VerificationTask,
 }
 
@@ -113,6 +115,8 @@ pub trait TransactionConverterTrait: Send + Sync {
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> TransactionConverterResult<Duration>;
 }
 
@@ -142,12 +146,17 @@ impl TransactionConverter {
             .ok_or(TransactionConverterError::ClassNotFound { class_hash })
     }
 
-    async fn get_proof(&self, proof_facts: &ProofFacts) -> TransactionConverterResult<Proof> {
+    async fn get_proof(
+        &self,
+        proof_facts: &ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+    ) -> TransactionConverterResult<Proof> {
         let start_time = Instant::now();
         let proof_facts_hash = proof_facts.hash();
         let proof = self
             .proof_manager_client
-            .get_proof(proof_facts.clone())
+            .get_proof(proof_facts.clone(), nonce, sender_address)
             .await?
             .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts_hash });
         let duration = start_time.elapsed();
@@ -214,7 +223,7 @@ impl TransactionConverterTrait for TransactionConverter {
                 let proof = if tx.proof_facts.is_empty() {
                     Proof::default()
                 } else {
-                    self.get_proof(&tx.proof_facts).await?
+                    self.get_proof(&tx.proof_facts, tx.nonce, tx.sender_address).await?
                 };
 
                 Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
@@ -263,8 +272,12 @@ impl TransactionConverterTrait for TransactionConverter {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
                 // Spawn proof verification task; storage happens in the caller after successful
                 // conversion/validation.
-                let verification_handle =
-                    self.spawn_proof_verification(&tx.proof_facts, &tx.proof)?;
+                let verification_handle = self.spawn_proof_verification(
+                    &tx.proof_facts,
+                    &tx.proof,
+                    tx.nonce,
+                    tx.sender_address,
+                )?;
                 (InternalRpcTransactionWithoutTxHash::Invoke(tx.into()), verification_handle)
             }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
@@ -376,10 +389,12 @@ impl TransactionConverterTrait for TransactionConverter {
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> TransactionConverterResult<Duration> {
         let proof_manager_client = self.proof_manager_client.clone();
         let start = Instant::now();
-        proof_manager_client.set_proof(proof_facts, proof).await?;
+        proof_manager_client.set_proof(proof_facts, nonce, sender_address, proof).await?;
         Ok(start.elapsed())
     }
 }
@@ -401,6 +416,8 @@ impl TransactionConverter {
         &self,
         proof_facts: &ProofFacts,
         proof: &Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> TransactionConverterResult<Option<VerificationHandle>> {
         // If the proof facts are empty, it is a standard transaction that does not use client-side
         // proving and we skip proof verification. We return Ok only if the proof facts are
@@ -419,8 +436,9 @@ impl TransactionConverter {
 
         // Spawn verification task.
         let verification_task = tokio::spawn(async move {
-            let contains_proof =
-                proof_manager_client.contains_proof(proof_facts_for_task.clone()).await?;
+            let contains_proof = proof_manager_client
+                .contains_proof(proof_facts_for_task.clone(), nonce, sender_address)
+                .await?;
 
             // If the proof already exists in the proof manager, indicating it has already been
             // verified, we skip proof verification.
@@ -443,6 +461,8 @@ impl TransactionConverter {
         Ok(Some(VerificationHandle {
             proof_facts: proof_facts.clone(),
             proof: proof.clone(),
+            nonce,
+            sender_address,
             verification_task,
         }))
     }
