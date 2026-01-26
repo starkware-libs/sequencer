@@ -4,6 +4,15 @@
   "committer_config.storage_config.cache_on_write": true,
   "committer_config.storage_config.cache_size": "$$$_COMMITTER_CONFIG-STORAGE_CONFIG-CACHE_SIZE_$$$",
   "committer_config.storage_config.include_inner_stats": true,
-  "committer_config.storage_config.inner_storage_config.dummy_field": 0,
+  "committer_config.storage_config.inner_storage_config.bloom_filter_bits": 10,
+  "committer_config.storage_config.inner_storage_config.bytes_per_sync": 1048576,
+  "committer_config.storage_config.inner_storage_config.cache_size": 8589934592,
+  "committer_config.storage_config.inner_storage_config.enable_statistics": true,
+  "committer_config.storage_config.inner_storage_config.max_background_jobs": 8,
+  "committer_config.storage_config.inner_storage_config.use_mmap_reads": false,
+  "committer_config.storage_config.inner_storage_config.max_subcompactions": 8,
+  "committer_config.storage_config.inner_storage_config.max_write_buffers": 4,
+  "committer_config.storage_config.inner_storage_config.num_threads": 8,
+  "committer_config.storage_config.inner_storage_config.write_buffer_size": 134217728,
   "committer_config.verify_state_diff_hash": "$$$_COMMITTER_CONFIG-VERIFY_STATE_DIFF_HASH_$$$"
 }
