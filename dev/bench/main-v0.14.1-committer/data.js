@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769433199207,
+  "lastUpdate": 1769438389025,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -577,6 +577,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1313.73852222,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "54bc66317c9950f8a7068e23936b8f1ca00b6379",
+          "message": "starknet_committer: add ForestStorage initializer trait (#11850)",
+          "timestamp": "2026-01-26T14:08:59Z",
+          "tree_id": "f0f4211d71ecb4eca3516ec32951e30fc7862b8c",
+          "url": "https://github.com/starkware-libs/sequencer/commit/54bc66317c9950f8a7068e23936b8f1ca00b6379"
+        },
+        "date": 1769438388652,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 906.995154,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1342.53262567,
             "unit": "ms"
           }
         ]
