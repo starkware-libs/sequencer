@@ -253,12 +253,6 @@ impl NodeType {
             })
             .collect();
 
-        assert!(
-            !services.is_empty(),
-            "Expected at least one NodeService containing component type {:?}",
-            component_type
-        );
-
         services
     }
 

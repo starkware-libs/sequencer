@@ -102,7 +102,9 @@ pub async fn create_node_components(
                 .await,
             )
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let class_manager = match config.components.class_manager.execution_mode {
@@ -115,7 +117,9 @@ pub async fn create_node_components(
                 .expect("Sierra Compiler client should be available");
             Some(create_class_manager(class_manager_config.clone(), compiler_shared_client))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let committer = match config.components.committer.execution_mode {
@@ -126,7 +130,9 @@ pub async fn create_node_components(
             )
             .await,
         ),
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let (config_manager, config_manager_runner) =
@@ -158,7 +164,9 @@ pub async fn create_node_components(
                      component"
                 );
             }
-            ReactiveComponentExecutionMode::Disabled => (None, None),
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Noop => {
+                (None, None)
+            }
         };
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
@@ -218,7 +226,9 @@ pub async fn create_node_components(
                 tokio::runtime::Handle::current(),
             ))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let http_server = match config.components.http_server.execution_mode {
@@ -249,7 +259,9 @@ pub async fn create_node_components(
                 .expect("L1 Gas Price Provider config should be set");
             Some(L1GasPriceProvider::new_with_oracle(l1_gas_price_provider_config.clone()))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
             None
         }
@@ -317,7 +329,9 @@ pub async fn create_node_components(
                 Some(l1_provider)
             }
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
             None
         }
@@ -372,7 +386,9 @@ pub async fn create_node_components(
             );
             Some(mempool)
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
             None
         }
@@ -401,9 +417,9 @@ pub async fn create_node_components(
                 );
                 (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
             }
-            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-                (None, None)
-            }
+            ReactiveComponentExecutionMode::Disabled
+            | ReactiveComponentExecutionMode::Noop
+            | ReactiveComponentExecutionMode::Remote => (None, None),
         };
 
     let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
@@ -421,6 +437,7 @@ pub async fn create_node_components(
                         .expect("Mempool client should be available"),
                 ),
                 ReactiveComponentExecutionMode::Disabled
+                | ReactiveComponentExecutionMode::Noop
                 | ReactiveComponentExecutionMode::Remote => None,
             };
 
@@ -432,6 +449,7 @@ pub async fn create_node_components(
                         .expect("L1 Provider client should be available"),
                 ),
                 ReactiveComponentExecutionMode::Disabled
+                | ReactiveComponentExecutionMode::Noop
                 | ReactiveComponentExecutionMode::Remote => None,
             };
 
@@ -455,7 +473,9 @@ pub async fn create_node_components(
                 .expect("Sierra Compiler config should be set");
             Some(create_sierra_compiler(sierra_compiler_config.clone()))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
             None
         }
@@ -466,7 +486,9 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             Some(create_signature_manager())
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
@@ -481,9 +503,9 @@ pub async fn create_node_components(
                 create_state_sync_and_runner(state_sync_config.clone(), class_manager_client);
             (Some(state_sync), Some(state_sync_runner))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-            (None, None)
-        }
+        ReactiveComponentExecutionMode::Disabled
+        | ReactiveComponentExecutionMode::Noop
+        | ReactiveComponentExecutionMode::Remote => (None, None),
     };
 
     SequencerNodeComponents {

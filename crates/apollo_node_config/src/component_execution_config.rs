@@ -30,17 +30,18 @@ pub trait ExpectedComponentConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReactiveComponentExecutionMode {
     Disabled,
-    Remote,
     LocalExecutionWithRemoteEnabled,
     LocalExecutionWithRemoteDisabled,
+    Noop,
+    Remote,
 }
 
 impl ExpectedComponentConfig for ReactiveComponentExecutionMode {
     fn is_running_locally(&self) -> bool {
         match self {
-            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-                false
-            }
+            ReactiveComponentExecutionMode::Disabled
+            | ReactiveComponentExecutionMode::Noop
+            | ReactiveComponentExecutionMode::Remote => false,
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => true,
         }
@@ -306,7 +307,9 @@ fn validate_reactive_component_execution_config(
 
     // Which local/remote server configs are required or redundant for each execution mode.
     let (local_req, remote_req) = match &component_config.execution_mode {
-        ReactiveComponentExecutionMode::Disabled => (Redundant, Redundant),
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Noop => {
+            (Redundant, Redundant)
+        }
         ReactiveComponentExecutionMode::Remote => (Redundant, Required),
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => (Required, Redundant),
@@ -365,9 +368,9 @@ fn validate_active_component_execution_config(
 impl From<ReactiveComponentExecutionMode> for ActiveComponentExecutionMode {
     fn from(mode: ReactiveComponentExecutionMode) -> Self {
         match mode {
-            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-                ActiveComponentExecutionMode::Disabled
-            }
+            ReactiveComponentExecutionMode::Disabled
+            | ReactiveComponentExecutionMode::Noop
+            | ReactiveComponentExecutionMode::Remote => ActiveComponentExecutionMode::Disabled,
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
                 ActiveComponentExecutionMode::Enabled
