@@ -79,6 +79,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         )
     }
 
+    #[allow(dead_code)]
     pub(crate) fn get_commitment_task_offset(&self) -> BlockNumber {
         self.commitment_task_offset
     }
@@ -354,6 +355,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             self.commitment_task_offset.prev().expect("Can't revert before the genesis block.");
     }
 
+    #[allow(dead_code)]
     async fn read_commitment_input_and_add_task<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
@@ -403,6 +405,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// Adds missing commitment tasks to the commitment manager. Missing tasks are caused by
     /// unfinished commitment tasks / results not written to storage when the sequencer is shut
     /// down.
+    #[allow(dead_code)]
     pub(crate) async fn add_missing_commitment_tasks<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
