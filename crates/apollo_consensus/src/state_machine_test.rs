@@ -8,7 +8,7 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
-use crate::types::{LeaderElection, ProposalCommitment, ValidatorId};
+use crate::types::{ConsensusError, LeaderElection, ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 lazy_static! {
@@ -22,7 +22,7 @@ const PROPOSAL_ID: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::ON
 const ROUND: Round = 0;
 const HEIGHT: BlockNumber = BlockNumber(0);
 
-type LeaderFn = fn(Round) -> ValidatorId;
+type LeaderFn = fn(Round) -> Result<ValidatorId, ConsensusError>;
 
 fn mk_vote(
     vote_type: VoteType,
@@ -192,8 +192,8 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -243,8 +243,8 @@ fn validator_receives_votes_first() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -286,8 +286,8 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -320,8 +320,8 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -356,8 +356,8 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -395,8 +395,8 @@ fn advance_to_the_next_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -437,8 +437,8 @@ fn prevote_when_receiving_proposal_in_current_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -475,8 +475,8 @@ fn mixed_quorum(send_proposal: bool) {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -524,8 +524,8 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -594,8 +594,8 @@ fn return_proposal_if_locked_value_is_set() {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -649,8 +649,8 @@ fn observer_node_reaches_decision() {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         true,
         QuorumType::Byzantine,
     );
@@ -678,8 +678,8 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         3,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         quorum_type,
     );
@@ -745,8 +745,8 @@ fn observer_does_not_record_self_votes() {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         true,
         QuorumType::Byzantine,
     );
@@ -787,8 +787,8 @@ fn quorums_require_virtual_leader_in_favor_for_value() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *VALIDATOR_ID_3,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*VALIDATOR_ID_3),
         false,
         QuorumType::Byzantine,
     );
@@ -841,8 +841,8 @@ fn reproposal_requires_virtual_leader_prevote_in_valid_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *VALIDATOR_ID_3, // virtual leader is VALIDATOR_ID_3
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*VALIDATOR_ID_3), // virtual leader is VALIDATOR_ID_3
         false,
         QuorumType::Byzantine,
     );

@@ -9,7 +9,7 @@ use test_case::test_case;
 use super::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::test_utils::{block_info, precommit, prevote, TestBlock};
-use crate::types::{LeaderElection, ProposalCommitment, Round, ValidatorId};
+use crate::types::{ConsensusError, LeaderElection, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 lazy_static! {
@@ -39,7 +39,7 @@ fn proposer() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
-    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let leader_fn = |_round| -> Result<ValidatorId, ConsensusError> { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     // Start should request to build proposal.
     let start_ret = shc.start(&leader_election);
@@ -108,7 +108,7 @@ fn validator(repeat_proposal: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
-    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let leader_fn = |_round| -> Result<ValidatorId, ConsensusError> { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
 
     // Accept block info -> should request validation.
@@ -181,7 +181,7 @@ fn vote_twice(same_vote: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
-    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let leader_fn = |_round| -> Result<ValidatorId, ConsensusError> { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     // Validate a proposal so the SM is ready to prevote.
     let round = block_info.round;
@@ -245,7 +245,7 @@ fn rebroadcast_votes() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
-    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let leader_fn = |_round| -> Result<ValidatorId, ConsensusError> { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     // Start and build.
     let _ = shc.start(&leader_election);
@@ -337,7 +337,7 @@ fn repropose() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
-    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let leader_fn = |_round| -> Result<ValidatorId, ConsensusError> { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     let _ = shc.start(&leader_election);
     // After building the proposal, the proposer broadcasts a prevote for round 0.
@@ -404,7 +404,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
-    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let leader_fn = |_round| -> Result<ValidatorId, ConsensusError> { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     let ret = shc.start(&leader_election);
     assert_matches!(ret, mut reqs => {
@@ -454,7 +454,7 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
-    let leader_fn = |_round| -> ValidatorId { *PROPOSER_ID };
+    let leader_fn = |_round| -> Result<ValidatorId, ConsensusError> { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
 
     // 1. Accept proposal -> should request validation
