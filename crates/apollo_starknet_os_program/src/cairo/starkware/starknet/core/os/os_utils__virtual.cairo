@@ -3,7 +3,7 @@ from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.memcpy import memcpy
-from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext, VirtualOsConfig
+from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext
 from starkware.starknet.core.os.block_hash import get_block_hashes
 from starkware.starknet.core.os.output import OsOutput, OsOutputHeader
 from starkware.starknet.core.os.state.commitment import CommitmentUpdate
@@ -99,10 +99,10 @@ func process_os_output{
     return ();
 }
 
-// Returns the virtual OS config.
-func get_virtual_os_config() -> VirtualOsConfig* {
-    tempvar virtual_os_config = new VirtualOsConfig(enabled=TRUE);
-    return virtual_os_config;
+// Returns whether aliases should be allocated for state updates.
+// In virtual OS mode, aliases should not be allocated.
+func should_allocate_aliases() -> felt {
+    return FALSE;
 }
 
 // Returns a function pointer to execute_deprecated_syscalls.
