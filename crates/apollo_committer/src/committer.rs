@@ -26,6 +26,7 @@ use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitB
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
     Action,
+    BlockMeasurement,
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
@@ -262,7 +263,7 @@ where
             .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(&block_measurements);
+        update_metrics(&block_measurements.block_measurement);
         self.update_offset(next_offset);
         Ok(CommitBlockResponse { state_root: global_root })
     }
@@ -368,7 +369,7 @@ where
             .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(&block_measurements);
+        update_metrics(&block_measurements.block_measurement);
         self.update_offset(last_committed_block);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
@@ -448,15 +449,13 @@ impl ComponentStarter for ApolloCommitter {
     }
 }
 
-fn update_metrics(block_measurements: &SingleBlockMeasurements) {
-    READ_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.durations.read);
-    READ_DURATION_PER_BLOCK_HIST.record_lossy(block_measurements.block_measurement.durations.read);
-    READ_DB_ENTRIES_PER_BLOCK.set_lossy(block_measurements.block_measurement.n_reads);
-    COMPUTE_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.durations.compute);
-    COMPUTE_DURATION_PER_BLOCK_HIST
-        .record_lossy(block_measurements.block_measurement.durations.compute);
-    WRITE_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.durations.write);
-    WRITE_DURATION_PER_BLOCK_HIST
-        .record_lossy(block_measurements.block_measurement.durations.write);
-    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(block_measurements.block_measurement.n_writes);
+fn update_metrics(BlockMeasurement { n_reads, n_writes, durations }: &BlockMeasurement) {
+    READ_DURATION_PER_BLOCK.set_lossy(durations.read);
+    READ_DURATION_PER_BLOCK_HIST.record_lossy(durations.read);
+    READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
+    COMPUTE_DURATION_PER_BLOCK.set_lossy(durations.compute);
+    COMPUTE_DURATION_PER_BLOCK_HIST.record_lossy(durations.compute);
+    WRITE_DURATION_PER_BLOCK.set_lossy(durations.write);
+    WRITE_DURATION_PER_BLOCK_HIST.record_lossy(durations.write);
+    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
 }
