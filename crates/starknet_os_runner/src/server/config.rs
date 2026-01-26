@@ -28,7 +28,11 @@ pub struct ServiceConfig {
 
 impl Default for ServiceConfig {
     fn default() -> Self {
-        Self { prover_config: ProverConfig::default(), ip: DEFAULT_IP, port: DEFAULT_PORT }
+        Self {
+            prover_config: ProverConfig::default(),
+            ip: DEFAULT_IP,
+            port: DEFAULT_PORT,
+        }
     }
 }
 

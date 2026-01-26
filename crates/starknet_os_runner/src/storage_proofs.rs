@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
@@ -24,6 +25,21 @@ use starknet_rust_core::types::{
 use crate::errors::ProofProviderError;
 use crate::virtual_block_executor::VirtualBlockExecutionData;
 
+/// Configuration for storage proof provider behavior.
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct StorageProofConfig {
+    /// Whether to include state changes in the storage proofs.
+    ///
+    /// When `true`, the provider tracks state modifications and provides proofs for both the pre-execution and post-execution
+    /// state roots, enabling verification of state transitions.
+    ///
+    /// When `false`, the provider only provides proofs for the initial state and assumes
+    /// no state changes occur. This mode is suitable for read-only operations or when
+    /// state verification is not required.
+    #[allow(dead_code)]
+    pub(crate) include_state_changes: bool,
+}
+
 /// Provides Patricia Merkle proofs for the initial state used in transaction execution.
 ///
 /// This trait abstracts the retrieval of storage proofs, which are essential for OS input
@@ -40,6 +56,7 @@ pub(crate) trait StorageProofProvider {
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
+        config: &StorageProofConfig,
     ) -> Result<StorageProofs, ProofProviderError>;
 }
 
@@ -303,6 +320,7 @@ impl StorageProofProvider for RpcStorageProofsProvider {
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
+        _config: &StorageProofConfig,
     ) -> Result<StorageProofs, ProofProviderError> {
         let query = Self::prepare_query(execution_data);
 
