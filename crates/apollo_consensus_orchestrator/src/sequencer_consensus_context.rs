@@ -67,6 +67,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
@@ -646,17 +647,37 @@ impl ConsensusContext for SequencerConsensusContext {
         );
     }
 
-    async fn validators(&self, _height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
-        Ok(self.validators.clone())
+    async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
+        if let Some(committee_provider) = &self.deps.committee_provider {
+            let committee = committee_provider.get_committee(height).await.map_err(|e| {
+                ConsensusError::InternalNetworkError(format!("Committee provider error: {e}"))
+            })?;
+            Ok(committee.iter().map(|staker| staker.address).collect())
+        } else {
+            Ok(self.validators.clone())
+        }
     }
 
     fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError> {
-        let height: usize = height.0.try_into().expect("Cannot convert to usize");
-        let round: usize = round.try_into().expect("Cannot convert to usize");
-        Ok(*self
-            .validators
-            .get((height + round) % self.validators.len())
-            .expect("There should be at least one validator"))
+        if let Some(committee_provider) = &self.deps.committee_provider {
+            let provider = committee_provider.clone();
+            tokio::task::block_in_place(move || {
+                Handle::current().block_on(async move {
+                    provider.get_actual_proposer(height, round).await.map_err(|e| {
+                        ConsensusError::InternalNetworkError(format!(
+                            "Committee provider error: {e}"
+                        ))
+                    })
+                })
+            })
+        } else {
+            let height: usize = height.0.try_into().expect("Cannot convert to usize");
+            let round: usize = round.try_into().expect("Cannot convert to usize");
+            Ok(*self
+                .validators
+                .get((height + round) % self.validators.len())
+                .expect("There should be at least one validator"))
+        }
     }
 
     fn virtual_proposer(
@@ -664,8 +685,8 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<ValidatorId, ConsensusError> {
-        // TODO(Asmaa): Update this when using the committee provider.
-        // For now, keep the virtual proposer selection identical to the real proposer selection.
+        // TODO(Asmaa): call the virtual proposer function from the committee provider once you add
+        // the flag if the virtual and actual proposer are different.
         self.proposer(height, round)
     }
 
