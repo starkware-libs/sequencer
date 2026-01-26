@@ -51,7 +51,7 @@ impl BlockTimers {
     }
 }
 
-pub trait TimeMeasurementTrait {
+pub trait MeasurementsTrait {
     fn start_measurement(&mut self, action: Action);
 
     /// Attempts to stop the measurement for the given action and returns the duration in
@@ -63,9 +63,9 @@ pub trait TimeMeasurementTrait {
     ) -> Result<u128, MeasurementNotStartedError>;
 }
 
-pub struct NoTimeMeasurement;
+pub struct NoMeasurements;
 
-impl TimeMeasurementTrait for NoTimeMeasurement {
+impl MeasurementsTrait for NoMeasurements {
     fn start_measurement(&mut self, _action: Action) {}
 
     fn attempt_to_stop_measurement(
@@ -114,12 +114,12 @@ impl BlockMeasurement {
 }
 
 #[derive(Default)]
-pub struct SingleBlockTimeMeasurement {
+pub struct SingleBlockMeasurements {
     pub block_timers: BlockTimers,
     pub block_measurement: BlockMeasurement,
 }
 
-impl TimeMeasurementTrait for SingleBlockTimeMeasurement {
+impl MeasurementsTrait for SingleBlockMeasurements {
     fn start_measurement(&mut self, action: Action) {
         self.block_timers.start_measurement(action);
     }

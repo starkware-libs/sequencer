@@ -25,8 +25,8 @@ use starknet_committer::block_committer::input::{
     StarknetStorageKey,
     StateDiff,
 };
+use starknet_committer::block_committer::measurements_util::{Action, MeasurementsTrait};
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
-use starknet_committer::block_committer::timing_util::{Action, TimeMeasurementTrait};
 use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
 use starknet_committer::db::index_db::db::{IndexDb, IndexDbReadContext};
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
@@ -45,7 +45,7 @@ use crate::args::{
     StorageType,
     DEFAULT_DATA_PATH,
 };
-use crate::utils::BenchmarkTimeMeasurement;
+use crate::utils::BenchmarkMeasurements;
 
 pub type InputImpl = Input<IndexDbReadContext>;
 
@@ -422,11 +422,11 @@ pub async fn run_storage_benchmark<S: Storage>(
     checkpoint_interval: usize,
 ) {
     let mut interference_task_set = JoinSet::new();
-    let mut time_measurement =
-        BenchmarkTimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
+    let mut measurements =
+        BenchmarkMeasurements::new(checkpoint_interval, S::Stats::column_titles());
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
-            time_measurement.try_load_from_checkpoint(checkpoint_dir).unwrap_or_default()
+            measurements.try_load_from_checkpoint(checkpoint_dir).unwrap_or_default()
         }
         None => HashOutput::default(),
     };
@@ -437,7 +437,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         None
     };
 
-    let curr_block_number = time_measurement.block_number;
+    let curr_block_number = measurements.block_number;
     let state_sync_storage_reader_and_time_offset: Option<(StorageReader, u64)> =
         if flavor == BenchmarkFlavor::MainnetWithSleeps {
             let storage_reader = open_storage(STATE_SYNC_STORAGE_CONFIG.clone()).unwrap().0;
@@ -475,30 +475,29 @@ pub async fn run_storage_benchmark<S: Storage>(
             config: ReaderConfig::default(),
         };
 
-        time_measurement.start_measurement(Action::EndToEnd);
-        let filled_forest =
-            CommitBlockImpl::commit_block(input, &mut index_db, &mut time_measurement)
-                .await
-                .expect("Failed to commit the given block.");
-        time_measurement.start_measurement(Action::Write);
+        measurements.start_measurement(Action::EndToEnd);
+        let filled_forest = CommitBlockImpl::commit_block(input, &mut index_db, &mut measurements)
+            .await
+            .expect("Failed to commit the given block.");
+        measurements.start_measurement(Action::Write);
         let n_new_facts =
             index_db.write(&filled_forest).await.expect("failed to serialize db values");
         info!("Written {n_new_facts} new facts to storage");
-        time_measurement.attempt_to_stop_measurement(Action::Write, n_new_facts).unwrap();
+        measurements.attempt_to_stop_measurement(Action::Write, n_new_facts).unwrap();
 
-        time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).unwrap();
+        measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).unwrap();
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
             let storage_stats = index_db.get_stats();
             index_db.reset_stats().unwrap();
-            time_measurement.to_csv(
+            measurements.to_csv(
                 &format!("{}.csv", block_number + 1),
                 output_dir,
                 storage_stats.as_ref().map(|s| Some(s.column_values())).unwrap_or(None),
             );
             if let Some(checkpoint_dir) = checkpoint_dir {
-                time_measurement.save_checkpoint(
+                measurements.save_checkpoint(
                     checkpoint_dir,
                     block_number + 1,
                     &contracts_trie_root_hash,
@@ -552,14 +551,14 @@ pub async fn run_storage_benchmark<S: Storage>(
 
     // Export to csv in the last iteration.
     if !n_iterations.is_multiple_of(checkpoint_interval) {
-        time_measurement.to_csv(
+        measurements.to_csv(
             &format!("{n_iterations}.csv"),
             output_dir,
             index_db.get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
         );
     }
 
-    time_measurement.pretty_print(50);
+    measurements.pretty_print(50);
 
     // Gather all interference tasks and wait for them to complete.
     // At this point it is safe (and preferable) to panic if any remaining task fails, as the
