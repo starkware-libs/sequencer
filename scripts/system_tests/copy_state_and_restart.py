@@ -34,6 +34,27 @@ def run(
 
 
 def copy_state(pod_name: str, namespace: str, data_dir: str) -> None:
+    # Clear existing data directory to ensure old database files are removed
+    print(f"Clearing existing /data directory in {pod_name}...")
+    try:
+        run(
+            [
+                "kubectl",
+                "exec",
+                pod_name,
+                "-n",
+                namespace,
+                "--",
+                "sh",
+                "-c",
+                "rm -rf /data/* /data/.[!.]* 2>/dev/null || true",
+            ]
+        )
+        print(f"✅ Cleared /data directory in {pod_name}")
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️  Warning: Failed to clear /data directory in {pod_name}: {e}")
+        print("   Continuing with copy operation...")
+
     print(f"📥 Copying state data to {pod_name}...")
     try:
         run(
