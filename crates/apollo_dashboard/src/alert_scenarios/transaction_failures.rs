@@ -55,7 +55,7 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.5, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::WorkingHours,
+        AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )

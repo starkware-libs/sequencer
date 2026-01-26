@@ -585,7 +585,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p4",
+      "severity": "p5",
       "observer_applicable": "false"
     },
     {
@@ -641,7 +641,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2",
+      "severity": "p5",
       "observer_applicable": "false"
     },
     {
