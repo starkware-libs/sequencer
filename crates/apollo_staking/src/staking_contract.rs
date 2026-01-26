@@ -1,3 +1,4 @@
+use apollo_state_sync_types::communication::StateSyncClientError;
 use async_trait::async_trait;
 use blockifier::execution::errors::EntryPointExecutionError;
 #[cfg(test)]
@@ -17,6 +18,8 @@ pub enum StakingContractError {
     RetdataDeserializationError(#[from] RetdataDeserializationError),
     #[error(transparent)]
     ExtendedStateReaderError(#[from] ExtendedStateReaderError),
+    #[error(transparent)]
+    StateSyncClientError(#[from] StateSyncClientError),
 }
 
 pub type StakingContractResult<T> = Result<T, StakingContractError>;

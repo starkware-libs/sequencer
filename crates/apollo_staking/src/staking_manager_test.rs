@@ -54,7 +54,7 @@ fn contract() -> MockStakingContract {
 #[fixture]
 fn default_config() -> StakingManagerConfig {
     StakingManagerConfig {
-        dynamic_config: StakingManagerDynamicConfig { committee_size: 10 },
+        dynamic_config: StakingManagerDynamicConfig { committee_size: 10, stakers_config: vec![] },
         static_config: StakingManagerStaticConfig {
             max_cached_epochs: 10,
             proposer_prediction_window_in_heights: 10,
@@ -100,7 +100,10 @@ async fn get_committee_success(
         Arc::new(MockStateSyncClient::new()),
         Box::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
-            dynamic_config: StakingManagerDynamicConfig { committee_size: 3 },
+            dynamic_config: StakingManagerDynamicConfig {
+                committee_size: 3,
+                stakers_config: vec![],
+            },
             ..default_config
         },
         None,
@@ -169,7 +172,10 @@ async fn get_committee_for_next_epoch(
         Arc::new(MockStateSyncClient::new()),
         Box::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
-            dynamic_config: StakingManagerDynamicConfig { committee_size: 3 },
+            dynamic_config: StakingManagerDynamicConfig {
+                committee_size: 3,
+                stakers_config: vec![],
+            },
             ..default_config
         },
         None,
@@ -197,14 +203,12 @@ async fn get_committee_applies_dynamic_config_changes(
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
 
     let mut config_manager_client = MockConfigManagerClient::new();
-    config_manager_client
-        .expect_get_staking_manager_dynamic_config()
-        .times(1)
-        .return_once(|| Ok(StakingManagerDynamicConfig { committee_size: 2 }));
-    config_manager_client
-        .expect_get_staking_manager_dynamic_config()
-        .times(1)
-        .return_once(|| Ok(StakingManagerDynamicConfig { committee_size: 1 }));
+    config_manager_client.expect_get_staking_manager_dynamic_config().times(1).return_once(|| {
+        Ok(StakingManagerDynamicConfig { committee_size: 2, stakers_config: vec![] })
+    });
+    config_manager_client.expect_get_staking_manager_dynamic_config().times(1).return_once(|| {
+        Ok(StakingManagerDynamicConfig { committee_size: 1, stakers_config: vec![] })
+    });
 
     let mut committee_manager = StakingManager::new(
         Arc::new(contract),
@@ -281,7 +285,10 @@ async fn get_proposer_empty_committee(
         Arc::new(MockStateSyncClient::new()),
         Box::new(random_generator),
         StakingManagerConfig {
-            dynamic_config: StakingManagerDynamicConfig { committee_size: 0 },
+            dynamic_config: StakingManagerDynamicConfig {
+                committee_size: 0,
+                stakers_config: vec![],
+            },
             ..default_config
         },
         None,
