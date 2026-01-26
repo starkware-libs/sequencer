@@ -98,6 +98,11 @@ impl<S: Storage> IndexDb<S> {
     pub fn get_async_underlying_storage<'a>(&'a self) -> Option<impl AsyncStorage + 'a> {
         self.storage.get_async_self()
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn cache_size(&self) -> Option<usize> {
+        self.storage.cache_size()
+    }
 }
 
 /// Empty initial context for index db. We don't need external information to start reading the

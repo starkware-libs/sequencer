@@ -152,6 +152,10 @@ pub trait Storage: Send + Sync {
 
     /// If the storage is async, returns an instance of the async storage.
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
+
+    fn cache_size(&self) -> Option<usize> {
+        None
+    }
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.

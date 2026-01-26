@@ -252,4 +252,8 @@ impl<S: Storage> Storage for CachedStorage<S> {
         // Need a concrete Option type.
         None::<NullStorage>
     }
+
+    fn cache_size(&self) -> Option<usize> {
+        Some(self.cache.len())
+    }
 }

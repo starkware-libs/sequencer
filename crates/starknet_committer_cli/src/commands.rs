@@ -490,6 +490,9 @@ pub async fn run_storage_benchmark<S: Storage>(
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
+            if let Some(cache_size) = index_db.cache_size() {
+                info!("Storage cache size at block {}: {} entries.", block_number + 1, cache_size);
+            }
             let storage_stats = index_db.get_stats();
             index_db.reset_stats().unwrap();
             time_measurement.to_csv(
