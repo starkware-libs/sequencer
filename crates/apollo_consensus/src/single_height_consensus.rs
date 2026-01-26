@@ -106,6 +106,7 @@ impl SingleHeightConsensus {
             warn!("Invalid proposal height: expected {:?}, got {:?}", height, block_info.height);
             return VecDeque::new();
         }
+        // TODO(guyn): replace this with assert_eq, but also need to fix simulation_test.
         let proposer_id = leader_fn(block_info.round);
         if block_info.proposer != proposer_id {
             warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, block_info.proposer);
