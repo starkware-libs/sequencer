@@ -24,6 +24,25 @@ use crate::compiler_version::VersionId;
 
 const JSON_RPC_VERSION: &str = "2.0";
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
+pub struct GatewayDynamicConfig {
+    // TODO(Arni): replace this placeholder with a struct that holds the
+    // static_config.contract_class_manager_config.cairo_native_run_config.
+    // native_classes_whitelist.
+    pub placeholder: bool,
+}
+
+impl SerializeConfig for GatewayDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "placeholder",
+            &self.placeholder,
+            "Placeholder field for gateway dynamic config.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayStaticConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
@@ -84,15 +103,21 @@ impl SerializeConfig for GatewayStaticConfig {
     }
 }
 
+/// Configuration for gateway containing both static and dynamic configs.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Default)]
 pub struct GatewayConfig {
+    #[validate(nested)]
+    pub dynamic_config: GatewayDynamicConfig,
     #[validate(nested)]
     pub static_config: GatewayStaticConfig,
 }
 
 impl SerializeConfig for GatewayConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(self.static_config.dump(), "static_config")
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        config
     }
 }
 

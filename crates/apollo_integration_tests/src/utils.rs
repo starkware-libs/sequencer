@@ -652,6 +652,7 @@ pub fn create_gateway_config(
             block_declare: false,
             authorized_declarer_accounts: None,
         },
+        ..Default::default()
     }
 }
 

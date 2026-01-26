@@ -44,6 +44,11 @@
     "privacy": "Public",
     "value": false
   },
+  "gateway_config.dynamic_config.placeholder": {
+    "description": "Placeholder field for gateway dynamic config.",
+    "privacy": "Public",
+    "value": false
+  },
   "batcher_config.static_config.block_builder_config.bouncer_config.blake_weight": {
     "description": "blake opcode gas weight.",
     "privacy": "Public",
