@@ -137,6 +137,7 @@ impl StarknetResources {
         state_resources: StateResources,
         l1_handler_payload_size: Option<usize>,
         execution_summary_without_fee_transfer: ExecutionSummary,
+        // TODO(AvivG): Add proof_facts_length as a parameter.
     ) -> Self {
         // TODO(Yoni): store the entire summary.
         Self {
@@ -145,6 +146,7 @@ impl StarknetResources {
                 calldata_length,
                 signature_length,
                 code_size,
+                proof_facts_length: 0,
             },
             messages: MessageResources::new(
                 execution_summary_without_fee_transfer.l2_to_l1_payload_lengths,
@@ -250,6 +252,7 @@ pub struct ArchivalDataResources {
     pub calldata_length: usize,
     pub signature_length: usize,
     pub code_size: usize,
+    pub proof_facts_length: usize,
 }
 
 impl ArchivalDataResources {
@@ -263,6 +266,7 @@ impl ArchivalDataResources {
         [
             self.get_calldata_and_signature_gas_cost(versioned_constants, mode),
             self.get_code_gas_cost(versioned_constants, mode),
+            self.get_client_side_proof_gas_cost(versioned_constants, mode),
             self.event_summary.to_gas_vector(versioned_constants, mode),
         ]
         .into_iter()
@@ -313,6 +317,34 @@ impl ArchivalDataResources {
         match mode {
             GasVectorComputationMode::All => GasVector::from_l2_gas(gas_amount),
             GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(gas_amount),
+        }
+    }
+
+    fn get_client_side_proof_gas_cost(
+        &self,
+        versioned_constants: &VersionedConstants,
+        mode: &GasVectorComputationMode,
+    ) -> GasVector {
+        if self.proof_facts_length == 0 {
+            return GasVector::ZERO;
+        }
+
+        let archival_gas_costs = versioned_constants.get_archival_data_gas_costs(mode);
+
+        let proof_facts_gas: GasAmount = (archival_gas_costs.gas_per_data_felt
+            * u64_from_usize(self.proof_facts_length))
+        .to_integer()
+        .into();
+
+        let proof_gas: GasAmount = archival_gas_costs.gas_per_proof.to_integer().into();
+
+        let total: GasAmount = proof_facts_gas
+            .checked_add(proof_gas)
+            .expect("client-side proof gas amount overflowed");
+
+        match mode {
+            GasVectorComputationMode::All => GasVector::from_l2_gas(total),
+            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(total),
         }
     }
 }
