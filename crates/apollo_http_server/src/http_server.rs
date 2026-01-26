@@ -19,6 +19,7 @@ use apollo_gateway_types::gateway_types::{
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
+use apollo_metrics::metrics::set_unix_now_seconds;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use axum::http::HeaderMap;
@@ -44,6 +45,7 @@ use crate::metrics::{
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
+    LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS,
 };
 
 #[cfg(test)]
@@ -149,6 +151,7 @@ async fn add_rpc_tx(
     check_new_transactions_are_allowed(accept_new_txs)?;
 
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    set_unix_now_seconds(&LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS);
     add_tx_inner(app_state, headers, tx).await
 }
 
@@ -166,6 +169,7 @@ async fn add_tx(
     check_new_transactions_are_allowed(accept_new_txs)?;
 
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    set_unix_now_seconds(&LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS);
     let tx: DeprecatedGatewayTransactionV3 = match serde_json::from_str(&tx) {
         Ok(value) => value,
         Err(e) => {
