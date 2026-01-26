@@ -61,10 +61,10 @@ use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
-use axum::extract::Query;
-use axum::http::StatusCode;
-use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum_08::extract::Query;
+use axum_08::http::StatusCode;
+use axum_08::routing::{get, post};
+use axum_08::{Json, Router};
 #[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::CairoNativeRunConfig;
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
@@ -85,6 +85,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_types_core::felt::Felt;
+use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
@@ -415,7 +416,8 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
                     .instrument(tracing::debug_span!("success recorder write_pre_confirmed_block"))
                 }),
             );
-        axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
+        let listener = TcpListener::bind(socket_address).await.unwrap();
+        axum_08::serve(listener, router).await.unwrap();
     })
 }
 
@@ -452,7 +454,8 @@ async fn get_price(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json
 pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
         let router = Router::new().route(ETH_TO_STRK_ORACLE_PATH, get(get_price));
-        axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
+        let listener = TcpListener::bind(socket_address).await.unwrap();
+        axum_08::serve(listener, router).await.unwrap();
     })
 }
 

@@ -1718,7 +1718,7 @@ dependencies = [
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
- "axum 0.6.20",
+ "axum 0.8.8",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
