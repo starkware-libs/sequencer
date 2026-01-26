@@ -17,9 +17,12 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, instrument, warn};
 use url::Url;
 
+use apollo_metrics::metrics::set_unix_now_seconds;
+
 use crate::metrics::{
     register_eth_to_strk_metrics,
     ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS,
     ETH_TO_STRK_RATE,
     ETH_TO_STRK_SUCCESS_COUNT,
 };
@@ -180,6 +183,7 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
         ));
     }
     ETH_TO_STRK_SUCCESS_COUNT.increment(1);
+    set_unix_now_seconds(&ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS);
     ETH_TO_STRK_RATE.set_lossy(rate);
     Ok(rate)
 }

@@ -35,6 +35,8 @@ use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::time;
 use tracing::{debug, info, instrument, warn};
 
+use apollo_metrics::metrics::set_unix_now_seconds;
+
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
 use crate::metrics::{
@@ -45,6 +47,7 @@ use crate::metrics::{
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
+    LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS,
 };
 
 #[cfg(test)]
@@ -150,6 +153,7 @@ async fn add_rpc_tx(
     check_new_transactions_are_allowed(accept_new_txs)?;
 
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    set_unix_now_seconds(&LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS);
     add_tx_inner(app_state, headers, tx).await
 }
 
@@ -167,6 +171,7 @@ async fn add_tx(
     check_new_transactions_are_allowed(accept_new_txs)?;
 
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    set_unix_now_seconds(&LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS);
     let tx: DeprecatedGatewayTransactionV3 = match serde_json::from_str(&tx) {
         Ok(value) => value,
         Err(e) => {

@@ -5,11 +5,12 @@ use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
+    LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS,
 };
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
-use crate::query_builder::{increase, DEFAULT_DURATION};
+use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::query_builder::{increase, seconds_since_last_timestamp, DEFAULT_DURATION};
 
 fn get_panel_total_transactions_received() -> Panel {
     Panel::new(
@@ -87,7 +88,7 @@ pub(crate) fn get_panel_http_server_seconds_since_last_transaction() -> Panel {
         "Seconds since last received transaction",
         "The number of seconds since the last transaction was received by the HTTP server \
          (assuming there was a transaction in the last 12 hours)",
-        get_time_since_last_increase_expr(&ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()),
+        seconds_since_last_timestamp(&LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)
