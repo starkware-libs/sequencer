@@ -524,10 +524,55 @@
     "privacy": "Public",
     "value": true
   },
-  "committer_config.storage_config.inner_storage_config.dummy_field": {
-    "description": "Dummy field for including this struct in the config json file.",
+  "committer_config.storage_config.inner_storage_config.bloom_filter_bits": {
+    "description": "Number of bits in the bloom filter per key",
     "privacy": "Public",
-    "value": 0
+    "value": 10.0
+  },
+  "committer_config.storage_config.inner_storage_config.bytes_per_sync": {
+    "description": "Bytes to sync to disk incrementally during writes",
+    "privacy": "Public",
+    "value": 1048576
+  },
+  "committer_config.storage_config.inner_storage_config.cache_size": {
+    "description": "Size of the block cache in bytes",
+    "privacy": "Public",
+    "value": 8589934592
+  },
+  "committer_config.storage_config.inner_storage_config.enable_statistics": {
+    "description": "Flag that determines whether to enable RocksDB statistics collection",
+    "privacy": "Public",
+    "value": false
+  },
+  "committer_config.storage_config.inner_storage_config.max_background_jobs": {
+    "description": "Maximum number of background compaction and flush jobs",
+    "privacy": "Public",
+    "value": 8
+  },
+  "committer_config.storage_config.inner_storage_config.max_subcompactions": {
+    "description": "Maximum number of subcompactions for parallel compaction",
+    "privacy": "Public",
+    "value": 8
+  },
+  "committer_config.storage_config.inner_storage_config.max_write_buffers": {
+    "description": "Maximum number of write buffers (memtables)",
+    "privacy": "Public",
+    "value": 4
+  },
+  "committer_config.storage_config.inner_storage_config.num_threads": {
+    "description": "Number of threads for parallelism",
+    "privacy": "Public",
+    "value": 8
+  },
+  "committer_config.storage_config.inner_storage_config.use_mmap_reads": {
+    "description": "Whether to use mmap for reading SST files",
+    "privacy": "Public",
+    "value": false
+  },
+  "committer_config.storage_config.inner_storage_config.write_buffer_size": {
+    "description": "Amount of data to build up in memory before writing to disk",
+    "privacy": "Public",
+    "value": 134217728
   },
   "committer_config.verify_state_diff_hash": {
     "description": "If true, the committer will verify the state diff hash.",
