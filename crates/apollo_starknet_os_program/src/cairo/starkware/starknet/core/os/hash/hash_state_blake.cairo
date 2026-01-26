@@ -1,6 +1,5 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import encode_felt252_data_and_calc_blake_hash
-from starkware.cairo.common.memcpy import memcpy
 
 // Stores a sequence of elements. New elements can be added to the hash state using
 // hash_update() and hash_update_single().

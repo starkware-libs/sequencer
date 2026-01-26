@@ -1,14 +1,11 @@
 // Execution constraints for transaction execution.
 
 from starkware.cairo.common.bool import FALSE, TRUE
-from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_le, assert_not_zero
-from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.constants import (
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN,
-    BLOCK_HASH_CONTRACT_ADDRESS,
     STORED_BLOCK_HASH_BUFFER,
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
