@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769422548327,
+  "lastUpdate": 1769433199207,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -543,6 +543,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1318.66068456,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8bc16ac41d6320a745718d961593fb226b1f437b",
+          "message": "apollo_staking: split the `StakingMangerConfig` into dynamic and static configs (#11780)",
+          "timestamp": "2026-01-26T12:46:11Z",
+          "tree_id": "ff31988762c512ae610ab285dace5d189c1be0c9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8bc16ac41d6320a745718d961593fb226b1f437b"
+        },
+        "date": 1769433198928,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 850.7849674600001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1313.73852222,
             "unit": "ms"
           }
         ]
