@@ -247,6 +247,7 @@ fn get_core_component_config(
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;
+    config.mempool = ReactiveComponentExecutionConfig::noop();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }

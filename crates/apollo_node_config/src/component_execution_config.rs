@@ -174,6 +174,18 @@ impl ReactiveComponentExecutionConfig {
         }
     }
 
+    pub fn noop() -> Self {
+        Self {
+            execution_mode: ReactiveComponentExecutionMode::Noop,
+            local_server_config: None,
+            remote_server_config: None,
+            remote_client_config: None,
+            max_concurrency: MAX_CONCURRENCY,
+            url: DEFAULT_URL.to_string(),
+            port: DEFAULT_INVALID_PORT,
+        }
+    }
+
     fn is_valid_socket(&self) -> bool {
         self.port != DEFAULT_INVALID_PORT
     }
@@ -336,12 +348,13 @@ fn validate_reactive_component_execution_config(
 
     // Validate the execution mode matches socket validity.
     match (&component_config.execution_mode, component_config.is_valid_socket()) {
-        (ReactiveComponentExecutionMode::Disabled, _) => Ok(()),
+        (ReactiveComponentExecutionMode::Disabled, _)
+        | (ReactiveComponentExecutionMode::Noop, _)
+        | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, _) => Ok(()),
         (ReactiveComponentExecutionMode::Remote, true)
         | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => {
             validate_url(&component_config.url)
         }
-        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, _) => Ok(()),
         (mode, socket) => {
             error!(
                 "Invalid reactive component execution configuration: mode: {:?}, socket: {:?}",
