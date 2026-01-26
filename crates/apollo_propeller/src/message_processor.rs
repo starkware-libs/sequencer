@@ -38,12 +38,8 @@ pub enum StateManagerToEngine {
 /// Successful reconstruction result.specified
 #[derive(Debug)]
 struct ReconstructionSuccess {
-    // TODO(AndrewL): These fields will be used when reconstruction result handling is added
-    #[allow(dead_code)]
     message: Vec<u8>,
-    #[allow(dead_code)]
     my_shard: Vec<u8>,
-    #[allow(dead_code)]
     my_shard_proof: MerkleProof,
 }
 
@@ -137,6 +133,16 @@ impl MessageProcessor {
                         &mut phase,
                         &mut pending_reconstruction,
                     ).await;
+                    if flow.is_break() {
+                        break;
+                    }
+                }
+
+                Ok(result) = async {
+                    pending_reconstruction.as_mut().unwrap().await
+                }, if pending_reconstruction.is_some() => {
+                    pending_reconstruction = None;
+                    let flow = self.handle_reconstruction_result(result, &mut phase).await;
                     if flow.is_break() {
                         break;
                     }
@@ -247,6 +253,46 @@ impl MessageProcessor {
             self.tree_manager.num_coding_shards(),
             tx,
         );
+    }
+
+    async fn handle_reconstruction_result(
+        &mut self,
+        result: ReconstructionResult,
+        phase: &mut ReconstructionPhase,
+    ) -> ControlFlow<()> {
+        tracing::trace!("[MSG_PROC] Reconstruction complete, success={}", result.is_ok());
+
+        // Early return for reconstruction errors
+        let Err(e) = result else {
+            return self.handle_reconstruction_success(result.unwrap(), phase).await;
+        };
+
+        tracing::error!("[MSG_PROC] Reconstruction failed: {:?}", e);
+
+        self.emit_and_finalize(Event::MessageReconstructionFailed {
+            publisher: self.publisher,
+            message_root: self.message_root,
+            error: e,
+        })
+    }
+
+    async fn handle_reconstruction_success(
+        &mut self,
+        success: ReconstructionSuccess,
+        _phase: &mut ReconstructionPhase,
+    ) -> ControlFlow<()> {
+        let ReconstructionSuccess { message, my_shard: _my_shard, my_shard_proof: _my_shard_proof } =
+            success;
+
+        // TODO(AndrewL): Handle post-reconstruction state transition and threshold checking
+        tracing::trace!("[MSG_PROC] Reconstruction succeeded, message_len={}", message.len());
+
+        // For now, just emit the message immediately
+        self.emit_and_finalize(Event::MessageReceived {
+            publisher: self.publisher,
+            message_root: self.message_root,
+            message,
+        })
     }
 
     async fn emit_timeout_and_finalize(&mut self) -> ControlFlow<()> {
