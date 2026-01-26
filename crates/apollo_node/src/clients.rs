@@ -48,7 +48,7 @@ use apollo_gateway_types::communication::{
     RemoteGatewayClient,
     SharedGatewayClient,
 };
-use apollo_infra::component_client::{Client, LocalComponentClient};
+use apollo_infra::component_client::{Client, LocalComponentClient, NoopComponentClient};
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
@@ -109,19 +109,19 @@ pub struct SequencerNodeClients {
     state_sync_client: Client<StateSyncRequest, StateSyncResponse>,
 }
 
-/// A macro to retrieve a shared client wrapped in an `Arc`. The returned client is either the local
-/// or the remote, as at most one of them exists. If neither, it returns `None`.
+/// A macro to retrieve a shared client wrapped in an `Arc`. The returned client is either the
+/// local, remote, or noop client, as at most one of them exists. If none exist, it returns `None`.
 ///
 /// # Arguments
 ///
 /// * `$self` - The `self` reference to the struct that contains the client field.
-/// * `$client_field` - The field name (within `self`) representing the client, which has both
-///   `local_client` and `remote_client` as options.
+/// * `$client_field` - The field name (within `self`) representing the client, which has
+///   `local_client`, `remote_client`, and `noop_client` as options.
 ///
 /// # Returns
 ///
-/// An `Option<Arc<dyn ClientTrait>>` containing the available client (local_client or
-/// remote_client), wrapped in Arc. If neither exists, returns None.
+/// An `Option<Arc<dyn ClientTrait>>` containing the available client (local_client, remote_client,
+/// or noop_client), wrapped in Arc. If none exist, returns None.
 ///
 /// # Example
 ///
@@ -145,6 +145,8 @@ macro_rules! get_shared_client {
             return Some(Arc::new(local_client));
         } else if let Some(remote_client) = client.get_remote_client() {
             return Some(Arc::new(remote_client));
+        } else if let Some(noop_client) = client.get_noop_client() {
+            return Some(Arc::new(noop_client));
         }
         None
     }};
@@ -272,7 +274,8 @@ impl SequencerNodeClients {
 
 /// A macro for creating a component client fitting the component's execution mode. Returns a
 /// `Client` containing: a local client if the component is run locally, a remote client if
-/// the component is run remotely, and neither if the component is disabled.
+/// the component is run remotely, a noop client if the component is in noop mode, and neither
+/// if the component is disabled.
 ///
 /// # Arguments
 ///
@@ -326,7 +329,7 @@ macro_rules! create_client {
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client =
                     Some(<$local_client_type>::new($channel_expr, $local_client_metrics));
-                Client::new(local_client, None)
+                Client::new(local_client, None, None)
             }
             ReactiveComponentExecutionMode::Remote => {
                 let remote_client = Some(<$remote_client_type>::new(
@@ -338,12 +341,13 @@ macro_rules! create_client {
                     $port,
                     $remote_client_metrics,
                 ));
-                Client::new(None, remote_client)
+                Client::new(None, remote_client, None)
             }
-            // TODO(Tsabary): add a noop client.
-            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Noop => {
-                Client::new(None, None)
+            ReactiveComponentExecutionMode::Noop => {
+                let noop_client = Some(NoopComponentClient::new());
+                Client::new(None, None, noop_client)
             }
+            ReactiveComponentExecutionMode::Disabled => Client::new(None, None, None),
         }
     };
 }
