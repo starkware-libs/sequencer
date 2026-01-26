@@ -11,6 +11,8 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
+#[cfg(any(feature = "testing", test))]
+use starknet_patricia_storage::storage_trait::AsyncStorage;
 use starknet_patricia_storage::storage_trait::{
     create_db_key,
     DbHashMap,
@@ -82,6 +84,19 @@ pub struct IndexDb<S: Storage> {
 impl<S: Storage> IndexDb<S> {
     pub fn new(storage: S) -> Self {
         Self { storage }
+    }
+
+    pub fn get_stats(&self) -> PatriciaStorageResult<S::Stats> {
+        self.storage.get_stats()
+    }
+
+    pub fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
+        self.storage.reset_stats()
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_async_underlying_storage<'a>(&'a self) -> Option<impl AsyncStorage + 'a> {
+        self.storage.get_async_self()
     }
 }
 
