@@ -107,4 +107,57 @@ impl Engine {
             output_tx,
         }
     }
+
+    /// Run the engine in its own task, processing commands and results.
+    pub async fn run(mut self, mut commands_rx: mpsc::UnboundedReceiver<EngineCommand>) {
+        loop {
+            tokio::select! {
+                // Handle commands from Behaviour
+                Some(cmd) = commands_rx.recv() => {
+                    self.handle_command(cmd).await;
+                }
+
+                else => {
+                    // All channels closed, exit
+                    tracing::error!("Engine task shutting down");
+                    break;
+                }
+            }
+        }
+    }
+
+    async fn handle_command(&mut self, cmd: EngineCommand) {
+        match cmd {
+            EngineCommand::RegisterChannelPeers { channel, peers, response } => {
+                // TODO(AndrewL): Implement channel registration
+                let _ = (channel, peers, response);
+                todo!()
+            }
+            EngineCommand::UnregisterChannel { channel, response } => {
+                // TODO(AndrewL): Implement channel unregistration
+                let _ = (channel, response);
+                todo!()
+            }
+            EngineCommand::Broadcast { channel, message, response } => {
+                // TODO(AndrewL): Implement message broadcasting
+                let _ = (channel, message, response);
+                todo!()
+            }
+            EngineCommand::HandleHandlerOutput { peer_id, output } => {
+                // TODO(AndrewL): Implement handler output processing
+                let _ = (peer_id, output);
+                todo!()
+            }
+            EngineCommand::HandleConnected { peer_id } => {
+                // TODO(AndrewL): Implement peer connection handling
+                let _ = peer_id;
+                todo!()
+            }
+            EngineCommand::HandleDisconnected { peer_id } => {
+                // TODO(AndrewL): Implement peer disconnection handling
+                let _ = peer_id;
+                todo!()
+            }
+        }
+    }
 }
