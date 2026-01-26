@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
-use std::path::{Path, PathBuf};
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
@@ -40,7 +39,7 @@ use starknet_committer::db::serde_db_utils::{
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia_storage::map_storage::CachedStorage;
-use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
+use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::{debug, error, info, warn};
 
@@ -95,12 +94,13 @@ impl CommitBlockTrait for BlockCommitter {}
 pub type ApolloCommitter = Committer<ApolloStorage, ApolloCommitterDb, BlockCommitter>;
 
 pub trait StorageConstructor: Storage {
-    fn create_storage(db_path: PathBuf, storage_config: Self::Config) -> Self;
+    fn create_storage(storage_config: Self::Config) -> Self;
 }
 
+/// StorageConstructor for cached RocksDB.
 impl StorageConstructor for ApolloStorage {
-    fn create_storage(db_path: PathBuf, storage_config: Self::Config) -> Self {
-        let rocksdb_storage = RocksDbStorage::open(Path::new(&db_path), RocksDbOptions::default())
+    fn create_storage(storage_config: Self::Config) -> Self {
+        let rocksdb_storage = RocksDbStorage::new(storage_config.inner_storage_config.clone())
             .inspect_err(|e| error!("Failed to open committer DB: {e}"))
             .unwrap();
         CachedStorage::new(rocksdb_storage, storage_config)
@@ -130,7 +130,7 @@ where
     BlockCommitter: CommitBlockTrait,
 {
     pub async fn new(config: CommitterConfig<S::Config>) -> Self {
-        let storage = S::create_storage(config.db_path.clone(), config.storage_config.clone());
+        let storage = S::create_storage(config.storage_config.clone());
         let mut forest_storage = ForestDB::new(storage);
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
         info!("Initializing committer with offset: {offset}");
