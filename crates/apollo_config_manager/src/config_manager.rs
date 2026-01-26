@@ -91,7 +91,7 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             }
             ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {
                 ConfigManagerResponse::SetNodeDynamicConfig(
-                    self.set_node_dynamic_config(new_config),
+                    self.set_node_dynamic_config(*new_config),
                 )
             }
         }
