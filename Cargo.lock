@@ -2247,6 +2247,7 @@ dependencies = [
  "papyrus_common",
  "prometheus-parse",
  "rstest",
+ "static_assertions",
 ]
 
 [[package]]

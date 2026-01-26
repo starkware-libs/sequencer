@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use lazy_static::lazy_static;
@@ -423,4 +426,42 @@ pub fn log_every_n_ms(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+static NEXT: AtomicU16 = AtomicU16::new(0);
+static MAP: OnceLock<Mutex<HashMap<String, u16>>> = OnceLock::new();
+
+fn alloc_for(key: String) -> u16 {
+    let map = MAP.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut map = map.lock().unwrap();
+
+    if let Some(&id) = map.get(&key) {
+        return id;
+    }
+
+    let id = NEXT.fetch_add(1, Ordering::Relaxed);
+    if id == u16::MAX {
+        panic!("unique_u16 exhausted: > 65536 unique callsites in this crate");
+    }
+
+    map.insert(key, id);
+    id
+}
+
+#[proc_macro]
+pub fn unique_u16(_input: TokenStream) -> TokenStream {
+    // NOTE: Use proc_macro::Span (stable APIs on 1.92)
+    let span = proc_macro::Span::call_site();
+
+    // Prefer file() for a stable-ish key (local_file may be None under remapping / RA)
+    let file = span.file();
+    let line = span.line(); // 1-indexed
+    let col = span.column(); // 1-indexed
+
+    let key = format!("{file}:{line}:{col}");
+    let id = alloc_for(key);
+
+    // Emit a single u16-suffixed literal so it works in const context
+    let lit = proc_macro::Literal::u16_suffixed(id);
+    TokenStream::from(proc_macro::TokenTree::Literal(lit))
 }
