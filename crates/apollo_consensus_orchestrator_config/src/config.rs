@@ -285,6 +285,9 @@ pub struct ContextDynamicConfig {
     // TODO(guyn): remove this after we completely remove wei prices from block info.
     /// If given, will override the conversion rate.
     pub override_eth_to_fri_rate: Option<u128>,
+    /// When true, the virtual proposer election differs from the actual proposer election.
+    #[serde(default)]
+    pub use_different_virtual_proposer: bool,
 }
 
 impl SerializeConfig for ContextDynamicConfig {
@@ -356,6 +359,12 @@ impl SerializeConfig for ContextDynamicConfig {
             "Replace the Eth-to-Fri conversion rate with this value.",
             ParamPrivacyInput::Public,
         ));
+        dump.extend([ser_param(
+            "use_different_virtual_proposer",
+            &self.use_different_virtual_proposer,
+            "When true, the virtual proposer election differs from the actual proposer election.",
+            ParamPrivacyInput::Public,
+        )]);
         dump
     }
 }
@@ -373,6 +382,7 @@ impl Default for ContextDynamicConfig {
             override_l1_gas_price_fri: None,
             override_l1_data_gas_price_fri: None,
             override_eth_to_fri_rate: None,
+            use_different_virtual_proposer: false,
         }
     }
 }
