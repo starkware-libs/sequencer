@@ -20,6 +20,16 @@ pub trait FetchCompiledClasses: StateReader {
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool>;
 }
 
+impl<T: FetchCompiledClasses + ?Sized> FetchCompiledClasses for Box<T> {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        self.as_ref().get_compiled_classes(class_hash)
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        self.as_ref().is_declared(class_hash)
+    }
+}
+
 pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
     pub state_reader: S,
     contract_class_manager: ContractClassManager,
