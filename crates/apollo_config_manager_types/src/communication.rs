@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
+use apollo_gateway_config::config::GatewayDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
@@ -47,6 +48,8 @@ pub trait ConfigManagerClient: Send + Sync {
 
     async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
 
+    async fn get_gateway_dynamic_config(&self) -> ConfigManagerClientResult<GatewayDynamicConfig>;
+
     async fn set_node_dynamic_config(
         &self,
         config: NodeDynamicConfig,
@@ -65,6 +68,7 @@ pub enum ConfigManagerRequest {
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
     GetBatcherDynamicConfig,
+    GetGatewayDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
@@ -85,6 +89,7 @@ pub enum ConfigManagerResponse {
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
     GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
+    GetGatewayDynamicConfig(ConfigManagerResult<GatewayDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -165,6 +170,19 @@ where
             request,
             ConfigManagerResponse,
             GetBatcherDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_gateway_dynamic_config(&self) -> ConfigManagerClientResult<GatewayDynamicConfig> {
+        let request = ConfigManagerRequest::GetGatewayDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetGatewayDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct

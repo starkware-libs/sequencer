@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 use std::vec::Vec;
 
 use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
+use apollo_gateway_config::config::GatewayDynamicConfig;
 use apollo_class_manager_config::config::FsClassManagerConfig;
 use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::dumping::{
@@ -314,6 +315,8 @@ pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub context_dynamic_config: Option<ContextDynamicConfig>,
     #[validate(nested)]
+    pub gateway_dynamic_config: Option<GatewayDynamicConfig>,
+    #[validate(nested)]
     pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
     #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
@@ -325,6 +328,7 @@ impl SerializeConfig for NodeDynamicConfig {
             ser_optional_sub_config(&self.batcher_dynamic_config, "batcher_dynamic_config"),
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
             ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
+            ser_optional_sub_config(&self.gateway_dynamic_config, "gateway_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
         ];
@@ -349,6 +353,10 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
                 consensus_manager_config.context_config.dynamic_config.clone()
             },
         );
+        let gateway_dynamic_config = sequencer_node_config
+            .gateway_config
+            .as_ref()
+            .map(|gateway_config| gateway_config.dynamic_config.clone());
         let http_server_dynamic_config = sequencer_node_config
             .http_server_config
             .as_ref()
@@ -361,6 +369,7 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             batcher_dynamic_config,
             consensus_dynamic_config,
             context_dynamic_config,
+            gateway_dynamic_config,
             http_server_dynamic_config,
             mempool_dynamic_config,
         }
