@@ -38,8 +38,26 @@ def run(
 def copy_state(pod_name: str, namespace: str, data_dir: str) -> None:
     print(f"📥 Copying state data to {pod_name}...")
 
-    # Clear existing data directory to ensure old database files are removed
-    print(f"Clearing existing /data directory in {pod_name}...")
+    # Step 1: Copy to temporary location (safe - sequencer doesn't touch /data_temp)
+    print(f"Copying state to temporary location in {pod_name}...")
+    try:
+        run(
+            [
+                "kubectl",
+                "cp",
+                f"{data_dir}/.",
+                f"{namespace}/{pod_name}:/data_temp",
+                "--retries=3",
+            ]
+        )
+        print("✅ State copied to temporary location")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to copy state to pod {pod_name}: {e}")
+        sys.exit(1)
+
+    # Step 2: Use mv to atomically replace /data with /data_temp
+    # mv is much faster than tar/cp (just updates filesystem metadata)
+    print("Replacing /data with new state using mv...")
     try:
         run(
             [
@@ -51,29 +69,32 @@ def copy_state(pod_name: str, namespace: str, data_dir: str) -> None:
                 "--",
                 "sh",
                 "-c",
-                "rm -rf /data/* /data/.[!.]* 2>/dev/null || true",
+                "mv /data_temp/* /data/",
             ]
         )
-        print(f"✅ Cleared /data directory in {pod_name}")
+        print(f"✅ State replaced in {pod_name}")
     except subprocess.CalledProcessError as e:
-        print(f"⚠️  Warning: Failed to clear /data directory in {pod_name}: {e}")
-        print("   Continuing with copy operation...")
+        print(f"❌ Failed to replace state in pod {pod_name}: {e}")
+        sys.exit(1)
 
-    # Copy new state
+    # Step 3: Clean up temp directory
     try:
         run(
             [
                 "kubectl",
-                "cp",
-                f"{data_dir}/.",
-                f"{namespace}/{pod_name}:/data",
-                "--retries=3",
-            ]
+                "exec",
+                pod_name,
+                "-n",
+                namespace,
+                "--",
+                "sh",
+                "-c",
+                "rm -rf /data_temp",
+            ],
+            check=False,  # Don't fail if already deleted
         )
-        print(f"✅ State copied to {pod_name}")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to copy state to pod {pod_name}: {e}")
-        sys.exit(1)
+    except subprocess.CalledProcessError:
+        pass  # Ignore cleanup errors
 
 
 def delete_pod(pod_name: str, namespace: str) -> None:
