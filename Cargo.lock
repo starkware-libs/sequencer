@@ -1596,6 +1596,7 @@ dependencies = [
  "mempool_test_utils",
  "metrics",
  "metrics-exporter-prometheus",
+ "proving_utils",
  "regex",
  "reqwest 0.12.24",
  "rstest",

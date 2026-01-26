@@ -143,7 +143,7 @@ fn mock_dependencies() -> MockDependencies {
     let mock_stateless_transaction_validator = mock_stateless_transaction_validator();
     let mock_proof_archive_writer = MockProofArchiveWriterTrait::new();
     let mut mock_proof_manager_client = MockProofManagerClient::new();
-    mock_proof_manager_client.expect_contains_proof().returning(|_| Ok(false));
+    mock_proof_manager_client.expect_contains_proof().returning(|_, _, _| Ok(false));
     MockDependencies {
         config,
         state_reader_factory,
@@ -196,12 +196,18 @@ impl MockDependencies {
         self.mock_mempool_client.expect_validate_tx().once().with(eq(args)).return_once(|_| result);
     }
 
-    fn expect_set_proof(&mut self, proof_facts: ProofFacts, proof: Proof) {
+    fn expect_set_proof(
+        &mut self,
+        proof_facts: ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+        proof: Proof,
+    ) {
         self.mock_proof_manager_client
             .expect_set_proof()
             .once()
-            .with(eq(proof_facts), eq(proof))
-            .returning(|_, _| Ok(()));
+            .with(eq(proof_facts), eq(nonce), eq(sender_address), eq(proof))
+            .returning(|_, _, _, _| Ok(()));
     }
 }
 
@@ -336,8 +342,12 @@ async fn setup_mock_state(
     // If the transaction has proof facts, expect set_proof to be called on the proof manager.
     if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = input_tx {
         if !invoke_tx.proof_facts.is_empty() {
-            mock_dependencies
-                .expect_set_proof(invoke_tx.proof_facts.clone(), invoke_tx.proof.clone());
+            mock_dependencies.expect_set_proof(
+                invoke_tx.proof_facts.clone(),
+                invoke_tx.nonce,
+                invoke_tx.sender_address,
+                invoke_tx.proof.clone(),
+            );
         }
     }
 
