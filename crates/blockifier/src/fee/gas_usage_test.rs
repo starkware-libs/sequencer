@@ -78,7 +78,16 @@ fn starknet_resources() -> StarknetResources {
         },
         19,
     );
-    StarknetResources::new(2_usize, 3_usize, 4_usize, state_resources, 6.into(), execution_summary)
+    StarknetResources::new(
+        2_usize,
+        3_usize,
+        4_usize,
+        state_resources,
+        6.into(),
+        execution_summary,
+        // TODO(AvivG): Modify to test with non-zero value for proof facts length.
+        0,
+    )
 }
 
 #[rstest]
@@ -99,7 +108,7 @@ fn test_get_event_gas_cost(
             .collect();
     let execution_summary = CallInfo::summarize_many(call_infos.iter(), versioned_constants);
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary, 0);
     assert_eq!(
         GasVector::default(),
         starknet_resources.to_gas_vector(
@@ -152,7 +161,7 @@ fn test_get_event_gas_cost(
         GasVectorComputationMode::All => GasVector::from_l2_gas(expected_gas),
     };
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary, 0);
     let gas_vector = starknet_resources.to_gas_vector(
         versioned_constants,
         use_kzg_da,
