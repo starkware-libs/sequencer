@@ -25,7 +25,7 @@ use url::Url;
 use crate::config::ProverConfig;
 use crate::errors::{ProvingError, RunnerError};
 use crate::proving::prover::prove;
-use crate::runner::{RpcRunnerFactory, VirtualSnosRunner};
+use crate::runner::{RpcRunnerFactory, RunnerConfig, VirtualSnosRunner};
 
 /// Error type for the virtual SNOS prover.
 #[derive(Debug, thiserror::Error)]
@@ -97,13 +97,18 @@ impl VirtualSnosProver<RpcRunnerFactory> {
     /// Creates a new VirtualSnosProver from configuration.
     ///
     /// This constructor creates an RPC-based prover using the configuration values.
-    pub fn new(config: &ProverConfig) -> Self {
+    pub fn new(prover_config: &ProverConfig, runner_config: &RunnerConfig) -> Self {
         let contract_class_manager =
-            ContractClassManager::start(config.contract_class_manager_config.clone());
-        let node_url = Url::parse(&config.rpc_node_url).expect("Invalid RPC node URL in config");
-        let runner =
-            RpcRunnerFactory::new(node_url, config.chain_id.clone(), contract_class_manager);
-        Self { runner, chain_id: config.chain_id.clone() }
+            ContractClassManager::start(prover_config.contract_class_manager_config.clone());
+        let node_url =
+            Url::parse(&prover_config.rpc_node_url).expect("Invalid RPC node URL in config");
+        let runner = RpcRunnerFactory::new(
+            node_url,
+            prover_config.chain_id.clone(),
+            contract_class_manager,
+            runner_config.clone(),
+        );
+        Self { runner, chain_id: prover_config.chain_id.clone() }
     }
 }
 

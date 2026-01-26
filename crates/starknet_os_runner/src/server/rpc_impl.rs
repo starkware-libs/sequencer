@@ -27,7 +27,7 @@ impl ProvingRpcServerImpl {
 
     /// Creates a new ProvingRpcServerImpl from configuration.
     pub fn from_config(config: &ServiceConfig) -> Self {
-        let prover = RpcVirtualSnosProver::new(&config.prover_config);
+        let prover = RpcVirtualSnosProver::new(&config.prover_config, &config.runner_config);
         Self::new(prover)
     }
 }

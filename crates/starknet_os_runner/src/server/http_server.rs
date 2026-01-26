@@ -142,7 +142,7 @@ pub struct ProvingHttpServer {
 impl ProvingHttpServer {
     /// Creates a new ProvingHttpServer.
     pub fn new(config: ServiceConfig) -> Self {
-        let prover = RpcVirtualSnosProver::new(&config.prover_config);
+        let prover = RpcVirtualSnosProver::new(&config.prover_config, &config.runner_config);
         let app_state = AppState { prover };
         Self { config, app_state }
     }

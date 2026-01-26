@@ -9,6 +9,7 @@ use starknet_api::core::ChainId;
 use tracing::info;
 
 use crate::config::ProverConfig;
+use crate::runner::RunnerConfig;
 
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
@@ -24,11 +25,18 @@ pub struct ServiceConfig {
     pub ip: IpAddr,
     /// Port to bind the server to.
     pub port: u16,
+    /// Configuration for the runner.
+    pub runner_config: RunnerConfig,
 }
 
 impl Default for ServiceConfig {
     fn default() -> Self {
-        Self { prover_config: ProverConfig::default(), ip: DEFAULT_IP, port: DEFAULT_PORT }
+        Self {
+            prover_config: ProverConfig::default(),
+            runner_config: RunnerConfig::default(),
+            ip: DEFAULT_IP,
+            port: DEFAULT_PORT,
+        }
     }
 }
 
