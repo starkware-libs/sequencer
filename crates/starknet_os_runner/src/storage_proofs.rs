@@ -153,13 +153,17 @@ impl RpcStorageProofsProvider {
         Ok(storage_proof)
     }
 
-    /// Converts an RPC storage proof response to OS input format.
+    /// Converts an RPC storage proof response to OS input format without running the committer.
+    ///
+    /// This function assumes that the new state roots equal the previous state roots
+    /// It sets `updated_root` equal to `previous_root` for all commitment infos (contracts,
+    /// classes, and storage tries).
     ///
     /// # Validation
     ///
     /// This function validates that the RPC response arrays match the expected lengths from
     /// the query, ensuring the RPC provider returned data in the correct order.
-    pub(crate) fn to_storage_proofs(
+    pub(crate) fn to_storage_proofs_without_committer(
         rpc_proof: &RpcStorageProof,
         query: &RpcStorageProofsQuery,
     ) -> Result<StorageProofs, ProofProviderError> {
@@ -186,6 +190,15 @@ impl RpcStorageProofsProvider {
         }
 
         Ok(StorageProofs { proof_state, commitment_infos })
+    }
+
+    /// Convert an RPC storage proof response to OS input format.
+    /// Runing the committer to compute the new commitments facts.
+    pub(crate)fn to_storage_proofs_with_committer(
+        rpc_proof: &RpcStorageProof,
+        query: &RpcStorageProofsQuery,
+    ) -> Result<StorageProofs, ProofProviderError> {
+        unimplemented!("Running the committer is not supported yet");
     }
 
     fn build_commitment_infos(
@@ -315,12 +328,14 @@ impl StorageProofProvider for RpcStorageProofsProvider {
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
-        _config: &StorageProofConfig,
+        config: &StorageProofConfig,
     ) -> Result<StorageProofs, ProofProviderError> {
         let query = Self::prepare_query(execution_data);
 
         let rpc_proof = self.fetch_proofs(block_number, &query).await?;
-
-        Self::to_storage_proofs(&rpc_proof, &query)
+        match config.run_committer {
+            true => Self::to_storage_proofs_with_committer(&rpc_proof, &query),
+            false => Self::to_storage_proofs_without_committer(&rpc_proof, &query),
+        }
     }
 }
