@@ -26,7 +26,7 @@ struct OsGlobalContext {
     // OS config available globally for all blocks.
     starknet_os_config: StarknetOsConfig,
     starknet_os_config_hash: felt,
-
+    virtual_os_config_hash: felt,
     // Compiled class facts available globally for all blocks.
     compiled_class_facts_bundle: CompiledClassFactsBundle,
 
