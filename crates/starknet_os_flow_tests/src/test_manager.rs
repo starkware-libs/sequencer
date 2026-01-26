@@ -489,9 +489,9 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.initial_state.block_context.chain_info().chain_id.clone()
     }
 
-    /// Computes the OS config hash for proof facts validation using the test environment's
+    /// Computes the virtual OS config hash for proof facts validation using the test environment's
     /// chain info.
-    pub(crate) fn compute_os_config_hash(&self) -> Felt {
+    pub(crate) fn compute_virtual_os_config_hash(&self) -> Felt {
         let chain_info = self.initial_state.block_context.chain_info();
         OsChainInfo::from(chain_info).compute_virtual_os_config_hash().unwrap()
     }
