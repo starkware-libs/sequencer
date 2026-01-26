@@ -99,7 +99,7 @@ struct TxInfo {
     // contract: its class hash, address salt and constructor calldata.
     account_deployment_data_start: felt*,
     account_deployment_data_end: felt*,
-    // The facts of the privacy feature.
+    // The facts of the proof, if a proof is provided with the transaction.
     proof_facts_start: felt*,
     proof_facts_end: felt*,
 }
