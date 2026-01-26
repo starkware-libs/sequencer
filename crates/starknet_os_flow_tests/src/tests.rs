@@ -590,14 +590,7 @@ async fn test_os_logic(
         &[**contract_addresses[0]],
     );
     let config_hash = test_builder.compute_os_config_hash();
-    let proof_facts = if private_keys.is_some() {
-        // Blockifier computes config hash without public_keys_hash, but the OS includes it.
-        // This mismatch causes proof_facts validation to fail when private_keys are set.
-        // TODO(Meshi): Exclude public_keys_hash from OS config hash in proof facts validation.
-        ProofFacts::default()
-    } else {
-        ProofFacts::snos_proof_facts_for_testing_with_config_hash(config_hash)
-    };
+    let proof_facts = ProofFacts::snos_proof_facts_for_testing_with_config_hash(config_hash);
     test_builder.add_funded_account_invoke(invoke_tx_args! {
         calldata,
         proof_facts,

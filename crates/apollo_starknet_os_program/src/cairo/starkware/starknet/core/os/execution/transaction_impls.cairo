@@ -309,12 +309,16 @@ func execute_invoke_function_transaction{
 
     check_and_increment_nonce(tx_info=tx_info);
 
-    check_proof_facts(
-        proof_facts_size=proof_facts_size,
-        proof_facts=proof_facts,
-        current_block_number=block_context.block_info_for_execute.block_number,
-        os_config_hash=block_context.os_global_context.starknet_os_config_hash,
-    );
+    let hash_ptr = builtin_ptrs.selectable.pedersen;
+    with hash_ptr {
+        check_proof_facts(
+            proof_facts_size=proof_facts_size,
+            proof_facts=proof_facts,
+            current_block_number=block_context.block_info_for_execute.block_number,
+            proof_os_config_hash=block_context.os_global_context.proof_os_config_hash,
+        );
+    }
+    update_pedersen_in_builtin_ptrs(pedersen_ptr=hash_ptr);
 
     %{ StartTx %}
 
