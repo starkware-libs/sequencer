@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::hash::BuildHasher;
+
 use blockifier::state::cached_state::StateMaps;
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, Nonce};
@@ -9,7 +12,7 @@ use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
-use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, NodeData};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
@@ -26,6 +29,7 @@ use crate::storage_proofs::RpcStorageProofsQuery;
 /// - Inner nodes for contracts, classes, and storage proofs.
 /// - Contract state leaves from the RPC proof.
 /// - Storage leaves and compiled class leaves from initial reads.
+/// - Dummy binary nodes for orphan child hashes (sibling hashes without preimages).
 #[allow(dead_code)]
 pub(crate) fn create_facts_db_from_storage_proof(
     rpc_proof: &RpcStorageProof,
@@ -43,6 +47,13 @@ pub(crate) fn create_facts_db_from_storage_proof(
     insert_contract_leaves(&mut storage, rpc_proof, query)?;
     insert_storage_leaves(&mut storage, initial_reads)?;
     insert_compiled_class_leaves(&mut storage, initial_reads)?;
+
+    // Add dummy nodes for orphan hashes (sibling hashes without preimages).
+    add_dummy_nodes_for_orphan_hashes(&mut storage, &rpc_proof.contracts_proof.nodes)?;
+    add_dummy_nodes_for_orphan_hashes(&mut storage, &rpc_proof.classes_proof)?;
+    for storage_proof in &rpc_proof.contracts_storage_proofs {
+        add_dummy_nodes_for_orphan_hashes(&mut storage, storage_proof)?;
+    }
 
     Ok(FactsDb::new(storage))
 }
@@ -139,6 +150,49 @@ fn insert_compiled_class_leaves(
         let compiled_class_hash = CompiledClassHash(class_hash_value.0);
         let leaf_hash = TreeHashFunctionImpl::compute_leaf_hash(&compiled_class_hash);
         insert_leaf_node(storage, leaf_hash, compiled_class_hash, &EmptyKeyContext)?;
+    }
+
+    Ok(())
+}
+
+/// Adds dummy binary nodes for orphan child hashes that are referenced but have no preimage.
+///
+/// RPC storage proofs include sibling hashes for verification but don't provide their preimages.
+/// The committer needs to traverse these nodes when deletions are allowed. Since we don't allow
+/// deletions, we insert dummy binary nodes (with zero hashes) to satisfy the committer's
+/// traversal requirements without requiring full preimages.
+fn add_dummy_nodes_for_orphan_hashes(
+    storage: &mut MapStorage,
+    nodes: &IndexMap<Felt, MerkleNode, impl BuildHasher>,
+) -> Result<(), ProofProviderError> {
+    // Build set of hashes that have preimages in current proof batch.
+    let has_preimage: HashSet<&Felt> = nodes.keys().collect();
+
+    // Create dummy binary node value (both children point to zero hash).
+    let dummy_hash = HashOutput(Felt::ZERO);
+    let dummy_binary = FactDbFilledNode::<StarknetStorageValue> {
+        hash: dummy_hash, // Hash field not used for serialization
+        data: NodeData::Binary(BinaryData { left_data: dummy_hash, right_data: dummy_hash }),
+    };
+    let dummy_value = dummy_binary.serialize()?;
+
+    // Insert dummy nodes for orphan child hashes.
+    for (_, node) in nodes {
+        if let MerkleNode::BinaryNode(bn) = node {
+            // Check left child.
+            if !has_preimage.contains(&bn.left) {
+                let node_prefix: DbKeyPrefix = PatriciaPrefix::InnerNode.into();
+                let key = create_db_key(node_prefix, &bn.left.to_bytes_be());
+                storage.0.entry(key).or_insert_with(|| dummy_value.clone());
+            }
+            // Check right child.
+            if !has_preimage.contains(&bn.right) {
+                let node_prefix: DbKeyPrefix = PatriciaPrefix::InnerNode.into();
+                let key = create_db_key(node_prefix, &bn.right.to_bytes_be());
+                storage.0.entry(key).or_insert_with(|| dummy_value.clone());
+            }
+        }
+        // Edge nodes: their child must be in proof or already processed, no need to check.
     }
 
     Ok(())
