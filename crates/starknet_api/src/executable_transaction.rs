@@ -345,6 +345,10 @@ impl InvokeTransaction {
         let tx_hash = invoke_tx.calculate_transaction_hash(chain_id, &invoke_tx.version())?;
         Ok(Self { tx: invoke_tx, tx_hash })
     }
+
+    pub fn proof_facts_length(&self) -> usize {
+        self.proof_facts().0.len()
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]

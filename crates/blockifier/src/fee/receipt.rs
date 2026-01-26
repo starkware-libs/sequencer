@@ -184,7 +184,7 @@ impl TransactionReceipt {
             tx_type: account_tx.tx_type(),
             reverted_steps,
             reverted_sierra_gas,
-            proof_facts_length: 0,
+            proof_facts_length: account_tx.proof_facts_length(),
         })
     }
 }
