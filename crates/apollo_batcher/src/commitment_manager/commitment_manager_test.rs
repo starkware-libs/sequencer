@@ -129,6 +129,8 @@ async fn test_create_commitment_manager(mut mock_dependencies: MockDependencies)
 }
 
 #[rstest]
+// TODO(Einat): Remove ignore when the committer should be enabled.
+#[ignore]
 #[tokio::test]
 async fn test_create_commitment_manager_with_missing_tasks(
     mut mock_dependencies: MockDependencies,
