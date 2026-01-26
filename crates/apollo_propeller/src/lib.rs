@@ -19,6 +19,9 @@ mod sharding_test;
 pub mod signature;
 #[cfg(test)]
 mod signature_test;
+pub mod time_cache;
+#[cfg(test)]
+mod time_cache_test;
 // TODO(AndrewL): rename file
 pub mod tree;
 #[cfg(test)]
