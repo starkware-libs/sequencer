@@ -10,9 +10,6 @@ use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
 use starknet_patricia_storage::storage_trait::{Storage, StorageConfigTrait};
 use validator::Validate;
 
-// 1M size cache.
-pub const CACHE_MAX_ENTRIES: usize = 1000000;
-
 pub type ApolloStorage = CachedStorage<RocksDbStorage>;
 
 pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
