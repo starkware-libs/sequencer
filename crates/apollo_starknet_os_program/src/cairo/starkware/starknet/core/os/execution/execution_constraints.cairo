@@ -1,8 +1,10 @@
 // Execution constraints for transaction execution.
 
 from starkware.cairo.common.bool import FALSE, TRUE
+from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
+from starkware.cairo.common.hash_state import hash_finalize, hash_init, hash_update_single
 from starkware.cairo.common.math import assert_le, assert_not_zero
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.constants import (
@@ -12,6 +14,7 @@ from starkware.starknet.core.os.constants import (
     STORED_BLOCK_HASH_BUFFER,
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
+from starkware.starknet.core.os.os_config.os_config import STARKNET_OS_CONFIG_VERSION
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.virtual_os_output import (
     VIRTUAL_OS_OUTPUT_VERSION,
@@ -31,9 +34,31 @@ func is_program_hash_allowed(program_hash: felt) -> felt {
     return FALSE;
 }
 
+// Computes the OS config hash from chain_id and fee_token_address.
+func compute_os_config_hash{hash_ptr: HashBuiltin*}(chain_id: felt, fee_token_address: felt) -> (
+    os_config_hash: felt
+) {
+    let (hash_state_ptr) = hash_init();
+    let (hash_state_ptr) = hash_update_single(
+        hash_state_ptr=hash_state_ptr, item=STARKNET_OS_CONFIG_VERSION
+    );
+    let (hash_state_ptr) = hash_update_single(hash_state_ptr=hash_state_ptr, item=chain_id);
+    let (hash_state_ptr) = hash_update_single(
+        hash_state_ptr=hash_state_ptr, item=fee_token_address
+    );
+    let (os_config_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
+    return (os_config_hash=os_config_hash);
+}
+
 // Validates that the proof facts of an invoke transaction are of a valid virtual OS run.
-func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
-    proof_facts_size: felt, proof_facts: felt*, current_block_number: felt, os_config_hash: felt
+func check_proof_facts{
+    hash_ptr: HashBuiltin*, range_check_ptr, contract_state_changes: DictAccess*
+}(
+    proof_facts_size: felt,
+    proof_facts: felt*,
+    current_block_number: felt,
+    chain_id: felt,
+    fee_token_address: felt,
 ) {
     if (proof_facts_size == 0) {
         return ();
@@ -64,8 +89,11 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
         expected_block_hash=os_output_header.base_block_hash,
     );
 
-    // validate that the proof facts config hash is the true hash of the proof facts config hash.
-    assert os_output_header.starknet_os_config_hash = os_config_hash;
+    // validate that the proof facts config hash matches the expected config hash.
+    let (expected_config_hash) = compute_os_config_hash(
+        chain_id=chain_id, fee_token_address=fee_token_address
+    );
+    assert os_output_header.starknet_os_config_hash = expected_config_hash;
 
     return ();
 }
