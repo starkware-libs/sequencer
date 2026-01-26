@@ -67,6 +67,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
@@ -646,26 +647,27 @@ impl ConsensusContext for SequencerConsensusContext {
         );
     }
 
-    async fn validators(&self, _height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
-        Ok(self.validators.clone())
+    async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
+        if let Some(committee_provider) = &self.deps.committee_provider {
+            let committee = committee_provider.get_committee(height).await.map_err(|e| {
+                ConsensusError::InternalNetworkError(format!("Committee provider error: {e}"))
+            })?;
+            Ok(committee.iter().map(|staker| staker.address).collect())
+        } else {
+            Ok(self.validators.clone())
+        }
     }
 
     fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError> {
-        let height: usize = height.0.try_into().map_err(|_| {
-            ConsensusError::InternalNetworkError(format!(
-                "Cannot convert height {} to usize",
-                height.0
-            ))
-        })?;
-        let round: usize = round.try_into().map_err(|_| {
-            ConsensusError::InternalNetworkError(format!("Cannot convert round {} to usize", round))
-        })?;
-        if self.validators.is_empty() {
-            return Err(ConsensusError::InternalNetworkError(
-                "Cannot select proposer: validators list is empty".to_string(),
-            ));
+        if let Some(committee_provider) = &self.deps.committee_provider {
+            Handle::current().block_on(async move {
+                committee_provider.get_actual_proposer(height, round).await.map_err(|e| {
+                    ConsensusError::InternalNetworkError(format!("Committee provider error: {e}"))
+                })
+            })
+        } else {
+            self.virtual_proposer(height, round)
         }
-        Ok(self.validators[(height + round) % self.validators.len()])
     }
 
     fn virtual_proposer(
@@ -673,9 +675,32 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<ValidatorId, ConsensusError> {
-        // TODO(Asmaa): Update this when using the committee provider.
-        // For now, keep the virtual proposer selection identical to the real proposer selection.
-        self.proposer(height, round)
+        if let Some(committee_provider) = &self.deps.committee_provider {
+            Handle::current().block_on(async move {
+                committee_provider.get_proposer(height, round).await.map_err(|e| {
+                    ConsensusError::InternalNetworkError(format!("Committee provider error: {e}"))
+                })
+            })
+        } else {
+            let height: usize = height.0.try_into().map_err(|_| {
+                ConsensusError::InternalNetworkError(format!(
+                    "Cannot convert height {} to usize",
+                    height.0
+                ))
+            })?;
+            let round: usize = round.try_into().map_err(|_| {
+                ConsensusError::InternalNetworkError(format!(
+                    "Cannot convert round {} to usize",
+                    round
+                ))
+            })?;
+            if self.validators.is_empty() {
+                return Err(ConsensusError::InternalNetworkError(
+                    "Cannot select proposer: validators list is empty".to_string(),
+                ));
+            }
+            Ok(self.validators[(height + round) % self.validators.len()])
+        }
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
