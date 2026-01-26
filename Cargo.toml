@@ -219,6 +219,8 @@ async-stream = "0.3.3"
 async-trait = "0.1.79"
 axum = "0.6.12"
 axum_08 = { package = "axum", version = "0.8" }
+# TODO(victork): finalise migration to hyper 1.x
+tower_05 = { package = "tower", version = "0.5", features = ["util"] }
 base64 = "0.13.0"
 bench_tools.path = "crates/bench_tools"
 bitvec = "1.0.1"
@@ -375,6 +377,7 @@ tokio-test = "0.4.4"
 tokio-util = "0.7.13"
 toml = "0.8"
 toml_test_utils.path = "toml_test_utils"
+# TODO(victork): finalise migration to hyper 1.x
 tower = "0.4.13"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
