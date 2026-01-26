@@ -1,4 +1,5 @@
 use starknet_api::hash::HashOutput;
+use starknet_rust_core::types::MerkleNode;
 
 use crate::patricia_merkle_tree::node_data::inner_node::NodeData;
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
@@ -14,3 +15,10 @@ pub struct FilledNode<L: Leaf, ChildData> {
 // starknet_committer. This can happen after serialization of FilledTree is made generic in the
 // layout.
 pub type FactDbFilledNode<L> = FilledNode<L, HashOutput>;
+
+impl<L: Leaf> From<(HashOutput, &MerkleNode)> for FactDbFilledNode<L> {
+    fn from((hash, node): (HashOutput, &MerkleNode)) -> Self {
+        let data: NodeData<L, HashOutput> = NodeData::from(node);
+        Self { hash, data }
+    }
+}

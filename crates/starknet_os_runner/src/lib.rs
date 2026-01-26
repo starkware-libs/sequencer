@@ -1,4 +1,5 @@
 pub mod classes_provider;
+pub mod commit;
 pub mod errors;
 pub mod proving;
 pub mod runner;

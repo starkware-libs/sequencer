@@ -194,9 +194,9 @@ impl RpcStorageProofsProvider {
 
     /// Convert an RPC storage proof response to OS input format.
     /// Runing the committer to compute the new commitments facts.
-    pub(crate)fn to_storage_proofs_with_committer(
-        rpc_proof: &RpcStorageProof,
-        query: &RpcStorageProofsQuery,
+    pub(crate) fn to_storage_proofs_with_committer(
+        _rpc_proof: &RpcStorageProof,
+        _query: &RpcStorageProofsQuery,
     ) -> Result<StorageProofs, ProofProviderError> {
         unimplemented!("Running the committer is not supported yet");
     }
