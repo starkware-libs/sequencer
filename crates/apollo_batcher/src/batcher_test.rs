@@ -199,6 +199,7 @@ impl Default for MockDependenciesWithRealStorage {
                     outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
                     ..Default::default()
                 },
+                ..Default::default()
             },
             _temp_dir: temp_dir,
         }
