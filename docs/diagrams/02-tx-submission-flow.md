@@ -1,0 +1,53 @@
+# Transaction Submission Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+
+    box Sequencer A
+        participant HTTP as HTTP Server
+        participant GW as Gateway
+        participant CM as Class Manager
+        participant Compiler as Sierra Compiler
+        participant SS as State Sync
+        participant MP as Mempool
+        participant Prop as Mempool P2P<br/>Propagator
+    end
+
+    box Sequencer B
+        participant Runner as Mempool P2P<br/>Runner
+        participant GW_B as Gateway
+        participant MP_B as Mempool
+    end
+
+    User->>HTTP: POST /add_transaction
+    HTTP->>GW: add_tx(GatewayInput)
+
+    Note over GW: Stateless validation<br/>(format, signature)
+
+    alt Declare Transaction
+        GW->>CM: add_class(SierraContractClass)
+        CM->>Compiler: compile(RawClass)
+        Compiler-->>CM: RawExecutableClass
+        CM-->>GW: Ok
+    end
+
+    rect rgb(240, 248, 255)
+        Note over GW,SS: Stateful validation (via Blockifier)
+        GW->>SS: get_nonce_at(block_number, contract_address)
+        SS-->>GW: Nonce
+        GW->>SS: read state (balance, storage, etc.)
+        SS-->>GW: state data
+    end
+
+    GW->>MP: add_tx(AddTransactionArgsWrapper)
+    MP-->>GW: Ok
+    GW-->>HTTP: tx_hash
+    HTTP-->>User: tx_hash
+
+    MP->>Prop: add_transaction(InternalRpcTransaction)
+    Prop->>Runner: broadcast (P2P)
+    Runner->>GW_B: add_tx(GatewayInput)
+    Note over GW_B: Same validation flow
+    GW_B->>MP_B: add_tx(AddTransactionArgsWrapper)
+```
