@@ -54,6 +54,7 @@ impl Default for BenchTestSetupConfig {
                     chain_info: ChainInfo::create_for_testing(),
                     ..Default::default()
                 },
+                ..Default::default()
             },
         }
     }

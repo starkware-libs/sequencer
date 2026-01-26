@@ -2364,6 +2364,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "gateway_config.dynamic_config.contract_class_manager_config.native_classes_whitelist": {
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
+    "pointer_target": "native_classes_whitelist",
+    "privacy": "Public"
+  },
   "gateway_config.static_config.authorized_declarer_accounts": {
     "description": "Authorized declarer accounts. If set, only these accounts can declare new contracts. Addresses are in hex format and separated by a comma with no space.",
     "privacy": "Public",

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
+use apollo_gateway_config::config::GatewayDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
@@ -40,12 +41,17 @@ pub trait ConfigManagerClient: Send + Sync {
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
     async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+
+    async fn get_gateway_dynamic_config(&self) -> ConfigManagerClientResult<GatewayDynamicConfig>;
+
     async fn get_http_server_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
 
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
+
     async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
+
     async fn get_staking_manager_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
@@ -65,6 +71,7 @@ pub trait ConfigManagerClient: Send + Sync {
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
     GetContextDynamicConfig,
+    GetGatewayDynamicConfig,
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
     GetBatcherDynamicConfig,
@@ -86,6 +93,7 @@ generate_permutation_labels! {
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
     GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
+    GetGatewayDynamicConfig(ConfigManagerResult<GatewayDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
     GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
@@ -129,6 +137,19 @@ where
             request,
             ConfigManagerResponse,
             GetContextDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_gateway_dynamic_config(&self) -> ConfigManagerClientResult<GatewayDynamicConfig> {
+        let request = ConfigManagerRequest::GetGatewayDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetGatewayDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
