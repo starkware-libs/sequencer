@@ -188,12 +188,18 @@ impl MockDependencies {
         self.mock_mempool_client.expect_validate_tx().once().with(eq(args)).return_once(|_| result);
     }
 
-    fn expect_store_proof(&mut self, proof_facts: ProofFacts, proof: Proof) {
+    fn expect_store_proof(
+        &mut self,
+        proof_facts: ProofFacts,
+        proof: Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+    ) {
         self.mock_transaction_converter
             .expect_store_proof_in_proof_manager()
             .once()
-            .with(eq(proof_facts), eq(proof))
-            .returning(|_, _| Ok(std::time::Duration::ZERO));
+            .with(eq(proof_facts), eq(proof), eq(nonce), eq(sender_address))
+            .returning(|_, _, _, _| Ok(std::time::Duration::ZERO));
     }
 }
 
@@ -260,20 +266,24 @@ fn setup_transaction_converter_mock(
     let internal_tx = tx_args.get_internal_tx();
 
     // Create verification handle if the transaction has proof facts.
-    let verification_handle = match rpc_tx {
-        RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx))
-            if !invoke_tx.proof_facts.is_empty() =>
-        {
-            // Create a simple task that just returns Ok (verification is mocked).
-            let verification_task = tokio::spawn(async { Ok(()) });
-            Some(VerificationHandle {
-                proof_facts: invoke_tx.proof_facts.clone(),
-                proof: invoke_tx.proof.clone(),
-                verification_task,
-            })
-        }
-        _ => None,
-    };
+    let verification_handle =
+        if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = rpc_tx {
+            if !invoke_tx.proof_facts.is_empty() {
+                // Create a simple task that just returns Ok (verification is mocked).
+                let verification_task = tokio::spawn(async { Ok(()) });
+                Some(VerificationHandle {
+                    proof_facts: invoke_tx.proof_facts.clone(),
+                    proof: invoke_tx.proof.clone(),
+                    nonce: invoke_tx.nonce,
+                    sender_address: invoke_tx.sender_address,
+                    verification_task,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
 
     mock_transaction_converter
         .expect_convert_rpc_tx_to_internal_rpc_tx()
@@ -311,6 +321,8 @@ fn setup_transaction_converter_mock_with_failed_verification(
             Some(VerificationHandle {
                 proof_facts: invoke_tx.proof_facts.clone(),
                 proof: invoke_tx.proof.clone(),
+                nonce: invoke_tx.nonce,
+                sender_address: invoke_tx.sender_address,
                 verification_task,
             })
         }
@@ -383,8 +395,12 @@ async fn setup_mock_state(
     // If the transaction has proof facts, expect set_proof to be called on the proof manager.
     if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref invoke_tx)) = input_tx {
         if !invoke_tx.proof_facts.is_empty() {
-            mock_dependencies
-                .expect_store_proof(invoke_tx.proof_facts.clone(), invoke_tx.proof.clone());
+            mock_dependencies.expect_store_proof(
+                invoke_tx.proof_facts.clone(),
+                invoke_tx.proof.clone(),
+                invoke_tx.nonce,
+                invoke_tx.sender_address,
+            );
         }
     }
 
