@@ -203,6 +203,8 @@ async fn test_create_commitment_manager(mut mock_dependencies: MockDependencies)
 }
 
 #[rstest]
+// TODO(Einat): Remove ignore when the committer should be enabled.
+#[ignore]
 #[tokio::test]
 async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependencies) {
     let global_root_height = INITIAL_HEIGHT.prev().unwrap();
