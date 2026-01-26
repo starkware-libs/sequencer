@@ -40,9 +40,23 @@ pub enum StateManagerToEngine {
 #[derive(Debug)]
 #[allow(dead_code)]
 struct ReconstructionSuccess {
+    // TODO(AndrewL): These fields will be used when reconstruction result handling is added
+    #[allow(dead_code)]
     message: Vec<u8>,
+    #[allow(dead_code)]
     my_shard: Vec<u8>,
+    #[allow(dead_code)]
     my_shard_proof: MerkleProof,
+}
+
+/// State machine for message reconstruction lifecycle.
+enum ReconstructionPhase {
+    /// Collecting shards before reconstruction.
+    PreReconstruction {
+        received_shards: Vec<PropellerUnit>,
+        received_my_index: bool,
+        signature: Option<Vec<u8>>,
+    },
 }
 
 /// Message processor that handles validation and state management for a single message.
@@ -85,6 +99,14 @@ impl MessageProcessor {
             Arc::clone(&self.tree_manager),
         ));
         let mut pending_validation: Option<oneshot::Receiver<ValidationResult>> = None;
+        let mut pending_reconstruction: Option<oneshot::Receiver<ReconstructionResult>> = None;
+
+        // State machine: PreReconstruction -> PostReconstruction
+        let mut phase = ReconstructionPhase::PreReconstruction {
+            received_shards: Vec::new(),
+            received_my_index: false,
+            signature: None,
+        };
 
         loop {
             tokio::select! {
@@ -111,7 +133,12 @@ impl MessageProcessor {
                     pending_validation.as_mut().unwrap().await
                 }, if pending_validation.is_some() => {
                     pending_validation = None;
-                    let flow = self.handle_validation_result(result, &mut validator).await;
+                    let flow = self.handle_validation_result(
+                        result,
+                        &mut validator,
+                        &mut phase,
+                        &mut pending_reconstruction,
+                    ).await;
                     if flow.is_break() {
                         break;
                     }
@@ -131,6 +158,8 @@ impl MessageProcessor {
         &mut self,
         result: ValidationResult,
         validator: &mut Option<UnitValidator>,
+        phase: &mut ReconstructionPhase,
+        pending_reconstruction: &mut Option<oneshot::Receiver<ReconstructionResult>>,
     ) -> ControlFlow<()> {
         // Restore validator
         let (validation_result, validator_returned, unit) = result;
@@ -138,7 +167,7 @@ impl MessageProcessor {
 
         // Early return for validation errors
         let Err(err) = validation_result else {
-            return self.handle_validated_unit(unit).await;
+            return self.handle_validated_unit(unit, phase, pending_reconstruction).await;
         };
 
         tracing::trace!(
@@ -149,7 +178,12 @@ impl MessageProcessor {
         ControlFlow::Continue(())
     }
 
-    async fn handle_validated_unit(&mut self, unit: PropellerUnit) -> ControlFlow<()> {
+    async fn handle_validated_unit(
+        &mut self,
+        unit: PropellerUnit,
+        phase: &mut ReconstructionPhase,
+        pending_reconstruction: &mut Option<oneshot::Receiver<ReconstructionResult>>,
+    ) -> ControlFlow<()> {
         tracing::trace!("[MSG_PROC] Unit validated successfully index={:?}", unit.index());
 
         let unit_index = unit.index();
@@ -159,8 +193,62 @@ impl MessageProcessor {
             self.broadcast_shard(&unit).await;
         }
 
-        // TODO(AndrewL): Process validated units further
+        // Update received_my_index if applicable
+        let is_my_shard = unit_index == self.my_shard_index;
+
+        let ReconstructionPhase::PreReconstruction {
+            received_shards,
+            received_my_index,
+            signature,
+        } = phase;
+
+        if is_my_shard {
+            *received_my_index = true;
+        }
+        self.handle_pre_reconstruction_unit(
+            unit,
+            received_shards,
+            signature,
+            pending_reconstruction,
+        )
+        .await;
         ControlFlow::Continue(())
+    }
+
+    async fn handle_pre_reconstruction_unit(
+        &mut self,
+        unit: PropellerUnit,
+        received_shards: &mut Vec<PropellerUnit>,
+        signature: &mut Option<Vec<u8>>,
+        pending_reconstruction: &mut Option<oneshot::Receiver<ReconstructionResult>>,
+    ) {
+        // Store the signature from the first unit we receive
+        if signature.is_none() && !unit.signature().is_empty() {
+            *signature = Some(unit.signature().to_vec());
+        }
+
+        received_shards.push(unit);
+
+        // Check if we should start reconstruction
+        if !self.tree_manager.should_build(received_shards.len())
+            || pending_reconstruction.is_some()
+        {
+            return;
+        }
+
+        tracing::trace!("[MSG_PROC] Starting reconstruction with {} shards", received_shards.len());
+
+        let shards = received_shards.clone();
+        let (tx, rx) = oneshot::channel();
+        *pending_reconstruction = Some(rx);
+        Self::spawn_reconstruction_task(
+            shards,
+            self.message_root,
+            self.my_shard_index.0.try_into().unwrap(),
+            self.tree_manager.num_data_shards(),
+            self.tree_manager.num_coding_shards(),
+            tx,
+        );
     }
 
     async fn emit_timeout_and_finalize(&mut self) -> ControlFlow<()> {
