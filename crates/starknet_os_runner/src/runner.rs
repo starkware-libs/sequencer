@@ -7,11 +7,12 @@ use blockifier::state::state_reader_and_contract_manager::StateReaderAndContract
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
-use starknet_api::transaction::{InvokeTransaction, TransactionHash};
+use starknet_api::transaction::{InvokeTransaction, MessageToL1, TransactionHash};
 use starknet_os::io::os_input::{
     CommitmentInfo,
     OsBlockInput,
@@ -20,14 +21,17 @@ use starknet_os::io::os_input::{
     OsHintsConfig,
     StarknetOsInput,
 };
-use starknet_os::io::virtual_os_output::VirtualOsRunnerOutput;
 use starknet_os::runner::run_virtual_os;
 use url::Url;
 
 use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
 use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofProvider};
-use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecutor};
+use crate::virtual_block_executor::{
+    RpcVirtualBlockExecutor,
+    VirtualBlockExecutionData,
+    VirtualBlockExecutor,
+};
 
 // ================================================================================================
 // Virtual Os Types
@@ -101,6 +105,11 @@ impl From<VirtualOsBlockInput> for OsHints {
     }
 }
 
+pub(crate) struct RunnerOutput {
+    pub cairo_pie: CairoPie,
+    pub l2_to_l1_messages: Vec<MessageToL1>,
+}
+
 // ================================================================================================
 // Runner
 // ================================================================================================
@@ -151,29 +160,14 @@ where
     /// Creates the OS hints required to run the given transactions virtually
     /// on top of the block ID specified in the runner.
     ///
-    /// Consumes the runner.
+    /// Takes execution data from a previous virtual block execution.
     pub(crate) async fn create_virtual_os_hints(
-        self,
+        execution_data: VirtualBlockExecutionData,
+        classes_provider: &C,
+        storage_proofs_provider: &S,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
-        // Destructure self to move executor into spawn_blocking while keeping providers.
-        let Self {
-            classes_provider,
-            storage_proofs_provider,
-            virtual_block_executor,
-            contract_class_manager,
-            block_id,
-        } = self;
-
-        // Clone txs since we need them after spawn_blocking for VirtualOsBlockInput.
-        let txs_for_execute = txs.clone();
-
-        // Execute virtual block in a blocking thread pool to avoid blocking the async runtime.
-        // The RPC state reader uses request::blocking which would block the tokio runtime.
-        let mut execution_data = tokio::task::spawn_blocking(move || {
-            virtual_block_executor.execute(block_id, contract_class_manager, txs_for_execute)
-        })
-        .await??;
+        let mut execution_data = execution_data;
 
         // Extract chain info from block context.
         let chain_info = execution_data.base_block_info.block_context.chain_info();
@@ -244,14 +238,48 @@ where
     ///
     /// Consumes the runner since the virtual block executor is single-use per block.
     ///
-    /// Returns the virtual OS output containing the Cairo PIE and execution metrics.
+    /// Returns the virtual OS output containing the Cairo PIE and L2 to L1 messages.
     pub async fn run_virtual_os(
         self,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
-    ) -> Result<VirtualOsRunnerOutput, RunnerError> {
-        let os_hints = self.create_virtual_os_hints(txs).await?;
+    ) -> Result<RunnerOutput, RunnerError> {
+        // Extract providers and executor before self is consumed.
+        let Self {
+            classes_provider,
+            storage_proofs_provider,
+            virtual_block_executor,
+            contract_class_manager,
+            block_id,
+        } = self;
+
+        // Clone txs since we need them after execution for VirtualOsBlockInput.
+        let txs_for_hints = txs.clone();
+
+        // Execute virtual block to get execution data including L2 to L1 messages.
+        // Execute in a blocking thread pool to avoid blocking the async runtime.
+        // The RPC state reader uses request::blocking which would block the tokio runtime.
+        let execution_data = tokio::task::spawn_blocking(move || {
+            virtual_block_executor.execute(block_id, contract_class_manager, txs)
+        })
+        .await??;
+
+        // Extract L2 to L1 messages from execution data.
+        let l2_to_l1_messages = execution_data.l2_to_l1_messages.clone();
+
+        // Create OS hints from execution data.
+        let os_hints = Self::create_virtual_os_hints(
+            execution_data,
+            &classes_provider,
+            &storage_proofs_provider,
+            txs_for_hints,
+        )
+        .await?;
+
+        // Run virtual OS to get Cairo PIE.
         let output = run_virtual_os(os_hints)?;
-        Ok(output)
+
+        // Construct RunnerOutput with Cairo PIE and L2 to L1 messages.
+        Ok(RunnerOutput { cairo_pie: output.cairo_pie, l2_to_l1_messages })
     }
 }
 

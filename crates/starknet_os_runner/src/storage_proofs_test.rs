@@ -45,6 +45,7 @@ fn test_get_storage_proofs_from_rpc(
 
     let execution_data = VirtualBlockExecutionData {
         execution_outputs: vec![],
+        l2_to_l1_messages: Vec::new(),
         base_block_info: BaseBlockInfo {
             block_context: BlockContext::create_for_account_testing(),
             base_block_hash: BlockHash::default(),
