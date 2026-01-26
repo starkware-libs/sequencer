@@ -1,4 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::{Mutex, OnceLock};
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use axum::http::StatusCode;
@@ -14,6 +15,19 @@ use crate::storage_reader_types::{
     StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
+
+// Shared port allocator for all tests to ensure unique ports across parallel test execution
+static AVAILABLE_PORTS: OnceLock<Mutex<AvailablePorts>> = OnceLock::new();
+
+fn get_next_test_port() -> u16 {
+    AVAILABLE_PORTS
+        .get_or_init(|| {
+            Mutex::new(AvailablePorts::new(TestIdentifier::StorageReaderTypesUnitTests.into(), 0))
+        })
+        .lock()
+        .unwrap()
+        .get_next_port()
+}
 
 #[tokio::test]
 async fn state_diff_location_request() {
@@ -31,11 +45,7 @@ async fn state_diff_location_request() {
         .commit()
         .unwrap();
 
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::StorageReaderTypesUnitTests.into(), 0);
-
-    let config =
-        ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
+    let config = ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), get_next_test_port(), true);
 
     let server = GenericStorageReaderServer::new(reader.clone(), config);
     let app = server.app();
