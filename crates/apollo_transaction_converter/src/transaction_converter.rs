@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
@@ -125,9 +125,14 @@ impl TransactionConverter {
             .ok_or(TransactionConverterError::ClassNotFound { class_hash })
     }
 
-    async fn get_proof(&self, proof_facts: &ProofFacts) -> TransactionConverterResult<Proof> {
+    async fn get_proof(
+        &self,
+        proof_facts: &ProofFacts,
+        nonce: Nonce,
+        sender_address: ContractAddress,
+    ) -> TransactionConverterResult<Proof> {
         self.proof_manager_client
-            .get_proof(proof_facts.clone())
+            .get_proof(proof_facts.clone(), nonce, sender_address)
             .await?
             .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts.hash() })
     }
@@ -186,7 +191,7 @@ impl TransactionConverterTrait for TransactionConverter {
                 let proof = if tx.proof_facts.is_empty() {
                     Proof::default()
                 } else {
-                    self.get_proof(&tx.proof_facts).await?
+                    self.get_proof(&tx.proof_facts, tx.nonce, tx.sender_address).await?
                 };
 
                 Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
@@ -235,7 +240,13 @@ impl TransactionConverterTrait for TransactionConverter {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
                 // Verify proof here; storage happens in the caller after successful
                 // conversion/validation.
-                self.handle_proof_verification(&tx.proof_facts, &tx.proof).await?;
+                self.handle_proof_verification(
+                    &tx.proof_facts,
+                    &tx.proof,
+                    tx.nonce,
+                    tx.sender_address,
+                )
+                .await?;
                 InternalRpcTransactionWithoutTxHash::Invoke(tx.into())
             }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
@@ -359,7 +370,12 @@ impl TransactionConverter {
         let proof_data = match &tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
                 if !invoke_tx.proof_facts.is_empty() {
-                    Some((invoke_tx.proof_facts.clone(), invoke_tx.proof.clone()))
+                    Some((
+                        invoke_tx.proof_facts.clone(),
+                        invoke_tx.nonce,
+                        invoke_tx.sender_address,
+                        invoke_tx.proof.clone(),
+                    ))
                 } else {
                     None
                 }
@@ -367,9 +383,9 @@ impl TransactionConverter {
             _ => None,
         };
         let internal_tx = self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
-        if let Some((proof_facts, proof)) = proof_data {
+        if let Some((proof_facts, nonce, sender_address, proof)) = proof_data {
             let proof_manager_store_start = Instant::now();
-            self.proof_manager_client.set_proof(proof_facts, proof).await?;
+            self.proof_manager_client.set_proof(proof_facts, nonce, sender_address, proof).await?;
             let proof_manager_store_duration = proof_manager_store_start.elapsed();
             let tx_hash = internal_tx.tx_hash;
             info!(
@@ -383,6 +399,8 @@ impl TransactionConverter {
         &self,
         proof_facts: &ProofFacts,
         proof: &Proof,
+        nonce: Nonce,
+        sender_address: ContractAddress,
     ) -> TransactionConverterResult<()> {
         // If the proof facts are empty, it is a standard transaction that does not use client-side
         // proving and we skip proof verification. We return Ok only if the proof facts are
@@ -392,7 +410,10 @@ impl TransactionConverter {
             return Ok(());
         }
 
-        let contains_proof = self.proof_manager_client.contains_proof(proof_facts.clone()).await?;
+        let contains_proof = self
+            .proof_manager_client
+            .contains_proof(proof_facts.clone(), nonce, sender_address)
+            .await?;
         // If the proof already exists in the proof manager, indicating it has already been
         // verified, we skip proof verification.
         if contains_proof {
