@@ -1,0 +1,17 @@
+name: idan-cache-test
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    steps:
+      - name: Rust cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: rust
+      - name: sleep
+        run: |
+          sleep 10000
