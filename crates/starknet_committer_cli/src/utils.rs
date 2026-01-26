@@ -5,12 +5,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use csv::Writer;
 use serde::{Deserialize, Serialize};
 use starknet_api::hash::HashOutput;
-use starknet_committer::block_committer::timing_util::{
+use starknet_committer::block_committer::measurements_util::{
     Action,
     BlockMeasurement,
     MeasurementNotStartedError,
-    SingleBlockTimeMeasurement,
-    TimeMeasurementTrait,
+    MeasurementsTrait,
+    SingleBlockMeasurements,
 };
 use starknet_types_core::felt::Felt;
 use tracing::info;
@@ -19,8 +19,8 @@ use tracing::info;
 #[path = "utils_test.rs"]
 pub mod utils_test;
 
-pub struct BenchmarkTimeMeasurement {
-    pub current_measurement: SingleBlockTimeMeasurement,
+pub struct BenchmarkMeasurements {
+    pub current_measurement: SingleBlockMeasurements,
     pub total_time: u128, // Total duration of all blocks (milliseconds).
     pub block_measurements: Vec<BlockMeasurement>,
     pub initial_db_entry_count: Vec<usize>, /* Number of DB entries prior to the current
@@ -34,7 +34,7 @@ pub struct BenchmarkTimeMeasurement {
     pub storage_stat_columns: Vec<&'static str>,
 }
 
-impl TimeMeasurementTrait for BenchmarkTimeMeasurement {
+impl MeasurementsTrait for BenchmarkMeasurements {
     fn start_measurement(&mut self, action: Action) {
         self.current_measurement.start_measurement(action);
     }
@@ -77,10 +77,10 @@ impl TimeMeasurementTrait for BenchmarkTimeMeasurement {
     }
 }
 
-impl BenchmarkTimeMeasurement {
+impl BenchmarkMeasurements {
     pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
         Self {
-            current_measurement: SingleBlockTimeMeasurement::default(),
+            current_measurement: SingleBlockMeasurements::default(),
             total_time: 0,
             block_measurements: Vec::with_capacity(size),
             block_number: 0,

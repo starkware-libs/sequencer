@@ -7,7 +7,7 @@ use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{contract_address_into_node_index, Input, StateDiff};
-use crate::block_committer::timing_util::{Action, TimeMeasurementTrait};
+use crate::block_committer::measurements_util::{Action, MeasurementsTrait};
 use crate::db::forest_trait::ForestReader;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestError;
@@ -22,10 +22,10 @@ pub type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 // TODO(Yoav): Remove this trait when the index layout is ready.
 #[async_trait]
 pub trait CommitBlockTrait: Send {
-    async fn commit_block<Reader: ForestReader + Send, TM: TimeMeasurementTrait + Send>(
+    async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Send>(
         input: Input<Reader::InitialReadContext>,
         trie_reader: &mut Reader,
-        time_measurement: &mut TM,
+        measurements: &mut M,
     ) -> BlockCommitmentResult<FilledForest> {
         let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
             get_all_modified_indices(&input.state_diff);
@@ -41,7 +41,7 @@ pub trait CommitBlockTrait: Send {
         let actual_classes_updates = input.state_diff.actual_classes_updates();
         // Reads - fetch_nodes.
 
-        time_measurement.start_measurement(Action::Read);
+        measurements.start_measurement(Action::Read);
         let roots =
             trie_reader.read_roots(input.initial_read_context).await.map_err(ForestError::from)?;
         let (mut original_forest, original_contracts_trie_leaves) = trie_reader
@@ -55,7 +55,7 @@ pub trait CommitBlockTrait: Send {
             .await?;
         let n_read_entries =
             original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
-        time_measurement.attempt_to_stop_measurement(Action::Read, n_read_entries).ok();
+        measurements.attempt_to_stop_measurement(Action::Read, n_read_entries).ok();
         info!("Original skeleton forest created successfully.");
 
         if input.config.warn_on_trivial_modifications() {
@@ -67,7 +67,7 @@ pub trait CommitBlockTrait: Send {
         }
 
         // Compute the new topology.
-        time_measurement.start_measurement(Action::Compute);
+        measurements.start_measurement(Action::Compute);
         let updated_forest = UpdatedSkeletonForest::create(
             &mut original_forest,
             &input.state_diff.skeleton_classes_updates(),
@@ -88,7 +88,7 @@ pub trait CommitBlockTrait: Send {
             &input.state_diff.address_to_nonce,
         )
         .await?;
-        time_measurement.attempt_to_stop_measurement(Action::Compute, 0).ok();
+        measurements.attempt_to_stop_measurement(Action::Compute, 0).ok();
         info!("Filled forest created successfully.");
 
         Ok(filled_forest)

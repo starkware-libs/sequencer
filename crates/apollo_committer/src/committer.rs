@@ -20,10 +20,10 @@ use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
 use starknet_committer::block_committer::input::Input;
-use starknet_committer::block_committer::timing_util::{
+use starknet_committer::block_committer::measurements_util::{
     Action,
-    SingleBlockTimeMeasurement,
-    TimeMeasurementTrait,
+    MeasurementsTrait,
+    SingleBlockMeasurements,
 };
 use starknet_committer::db::forest_trait::{
     ForestMetadata,
@@ -66,10 +66,10 @@ pub struct CommitBlockMock;
 #[async_trait]
 impl CommitBlockTrait for CommitBlockMock {
     /// Sets the class trie root hash to the first class hash in the state diff.
-    async fn commit_block<Reader: ForestReader + Send, TM: TimeMeasurementTrait + Send>(
+    async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Send>(
         input: Input<Reader::InitialReadContext>,
         _trie_reader: &mut Reader,
-        _time_measurement: &mut TM,
+        _measurements: &mut M,
     ) -> BlockCommitmentResult<FilledForest> {
         let root_class_hash = match input.state_diff.class_hash_to_compiled_class_hash.iter().next()
         {
@@ -207,10 +207,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
 
         // Happy flow. Commits the state diff and returns the computed global root.
         debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
-        let mut time_measurement = SingleBlockTimeMeasurement::default();
-        time_measurement.start_measurement(Action::EndToEnd);
+        let mut block_measurements = SingleBlockMeasurements::default();
+        block_measurements.start_measurement(Action::EndToEnd);
         let (filled_forest, global_root) =
-            self.commit_state_diff(state_diff, &mut time_measurement).await?;
+            self.commit_state_diff(state_diff, &mut block_measurements).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
             (
@@ -230,15 +230,15 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             "For block number {height}, writing filled forest to storage with metadata: \
              {metadata:?}"
         );
-        time_measurement.start_measurement(Action::Write);
+        block_measurements.start_measurement(Action::Write);
         let n_write_entries = self
             .forest_storage
             .write_with_metadata(&filled_forest, metadata)
             .await
             .map_err(|err| self.map_internal_error(err))?;
-        time_measurement.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
-        time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(&time_measurement);
+        block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
+        block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+        update_metrics(&block_measurements);
         self.offset = next_offset;
         OFFSET.set_lossy(next_offset.0);
         Ok(CommitBlockResponse { state_root: global_root })
@@ -305,10 +305,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         // Sanity.
         assert_eq!(height, last_committed_block);
         // Happy flow. Reverts the state diff and returns the computed global root.
-        let mut time_measurement = SingleBlockTimeMeasurement::default();
-        time_measurement.start_measurement(Action::EndToEnd);
+        let mut block_measurements = SingleBlockMeasurements::default();
+        block_measurements.start_measurement(Action::EndToEnd);
         let (filled_forest, revert_global_root) =
-            self.commit_state_diff(reversed_state_diff, &mut time_measurement).await?;
+            self.commit_state_diff(reversed_state_diff, &mut block_measurements).await?;
 
         // The last committed block is offset-1. After the revert, the last committed block wll be
         // offset-2 (if exists).
@@ -337,15 +337,15 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             "For block number {height}, writing filled forest and updating the commitment offset \
              to {last_committed_block}"
         );
-        time_measurement.start_measurement(Action::Write);
+        block_measurements.start_measurement(Action::Write);
         let n_write_entries = self
             .forest_storage
             .write_with_metadata(&filled_forest, metadata)
             .await
             .map_err(|err| self.map_internal_error(err))?;
-        time_measurement.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
-        time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(&time_measurement);
+        block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
+        block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+        update_metrics(&block_measurements);
         self.offset = last_committed_block;
         OFFSET.set_lossy(last_committed_block.0);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
@@ -393,17 +393,17 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             .ok_or(CommitterError::MissingMetadata(metadata))
     }
 
-    async fn commit_state_diff<TM: TimeMeasurementTrait + Send>(
+    async fn commit_state_diff<M: MeasurementsTrait + Send>(
         &mut self,
         state_diff: ThinStateDiff,
-        time_measurement: &mut TM,
+        measurements: &mut M,
     ) -> CommitterResult<(FilledForest, GlobalRoot)> {
         let input = Input {
             state_diff: state_diff.into(),
             initial_read_context: MockIndexInitialRead {},
             config: self.config.reader_config.clone(),
         };
-        let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
+        let filled_forest = CB::commit_block(input, &mut self.forest_storage, measurements)
             .await
             .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();
@@ -425,14 +425,14 @@ impl ComponentStarter for ApolloCommitter {
     }
 }
 
-fn update_metrics(time_measurement: &SingleBlockTimeMeasurement) {
-    READ_DURATION_PER_BLOCK.set_lossy(time_measurement.block_measurement.read_duration);
-    READ_DURATION_PER_BLOCK_HIST.record_lossy(time_measurement.block_measurement.read_duration);
-    READ_DB_ENTRIES_PER_BLOCK.set_lossy(time_measurement.block_measurement.n_reads);
-    COMPUTE_DURATION_PER_BLOCK.set_lossy(time_measurement.block_measurement.compute_duration);
+fn update_metrics(block_measurements: &SingleBlockMeasurements) {
+    READ_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.read_duration);
+    READ_DURATION_PER_BLOCK_HIST.record_lossy(block_measurements.block_measurement.read_duration);
+    READ_DB_ENTRIES_PER_BLOCK.set_lossy(block_measurements.block_measurement.n_reads);
+    COMPUTE_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.compute_duration);
     COMPUTE_DURATION_PER_BLOCK_HIST
-        .record_lossy(time_measurement.block_measurement.compute_duration);
-    WRITE_DURATION_PER_BLOCK.set_lossy(time_measurement.block_measurement.write_duration);
-    WRITE_DURATION_PER_BLOCK_HIST.record_lossy(time_measurement.block_measurement.write_duration);
-    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(time_measurement.block_measurement.n_writes);
+        .record_lossy(block_measurements.block_measurement.compute_duration);
+    WRITE_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.write_duration);
+    WRITE_DURATION_PER_BLOCK_HIST.record_lossy(block_measurements.block_measurement.write_duration);
+    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(block_measurements.block_measurement.n_writes);
 }
