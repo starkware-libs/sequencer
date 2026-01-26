@@ -589,15 +589,8 @@ async fn test_os_logic(
         "test_get_contract_address",
         &[**contract_addresses[0]],
     );
-    let config_hash = test_builder.compute_os_config_hash();
-    let proof_facts = if private_keys.is_some() {
-        // Blockifier computes config hash without public_keys_hash, but the OS includes it.
-        // This mismatch causes proof_facts validation to fail when private_keys are set.
-        // TODO(Meshi): Exclude public_keys_hash from OS config hash in proof facts validation.
-        ProofFacts::default()
-    } else {
-        ProofFacts::snos_proof_facts_for_testing_with_config_hash(config_hash)
-    };
+    let config_hash = test_builder.compute_virtual_os_config_hash();
+    let proof_facts = ProofFacts::snos_proof_facts_for_testing_with_config_hash(config_hash);
     test_builder.add_funded_account_invoke(invoke_tx_args! {
         calldata,
         proof_facts,
@@ -1114,7 +1107,7 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     // Test calling test_get_execution_info.
     let test_call_contract_selector_name = "test_call_contract";
     let test_execution_info_selector = selector_from_name("test_get_execution_info");
-    let config_hash = test_builder.compute_os_config_hash();
+    let config_hash = test_builder.compute_virtual_os_config_hash();
     let proof_facts = ProofFacts::snos_proof_facts_for_testing_with_config_hash(config_hash);
     let only_query = false;
     let expected_execution_info = ExpectedExecutionInfo::new(

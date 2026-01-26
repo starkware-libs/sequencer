@@ -346,16 +346,16 @@ impl AccountTransaction {
         // Validate the config hash.
         let chain_info = &block_context.chain_info;
         // TODO(Meshi): Cache this computation as part of the chain context.
-        let os_config_hash = chain_info.compute_os_config_hash().map_err(|e| {
+        let virtual_os_config_hash = chain_info.compute_virtual_os_config_hash().map_err(|e| {
             TransactionPreValidationError::InvalidProofFacts(format!(
                 "Failed to compute OS config hash: {e}"
             ))
         })?;
         let proof_config_hash = snos_proof_facts.config_hash;
-        if os_config_hash != proof_config_hash {
+        if virtual_os_config_hash != proof_config_hash {
             return Err(TransactionPreValidationError::InvalidProofFacts(format!(
-                "OS config hash mismatch. Computed OS config hash: {os_config_hash}, expected OS \
-                 config hash: {proof_config_hash}."
+                "Virtual OS config hash mismatch. Computed virtual OS config hash: \
+                 {virtual_os_config_hash}, expected virtual OS config hash: {proof_config_hash}."
             )));
         }
 

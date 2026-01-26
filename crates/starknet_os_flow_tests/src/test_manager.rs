@@ -494,11 +494,13 @@ impl<S: FlowTestState> TestBuilder<S> {
         self.initial_state.block_context.chain_info().chain_id.clone()
     }
 
-    /// Computes the OS config hash for proof facts validation using the test environment's
+    /// Computes the virtual OS config hash for proof facts validation using the test environment's
     /// chain info.
-    pub(crate) fn compute_os_config_hash(&self) -> Felt {
+    pub(crate) fn compute_virtual_os_config_hash(&self) -> Felt {
         let chain_info = self.initial_state.block_context.chain_info();
-        chain_info.compute_os_config_hash().expect("Failed to compute OS config hash")
+        chain_info
+            .compute_virtual_os_config_hash()
+            .expect("Failed to compute virtual OS config hash")
     }
 
     /// Advances the manager to the next block when adding new transactions.

@@ -217,9 +217,9 @@ impl ChainInfo {
         self.fee_token_addresses.get_by_fee_type(fee_type)
     }
 
-    /// Computes the OS config hash for the os config as you can (without public keys).
+    /// Computes the virtual OS config hash for the os config as you can (without public keys).
     /// See 'OsChainInfo'.
-    pub fn compute_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
+    pub fn compute_virtual_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
         let data = vec![
             STARKNET_OS_CONFIG_HASH_VERSION,
             (&self.chain_id).try_into()?,
