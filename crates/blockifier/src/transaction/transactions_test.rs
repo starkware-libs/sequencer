@@ -635,6 +635,7 @@ fn test_invoke_tx(
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
+        0,
     );
     let sender_address = invoke_tx.sender_address();
 
@@ -1872,6 +1873,7 @@ fn test_declare_tx(
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
+        0,
     );
     let account_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
         declare_tx_args! {
