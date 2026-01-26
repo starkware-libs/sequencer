@@ -78,13 +78,18 @@ impl MeasurementsTrait for NoMeasurements {
 }
 
 #[derive(Default, Clone)]
+pub struct BlockDurations {
+    pub block: u128,   // Duration of a block commit (milliseconds).
+    pub read: u128,    // Duration of a read phase (milliseconds).
+    pub compute: u128, // Duration of a computation phase (milliseconds).
+    pub write: u128,   // Duration of a write phase (milliseconds).
+}
+
+#[derive(Default, Clone)]
 pub struct BlockMeasurement {
     pub n_writes: usize,
     pub n_reads: usize,
-    pub block_duration: u128,   // Duration of a block commit (milliseconds).
-    pub read_duration: u128,    // Duration of a read phase (milliseconds).
-    pub compute_duration: u128, // Duration of a computation phase (milliseconds).
-    pub write_duration: u128,   // Duration of a write phase (milliseconds).
+    pub durations: BlockDurations,
 }
 
 impl BlockMeasurement {
@@ -96,18 +101,18 @@ impl BlockMeasurement {
     ) {
         match action {
             Action::Read => {
-                self.read_duration = duration_in_millis;
+                self.durations.read = duration_in_millis;
                 self.n_reads = entries_count;
             }
             Action::Compute => {
-                self.compute_duration = duration_in_millis;
+                self.durations.compute = duration_in_millis;
             }
             Action::Write => {
-                self.write_duration = duration_in_millis;
+                self.durations.write = duration_in_millis;
                 self.n_writes = entries_count;
             }
             Action::EndToEnd => {
-                self.block_duration = duration_in_millis;
+                self.durations.block = duration_in_millis;
             }
         }
     }

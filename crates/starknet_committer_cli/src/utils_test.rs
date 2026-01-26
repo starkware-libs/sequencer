@@ -31,7 +31,7 @@ fn assert_block_measurement(measurements: &BenchmarkMeasurements, number_of_bloc
         measurements
             .block_measurements
             .iter()
-            .map(|measurement| measurement.block_duration)
+            .map(|measurement| measurement.durations.block)
             .sum::<u128>()
     );
     assert_eq!(measurements.block_measurements.len(), number_of_blocks);
@@ -45,12 +45,12 @@ fn assert_block_measurement(measurements: &BenchmarkMeasurements, number_of_bloc
         .enumerate()
     {
         assert!(
-            measurement.block_duration
+            measurement.durations.block
                 >= u128::from(READ_DURATION + COMPUTE_DURATION + WRITE_DURATION)
         );
-        assert!(measurement.read_duration >= u128::from(READ_DURATION));
-        assert!(measurement.compute_duration >= u128::from(COMPUTE_DURATION));
-        assert!(measurement.write_duration >= u128::from(WRITE_DURATION));
+        assert!(measurement.durations.read >= u128::from(READ_DURATION));
+        assert!(measurement.durations.compute >= u128::from(COMPUTE_DURATION));
+        assert!(measurement.durations.write >= u128::from(WRITE_DURATION));
         assert_eq!(measurement.n_writes, N_WRITE_ENTRIES);
         assert_eq!(measurement.n_reads, N_READ_ENTRIES);
         assert_eq!(*db_entry_count, N_WRITE_ENTRIES * i);

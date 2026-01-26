@@ -426,13 +426,14 @@ impl ComponentStarter for ApolloCommitter {
 }
 
 fn update_metrics(block_measurements: &SingleBlockMeasurements) {
-    READ_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.read_duration);
-    READ_DURATION_PER_BLOCK_HIST.record_lossy(block_measurements.block_measurement.read_duration);
+    READ_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.durations.read);
+    READ_DURATION_PER_BLOCK_HIST.record_lossy(block_measurements.block_measurement.durations.read);
     READ_DB_ENTRIES_PER_BLOCK.set_lossy(block_measurements.block_measurement.n_reads);
-    COMPUTE_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.compute_duration);
+    COMPUTE_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.durations.compute);
     COMPUTE_DURATION_PER_BLOCK_HIST
-        .record_lossy(block_measurements.block_measurement.compute_duration);
-    WRITE_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.write_duration);
-    WRITE_DURATION_PER_BLOCK_HIST.record_lossy(block_measurements.block_measurement.write_duration);
+        .record_lossy(block_measurements.block_measurement.durations.compute);
+    WRITE_DURATION_PER_BLOCK.set_lossy(block_measurements.block_measurement.durations.write);
+    WRITE_DURATION_PER_BLOCK_HIST
+        .record_lossy(block_measurements.block_measurement.durations.write);
     WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(block_measurements.block_measurement.n_writes);
 }
