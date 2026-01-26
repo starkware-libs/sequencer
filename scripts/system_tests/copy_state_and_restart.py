@@ -8,7 +8,9 @@ from config_loader import find_workspace_root, load_and_merge_configs
 from kubernetes import config
 
 
-def extract_service_info_from_config(service_config: Dict[str, Any]) -> Tuple[str, str, str]:
+def extract_service_info_from_config(
+    service_config: Dict[str, Any],
+) -> Tuple[str, str, str]:
     """
     Extract service info from merged service config.
 
@@ -35,6 +37,29 @@ def run(
 
 def copy_state(pod_name: str, namespace: str, data_dir: str) -> None:
     print(f"📥 Copying state data to {pod_name}...")
+
+    # Clear existing data directory to ensure old database files are removed
+    print(f"Clearing existing /data directory in {pod_name}...")
+    try:
+        run(
+            [
+                "kubectl",
+                "exec",
+                pod_name,
+                "-n",
+                namespace,
+                "--",
+                "sh",
+                "-c",
+                "rm -rf /data/* /data/.[!.]* 2>/dev/null || true",
+            ]
+        )
+        print(f"✅ Cleared /data directory in {pod_name}")
+    except subprocess.CalledProcessError as e:
+        print(f"⚠️  Warning: Failed to clear /data directory in {pod_name}: {e}")
+        print("   Continuing with copy operation...")
+
+    # Copy new state
     try:
         run(
             [
@@ -61,7 +86,9 @@ def delete_pod(pod_name: str, namespace: str) -> None:
         sys.exit(1)
 
 
-def wait_for_resource(controller: str, name: str, namespace: str, timeout: int = 180) -> None:
+def wait_for_resource(
+    controller: str, name: str, namespace: str, timeout: int = 180
+) -> None:
     print(f"⏳ Waiting for {controller}/{name} to become ready...")
 
     if controller == "deployment":
@@ -100,7 +127,9 @@ def build_resource_name(service_name: str, controller: str) -> str:
     return f"sequencer-{service_name.lower()}-{controller.lower()}"
 
 
-def main(layout: str, namespace: str, data_dir: str, overlay: Optional[str] = None) -> None:
+def main(
+    layout: str, namespace: str, data_dir: str, overlay: Optional[str] = None
+) -> None:
     config.load_kube_config()
 
     # Try to find workspace: env var (for CI) > auto-detect
@@ -112,19 +141,23 @@ def main(layout: str, namespace: str, data_dir: str, overlay: Optional[str] = No
 
     if not workspace:
         print("❌ Could not determine workspace root.")
-        print("   Set GITHUB_WORKSPACE env var or ensure script is in scripts/system_tests/")
+        print(
+            "   Set GITHUB_WORKSPACE env var or ensure script is in scripts/system_tests/"
+        )
         sys.exit(1)
 
     # Load sequencer configs
     overlay_info = f", overlay={overlay}" if overlay else ""
     print(f"📋 Loading sequencer configs: layout={layout}{overlay_info}")
-    merged_services = load_and_merge_configs(workspace=workspace, layout=layout, overlay=overlay)
+    merged_services = load_and_merge_configs(
+        workspace=workspace, layout=layout, overlay=overlay
+    )
 
     # Extract service info from merged configs
     services: List[Tuple[str, str]] = []
     for service_config in merged_services:
-        controller, service_name_lower, controller_lower = extract_service_info_from_config(
-            service_config
+        controller, service_name_lower, controller_lower = (
+            extract_service_info_from_config(service_config)
         )
         services.append((service_config["name"], controller))
 
@@ -176,7 +209,9 @@ def main(layout: str, namespace: str, data_dir: str, overlay: Optional[str] = No
 
     print("\n⏳ Waiting for all resources to become ready...\n")
     for controller, resource_name in resources_to_wait_for:
-        wait_for_resource(controller=controller, name=resource_name, namespace=namespace)
+        wait_for_resource(
+            controller=controller, name=resource_name, namespace=namespace
+        )
         print(f"✅ {controller}/{resource_name} is ready!")
 
     print(f"\n📦 Current pod status in namespace {namespace}:")
@@ -218,4 +253,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    main(layout=args.layout, namespace=args.namespace, data_dir=args.data_dir, overlay=args.overlay)
+    main(
+        layout=args.layout,
+        namespace=args.namespace,
+        data_dir=args.data_dir,
+        overlay=args.overlay,
+    )
