@@ -442,14 +442,3 @@ impl Serialize for Row {
         map.end()
     }
 }
-
-/// Returns a PromQL expression that calculates the time since the last increase of the given
-/// metric. Assumes there was an increase in the last 12 hours.
-pub(crate) fn get_time_since_last_increase_expr(metric_name: &str) -> String {
-    const TIME_RANGE: &str = "12h";
-    format!(
-        // The max over time is the timestamp of the last increase in the last 12 hours.
-        "time() - max_over_time((timestamp(increase({metric_name}[{TIME_RANGE}])) != \
-         0)[{TIME_RANGE}:])"
-    )
-}

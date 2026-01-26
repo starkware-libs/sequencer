@@ -17,6 +17,7 @@ use tracing::{error, info, trace, warn};
 use crate::metrics::{
     register_scraper_metrics,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
@@ -148,6 +149,7 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
             L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.increment(1);
+            L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS.set_unix_now_seconds();
             *block_number += 1;
         }
         Ok(())

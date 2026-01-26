@@ -62,6 +62,10 @@ impl MetricGauge {
         gauge!(self.get_name()).set(value.into_f64());
     }
 
+    pub fn set_unix_now_seconds(&self) {
+        self.set_lossy(apollo_time::time::Clock::unix_now(&apollo_time::time::DefaultClock));
+    }
+
     #[cfg(any(feature = "testing", test))]
     #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
