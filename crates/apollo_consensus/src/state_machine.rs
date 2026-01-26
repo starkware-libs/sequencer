@@ -492,7 +492,21 @@ impl StateMachine {
         }
         self.round = round;
         self.step = Step::Propose;
-        let mut output = if !self.is_observer && self.id == leader_election.proposer(self.round) {
+
+        if self.is_observer {
+            info!("START_ROUND_VALIDATOR: Starting round {round} as Validator");
+            let mut output =
+                VecDeque::from([SMRequest::ScheduleTimeout(Step::Propose, self.round)]);
+            output.append(&mut self.current_round_upons(leader_election));
+            return output;
+        }
+
+        // Non-observer case: check our role.
+        let Some(proposer) = leader_election.proposer(self.round).ok() else {
+            return VecDeque::new();
+        };
+
+        if self.id == proposer {
             info!("START_ROUND_PROPOSER: Starting round {round} as Proposer");
             // Leader.
             match self.valid_value_round {
@@ -502,26 +516,33 @@ impl StateMachine {
                     let old =
                         self.proposals.insert(self.round, (Some(proposal_id), Some(valid_round)));
                     assert!(old.is_none(), "Proposal for current round should not already exist");
+                    let Some(virtual_proposer) = leader_election.virtual_proposer(self.round).ok()
+                    else {
+                        return VecDeque::new();
+                    };
                     let init = ProposalInit {
                         height: self.height,
                         round: self.round,
-                        proposer: leader_election.virtual_proposer(self.round),
+                        proposer: virtual_proposer,
                         valid_round: Some(valid_round),
                     };
-                    VecDeque::from([SMRequest::Repropose(proposal_id, init)])
+                    let mut output = VecDeque::from([SMRequest::Repropose(proposal_id, init)]);
+                    output.append(&mut self.current_round_upons(leader_election));
+                    output
                 }
                 None => {
                     self.awaiting_finished_building = true;
                     // Upon conditions are not checked while awaiting a new proposal.
-                    return VecDeque::from([SMRequest::StartBuildProposal(self.round)]);
+                    VecDeque::from([SMRequest::StartBuildProposal(self.round)])
                 }
             }
         } else {
             info!("START_ROUND_VALIDATOR: Starting round {round} as Validator");
-            VecDeque::from([SMRequest::ScheduleTimeout(Step::Propose, self.round)])
-        };
-        output.append(&mut self.current_round_upons(leader_election));
-        output
+            let mut output =
+                VecDeque::from([SMRequest::ScheduleTimeout(Step::Propose, self.round)]);
+            output.append(&mut self.current_round_upons(leader_election));
+            output
+        }
     }
 
     fn advance_to_step(
@@ -797,7 +818,9 @@ impl StateMachine {
         leader_election: &LeaderElection<'_>,
     ) -> bool {
         // TODO(Asmaa): add a config flag to bypass this virtual leader check
-        let virtual_leader = leader_election.virtual_proposer(round);
+        let Some(virtual_leader) = leader_election.virtual_proposer(round).ok() else {
+            return false;
+        };
         votes.get(&(round, virtual_leader)).is_some_and(|(v, _w)| &v.proposal_commitment == value)
     }
 }
