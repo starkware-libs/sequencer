@@ -9,7 +9,6 @@ from starkware.starknet.core.os.constants import (
     STORED_BLOCK_HASH_BUFFER,
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
-from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.virtual_os_output import (
     VIRTUAL_OS_OUTPUT_VERSION,
     VirtualOsOutputHeader,
