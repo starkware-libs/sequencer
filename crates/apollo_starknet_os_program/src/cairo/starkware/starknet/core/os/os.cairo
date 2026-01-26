@@ -31,6 +31,7 @@ from starkware.starknet.core.os.contract_class.deprecated_compiled_class import 
 from starkware.starknet.core.os.execution.execute_syscalls import execute_syscalls
 from starkware.starknet.core.os.execution.execute_transactions import execute_transactions
 from starkware.starknet.core.os.os_config.os_config import (
+    DEFAULT_PUBLIC_KEYS_HASH,
     StarknetOsConfig,
     get_public_keys_hash,
     get_starknet_os_config_hash,
@@ -303,6 +304,21 @@ func get_os_global_context{
         starknet_os_config=starknet_os_config
     );
 
+    local virtual_os_config_hash;
+    if (public_keys_hash != DEFAULT_PUBLIC_KEYS_HASH) {
+        tempvar starknet_os_config_without_public_keys = new StarknetOsConfig(
+            chain_id=chain_id,
+            fee_token_address=fee_token_address,
+            public_keys_hash=DEFAULT_PUBLIC_KEYS_HASH,
+        );
+        let (hash_without_keys) = get_starknet_os_config_hash{hash_ptr=pedersen_ptr}(
+            starknet_os_config=starknet_os_config_without_public_keys
+        );
+        assert virtual_os_config_hash = hash_without_keys;
+    } else {
+        assert virtual_os_config_hash = starknet_os_config_hash;
+    }
+
     // Function pointers.
     let (execute_syscalls_ptr) = get_label_location(label_value=execute_syscalls);
     let (execute_deprecated_syscalls_ptr) = get_execute_deprecated_syscalls_ptr();
@@ -310,6 +326,7 @@ func get_os_global_context{
     tempvar os_global_context: OsGlobalContext* = new OsGlobalContext(
         starknet_os_config=[starknet_os_config],
         starknet_os_config_hash=starknet_os_config_hash,
+        virtual_os_config_hash=virtual_os_config_hash,
         compiled_class_facts_bundle=CompiledClassFactsBundle(
             n_compiled_class_facts=n_compiled_class_facts,
             compiled_class_facts=compiled_class_facts,

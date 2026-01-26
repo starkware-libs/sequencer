@@ -217,7 +217,7 @@ impl ChainInfo {
 
     // Computes the virtual OS config hash (similar to the regular hash, just without the public
     // keys).
-    pub fn compute_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
+    pub fn compute_virtual_os_config_hash(&self) -> Result<Felt, StarknetApiError> {
         let os_chain_info = OsChainInfo {
             chain_id: self.chain_id.clone(),
             strk_fee_token_address: self.fee_token_addresses.strk_fee_token_address,
