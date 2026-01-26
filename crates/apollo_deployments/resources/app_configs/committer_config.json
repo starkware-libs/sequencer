@@ -1,6 +1,9 @@
 {
     "committer_config.db_path": "/data/committer",
     "committer_config.reader_config.warn_on_trivial_modifications": false,
-    "committer_config.storage_config.dummy_field": 0,
+    "committer_config.storage_config.cache_on_write": true,
+    "committer_config.storage_config.cache_size": 1000000,
+    "committer_config.storage_config.include_inner_stats": true,
+    "committer_config.storage_config.inner_storage_config.dummy_field": 0,
     "committer_config.verify_state_diff_hash": true
 }
