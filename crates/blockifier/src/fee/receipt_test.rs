@@ -53,6 +53,7 @@ fn versioned_constants() -> &'static VersionedConstants {
 ///     5. A transaction with L2-to-L1 messages.
 ///     6. A transaction that modifies the storage.
 ///     7. A combination of cases 4. 5. and 6.
+// TODO(AvivG): Add case for client-side proving transaction.
 #[rstest]
 fn test_calculate_tx_gas_usage_basic<'a>(
     #[values(false, true)] use_kzg_da: bool,
@@ -80,6 +81,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
             StateResources::default(),
             None,
             ExecutionSummary::default(),
+            0,
         );
         let gas_per_code_byte = versioned_constants
             .get_archival_data_gas_costs(&gas_vector_computation_mode)
@@ -123,6 +125,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(deploy_account_state_changes_count, 0),
         None,
         ExecutionSummary::default(),
+        0,
     );
     let gas_per_data_felt = versioned_constants
         .get_archival_data_gas_costs(&gas_vector_computation_mode)
@@ -159,6 +162,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::default(),
         Some(l1_handler_payload_size),
         ExecutionSummary::default(),
+        0,
     );
     let l1_handler_gas_usage_vector = l1_handler_tx_starknet_resources.to_gas_vector(
         &versioned_constants,
@@ -235,6 +239,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(l2_to_l1_state_changes_count, 0),
         None,
         execution_summary.clone(),
+        0,
     );
 
     let l2_to_l1_messages_gas_usage_vector = l2_to_l1_starknet_resources.to_gas_vector(
@@ -290,6 +295,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(storage_writes_state_changes_count, n_storage_updates / 2),
         None,
         ExecutionSummary::default(),
+        0,
     );
 
     let storage_writings_gas_usage_vector = storage_writes_starknet_resources.to_gas_vector(
@@ -324,6 +330,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         ),
         Some(l1_handler_payload_size),
         execution_summary.clone(),
+        0,
     );
 
     let gas_usage_vector = combined_cases_starknet_resources.to_gas_vector(
@@ -403,6 +410,7 @@ fn test_calculate_tx_gas_usage(
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         ExecutionSummary::default(),
+        0,
     );
 
     assert_eq!(
@@ -463,6 +471,7 @@ fn test_calculate_tx_gas_usage(
         None,
         // The transfer entrypoint emits an event - pass the call info to count its resources.
         execution_summary,
+        0,
     );
 
     assert_eq!(
