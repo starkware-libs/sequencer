@@ -9,7 +9,7 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
-use crate::types::{LeaderElection, ProposalCommitment, ValidatorId};
+use crate::types::{ConsensusError, LeaderElection, ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 lazy_static! {
@@ -23,7 +23,7 @@ const PROPOSAL_ID: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::ON
 const ROUND: Round = 0;
 const HEIGHT: BlockNumber = BlockNumber(0);
 
-type LeaderFn = fn(Round) -> ValidatorId;
+type LeaderFn = fn(Round) -> Result<ValidatorId, ConsensusError>;
 
 fn mk_vote(
     vote_type: VoteType,
@@ -187,8 +187,8 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -238,8 +238,8 @@ fn validator_receives_votes_first() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -281,8 +281,8 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -315,8 +315,8 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -351,8 +351,8 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -390,8 +390,8 @@ fn advance_to_the_next_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -432,8 +432,8 @@ fn prevote_when_receiving_proposal_in_current_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -470,8 +470,8 @@ fn mixed_quorum(send_proposal: bool) {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -519,8 +519,8 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -589,8 +589,8 @@ fn return_proposal_if_locked_value_is_set() {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
     );
@@ -644,8 +644,8 @@ fn observer_node_reaches_decision() {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         true,
         QuorumType::Byzantine,
     );
@@ -673,8 +673,8 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         3,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         false,
         quorum_type,
     );
@@ -740,8 +740,8 @@ fn observer_does_not_record_self_votes() {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *PROPOSER_ID,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
         true,
         QuorumType::Byzantine,
     );
@@ -781,8 +781,8 @@ fn quorums_require_virtual_leader_in_favor_for_value() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| *PROPOSER_ID,
-        |_: Round| *VALIDATOR_ID_3,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*VALIDATOR_ID_3),
         false,
         QuorumType::Byzantine,
     );
@@ -824,4 +824,62 @@ fn quorums_require_virtual_leader_in_favor_for_value() {
     // Now the virtual leader precommits for the value -> we can decide.
     wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_3); // peer 3 (virtual leader)
     assert_decision_reached(&mut wrapper, PROPOSAL_ID);
+}
+
+#[test]
+fn advance_to_round_when_proposer_function_fails() {
+    // Test that when proposer function fails during round advancement,
+    // we act as a validator and schedule a timeout to prevent deadlock,
+    // and can still progress via receiving 2/3 precommits.
+    fn proposer_fn(round: Round) -> Result<ValidatorId, ConsensusError> {
+        if round == 1 {
+            Err(ConsensusError::InternalNetworkError("Proposer lookup failed".to_string()))
+        } else {
+            Ok(*PROPOSER_ID)
+        }
+    }
+
+    fn virtual_proposer_fn(round: Round) -> Result<ValidatorId, ConsensusError> {
+        if round == 1 {
+            Err(ConsensusError::InternalNetworkError("Virtual proposer lookup failed".to_string()))
+        } else {
+            Ok(*PROPOSER_ID)
+        }
+    }
+
+    let round_1: Round = 1;
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        proposer_fn,
+        virtual_proposer_fn,
+        false, // not observer
+        QuorumType::Byzantine,
+    );
+
+    wrapper.start();
+    // We're a validator, so we should schedule timeout for round 0
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
+    assert!(wrapper.next_request().is_none());
+
+    // Receive 2 precommits for round 1 (1/3 threshold with total_weight=4 needs >4/3, so 2 votes)
+    // This should trigger advancement to round 1
+    wrapper.send_precommit_from(PROPOSAL_ID, round_1, *PROPOSER_ID);
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_precommit_from(PROPOSAL_ID, round_1, *VALIDATOR_ID_2);
+    // When advancing to round 1, proposer lookup fails, so we act as validator
+    // and schedule timeout to prevent deadlock. Round should be updated.
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, round_1));
+    assert_eq!(wrapper.state_machine.round(), round_1);
+    assert!(wrapper.next_request().is_none());
+
+    // Now receive 2/3 precommits for round 1 (3 precommits with total_weight=4)
+    // This should schedule timeout for precommit
+    wrapper.send_precommit_from(PROPOSAL_ID, round_1, *VALIDATOR_ID_3);
+    // We should schedule timeout for precommit when we get 2/3 precommits
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::ScheduleTimeout(Step::Precommit, round_1)
+    );
+    assert!(wrapper.next_request().is_none());
 }
