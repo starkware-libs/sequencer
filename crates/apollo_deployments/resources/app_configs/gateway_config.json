@@ -1,4 +1,5 @@
 {
+  "gateway_config.dynamic_config.placeholder": false,
   "gateway_config.static_config.authorized_declarer_accounts": "",
   "gateway_config.static_config.authorized_declarer_accounts.#is_none": true,
   "gateway_config.static_config.block_declare": false,
