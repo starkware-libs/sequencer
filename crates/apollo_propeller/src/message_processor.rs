@@ -8,20 +8,32 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::sleep_until;
 use tracing::{debug, trace};
 
+use crate::sharding::reconstruct_message_from_shards;
 use crate::tree::PropellerScheduleManager;
-use crate::types::{Channel, Event, MessageRoot, ShardValidationError};
+use crate::types::{Channel, Event, MessageRoot, ReconstructionError, ShardValidationError};
 use crate::unit::PropellerUnit;
 use crate::unit_validator::UnitValidator;
-use crate::ShardIndex;
+use crate::{MerkleProof, ShardIndex};
 
 pub type UnitToValidate = (PeerId, PropellerUnit);
 type ValidationResult = (Result<(), ShardValidationError>, UnitValidator, PropellerUnit);
+#[allow(dead_code)]
+type ReconstructionResult = Result<ReconstructionSuccess, ReconstructionError>;
 
 #[derive(Debug)]
 pub enum EventStateManagerToEngine {
     BehaviourEvent(Event),
     Finalized { channel: Channel, publisher: PeerId, message_root: MessageRoot },
     BroadcastUnit { unit: PropellerUnit, peers: Vec<PeerId> },
+}
+
+/// Successful reconstruction result.
+#[derive(Debug)]
+#[allow(dead_code)]
+struct ReconstructionSuccess {
+    message: Vec<u8>,
+    my_shard: Vec<u8>,
+    my_shard_proof: MerkleProof,
 }
 
 /// Message processor that handles validation and state management for a single message.
@@ -198,5 +210,32 @@ impl MessageProcessor {
         self.engine_tx
             .send(EventStateManagerToEngine::BroadcastUnit { unit: unit.clone(), peers })
             .expect("Engine task has exited");
+    }
+
+    #[allow(dead_code)]
+    fn spawn_reconstruction_task(
+        shards: Vec<PropellerUnit>,
+        message_root: MessageRoot,
+        my_shard_index: usize,
+        data_count: usize,
+        coding_count: usize,
+        result_tx: oneshot::Sender<ReconstructionResult>,
+    ) {
+        rayon::spawn(move || {
+            let result = reconstruct_message_from_shards(
+                shards,
+                message_root,
+                my_shard_index,
+                data_count,
+                coding_count,
+            )
+            .map(|(message, my_shard, my_shard_proof)| ReconstructionSuccess {
+                message,
+                my_shard,
+                my_shard_proof,
+            });
+
+            let _ = result_tx.send(result);
+        });
     }
 }
