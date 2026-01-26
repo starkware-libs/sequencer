@@ -33,6 +33,7 @@ struct TransactionReceiptParameters<'a> {
     tx_type: TransactionType,
     reverted_steps: usize,
     reverted_sierra_gas: GasAmount,
+    proof_facts_length: usize,
 }
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
@@ -62,6 +63,7 @@ impl TransactionReceipt {
             tx_type,
             reverted_steps,
             reverted_sierra_gas,
+            proof_facts_length,
         } = tx_receipt_params;
         let charged_resources = execution_summary_without_fee_transfer.charged_resources.clone();
         let starknet_resources = StarknetResources::new(
@@ -71,8 +73,7 @@ impl TransactionReceipt {
             StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
-            // TODO(AvivG): Use proof facts length from tx_receipt_params when available.
-            0,
+            proof_facts_length,
         );
 
         // Transaction overhead ('additional') resources are computed in VM resources no matter what
@@ -144,6 +145,7 @@ impl TransactionReceipt {
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
             reverted_sierra_gas: GasAmount(0),
+            proof_facts_length: 0,
         })
     }
 
@@ -182,6 +184,8 @@ impl TransactionReceipt {
             tx_type: account_tx.tx_type(),
             reverted_steps,
             reverted_sierra_gas,
+            // TODO(AvivG): Get proof facts length from account_tx when it supports retrieving it.
+            proof_facts_length: 0,
         })
     }
 }
