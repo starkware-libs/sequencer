@@ -173,6 +173,8 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
+    // TODO(Einat): Remove the allow(dead_code) when the committer should be enabled.
+    #[allow(dead_code)]
     commitment_manager: ApolloCommitmentManager,
 
     // Kept alive to maintain the server running.
@@ -681,6 +683,8 @@ impl Batcher {
             StorageCommitmentBlockHash::ParentHash(block_header_without_hash.parent_hash)
         };
 
+        // TODO(Einat): Remove allow(unused_variables) when the committer should be enabled.
+        #[allow(unused_variables)]
         let optional_state_diff_commitment = match &storage_commitment_block_hash {
             StorageCommitmentBlockHash::ParentHash(_) => None,
             StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
@@ -698,11 +702,11 @@ impl Batcher {
             storage_commitment_block_hash,
         )
         .await?;
-
-        self.commitment_manager
-            .add_commitment_task(height, state_diff, optional_state_diff_commitment)
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
+        // TODO(Einat): Uncomment when the committer should be enabled.
+        // self.commitment_manager
+        //     .add_commitment_task(height, state_diff, optional_state_diff_commitment)
+        //     .await
+        //     .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
         // Write ready commitments to storage.
         self.write_commitment_results_to_storage().await?;
@@ -746,6 +750,8 @@ impl Batcher {
         .expect("Number of reverted transactions should fit in u64");
         let partial_block_hash_components =
             block_execution_artifacts.partial_block_hash_components();
+        // TODO(Einat): Remove allow(unused_variables) when the committer should be enabled.
+        #[allow(unused_variables)]
         let state_diff_commitment =
             partial_block_hash_components.header_commitments.state_diff_commitment;
         let block_header_commitments = partial_block_hash_components.header_commitments.clone();
@@ -760,14 +766,15 @@ impl Batcher {
         )
         .await?;
 
-        self.commitment_manager
-            .add_commitment_task(
-                height,
-                state_diff.clone(), // TODO(Nimrod): Remove the clone here.
-                Some(state_diff_commitment),
-            )
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
+        // TODO(Einat): Uncomment when the committer should be enabled.
+        // self.commitment_manager
+        //     .add_commitment_task(
+        //         height,
+        //         state_diff.clone(), // TODO(Nimrod): Remove the clone here.
+        //         Some(state_diff_commitment),
+        //     )
+        //     .await
+        //     .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
         // Write ready commitments to storage.
         self.write_commitment_results_to_storage().await?;
@@ -1153,6 +1160,8 @@ impl Batcher {
     }
 
     /// Writes the ready commitment results to storage.
+    // TODO(Einat): Remove the allow(dead_code) when the committer should be enabled.
+    #[allow(dead_code)]
     async fn write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
         let commitment_results = self.commitment_manager.get_commitment_results().await;
         for commitment_task_output in commitment_results.into_iter() {
