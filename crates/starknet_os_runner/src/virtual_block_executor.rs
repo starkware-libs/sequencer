@@ -24,7 +24,7 @@ use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeader
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::transaction::fields::Fee;
-use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
+use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tracing::error;
 
@@ -108,6 +108,8 @@ pub(crate) struct VirtualBlockExecutionData {
     pub(crate) initial_reads: StateMaps,
     /// The class hashes of all contracts executed in the virtual block.
     pub(crate) executed_class_hashes: HashSet<ClassHash>,
+    /// L2 to L1 messages.
+    pub(crate) l2_to_l1_messages: Vec<MessageToL1>,
     /// The base block info for the virtual block.
     pub(crate) base_block_info: BaseBlockInfo,
 }
@@ -213,10 +215,23 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
             })?
             .get_executed_class_hashes();
 
+        // Extract L2 to L1 messages.
+        let mut l2_to_l1_messages = Vec::new();
+        for (execution_info, _state_diff) in &execution_outputs {
+            // This iterates through validate, execute, and fee_transfer call infos
+            // and collects messages from all of them (including inner calls)
+            let messages: Vec<_> = execution_info
+                .non_optional_call_infos()
+                .flat_map(|call_info| call_info.get_sorted_l2_to_l1_messages())
+                .collect();
+            l2_to_l1_messages.extend(messages);
+        }
+
         Ok(VirtualBlockExecutionData {
             execution_outputs,
             base_block_info,
             initial_reads,
+            l2_to_l1_messages,
             executed_class_hashes,
         })
     }
