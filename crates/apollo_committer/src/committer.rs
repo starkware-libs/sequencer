@@ -133,6 +133,26 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         &mut self,
         CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
     ) -> CommitterResult<CommitBlockResponse> {
+        let result = self
+            .commit_block_inner(CommitBlockRequest { state_diff, state_diff_commitment, height })
+            .await;
+        match &result {
+            Ok(_) => {
+                info!("Committed block number {height} with state diff {state_diff_commitment:?}");
+            }
+            Err(err) => {
+                error!("Failed to commit block number {height}: {err:?}");
+            }
+        };
+        result
+    }
+
+    /// Commits a block to the forest.
+    /// In the happy flow, the given height equals to the committer offset.
+    async fn commit_block_inner(
+        &mut self,
+        CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
+    ) -> CommitterResult<CommitBlockResponse> {
         info!(
             "Received request to commit block number {height} with state diff \
              {state_diff_commitment:?}"
@@ -224,6 +244,24 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
 
     /// Applies the given state diff to revert the changes of the given height.
     pub async fn revert_block(
+        &mut self,
+        RevertBlockRequest { reversed_state_diff, height }: RevertBlockRequest,
+    ) -> CommitterResult<RevertBlockResponse> {
+        let result =
+            self.revert_block_inner(RevertBlockRequest { reversed_state_diff, height }).await;
+        match &result {
+            Ok(_) => {
+                info!("Reverted block number {height}");
+            }
+            Err(err) => {
+                error!("Failed to revert block number {height}: {err:?}");
+            }
+        };
+        result
+    }
+
+    /// Applies the given state diff to revert the changes of the given height.
+    async fn revert_block_inner(
         &mut self,
         RevertBlockRequest { reversed_state_diff, height }: RevertBlockRequest,
     ) -> CommitterResult<RevertBlockResponse> {
