@@ -144,7 +144,9 @@ where
                 // We expect there to be under 100 validators, so this is a reasonable number of
                 // precommits to print.
                 let round = decision.precommits[0].round;
-                let proposer = context.virtual_proposer(current_height, round);
+                // virtual_proposer should never fail here, we already checked it in the state
+                // machine.
+                let proposer = context.virtual_proposer(current_height, round)?;
 
                 if proposer == run_consensus_args.consensus_config.dynamic_config.validator_id {
                     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.increment(1);
@@ -479,7 +481,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
 
         let (mut shc, mut shc_events) =
-            self.initialize_single_height_consensus(context, height).await;
+            self.initialize_single_height_consensus(context, height).await?;
 
         if let Some(decision) = self
             .process_start_height(context, height, &mut shc, &mut shc_events, broadcast_channels)
@@ -534,8 +536,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-    ) -> (SingleHeightConsensus, FuturesUnordered<BoxFuture<'static, StateMachineEvent>>) {
-        let validators = context.validators(height).await;
+    ) -> Result<
+        (SingleHeightConsensus, FuturesUnordered<BoxFuture<'static, StateMachineEvent>>),
+        ConsensusError,
+    > {
+        let validators = context.validators(height).await?;
         let is_observer = !validators.contains(&self.consensus_config.dynamic_config.validator_id);
         info!(
             "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
@@ -552,7 +557,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         );
         let shc_events = FuturesUnordered::new();
 
-        (shc, shc_events)
+        Ok((shc, shc_events))
     }
 
     /// Process the start of a height: call shc.start, process cached proposals/votes, and execute
@@ -714,8 +719,16 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
         };
 
-        // Check that the proposer matches the leader_fn for this height.
-        let proposer = context.virtual_proposer(height, block_info.round);
+        // Check that the proposer matches the virtual_proposer for this height.
+        let Some(proposer) = context.virtual_proposer(block_info.height, block_info.round).ok()
+        else {
+            warn!(
+                "VIRTUAL_PROPOSER_LOOKUP_FAILED: Failed to determine virtual proposer for height \
+                 {height} round {}. Dropping proposal.",
+                block_info.round
+            );
+            return Ok(VecDeque::new());
+        };
         if proposer != block_info.proposer {
             warn!(
                 "Invalid proposer for height {height} and round {}: expected {:?}, got {:?}",
@@ -891,12 +904,17 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let timeouts = &self.consensus_config.dynamic_config.timeouts;
         match request {
             SMRequest::StartBuildProposal(round) => {
-                let init = ProposalInit {
-                    height,
-                    round,
-                    proposer: context.virtual_proposer(height, round),
-                    valid_round: None,
+                let Some(virtual_proposer) = context.virtual_proposer(height, round).ok() else {
+                    warn!(
+                        "VIRTUAL_PROPOSER_LOOKUP_FAILED: Failed to determine virtual proposer for \
+                         height {height} round {round}. Proposal building will fail.",
+                    );
+                    let fut =
+                        async move { StateMachineEvent::FinishedBuilding(None, round) }.boxed();
+                    return Ok(Some(fut));
                 };
+                let init =
+                    ProposalInit { height, round, proposer: virtual_proposer, valid_round: None };
                 // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded
                 // independently of the consensus proposal timeout. We currently use the base
                 // (round 0) proposal timeout for building to avoid giving the Batcher more time
