@@ -51,6 +51,22 @@ enum ReconstructionPhase {
         received_my_index: bool,
         signature: Option<Vec<u8>>,
     },
+    /// After reconstruction completes, waiting for access threshold.
+    PostReconstruction {
+        reconstructed_message: Vec<u8>,
+        /// Count when reconstruction started (to track additional shards received).
+        count_at_reconstruction: usize,
+        received_my_index: bool,
+    },
+}
+
+impl ReconstructionPhase {
+    fn was_my_shard_broadcasted(&self) -> bool {
+        match self {
+            ReconstructionPhase::PreReconstruction { received_my_index, .. } => *received_my_index,
+            ReconstructionPhase::PostReconstruction { .. } => true,
+        }
+    }
 }
 
 /// Message processor that handles validation and state management for a single message.
@@ -193,30 +209,47 @@ impl MessageProcessor {
         let unit_index = unit.index();
 
         // Broadcast our shard if we just received it
-        if unit_index == self.my_shard_index {
+        if unit_index == self.my_shard_index && !phase.was_my_shard_broadcasted() {
             self.broadcast_shard(&unit).await;
         }
 
         // Update received_my_index if applicable
         let is_my_shard = unit_index == self.my_shard_index;
 
-        let ReconstructionPhase::PreReconstruction {
-            received_shards,
-            received_my_index,
-            signature,
-        } = phase;
-
-        if is_my_shard {
-            *received_my_index = true;
+        match phase {
+            ReconstructionPhase::PreReconstruction {
+                received_shards,
+                received_my_index,
+                signature,
+            } => {
+                if is_my_shard {
+                    *received_my_index = true;
+                }
+                self.handle_pre_reconstruction_unit(
+                    unit,
+                    received_shards,
+                    signature,
+                    pending_reconstruction,
+                )
+                .await;
+                ControlFlow::Continue(())
+            }
+            ReconstructionPhase::PostReconstruction {
+                reconstructed_message,
+                count_at_reconstruction,
+                received_my_index,
+            } => {
+                if is_my_shard {
+                    *received_my_index = true;
+                }
+                self.check_access_threshold_and_emit(
+                    reconstructed_message,
+                    *count_at_reconstruction,
+                    *received_my_index,
+                )
+                .await
+            }
         }
-        self.handle_pre_reconstruction_unit(
-            unit,
-            received_shards,
-            signature,
-            pending_reconstruction,
-        )
-        .await;
-        ControlFlow::Continue(())
     }
 
     async fn handle_pre_reconstruction_unit(
@@ -255,6 +288,25 @@ impl MessageProcessor {
         );
     }
 
+    async fn check_access_threshold_and_emit(
+        &mut self,
+        reconstructed_message: &mut Vec<u8>,
+        count_at_reconstruction: usize,
+        received_my_index: bool,
+    ) -> ControlFlow<()> {
+        let access_count = count_at_reconstruction + usize::from(!received_my_index);
+
+        if !self.tree_manager.should_receive(access_count) {
+            return ControlFlow::Continue(());
+        }
+        tracing::trace!("[MSG_PROC] Access threshold reached, emitting message");
+        self.emit_and_finalize(Event::MessageReceived {
+            publisher: self.publisher,
+            message_root: self.message_root,
+            message: std::mem::take(reconstructed_message),
+        })
+    }
+
     async fn handle_reconstruction_result(
         &mut self,
         result: ReconstructionResult,
@@ -279,15 +331,53 @@ impl MessageProcessor {
     async fn handle_reconstruction_success(
         &mut self,
         success: ReconstructionSuccess,
-        _phase: &mut ReconstructionPhase,
+        phase: &mut ReconstructionPhase,
     ) -> ControlFlow<()> {
-        let ReconstructionSuccess { message, my_shard: _my_shard, my_shard_proof: _my_shard_proof } =
-            success;
+        let ReconstructionSuccess { message, my_shard, my_shard_proof } = success;
 
-        // TODO(AndrewL): Handle post-reconstruction state transition and threshold checking
-        tracing::trace!("[MSG_PROC] Reconstruction succeeded, message_len={}", message.len());
+        // Extract pre-reconstruction state and transition to post-reconstruction
+        let ReconstructionPhase::PreReconstruction {
+            received_shards,
+            received_my_index,
+            signature,
+        } = phase
+        else {
+            panic!("Expected PreReconstruction phase");
+        };
 
-        // For now, just emit the message immediately
+        let count_at_reconstruction = received_shards.len();
+        let received_my_index = *received_my_index;
+        let signature = signature.take().expect("Signature must exist");
+
+        // Broadcast our shard if we haven't already
+        if !phase.was_my_shard_broadcasted() {
+            let reconstructed_unit = PropellerUnit::new(
+                self.channel,
+                self.publisher,
+                self.message_root,
+                signature,
+                self.my_shard_index,
+                my_shard,
+                my_shard_proof,
+            );
+            self.broadcast_shard(&reconstructed_unit).await;
+        }
+
+        // Check if we can emit immediately
+        let access_count = count_at_reconstruction + usize::from(!received_my_index);
+
+        if !self.tree_manager.should_receive(access_count) {
+            // Transition to post-reconstruction state
+            *phase = ReconstructionPhase::PostReconstruction {
+                reconstructed_message: message,
+                count_at_reconstruction,
+                received_my_index,
+            };
+            return ControlFlow::Continue(());
+        }
+
+        tracing::trace!("[MSG_PROC] Access threshold reached immediately after reconstruction");
+
         self.emit_and_finalize(Event::MessageReceived {
             publisher: self.publisher,
             message_root: self.message_root,
