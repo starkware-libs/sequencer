@@ -121,8 +121,8 @@ starknet_version_enum! {
     (V0_13_6, 0, 13, 6),
     (V0_14_0, 0, 14, 0),
     (V0_14_1, 0, 14, 1),
-    (V0_15_0, 0, 15, 0),
-    V0_15_0
+    (V0_14_2, 0, 14, 2),
+    V0_14_2
 }
 
 impl Default for StarknetVersion {
