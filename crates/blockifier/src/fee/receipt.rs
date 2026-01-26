@@ -71,6 +71,8 @@ impl TransactionReceipt {
             StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
+            // TODO(AvivG): Use proof facts length from tx_receipt_params when available.
+            0,
         );
 
         // Transaction overhead ('additional') resources are computed in VM resources no matter what
