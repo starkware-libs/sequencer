@@ -581,7 +581,7 @@
           "description": "The number of seconds since the last transaction was received by the HTTP server (assuming there was a transaction in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
-            "time() - max_over_time((timestamp(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h])) != 0)[12h:])"
+            "time() - max(http_server_last_received_transaction_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "unit": "s"
@@ -846,7 +846,7 @@
           "description": "The number of seconds since the last transaction was received by the HTTP server (assuming there was a transaction in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
-            "time() - max_over_time((timestamp(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h])) != 0)[12h:])"
+            "time() - max(http_server_last_received_transaction_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "unit": "s"
@@ -862,7 +862,7 @@
           "description": "The number of seconds since the last successful scrape of the L1 message scraper (assuming there was a scrape in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
-            "time() - max_over_time((timestamp(increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h])) != 0)[12h:])"
+            "time() - max(l1_message_scraper_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "unit": "s",
@@ -924,7 +924,7 @@
           "description": "The number of seconds since the last successful scrape of the L1 gas price scraper (assuming there was a scrape in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
-            "time() - max_over_time((timestamp(increase(l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h])) != 0)[12h:])"
+            "time() - max(l1_gas_price_scraper_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "unit": "s"
@@ -935,7 +935,7 @@
           "description": "The number of seconds since the last successful ETH→STRK rate update (assuming there was an update in the last 12 hours)",
           "type": "timeseries",
           "exprs": [
-            "time() - max_over_time((timestamp(increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[12h])) != 0)[12h:])"
+            "time() - max(eth_to_strk_last_success_timestamp_seconds{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "unit": "s"

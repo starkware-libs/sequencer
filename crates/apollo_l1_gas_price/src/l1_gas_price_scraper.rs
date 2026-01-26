@@ -1,6 +1,7 @@
 use std::any::type_name;
 use std::fmt::Debug;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -17,6 +18,7 @@ use tracing::{error, info, trace, warn};
 use crate::metrics::{
     register_scraper_metrics,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
@@ -148,6 +150,9 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
             L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.increment(1);
+            L1_GAS_PRICE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS.set_lossy(
+                SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
+            );
             *block_number += 1;
         }
         Ok(())
