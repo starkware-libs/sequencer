@@ -145,6 +145,7 @@ impl StarknetResources {
                 calldata_length,
                 signature_length,
                 code_size,
+                proof_facts_length: 0,
             },
             messages: MessageResources::new(
                 execution_summary_without_fee_transfer.l2_to_l1_payload_lengths,
@@ -250,6 +251,7 @@ pub struct ArchivalDataResources {
     pub calldata_length: usize,
     pub signature_length: usize,
     pub code_size: usize,
+    pub proof_facts_length: usize,
 }
 
 impl ArchivalDataResources {
