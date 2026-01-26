@@ -98,7 +98,7 @@
   "components.l1_provider.remote_server_config.#is_none": true,
   "components.l1_provider.url": "$$$_COMPONENTS-L1_PROVIDER-URL_$$$",
   "components.l1_scraper.execution_mode": "Disabled",
-  "components.mempool.execution_mode": "Disabled",
+  "components.mempool.execution_mode": "Noop",
   "components.mempool.local_server_config.#is_none": true,
   "components.mempool.max_concurrency": 128,
   "components.mempool.port": 0,
