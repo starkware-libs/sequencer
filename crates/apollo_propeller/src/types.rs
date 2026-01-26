@@ -6,6 +6,7 @@ use thiserror::Error;
 use crate::MerkleHash;
 
 /// Events emitted by the Propeller protocol to the application layer.
+#[derive(Debug)]
 pub enum Event {
     /// A complete message has been reconstructed from shards.
     MessageReceived {
