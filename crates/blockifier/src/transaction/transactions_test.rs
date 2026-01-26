@@ -623,6 +623,7 @@ fn test_invoke_tx(
     // transaction.
     let calldata_length = invoke_tx.calldata_length();
     let signature_length = invoke_tx.signature_length();
+    let proof_facts_length = invoke_tx.proof_facts_length();
     let state_changes_for_fee = StateChangesCount {
         n_storage_updates: 1,
         n_modified_contracts: 1,
@@ -635,8 +636,7 @@ fn test_invoke_tx(
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
-        // TODO(AvivG): Test non-zero proof facts length after invoke_tx supports retrieving it.
-        0,
+        proof_facts_length,
     );
     let sender_address = invoke_tx.sender_address();
 
