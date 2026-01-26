@@ -57,6 +57,15 @@ class ResyncTrigger(ResyncTriggerPayload):
 ResyncTriggerMap: TypeAlias = dict[str, ResyncTrigger]  # tx_hash -> metadata
 
 
+class RevertErrorInfo(TypedDict):
+    block_number: int
+    error: str
+
+
+def create_revert_error_info(block_number: int, error: str) -> RevertErrorInfo:
+    return {"block_number": int(block_number), "error": error}
+
+
 class TxType(str, Enum):
     """
     Starknet transaction types as represented in JSON payloads.
