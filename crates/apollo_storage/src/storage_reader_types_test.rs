@@ -311,3 +311,17 @@ async fn nonces_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
     assert_eq!(response, StorageReaderResponse::Nonces(*nonce));
 }
+
+#[tokio::test]
+async fn nonces_request() {
+    let block_number = BlockNumber(0);
+    let setup = setup_test_server(block_number, unique_u16!());
+
+    // Extract the test data from the state diff
+    let (contract_address, nonce) = setup.state_diff.nonces.iter().next().unwrap();
+
+    // Request the nonce value
+    let request = StorageReaderRequest::Nonces(*contract_address, block_number);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+    assert_eq!(response, StorageReaderResponse::Nonces(*nonce));
+}
