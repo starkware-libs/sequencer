@@ -31,7 +31,6 @@ apollo_proc_macros.workspace = true
 apollo_rpc.workspace = true
 apollo_state_sync_types.workspace = true
 async-trait.workspace = true
-axum.workspace = true
 blockifier.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
