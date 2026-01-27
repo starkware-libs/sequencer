@@ -33,7 +33,7 @@ use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageReader, StorageScope, StorageTxn};
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::server::middleware::rpc::RpcServiceBuilder;
-use jsonrpsee::server::{Server, ServerHandle};
+use jsonrpsee::server::{Server, ServerConfig, ServerHandle};
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
 use jsonrpsee::types::ErrorObjectOwned;
@@ -44,6 +44,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockStatus};
 use starknet_api::core::ChainId;
 use tokio::sync::RwLock;
+use tower_05::ServiceBuilder;
 use tracing::{debug, error, info, instrument};
 // Aliasing the latest version of the RPC.
 use v0_8 as latest;
@@ -244,9 +245,10 @@ pub async fn run_server(
     );
     let addr;
     let handle;
+    let server_config = ServerConfig::builder().max_request_body_size(SERVER_MAX_BODY_SIZE).build();
     let server_builder = Server::builder()
-        .max_request_body_size(SERVER_MAX_BODY_SIZE)
-        .set_http_middleware(tower::ServiceBuilder::new().filter_async(proxy_rpc_request));
+        .set_config(server_config)
+        .set_http_middleware(ServiceBuilder::new().filter_async(proxy_rpc_request));
 
     let server_address = SocketAddr::new(config.ip, config.port);
 

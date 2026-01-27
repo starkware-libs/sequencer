@@ -1,7 +1,7 @@
 use jsonrpsee::core::http_helpers::read_body;
 use jsonrpsee::server::HttpRequest;
 use regex::Regex;
-use tower::BoxError;
+use tower_05::BoxError;
 use tracing::debug;
 
 use crate::version_config::{VERSION_0_8, VERSION_PATTERN};
