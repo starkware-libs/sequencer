@@ -28,7 +28,7 @@ pub enum EngineCommand {
     },
     UnregisterChannel {
         channel: Channel,
-        response: oneshot::Sender<Result<(), ()>>,
+        response: oneshot::Sender<bool>,
     },
     Broadcast {
         channel: Channel,
@@ -138,9 +138,8 @@ impl Engine {
 
     /// Unregister a channel.
     #[allow(clippy::result_unit_err)] // TODO(AndrewL): remove this
-    pub fn unregister_channel(&mut self, channel: Channel) -> Result<(), ()> {
-        self.channels.remove(&channel).ok_or(())?;
-        Ok(())
+    pub fn unregister_channel(&mut self, channel: Channel) -> bool {
+        self.channels.remove(&channel).is_some()
     }
 
     fn get_public_key(
