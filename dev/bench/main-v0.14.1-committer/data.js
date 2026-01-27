@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769444746927,
+  "lastUpdate": 1769505398919,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -679,6 +679,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1292.29200338,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3df44fb81d038d111e59317fbfa41628771f5bab",
+          "message": "apollo_infra: use unique ports macro (#11902)",
+          "timestamp": "2026-01-27T08:47:43Z",
+          "tree_id": "715d6009930825ad972a5ac8a107d548b3836487",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3df44fb81d038d111e59317fbfa41628771f5bab"
+        },
+        "date": 1769505398594,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 861.8562945900001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1308.36599233,
             "unit": "ms"
           }
         ]
