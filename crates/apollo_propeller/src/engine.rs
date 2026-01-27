@@ -218,6 +218,22 @@ impl Engine {
         self.emit_output(EngineOutput::GenerateEvent(event)).await;
     }
 
+    async fn handle_broadcaster_result(
+        &mut self,
+        result: Result<Vec<PropellerUnit>, ShardPublishError>,
+    ) {
+        match result {
+            Ok(units) => {
+                // TODO(AndrewL): Implement sending units to peers
+                let _ = units;
+                todo!()
+            }
+            Err(error) => {
+                self.emit_event(Event::ShardPublishFailed { error }).await;
+            }
+        }
+    }
+
     fn get_public_key(
         &self,
         peer_id: PeerId,
@@ -244,6 +260,11 @@ impl Engine {
                 // Handle commands from Behaviour
                 Some(cmd) = commands_rx.recv() => {
                     self.handle_command(cmd).await;
+                }
+
+                // Process broadcaster results
+                Some(result) = self.broadcaster_results_rx.recv() => {
+                    self.handle_broadcaster_result(result).await;
                 }
 
                 else => {
