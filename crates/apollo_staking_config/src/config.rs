@@ -3,7 +3,24 @@ use std::collections::BTreeMap;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ContractAddress;
+use starknet_api::staking::StakingWeight;
+use starknet_types_core::felt::Felt;
 use validator::Validate;
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct ConfiguredStaker {
+    pub address: ContractAddress,
+    pub weight: StakingWeight,
+    pub public_key: Felt,
+    pub can_propose: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct StakersConfig {
+    pub start_epoch: u64,
+    pub stakers: Vec<ConfiguredStaker>,
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerConfig {
@@ -20,22 +37,41 @@ impl SerializeConfig for StakingManagerConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Default, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct StakingManagerDynamicConfig {
     // The desired number of committee members to select from the available stakers.
     // If there are fewer stakers than `committee_size`, a smaller committee will be selected.
     // TODO(Dafna): Add an epoch, from which this config should be applied.
     pub committee_size: usize,
+
+    // Defines the set of stakers per epoch.
+    // Used by `MockStakingContract` and `StakingManager` to determine eligible proposers.
+    // Each entry applies from its start_epoch until overridden by a later entry.
+    pub stakers_config: Vec<StakersConfig>,
+}
+
+impl Default for StakingManagerDynamicConfig {
+    fn default() -> Self {
+        Self { committee_size: 100, stakers_config: Vec::new() }
+    }
 }
 
 impl SerializeConfig for StakingManagerDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "committee_size",
-            &self.committee_size,
-            "The desired number of committee members to select from the available stakers",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([
+            ser_param(
+                "committee_size",
+                &self.committee_size,
+                "The desired number of committee members to select from the available stakers",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "stakers_config",
+                &self.stakers_config,
+                "Defines the set of stakers per epoch.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
