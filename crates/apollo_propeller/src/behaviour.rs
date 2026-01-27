@@ -28,6 +28,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::config::Config;
 use crate::engine::{Engine, EngineCommand, EngineOutput};
 use crate::handler::Handler;
+use crate::metrics::PropellerMetrics;
 use crate::tree::Stake;
 use crate::types::{Channel, Event, PeerSetError, ShardPublishError};
 
@@ -44,10 +45,18 @@ pub struct Behaviour {
 
 impl Behaviour {
     pub fn new(keypair: Keypair, config: Config) -> Self {
+        Self::new_with_metrics(keypair, config, None)
+    }
+
+    pub fn new_with_metrics(
+        keypair: Keypair,
+        config: Config,
+        metrics: Option<PropellerMetrics>,
+    ) -> Self {
         let (engine_commands_tx, engine_commands_rx) = mpsc::unbounded_channel();
         let (engine_outputs_tx, engine_outputs_rx) = mpsc::unbounded_channel();
         let engine =
-            Engine::new(keypair, config.clone(), engine_commands_rx, engine_outputs_tx, None);
+            Engine::new(keypair, config.clone(), engine_commands_rx, engine_outputs_tx, metrics);
         tokio::spawn(async move {
             engine.run().await;
         });
