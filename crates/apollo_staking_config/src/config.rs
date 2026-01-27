@@ -22,7 +22,7 @@ pub struct StakersConfig {
     pub stakers: Vec<ConfiguredStaker>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerConfig {
     pub dynamic_config: StakingManagerDynamicConfig,
     pub static_config: StakingManagerStaticConfig,
@@ -85,6 +85,12 @@ pub struct StakingManagerStaticConfig {
     // TODO(Dafna): get the block hash of the first block in the previous epoch and remove this
     // field.
     pub proposer_prediction_window_in_heights: u64,
+}
+
+impl Default for StakingManagerStaticConfig {
+    fn default() -> Self {
+        Self { max_cached_epochs: 10, proposer_prediction_window_in_heights: 10 }
+    }
 }
 
 impl SerializeConfig for StakingManagerStaticConfig {
