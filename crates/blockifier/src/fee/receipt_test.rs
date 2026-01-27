@@ -391,6 +391,7 @@ fn test_calculate_tx_gas_usage(
     });
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
+    let proof_facts_length = account_tx.proof_facts_length();
     let fee_token_address = chain_info.fee_token_address(&account_tx.fee_type());
     let tx_execution_info = account_tx.execute(state, block_context).unwrap();
 
@@ -410,7 +411,7 @@ fn test_calculate_tx_gas_usage(
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         ExecutionSummary::default(),
-        0,
+        proof_facts_length,
     );
 
     assert_eq!(
@@ -447,6 +448,7 @@ fn test_calculate_tx_gas_usage(
 
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
+    let proof_facts_length = account_tx.proof_facts_length();
     let tx_execution_info = account_tx.execute(state, block_context).unwrap();
     // For the balance update of the sender and the recipient.
     let n_storage_updates = 2;
@@ -471,7 +473,7 @@ fn test_calculate_tx_gas_usage(
         None,
         // The transfer entrypoint emits an event - pass the call info to count its resources.
         execution_summary,
-        0,
+        proof_facts_length,
     );
 
     assert_eq!(
