@@ -587,7 +587,10 @@ fn time_to_sleep_between_iterations(
         .timestamp
         .0;
     let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
-    u128::from(next_block_timestamp + time_offset).saturating_sub(now).try_into().unwrap()
+    (u128::from(next_block_timestamp + time_offset) * 1000_u128)
+        .saturating_sub(now)
+        .try_into()
+        .unwrap()
 }
 
 async fn maybe_sleep_between_iterations(
