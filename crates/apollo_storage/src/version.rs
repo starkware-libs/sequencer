@@ -61,12 +61,12 @@ where
 impl<Mode: TransactionKind> VersionStorageReader for StorageTxn<'_, Mode> {
     fn get_state_version(&self) -> StorageResult<Option<Version>> {
         let version_table = self.open_table(&self.tables.storage_version)?;
-        Ok(version_table.get(&self.txn, &VERSION_STATE_KEY.to_string())?)
+        Ok(version_table.get(&self.txn(), &VERSION_STATE_KEY.to_string())?)
     }
 
     fn get_blocks_version(&self) -> StorageResult<Option<Version>> {
         let version_table = self.open_table(&self.tables.storage_version)?;
-        Ok(version_table.get(&self.txn, &VERSION_BLOCKS_KEY.to_string())?)
+        Ok(version_table.get(&self.txn(), &VERSION_BLOCKS_KEY.to_string())?)
     }
 }
 
@@ -91,7 +91,7 @@ impl VersionStorageWriter for StorageTxn<'_, RW> {
                 ));
             };
         }
-        version_table.upsert(&self.txn, &VERSION_STATE_KEY.to_string(), version)?;
+        version_table.upsert(&self.txn(), &VERSION_STATE_KEY.to_string(), version)?;
         Ok(self)
     }
 
@@ -116,12 +116,12 @@ impl VersionStorageWriter for StorageTxn<'_, RW> {
                 ));
             };
         }
-        version_table.upsert(&self.txn, &VERSION_BLOCKS_KEY.to_string(), version)?;
+        version_table.upsert(&self.txn(), &VERSION_BLOCKS_KEY.to_string(), version)?;
         Ok(self)
     }
     fn delete_blocks_version(self) -> StorageResult<Self> {
         let version_table = self.open_table(&self.tables.storage_version)?;
-        version_table.delete(&self.txn, &VERSION_BLOCKS_KEY.to_string())?;
+        version_table.delete(&self.txn(), &VERSION_BLOCKS_KEY.to_string())?;
         Ok(self)
     }
 }

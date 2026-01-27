@@ -35,7 +35,7 @@ where
 impl<Mode: TransactionKind> BlockHashStorageReader for StorageTxn<'_, Mode> {
     fn get_block_hash(&self, block_number: &BlockNumber) -> StorageResult<Option<BlockHash>> {
         let table = self.open_table(&self.tables.block_hashes)?;
-        Ok(table.get(&self.txn, block_number)?)
+        Ok(table.get(&self.txn(), block_number)?)
     }
 }
 
@@ -46,13 +46,13 @@ impl BlockHashStorageWriter for StorageTxn<'_, RW> {
         block_hash: BlockHash,
     ) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.block_hashes)?;
-        table.upsert(&self.txn, block_number, &block_hash)?;
+        table.upsert(&self.txn(), block_number, &block_hash)?;
         Ok(self)
     }
 
     fn revert_block_hash(self, target_block_number: &BlockNumber) -> StorageResult<Self> {
         let block_hash_table = self.open_table(&self.tables.block_hashes)?;
-        block_hash_table.delete(&self.txn, target_block_number)?;
+        block_hash_table.delete(&self.txn(), target_block_number)?;
         Ok(self)
     }
 }

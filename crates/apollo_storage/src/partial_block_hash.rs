@@ -46,7 +46,7 @@ impl<Mode: TransactionKind> PartialBlockHashComponentsStorageReader for StorageT
         block_number: &BlockNumber,
     ) -> StorageResult<Option<PartialBlockHashComponents>> {
         let table = self.open_table(&self.tables.partial_block_hashes_components)?;
-        Ok(table.get(&self.txn, block_number)?)
+        Ok(table.get(&self.txn(), block_number)?)
     }
 }
 
@@ -57,7 +57,7 @@ impl PartialBlockHashComponentsStorageWriter for StorageTxn<'_, RW> {
         partial_block_hash: &PartialBlockHashComponents,
     ) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.partial_block_hashes_components)?;
-        table.insert(&self.txn, block_number, partial_block_hash)?;
+        table.insert(&self.txn(), block_number, partial_block_hash)?;
         Ok(self)
     }
 
@@ -66,7 +66,7 @@ impl PartialBlockHashComponentsStorageWriter for StorageTxn<'_, RW> {
         block_number: &BlockNumber,
     ) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.partial_block_hashes_components)?;
-        table.delete(&self.txn, block_number)?;
+        table.delete(&self.txn(), block_number)?;
         Ok(self)
     }
 }

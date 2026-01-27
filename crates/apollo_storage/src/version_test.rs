@@ -205,7 +205,7 @@ fn open_storage_state_only_different_blocks_major_versions() {
 fn change_storage_version(writer: &mut StorageWriter, version_key: &str, version: &Version) {
     let wtxn = writer.begin_rw_txn().unwrap();
     let version_table = wtxn.open_table(&wtxn.tables.storage_version).unwrap();
-    version_table.upsert(&wtxn.txn, &version_key.to_string(), version).unwrap();
+    version_table.upsert(wtxn.txn(), &version_key.to_string(), version).unwrap();
     wtxn.commit().unwrap();
 }
 

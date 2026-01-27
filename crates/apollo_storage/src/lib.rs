@@ -164,6 +164,7 @@ use crate::db::{
     DbReader,
     DbTransaction,
     DbWriter,
+    OwnedDbWriteTransaction,
     TableHandle,
     TableIdentifier,
     TransactionKind,
@@ -277,7 +278,16 @@ fn open_storage_internal(
         file_readers,
         open_readers_metric,
     };
-    let writer = StorageWriter { db_writer, tables, scope: storage_config.scope, file_writers };
+    let writer = StorageWriter {
+        db_writer,
+        tables,
+        scope: storage_config.scope,
+        file_writers,
+        active_txn: None,
+        batching_enabled: storage_config.batch_config.enabled,
+        batch_size: storage_config.batch_config.batch_size,
+        commit_counter: 0,
+    };
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
@@ -476,6 +486,21 @@ pub enum StorageScope {
     StateOnly,
 }
 
+/// Configuration for transaction batching.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct BatchConfig {
+    /// Whether batching is enabled.
+    pub enabled: bool,
+    /// Number of logical commits before actual MDBX commit.
+    pub batch_size: usize,
+}
+
+impl Default for BatchConfig {
+    fn default() -> Self {
+        Self { enabled: false, batch_size: 100 }
+    }
+}
+
 /// A struct for starting RO transactions ([`StorageTxn`]) to the storage.
 #[derive(Clone)]
 pub struct StorageReader {
@@ -527,19 +552,45 @@ pub struct StorageWriter {
     file_writers: FileHandlers<RW>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    #[allow(dead_code)]
+    active_txn: Option<OwnedDbWriteTransaction>,
+    batching_enabled: bool,
+    #[allow(dead_code)]
+    batch_size: usize,
+    /// Counter tracking the number of logical commits in the current batch.
+    #[allow(dead_code)]
+    commit_counter: usize,
 }
 
 impl StorageWriter {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading and modifying data in the storage.
     pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxn<'_, RW>> {
-        Ok(StorageTxn::new(
-            self.db_writer.begin_rw_txn()?,
-            self.file_writers.clone(),
-            self.tables.clone(),
-            self.scope,
-            MetricsHandler::new(None),
-        ))
+        if self.batching_enabled {
+            // Batching mode: create persistent transaction if it doesn't exist.
+            if self.active_txn.is_none() {
+                self.active_txn = Some(self.db_writer.begin_persistent_rw_txn()?);
+            }
+
+            // Borrow from the persistent transaction.
+            let active_txn = self.active_txn.as_ref().unwrap();
+            Ok(StorageTxn::new_borrowed(
+                &active_txn.txn,
+                self.file_writers.clone(),
+                self.tables.clone(),
+                self.scope,
+                MetricsHandler::new(None),
+            ))
+        } else {
+            // Non-batching mode: create new transaction each time.
+            Ok(StorageTxn::new(
+                self.db_writer.begin_rw_txn()?,
+                self.file_writers.clone(),
+                self.tables.clone(),
+                self.scope,
+                MetricsHandler::new(None),
+            ))
+        }
     }
 }
 
@@ -567,10 +618,20 @@ impl Drop for MetricsHandler {
     }
 }
 
+/// Holds either an owned or borrowed database transaction.
+///
+/// This enum enables `StorageTxn` to work in two modes:
+/// - `Owned`: Non-batching mode where each `StorageTxn` owns its transaction.
+/// - `Borrowed`: Batching mode where multiple `StorageTxn`s share a persistent transaction.
+enum TxnHolder<'env, Mode: TransactionKind> {
+    Owned(DbTransaction<'env, Mode>),
+    Borrowed(&'env DbTransaction<'env, Mode>),
+}
+
 /// A struct for interacting with the storage.
 /// The actually functionality is implemented on the transaction in multiple traits.
 pub struct StorageTxn<'env, Mode: TransactionKind> {
-    txn: DbTransaction<'env, Mode>,
+    txn_holder: TxnHolder<'env, Mode>,
     file_handlers: FileHandlers<Mode>,
     tables: Arc<Tables>,
     scope: StorageScope,
@@ -583,11 +644,26 @@ impl StorageTxn<'_, RW> {
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(self) -> StorageResult<()> {
         self.file_handlers.flush();
-        Ok(self.txn.commit()?)
+        match self.txn_holder {
+            TxnHolder::Owned(txn) => Ok(txn.commit()?),
+            TxnHolder::Borrowed(_) => {
+                // In batching mode, don't commit - the persistent transaction
+                // remains active. A callback to StorageWriter will check the commit_counter
+                // and perform the actual commit when the batch limit is reached.
+                Ok(())
+            }
+        }
     }
 }
 
 impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
+    fn txn(&self) -> &DbTransaction<'env, Mode> {
+        match &self.txn_holder {
+            TxnHolder::Owned(txn) => txn,
+            TxnHolder::Borrowed(txn) => txn,
+        }
+    }
+
     fn new(
         txn: DbTransaction<'env, Mode>,
         file_handlers: FileHandlers<Mode>,
@@ -595,7 +671,29 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         scope: StorageScope,
         metric_updater: MetricsHandler,
     ) -> Self {
-        Self { txn, file_handlers, tables, scope, _metric_updater: metric_updater }
+        Self {
+            txn_holder: TxnHolder::Owned(txn),
+            file_handlers,
+            tables,
+            scope,
+            _metric_updater: metric_updater,
+        }
+    }
+
+    fn new_borrowed(
+        txn: &'env DbTransaction<'env, Mode>,
+        file_handlers: FileHandlers<Mode>,
+        tables: Arc<Tables>,
+        scope: StorageScope,
+        metric_updater: MetricsHandler,
+    ) -> Self {
+        Self {
+            txn_holder: TxnHolder::Borrowed(txn),
+            file_handlers,
+            tables,
+            scope,
+            _metric_updater: metric_updater,
+        }
     }
 
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
@@ -615,7 +713,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
                 });
             }
         }
-        Ok(self.txn.open_table(table_id)?)
+        Ok(self.txn().open_table(table_id)?)
     }
 
     /// Returns the location of the state diff in the mmap file for the given block number.
@@ -624,7 +722,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         block_number: BlockNumber,
     ) -> StorageResult<Option<LocationInFile>> {
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
-        Ok(state_diffs_table.get(&self.txn, &block_number)?)
+        Ok(state_diffs_table.get(&self.txn(), &block_number)?)
     }
 
     /// Returns the thin state diff stored in the mmap file at the given location.
@@ -642,13 +740,13 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         block_number: BlockNumber,
     ) -> StorageResult<Option<Nonce>> {
         let nonces_table = self.open_table(&self.tables.nonces)?;
-        Ok(nonces_table.get(&self.txn, &(contract_address, block_number))?)
+        Ok(nonces_table.get(&self.txn(), &(contract_address, block_number))?)
     }
 
     /// Returns the file offset for a given offset kind.
     pub fn get_file_offset(&self, offset_kind: OffsetKind) -> StorageResult<Option<usize>> {
         let table = self.open_table(&self.tables.file_offsets)?;
-        Ok(table.get(&self.txn, &offset_kind)?)
+        Ok(table.get(&self.txn(), &offset_kind)?)
     }
 }
 
@@ -787,16 +885,32 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    #[serde(default)]
+    pub batch_config: BatchConfig,
 }
 
 impl SerializeConfig for StorageConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dumped_config = BTreeMap::from_iter([ser_param(
-            "scope",
-            &self.scope,
-            "The categories of data saved in storage.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dumped_config = BTreeMap::from_iter([
+            ser_param(
+                "scope",
+                &self.scope,
+                "The categories of data saved in storage.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "batch_config.enabled",
+                &self.batch_config.enabled,
+                "Whether transaction batching is enabled.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "batch_config.batch_size",
+                &self.batch_config.batch_size,
+                "Number of logical commits before actual MDBX commit.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dumped_config
             .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
         dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
