@@ -198,6 +198,10 @@ fn hash_map_into_builtin_weights(
 
     assert!(data.is_empty(), "Unexpected keys in builtin weights: {:?}", data.keys());
 
+    // TODO(Yonatan): Once blake gas cost is available in PyBouncer config, retrieve the value from
+    // there.
+    let blake2s = 3334;
+
     Ok(BuiltinWeights {
         gas_costs: BuiltinGasCosts {
             pedersen,
@@ -210,6 +214,7 @@ fn hash_map_into_builtin_weights(
             ecop,
             range_check96,
             poseidon,
+            blake2s,
         },
     })
 }
