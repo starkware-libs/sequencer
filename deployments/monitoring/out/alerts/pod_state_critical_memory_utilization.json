@@ -1,0 +1,80 @@
+{
+  "name": "pod_state_critical_memory_utilization",
+  "title": "Pod Critical Memory Utilization ( >85% )",
+  "orgId": 1,
+  "condition": "B",
+  "data": [
+    {
+      "refId": "A",
+      "queryType": "",
+      "relativeTimeRange": {
+        "from": 600,
+        "to": 0
+      },
+      "datasourceUid": "PBFA97CFB590B2093",
+      "model": {
+        "editorMode": "code",
+        "instant": true,
+        "intervalMs": 1000,
+        "legendFormat": "__auto",
+        "maxDataPoints": 43200,
+        "range": false,
+        "refId": "A",
+        "expr": "max(container_memory_working_set_bytes{namespace=\"test\", cluster=\"test\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{namespace=\"test\", cluster=\"test\"}) by (container, pod, namespace) * 100"
+      }
+    },
+    {
+      "refId": "B",
+      "queryType": "",
+      "relativeTimeRange": {
+        "from": 1,
+        "to": 0
+      },
+      "datasourceUid": "__expr__",
+      "model": {
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                85.0
+              ],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "reducer": {
+              "params": [],
+              "type": "avg"
+            },
+            "type": "query"
+          }
+        ],
+        "datasource": {
+          "name": "Expression",
+          "type": "__expr__",
+          "uid": "__expr__"
+        },
+        "expression": "A",
+        "hide": false,
+        "intervalMs": 1000,
+        "maxDataPoints": 43200,
+        "refId": "B",
+        "type": "threshold"
+      }
+    }
+  ],
+  "for": "30s",
+  "execErrState": "Error",
+  "noDataState": "NoData",
+  "folderUID": "",
+  "ruleGroup": "general",
+  "annotations": {},
+  "labels": {
+    "og_priority": "p2",
+    "environment": "testnet",
+    "observer_applicable": "true"
+  },
+  "isPaused": false,
+  "intervalSec": 30
+}

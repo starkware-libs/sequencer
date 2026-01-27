@@ -108,17 +108,27 @@ impl Serialize for ExpressionOrExpressionWithPlaceholder {
     where
         S: Serializer,
     {
-        match self {
+        let serialization = match self {
             ExpressionOrExpressionWithPlaceholder::ConcreteValue(expression) => {
-                expression.serialize(serializer)
+                expression.to_string()
             }
-            ExpressionOrExpressionWithPlaceholder::Placeholder(template, placeholders) => {
-                format_alert_placeholder(
-                    &template.format(placeholders.as_slice()),
-                    &EXPRESSION_CONTEXT.to_string(),
-                )
-                .serialize(serializer)
+            ExpressionOrExpressionWithPlaceholder::Placeholder(
+                expression_template,
+                placeholders,
+            ) => {
+                let formatted_placeholders = placeholders
+                    .iter()
+                    .map(|placeholder| {
+                        format_alert_placeholder(placeholder, &EXPRESSION_CONTEXT.to_string())
+                    })
+                    .collect::<Vec<String>>();
+                expression_template.format(&formatted_placeholders)
             }
-        }
+        };
+        // Grafana's alert evaluation does not substitute `$pod`. If we keep
+        // `pod=~"$pod"` in alert PromQL, rules may evaluate to empty/no-data and stop firing.
+        // TODO(Tsabary): set the pod string as a const and use it when generating the filtering
+        // to begin with.
+        serialization.replace(", pod=~\"$pod\"", "").serialize(serializer)
     }
 }
