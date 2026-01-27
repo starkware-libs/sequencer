@@ -147,7 +147,6 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                         .task_timer
                         .stop_timer(CommitterRequestLabelValue::CommitBlock, result.height());
                     if let Some(task_duration) = task_duration {
-                        // TODO(Rotem): add panels in the dashboard for the latency metrics.
                         COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY_HIST.record_lossy(task_duration);
                         COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.set_lossy(task_duration);
                     }

@@ -78,7 +78,6 @@ pub enum Unit {
     PercentUnit,
     MB,
     Microseconds,
-    #[allow(dead_code)] // TODO(Rotem): use in panels.
     Milliseconds,
 }
 
@@ -367,7 +366,6 @@ impl Panel {
         .with_legends(HISTOGRAM_QUANTILES.iter().map(|q| format!("{q:.2} {{{{{group_label}}}}}")))
     }
 
-    #[allow(dead_code)]
     pub(crate) fn from_gauge_and_hist(gauge: &MetricGauge, hist: &MetricHistogram) -> Self {
         // Current value from gauge
         let current_value = gauge.get_name_with_filter().to_string();
