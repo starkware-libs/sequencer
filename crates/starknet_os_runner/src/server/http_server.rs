@@ -53,6 +53,32 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
+/// Sanitizes an error message to prevent XSS attacks.
+///
+/// This function removes potentially dangerous characters from error messages
+/// before they are returned in HTTP responses. It:
+/// - Replaces double quotes with single quotes.
+/// - Removes angle brackets (< and >).
+/// - Keeps alphanumeric characters, spaces, and safe punctuation.
+fn sanitize_error_message(message: &str) -> String {
+    message
+        .chars()
+        .map(|c| match c {
+            '"' => '\'',
+            '<' | '>' => ' ',
+            _ => c,
+        })
+        .filter(|c| {
+            c.is_alphanumeric()
+                || c.is_whitespace()
+                || matches!(
+                    c,
+                    '.' | ',' | ':' | ';' | '!' | '?' | '-' | '_' | '(' | ')' | '[' | ']' | '\''
+                )
+        })
+        .collect()
+}
+
 /// Errors that can occur in the HTTP server.
 #[derive(Debug, thiserror::Error)]
 pub enum HttpServerError {
@@ -87,7 +113,9 @@ impl IntoResponse for HttpServerError {
             },
         };
 
-        let body = ErrorResponse { error_code: error_code.to_string(), message };
+        // Sanitize the error message to prevent XSS attacks.
+        let sanitized_message = sanitize_error_message(&message);
+        let body = ErrorResponse { error_code: error_code.to_string(), message: sanitized_message };
 
         (status, Json(body)).into_response()
     }
