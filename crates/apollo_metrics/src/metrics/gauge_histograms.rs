@@ -1,5 +1,6 @@
 use metrics::{describe_gauge, describe_histogram, gauge, histogram, IntoF64};
 
+use crate::metric_definitions::METRIC_LABEL_FILTER;
 use crate::metrics::{HasMetricDetails, LossyIntoF64, Metric, MetricDetails, MetricScope};
 
 const GAUGE_SUFFIX: &str = "_gauge";
@@ -31,6 +32,14 @@ impl MetricGaugeHistogram {
 
     pub fn get_histogram_name(&self) -> String {
         format!("{}{HISTOGRAM_SUFFIX}", self.metric.get_name())
+    }
+
+    pub fn get_gauge_name_with_filter(&self) -> String {
+        format!("{}{METRIC_LABEL_FILTER}", self.get_gauge_name())
+    }
+
+    pub fn get_histogram_name_with_filter(&self) -> String {
+        format!("{}_bucket{METRIC_LABEL_FILTER}", self.get_histogram_name())
     }
 
     /// Sets the gauge value and records it in the histogram.
