@@ -185,7 +185,7 @@ async fn revert_happy_flow() {
         .commit_block(commit_block_request(state_diff_1, Some(1), height))
         .await
         .unwrap()
-        .state_root;
+        .global_root;
 
     height = 1;
     committer.commit_block(commit_block_request(state_diff_2, Some(2), height)).await.unwrap();
@@ -211,7 +211,7 @@ async fn revert_to_invalid_global_root() {
         .commit_block(commit_block_request(1, Some(1), height_0))
         .await
         .unwrap()
-        .state_root;
+        .global_root;
 
     let height_1 = 1;
     committer.commit_block(commit_block_request(2, Some(2), height_1)).await.unwrap();
@@ -244,7 +244,7 @@ async fn revert_invalid_height() {
         .commit_block(commit_block_request(state_diff_1, Some(2), 1))
         .await
         .unwrap()
-        .state_root;
+        .global_root;
     let offset = height + 1;
 
     // Revert a future height.
