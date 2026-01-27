@@ -203,7 +203,7 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
 #[case::add_deprecated_gateway_invoke(unique_u16!(), deprecated_gateway_invoke_tx())]
 #[case::add_deprecated_gateway_deploy_account(unique_u16!(), deprecated_gateway_deploy_account_tx())]
 #[case::add_deprecated_gateway_declare(unique_u16!(), deprecated_gateway_declare_tx())]
-#[case::add_rpc_invoke(8, rpc_invoke_tx())]
+#[case::add_rpc_invoke(unique_u16!(), rpc_invoke_tx())]
 #[tokio::test]
 async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();
