@@ -2341,6 +2341,7 @@ name = "apollo_propeller"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_infra_utils",
+ "apollo_metrics",
  "apollo_protobuf",
  "asynchronous-codec",
  "futures",
