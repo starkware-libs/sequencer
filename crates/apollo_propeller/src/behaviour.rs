@@ -11,21 +11,31 @@
 use std::task::{Context, Poll};
 
 use libp2p::core::Endpoint;
-use libp2p::identity::{PeerId, PublicKey};
+use libp2p::identity::{Keypair, PeerId, PublicKey};
 use libp2p::swarm::behaviour::{ConnectionClosed, ConnectionEstablished, FromSwarm};
 use libp2p::swarm::{
     ConnectionDenied,
     ConnectionId,
     NetworkBehaviour,
+    NotifyHandler,
     THandler,
     THandlerInEvent,
     THandlerOutEvent,
     ToSwarm,
 };
+use tokio::sync::{mpsc, oneshot};
 
 use crate::config::Config;
-use crate::handler::{Handler, HandlerOut};
+use crate::engine::{Engine, EngineCommand, EngineOutput};
+use crate::handler::Handler;
 use crate::types::{Channel, Event, MessageRoot, PeerSetError, ShardPublishError};
+
+fn send_unbounded(
+    engine_commands_tx: &mpsc::UnboundedSender<EngineCommand>,
+    command: EngineCommand,
+) {
+    engine_commands_tx.send(command).expect("Engine task has exited");
+}
 
 /// The Propeller network behaviour.
 ///
@@ -33,14 +43,20 @@ use crate::types::{Channel, Event, MessageRoot, PeerSetError, ShardPublishError}
 /// point for interacting with the Propeller protocol. It manages channel registrations,
 /// message broadcasting, and coordination with the underlying protocol engine.
 pub struct Behaviour {
-    /// Configuration for this behaviour.
     config: Config,
+    engine_commands_tx: mpsc::UnboundedSender<EngineCommand>,
+    engine_outputs_rx: mpsc::UnboundedReceiver<EngineOutput>,
 }
 
 impl Behaviour {
-    /// Create a new Propeller behaviour.
-    pub fn new(config: Config) -> Self {
-        Self { config }
+    pub fn new(keypair: Keypair, config: Config) -> Self {
+        let (commands_tx, commands_rx) = mpsc::unbounded_channel();
+        let (outputs_tx, outputs_rx) = mpsc::unbounded_channel();
+        let engine = Engine::new(keypair, config.clone(), outputs_tx);
+        tokio::spawn(async move {
+            engine.run(commands_rx).await;
+        });
+        Self { config, engine_commands_tx: commands_tx, engine_outputs_rx: outputs_rx }
     }
 
     // TODO(AndrewL): change register channel to return the channel id.
@@ -52,11 +68,14 @@ impl Behaviour {
     /// use `register_channel_peers_and_optional_keys` instead.
     pub async fn register_channel_peers(
         &mut self,
-        _channel: Channel,
-        _peers: Vec<(PeerId, u64)>,
+        channel: Channel,
+        peers: Vec<(PeerId, u64)>,
     ) -> Result<(), PeerSetError> {
-        // TODO(AndrewL): Forward to engine for channel peer registration
-        todo!()
+        self.register_channel_peers_and_optional_keys(
+            channel,
+            peers.into_iter().map(|(peer_id, weight)| (peer_id, weight, None)).collect(),
+        )
+        .await
     }
 
     /// Register peers for a channel with optional explicit public keys.
@@ -65,17 +84,25 @@ impl Behaviour {
     /// derived from peer IDs). Provide `None` for peers with embedded keys (Ed25519, Secp256k1).
     pub async fn register_channel_peers_and_optional_keys(
         &mut self,
-        _channel: Channel,
-        _peers: Vec<(PeerId, u64, Option<PublicKey>)>,
+        channel: Channel,
+        peers: Vec<(PeerId, u64, Option<PublicKey>)>,
     ) -> Result<(), PeerSetError> {
-        // TODO(AndrewL): Forward to engine for channel peer registration with optional keys
-        todo!()
+        let (tx, rx) = oneshot::channel();
+        send_unbounded(
+            &self.engine_commands_tx,
+            EngineCommand::RegisterChannelPeers { channel, peers, response: tx },
+        );
+        rx.await.expect("Engine task has exited")
     }
 
     /// Unregister a channel and clean up all associated state.
-    pub async fn unregister_channel(&mut self, _channel: Channel) -> Result<(), ()> {
-        // TODO(AndrewL): Forward to engine for channel unregistration
-        todo!()
+    pub async fn unregister_channel(&mut self, channel: Channel) -> Result<(), ()> {
+        let (tx, rx) = oneshot::channel();
+        send_unbounded(
+            &self.engine_commands_tx,
+            EngineCommand::UnregisterChannel { channel, response: tx },
+        );
+        rx.await.expect("Engine task has exited")
     }
 
     /// Broadcast a message to all peers in a channel using erasure coding.
@@ -83,11 +110,15 @@ impl Behaviour {
     /// Returns the Merkle root hash of the message, which serves as a unique identifier.
     pub async fn broadcast(
         &mut self,
-        _channel: Channel,
-        _message: Vec<u8>,
+        channel: Channel,
+        message: Vec<u8>,
     ) -> Result<MessageRoot, ShardPublishError> {
-        // TODO(AndrewL): Forward to engine for message broadcasting
-        todo!()
+        let (tx, rx) = oneshot::channel();
+        send_unbounded(
+            &self.engine_commands_tx,
+            EngineCommand::Broadcast { channel, message, response: tx },
+        );
+        rx.await.expect("Engine task has exited")
     }
 }
 
@@ -118,11 +149,29 @@ impl NetworkBehaviour for Behaviour {
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
         match event {
-            FromSwarm::ConnectionEstablished(ConnectionEstablished { .. }) => {
-                // TODO(AndrewL): Handle connection establishment
+            FromSwarm::ConnectionEstablished(ConnectionEstablished {
+                peer_id,
+                other_established,
+                ..
+            }) => {
+                if other_established == 0 {
+                    send_unbounded(
+                        &self.engine_commands_tx,
+                        EngineCommand::HandleConnected { peer_id },
+                    );
+                }
             }
-            FromSwarm::ConnectionClosed(ConnectionClosed { .. }) => {
-                // TODO(AndrewL): Handle connection closure
+            FromSwarm::ConnectionClosed(ConnectionClosed {
+                peer_id,
+                remaining_established,
+                ..
+            }) => {
+                if remaining_established == 0 {
+                    send_unbounded(
+                        &self.engine_commands_tx,
+                        EngineCommand::HandleDisconnected { peer_id },
+                    );
+                }
             }
             _ => {}
         }
@@ -130,25 +179,31 @@ impl NetworkBehaviour for Behaviour {
 
     fn on_connection_handler_event(
         &mut self,
-        _peer_id: PeerId,
+        peer_id: PeerId,
         _connection_id: ConnectionId,
         event: THandlerOutEvent<Self>,
     ) {
-        match event {
-            HandlerOut::Unit(_unit) => {
-                // TODO(AndrewL): Forward to engine for validation
-            }
-            HandlerOut::SendError(_error) => {
-                // TODO(AndrewL): Forward to engine for error handling
-            }
-        }
+        send_unbounded(
+            &self.engine_commands_tx,
+            EngineCommand::HandleHandlerOutput { peer_id, output: event },
+        );
     }
 
     fn poll(
         &mut self,
-        _cx: &mut Context<'_>,
+        cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
-        // TODO(AndrewL): Return the first (if exists) of any pending events
-        Poll::Pending
+        match self.engine_outputs_rx.poll_recv(cx) {
+            Poll::Ready(Some(output)) => Poll::Ready(match output {
+                EngineOutput::GenerateEvent(event) => ToSwarm::GenerateEvent(event),
+                EngineOutput::NotifyHandler { peer_id, event } => {
+                    ToSwarm::NotifyHandler { peer_id, handler: NotifyHandler::Any, event }
+                }
+            }),
+            Poll::Ready(None) => {
+                unreachable!("Engine task closed unexpectedly - this is a critical bug");
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
