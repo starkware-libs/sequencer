@@ -12,7 +12,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
-use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
+use starknet_api::{compiled_class_hash, contract_address, felt, nonce, storage_key};
 use tempfile::TempDir;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
@@ -65,6 +65,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     let contract_address = contract_address!("0x100");
     let storage_key = storage_key!("0x10");
     let storage_value = felt!("0x42");
+    let nonce_value = nonce!(0x5);
 
     let storage_diffs = IndexMap::from([(storage_key, storage_value)]);
 
@@ -82,6 +83,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
             compiled_class_hash!(1_u8),
         )]),
         deprecated_declared_classes: vec![deprecated_class_hash],
+        nonces: IndexMap::from([(contract_address, nonce_value)]),
         ..Default::default()
     };
 
@@ -249,4 +251,17 @@ async fn deprecated_declared_class_requests() {
         class_response,
         StorageReaderResponse::DeprecatedDeclaredClassesFromLocation(setup.deprecated_class)
     );
+}
+
+#[tokio::test]
+async fn nonces_request() {
+    let block_number = BlockNumber(0);
+    let setup = setup_test_server(block_number, unique_u16!());
+
+    // Extract the test data from the state diff
+    let (contract_address, nonce) = setup.state_diff.nonces.iter().next().unwrap();
+    // Request the nonce value
+    let request = StorageReaderRequest::Nonces(*contract_address, block_number);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+    assert_eq!(response, StorageReaderResponse::Nonces(*nonce));
 }
