@@ -1,7 +1,8 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
-use axum::http::StatusCode;
+// TODO(victork): finalise migration to hyper 1.x
+use axum_08::http::StatusCode;
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
 
