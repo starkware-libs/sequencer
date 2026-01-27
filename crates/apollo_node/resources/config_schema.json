@@ -2354,6 +2354,26 @@
     "pointer_target": "revert_config.should_revert",
     "privacy": "Public"
   },
+  "consensus_manager_config.staking_manager_config.dynamic_config.committee_size": {
+    "description": "The desired number of committee members to select from the available stakers",
+    "privacy": "Public",
+    "value": 100
+  },
+  "consensus_manager_config.staking_manager_config.dynamic_config.stakers_config": {
+    "description": "Defines the set of stakers per epoch.",
+    "privacy": "Public",
+    "value": "[]"
+  },
+  "consensus_manager_config.staking_manager_config.static_config.max_cached_epochs": {
+    "description": "The maximum number of epochs to cache",
+    "privacy": "Public",
+    "value": 10
+  },
+  "consensus_manager_config.staking_manager_config.static_config.proposer_prediction_window_in_heights": {
+    "description": "Defines how many heights in advance the proposer can be predicted",
+    "privacy": "Public",
+    "value": 10
+  },
   "consensus_manager_config.stream_handler_config.channel_buffer_capacity": {
     "description": "The capacity of the channel buffer for stream messages.",
     "privacy": "Public",
