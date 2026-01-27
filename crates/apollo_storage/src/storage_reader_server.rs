@@ -6,13 +6,15 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
-use axum::routing::post;
-use axum::{Json, Router};
+// TODO(victork): finalise migration to hyper 1.x
+use axum_08::extract::State;
+use axum_08::http::StatusCode;
+use axum_08::response::{IntoResponse, Response};
+use axum_08::routing::post;
+use axum_08::{Json, Router};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::net::TcpListener;
 use tokio::task::AbortHandle;
 use tracing::{error, info};
 use validator::Validate;
@@ -156,10 +158,12 @@ where
         info!("Storage reader server listening on {}", socket);
 
         // Start the server
-        axum::Server::bind(&socket).serve(app.into_make_service()).await.map_err(|e| {
+        let handle_error = |e: io::Error| {
             error!("Storage reader server error: {}", e);
-            StorageError::IOError(io::Error::other(e))
-        })
+            StorageError::IOError(e)
+        };
+        let listener = TcpListener::bind(&socket).await.map_err(handle_error)?;
+        axum_08::serve(listener, app).await.map_err(handle_error)
     }
 
     /// Spawns the storage reader server in a background task if it's enabled.
