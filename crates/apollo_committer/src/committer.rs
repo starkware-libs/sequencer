@@ -64,15 +64,20 @@ pub struct CommitBlockMock;
 
 #[async_trait]
 impl CommitBlockTrait for CommitBlockMock {
-    /// Sets the class trie root hash to the first class hash in the state diff.
+    /// Sets the class trie root hash to the first class hash in the state diff (sorted
+    /// deterministically).
     async fn commit_block<Reader: ForestReader + Send, TM: TimeMeasurementTrait + Send>(
         input: Input<Reader::InitialReadContext>,
         _trie_reader: &mut Reader,
         _time_measurement: &mut TM,
     ) -> BlockCommitmentResult<FilledForest> {
-        let root_class_hash = match input.state_diff.class_hash_to_compiled_class_hash.iter().next()
-        {
-            Some(class_hash) => HashOutput(class_hash.0.0),
+        // Sort class hashes deterministically to ensure all nodes get the same "first" class hash
+        let mut sorted_class_hashes: Vec<_> =
+            input.state_diff.class_hash_to_compiled_class_hash.keys().collect();
+        sorted_class_hashes.sort();
+
+        let root_class_hash = match sorted_class_hashes.first() {
+            Some(class_hash) => HashOutput(class_hash.0),
             None => HashOutput::ROOT_OF_EMPTY_TREE,
         };
         Ok(FilledForest {
