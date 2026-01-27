@@ -3,7 +3,7 @@ use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
-use starknet_api::transaction::fields::GasVectorComputationMode;
+use starknet_api::transaction::fields::{GasVectorComputationMode, ProofFacts};
 use starknet_api::transaction::{constants, L2ToL1Payload};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{invoke_tx_args, nonce};
@@ -367,7 +367,6 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
 // Test that we exclude the fee token contract modification and adds the account’s balance change
 // in the state changes.
-// TODO(AvivG): Test with non-zero proof facts length once it can be retrieved from the transaction.
 #[rstest]
 fn test_calculate_tx_gas_usage(
     #[values(false, true)] use_kzg_da: bool,
@@ -392,6 +391,7 @@ fn test_calculate_tx_gas_usage(
     });
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
+    let proof_facts_length = account_tx.proof_facts_length();
     let fee_token_address = chain_info.fee_token_address(&account_tx.fee_type());
     let tx_execution_info = account_tx.execute(state, block_context).unwrap();
 
@@ -411,7 +411,7 @@ fn test_calculate_tx_gas_usage(
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         ExecutionSummary::default(),
-        0,
+        proof_facts_length,
     );
 
     assert_eq!(
@@ -444,10 +444,12 @@ fn test_calculate_tx_gas_usage(
         sender_address: account_contract_address,
         calldata: execute_calldata,
         nonce: nonce!(1_u8),
+        proof_facts: ProofFacts::snos_proof_facts_for_testing(),
     });
 
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
+    let proof_facts_length = account_tx.proof_facts_length();
     let tx_execution_info = account_tx.execute(state, block_context).unwrap();
     // For the balance update of the sender and the recipient.
     let n_storage_updates = 2;
@@ -472,7 +474,7 @@ fn test_calculate_tx_gas_usage(
         None,
         // The transfer entrypoint emits an event - pass the call info to count its resources.
         execution_summary,
-        0,
+        proof_facts_length,
     );
 
     assert_eq!(
