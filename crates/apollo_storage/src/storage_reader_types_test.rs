@@ -7,7 +7,7 @@ use axum::Router;
 use indexmap::IndexMap;
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::{contract_address, felt, storage_key};
+use starknet_api::{contract_address, felt, nonce, storage_key};
 use tempfile::TempDir;
 
 use crate::state::StateStorageWriter;
@@ -36,10 +36,12 @@ fn setup_test_server(block_number: BlockNumber) -> (Router, StorageReader, ThinS
     let contract_address = contract_address!("0x100");
     let storage_key = storage_key!("0x10");
     let storage_value = felt!("0x42");
+    let nonce_value = nonce!(0x5);
 
     let storage_diffs = IndexMap::from([(storage_key, storage_value)]);
     let state_diff = ThinStateDiff {
         storage_diffs: IndexMap::from([(contract_address, storage_diffs)]),
+        nonces: IndexMap::from([(contract_address, nonce_value)]),
         ..Default::default()
     };
 
@@ -95,4 +97,18 @@ async fn contract_storage_request() {
     let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
 
     assert_eq!(response, StorageReaderResponse::ContractStorage(*storage_value));
+}
+
+#[tokio::test]
+async fn nonces_request() {
+    let block_number = BlockNumber(0);
+    let (app, _reader, state_diff, _temp_dir) = setup_test_server(block_number);
+
+    // Extract the test data from the state diff
+    let (contract_address, nonce) = state_diff.nonces.iter().next().unwrap();
+
+    // Request the nonce value
+    let request = StorageReaderRequest::Nonces(*contract_address, block_number);
+    let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
+    assert_eq!(response, StorageReaderResponse::Nonces(*nonce));
 }
