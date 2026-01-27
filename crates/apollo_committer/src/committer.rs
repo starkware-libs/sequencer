@@ -47,14 +47,15 @@ use tracing::{debug, error, info, warn};
 
 use crate::metrics::{
     register_metrics,
+    AVERAGE_COMPUTE_RATE,
+    AVERAGE_READ_RATE,
+    AVERAGE_WRITE_RATE,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
     OFFSET,
-    READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
-    WRITE_DB_ENTRIES_PER_BLOCK,
     WRITE_DURATION_PER_BLOCK,
 };
 
@@ -446,14 +447,22 @@ impl ComponentStarter for ApolloCommitter {
     }
 }
 
+#[allow(clippy::as_conversions)]
 fn update_metrics(
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
     READ_DURATION_PER_BLOCK.set_lossy(durations.read);
-    READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
+    if durations.read > 0.0 {
+        AVERAGE_READ_RATE.set_lossy(*n_reads as f64 / durations.read);
+    }
     COMPUTE_DURATION_PER_BLOCK.set_lossy(durations.compute);
+    if durations.compute > 0.0 {
+        AVERAGE_COMPUTE_RATE.set_lossy(*n_writes as f64 / durations.compute);
+    }
     WRITE_DURATION_PER_BLOCK.set_lossy(durations.write);
-    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
+    if durations.write > 0.0 {
+        AVERAGE_WRITE_RATE.set_lossy(*n_writes as f64 / durations.write);
+    }
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.contracts_trie);
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.classes_trie);

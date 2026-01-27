@@ -1,4 +1,7 @@
 use apollo_committer::metrics::{
+    AVERAGE_COMPUTE_RATE,
+    AVERAGE_READ_RATE,
+    AVERAGE_WRITE_RATE,
     COMPUTE_DURATION_PER_BLOCK,
     OFFSET,
     READ_DURATION_PER_BLOCK,
@@ -13,8 +16,11 @@ pub(crate) fn get_committer_row() -> Row {
         vec![
             Panel::from_gauge(&OFFSET, PanelType::TimeSeries),
             Panel::from_gauge_histogram(&READ_DURATION_PER_BLOCK).with_unit(Unit::Seconds),
+            Panel::from_gauge(&AVERAGE_READ_RATE, PanelType::TimeSeries),
             Panel::from_gauge_histogram(&COMPUTE_DURATION_PER_BLOCK).with_unit(Unit::Seconds),
+            Panel::from_gauge(&AVERAGE_COMPUTE_RATE, PanelType::TimeSeries),
             Panel::from_gauge_histogram(&WRITE_DURATION_PER_BLOCK).with_unit(Unit::Seconds),
+            Panel::from_gauge(&AVERAGE_WRITE_RATE, PanelType::TimeSeries),
         ],
     )
 }

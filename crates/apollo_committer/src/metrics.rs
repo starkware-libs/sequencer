@@ -39,9 +39,9 @@ define_metrics!(
             "Duration of the read operation per block in seconds"
         },
         MetricGauge {
-            READ_DB_ENTRIES_PER_BLOCK,
-            "read_db_entries_per_block",
-            "Number of read db entries per block"
+            AVERAGE_READ_RATE,
+            "average_read_rate",
+            "Reads per second average over a block"
         },
         MetricGaugeHistogram {
             WRITE_DURATION_PER_BLOCK,
@@ -49,14 +49,19 @@ define_metrics!(
             "Duration of the write operation per block in seconds"
         },
         MetricGauge {
-            WRITE_DB_ENTRIES_PER_BLOCK,
-            "write_db_entries_per_block",
-            "Number of write db entries per block"
+            AVERAGE_WRITE_RATE,
+            "average_write_rate",
+            "Writes per second average over a block"
         },
         MetricGaugeHistogram {
             COMPUTE_DURATION_PER_BLOCK,
             "compute_duration_per_block",
             "Duration of the compute operation per block in seconds"
+        },
+        MetricGauge {
+            AVERAGE_COMPUTE_RATE,
+            "average_compute_rate",
+            "Compute written entries per second average over a block"
         },
     },
 );
@@ -68,8 +73,8 @@ pub fn register_metrics(offset: BlockNumber) {
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.register();
     READ_DURATION_PER_BLOCK.register();
-    READ_DB_ENTRIES_PER_BLOCK.register();
+    AVERAGE_READ_RATE.register();
     WRITE_DURATION_PER_BLOCK.register();
-    WRITE_DB_ENTRIES_PER_BLOCK.register();
+    AVERAGE_WRITE_RATE.register();
     COMPUTE_DURATION_PER_BLOCK.register();
 }
