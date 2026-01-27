@@ -7,7 +7,7 @@ use axum::Router;
 use indexmap::IndexMap;
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::{contract_address, felt, storage_key};
+use starknet_api::{class_hash, contract_address, felt, storage_key};
 use tempfile::TempDir;
 
 use crate::state::StateStorageWriter;
@@ -37,8 +37,12 @@ fn setup_test_server(block_number: BlockNumber) -> (Router, StorageReader, ThinS
     let storage_key = storage_key!("0x10");
     let storage_value = felt!("0x42");
 
+    let deployed_contract_address = contract_address!("0x200");
+    let class_hash = class_hash!("0x1234");
+
     let storage_diffs = IndexMap::from([(storage_key, storage_value)]);
     let state_diff = ThinStateDiff {
+        deployed_contracts: IndexMap::from([(deployed_contract_address, class_hash)]),
         storage_diffs: IndexMap::from([(contract_address, storage_diffs)]),
         ..Default::default()
     };
@@ -95,4 +99,18 @@ async fn contract_storage_request() {
     let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
 
     assert_eq!(response, StorageReaderResponse::ContractStorage(*storage_value));
+}
+
+#[tokio::test]
+async fn deployed_contracts_request() {
+    let block_number = BlockNumber(0);
+    let (app, _reader, state_diff, _temp_dir) = setup_test_server(block_number);
+
+    let (contract_address, class_hash) = state_diff.deployed_contracts.iter().next().unwrap();
+
+    // Request the deployed contract's class hash
+    let request = StorageReaderRequest::DeployedContracts(*contract_address, block_number);
+    let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
+
+    assert_eq!(response, StorageReaderResponse::DeployedContracts(*class_hash));
 }
