@@ -210,7 +210,7 @@ pub(crate) struct Alert {
     #[serde(rename = "ruleGroup")]
     alert_group: AlertGroup,
     // The expression to evaluate for the alert.
-    expr: String,
+    expr: ExpressionOrExpressionWithPlaceholder,
     // The conditions that must be met for the alert to be triggered.
     conditions: Vec<AlertCondition>,
     // The time duration for which the alert conditions must be true before an alert is triggered.
@@ -270,10 +270,13 @@ impl Alert {
         };
 
         // Extract the expression and the placeholder names from the expression field.
-        let (expr, expr_placeholder_names) = match expr.into() {
-            ExpressionOrExpressionWithPlaceholder::ConcreteValue(expr) => (expr, vec![]),
-            ExpressionOrExpressionWithPlaceholder::Placeholder(template, placeholders) => {
-                (template.format(placeholders.as_slice()).to_string(), placeholders.clone())
+        let expr = expr.into();
+        let expr_placeholder_names = match &expr {
+            ExpressionOrExpressionWithPlaceholder::ConcreteValue(_) => {
+                vec![]
+            }
+            ExpressionOrExpressionWithPlaceholder::Placeholder(_, placeholders) => {
+                placeholders.clone()
             }
         };
 
@@ -292,11 +295,7 @@ impl Alert {
             name: name.to_string(),
             title: title.to_string(),
             alert_group,
-            // Grafana's alert evaluation does not substitute `$pod`. If we keep
-            // `pod=~"$pod"` in alert PromQL, rules may evaluate to empty/no-data and stop firing.
-            // TODO(Tsabary): set the pod string as a const and use it when generating the filtering
-            // to begin with.
-            expr: expr.replace(", pod=~\"$pod\"", ""),
+            expr,
             conditions,
             pending_duration: pending_duration.to_string(),
             evaluation_interval_sec,

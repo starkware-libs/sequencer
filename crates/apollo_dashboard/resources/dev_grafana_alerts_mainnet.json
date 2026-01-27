@@ -984,7 +984,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$CONSENSUS_BLOCK_NUMBER_STUCK-EXPRESSION$$$s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {

@@ -3,10 +3,14 @@ use std::time::Duration;
 use apollo_batcher::metrics::BATCHED_TRANSACTIONS;
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
+use apollo_infra_utils::template::Template;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_definitions::BLOCK_TIME_SEC;
-use crate::alert_placeholders::SeverityValueOrPlaceholder;
+use crate::alert_placeholders::{
+    ExpressionOrExpressionWithPlaceholder,
+    SeverityValueOrPlaceholder,
+};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -25,17 +29,21 @@ use crate::alerts::{
 fn get_consensus_block_number_stuck(
     alert_name: &'static str,
     alert_env_filtering: AlertEnvFiltering,
-    duration: Duration,
+    // TODO(Tsabary): remove the `_duration` argument.
+    _duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
+    let expr_template_string = format!(
+        "sum(increase({}[{{}}s])) or vector(0)",
+        CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+    );
     Alert::new(
         alert_name,
         "Consensus block number stuck",
         AlertGroup::Consensus,
-        format!(
-            "sum(increase({}[{}s])) or vector(0)",
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
-            duration.as_secs(),
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![alert_name.to_string()],
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
