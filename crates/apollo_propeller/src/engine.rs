@@ -13,6 +13,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
 use crate::message_processor::{StateManagerToEngine, UnitToValidate};
+use crate::sharding::prepare_units;
 use crate::signature;
 use crate::time_cache::TimeCache;
 use crate::tree::PropellerScheduleManager;
@@ -143,6 +144,55 @@ impl Engine {
         Ok(())
     }
 
+    /// Broadcast a message (returns immediately, result comes via stream).
+    pub(crate) async fn broadcast(
+        &mut self,
+        channel: Channel,
+        message: Vec<u8>,
+    ) -> Result<MessageRoot, ShardPublishError> {
+        // Validate channel exists.
+        let Some(tree_manager) = self.channels.get(&channel).map(|data| data.tree_manager.clone())
+        else {
+            return Err(ShardPublishError::ChannelNotRegistered(channel));
+        };
+
+        let publisher = self.local_peer_id;
+        let keypair = self.keypair.clone();
+
+        let num_data_shards = tree_manager.num_data_shards();
+        let num_coding_shards = tree_manager.num_coding_shards();
+        let tx = self.broadcaster_results_tx.clone();
+
+        let root = tokio::spawn(async move {
+            let (result_tx, result_rx) = oneshot::channel();
+
+            rayon::spawn(move || {
+                let r = prepare_units(
+                    channel,
+                    publisher,
+                    keypair,
+                    message,
+                    num_data_shards,
+                    num_coding_shards,
+                );
+                let _ = result_tx.send(r);
+            });
+
+            let r = result_rx.await.expect("Rayon task failed to send result");
+
+            let task_result = match &r {
+                Ok(units) => Ok(units[0].root()),
+                Err(error) => Err(error.clone()),
+            };
+            tx.send(r).expect("Engine task has exited");
+            task_result
+        })
+        .await
+        .expect("Failed to join prepare_units task");
+
+        root
+    }
+
     /// Handle a peer connection.
     pub(crate) fn handle_connected(&mut self, peer_id: PeerId) {
         self.connected_peers.insert(peer_id);
@@ -223,9 +273,8 @@ impl Engine {
                     .expect("UnregisterChannel response channel dropped - receiver gone");
             }
             EngineCommand::Broadcast { channel, message, response } => {
-                // TODO(AndrewL): Implement message broadcasting
-                let _ = (channel, message, response);
-                todo!()
+                let result = self.broadcast(channel, message).await;
+                response.send(result).expect("Broadcast response channel dropped - receiver gone");
             }
             EngineCommand::HandleHandlerOutput { peer_id, output } => match output {
                 HandlerOut::Unit(unit) => {
