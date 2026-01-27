@@ -25,7 +25,7 @@ fn available_ports_factory(instance_index: u16) -> AvailablePorts {
 }
 
 #[tokio::test]
-async fn state_diff_location_request() {
+async fn state_diffs_requests() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();
 
     // Add a test state diff at block 0
@@ -49,6 +49,7 @@ async fn state_diff_location_request() {
     let server = GenericStorageReaderServer::new(reader.clone(), config);
     let app = server.app();
 
+    // Get the location of the state diff
     let expected_location = reader
         .begin_ro_txn()
         .unwrap()
@@ -56,8 +57,22 @@ async fn state_diff_location_request() {
         .unwrap()
         .expect("State diff location should exist");
 
-    let request = StorageReaderRequest::StateDiffsLocation(block_number);
-    let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
+    let location_request = StorageReaderRequest::StateDiffsLocation(block_number);
+    let location_response: StorageReaderResponse =
+        get_response(app.clone(), &location_request, StatusCode::OK).await;
 
-    assert_eq!(response, StorageReaderResponse::StateDiffsLocation(expected_location));
+    let location = match location_response {
+        StorageReaderResponse::StateDiffsLocation(loc) => {
+            assert_eq!(loc, expected_location);
+            loc
+        }
+        _ => panic!("Expected StateDiffsLocation response"),
+    };
+
+    // Get the state diff using the location
+    let state_diff_request = StorageReaderRequest::StateDiffsFromLocation(location);
+    let state_diff_response: StorageReaderResponse =
+        get_response(app, &state_diff_request, StatusCode::OK).await;
+
+    assert_eq!(state_diff_response, StorageReaderResponse::StateDiffsFromLocation(test_state_diff));
 }
