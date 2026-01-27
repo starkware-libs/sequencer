@@ -1499,7 +1499,6 @@ dependencies = [
  "apollo_test_utils",
  "assert_matches",
  "async-trait",
- "axum 0.6.20",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-sierra-to-casm",
