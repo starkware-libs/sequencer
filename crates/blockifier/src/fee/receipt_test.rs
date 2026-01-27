@@ -367,8 +367,6 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
 // Test that we exclude the fee token contract modification and adds the account’s balance change
 // in the state changes.
-// TODO(AvivG): Consider testing with non-zero proof facts length once it can be retrieved from the
-// transaction.
 #[rstest]
 fn test_calculate_tx_gas_usage(
     #[values(false, true)] use_kzg_da: bool,
