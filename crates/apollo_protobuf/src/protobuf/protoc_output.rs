@@ -371,6 +371,8 @@ pub struct Vote {
     pub proposal_commitment: ::core::option::Option<Hash>,
     #[prost(message, optional, tag = "6")]
     pub voter: ::core::option::Option<Address>,
+    #[prost(message, optional, tag = "7")]
+    pub signature: ::core::option::Option<Hashes>,
 }
 /// Nested message and enum types in `Vote`.
 pub mod vote {

@@ -12,6 +12,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote, VoteType};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::crypto::utils::RawSignature;
 use tracing::{debug, info, trace, warn};
 
 use crate::metrics::{
@@ -231,6 +232,8 @@ impl StateMachine {
             round: self.round,
             proposal_commitment,
             voter: self.id,
+            // TODO(Asmaa): sign the vote
+            signature: RawSignature::default(),
         };
         let mut output = VecDeque::new();
         // Only non-observers record and track self-votes.

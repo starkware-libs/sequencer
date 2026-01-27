@@ -240,6 +240,7 @@ impl SingleHeightConsensus {
         leader_election: &LeaderElection<'_>,
         vote: Vote,
     ) -> Requests {
+        // TODO(Asmaa): verify the signature
         trace!("Received {:?}", vote);
         let height = self.state_machine.height();
         if vote.height != height {
