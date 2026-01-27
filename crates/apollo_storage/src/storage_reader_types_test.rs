@@ -18,10 +18,13 @@ use starknet_api::transaction::TransactionOffsetInBlock;
 use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
 use tempfile::TempDir;
 
+use crate::base_layer::BaseLayerStorageReader;
 use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::class::{ClassStorageReader, ClassStorageWriter};
+use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
-use crate::state::StateStorageWriter;
+use crate::header::{HeaderStorageReader, HeaderStorageWriter};
+use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::storage_reader_server::ServerConfig;
 use crate::storage_reader_server_test_utils::get_response;
 use crate::storage_reader_types::{
@@ -30,7 +33,7 @@ use crate::storage_reader_types::{
     StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
-use crate::StorageReader;
+use crate::{MarkerKind, StorageReader};
 
 const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
 
@@ -97,7 +100,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     };
 
     // Create a test block with transactions
-    let block = get_test_block(3, None, None, None);
+    let block = get_test_block(3, Some(1), None, None);
     let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(0));
 
     writer
@@ -112,6 +115,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         )
         .unwrap()
         .append_casm(&casm_class_hash, &expected_casm)
+        .unwrap()
+        .append_header(block_number, &block.header)
         .unwrap()
         .append_body(block_number, block.body)
         .unwrap()
@@ -326,4 +331,41 @@ async fn transaction_metadata_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::TransactionMetadata(expected_metadata));
+}
+
+#[tokio::test]
+async fn markers_request() {
+    let block_number = BlockNumber(0);
+    let setup = setup_test_server(block_number, unique_u16!());
+
+    let txn = setup.reader.begin_ro_txn().unwrap();
+
+    // Test all implemented markers
+    // TODO(Nadin): Add tests for GlobalRoot once it is implemented.
+    let marker_tests = vec![
+        (MarkerKind::State, txn.get_state_marker().unwrap()),
+        (MarkerKind::Header, txn.get_header_marker().unwrap()),
+        (MarkerKind::Body, txn.get_body_marker().unwrap()),
+        (MarkerKind::Event, txn.get_event_marker().unwrap()),
+        (MarkerKind::Class, txn.get_class_marker().unwrap()),
+        (MarkerKind::CompiledClass, txn.get_compiled_class_marker().unwrap()),
+        (MarkerKind::BaseLayerBlock, txn.get_base_layer_block_marker().unwrap()),
+        (MarkerKind::ClassManagerBlock, txn.get_class_manager_block_marker().unwrap()),
+        (
+            MarkerKind::CompilerBackwardCompatibility,
+            txn.get_compiler_backward_compatibility_marker().unwrap(),
+        ),
+    ];
+
+    for (marker_kind, expected_marker) in marker_tests {
+        let request = StorageReaderRequest::Markers(marker_kind);
+        let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+        assert_eq!(
+            response,
+            StorageReaderResponse::Markers(expected_marker),
+            "Marker {:?} should match expected value",
+            marker_kind
+        );
+    }
 }
