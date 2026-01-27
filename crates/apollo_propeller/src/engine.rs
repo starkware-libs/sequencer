@@ -221,6 +221,20 @@ impl Engine {
         self.emit_output(EngineOutput::GenerateEvent(event)).await;
     }
 
+    async fn emit_handler_event(&mut self, peer_id: PeerId, event: HandlerIn) {
+        if !self.connected_peers.contains(&peer_id) {
+            self.emit_event(Event::ShardSendFailed {
+                sent_from: None,
+                sent_to: Some(peer_id),
+                error: ShardPublishError::NotConnectedToPeer(peer_id),
+            })
+            .await;
+            return;
+        }
+
+        self.emit_output(EngineOutput::NotifyHandler { peer_id, event }).await;
+    }
+
     async fn handle_broadcaster_result(
         &mut self,
         result: Result<Vec<PropellerUnit>, ShardPublishError>,
@@ -292,9 +306,7 @@ impl Engine {
     }
 
     async fn send_unit_to_peer(&mut self, unit: PropellerUnit, peer: PeerId) {
-        // TODO(AndrewL): Implement handler event emission with connection checking
-        let _ = (unit, peer);
-        todo!()
+        self.emit_handler_event(peer, HandlerIn::SendUnit(unit)).await;
     }
 
     /// Run the engine in its own task, processing commands and results.
