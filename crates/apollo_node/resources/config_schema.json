@@ -129,6 +129,11 @@
     "privacy": "Public",
     "value": 179
   },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.blake2s": {
+    "description": "blake2s gas weight.",
+    "privacy": "Public",
+    "value": 3334
+  },
   "batcher_config.block_builder_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",

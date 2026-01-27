@@ -77,7 +77,8 @@
             "pedersen": 0,
             "poseidon": 0,
             "range_check": 70,
-            "range_check96": 0
+            "range_check96": 0,
+            "blake2s": 0
         },
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "data_gas_accounts": [],
