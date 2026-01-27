@@ -1,5 +1,6 @@
 pub mod behaviour;
 pub mod config;
+pub mod engine;
 pub mod handler;
 pub mod merkle;
 #[cfg(test)]
