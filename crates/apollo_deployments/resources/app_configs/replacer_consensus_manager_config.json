@@ -71,6 +71,8 @@
   "consensus_manager_config.network_config.reported_peer_ids_buffer_size": 100000,
   "consensus_manager_config.network_config.session_timeout": 120,
   "consensus_manager_config.proposals_topic": "consensus_proposals",
+  "consensus_manager_config.staking_manager_config.dynamic_config.stakers_config.stakers": "",
+  "consensus_manager_config.staking_manager_config.dynamic_config.stakers_config.start_epoch": 0,
   "consensus_manager_config.stream_handler_config.channel_buffer_capacity": 1000,
   "consensus_manager_config.stream_handler_config.max_streams": 100,
   "consensus_manager_config.votes_topic": "consensus_votes"
