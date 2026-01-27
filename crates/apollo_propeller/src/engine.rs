@@ -213,6 +213,11 @@ impl Engine {
         let publisher = unit.publisher();
         let root = unit.root();
 
+        // Track received shard.
+        if let Some(metrics) = &self.metrics {
+            metrics.shards_received.increment(1);
+        }
+
         // Check if channel is registered.
         if !self.channels.contains_key(&channel) {
             tracing::warn!("Received shard for unregistered channel={:?}, dropping", channel);
