@@ -1,4 +1,6 @@
 pub mod behaviour;
+#[cfg(test)]
+mod behaviour_test;
 pub mod config;
 pub mod engine;
 pub mod handler;
