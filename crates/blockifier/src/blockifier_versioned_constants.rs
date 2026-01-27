@@ -494,6 +494,8 @@ pub struct ArchivalDataGasCosts {
     // actual number we wanted is 1/32 gas per byte. Change the value to 1/32 in the next version
     // where rational numbers are supported.
     pub gas_per_code_byte: ResourceCost,
+    // TODO(AvivG): Update value for 0.14.2 once the value is finalized.
+    pub gas_per_proof: ResourceCost,
 }
 
 pub struct CairoNativeStackConfig {
