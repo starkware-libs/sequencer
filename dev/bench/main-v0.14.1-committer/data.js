@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769519453372,
+  "lastUpdate": 1769521962527,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -849,6 +849,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1452.88163154,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163830216+asmaastarkware@users.noreply.github.com",
+            "name": "asmaa-starkware",
+            "username": "asmaastarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a4298fbd63de48831234a7e5b5b582c4d949d4e",
+          "message": "apollo_protobuf: add signature field to Vote consensus message (#11938)",
+          "timestamp": "2026-01-27T13:19:12Z",
+          "tree_id": "9db78a8ca754230968887708d8a5e23d3fa11352",
+          "url": "https://github.com/starkware-libs/sequencer/commit/6a4298fbd63de48831234a7e5b5b582c4d949d4e"
+        },
+        "date": 1769521962142,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 1089.9700703800002,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1407.9191233699999,
             "unit": "ms"
           }
         ]
