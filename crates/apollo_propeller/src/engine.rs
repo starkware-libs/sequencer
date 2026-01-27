@@ -12,7 +12,7 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
-use crate::message_processor::{StateManagerToEngine, UnitToValidate};
+use crate::message_processor::{MessageProcessor, StateManagerToEngine, UnitToValidate};
 use crate::sharding::prepare_units;
 use crate::signature;
 use crate::time_cache::TimeCache;
@@ -203,6 +203,78 @@ impl Engine {
         self.connected_peers.remove(&peer_id);
     }
 
+    /// Handle an incoming unit from a peer.
+    pub(crate) async fn handle_unit(&mut self, sender: PeerId, unit: PropellerUnit) {
+        let channel = unit.channel();
+        let publisher = unit.publisher();
+        let root = unit.root();
+
+        // Check if channel is registered.
+        if !self.channels.contains_key(&channel) {
+            tracing::warn!("Received shard for unregistered channel={:?}, dropping", channel);
+            return;
+        }
+
+        // Skip if message already finalized.
+        if self.finalized_messages.contains(&(channel, publisher, root)) {
+            tracing::trace!("Message already finalized, dropping unit");
+            return;
+        }
+
+        let message_key = (channel, publisher, root);
+
+        // Spawn tasks if this is a new message.
+        if !self.message_tasks.contains_key(&message_key) {
+            tracing::trace!(
+                "[ENGINE] Spawning tasks for new message channel={:?} publisher={:?} root={:?}",
+                channel,
+                publisher,
+                root
+            );
+
+            let tree_manager = self
+                .channels
+                .get(&channel)
+                .expect("Channel must be registered")
+                .tree_manager
+                .clone();
+            let publisher_public_key = self
+                .channels
+                .get(&channel)
+                .and_then(|data| data.peer_public_keys.get(&publisher))
+                .cloned()
+                .expect("Publisher must have a public key");
+            let my_shard_index = tree_manager.get_my_shard_index(&publisher).unwrap();
+
+            // Create channel for Engine -> MessageProcessor communication
+            let (unit_tx, unit_rx) = mpsc::unbounded_channel();
+
+            // Create and spawn message processor
+            let processor = MessageProcessor {
+                channel,
+                publisher,
+                message_root: root,
+                my_shard_index,
+                publisher_public_key,
+                tree_manager: Arc::clone(&tree_manager),
+                local_peer_id: self.local_peer_id,
+                unit_rx,
+                engine_tx: self.state_manager_tx.clone(),
+                timeout: self.config.stale_message_timeout,
+            };
+
+            tokio::spawn(processor.run());
+
+            self.message_tasks.insert(message_key, unit_tx);
+        }
+
+        // Send unit to message processor
+        let handle = self.message_tasks.get(&message_key).expect("Message processor must exist");
+
+        // This may fail if the message is already finalized
+        let _ = handle.send((sender, unit));
+    }
+
     /// Handle a send error from the handler.
     pub(crate) async fn handle_send_error(&mut self, peer_id: PeerId, error: String) {
         self.emit_event(Event::ShardSendFailed {
@@ -352,9 +424,7 @@ impl Engine {
             }
             EngineCommand::HandleHandlerOutput { peer_id, output } => match output {
                 HandlerOut::Unit(unit) => {
-                    // TODO(AndrewL): Implement unit handling
-                    let _ = (peer_id, unit);
-                    todo!()
+                    self.handle_unit(peer_id, unit).await;
                 }
                 HandlerOut::SendError(error) => {
                     self.handle_send_error(peer_id, error).await;
