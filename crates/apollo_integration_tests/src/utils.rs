@@ -5,7 +5,7 @@ use std::time::Duration;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
-use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{BatcherConfig, BatcherStaticConfig, BlockBuilderConfig};
 use apollo_class_manager_config::config::{
     CachedClassStorageConfig,
     ClassManagerConfig,
@@ -659,24 +659,26 @@ pub fn create_batcher_config(
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     BatcherConfig {
-        storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig {
-            chain_info,
-            bouncer_config: BouncerConfig {
-                block_max_capacity: BouncerWeights {
-                    sierra_gas: block_max_capacity_gas,
-                    proving_gas: block_max_capacity_gas,
+        static_config: BatcherStaticConfig {
+            storage: batcher_storage_config,
+            block_builder_config: BlockBuilderConfig {
+                chain_info,
+                bouncer_config: BouncerConfig {
+                    block_max_capacity: BouncerWeights {
+                        sierra_gas: block_max_capacity_gas,
+                        proving_gas: block_max_capacity_gas,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
+                execute_config: WorkerPoolConfig::create_for_testing(),
+                n_concurrent_txs: 3,
                 ..Default::default()
             },
-            execute_config: WorkerPoolConfig::create_for_testing(),
-            n_concurrent_txs: 3,
+            #[cfg(feature = "cairo_native")]
+            contract_class_manager_config: cairo_native_class_manager_config(),
             ..Default::default()
         },
-        #[cfg(feature = "cairo_native")]
-        contract_class_manager_config: cairo_native_class_manager_config(),
-        ..Default::default()
     }
 }
 

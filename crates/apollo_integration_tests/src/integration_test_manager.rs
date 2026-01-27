@@ -932,6 +932,7 @@ impl IntegrationTestManager {
             .batcher_config
             .as_ref()
             .expect("No executable with a set batcher.")
+            .static_config
             .block_builder_config
             .chain_info
             .chain_id
