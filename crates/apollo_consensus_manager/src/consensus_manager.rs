@@ -40,6 +40,10 @@ use apollo_network::network_manager::{
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
+use apollo_staking::committee_provider::CommitteeProvider;
+use apollo_staking::mock_staking_contract::MockStakingContract;
+use apollo_staking::staking_manager::StakingManager;
+use apollo_staking::utils::BlockPseudorandomGenerator;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
@@ -259,6 +263,30 @@ impl ConsensusManager {
             .expect("Failed to register broadcast topic");
 
         (proposals_broadcast_channels, votes_broadcast_channels)
+    }
+
+    #[allow(unused)]
+    fn create_committee_provider(&self) -> Option<Arc<Mutex<dyn CommitteeProvider + Send>>> {
+        let staking_manager_config = &self.config.staking_manager_config;
+
+        // Create MockStakingContract with stakers config from dynamic config
+        let stakers_config = staking_manager_config.dynamic_config.stakers_config.clone();
+        let mock_staking_contract = Arc::new(MockStakingContract::new(
+            Arc::clone(&self.state_sync_client),
+            stakers_config,
+            Some(Arc::clone(&self.config_manager_client)),
+        ));
+
+        // Create StakingManager with the mock contract
+        let staking_manager = StakingManager::new(
+            mock_staking_contract,
+            Arc::clone(&self.state_sync_client),
+            Box::new(BlockPseudorandomGenerator),
+            staking_manager_config.clone(),
+            Some(Arc::clone(&self.config_manager_client)),
+        );
+
+        Some(Arc::new(Mutex::new(staking_manager)))
     }
 
     fn create_sequencer_consensus_context(
