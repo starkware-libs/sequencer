@@ -414,6 +414,7 @@ impl BuiltinWeights {
                 mul_mod: 0,
                 add_mod: 0,
                 range_check96: 0,
+                blake2s: 0,
             },
         }
     }
@@ -433,6 +434,7 @@ impl Default for BuiltinWeights {
                 add_mod: 2000,
                 mul_mod: 2000,
                 range_check96: 179,
+                blake2s: 0,
             },
         }
     }
