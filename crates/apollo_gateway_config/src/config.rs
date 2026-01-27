@@ -126,7 +126,7 @@ impl Default for StatelessTransactionValidatorConfig {
             validate_resource_bounds: true,
             min_gas_price: 8_000_000_000,
             max_l2_gas_amount: 1_200_000_000,
-            max_calldata_length: 4000,
+            max_calldata_length: 5000,
             max_signature_length: 4000,
             max_contract_bytecode_size: 81920,
             max_contract_class_object_size: 4089446,

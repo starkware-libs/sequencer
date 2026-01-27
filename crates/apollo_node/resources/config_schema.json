@@ -2582,7 +2582,7 @@
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
     "privacy": "Public",
-    "value": 4000
+    "value": 5000
   },
   "gateway_config.stateless_tx_validator_config.max_contract_bytecode_size": {
     "description": "Limitation of contract class bytecode size.",
