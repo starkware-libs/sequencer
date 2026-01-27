@@ -261,10 +261,7 @@ impl StateMachine {
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper.
-    pub(crate) fn start<F>(&mut self, leader_election: &LeaderElection<F>) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+    pub(crate) fn start(&mut self, leader_election: &LeaderElection<'_>) -> VecDeque<SMRequest> {
         self.advance_to_round(0, leader_election)
     }
 
@@ -276,14 +273,11 @@ impl StateMachine {
     ///
     /// Returns a set of requests for the caller to handle. The caller should handle them and pass
     /// the relevant response back to the state machine.
-    pub(crate) fn handle_event<F>(
+    pub(crate) fn handle_event(
         &mut self,
         event: StateMachineEvent,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         // Mimic LOC 18 in the paper; the state machine doesn't
         // handle any events until `getValue` completes.
         if self.awaiting_finished_building {
@@ -303,13 +297,10 @@ impl StateMachine {
         self.handle_enqueued_events(leader_election)
     }
 
-    fn handle_enqueued_events<F>(
+    fn handle_enqueued_events(
         &mut self,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         let mut output_requests = VecDeque::new();
         while let Some(event) = self.events_queue.pop_front() {
             let mut resultant_requests = self.handle_event_internal(event, leader_election);
@@ -340,14 +331,11 @@ impl StateMachine {
         output_requests
     }
 
-    fn handle_event_internal<F>(
+    fn handle_event_internal(
         &mut self,
         event: StateMachineEvent,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         trace!("Processing event: {:?}", event);
         if self.awaiting_finished_building {
             assert!(matches!(event, StateMachineEvent::FinishedBuilding(_, _)), "{event:?}");
@@ -373,15 +361,12 @@ impl StateMachine {
         }
     }
 
-    fn handle_finished_building<F>(
+    fn handle_finished_building(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         assert!(self.awaiting_finished_building);
         assert_eq!(round, self.round);
         self.awaiting_finished_building = false;
@@ -391,16 +376,13 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_election)
     }
 
-    fn handle_finished_validation<F>(
+    fn handle_finished_validation(
         &mut self,
         proposal_id: Option<ProposalCommitment>,
         round: u32,
         valid_round: Option<Round>,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         let old = self.proposals.insert(round, (proposal_id, valid_round));
         assert!(old.is_none(), "SHC should handle conflicts & replays");
         self.map_round_to_upons(round, leader_election)
@@ -421,14 +403,11 @@ impl StateMachine {
     }
 
     // A prevote from a peer node.
-    fn handle_prevote<F>(
+    fn handle_prevote(
         &mut self,
         vote: Vote,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         let round = vote.round;
         let voter = vote.voter;
         let inserted = self.prevotes.insert((round, voter), (vote, 1)).is_none();
@@ -452,14 +431,11 @@ impl StateMachine {
     }
 
     // A precommit from a peer node.
-    fn handle_precommit<F>(
+    fn handle_precommit(
         &mut self,
         vote: Vote,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         let round = vote.round;
         let voter = vote.voter;
         let inserted = self.precommits.insert((round, voter), (vote, 1)).is_none();
@@ -471,14 +447,11 @@ impl StateMachine {
         self.map_round_to_upons(round, leader_election)
     }
 
-    fn handle_timeout_precommit<F>(
+    fn handle_timeout_precommit(
         &mut self,
         round: u32,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         if round != self.round {
             return VecDeque::new();
         };
@@ -489,14 +462,11 @@ impl StateMachine {
     }
 
     // LOC 11 in the paper.
-    fn advance_to_round<F>(
+    fn advance_to_round(
         &mut self,
         round: u32,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         CONSENSUS_ROUND.set(round);
         if round > 0 {
             CONSENSUS_ROUND_ADVANCES.increment(1);
@@ -549,14 +519,11 @@ impl StateMachine {
         self.current_round_upons()
     }
 
-    fn map_round_to_upons<F>(
+    fn map_round_to_upons(
         &mut self,
         round: u32,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         match round.cmp(&self.round) {
             std::cmp::Ordering::Less => self.past_round_upons(round),
             std::cmp::Ordering::Equal => self.current_round_upons(),
@@ -737,14 +704,11 @@ impl StateMachine {
     }
 
     // LOC 55 in the paper.
-    fn maybe_advance_to_round<F>(
+    fn maybe_advance_to_round(
         &mut self,
         round: u32,
-        leader_election: &LeaderElection<F>,
-    ) -> VecDeque<SMRequest>
-    where
-        F: Fn(Round) -> ValidatorId,
-    {
+        leader_election: &LeaderElection<'_>,
+    ) -> VecDeque<SMRequest> {
         if self.round_has_enough_votes(&self.prevotes, round, &self.round_skip_threshold)
             || self.round_has_enough_votes(&self.precommits, round, &self.round_skip_threshold)
         {

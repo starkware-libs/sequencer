@@ -469,11 +469,23 @@ impl DiscreteEventSimulation {
         let validators = self.validators.clone();
         let seed = self.seed;
         let total_nodes = self.total_nodes;
-        let leader_fn = move |r: Round| {
-            let idx = get_leader_index(seed, total_nodes, r);
-            validators[idx]
+        // Create two separate closures with the same logic (for proposer and virtual_proposer)
+        let proposer_fn = {
+            let validators = validators.clone();
+            move |r: Round| {
+                let idx = get_leader_index(seed, total_nodes, r);
+                validators[idx]
+            }
         };
-        let leader_election = LeaderElection::new(leader_fn);
+        let virtual_proposer_fn = {
+            let validators = validators.clone();
+            move |r: Round| {
+                let idx = get_leader_index(seed, total_nodes, r);
+                validators[idx]
+            }
+        };
+        let leader_election =
+            LeaderElection::new(Box::new(proposer_fn), Box::new(virtual_proposer_fn));
 
         // Start the single height consensus
         let requests = self.shc.start(&leader_election);
