@@ -143,6 +143,16 @@ impl Engine {
         Ok(())
     }
 
+    /// Handle a peer connection.
+    pub(crate) fn handle_connected(&mut self, peer_id: PeerId) {
+        self.connected_peers.insert(peer_id);
+    }
+
+    /// Handle a peer disconnection.
+    pub(crate) fn handle_disconnected(&mut self, peer_id: PeerId) {
+        self.connected_peers.remove(&peer_id);
+    }
+
     fn get_public_key(
         &self,
         peer_id: PeerId,
@@ -205,14 +215,10 @@ impl Engine {
                 todo!()
             }
             EngineCommand::HandleConnected { peer_id } => {
-                // TODO(AndrewL): Implement peer connection handling
-                let _ = peer_id;
-                todo!()
+                self.handle_connected(peer_id);
             }
             EngineCommand::HandleDisconnected { peer_id } => {
-                // TODO(AndrewL): Implement peer disconnection handling
-                let _ = peer_id;
-                todo!()
+                self.handle_disconnected(peer_id);
             }
         }
     }
