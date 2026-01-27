@@ -31,13 +31,19 @@ pub struct Handler {
     listen_protocol: PropellerProtocol,
     /// Queue of messages to send.
     send_queue: VecDeque<PropellerUnit>,
+    /// Queue of received messages to emit.
+    receive_queue: VecDeque<PropellerUnit>,
 }
 
 impl Handler {
     /// Builds a new [`Handler`].
     pub fn new(stream_protocol: StreamProtocol, max_wire_message_size: usize) -> Self {
         let protocol = PropellerProtocol::new(stream_protocol, max_wire_message_size);
-        Handler { listen_protocol: protocol, send_queue: VecDeque::new() }
+        Handler {
+            listen_protocol: protocol,
+            send_queue: VecDeque::new(),
+            receive_queue: VecDeque::new(),
+        }
     }
 }
 
@@ -66,7 +72,11 @@ impl ConnectionHandler for Handler {
         &mut self,
         _cx: &mut Context<'_>,
     ) -> Poll<ConnectionHandlerEvent<Self::OutboundProtocol, (), Self::ToBehaviour>> {
-        // TODO(AndrewL): Emit received messages from receive queue
+        // Emit received messages from receive queue
+        if let Some(message) = self.receive_queue.pop_front() {
+            return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
+        }
+
         // TODO(AndrewL): Poll outbound substream to send messages
         // TODO(AndrewL): Poll inbound substream to receive messages
         Poll::Pending
