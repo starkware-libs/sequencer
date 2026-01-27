@@ -15,10 +15,9 @@ use apollo_monitoring_endpoint_config::config::{
     MONITORING_ENDPOINT_DEFAULT_IP,
     MONITORING_ENDPOINT_DEFAULT_PORT,
 };
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::http::StatusCode;
-use axum_08::response::Response;
-use axum_08::Router;
+use axum::http::StatusCode;
+use axum::response::Response;
+use axum::Router;
 use http_body_util::BodyExt;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
@@ -30,7 +29,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::{nonce, tx_hash};
 use tokio::spawn;
 use tokio::task::yield_now;
-use tower_05::util::ServiceExt;
+use tower::util::ServiceExt;
 
 use crate::monitoring_endpoint::{
     create_monitoring_endpoint,

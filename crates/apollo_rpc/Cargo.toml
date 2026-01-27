@@ -30,7 +30,7 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
-tower_05 = { workspace = true, features = ["full"] }
+tower = { workspace = true, features = ["full"] }
 tracing.workspace = true
 validator = { workspace = true, features = ["derive"] }
 

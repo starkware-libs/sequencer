@@ -21,10 +21,9 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::http::HeaderMap;
-use axum_08::routing::{get, post};
-use axum_08::{Extension, Json, Router};
+use axum::http::HeaderMap;
+use axum::routing::{get, post};
+use axum::{serve, Extension, Json, Router};
 use blockifier_reexecution::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -112,7 +111,7 @@ impl HttpServer {
 
         // Create a server that runs forever.
         let listener = TcpListener::bind(&addr).await?;
-        Ok(axum_08::serve(listener, app).await?)
+        Ok(serve(listener, app).await?)
     }
 
     // TODO(Yael): consider supporting both formats in the same endpoint if possible.

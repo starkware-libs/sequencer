@@ -6,9 +6,8 @@ use anyhow::Result;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::test_utils::parse_numeric_metric;
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::body::Body;
-use axum_08::http::Request;
+use axum::body::Body;
+use axum::http::Request;
 use http_body_util::BodyExt;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;

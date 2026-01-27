@@ -44,7 +44,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockStatus};
 use starknet_api::core::ChainId;
 use tokio::sync::RwLock;
-use tower_05::ServiceBuilder;
+use tower::ServiceBuilder;
 use tracing::{debug, error, info, instrument};
 // Aliasing the latest version of the RPC.
 use v0_8 as latest;
