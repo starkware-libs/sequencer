@@ -21,7 +21,12 @@ use starknet_rust::providers::{JsonRpcClient, Provider};
 use tracing::{info, instrument};
 
 use crate::proving::prover::{resolve_resource_path, BOOTLOADER_FILE};
-use crate::server::config::ServiceConfig;
+use crate::server::config::{
+    create_dynamic_config_channel,
+    DynamicConfigReceiver,
+    DynamicConfigSender,
+    ServiceConfig,
+};
 use crate::virtual_snos_prover::{VirtualSnosProver, VirtualSnosProverError};
 
 /// Request body for the prove_transaction endpoint.
@@ -58,6 +63,8 @@ pub struct ErrorResponse {
 pub enum HttpServerError {
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
+    #[error("Service unavailable: {0}")]
+    ServiceUnavailable(String),
     #[error(transparent)]
     Prover(#[from] VirtualSnosProverError),
 }
@@ -67,6 +74,9 @@ impl IntoResponse for HttpServerError {
         let (status, error_code, message) = match &self {
             HttpServerError::InvalidRequest(msg) => {
                 (StatusCode::BAD_REQUEST, "INVALID_REQUEST", msg.clone())
+            }
+            HttpServerError::ServiceUnavailable(msg) => {
+                (StatusCode::SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", msg.clone())
             }
             HttpServerError::Prover(e) => match e {
                 VirtualSnosProverError::InvalidTransactionType(msg) => {
@@ -98,6 +108,8 @@ impl IntoResponse for HttpServerError {
 pub struct AppState {
     /// The prover that handles business logic.
     pub(crate) prover: VirtualSnosProver,
+    /// Receiver for dynamic configuration updates.
+    pub(crate) dynamic_config: DynamicConfigReceiver,
 }
 
 #[derive(Debug, Serialize)]
@@ -119,6 +131,13 @@ async fn prove_transaction(
     State(app_state): State<AppState>,
     Json(request): Json<ProveTransactionRequest>,
 ) -> Result<Json<ProveTransactionResponse>, HttpServerError> {
+    // Check if we're accepting new requests.
+    if !app_state.dynamic_config.borrow().accept_new_requests {
+        return Err(HttpServerError::ServiceUnavailable(
+            "Server is not accepting new requests".to_string(),
+        ));
+    }
+
     // Delegate to the prover.
     let output = app_state.prover.prove_transaction(request.block_id, request.transaction).await?;
 
@@ -146,9 +165,22 @@ async fn is_alive() -> impl IntoResponse {
 /// Returns 200 OK if the server is ready to accept requests.
 /// This checks external dependencies needed for serving requests.
 async fn is_ready(State(app_state): State<AppState>) -> impl IntoResponse {
-    let mut checks = vec![check_bootloader_file()];
+    let mut checks = vec![check_accepting_requests(&app_state)];
+    checks.push(check_bootloader_file());
     checks.extend(check_rpc_checks(&app_state.prover).await);
     build_status_response(checks, StatusCode::SERVICE_UNAVAILABLE)
+}
+
+fn check_accepting_requests(app_state: &AppState) -> CheckStatus {
+    if app_state.dynamic_config.borrow().accept_new_requests {
+        CheckStatus { name: "accepting_requests", ok: true, message: None }
+    } else {
+        CheckStatus {
+            name: "accepting_requests",
+            ok: false,
+            message: Some("Server is not accepting new requests".to_string()),
+        }
+    }
 }
 
 fn check_bootloader_file() -> CheckStatus {
@@ -220,14 +252,24 @@ pub fn create_router(app_state: AppState) -> Router {
 pub struct ProvingHttpServer {
     config: ServiceConfig,
     app_state: AppState,
+    /// Sender for dynamic configuration updates.
+    dynamic_config_sender: DynamicConfigSender,
 }
 
 impl ProvingHttpServer {
     /// Creates a new ProvingHttpServer.
     pub fn new(config: ServiceConfig) -> Self {
         let prover = VirtualSnosProver::new(&config);
-        let app_state = AppState { prover };
-        Self { config, app_state }
+        let (dynamic_config_sender, dynamic_config_receiver) = create_dynamic_config_channel();
+        let app_state = AppState { prover, dynamic_config: dynamic_config_receiver };
+        Self { config, app_state, dynamic_config_sender }
+    }
+
+    /// Returns a reference to the dynamic configuration sender.
+    ///
+    /// This can be used to update the server's runtime configuration.
+    pub fn dynamic_config_sender(&self) -> &DynamicConfigSender {
+        &self.dynamic_config_sender
     }
 
     /// Runs the server.
