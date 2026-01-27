@@ -70,6 +70,7 @@ impl PapyrusStorage {
                 growth_step: 2 << 30,     // 2GB
                 max_object_size: 1 << 30, // 1GB
             },
+            batch_config: Default::default(),
         };
         let (reader, writer) = apollo_storage::open_storage(storage_config)?;
         log::debug!("Initialized Blockifier storage.");

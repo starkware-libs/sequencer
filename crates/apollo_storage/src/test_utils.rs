@@ -25,6 +25,7 @@ fn build_storage_config(storage_scope: StorageScope, path_prefix: PathBuf) -> St
         },
         scope: storage_scope,
         mmap_file_config: get_mmap_file_test_config(),
+        batch_config: Default::default(),
     }
 }
 

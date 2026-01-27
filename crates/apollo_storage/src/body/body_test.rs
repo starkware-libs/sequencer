@@ -395,19 +395,20 @@ fn update_offset_table() {
     writer.begin_rw_txn().unwrap().append_body(BlockNumber(0), body).unwrap().commit().unwrap();
 
     let txn = reader.begin_ro_txn().unwrap();
-    let file_offset_table = txn.txn.open_table(&txn.tables.file_offsets).unwrap();
-    let transaction_metadata_table = txn.txn.open_table(&txn.tables.transaction_metadata).unwrap();
+    let file_offset_table = txn.txn().open_table(&txn.tables.file_offsets).unwrap();
+    let transaction_metadata_table =
+        txn.txn().open_table(&txn.tables.transaction_metadata).unwrap();
     let last_tx_metadata = transaction_metadata_table
-        .get(&txn.txn, &TransactionIndex(BlockNumber(0), TransactionOffsetInBlock(2)))
+        .get(txn.txn(), &TransactionIndex(BlockNumber(0), TransactionOffsetInBlock(2)))
         .unwrap()
         .unwrap();
 
     assert_eq!(
         last_tx_metadata.tx_location.next_offset(),
-        file_offset_table.get(&txn.txn, &OffsetKind::Transaction).unwrap().unwrap()
+        file_offset_table.get(txn.txn(), &OffsetKind::Transaction).unwrap().unwrap()
     );
     assert_eq!(
         last_tx_metadata.tx_output_location.next_offset(),
-        file_offset_table.get(&txn.txn, &OffsetKind::TransactionOutput).unwrap().unwrap()
+        file_offset_table.get(txn.txn(), &OffsetKind::TransactionOutput).unwrap().unwrap()
     );
 }
