@@ -52,7 +52,7 @@ impl Behaviour {
     pub fn new(keypair: Keypair, config: Config) -> Self {
         let (commands_tx, commands_rx) = mpsc::unbounded_channel();
         let (outputs_tx, outputs_rx) = mpsc::unbounded_channel();
-        let engine = Engine::new(keypair, config.clone(), outputs_tx);
+        let engine = Engine::new(keypair, config.clone(), None, outputs_tx);
         tokio::spawn(async move {
             engine.run(commands_rx).await;
         });
