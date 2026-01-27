@@ -1,6 +1,7 @@
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
 use apollo_infra::component_client::ClientError;
+use apollo_proc_macros::unique_u16;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::transaction::TransactionHash;
@@ -33,10 +34,9 @@ fn success_gateway_client_output() -> GatewayOutput {
     GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default()))
 }
 
-// Uses add_tx_http_client with indices 14,15.
 #[rstest]
-#[case::add_deprecated_gateway_tx(14, deprecated_gateway_invoke_tx())]
-#[case::add_rpc_tx(15, rpc_invoke_tx())]
+#[case::add_deprecated_gateway_tx(unique_u16!(), deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(unique_u16!(), rpc_invoke_tx())]
 #[tokio::test]
 async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     // Create a mock gateway client that returns a successful response and a failure response.
@@ -81,7 +81,6 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
     ADDED_TRANSACTIONS_FAILURE.assert_eq::<usize>(&metrics, FAILURE_TXS_TO_SEND);
 }
 
-// Uses add_tx_http_client with index 16.
 #[tokio::test]
 async fn add_tx_serde_failure_metrics_test() {
     let mock_gateway_client = MockGatewayClient::new();
@@ -92,7 +91,8 @@ async fn add_tx_serde_failure_metrics_test() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 16).await;
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, unique_u16!()).await;
 
     // Send a transaction that fails deserialization.
     let tx: InvalidTransaction = "invalid transaction";

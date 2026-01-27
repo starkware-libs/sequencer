@@ -12,6 +12,7 @@ use apollo_gateway_types::gateway_types::{
     InvokeGatewayOutput,
 };
 use apollo_infra::component_client::ClientError;
+use apollo_proc_macros::unique_u16;
 // TODO(victork): finalise migration to hyper 1.x
 use axum_08::body::Bytes;
 use axum_08::http::StatusCode;
@@ -97,7 +98,6 @@ async fn to_bytes(res: Response) -> Bytes {
 // tests expect the former and some the other, based on the used test utils. Better sort this out
 // and make consistent across.
 
-// Uses add_tx_http_client with index 0.
 /// Test that an HTTP server with a `allow_new_txs = false` config rejects new transactions.
 #[rstest]
 #[tokio::test]
@@ -107,7 +107,8 @@ async fn allow_new_txs() {
     let mock_gateway_client = MockGatewayClient::new();
     let mock_config_manager_client = get_mock_config_manager_client(false);
 
-    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 0).await;
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, unique_u16!()).await;
 
     // Send a transaction to the server.
     let response = http_client.add_tx(tx.clone()).await;
@@ -133,11 +134,10 @@ async fn error_into_response() {
     );
 }
 
-// Uses add_tx_http_client with indices 1,2.
 #[traced_test]
 #[rstest]
-#[case::add_deprecated_gateway_tx(1, deprecated_gateway_invoke_tx())]
-#[case::add_rpc_tx(2, rpc_invoke_tx())]
+#[case::add_deprecated_gateway_tx(unique_u16!(), deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(unique_u16!(), rpc_invoke_tx())]
 #[tokio::test]
 /// Test that when an add transaction HTTP request is sent to the server, the region of the http
 /// request is recorded to the info log.
@@ -174,11 +174,10 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
     ));
 }
 
-// Uses add_tx_http_client with indices 3,4.
 #[traced_test]
 #[rstest]
-#[case::add_deprecated_gateway_tx(3, deprecated_gateway_invoke_tx())]
-#[case::add_rpc_tx(4, rpc_invoke_tx())]
+#[case::add_deprecated_gateway_tx(unique_u16!(), deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(unique_u16!(), rpc_invoke_tx())]
 #[tokio::test]
 /// Test that when an "add_tx" HTTP request is sent to the server, and it fails in the Gateway, no
 /// record of the region is logged.
@@ -200,11 +199,10 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
     assert!(!logs_contain("Recorded transaction transaction_hash="));
 }
 
-// Uses add_tx_http_client with indices 5,6,7,8.
 #[rstest]
-#[case::add_deprecated_gateway_invoke(5, deprecated_gateway_invoke_tx())]
-#[case::add_deprecated_gateway_deploy_account(6, deprecated_gateway_deploy_account_tx())]
-#[case::add_deprecated_gateway_declare(7, deprecated_gateway_declare_tx())]
+#[case::add_deprecated_gateway_invoke(unique_u16!(), deprecated_gateway_invoke_tx())]
+#[case::add_deprecated_gateway_deploy_account(unique_u16!(), deprecated_gateway_deploy_account_tx())]
+#[case::add_deprecated_gateway_declare(unique_u16!(), deprecated_gateway_declare_tx())]
 #[case::add_rpc_invoke(8, rpc_invoke_tx())]
 #[tokio::test]
 async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
@@ -261,10 +259,9 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
 
-// Uses add_tx_http_client with indices 9,10,11,12.
 #[rstest]
 #[case::missing_version(
-    9,
+    unique_u16!(),
     None,
     StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
@@ -272,7 +269,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     }
 )]
 #[case::bad_version(
-    10,
+    unique_u16!(),
     Some("bad version"),
     StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
@@ -281,7 +278,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     }
 )]
 #[case::old_version(
-    11,
+    unique_u16!(),
     Some("0x1"),
     StarknetError {
         code: StarknetErrorCode::KnownErrorCode(
@@ -291,7 +288,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     },
 )]
 #[case::newer_version(
-    12,
+    unique_u16!(),
     Some("0x4"),
     StarknetError {
         code: StarknetErrorCode::KnownErrorCode(
@@ -327,7 +324,6 @@ async fn test_unsupported_tx_version(
     assert_eq!(starknet_error, expected_err);
 }
 
-// Uses add_tx_http_client with index 13.
 #[tokio::test]
 async fn sanitizing_error_message() {
     // Set the tx version to be a problematic text.
@@ -340,7 +336,8 @@ async fn sanitizing_error_message() {
 
     let mock_gateway_client = MockGatewayClient::new();
     let mock_config_manager_client = get_mock_config_manager_client(true);
-    let http_client = add_tx_http_client(mock_config_manager_client, mock_gateway_client, 13).await;
+    let http_client =
+        add_tx_http_client(mock_config_manager_client, mock_gateway_client, unique_u16!()).await;
 
     let serialized_err =
         http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
