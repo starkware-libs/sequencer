@@ -50,6 +50,9 @@ use tracing::{debug, error, info, warn};
 
 use crate::metrics::{
     register_metrics,
+    AVERAGE_COMPUTE_RATE,
+    AVERAGE_READ_RATE,
+    AVERAGE_WRITE_RATE,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -57,10 +60,8 @@ use crate::metrics::{
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
     EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
     OFFSET,
-    READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
-    WRITE_DB_ENTRIES_PER_BLOCK,
     WRITE_DURATION_PER_BLOCK,
 };
 #[cfg(test)]
@@ -460,8 +461,29 @@ fn update_metrics(
     READ_DURATION_PER_BLOCK.record_lossy(durations.read);
     COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
     WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
-    READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
-    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
+
+    let read_rate = if durations.read > 0.0 {
+        let rate = *n_reads as f64 / durations.read;
+        AVERAGE_READ_RATE.record_lossy(rate);
+        Some(rate)
+    } else {
+        None
+    };
+    let compute_rate = if durations.compute > 0.0 {
+        let rate = *n_writes as f64 / durations.compute;
+        AVERAGE_COMPUTE_RATE.record_lossy(rate);
+        Some(rate)
+    } else {
+        None
+    };
+    let write_rate = if durations.write > 0.0 {
+        let rate = *n_writes as f64 / durations.write;
+        AVERAGE_WRITE_RATE.record_lossy(rate);
+        Some(rate)
+    } else {
+        None
+    };
+
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.contracts_trie);
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.classes_trie);
@@ -476,12 +498,23 @@ fn update_metrics(
         None
     };
 
-    log_block_measurements(height, durations, modifications_counts, emptied_leaves_percentage);
+    log_block_measurements(
+        height,
+        durations,
+        read_rate,
+        compute_rate,
+        write_rate,
+        modifications_counts,
+        emptied_leaves_percentage,
+    );
 }
 
 fn log_block_measurements(
     height: BlockNumber,
     durations: &BlockDurations,
+    read_rate: Option<f64>,
+    compute_rate: Option<f64>,
+    write_rate: Option<f64>,
     modifications_counts: &BlockModificationsCounts,
     emptied_leaves_percentage: Option<f64>,
 ) {
@@ -496,6 +529,17 @@ fn log_block_measurements(
         durations.compute * 1000.0,
         durations.write * 1000.0,
     );
+
+    // Rates.
+    if let Some(read_rate) = read_rate {
+        let _ = write!(&mut log_msg, " read rate: {read_rate:.2} entries/sec");
+    }
+    if let Some(compute_rate) = compute_rate {
+        let _ = write!(&mut log_msg, " compute rate: {compute_rate:.2} entries/sec");
+    }
+    if let Some(write_rate) = write_rate {
+        let _ = write!(&mut log_msg, " write rate: {write_rate:.2} entries/sec");
+    }
 
     // Modifications count.
     let _ = write!(
