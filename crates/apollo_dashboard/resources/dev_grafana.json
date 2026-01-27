@@ -473,6 +473,15 @@
           }
         },
         {
+          "title": "Average Read Duration Per Read Entry",
+          "description": "Average duration of the read operation per read entry in a block in seconds",
+          "type": "timeseries",
+          "exprs": [
+            "average_read_duration_per_read_entry{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Compute Duration Per Block",
           "description": "Duration of the compute operation per block in seconds",
           "type": "timeseries",
@@ -489,6 +498,15 @@
               "0.95"
             ]
           }
+        },
+        {
+          "title": "Average Write Duration Per Write Entry",
+          "description": "Average duration of the write operation per write entry in a block in seconds",
+          "type": "timeseries",
+          "exprs": [
+            "average_write_duration_per_write_entry{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
         },
         {
           "title": "Write Duration Per Block",
