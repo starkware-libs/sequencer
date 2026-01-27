@@ -323,6 +323,48 @@ impl Engine {
         }
     }
 
+    /// Handle messages from state manager tasks.
+    async fn handle_state_manager_message(&mut self, msg: StateManagerToEngine) {
+        match msg {
+            StateManagerToEngine::Event(event) => {
+                self.emit_event(event).await;
+            }
+            StateManagerToEngine::Finalized { channel, publisher, message_root } => {
+                tracing::trace!(
+                    "[ENGINE] Message finalized channel={:?} publisher={:?} root={:?}",
+                    channel,
+                    publisher,
+                    message_root
+                );
+
+                // Mark as finalized
+                self.finalized_messages.insert((channel, publisher, message_root));
+
+                // Clean up task handles
+                let message_key = (channel, publisher, message_root);
+                if self.message_tasks.remove(&message_key).is_some() {
+                    tracing::trace!(
+                        "[ENGINE] Removed task handles for channel={:?} publisher={:?} root={:?}",
+                        channel,
+                        publisher,
+                        message_root
+                    );
+                }
+            }
+            StateManagerToEngine::BroadcastUnit { unit, peers } => {
+                tracing::trace!(
+                    "[ENGINE] Broadcasting unit index={:?} to {} peers (gossip)",
+                    unit.index(),
+                    peers.len()
+                );
+
+                for peer in peers {
+                    self.send_unit_to_peer(unit.clone(), peer).await;
+                }
+            }
+        }
+    }
+
     fn get_public_key(
         &self,
         peer_id: PeerId,
@@ -393,6 +435,11 @@ impl Engine {
                 // Process broadcaster results
                 Some(result) = self.broadcaster_results_rx.recv() => {
                     self.handle_broadcaster_result(result).await;
+                }
+
+                // Process messages from state manager tasks
+                Some(msg) = self.state_manager_rx.recv() => {
+                    self.handle_state_manager_message(msg).await;
                 }
 
                 else => {
