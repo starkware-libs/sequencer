@@ -2,6 +2,7 @@ use apollo_metrics::metrics::{
     LabeledMetricHistogram,
     MetricDetails,
     MetricGauge,
+    MetricGaugeHistogram,
     MetricHistogram,
     MetricQueryName,
 };
@@ -319,17 +320,7 @@ impl Panel {
         Self::new(
             metric_name_to_panel_title(name.to_string()),
             description.to_string(),
-            HISTOGRAM_QUANTILES
-                .iter()
-                .map(|q| {
-                    format!(
-                        "histogram_quantile({q:.2}, sum by ({}) (rate({}[{}])))",
-                        sum_by.as_ref(),
-                        metric_name_with_filter.as_ref(),
-                        range.as_ref(),
-                    )
-                })
-                .collect::<Vec<_>>(),
+            histogram_quantile_exprs(metric_name_with_filter, sum_by, range),
             PanelType::TimeSeries,
         )
     }
@@ -372,6 +363,29 @@ impl Panel {
             range,
         )
         .with_legends(HISTOGRAM_QUANTILES.iter().map(|q| format!("{q:.2} {{{{{group_label}}}}}")))
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn from_gauge_histogram(metric: &MetricGaugeHistogram) -> Self {
+        // Current value from gauge
+        let current_value = metric.get_gauge_name_with_filter();
+        // Histogram quantiles (p50, p95)
+        let hist_name = metric.get_histogram_name_with_filter();
+        let quantile_exprs = histogram_quantile_exprs(hist_name, "le", HISTOGRAM_TIME_RANGE);
+        // Combine: current value + quantiles
+        let mut exprs = vec![current_value];
+        exprs.extend(quantile_exprs);
+        Self::new(
+            metric_name_to_panel_title(metric.get_name()),
+            metric.get_description(),
+            exprs,
+            PanelType::TimeSeries,
+        )
+        .with_legends(
+            std::iter::once("current".to_string())
+                .chain(HISTOGRAM_QUANTILES.iter().map(|q| format!("{q:.2}")))
+                .collect::<Vec<_>>(),
+        )
     }
 }
 
@@ -452,4 +466,22 @@ pub(crate) fn get_time_since_last_increase_expr(metric_name: &str) -> String {
         "time() - max_over_time((timestamp(increase({metric_name}[{TIME_RANGE}])) != \
          0)[{TIME_RANGE}:])"
     )
+}
+
+fn histogram_quantile_exprs(
+    metric_name_with_filter: impl AsRef<str>,
+    sum_by: impl AsRef<str>,
+    range: impl AsRef<str>,
+) -> Vec<String> {
+    HISTOGRAM_QUANTILES
+        .iter()
+        .map(|q| {
+            format!(
+                "histogram_quantile({q:.2}, sum by ({}) (rate({}[{}])))",
+                sum_by.as_ref(),
+                metric_name_with_filter.as_ref(),
+                range.as_ref(),
+            )
+        })
+        .collect::<Vec<_>>()
 }
