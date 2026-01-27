@@ -47,6 +47,9 @@ use tracing::{debug, error, info, warn};
 
 use crate::metrics::{
     register_metrics,
+    AVERAGE_COMPUTE_RATE,
+    AVERAGE_READ_RATE,
+    AVERAGE_WRITE_RATE,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -54,10 +57,8 @@ use crate::metrics::{
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
     EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
     OFFSET,
-    READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
-    WRITE_DB_ENTRIES_PER_BLOCK,
     WRITE_DURATION_PER_BLOCK,
 };
 
@@ -465,8 +466,23 @@ fn update_metrics(
         durations.compute * 1000.0,
         durations.write * 1000.0
     );
-    READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
-    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
+
+    if durations.read > 0.0 {
+        let rate = *n_reads as f64 / durations.read;
+        AVERAGE_READ_RATE.record_lossy(rate);
+        info!("Average read rate of block {height}: {rate:.2} entries/sec");
+    }
+    if durations.compute > 0.0 {
+        let rate = *n_writes as f64 / durations.compute;
+        AVERAGE_COMPUTE_RATE.record_lossy(rate);
+        info!("Average compute rate of block {height}: {rate:.2} entries/sec");
+    }
+    if durations.write > 0.0 {
+        let rate = *n_writes as f64 / durations.write;
+        AVERAGE_WRITE_RATE.record_lossy(rate);
+        info!("Average write rate of block {height}: {rate:.2} entries/sec");
+    }
+
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
     info!("Storage tries modifications in block {height}: {}", modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.contracts_trie);
