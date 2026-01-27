@@ -5,6 +5,7 @@ pub mod runner;
 pub mod server;
 pub mod storage_proofs;
 pub mod virtual_block_executor;
+pub mod virtual_snos_prover;
 
 #[cfg(test)]
 mod classes_provider_test;
