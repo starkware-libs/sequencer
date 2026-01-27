@@ -49,11 +49,11 @@ fn versioned_constants() -> &'static VersionedConstants {
 ///     1. An empty transaction.
 ///     2. A Declare transaction.
 ///     3. A DeployAccount transaction.
-///     4. An L1 handler.
-///     5. A transaction with L2-to-L1 messages.
-///     6. A transaction that modifies the storage.
-///     7. A combination of cases 4. 5. and 6.
-// TODO(AvivG): Add case for client-side proving transaction.
+///     4. A transaction with client-side proving.
+///     5. An L1 handler.
+///     6. A transaction with L2-to-L1 messages.
+///     7. A transaction that modifies the storage.
+///     8. A combination of cases 5. 6. and 7.
 #[rstest]
 fn test_calculate_tx_gas_usage_basic<'a>(
     #[values(false, true)] use_kzg_da: bool,
@@ -151,6 +151,37 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         &gas_vector_computation_mode,
     );
     assert_eq!(manual_gas_vector, deploy_account_gas_usage_vector);
+
+    // Invoke with client-side proving.
+    let proof_facts_length = 7;
+    let invoke_with_proof_starknet_resources = StarknetResources::new(
+        0,
+        0,
+        0,
+        StateResources::default(),
+        None,
+        ExecutionSummary::default(),
+        proof_facts_length,
+    );
+
+    // Manual calculation.
+    let proof_gas = versioned_constants
+        .get_archival_data_gas_costs(&gas_vector_computation_mode)
+        .gas_per_proof
+        .to_integer();
+    let proof_facts_gas = (gas_per_data_felt * u64_from_usize(proof_facts_length)).to_integer();
+    let total_proof_gas = proof_facts_gas + proof_gas;
+    let manual_proof_gas_vector = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(total_proof_gas.into()),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(total_proof_gas.into()),
+    };
+
+    let invoke_with_proof_gas_vector = invoke_with_proof_starknet_resources.to_gas_vector(
+        &versioned_constants,
+        use_kzg_da,
+        &gas_vector_computation_mode,
+    );
+    assert_eq!(manual_proof_gas_vector, invoke_with_proof_gas_vector);
 
     // L1 handler.
 
