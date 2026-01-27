@@ -5,21 +5,23 @@ metaLabels:
 
 image:
   repository: ghcr.io/starkware-libs/sequencer/sequencer
-  tag: dev
+  tag: "nimrod-to-deploy-6bafa05@sha256:d2c6f899cade81dbd878034ac8bf1018b25763eb8c49331ecf499f0abae51799"
   digest: ''
   imagePullPolicy: IfNotPresent
 
 config:
   sequencerConfig:
-    chain_id: "CHAIN_ID_SUBDIR"
+    chain_id: "SN_GOERLI"
     eth_fee_token_address: "0x1001"
     monitoring_endpoint_config_port: 8082
     native_classes_whitelist: "All"
     recorder_url: "http://dummy-recorder-service.dummy-recorder.svc.cluster.local:8080"
-    starknet_url: "https://integration-sepolia.starknet.io/"
-    strk_fee_token_address: "0x1002"
+    starknet_url: "http://feeder-gateway.committer-test-1-centralized:9713"
+    strk_fee_token_address: "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7"
     validator_id: "0x64"
     versioned_constants_overrides_max_n_events: 1000
+    validate_resource_bounds: false
+    base_layer_config_starknet_contract_address: "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f"
 
 service:
   ports:
@@ -67,3 +69,12 @@ livenessProbe:
 
 securityContext:
   fsGroup: 1000
+
+nodeSelector:
+  role: "apollo-core-service"
+
+tolerations:
+  - key: key
+    operator: "Equal"
+    value: "apollo-core-service"
+    effect: "NoSchedule"
