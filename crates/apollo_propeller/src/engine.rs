@@ -13,6 +13,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
 use crate::message_processor::{MessageProcessor, StateManagerToEngine, UnitToValidate};
+use crate::metrics::PropellerMetrics;
 use crate::sharding::prepare_units;
 use crate::signature;
 use crate::time_cache::TimeCache;
@@ -81,6 +82,7 @@ pub struct Engine {
     broadcaster_results_rx: mpsc::UnboundedReceiver<Result<Vec<PropellerUnit>, ShardPublishError>>,
     broadcaster_results_tx: mpsc::UnboundedSender<Result<Vec<PropellerUnit>, ShardPublishError>>,
     output_tx: mpsc::UnboundedSender<EngineOutput>,
+    metrics: Option<PropellerMetrics>,
 }
 
 impl Engine {
@@ -88,6 +90,7 @@ impl Engine {
     pub fn new(
         keypair: Keypair,
         config: Config,
+        metrics: Option<PropellerMetrics>,
         output_tx: mpsc::UnboundedSender<EngineOutput>,
     ) -> Self {
         let local_peer_id = PeerId::from(keypair.public());
@@ -107,6 +110,7 @@ impl Engine {
             broadcaster_results_rx,
             broadcaster_results_tx,
             output_tx,
+            metrics,
         }
     }
 
