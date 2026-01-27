@@ -13,7 +13,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
-use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
+use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, storage_key};
 use tempfile::TempDir;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
@@ -70,6 +70,9 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     let storage_key = storage_key!("0x10");
     let storage_value = felt!("0x42");
 
+    let deployed_contract_address = contract_address!("0x200");
+    let deployed_class_hash = class_hash!("0x1234");
+
     let storage_diffs = IndexMap::from([(storage_key, storage_value)]);
 
     let expected_class: SierraContractClass = read_json_file("class.json");
@@ -83,6 +86,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     let casm_class_hash = ClassHash(felt!("0x2"));
 
     let state_diff = ThinStateDiff {
+        deployed_contracts: IndexMap::from([(deployed_contract_address, deployed_class_hash)]),
         storage_diffs: IndexMap::from([(contract_address, storage_diffs)]),
         class_hash_to_compiled_class_hash: IndexMap::from([(
             class_hash,
@@ -295,4 +299,18 @@ async fn casm_requests() {
         get_response(setup.app, &casm_request, StatusCode::OK).await;
 
     assert_eq!(casm_response, StorageReaderResponse::CasmsFromLocation(setup.casm));
+}
+
+#[tokio::test]
+async fn deployed_contracts_request() {
+    let block_number = BlockNumber(0);
+    let setup = setup_test_server(block_number, unique_u16!());
+
+    let (contract_address, class_hash) = setup.state_diff.deployed_contracts.iter().next().unwrap();
+
+    // Request the deployed contract's class hash
+    let request = StorageReaderRequest::DeployedContracts(*contract_address, block_number);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::DeployedContracts(*class_hash));
 }
