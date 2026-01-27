@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769521962527,
+  "lastUpdate": 1769524358639,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -883,6 +883,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1407.9191233699999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7805f2d079e35fd06b1733226fbbff55672b1453",
+          "message": "apollo_propeller: add protocol upgrade for libp2p streams (#11064)",
+          "timestamp": "2026-01-27T14:01:31Z",
+          "tree_id": "7c0075a3490610703838e377063b9b97a982e24a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7805f2d079e35fd06b1733226fbbff55672b1453"
+        },
+        "date": 1769524358302,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 989.7129360900001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1431.21059604,
             "unit": "ms"
           }
         ]
