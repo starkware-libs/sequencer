@@ -5,6 +5,7 @@ pub mod handler;
 pub mod merkle;
 #[cfg(test)]
 mod merkle_test;
+pub mod metrics;
 pub mod padding;
 #[cfg(test)]
 mod padding_test;
@@ -37,6 +38,7 @@ pub use behaviour::Behaviour;
 pub use config::Config;
 pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
+pub use metrics::PropellerMetrics;
 pub use tree::{PropellerScheduleManager, Stake};
 pub use types::{Channel, Event, MessageRoot, ShardIndex, ShardValidationError};
 pub use unit::PropellerUnit;
