@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
     deserialize_optional_sensitive_map,
     deserialize_seconds_to_duration,
     serialize_optional_map,
@@ -103,8 +104,8 @@ impl SerializeConfig for CentralSourceConfig {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub block_propagation_sleep_duration: Duration,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub latest_block_poll_interval_millis: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub base_layer_propagation_sleep_duration: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -120,9 +121,10 @@ impl SerializeConfig for SyncConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "block_propagation_sleep_duration",
-                &self.block_propagation_sleep_duration.as_secs(),
-                "Time in seconds before checking for a new block after the node is synchronized.",
+                "latest_block_poll_interval_millis",
+                &self.latest_block_poll_interval_millis.as_millis(),
+                "Time in milliseconds between polling for the latest block while node is \
+                 synchronized.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -179,7 +181,7 @@ impl SerializeConfig for SyncConfig {
 impl Default for SyncConfig {
     fn default() -> Self {
         SyncConfig {
-            block_propagation_sleep_duration: Duration::from_secs(2),
+            latest_block_poll_interval_millis: Duration::from_millis(500),
             base_layer_propagation_sleep_duration: Duration::from_secs(10),
             recoverable_error_sleep_duration: Duration::from_secs(3),
             blocks_max_stream_size: 1000,
