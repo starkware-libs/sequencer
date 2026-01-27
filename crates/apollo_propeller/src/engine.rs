@@ -13,6 +13,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::config::Config;
 use crate::handler::{HandlerIn, HandlerOut};
 use crate::message_processor::{EventStateManagerToEngine, UnitToValidate};
+use crate::signature;
 use crate::time_cache::TimeCache;
 use crate::tree::{PropellerScheduleManager, Stake};
 use crate::types::{Channel, Event, MessageRoot, PeerSetError, ShardPublishError};
@@ -110,6 +111,59 @@ impl Engine {
         }
     }
 
+    /// Register a channel with peers and optional public keys.
+    pub fn register_channel_peers_and_optional_keys(
+        &mut self,
+        channel: Channel,
+        peers: Vec<(PeerId, u64, Option<PublicKey>)>,
+    ) -> Result<(), PeerSetError> {
+        let mut peer_weights = Vec::new();
+        let mut peer_public_keys = HashMap::new();
+
+        for (peer_id, weight, public_key) in peers {
+            match self.get_public_key(peer_id, public_key) {
+                Ok(public_key) => {
+                    peer_weights.push((peer_id, weight));
+                    peer_public_keys.insert(peer_id, public_key);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        let new_tree_manager = PropellerScheduleManager::new(self.local_peer_id, peer_weights)?;
+        let channel_data =
+            ChannelData { tree_manager: Arc::new(new_tree_manager), peer_public_keys };
+        self.channels.insert(channel, channel_data);
+
+        Ok(())
+    }
+
+    /// Unregister a channel.
+    #[allow(clippy::result_unit_err)] // TODO(AndrewL): remove this
+    pub fn unregister_channel(&mut self, channel: Channel) -> Result<(), ()> {
+        self.channels.remove(&channel).ok_or(())?;
+        Ok(())
+    }
+
+    fn get_public_key(
+        &self,
+        peer_id: PeerId,
+        public_key: Option<PublicKey>,
+    ) -> Result<PublicKey, PeerSetError> {
+        if let Some(public_key) = public_key {
+            if signature::validate_public_key_matches_peer_id(&public_key, &peer_id) {
+                Ok(public_key)
+            } else {
+                Err(PeerSetError::InvalidPublicKey)
+            }
+        } else if let Some(extracted_key) = signature::try_extract_public_key_from_peer_id(&peer_id)
+        {
+            Ok(extracted_key)
+        } else {
+            Err(PeerSetError::InvalidPublicKey)
+        }
+    }
+
     /// Run the engine in its own task, processing commands and results.
     pub async fn run(mut self, mut commands_rx: mpsc::UnboundedReceiver<EngineCommand>) {
         loop {
@@ -131,14 +185,19 @@ impl Engine {
     async fn handle_command(&mut self, cmd: EngineCommand) {
         match cmd {
             EngineCommand::RegisterChannelPeers { channel, peers, response } => {
-                // TODO(AndrewL): Implement channel registration
-                let _ = (channel, peers, response);
-                todo!()
+                let result = self.register_channel_peers_and_optional_keys(channel, peers);
+                if let Err(result) = response.send(result) {
+                    tracing::warn!(
+                        ?result,
+                        "RegisterChannelPeers response dropped - receiver gone"
+                    );
+                }
             }
             EngineCommand::UnregisterChannel { channel, response } => {
-                // TODO(AndrewL): Implement channel unregistration
-                let _ = (channel, response);
-                todo!()
+                let result = self.unregister_channel(channel).is_ok();
+                if let Err(result) = response.send(result) {
+                    tracing::warn!(result, "UnregisterChannel response dropped - receiver gone");
+                }
             }
             EngineCommand::Broadcast { channel, message, response } => {
                 // TODO(AndrewL): Implement message broadcasting
