@@ -91,6 +91,7 @@ pub struct Engine {
     state_manager_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
     prepared_units_rx: mpsc::UnboundedReceiver<BroadcastResult>,
     prepared_units_tx: mpsc::UnboundedSender<BroadcastResult>,
+    from_behaviour_rx: mpsc::UnboundedReceiver<EngineCommand>,
     to_behaviour_tx: mpsc::UnboundedSender<EngineOutput>,
 }
 
@@ -99,6 +100,7 @@ impl Engine {
     pub fn new(
         keypair: Keypair,
         config: Config,
+        from_behaviour_rx: mpsc::UnboundedReceiver<EngineCommand>,
         output_tx: mpsc::UnboundedSender<EngineOutput>,
     ) -> Self {
         let local_peer_id = PeerId::from(keypair.public());
@@ -119,6 +121,7 @@ impl Engine {
             state_manager_tx,
             prepared_units_rx: broadcaster_results_rx,
             prepared_units_tx: broadcaster_results_tx,
+            from_behaviour_rx,
             to_behaviour_tx: output_tx,
         }
     }
@@ -415,10 +418,10 @@ impl Engine {
     }
 
     /// Run the engine in its own task, processing commands and results.
-    pub async fn run(mut self, mut commands_rx: mpsc::UnboundedReceiver<EngineCommand>) {
+    pub async fn run(mut self) {
         loop {
             tokio::select! {
-                Some(cmd) = commands_rx.recv() => match cmd {
+                Some(cmd) = self.from_behaviour_rx.recv() => match cmd {
                     EngineCommand::RegisterChannelPeers { channel, peers, response } => {
                         let result = self.register_channel(channel, peers);
                         let _ = response.send(result);
