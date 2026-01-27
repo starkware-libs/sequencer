@@ -1,5 +1,4 @@
-// TODO(victork): finalise migration to hyper 1.x
-use http_1::StatusCode;
+use http::StatusCode;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use thiserror::Error;

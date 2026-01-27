@@ -65,7 +65,7 @@ impl MetricLogger {
     }
 }
 
-impl<S> tower_05::Layer<S> for MetricLogger {
+impl<S> tower::Layer<S> for MetricLogger {
     type Service = MetricLoggerService<S>;
 
     fn layer(&self, service: S) -> Self::Service {

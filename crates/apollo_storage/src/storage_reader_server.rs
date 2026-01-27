@@ -6,12 +6,11 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::extract::State;
-use axum_08::http::StatusCode;
-use axum_08::response::{IntoResponse, Response};
-use axum_08::routing::post;
-use axum_08::{Json, Router};
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::routing::post;
+use axum::{serve, Json, Router};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
@@ -162,7 +161,7 @@ where
             error!("Storage reader server error: {}", e);
             StorageError::IOError(io::Error::other(e))
         })?;
-        axum_08::serve(listener, app).await.map_err(|e| {
+        serve(listener, app).await.map_err(|e| {
             error!("Storage reader server error: {}", e);
             StorageError::IOError(io::Error::other(e))
         })

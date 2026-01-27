@@ -32,9 +32,9 @@ thiserror.workspace = true
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
-axum_08.workspace = true
+axum.workspace = true
 mockall.workspace = true
 serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
-tower_05.workspace = true
+tower.workspace = true

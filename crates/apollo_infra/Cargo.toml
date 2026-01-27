@@ -20,10 +20,10 @@ apollo_metrics.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
 derive_more = { workspace = true, features = ["display", "from_str"] }
+http.workspace = true
 http-body-util.workspace = true
-http_1.workspace = true
+hyper = { workspace = true, features = ["server"] }
 hyper-util = { workspace = true, features = ["client-legacy", "server-auto", "tokio"] }
-hyper_1 = { workspace = true, features = ["server"] }
 metrics-exporter-prometheus.workspace = true
 rand.workspace = true
 rstest.workspace = true

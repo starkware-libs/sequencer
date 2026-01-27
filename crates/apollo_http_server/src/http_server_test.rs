@@ -13,11 +13,10 @@ use apollo_gateway_types::gateway_types::{
 };
 use apollo_infra::component_client::ClientError;
 use apollo_proc_macros::unique_u16;
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::body::Bytes;
-use axum_08::http::StatusCode;
-use axum_08::response::{IntoResponse, Response};
-use axum_08::Json;
+use axum::body::Bytes;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::Json;
 use http_body_util::BodyExt;
 use rstest::rstest;
 use serde_json::Value;
