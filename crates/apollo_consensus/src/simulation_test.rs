@@ -607,6 +607,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
     // A decision should be reached when:
     // 1. Proposal finished (validation or building)
     // 2. At least THRESHOLD precommits from validators for that round+commitment
+    // 3. The virtual proposer for that round precommitted in favor of the block
     let expected_decision =
         sim.round_stats.iter().find_map(|((r, commitment), (precommits, proposal_ready))| {
             if !*proposal_ready {
@@ -624,8 +625,19 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
                 .iter()
                 .count();
             let total_precommits = peer_precommits + self_vote;
+            // Match the state machine's `virtual_leader_in_favor` gating for decision.
+            // In this simulation the virtual leader function is the same as the leader function.
+            let virtual_proposer = {
+                let idx = get_leader_index(sim.seed, sim.total_nodes, *r);
+                sim.validators[idx]
+            };
+            let virtual_proposer_precommitted_in_favor = if virtual_proposer == *NODE_0 {
+                self_vote == 1
+            } else {
+                precommits.iter().any(|v| v.voter == virtual_proposer)
+            };
 
-            if total_precommits >= sim.quorum_threshold {
+            if total_precommits >= sim.quorum_threshold && virtual_proposer_precommitted_in_favor {
                 Some((*r, *commitment, precommits.clone()))
             } else {
                 None

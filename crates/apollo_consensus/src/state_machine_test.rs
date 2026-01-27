@@ -117,8 +117,36 @@ impl TestWrapper {
         )))
     }
 
+    pub fn send_prevote_from(
+        &mut self,
+        proposal_id: Option<ProposalCommitment>,
+        round: Round,
+        voter: ValidatorId,
+    ) {
+        self.send_event(StateMachineEvent::Prevote(mk_vote(
+            VoteType::Prevote,
+            round,
+            proposal_id,
+            voter,
+        )))
+    }
+
     pub fn send_precommit(&mut self, proposal_id: Option<ProposalCommitment>, round: Round) {
         let voter = self.next_peer();
+        self.send_event(StateMachineEvent::Precommit(mk_vote(
+            VoteType::Precommit,
+            round,
+            proposal_id,
+            voter,
+        )))
+    }
+
+    pub fn send_precommit_from(
+        &mut self,
+        proposal_id: Option<ProposalCommitment>,
+        round: Round,
+        voter: ValidatorId,
+    ) {
         self.send_event(StateMachineEvent::Precommit(mk_vote(
             VoteType::Precommit,
             round,
@@ -679,8 +707,8 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     );
     assert!(wrapper.next_request().is_none());
 
-    // Another node sends a Precommit (vote 2).
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    // The virtual proposer sends a Precommit (vote 2).
+    wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *PROPOSER_ID);
 
     // Byzantine quorum requires 3 votes, so we need one more vote.
     if quorum_type == QuorumType::Byzantine {
@@ -688,7 +716,7 @@ fn number_of_required_votes(quorum_type: QuorumType) {
         assert!(wrapper.next_request().is_none());
 
         // Another node sends a Precommit (vote 3).
-        wrapper.send_precommit(PROPOSAL_ID, ROUND);
+        wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2);
     }
     // In honest case, the second vote is enough for a quorum.
 
@@ -736,4 +764,56 @@ fn observer_does_not_record_self_votes() {
     assert!(wrapper.next_request().is_none());
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+}
+
+#[test]
+fn quorums_require_virtual_leader_in_favor_for_value() {
+    // Virtual leader (VALIDATOR_ID_3) must be one of the voters in favor for precommit quorum for a
+    // value to reach decision.
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| *PROPOSER_ID,
+        |_: Round| *VALIDATOR_ID_3,
+        false,
+        QuorumType::Byzantine,
+    );
+
+    wrapper.start();
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
+    assert!(wrapper.next_request().is_none());
+
+    // Receive (validated) proposal -> self prevote for the value.
+    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    assert!(wrapper.next_request().is_none());
+
+    // Reach prevote quorum without the virtual leader's prevote (self + 2 peers).
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *PROPOSER_ID); // peer 1
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2); // peer 2
+
+    // With prevote quorum, we can precommit even without virtual leader's prevote.
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    assert!(wrapper.next_request().is_none());
+
+    // Reach precommit quorum without the virtual leader's precommit (self + 2 peers).
+    wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *PROPOSER_ID); // peer 1
+    assert!(wrapper.next_request().is_none());
+    wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2); // peer 2
+
+    // Mixed precommit quorum still schedules timeout, but we must NOT decide yet.
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    assert!(wrapper.next_request().is_none());
+
+    // Now the virtual leader precommits for the value -> we can decide.
+    wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_3); // peer 3 (virtual leader)
+    assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
