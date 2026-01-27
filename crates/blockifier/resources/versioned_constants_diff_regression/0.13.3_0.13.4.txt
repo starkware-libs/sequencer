@@ -6,6 +6,7 @@
 ~ /min_sierra_version_for_sierra_gas: "1.7.0"
 ~ /os_constants/builtin_gas_costs/add_mod: 230
 ~ /os_constants/builtin_gas_costs/bitwise: 583
+~ /os_constants/builtin_gas_costs/blake2s: 3334
 ~ /os_constants/builtin_gas_costs/ecdsa: 10561
 ~ /os_constants/builtin_gas_costs/ecop: 4085
 ~ /os_constants/builtin_gas_costs/keccak: 136189
