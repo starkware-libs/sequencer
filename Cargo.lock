@@ -1332,6 +1332,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_reverts",
  "apollo_signature_manager_types",
+ "apollo_staking",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_time",
@@ -1354,6 +1355,7 @@ dependencies = [
  "apollo_consensus_orchestrator_config",
  "apollo_network",
  "apollo_reverts",
+ "apollo_staking_config",
  "serde",
  "validator",
 ]
