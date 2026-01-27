@@ -278,7 +278,13 @@ fn open_storage_internal(
         file_readers,
         open_readers_metric,
     };
-    let writer = StorageWriter::new(db_writer, file_writers, tables, storage_config.scope);
+    let writer = StorageWriter::new(
+        db_writer,
+        file_writers,
+        tables,
+        storage_config.scope,
+        storage_config.batch_config,
+    );
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
@@ -487,6 +493,40 @@ pub struct StorageReader {
     open_readers_metric: Option<&'static MetricGauge>,
 }
 
+/// Configuration for transaction batching.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct BatchConfig {
+    /// Whether batching is enabled.
+    pub enabled: bool,
+    /// Number of logical commits before actual MDBX commit.
+    pub batch_size: usize,
+}
+
+impl Default for BatchConfig {
+    fn default() -> Self {
+        Self { enabled: false, batch_size: 100 }
+    }
+}
+
+impl SerializeConfig for BatchConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "enabled",
+                &self.enabled,
+                "Whether transaction batching is enabled.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "batch_size",
+                &self.batch_size,
+                "Number of logical commits before actual MDBX commit.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
 impl StorageReader {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading data from the storage.
@@ -545,6 +585,7 @@ impl StorageWriter {
         file_writers: FileHandlers<RW>,
         tables: Arc<Tables>,
         scope: StorageScope,
+        batch_config: BatchConfig,
     ) -> Self {
         Self {
             db_writer,
@@ -552,8 +593,8 @@ impl StorageWriter {
             tables,
             scope,
             active_txn: None,
-            batching_enabled: false,
-            batch_size: 100,
+            batching_enabled: batch_config.enabled,
+            batch_size: batch_config.batch_size,
             commit_counter: 0,
         }
     }
@@ -887,6 +928,8 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    #[serde(default)]
+    pub batch_config: BatchConfig,
 }
 
 impl SerializeConfig for StorageConfig {
@@ -900,6 +943,8 @@ impl SerializeConfig for StorageConfig {
         dumped_config
             .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
         dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
+        dumped_config
+            .extend(prepend_sub_config_name(self.batch_config.dump(), "batch_config"));
         dumped_config
     }
 }
