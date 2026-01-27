@@ -2,6 +2,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_proc_macros::unique_u16;
+use apollo_test_utils::get_test_block;
 use axum::http::StatusCode;
 use axum::Router;
 use indexmap::IndexMap;
@@ -10,7 +11,13 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::{contract_address, felt, storage_key};
 use tempfile::TempDir;
 
-use crate::state::StateStorageWriter;
+use crate::base_layer::BaseLayerStorageReader;
+use crate::body::{BodyStorageReader, BodyStorageWriter};
+use crate::class::ClassStorageReader;
+use crate::class_manager::ClassManagerStorageReader;
+use crate::compiled_class::CasmStorageReader;
+use crate::header::{HeaderStorageReader, HeaderStorageWriter};
+use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::storage_reader_server::ServerConfig;
 use crate::storage_reader_server_test_utils::get_response;
 use crate::storage_reader_types::{
@@ -19,7 +26,7 @@ use crate::storage_reader_types::{
     StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
-use crate::StorageReader;
+use crate::{MarkerKind, StorageReader};
 
 // Creates an `AvailablePorts` instance with a unique `instance_index`.
 // Each test that binds ports should use a different instance_index to get disjoint port ranges.
@@ -30,9 +37,11 @@ fn available_ports_factory(instance_index: u16) -> AvailablePorts {
 }
 
 /// Sets up a test server with a comprehensive state diff at the specified block number.
+/// Optionally sets up headers and bodies if `setup_headers_and_bodies` is true.
 fn setup_test_server(
     block_number: BlockNumber,
     instance_index: u16,
+    setup_headers_and_bodies: bool,
 ) -> (Router, StorageReader, ThinStateDiff, TempDir) {
     let ((reader, mut writer), temp_dir) = get_test_storage();
 
@@ -46,13 +55,20 @@ fn setup_test_server(
         ..Default::default()
     };
 
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_state_diff(block_number, state_diff.clone())
-        .unwrap()
-        .commit()
-        .unwrap();
+    let mut txn =
+        writer.begin_rw_txn().unwrap().append_state_diff(block_number, state_diff.clone()).unwrap();
+
+    // Optionally set up headers and bodies
+    if setup_headers_and_bodies {
+        let block = get_test_block(1, Some(1), None, None);
+        txn = txn
+            .append_header(block_number, &block.header)
+            .unwrap()
+            .append_body(block_number, block.body)
+            .unwrap();
+    }
+
+    txn.commit().unwrap();
 
     let config = ServerConfig::new(
         IpAddr::from(Ipv4Addr::LOCALHOST),
@@ -68,7 +84,8 @@ fn setup_test_server(
 #[tokio::test]
 async fn state_diff_location_request() {
     let block_number = BlockNumber(0);
-    let (app, reader, state_diff, _temp_dir) = setup_test_server(block_number, unique_u16!());
+    let (app, reader, state_diff, _temp_dir) =
+        setup_test_server(block_number, unique_u16!(), false);
 
     let expected_location = reader
         .begin_ro_txn()
@@ -100,7 +117,8 @@ async fn state_diff_location_request() {
 #[tokio::test]
 async fn contract_storage_request() {
     let block_number = BlockNumber(0);
-    let (app, _reader, state_diff, _temp_dir) = setup_test_server(block_number, unique_u16!());
+    let (app, _reader, state_diff, _temp_dir) =
+        setup_test_server(block_number, unique_u16!(), false);
 
     // Extract the test data from the state diff
     let (contract_address, storage_diffs) = state_diff.storage_diffs.iter().next().unwrap();
@@ -112,4 +130,43 @@ async fn contract_storage_request() {
     let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
 
     assert_eq!(response, StorageReaderResponse::ContractStorage(*storage_value));
+}
+
+#[tokio::test]
+async fn markers_request() {
+    let block_number = BlockNumber(0);
+    let (app, reader, _state_diff, _temp_dir) =
+        setup_test_server(block_number, unique_u16!(), true);
+
+    let txn = reader.begin_ro_txn().unwrap();
+
+    // Test all implemented markers
+    // TODO(Nadin): Add tests for GlobalRoot once it is implemented.
+    let marker_tests = vec![
+        (MarkerKind::State, txn.get_state_marker().unwrap()),
+        (MarkerKind::Header, txn.get_header_marker().unwrap()),
+        (MarkerKind::Body, txn.get_body_marker().unwrap()),
+        (MarkerKind::Event, txn.get_event_marker().unwrap()),
+        (MarkerKind::Class, txn.get_class_marker().unwrap()),
+        (MarkerKind::CompiledClass, txn.get_compiled_class_marker().unwrap()),
+        (MarkerKind::BaseLayerBlock, txn.get_base_layer_block_marker().unwrap()),
+        (MarkerKind::ClassManagerBlock, txn.get_class_manager_block_marker().unwrap()),
+        (
+            MarkerKind::CompilerBackwardCompatibility,
+            txn.get_compiler_backward_compatibility_marker().unwrap(),
+        ),
+    ];
+
+    for (marker_kind, expected_marker) in marker_tests {
+        let request = StorageReaderRequest::Markers(marker_kind);
+        let response: StorageReaderResponse =
+            get_response(app.clone(), &request, StatusCode::OK).await;
+
+        assert_eq!(
+            response,
+            StorageReaderResponse::Markers(expected_marker),
+            "Marker {:?} should match expected value",
+            marker_kind
+        );
+    }
 }
