@@ -135,7 +135,7 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
         tx_index: TransactionIndex,
     ) -> StorageResult<Option<()>> {
         let events_table = self.open_table(&self.tables.events)?;
-        Ok(events_table.get(&self.txn, &(address, tx_index))?.map(|_| ()))
+        Ok(events_table.get(self.txn(), &(address, tx_index))?.map(|_| ()))
     }
 }
 
@@ -294,12 +294,12 @@ where
     ) -> StorageResult<EventIterByContractAddress<'env, 'txn>> {
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
         let events_table = self.open_table(&self.tables.events)?;
-        let mut cursor = events_table.cursor(&self.txn)?;
+        let mut cursor = events_table.cursor(self.txn())?;
         let events_queue = if let Some((contract_address, tx_index)) =
             cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
         {
             let tx_metadata =
-                transaction_metadata_table.get(&self.txn, &tx_index)?.unwrap_or_else(|| {
+                transaction_metadata_table.get(self.txn(), &tx_index)?.unwrap_or_else(|| {
                     panic!("Transaction metadata not found for transaction index: {tx_index:?}")
                 });
             let tx_output = self
@@ -322,7 +322,7 @@ where
         let next_entry_in_event_table = cursor.next()?.map(|(key, _)| key);
 
         Ok(EventIterByContractAddress {
-            txn: &self.txn,
+            txn: self.txn(),
             file_handles: &self.file_handlers,
             next_entry_in_event_table,
             events_queue,
@@ -346,7 +346,7 @@ where
         to_block_number: BlockNumber,
     ) -> StorageResult<EventIterByEventIndex<'txn>> {
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let mut tx_cursor = transaction_metadata_table.cursor(&self.txn)?;
+        let mut tx_cursor = transaction_metadata_table.cursor(self.txn())?;
         let first_txn_location = tx_cursor.lower_bound(&event_index.0)?;
         let first_relevant_transaction = match first_txn_location {
             None => None,
