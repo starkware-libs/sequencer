@@ -40,8 +40,8 @@ impl CommitterTaskOutput {
 
     pub(crate) fn height(&self) -> BlockNumber {
         match self {
-            Self::Commit(commitment_task_output) => commitment_task_output.height,
-            Self::Revert(revert_task_output) => revert_task_output.height,
+            Self::Commit(CommitmentTaskOutput { height, .. })
+            | Self::Revert(RevertTaskOutput { height, .. }) => *height,
         }
     }
 }

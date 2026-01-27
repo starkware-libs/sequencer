@@ -317,6 +317,62 @@ jobs:
             --timeout ${{ env.check_timeout_sec }} \
             --interval ${{ env.check_interval_sec }}
 
+      - name: List all pods in namespace ${{ env.namespace }} (before copy state and restart)
+        if: always()
+        run: |
+          # ============================================
+          # List all pods in the namespace
+          # ============================================
+          kubectl get pods -n "$namespace"
+          echo "---"
+          echo ""
+          echo "✅ Finished listing pods in namespace ${{ env.namespace }}"
+          echo "---------------------------------------------"
+          echo ""
+
+      - name: Get container logs (before copy state and restart)
+        if: always()
+        run: |
+          pods=$(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}')
+          echo "📥 Getting pod logs and descriptions from namespace: $namespace"
+          echo "---------------------------------------------"
+          echo ""
+          # ============================================
+          # Describe each pod
+          # ============================================
+          echo "## 🔍 Pod Descriptions"
+          echo "---------------------------------------------"
+          echo ""
+          for pod in $pods; do
+            echo "### Pod: \`$pod\`"
+            echo ""
+            echo '```'
+            kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+          done
+          # ============================================
+          # Get logs for each pod
+          # ============================================
+          echo "## 📜 Pod Logs"
+          echo "---------------------------------------------"
+          echo ""
+          for pod in $pods; do
+            echo "### Logs for pod: \`$pod\`"
+            echo ""
+            echo '```'
+            kubectl logs -n "$namespace" "$pod" --tail=1000 || echo "⚠️ Failed to get logs for $pod"
+            echo '```'
+            echo ""
+            echo "---"
+            echo ""
+          done
+          echo "✅ Finished collecting pod information"
+          echo "---------------------------------------------"
+          echo ""
+
       - name: Copy state and restart pod
         run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }} --data-dir "./output/data/node_0"
 
@@ -374,7 +430,7 @@ jobs:
           echo "---------------------------------------------"
           echo ""
           for pod in $pods; do
-            echo "### Pod: \`$pod\`"
+            echo "### Pod (before copy state and restart): \`$pod\`"
             echo ""
             echo '```'
             kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
