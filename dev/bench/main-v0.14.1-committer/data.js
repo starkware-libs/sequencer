@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769528608644,
+  "lastUpdate": 1769540229183,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -951,6 +951,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1445.4610174200002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2e48adfe3c9b3fe90808c8e5f23e60d06234f3b3",
+          "message": "starknet_committer,apollo_node: initialize apollo committer with index db (#11841)",
+          "timestamp": "2026-01-27T18:24:16Z",
+          "tree_id": "5c1a45529e214841cf02699ed61c104ac43c8e53",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2e48adfe3c9b3fe90808c8e5f23e60d06234f3b3"
+        },
+        "date": 1769540228828,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 925.23703734,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1408.21425796,
             "unit": "ms"
           }
         ]
