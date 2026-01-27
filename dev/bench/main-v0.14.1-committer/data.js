@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769511890909,
+  "lastUpdate": 1769519453372,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -815,6 +815,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1251.1566292,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5d1479852c68a9f10c0dfdc8375f5d2ed626558f",
+          "message": "apollo_propeller: add prost codec for length-delimited messages (#11063)",
+          "timestamp": "2026-01-27T12:41:29Z",
+          "tree_id": "5804fd855dbbebc71cfc53cbe412b2ff61f8be1b",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5d1479852c68a9f10c0dfdc8375f5d2ed626558f"
+        },
+        "date": 1769519453011,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 926.8754372100001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1452.88163154,
             "unit": "ms"
           }
         ]
