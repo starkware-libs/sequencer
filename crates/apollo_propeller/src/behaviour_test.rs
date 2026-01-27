@@ -6,6 +6,7 @@ use libp2p::identity::Keypair;
 use libp2p::swarm::behaviour::{ConnectionEstablished, FromSwarm};
 use libp2p::swarm::{ConnectionId, NetworkBehaviour, THandlerInEvent, ToSwarm};
 use libp2p::{Multiaddr, PeerId};
+use rstest::rstest;
 use starknet_api::staking::StakingWeight;
 use tokio::time::error::Elapsed;
 
@@ -30,7 +31,6 @@ struct TestNode {
     peer_id: PeerId,
 }
 
-#[expect(dead_code)]
 impl TestNode {
     fn new(config: Config) -> Self {
         let keypair = Keypair::generate_ed25519();
@@ -101,7 +101,6 @@ struct TestEnvironment {
     nodes: BTreeMap<PeerId, TestNode>,
 }
 
-#[expect(dead_code)]
 impl TestEnvironment {
     fn new(num_nodes: usize, config: Config) -> Self {
         let mut nodes = BTreeMap::new();
@@ -147,5 +146,80 @@ impl TestEnvironment {
                 .unwrap();
         }
         committee_id
+    }
+}
+
+#[rstest]
+// TODO(AndrewL): make case(1) work. A single-node committee currently has no recipients to drive
+// the broadcast/reception flow.
+#[case(2)]
+#[case(3)]
+#[case(4)]
+#[case(5)]
+#[case(6)]
+#[case(7)]
+#[case(8)]
+#[case(9)]
+#[case(10)]
+#[tokio::test]
+async fn test_broadcast_and_receive(#[case] num_nodes: usize) {
+    let config = Config::default();
+    let mut env = TestEnvironment::new(num_nodes, config);
+    env.connect_all();
+    let committee_id = env.register_committee().await;
+    let publisher_id = env.peer_ids()[0];
+    let message = b"Hello, Propeller!".to_vec();
+
+    env.node_mut(publisher_id)
+        .behaviour
+        .broadcast(committee_id, message.clone())
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Step 1: Publisher sends initial shards to designated peers (one per recipient).
+    let mut initial_shards: BTreeMap<PeerId, PropellerUnit> = BTreeMap::new();
+    for _ in 0..(num_nodes - 1) {
+        let (recipient, unit) = env.node_mut(publisher_id).expect_send_unit().await;
+        assert_eq!(unit.committee_id(), committee_id);
+        assert_eq!(unit.publisher(), publisher_id);
+        initial_shards.insert(recipient, unit);
+    }
+    env.node_mut(publisher_id).expect_no_events().await;
+
+    let recipient_ids: Vec<PeerId> = initial_shards.keys().copied().collect();
+
+    // Step 2: For each recipient, deliver its shard from the publisher and collect the gossip
+    // it broadcasts to the other recipients. Each recipient gossips to (num_nodes - 2) peers.
+    let mut gossip_to_deliver: Vec<(PeerId, PeerId, PropellerUnit)> = Vec::new();
+    for &recipient_id in &recipient_ids {
+        let unit = initial_shards.get(&recipient_id).unwrap().clone();
+        env.node_mut(recipient_id).receive_unit(publisher_id, unit);
+
+        let mut expected_targets: Vec<PeerId> =
+            recipient_ids.iter().copied().filter(|&peer| peer != recipient_id).collect();
+        for _ in 0..expected_targets.len() {
+            let (target, gossip_unit) = env.node_mut(recipient_id).expect_send_unit().await;
+            assert_eq!(gossip_unit.committee_id(), committee_id);
+            assert_eq!(gossip_unit.publisher(), publisher_id);
+            assert!(expected_targets.contains(&target), "Gossip to unexpected peer: {:?}", target);
+            expected_targets.retain(|&peer| peer != target);
+            gossip_to_deliver.push((recipient_id, target, gossip_unit));
+        }
+    }
+
+    // Step 3: Deliver every gossipped shard to its target. The sender must match the
+    // designated broadcaster of the shard (each recipient broadcasts its own shard).
+    for (sender_id, target_id, unit) in gossip_to_deliver {
+        env.node_mut(target_id).receive_unit(sender_id, unit);
+    }
+
+    // Step 4: Every recipient should reconstruct the message and emit MessageReceived with
+    // the original payload.
+    for &recipient_id in &recipient_ids {
+        let (recv_publisher, recv_message) =
+            env.node_mut(recipient_id).expect_message_received().await;
+        assert_eq!(recv_publisher, publisher_id);
+        assert_eq!(recv_message, message);
     }
 }
