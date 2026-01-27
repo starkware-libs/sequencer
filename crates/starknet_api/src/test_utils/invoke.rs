@@ -51,7 +51,6 @@ pub struct InvokeTxArgs {
     pub nonce: Nonce,
     pub only_query: bool,
     pub tx_hash: TransactionHash,
-    // TODO(AvivG): Use non-default proof fields in tests to cover client-side proving.
     pub proof_facts: ProofFacts,
     pub proof: Proof,
 }
