@@ -122,7 +122,7 @@ func process_os_output{
 
     // Create the virtual OS output header with count of messages.
     assert [output_header_placeholder] = VirtualOsOutputHeader(
-        version=VIRTUAL_OS_OUTPUT_VERSION,
+        output_version=VIRTUAL_OS_OUTPUT_VERSION,
         base_block_number=header.prev_block_number,
         base_block_hash=header.prev_block_hash,
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
