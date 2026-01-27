@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use apollo_committer_config::config::CommitterConfig;
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
@@ -12,12 +14,21 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ClassHash, CompiledClassHash, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
+use starknet_committer::db::mock_forest_storage::MockForestStorage;
 use starknet_patricia_storage::map_storage::MapStorage;
 
-use super::{CommitBlockMock, Committer};
+use super::Committer;
+use crate::committer::{CommitBlockMock, StorageConstructor};
 
 pub type ApolloTestStorage = MapStorage;
-pub type ApolloTestCommitter = Committer<ApolloTestStorage, CommitBlockMock>;
+pub type ApolloTestCommitter =
+    Committer<ApolloTestStorage, MockForestStorage<ApolloTestStorage>, CommitBlockMock>;
+
+impl StorageConstructor for ApolloTestStorage {
+    fn create_storage(_db_path: PathBuf, _storage_config: Self::Config) -> Self {
+        MapStorage::default()
+    }
+}
 
 async fn new_test_committer() -> ApolloTestCommitter {
     Committer::new(CommitterConfig { verify_state_diff_hash: false, ..Default::default() }).await

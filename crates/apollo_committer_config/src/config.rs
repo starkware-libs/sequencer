@@ -1,15 +1,28 @@
 use std::collections::BTreeMap;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_committer::block_committer::input::ReaderConfig;
+use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig};
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
 use starknet_patricia_storage::storage_trait::{Storage, StorageConfigTrait};
 use validator::Validate;
 
-pub type ApolloStorage = RocksDbStorage;
+// 1M size cache.
+pub const DEFAULT_CACHE_MAX_ENTRIES: usize = 1000000;
+
+pub type ApolloStorage = CachedStorage<RocksDbStorage>;
+
+pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
+
+pub const APOLLO_CACHE_STORAGE_CONFIG: CachedStorageConfig = CachedStorageConfig {
+    cache_size: NonZeroUsize::new(DEFAULT_CACHE_MAX_ENTRIES).unwrap(),
+    cache_on_write: true,
+    include_inner_stats: true,
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct CommitterConfig<C: StorageConfigTrait> {
@@ -18,8 +31,6 @@ pub struct CommitterConfig<C: StorageConfigTrait> {
     pub storage_config: C,
     pub verify_state_diff_hash: bool,
 }
-
-pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
 
 impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {

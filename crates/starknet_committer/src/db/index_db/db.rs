@@ -28,6 +28,7 @@ use crate::db::db_layout::DbLayout;
 use crate::db::forest_trait::{
     read_forest,
     serialize_forest,
+    EmptyInitialReadContext,
     ForestMetadata,
     ForestMetadataType,
     ForestReader,
@@ -106,10 +107,16 @@ impl<S: Storage> StorageInitializer for IndexDb<S> {
 
 /// Empty initial context for index db. We don't need external information to start reading the
 /// tries.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct IndexDbReadContext;
 
 impl InputContext for IndexDbReadContext {}
+
+impl EmptyInitialReadContext for IndexDbReadContext {
+    fn create_empty() -> Self {
+        Self
+    }
+}
 
 pub struct IndexNodeLayout {}
 
