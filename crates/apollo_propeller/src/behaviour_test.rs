@@ -6,6 +6,7 @@ use libp2p::identity::Keypair;
 use libp2p::swarm::behaviour::{ConnectionClosed, ConnectionEstablished, FromSwarm};
 use libp2p::swarm::{ConnectionId, NetworkBehaviour, THandlerInEvent, ToSwarm};
 use libp2p::{Multiaddr, PeerId};
+use rstest::rstest;
 use tokio::time::error::Elapsed;
 
 use crate::config::Config;
@@ -175,4 +176,76 @@ impl TestEnv {
         }
         channel
     }
+}
+
+#[rstest]
+// #[case(1)]
+#[case(2)]
+#[case(3)]
+#[case(4)]
+#[case(5)]
+#[case(6)]
+#[case(7)]
+#[case(8)]
+#[case(9)]
+#[case(10)]
+#[tokio::test]
+async fn test_broadcast_and_receive(#[case] num_nodes: usize, #[values(0, 1, 2)] num_steps: usize) {
+    // Setup: Create environment with N nodes
+    let config = Config::default();
+    let mut env = TestEnv::new(num_nodes, config);
+    env.connect_all();
+    let channel = env.register_channel().await;
+    let publisher_id = env.peer_ids()[0];
+    let message = b"Hello, Propeller!".to_vec();
+
+    // Publisher broadcasts the message
+    let message_root = env
+        .node_mut(publisher_id)
+        .behaviour
+        .broadcast(channel, message.clone())
+        .await
+        .expect("Broadcast should succeed");
+
+    if num_steps == 0 {
+        return;
+    }
+
+    // Step 1: Publisher sends initial shards to designated peers (waiting for each)
+    let mut initial_broadcast = Vec::new();
+    for _ in 0..(num_nodes - 1) {
+        let (recipient, unit) = env.node_mut(publisher_id).expect_send_unit().await;
+        assert_eq!(unit.channel(), channel);
+        assert_eq!(unit.publisher(), publisher_id);
+        assert_eq!(unit.root(), message_root);
+        initial_broadcast.push((recipient, unit));
+    }
+    env.node_mut(publisher_id).expect_no_events().await;
+
+    if num_steps == 1 {
+        return;
+    }
+
+    for (recipient, unit) in initial_broadcast.clone() {
+        env.node_mut(recipient).receive_unit(publisher_id, unit);
+    }
+
+    if num_steps == 2 || num_nodes <= 3 {
+        return;
+    }
+
+    for (recipient_1, _) in initial_broadcast {
+        let mut peers = env.peer_ids()[1..].to_vec();
+        peers.retain(|&peer| peer != recipient_1);
+        while !peers.is_empty() {
+            let (peer_to_send, unit) = env.node_mut(recipient_1).expect_send_unit().await;
+            assert_eq!(unit.channel(), channel);
+            assert_eq!(unit.publisher(), publisher_id);
+            assert_eq!(unit.root(), message_root);
+            assert!(peers.contains(&peer_to_send));
+            peers.retain(|&peer| peer != peer_to_send);
+        }
+        env.node_mut(recipient_1).expect_no_events().await;
+    }
+    unreachable!();
 }
