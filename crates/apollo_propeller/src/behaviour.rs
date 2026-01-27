@@ -28,6 +28,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::config::Config;
 use crate::engine::{Engine, EngineCommand, EngineOutput};
 use crate::handler::Handler;
+use crate::metrics::PropellerMetrics;
 use crate::types::{Channel, Event, MessageRoot, PeerSetError, ShardPublishError};
 
 fn send_unbounded(
@@ -50,9 +51,17 @@ pub struct Behaviour {
 
 impl Behaviour {
     pub fn new(keypair: Keypair, config: Config) -> Self {
+        Self::new_with_metrics(keypair, config, None)
+    }
+
+    pub fn new_with_metrics(
+        keypair: Keypair,
+        config: Config,
+        metrics: Option<PropellerMetrics>,
+    ) -> Self {
         let (commands_tx, commands_rx) = mpsc::unbounded_channel();
         let (outputs_tx, outputs_rx) = mpsc::unbounded_channel();
-        let engine = Engine::new(keypair, config.clone(), None, outputs_tx);
+        let engine = Engine::new(keypair, config.clone(), metrics, outputs_tx);
         tokio::spawn(async move {
             engine.run(commands_rx).await;
         });
