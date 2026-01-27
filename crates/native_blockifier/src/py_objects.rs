@@ -195,6 +195,7 @@ fn hash_map_into_builtin_weights(
     );
     let poseidon =
         u64_from_usize(data.remove(Builtin::Poseidon.name()).expect("poseidon must be present"));
+    let blake = u64_from_usize(data.remove("blake").expect("blake must be present"));
 
     assert!(data.is_empty(), "Unexpected keys in builtin weights: {:?}", data.keys());
 
@@ -210,6 +211,7 @@ fn hash_map_into_builtin_weights(
             ecop,
             range_check96,
             poseidon,
+            blake,
         },
     })
 }

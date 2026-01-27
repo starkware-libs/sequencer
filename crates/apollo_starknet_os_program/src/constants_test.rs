@@ -132,6 +132,7 @@ fn generate_constants_file() -> String {
         ADD_MOD_GAS_COST = os_constants.gas_costs.builtins.add_mod,
         MUL_MOD_GAS_COST = os_constants.gas_costs.builtins.mul_mod,
         ECDSA_GAS_COST = os_constants.gas_costs.builtins.ecdsa,
+        BLAKE_GAS_COST = os_constants.gas_costs.builtins.blake,
         // Initial costs and gas limits.
         DEFAULT_INITIAL_GAS_COST = os_constants.default_initial_gas_cost,
         VALIDATE_MAX_SIERRA_GAS = os_constants.validate_max_sierra_gas,
