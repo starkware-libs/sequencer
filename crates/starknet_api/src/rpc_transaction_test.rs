@@ -60,25 +60,35 @@ fn create_deploy_account_tx() -> RpcTransaction {
     })
 }
 
-fn create_invoke_tx() -> RpcTransaction {
-    rpc_invoke_tx(InvokeTxArgs {
+fn base_invoke_tx_args() -> InvokeTxArgs {
+    InvokeTxArgs {
         resource_bounds: valid_resource_bounds_for_testing(),
         calldata: calldata![felt!("0x1"), felt!("0x2")],
         sender_address: contract_address!("0x1"),
         nonce: nonce!(1),
         paymaster_data: PaymasterData(vec![Felt::TWO, Felt::ZERO]),
         account_deployment_data: AccountDeploymentData(vec![felt!("0x1")]),
+        ..Default::default()
+    }
+}
+
+fn create_invoke_tx() -> RpcTransaction {
+    rpc_invoke_tx(base_invoke_tx_args())
+}
+
+fn create_invoke_tx_with_client_side_proving() -> RpcTransaction {
+    rpc_invoke_tx(InvokeTxArgs {
         proof_facts: ProofFacts::snos_proof_facts_for_testing(),
         proof: Proof::proof_for_testing(),
-        ..Default::default()
+        ..base_invoke_tx_args()
     })
 }
 
 // Test the custom serde/deserde of RPC transactions.
-// TODO(AvivG): Consider backward compatibility test of RPC transactions without proof fields.
 #[rstest]
 #[case(create_declare_tx())]
 #[case(create_deploy_account_tx())]
+#[case(create_invoke_tx_with_client_side_proving())]
 #[case(create_invoke_tx())]
 fn test_rpc_transactions(#[case] tx: RpcTransaction) {
     let serialized = serde_json::to_string(&tx).unwrap();
