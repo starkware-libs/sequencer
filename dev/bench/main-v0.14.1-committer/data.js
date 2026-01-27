@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769510216907,
+  "lastUpdate": 1769511890909,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -781,6 +781,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1208.42268925,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7d407c9e1fe9e7068c80614ed46b24340e63ec20",
+          "message": "apollo_staking: mock staking contract Rust implementation (#12044)",
+          "timestamp": "2026-01-27T10:36:47Z",
+          "tree_id": "5dfb0ccec6ffe09027f047d547ef5766a687c516",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7d407c9e1fe9e7068c80614ed46b24340e63ec20"
+        },
+        "date": 1769511890620,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 822.53124083,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1251.1566292,
             "unit": "ms"
           }
         ]
