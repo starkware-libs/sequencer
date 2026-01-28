@@ -42,6 +42,7 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
 use crate::transaction_pool::TransactionPool;
+use crate::transaction_queue_trait::TransactionQueueTrait;
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
@@ -455,7 +456,7 @@ impl Mempool {
             // Remove queued transactions the account might have. This includes old nonce
             // transactions that have become obsolete; those with an equal nonce should
             // already have been removed in `handle_fee_escalation`.
-            self.tx_queue.remove(address);
+            self.tx_queue.remove_by_address(address);
             self.insert_to_tx_queue(tx_reference);
         }
     }
@@ -496,7 +497,10 @@ impl Mempool {
                 .get_nonce(address)
                 .is_some_and(|queued_nonce| queued_nonce != next_nonce)
             {
-                assert!(self.tx_queue.remove(address), "Expected to remove address from queue.");
+                assert!(
+                    self.tx_queue.remove_by_address(address),
+                    "Expected to remove address from queue."
+                );
             }
 
             // Remove from pool.
@@ -521,7 +525,7 @@ impl Mempool {
                 self.tx_pool.account_txs_sorted_by_nonce(address).next().unwrap_or_else(|| {
                     panic!("Address {address} should appear in transaction pool.")
                 });
-            self.tx_queue.remove(address);
+            self.tx_queue.remove_by_address(address);
             self.insert_to_tx_queue(*tx_reference);
         }
 
@@ -535,7 +539,7 @@ impl Mempool {
         let mut account_nonce_updates = AddressToNonce::new();
         for tx_hash in rejected_tx_hashes {
             if let Ok(tx) = self.tx_pool.remove(tx_hash) {
-                self.tx_queue.remove(tx.contract_address());
+                self.tx_queue.remove_by_address(tx.contract_address());
                 account_nonce_updates
                     .entry(tx.contract_address())
                     .and_modify(|nonce| *nonce = (*nonce).min(tx.nonce()))

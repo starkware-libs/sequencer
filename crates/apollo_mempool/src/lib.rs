@@ -4,6 +4,7 @@ pub mod mempool;
 pub mod metrics;
 pub(crate) mod suspended_transaction_pool;
 pub(crate) mod transaction_pool;
+pub(crate) mod transaction_queue_trait;
 pub(crate) mod utils;
 
 #[cfg(test)]
