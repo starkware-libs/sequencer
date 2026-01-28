@@ -8,7 +8,7 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::state::cached_state::{CachedState, StateMaps};
+use blockifier::state::cached_state::{CachedState, StateMaps, StorageDiff, StorageView};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::{
     FetchCompiledClasses,
@@ -26,9 +26,42 @@ use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
+use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use tracing::error;
 
 use crate::errors::VirtualBlockExecutorError;
+
+/// Converts blockifier's StateMaps to committer's StateDiff format.
+fn state_maps_to_committer_state_diff(state_maps: StateMaps) -> StateDiff {
+    StateDiff {
+        address_to_class_hash: state_maps.class_hashes,
+        address_to_nonce: state_maps.nonces,
+        class_hash_to_compiled_class_hash: state_maps
+            .compiled_class_hashes
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (class_hash, CompiledClassHash(compiled_class_hash.0))
+            })
+            .collect(),
+        storage_updates: StorageDiff::from(StorageView(state_maps.storage))
+            .into_iter()
+            .map(|(address, updates)| {
+                (
+                    address,
+                    updates
+                        .into_iter()
+                        .map(|(key, value)| (StarknetStorageKey(key), StarknetStorageValue(value)))
+                        .collect(),
+                )
+            })
+            .collect(),
+    }
+}
 
 /// Captures execution data for a virtual block (multiple transactions).
 ///
@@ -106,6 +139,8 @@ pub(crate) struct VirtualBlockExecutionData {
     pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
     /// The initial state reads (accessed state) during execution.
     pub(crate) initial_reads: StateMaps,
+    /// The state diff in committer format (for commitment computation).
+    pub(crate) committer_state_diff: StateDiff,
     /// The class hashes of all contracts executed in the virtual block.
     pub(crate) executed_class_hashes: HashSet<ClassHash>,
     /// L2 to L1 messages.
@@ -198,6 +233,19 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
             .get_initial_reads()
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
 
+        // Get state diff (changes made by transactions) for committer.
+        let state_changes = transaction_executor
+            .block_state
+            .as_mut()
+            .ok_or(VirtualBlockExecutorError::StateUnavailable)?
+            .to_state_diff()
+            .map_err(|e| {
+                VirtualBlockExecutorError::TransactionExecutionError(format!(
+                    "Failed to get state diff: {e}"
+                ))
+            })?;
+        let committer_state_diff = state_maps_to_committer_state_diff(state_changes.state_maps);
+
         let executed_class_hashes = transaction_executor
             .bouncer
             .lock()
@@ -227,6 +275,7 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
             execution_outputs,
             base_block_info,
             initial_reads,
+            committer_state_diff,
             l2_to_l1_messages,
             executed_class_hashes,
         })

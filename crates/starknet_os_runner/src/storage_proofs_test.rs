@@ -7,6 +7,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
+use starknet_committer::block_committer::input::StateDiff;
 use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 
@@ -53,6 +54,7 @@ fn test_get_storage_proofs_from_rpc(
             base_block_header_commitments: BlockHeaderCommitments::default(),
         },
         initial_reads: state_maps,
+        committer_state_diff: StateDiff::default(),
         executed_class_hashes: HashSet::new(),
     };
 
