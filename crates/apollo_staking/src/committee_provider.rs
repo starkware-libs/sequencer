@@ -69,15 +69,4 @@ pub trait CommitteeProvider: Send + Sync {
         height: BlockNumber,
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress>;
-
-    /// Returns the address of the actual proposer for the specified height and round.
-    ///
-    /// 1. Filters the committee to only include stakers eligible to propose (based on `can_propose`
-    ///    field in StakerConfig).
-    /// 2. Uses deterministic round-robin selection: `(height + round) % eligible_count`.
-    async fn get_actual_proposer(
-        &mut self,
-        height: BlockNumber,
-        round: Round,
-    ) -> CommitteeProviderResult<ContractAddress>;
 }
