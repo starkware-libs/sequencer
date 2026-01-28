@@ -180,7 +180,7 @@ pub struct SequencerConsensusContextDeps {
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    pub committee_provider: Option<Arc<Mutex<dyn CommitteeProvider + Send>>>,
+    pub committee_provider: Option<Arc<dyn CommitteeProvider>>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
     // Used to initiate new outbound proposal streams.

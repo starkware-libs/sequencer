@@ -44,20 +44,17 @@ pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;
 /// The committee is a subset of nodes (proposer and validators) that are selected to participate in
 /// the consensus at a given epoch, responsible for proposing blocks and voting on them.
 #[async_trait]
-pub trait CommitteeProvider {
+pub trait CommitteeProvider: Send + Sync {
     /// Returns a list of the committee members at the epoch of the given height.
     // TODO(Dafna): Consider including the total weight in the returned `Committee` type.
-    async fn get_committee(
-        &mut self,
-        height: BlockNumber,
-    ) -> CommitteeProviderResult<Arc<Committee>>;
+    async fn get_committee(&self, height: BlockNumber) -> CommitteeProviderResult<Arc<Committee>>;
 
     /// Returns the address of the proposer for the specified height and round.
     ///
     /// The proposer is deterministically selected for a given height and round, from the committee
     /// corresponding to the epoch associated with that height.
     async fn get_proposer(
-        &mut self,
+        &self,
         height: BlockNumber,
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress>;
@@ -68,7 +65,7 @@ pub trait CommitteeProvider {
     ///    field in StakerConfig).
     /// 2. Uses deterministic round-robin selection: `(height + round) % eligible_count`.
     async fn get_actual_proposer(
-        &mut self,
+        &self,
         height: BlockNumber,
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress>;
