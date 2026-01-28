@@ -125,7 +125,6 @@ impl From<Vec<Felt>> for ProgramOutput {
     }
 }
 
-// TODO(Avi): Benchmark this function.
 pub fn stwo_verify(proof: Proof) -> Result<StwoVerifyOutput, StwoVerifyError> {
     // Convert proof to raw bytes.
     let proof_bytes = ProofBytes::try_from(proof)?;

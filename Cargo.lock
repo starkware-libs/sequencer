@@ -2798,6 +2798,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-air",
+ "criterion",
  "mempool_test_utils",
  "mockall",
  "proving_utils",

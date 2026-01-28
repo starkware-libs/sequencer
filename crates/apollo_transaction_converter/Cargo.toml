@@ -41,3 +41,12 @@ mockall.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+
+[target.'cfg(not(target_os = "windows"))'.dev-dependencies]
+criterion = { workspace = true, features = ["html_reports"] }
+
+[[bench]]
+harness = false
+name = "apollo_transaction_converter"
+path = "benches/main.rs"
+required-features = ["testing"]
