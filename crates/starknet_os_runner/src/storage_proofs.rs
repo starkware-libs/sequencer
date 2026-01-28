@@ -22,6 +22,11 @@ use starknet_rust_core::types::{
     StorageProof as RpcStorageProof,
 };
 
+use crate::committer_utils::{
+    commit_state_diff,
+    create_facts_db_from_storage_proof,
+    state_maps_to_committer_state_diff,
+};
 use crate::errors::ProofProviderError;
 use crate::virtual_block_executor::VirtualBlockExecutionData;
 
@@ -162,11 +167,33 @@ impl RpcStorageProofsProvider {
     /// This function runs the committer to compute new state roots based on the execution data,
     /// then generates commitment infos using the facts stored in the committer's storage.
     pub(crate) async fn create_commitment_infos_with_state_changes(
-        _rpc_proof: &RpcStorageProof,
-        _query: &RpcStorageProofsQuery,
-        _execution_data: &VirtualBlockExecutionData,
+        rpc_proof: &RpcStorageProof,
+        query: &RpcStorageProofsQuery,
+        execution_data: &VirtualBlockExecutionData,
     ) -> Result<StateCommitmentInfos, ProofProviderError> {
-        unimplemented!("Will be implemented in the following PRs")
+        // Build FactsDb from RPC proofs and execution initial reads.
+        let mut facts_db =
+            create_facts_db_from_storage_proof(rpc_proof, query, &execution_data.initial_reads)?;
+        // Get initial state roots from RPC proof.
+        let contracts_trie_root_hash = HashOutput(rpc_proof.global_roots.contracts_tree_root);
+        let classes_trie_root_hash = HashOutput(rpc_proof.global_roots.classes_tree_root);
+        // Convert the blockifier state maps to committer state diff.
+        let committer_state_diff =
+            state_maps_to_committer_state_diff(execution_data.initial_reads.clone());
+
+        let _new_roots = commit_state_diff(
+            &mut facts_db,
+            contracts_trie_root_hash,
+            classes_trie_root_hash,
+            committer_state_diff,
+        )
+        .await?;
+        // TODO(Aviv): Use create_commitment_infos from starknet_os_flow_tests (to be moved to
+        // committer crate) to properly generate commitment infos with the new facts from
+        // the committer.
+        unimplemented!(
+            "Proper commitment info generation with committer facts will be implemented in next PR"
+        );
     }
 
     /// Creates commitment infos from RPC storage proof without state changes.
