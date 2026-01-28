@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_staking_config::config::{ConfiguredStaker, StakersConfig};
+use apollo_staking_config::config::{find_config_for_epoch, ConfiguredStaker, StakersConfig};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
@@ -76,10 +76,7 @@ impl StakingContract for MockStakingContract {
         let mut stakers_config = self.stakers_config.lock().await;
         self.update_stakers_config(&mut stakers_config).await;
 
-        let config_entry = stakers_config
-            .iter()
-            .filter(|entry| epoch >= entry.start_epoch)
-            .max_by_key(|entry| entry.start_epoch);
+        let config_entry = find_config_for_epoch(&stakers_config, epoch);
 
         if config_entry.is_none() {
             warn!("No stakers config available for epoch {epoch}");
