@@ -614,6 +614,8 @@ fn test_client_side_proving_flag(
 ) {
     let config = StatelessTransactionValidatorConfig {
         allow_client_side_proving,
+        // Use a large limit since proof facts are counted as part of the calldata length.
+        max_calldata_length: 10,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     };
     let tx_validator = StatelessTransactionValidator { config };
