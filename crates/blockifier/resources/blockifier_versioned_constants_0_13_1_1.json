@@ -44,10 +44,6 @@
         "gas_per_data_felt": [
             128,
             1000
-        ],
-        "gas_per_proof": [
-            0,
-            1
         ]
     },
     "disable_cairo0_redeclaration": false,

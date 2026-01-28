@@ -153,35 +153,38 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     assert_eq!(manual_gas_vector, deploy_account_gas_usage_vector);
 
     // Invoke with client-side proving.
-    let proof_facts_length = 7;
-    let invoke_with_proof_starknet_resources = StarknetResources::new(
-        0,
-        0,
-        0,
-        StateResources::default(),
-        None,
-        ExecutionSummary::default(),
-        proof_facts_length,
-    );
+    // Client side proving is only supported from V3 transactions, which use AllResourceBounds.
+    if gas_vector_computation_mode == GasVectorComputationMode::All {
+        let proof_facts_length = 7;
+        let invoke_with_proof_starknet_resources = StarknetResources::new(
+            0,
+            0,
+            0,
+            StateResources::default(),
+            None,
+            ExecutionSummary::default(),
+            proof_facts_length,
+        );
 
-    // Manual calculation.
-    let proof_gas = versioned_constants
-        .get_archival_data_gas_costs(&gas_vector_computation_mode)
-        .gas_per_proof
-        .to_integer();
-    let proof_facts_gas = (gas_per_data_felt * u64_from_usize(proof_facts_length)).to_integer();
-    let total_proof_gas = proof_facts_gas + proof_gas;
-    let manual_proof_gas_vector = match gas_vector_computation_mode {
-        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(total_proof_gas.into()),
-        GasVectorComputationMode::All => GasVector::from_l2_gas(total_proof_gas.into()),
-    };
+        // Manual calculation.
+        let proof_gas = versioned_constants
+            .get_archival_data_gas_costs(&gas_vector_computation_mode)
+            .gas_per_proof
+            .to_integer();
+        let proof_facts_gas = (gas_per_data_felt * u64_from_usize(proof_facts_length)).to_integer();
+        let total_proof_gas = proof_facts_gas + proof_gas;
+        let manual_proof_gas_vector = match gas_vector_computation_mode {
+            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(total_proof_gas.into()),
+            GasVectorComputationMode::All => GasVector::from_l2_gas(total_proof_gas.into()),
+        };
 
-    let invoke_with_proof_gas_vector = invoke_with_proof_starknet_resources.to_gas_vector(
-        &versioned_constants,
-        use_kzg_da,
-        &gas_vector_computation_mode,
-    );
-    assert_eq!(manual_proof_gas_vector, invoke_with_proof_gas_vector);
+        let invoke_with_proof_gas_vector = invoke_with_proof_starknet_resources.to_gas_vector(
+            &versioned_constants,
+            use_kzg_da,
+            &gas_vector_computation_mode,
+        );
+        assert_eq!(manual_proof_gas_vector, invoke_with_proof_gas_vector);
+    }
 
     // L1 handler.
 
