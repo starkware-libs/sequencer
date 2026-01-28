@@ -52,6 +52,7 @@ use crate::metrics::{
     register_metrics,
     COMPUTE_DURATION_PER_BLOCK,
     COMPUTE_DURATION_PER_BLOCK_HIST,
+    OFFSET,
     READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
     READ_DURATION_PER_BLOCK_HIST,
@@ -144,6 +145,11 @@ where
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
         info!("Initializing committer with offset: {offset}");
         Self { forest_storage, config, offset, phantom: PhantomData }
+    }
+
+    fn update_offset(&mut self, offset: BlockNumber) {
+        self.offset = offset;
+        OFFSET.set_lossy(offset.0);
     }
 
     /// Commits a block to the forest.
@@ -257,7 +263,7 @@ where
         time_measurement.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(&time_measurement);
-        self.offset = next_offset;
+        self.update_offset(next_offset);
         Ok(CommitBlockResponse { state_root: global_root })
     }
 
@@ -363,7 +369,7 @@ where
         time_measurement.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         time_measurement.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
         update_metrics(&time_measurement);
-        self.offset = last_committed_block;
+        self.update_offset(last_committed_block);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
 
@@ -438,7 +444,7 @@ where
 impl ComponentStarter for ApolloCommitter {
     async fn start(&mut self) {
         default_component_start_fn::<Self>().await;
-        register_metrics();
+        register_metrics(self.offset);
     }
 }
 
