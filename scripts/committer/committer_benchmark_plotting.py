@@ -104,6 +104,17 @@ class BenchmarkData:
             self.n_reads = [int(row["n_reads"]) for row in data]
             self.block_numbers = [int(row["block_number"]) for row in data]
 
+            # Optional modification counts - may not exist in older CSV files.
+            self.modifications_data: dict[str, List[int]] = {}
+            modifications_columns = [
+                "n_storage_tries_modifications",
+                "n_contracts_trie_modifications",
+                "n_classes_trie_modifications",
+            ]
+            for col in modifications_columns:
+                if col in data[0]:
+                    self.modifications_data[col] = [int(row[col]) for row in data]
+
             # Storage-specific data.
             # It may be the case that not every row contains storage statistics, so to keep the
             # graph nice, use the previous row values.
@@ -252,11 +263,28 @@ class BenchmarkData:
         self._update_figure_layout(storage_stats_figure, "Storage stats")
         return storage_stats_figure
 
+    def create_modifications_figure(self) -> go.Figure:
+        modifications_figure = go.Figure()
+        for column_title, values in self.modifications_data.items():
+            modifications_figure.add_trace(
+                go.Scatter(
+                    x=self.time_of_measurement,
+                    y=values,
+                    mode="lines+markers",
+                    name=column_title,
+                )
+            )
+        modifications_figure.update_traces(hoverlabel=dict(namelength=-1))
+        self._update_figure_layout(modifications_figure, "Tries Modifications Count")
+        return modifications_figure
+
     def plot(self, output_dir: Optional[str] = None):
         durations_figure = self.create_durations_figure()
         total_db_entries_figure = self.create_total_db_entries_figure()
         if self.storage_stats_type != StorageStats.NONE:
             storage_stats_figure = self.create_storage_stats_figure()
+        if self.modifications_data:
+            modifications_figure = self.create_modifications_figure()
 
         if output_dir is not None:
             durations_output_file = Path(f"{output_dir}/{self.file_stem}_durations.html")
@@ -264,12 +292,16 @@ class BenchmarkData:
                 f"{output_dir}/{self.file_stem}_total_db_entries.html"
             )
             storage_stats_output_file = Path(f"{output_dir}/{self.file_stem}_storage_stats.html")
+            modifications_output_file = Path(f"{output_dir}/{self.file_stem}_modifications.html")
             durations_output_file.parent.mkdir(parents=True, exist_ok=True)
 
             durations_figure.write_html(str(durations_output_file))
             total_db_entries_figure.write_html(str(total_db_entries_output_file))
             if self.storage_stats_type != StorageStats.NONE:
                 storage_stats_figure.write_html(str(storage_stats_output_file))
+            if self.modifications_data:
+                modifications_figure.write_html(str(modifications_output_file))
+                print(f"Plot saved to {str(modifications_output_file)}")
             print(f"Plot saved to {str(durations_output_file)}")
             print(f"Plot saved to {str(total_db_entries_output_file)}")
         else:
@@ -277,6 +309,8 @@ class BenchmarkData:
             total_db_entries_figure.show()
             if self.storage_stats_type != StorageStats.NONE:
                 storage_stats_figure.show()
+            if self.modifications_data:
+                modifications_figure.show()
 
 
 def create_benchmark_plot(
