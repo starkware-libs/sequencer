@@ -1,9 +1,9 @@
 pub mod communication;
+pub(crate) mod fee_transaction_queue;
 pub mod mempool;
 pub mod metrics;
 pub(crate) mod suspended_transaction_pool;
 pub(crate) mod transaction_pool;
-pub(crate) mod transaction_queue;
 pub(crate) mod utils;
 
 #[cfg(test)]
