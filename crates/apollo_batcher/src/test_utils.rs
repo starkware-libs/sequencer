@@ -7,6 +7,7 @@ use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
+use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
@@ -244,7 +245,7 @@ pub(crate) struct MockDependencies {
 }
 
 pub(crate) struct MockClients {
-    pub(crate) committer_client: MockCommitterClient,
+    pub(crate) committer_client: MockCommitterClientWithOffset,
     pub(crate) mempool_client: MockMempoolClient,
     pub(crate) l1_provider_client: MockL1ProviderClient,
     pub(crate) block_builder_factory: MockBlockBuilderFactoryTrait,
@@ -276,13 +277,15 @@ impl Default for MockClients {
             (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
         });
 
-        let mut committer_client = MockCommitterClient::new();
-        committer_client
+        let mut committer_client_inner = MockCommitterClient::new();
+        committer_client_inner
             .expect_commit_block()
             .returning(|_| Box::pin(async { Ok(CommitBlockResponse::default()) }));
-        committer_client.expect_revert_block().returning(|_| {
+        committer_client_inner.expect_revert_block().returning(|_| {
             Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
         });
+        let committer_client =
+            MockCommitterClientWithOffset::new(committer_client_inner, Some(INITIAL_HEIGHT));
 
         Self {
             committer_client,
