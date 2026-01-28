@@ -21,10 +21,10 @@ use starknet_os::io::os_output::OsOutputError;
 use tracing::{info, instrument};
 use url::Url;
 
+use crate::config::ProverConfig;
 use crate::errors::{ProvingError, RunnerError};
 use crate::proving::prover::prove;
 use crate::runner::{RpcRunnerFactory, VirtualSnosRunner};
-use crate::server::config::ServiceConfig;
 
 /// Error type for the virtual SNOS prover.
 #[derive(Debug, thiserror::Error)]
@@ -85,7 +85,7 @@ impl VirtualSnosProver<RpcRunnerFactory> {
     /// Creates a new VirtualSnosProver from configuration.
     ///
     /// This constructor creates an RPC-based prover using the configuration values.
-    pub fn new(config: &ServiceConfig) -> Self {
+    pub fn new(config: &ProverConfig) -> Self {
         let contract_class_manager =
             ContractClassManager::start(config.contract_class_manager_config.clone());
         let node_url = Url::parse(&config.rpc_node_url).expect("Invalid RPC node URL in config");
