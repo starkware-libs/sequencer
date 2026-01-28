@@ -1,9 +1,11 @@
 use apollo_batcher::metrics::NUM_TRANSACTION_IN_BLOCK;
 use apollo_http_server::metrics::HTTP_SERVER_ADD_TX_LATENCY;
 use apollo_infra::metrics::HISTOGRAM_BUCKETS;
+use apollo_infra_utils::template::Template;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_metrics::metrics::MetricQueryName;
 
+use crate::alert_placeholders::{format_sampling_window, ExpressionOrExpressionWithPlaceholder};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -175,8 +177,10 @@ fn get_high_empty_blocks_ratio_alert(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
     ratio: f64,
-    time_window_seconds: u64,
+    // TODO(Tsabary): remove the `_time_window_seconds` argument.
+    _time_window_seconds: u64,
 ) -> Alert {
+    const ALERT_NAME: &str = "high_empty_blocks_ratio";
     // Our histogram buckets are static and the smallest bucket is 0.001.
     let lowest_histogram_bucket_value = HISTOGRAM_BUCKETS[0];
     let zero_bucket = NUM_TRANSACTION_IN_BLOCK.get_name_with_filer_and_additional_fields(&format!(
@@ -184,13 +188,20 @@ fn get_high_empty_blocks_ratio_alert(
     ));
     let total_count = NUM_TRANSACTION_IN_BLOCK.get_name_count_with_filter();
 
+    let expr_template_string = format!(
+        "sum(increase({zero_bucket}[{{}}s])) / clamp_min(sum(increase({total_count}[{{}}s])), 1)"
+    );
+
     Alert::new(
-        "high_empty_blocks_ratio",
+        ALERT_NAME,
         "High ratio of empty blocks",
         AlertGroup::Batcher,
-        format!(
-            "sum(increase({zero_bucket}[{}s])) / clamp_min(sum(increase({total_count}[{}s])), 1)",
-            time_window_seconds, time_window_seconds
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![
+                format_sampling_window(&format!("{}-zero_bucket", ALERT_NAME)),
+                format_sampling_window(&format!("{}-total_count", ALERT_NAME)),
+            ],
         ),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, ratio, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
