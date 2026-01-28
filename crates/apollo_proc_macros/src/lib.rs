@@ -14,16 +14,29 @@ use syn::{
     parse2,
     parse_macro_input,
     parse_str,
+    Error,
     Expr,
     ExprLit,
     Ident,
+    Item,
+    ItemConst,
+    ItemEnum,
+    ItemExternCrate,
     ItemFn,
+    ItemMod,
+    ItemStatic,
+    ItemStruct,
     ItemTrait,
+    ItemTraitAlias,
+    ItemType,
+    ItemUnion,
+    ItemUse,
     LitBool,
     LitStr,
     Meta,
     Token,
     TraitItem,
+    Visibility,
 };
 
 /// This macro is a wrapper around the "rpc" macro supplied by the jsonrpsee library that generates
@@ -464,4 +477,32 @@ pub fn unique_u16(_input: TokenStream) -> TokenStream {
     // Emit a single u16-suffixed literal so it works in const context
     let lit = proc_macro::Literal::u16_suffixed(id);
     TokenStream::from(proc_macro::TokenTree::Literal(lit))
+}
+
+#[proc_macro_attribute]
+pub fn make_visibility(attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let visibility: Visibility = parse_macro_input!(attrs);
+    let mut input: Item = parse_macro_input!(input);
+
+    match input {
+        Item::Const(ItemConst { ref mut vis, .. })
+        | Item::Enum(ItemEnum { ref mut vis, .. })
+        | Item::ExternCrate(ItemExternCrate { ref mut vis, .. })
+        | Item::Fn(ItemFn { ref mut vis, .. })
+        | Item::Mod(ItemMod { ref mut vis, .. })
+        | Item::Static(ItemStatic { ref mut vis, .. })
+        | Item::Struct(ItemStruct { ref mut vis, .. })
+        | Item::Trait(ItemTrait { ref mut vis, .. })
+        | Item::TraitAlias(ItemTraitAlias { ref mut vis, .. })
+        | Item::Type(ItemType { ref mut vis, .. })
+        | Item::Union(ItemUnion { ref mut vis, .. })
+        | Item::Use(ItemUse { ref mut vis, .. }) => *vis = visibility,
+        _ => {
+            return Error::new_spanned(&input, "Cannot override the `#[visibility]` of this item")
+                .to_compile_error()
+                .into();
+        }
+    }
+
+    input.into_token_stream().into()
 }
