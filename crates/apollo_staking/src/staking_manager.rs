@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::Round;
-use apollo_staking_config::config::StakingManagerConfig;
+use apollo_staking_config::config::{StakersConfig, StakingManagerConfig};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -258,6 +258,38 @@ impl StakingManager {
         panic!("Inconsistent committee data; cumulative_weights inconsistent with total weight.")
     }
 
+    // Filters the committee to only include stakers eligible to propose.
+    // Eligibility is determined by the `can_propose` field in the corresponding ConfiguredStaker.
+    // Returns a vector of references to eligible stakers, preserving the committee's deterministic
+    // ordering.
+    fn filter_eligible_proposers<'a>(
+        &self,
+        committee: &'a Committee,
+        epoch: u64,
+    ) -> Vec<&'a Staker> {
+        // Find the stakers config for the given epoch
+        let stakers_config = &self.config.dynamic_config.stakers_config;
+        let config_entry = stakers_config
+            .iter()
+            .filter(|entry| epoch >= entry.start_epoch)
+            .max_by_key(|entry| entry.start_epoch);
+
+        let Some(StakersConfig { stakers, .. }) = config_entry else {
+            warn!("No stakers config found for epoch {epoch}, returning empty list.");
+            return Vec::new();
+        };
+
+        // Filter committee members based on can_propose flag.
+        committee
+            .iter()
+            .filter(|committee_member| {
+                stakers
+                    .iter()
+                    .any(|staker| staker.address == committee_member.address && staker.can_propose)
+            })
+            .collect()
+    }
+
     async fn epoch_at_height(&mut self, height: BlockNumber) -> CommitteeProviderResult<u64> {
         if self.cached_epoch.as_ref().is_none_or(|epoch| !epoch.contains(height)) {
             // Fetch the epoch from the state.
@@ -315,5 +347,31 @@ impl CommitteeProvider for StakingManager {
         // Select a proposer from the committee using the generated random.
         let proposer = self.choose_proposer(&committee_data, random_value)?;
         Ok(proposer.address)
+    }
+
+    // Returns the address of the actual proposer using round-robin selection from eligible
+    // stakers. Unlike `get_proposer` which uses weighted random selection, this method filters the
+    // committee based on the `can_propose` configuration and uses deterministic round-robin.
+    async fn get_actual_proposer(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+    ) -> CommitteeProviderResult<ContractAddress> {
+        // Get the committee for the epoch this height belongs to.
+        let committee_data = self.committee_data_at_height(height).await?;
+        let epoch = self.epoch_at_height(height).await?;
+
+        // Filter committee to only include eligible proposers.
+        let eligible_proposers =
+            self.filter_eligible_proposers(&committee_data.committee_members, epoch);
+
+        let height_usize: usize = height.0.try_into().expect("Cannot convert height to usize");
+        let round_usize: usize = round.try_into().expect("Cannot convert round to usize");
+
+        // Use round-robin selection: (height + round) % eligible_count
+        Ok(eligible_proposers
+            .get((height_usize + round_usize) % eligible_proposers.len())
+            .expect("There should be at least one eligible proposer.")
+            .address)
     }
 }

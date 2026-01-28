@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_staking_config::config::{
+    ConfiguredStaker,
+    StakersConfig,
     StakingManagerConfig,
     StakingManagerDynamicConfig,
     StakingManagerStaticConfig,
@@ -323,4 +325,212 @@ async fn get_proposer_random_value_exceeds_total_weight(
     );
 
     let _ = committee_manager.get_proposer(BlockNumber(1), 0).await;
+}
+
+// Helper function to create ConfiguredStaker for testing
+fn create_configured_staker(staker: &Staker, can_propose: bool) -> ConfiguredStaker {
+    ConfiguredStaker {
+        address: staker.address,
+        weight: staker.weight,
+        public_key: staker.public_key,
+        can_propose,
+    }
+}
+
+#[rstest]
+#[case::height_1_round_0(BlockNumber(1), 0, STAKER_2)]
+#[case::height_1_round_1(BlockNumber(1), 1, STAKER_1)]
+#[case::height_1_round_2(BlockNumber(1), 2, STAKER_3)]
+#[case::height_2_round_0(BlockNumber(2), 0, STAKER_1)]
+#[case::height_2_round_1(BlockNumber(2), 1, STAKER_3)]
+#[case::height_2_round_2(BlockNumber(2), 2, STAKER_2)]
+#[case::height_3_round_0(BlockNumber(3), 0, STAKER_3)]
+#[tokio::test]
+async fn get_actual_proposer_all_eligible(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+    #[case] height: BlockNumber,
+    #[case] round: u32,
+    #[case] expected_proposer: Staker,
+) {
+    // Test round-robin selection across different heights and rounds.
+    // Expected committee order: [STAKER_3, STAKER_2, STAKER_1] (by weight descending)
+    // With 3 eligible proposers, index = (height + round) % 3
+
+    let stakers = vec![STAKER_1, STAKER_2, STAKER_3];
+    let configured_stakers = stakers.iter().map(|s| create_configured_staker(s, true)).collect();
+
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_stakers(&mut contract, EPOCH_1, stakers);
+
+    let stakers_config = vec![StakersConfig { start_epoch: 0, stakers: configured_stakers }];
+    let mut committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(MockStateSyncClient::new()),
+        Box::new(MockBlockRandomGenerator::new()),
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { committee_size: 10, stakers_config },
+            ..default_config
+        },
+        None,
+    );
+
+    let proposer = committee_manager.get_actual_proposer(height, round).await.unwrap();
+    assert_eq!(proposer, expected_proposer.address);
+}
+
+#[rstest]
+#[case::height_1_round_0(BlockNumber(1), 0, STAKER_2)]
+#[case::height_1_round_1(BlockNumber(1), 1, STAKER_3)]
+#[case::height_1_round_2(BlockNumber(1), 2, STAKER_2)]
+#[case::height_1_round_3(BlockNumber(1), 3, STAKER_3)]
+#[case::height_2_round_0(BlockNumber(2), 0, STAKER_3)]
+#[case::height_2_round_1(BlockNumber(2), 1, STAKER_2)]
+#[case::height_2_round_2(BlockNumber(2), 2, STAKER_3)]
+#[case::height_3_round_0(BlockNumber(3), 0, STAKER_2)]
+#[case::height_3_round_1(BlockNumber(3), 1, STAKER_3)]
+#[case::height_3_round_2(BlockNumber(3), 2, STAKER_2)]
+#[tokio::test]
+async fn get_actual_proposer_some_eligible(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+    #[case] height: BlockNumber,
+    #[case] round: u32,
+    #[case] expected_proposer: Staker,
+) {
+    // Expected committee order: [STAKER_4, STAKER_3, STAKER_2, STAKER_1] (by weight descending)
+    // With 2 eligible proposers, index = (height + round) % 2
+
+    let stakers = vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4];
+    // Only STAKER_2 and STAKER_3 are eligible to propose, STAKER_4 not in the config.
+    let configured_stakers = vec![
+        create_configured_staker(&STAKER_1, false),
+        create_configured_staker(&STAKER_2, true),
+        create_configured_staker(&STAKER_3, true),
+    ];
+
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_stakers(&mut contract, EPOCH_1, stakers);
+
+    let stakers_config = vec![StakersConfig { start_epoch: 0, stakers: configured_stakers }];
+    let mut committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(MockStateSyncClient::new()),
+        Box::new(MockBlockRandomGenerator::new()),
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { committee_size: 10, stakers_config },
+            ..default_config
+        },
+        None,
+    );
+
+    let proposer = committee_manager.get_actual_proposer(height, round).await.unwrap();
+    assert_eq!(proposer, expected_proposer.address);
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic]
+async fn get_actual_proposer_no_eligible_panics(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    // All stakers have can_propose = false
+    let stakers_config = vec![StakersConfig {
+        start_epoch: 0,
+        stakers: vec![create_configured_staker(&STAKER_1, false)],
+    }];
+
+    let mut committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(MockStateSyncClient::new()),
+        Box::new(MockBlockRandomGenerator::new()),
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { committee_size: 10, stakers_config },
+            ..default_config
+        },
+        None,
+    );
+
+    // Should panic.
+    let _ = committee_manager.get_actual_proposer(BlockNumber(1), 0).await;
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_get_actual_proposer_epoch_changes(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch_with_times(&mut contract, EPOCH_1, 1..);
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+    set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    // In epoch 1, only STAKER_1 can propose
+    // In epoch 2, only STAKER_3 can propose
+    let stakers_config = vec![
+        StakersConfig {
+            start_epoch: 0,
+            stakers: vec![
+                create_configured_staker(&STAKER_1, true),
+                create_configured_staker(&STAKER_2, false),
+                create_configured_staker(&STAKER_3, false),
+            ],
+        },
+        StakersConfig {
+            start_epoch: 2,
+            stakers: vec![
+                create_configured_staker(&STAKER_1, false),
+                create_configured_staker(&STAKER_2, false),
+                create_configured_staker(&STAKER_3, true),
+            ],
+        },
+    ];
+
+    let mut committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(MockStateSyncClient::new()),
+        Box::new(MockBlockRandomGenerator::new()),
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { committee_size: 10, stakers_config },
+            ..default_config
+        },
+        None,
+    );
+
+    // In epoch 1, should always get STAKER_1
+    let proposer = committee_manager.get_actual_proposer(BlockNumber(1), 0).await.unwrap();
+    assert_eq!(proposer, STAKER_1.address);
+    let proposer = committee_manager.get_actual_proposer(BlockNumber(50), 5).await.unwrap();
+    assert_eq!(proposer, STAKER_1.address);
+
+    // In epoch 2, should always get STAKER_3
+    let proposer = committee_manager.get_actual_proposer(BlockNumber(101), 0).await.unwrap();
+    assert_eq!(proposer, STAKER_3.address);
+    let proposer = committee_manager.get_actual_proposer(BlockNumber(105), 5).await.unwrap();
+    assert_eq!(proposer, STAKER_3.address);
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_actual_proposer_invalid_height(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    let mut committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(MockStateSyncClient::new()),
+        Box::new(MockBlockRandomGenerator::new()),
+        default_config,
+        None,
+    );
+
+    let err = committee_manager.get_actual_proposer(BlockNumber(150), 0).await.unwrap_err();
+    assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
 }
