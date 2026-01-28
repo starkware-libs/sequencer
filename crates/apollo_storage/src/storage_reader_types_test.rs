@@ -5,6 +5,7 @@ use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_proc_macros::unique_u16;
 use axum_08::http::StatusCode;
 use axum_08::Router;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
@@ -15,6 +16,7 @@ use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
 use tempfile::TempDir;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
+use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::state::StateStorageWriter;
 use crate::storage_reader_server::ServerConfig;
 use crate::storage_reader_server_test_utils::get_response;
@@ -36,6 +38,8 @@ struct TestServerSetup {
     class: SierraContractClass,
     deprecated_class_hash: ClassHash,
     deprecated_class: DeprecatedContractClass,
+    casm_class_hash: ClassHash,
+    casm: CasmContractClass,
 }
 
 // Creates an `AvailablePorts` instance with a unique `instance_index`.
@@ -63,6 +67,9 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         read_json_file("deprecated_class.json");
     let deprecated_class_hash = ClassHash(felt!("0x1"));
 
+    let expected_casm: CasmContractClass = read_json_file("compiled_class.json");
+    let casm_class_hash = ClassHash(felt!("0x2"));
+
     let state_diff = ThinStateDiff {
         storage_diffs: IndexMap::from([(contract_address, storage_diffs)]),
         class_hash_to_compiled_class_hash: IndexMap::from([(
@@ -84,6 +91,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
             &[(deprecated_class_hash, &expected_deprecated_class)],
         )
         .unwrap()
+        .append_casm(&casm_class_hash, &expected_casm)
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -104,6 +113,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         class: expected_class,
         deprecated_class_hash,
         deprecated_class: expected_deprecated_class,
+        casm_class_hash,
+        casm: expected_casm,
     }
 }
 
@@ -232,4 +243,39 @@ async fn deprecated_declared_class_requests() {
         class_response,
         StorageReaderResponse::DeprecatedDeclaredClassesFromLocation(setup.deprecated_class)
     );
+}
+
+#[tokio::test]
+async fn casm_requests() {
+    let block_number = BlockNumber(0);
+    let setup = setup_test_server(block_number, unique_u16!());
+
+    // Get the expected location
+    let expected_location = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_casm_location(&setup.casm_class_hash)
+        .unwrap()
+        .expect("CASM location should exist");
+
+    // Test CasmsLocation request
+    let location_request = StorageReaderRequest::CasmsLocation(setup.casm_class_hash);
+    let location_response: StorageReaderResponse =
+        get_response(setup.app.clone(), &location_request, StatusCode::OK).await;
+
+    let location = match location_response {
+        StorageReaderResponse::CasmsLocation(loc) => {
+            assert_eq!(loc, expected_location);
+            loc
+        }
+        _ => panic!("Expected CasmsLocation response"),
+    };
+
+    // Test CasmsFromLocation request
+    let casm_request = StorageReaderRequest::CasmsFromLocation(location);
+    let casm_response: StorageReaderResponse =
+        get_response(setup.app, &casm_request, StatusCode::OK).await;
+
+    assert_eq!(casm_response, StorageReaderResponse::CasmsFromLocation(setup.casm));
 }
