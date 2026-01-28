@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_rational::Ratio;
+use num_traits::Zero;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{FeeType, StarknetVersion};
@@ -343,6 +344,12 @@ fn test_gas_computation_regression_test(
     #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
+    // Client side proving is only supported from V3 transactions, which use AllResourceBounds.
+    if !starknet_resources.archival_data.proof_facts_length.is_zero()
+        && gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas
+    {
+        return;
+    }
     // Use a constant version of the versioned constants so that version changes do not break this
     // test. This specific version is arbitrary.
     // TODO(Amos, 1/10/2024): Parameterize the version.
