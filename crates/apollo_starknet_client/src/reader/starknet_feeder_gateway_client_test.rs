@@ -7,6 +7,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::indexmap;
 use mockito::ServerGuard;
 use pretty_assertions::assert_eq;
+use serde_json::Value;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ContractAddress, EntryPointSelector, GlobalRoot, SequencerPublicKey};
@@ -416,6 +417,28 @@ async fn get_block_not_found() {
     let block = apollo_starknet_client.block(BlockNumber(9999999999)).await.unwrap();
     mock_no_block.assert_async().await;
     assert!(block.is_none());
+}
+
+#[tokio::test]
+async fn get_block_aborted_returns_error() {
+    let mut server = mockito::Server::new_async().await;
+    let apollo_starknet_client = apollo_starknet_client(&server);
+    let json_filename = "reader/block_post_0_14_0.json";
+    let mut raw_block: Value = serde_json::from_str(&read_resource_file(json_filename)).unwrap();
+    let raw_block_obj = raw_block.as_object_mut().expect("Block JSON should be an object.");
+    raw_block_obj.insert("status".to_string(), Value::String("ABORTED".to_string()));
+    raw_block_obj.insert("block_number".to_string(), Value::Number(20.into()));
+
+    let mock_block = server
+        .mock("GET", get_block_url(Some(20)).as_str())
+        .with_status(200)
+        .with_body(serde_json::to_string(&raw_block).unwrap())
+        .create_async()
+        .await;
+
+    let err = apollo_starknet_client.block(BlockNumber(20)).await.unwrap_err();
+    mock_block.assert_async().await;
+    assert_matches!(err, ReaderClientError::AbortedBlock { block_number } if block_number == BlockNumber(20));
 }
 
 #[tokio::test]

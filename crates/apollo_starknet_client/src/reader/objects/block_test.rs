@@ -2,6 +2,7 @@ use assert_matches::assert_matches;
 use indexmap::IndexMap;
 use papyrus_common::state::MigratedCompiledClassHashEntry;
 use pretty_assertions::assert_eq;
+use serde_json::Value;
 use starknet_api::block::BlockHash;
 use starknet_api::core::{CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
@@ -37,6 +38,18 @@ fn load_block_succeeds() {
             panic!("Failed loading block in path {block_path}. Error: {err}")
         });
     }
+}
+
+#[test]
+fn load_block_missing_transaction_receipts_succeeds() {
+    let mut raw_block: Value =
+        serde_json::from_str(&read_resource_file("reader/block_post_0_14_0.json")).unwrap();
+    raw_block
+        .as_object_mut()
+        .expect("Block JSON should be an object.")
+        .remove("transaction_receipts");
+    let block: Block = serde_json::from_value(raw_block).unwrap();
+    assert!(block.transaction_receipts().is_empty());
 }
 
 #[test]
