@@ -149,12 +149,14 @@ class TxTransformer:
         tx_type = tx["type"]
 
         if tx_type == TxType.L1_HANDLER:
+            tx_hash = tx["transaction_hash"]
             logger.info(
                 f"Observed L1_HANDLER tx={tx['transaction_hash']} "
                 f"src_bn={tx_data.source_block_number} src_ts={tx_data.source_timestamp}"
             )
             l1_manager.set_new_tx(tx, tx_data.source_timestamp)
-            shared.record_sent_tx(tx["transaction_hash"], tx_data.source_block_number)
+            shared.record_sent_tx(tx_hash, tx_data.source_block_number) # should be list and not set
+            shared.record_l1_tx(tx_hash)
             return None
 
         if tx_type == TxType.DECLARE:
