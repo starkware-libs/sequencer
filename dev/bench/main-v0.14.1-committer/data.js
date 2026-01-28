@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769540229183,
+  "lastUpdate": 1769596263686,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -985,6 +985,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1408.21425796,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163830216+asmaastarkware@users.noreply.github.com",
+            "name": "asmaa-starkware",
+            "username": "asmaastarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "185affdd11b5185dec7d5e8dc3d496cc25b86760",
+          "message": "apollo_consensus_orchestrator: add optional CommitteeProvider to context deps (#12020)",
+          "timestamp": "2026-01-28T10:03:12Z",
+          "tree_id": "795a000ae178be7a43a2f4bda8d5fc5b9dd9e0e9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/185affdd11b5185dec7d5e8dc3d496cc25b86760"
+        },
+        "date": 1769596263367,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 856.43239811,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1287.5433476199998,
             "unit": "ms"
           }
         ]
