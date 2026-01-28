@@ -2,11 +2,13 @@
 
 use std::sync::Arc;
 
+use apollo_sizeof::SizeOf;
 use cairo_air::utils::{get_verification_output, to_cairo_proof, VerificationOutput};
 use cairo_air::verifier::verify_cairo;
 use cairo_air::{CairoProofSorted, PreProcessedTraceVariant};
 use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
-use starknet_api::transaction::fields::{Proof, ProofFacts};
+use serde::{Deserialize, Serialize};
+use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION};
 use starknet_types_core::felt::{Felt, FromStrError};
 use stwo::core::vcs_lifted::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher};
 use thiserror::Error;
@@ -14,8 +16,8 @@ use thiserror::Error;
 /// Output from verifying a proof.
 #[derive(Debug, Clone, PartialEq)]
 pub struct VerifyProofOutput {
-    /// The proof facts extracted from the proof.
-    pub proof_facts: ProofFacts,
+    /// The raw program output extracted from the proof.
+    pub program_output: ProgramOutput,
     /// The program hash extracted from the proof.
     pub program_hash: Felt,
 }
@@ -26,10 +28,14 @@ pub enum VerifyProofAndFactsError {
     EmptyProof,
     #[error("Proof facts do not match proof output.")]
     ProofFactsMismatch,
+    #[error(transparent)]
+    ProgramOutputError(#[from] ProgramOutputError),
     #[error("Failed to parse expected bootloader program hash: {0}")]
     ParseExpectedHash(#[source] FromStrError),
     #[error("Bootloader program hash mismatch.")]
     BootloaderHashMismatch,
+    #[error("Invalid proof version: expected {expected}, got {actual}.")]
+    InvalidProofVersion { expected: Felt, actual: Felt },
     #[error(transparent)]
     Verify(#[from] VerifyProofError),
 }
@@ -39,10 +45,15 @@ impl PartialEq for VerifyProofAndFactsError {
         match (self, other) {
             (Self::EmptyProof, Self::EmptyProof) => true,
             (Self::ProofFactsMismatch, Self::ProofFactsMismatch) => true,
+            (Self::ProgramOutputError(lhs), Self::ProgramOutputError(rhs)) => lhs == rhs,
             (Self::ParseExpectedHash(lhs), Self::ParseExpectedHash(rhs)) => {
                 lhs.to_string() == rhs.to_string()
             }
             (Self::BootloaderHashMismatch, Self::BootloaderHashMismatch) => true,
+            (
+                Self::InvalidProofVersion { expected: exp_l, actual: act_l },
+                Self::InvalidProofVersion { expected: exp_r, actual: act_r },
+            ) => exp_l == exp_r && act_l == act_r,
             (Self::Verify(lhs), Self::Verify(rhs)) => lhs == rhs,
             _ => false,
         }
@@ -73,6 +84,48 @@ impl PartialEq for VerifyProofError {
     }
 }
 
+/// Errors that can occur when converting program output to proof facts.
+#[derive(Error, Debug, PartialEq)]
+pub enum ProgramOutputError {
+    #[error("Program output is empty")]
+    Empty,
+    #[error("Expected num_tasks to be 1, got {0}")]
+    InvalidNumTasks(Felt),
+}
+
+/// Raw program output from the bootloader.
+/// First element is the number of tasks, followed by the actual output.
+#[derive(
+    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
+)]
+pub struct ProgramOutput(pub Arc<Vec<Felt>>);
+
+impl ProgramOutput {
+    /// Tries to convert ProgramOutput into ProofFacts.
+    pub fn try_into_proof_facts(
+        &self,
+        program_variant: Felt,
+    ) -> Result<ProofFacts, ProgramOutputError> {
+        let num_tasks = self.0.first().ok_or(ProgramOutputError::Empty)?;
+        if *num_tasks != Felt::ONE {
+            return Err(ProgramOutputError::InvalidNumTasks(*num_tasks));
+        }
+        // Add the proof version and variant markers in place of num_tasks.
+        let mut facts = vec![Felt::from(PROOF_VERSION)];
+        facts.push(program_variant);
+        // Add the rest of the program output (everything after num_tasks).
+        facts.extend_from_slice(&self.0[1..]);
+        Ok(ProofFacts(Arc::new(facts)))
+    }
+}
+
+impl From<Vec<Felt>> for ProgramOutput {
+    fn from(value: Vec<Felt>) -> Self {
+        Self(Arc::new(value))
+    }
+}
+
+// TODO(Avi): Benchmark this function.
 pub fn verify_proof(proof: Proof) -> Result<VerifyProofOutput, VerifyProofError> {
     // Convert proof to raw bytes.
     let proof_bytes = ProofBytes::try_from(proof)?;
@@ -95,11 +148,11 @@ pub fn verify_proof(proof: Proof) -> Result<VerifyProofOutput, VerifyProofError>
         .map_err(|e| VerifyProofError::Verification(format!("{e:?}")))?;
 
     // Convert starknet_ff::FieldElement values to starknet_types_core::felt::Felt.
-    let facts = convert_verification_output_to_felts(&verification_output)?;
-    let proof_facts = ProofFacts(Arc::new(facts));
+    let output = convert_verification_output_to_felts(&verification_output)?;
+    let program_output = ProgramOutput(Arc::new(output));
     let program_hash = felt_from_starknet_ff(verification_output.program_hash);
 
-    Ok(VerifyProofOutput { proof_facts, program_hash })
+    Ok(VerifyProofOutput { program_output, program_hash })
 }
 
 /// Converts cairo-air VerificationOutput output field to a Vec of Felt.

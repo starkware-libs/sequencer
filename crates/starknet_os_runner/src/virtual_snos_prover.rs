@@ -5,11 +5,12 @@
 
 use std::time::Instant;
 
+use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
-use starknet_api::transaction::fields::{Proof, ProofFacts};
+use starknet_api::transaction::fields::{Proof, ProofFacts, VIRTUAL_SNOS};
 use starknet_api::transaction::{
     InvokeTransaction,
     MessageToL1,
@@ -17,6 +18,7 @@ use starknet_api::transaction::{
     TransactionHasher,
 };
 use starknet_os::io::os_output::OsOutputError;
+use starknet_types_core::felt::Felt;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -32,6 +34,10 @@ pub enum VirtualSnosProverError {
     InvalidTransactionType(String),
     #[error("Validation error: {0}")]
     ValidationError(String),
+    #[error("Failed to calculate transaction hash: {0}")]
+    TransactionHashError(String),
+    #[error(transparent)]
+    ProgramOutputError(#[from] ProgramOutputError),
     #[error(transparent)]
     // Boxed to reduce the size of Result on the stack (RunnerError is >128 bytes).
     RunnerError(#[from] Box<RunnerError>),
@@ -136,9 +142,13 @@ impl VirtualSnosProver {
             "Proving completed"
         );
 
+        // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
+        let proof_facts =
+            prover_output.program_output.try_into_proof_facts(Felt::from(VIRTUAL_SNOS))?;
+
         Ok(VirtualSnosProverOutput {
             proof: prover_output.proof,
-            proof_facts: prover_output.proof_facts,
+            proof_facts,
             l2_to_l1_messages: runner_output.l2_to_l1_messages,
             os_duration,
             prove_duration,
@@ -170,9 +180,7 @@ pub fn calculate_tx_hash(
     chain_id: &ChainId,
 ) -> Result<TransactionHash, VirtualSnosProverError> {
     let version = invoke_tx.version();
-    invoke_tx.calculate_transaction_hash(chain_id, &version).map_err(|e| {
-        VirtualSnosProverError::ValidationError(format!(
-            "Failed to calculate transaction hash: {e}"
-        ))
-    })
+    invoke_tx
+        .calculate_transaction_hash(chain_id, &version)
+        .map_err(|e| VirtualSnosProverError::TransactionHashError(e.to_string()))
 }
