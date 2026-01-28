@@ -1,6 +1,9 @@
-use std::sync::Arc;
+use std::future::Future;
+use std::sync::{Arc, LazyLock};
+use std::time::Duration;
 
-use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_class_manager_types::{ClassManagerClientResult, SharedClassManagerClient};
+use apollo_infra::component_client::{ClientError, DEFAULT_MAX_RETRY_INTERVAL_MS, DEFAULT_RETRIES};
 use apollo_storage::class_hash::ClassHashStorageReader;
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::RO;
@@ -27,6 +30,13 @@ use starknet_types_core::felt::Felt;
 #[path = "apollo_state_test.rs"]
 mod test;
 
+// TODO(Arni): Get the timeout duration out of the reader. It should be a parameter of the reader,
+// if the reader of a non-local component.
+static TIMEOUT_DURATION: LazyLock<Duration> = LazyLock::new(|| {
+    Duration::from_millis(DEFAULT_MAX_RETRY_INTERVAL_MS)
+        * (DEFAULT_RETRIES.try_into().expect("Failed to convert DEFAULT_RETRIES to u32"))
+});
+
 type RawApolloReader<'env> = StorageTxn<'env, RO>;
 
 pub struct ClassReader {
@@ -35,11 +45,49 @@ pub struct ClassReader {
     pub runtime: tokio::runtime::Handle,
 }
 
+// TODO(Arni): Move this util to a common place. It should be the standard way to handle futures
+// inside a block_on.
+async fn with_timeout<T, E: From<ClientError>>(
+    timeout_duration: Duration,
+    fut: impl Future<Output = Result<T, E>>,
+) -> Result<T, E> {
+    let fut_type = std::any::type_name_of_val(&fut);
+    match tokio::time::timeout(timeout_duration, fut).await {
+        Ok(result) => result,
+        Err(_) => Err(ClientError::CommunicationFailure(format!(
+            "{fut_type} took too long: {:?}",
+            *TIMEOUT_DURATION
+        ))
+        .into()),
+    }
+}
+
+async fn get_executable_with_timeout(
+    reader: SharedClassManagerClient,
+    class_hash: ClassHash,
+) -> ClassManagerClientResult<Option<ContractClass>> {
+    with_timeout(*TIMEOUT_DURATION, reader.get_executable(class_hash)).await
+}
+
+async fn get_sierra_with_timeout(
+    reader: SharedClassManagerClient,
+    class_hash: ClassHash,
+) -> ClassManagerClientResult<Option<SierraContractClass>> {
+    with_timeout(*TIMEOUT_DURATION, reader.get_sierra(class_hash)).await
+}
+
+async fn get_executable_class_hash_v2_with_timeout(
+    reader: SharedClassManagerClient,
+    class_hash: ClassHash,
+) -> ClassManagerClientResult<Option<CompiledClassHash>> {
+    with_timeout(*TIMEOUT_DURATION, reader.get_executable_class_hash_v2(class_hash)).await
+}
+
 impl ClassReader {
     fn read_executable(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
         let casm = self
             .runtime
-            .block_on(self.reader.get_executable(class_hash))
+            .block_on(get_executable_with_timeout(self.reader.clone(), class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
@@ -58,7 +106,7 @@ impl ClassReader {
     fn read_sierra(&self, class_hash: ClassHash) -> StateResult<SierraContractClass> {
         let sierra = self
             .runtime
-            .block_on(self.reader.get_sierra(class_hash))
+            .block_on(get_sierra_with_timeout(self.reader.clone(), class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 
@@ -82,7 +130,7 @@ impl ClassReader {
     ) -> StateResult<Option<CompiledClassHash>> {
         let compiled_class_hash_v2 = self
             .runtime
-            .block_on(self.reader.get_executable_class_hash_v2(class_hash))
+            .block_on(get_executable_class_hash_v2_with_timeout(self.reader.clone(), class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
         Ok(compiled_class_hash_v2)
     }
