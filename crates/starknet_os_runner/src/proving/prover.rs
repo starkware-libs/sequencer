@@ -108,3 +108,67 @@ pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingEr
 
     Ok(ProverOutput { proof, proof_bytes, proof_facts })
 }
+
+/// Proves a Cairo PIE using the stwo prover with in-memory CairoPie passing.
+///
+/// This function avoids writing the CairoPie to disk by passing it directly to the
+/// prover library. The proof output is still written to a temporary file.
+///
+/// # Arguments
+///
+/// * `cairo_pie` - The Cairo PIE to prove.
+///
+/// # Returns
+///
+/// The prover output containing the proof and proof facts.
+#[cfg(feature = "in_memory_proving")]
+#[allow(dead_code)] // Used in tests.
+pub(crate) fn prove_in_memory(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
+    use proving_utils::in_memory_proving::{
+        prove_pie_in_memory,
+        ProveConfig as InMemoryProveConfig,
+    };
+
+    // Create temporary files for output only.
+    let create_temp_file_and_path = || -> Result<(NamedTempFile, PathBuf), ProvingError> {
+        let file = NamedTempFile::new().map_err(ProvingError::CreateTempFile)?;
+        let path = file.path().to_path_buf();
+        Ok((file, path))
+    };
+
+    let (_proof_file, proof_path) = create_temp_file_and_path()?;
+    let (_proof_facts_file, proof_facts_path) = create_temp_file_and_path()?;
+
+    // Resolve the bootloader program path.
+    let bootloader_path = resolve_resource_path(BOOTLOADER_FILE)?;
+
+    // Configure the prover.
+    let prove_config = InMemoryProveConfig {
+        proof_path: proof_path.clone(),
+        proof_format: proving_utils::in_memory_proving::ProofFormat::Binary,
+        verify: false,
+        prover_params_json: None,
+    };
+
+    // Run the prover with in-memory CairoPie.
+    prove_pie_in_memory(
+        bootloader_path,
+        cairo_pie,
+        Some(proof_facts_path.clone()),
+        prove_config,
+    )?;
+
+    // Read and decompress the proof.
+    let proof_bytes = ProofBytes::from_file(&proof_path).map_err(ProvingError::ReadProof)?;
+
+    // Read and parse proof facts.
+    let proof_facts_str =
+        std::fs::read_to_string(&proof_facts_path).map_err(ProvingError::ReadProofFacts)?;
+    let proof_facts: ProofFacts =
+        serde_json::from_str(&proof_facts_str).map_err(ProvingError::ParseProofFacts)?;
+
+    // Convert proof bytes to packed u32 format.
+    let proof: Proof = proof_bytes.clone().into();
+
+    Ok(ProverOutput { proof, proof_bytes, proof_facts })
+}

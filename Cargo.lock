@@ -10205,9 +10205,12 @@ version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
  "bzip2",
+ "cairo-program-runner-lib",
+ "cairo-vm",
  "rstest",
  "serde",
  "starknet_api",
+ "stwo_run_and_prove",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",

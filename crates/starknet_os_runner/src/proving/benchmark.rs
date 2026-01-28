@@ -1,15 +1,16 @@
 //! Benchmark harness for comparing proving methods.
 //!
-//! Provides a hyperfine-like framework for benchmarking and comparing the two proving methods:
+//! Provides a hyperfine-like framework for benchmarking and comparing proving methods:
 //! 1. Direct: Uses `stwo_direct::run_and_prove_virtual_os` which runs and proves in one step.
 //! 2. Via PIE: Uses `starknet_os::runner::run_virtual_os` then `prover::prove` in two steps.
+//! 3. In-Memory: Uses `run_virtual_os` then `prover::prove_in_memory` (avoids writing PIE to disk).
 //!
 //! # Running
 //!
 //! ```bash
 //! SEPOLIA_NODE_URL=https://your-rpc-node \
 //! rustup run nightly-2025-07-14 cargo test -p starknet_os_runner \
-//!   --features stwo_native \
+//!   --features stwo_native,in_memory_proving \
 //!   test_benchmark_proving_methods \
 //!   -- --ignored --nocapture
 //! ```
@@ -210,6 +211,8 @@ mod tests {
 
     use super::*;
     use crate::proving::prover::prove;
+    #[cfg(feature = "in_memory_proving")]
+    use crate::proving::prover::prove_in_memory;
     use crate::proving::stwo_direct::{run_and_prove_virtual_os, StwoDirectProvingConfig};
     use crate::runner::RpcRunnerFactory;
     use crate::test_utils::{
@@ -340,14 +343,51 @@ mod tests {
         timing
     }
 
-    /// Benchmark test comparing both proving methods.
+    /// Runs the in-memory proving method and returns timing information.
+    #[cfg(feature = "in_memory_proving")]
+    async fn run_in_memory_method(
+        runner_factory: &RpcRunnerFactory,
+        block_number: starknet_api::block::BlockNumber,
+    ) -> MethodTiming {
+        let mut timing = MethodTiming::new("In-Memory (run_virtual_os + prove_in_memory)");
+
+        // Create transaction.
+        let timer = StepTimer::start();
+        let (tx, tx_hash) = strk_balance_of_invoke();
+        timing.add_step("Create transaction", timer.stop());
+
+        // Create OS hints.
+        let timer = StepTimer::start();
+        let runner = runner_factory.create_runner(BlockId::Number(block_number));
+        let os_hints = runner
+            .create_virtual_os_hints(vec![(tx, tx_hash)])
+            .await
+            .expect("create_virtual_os_hints should succeed");
+        timing.add_step("Create OS hints", timer.stop());
+
+        // Run virtual OS.
+        let timer = StepTimer::start();
+        let runner_output = run_virtual_os(os_hints).expect("run_virtual_os should succeed");
+        timing.add_step("Run virtual OS", timer.stop());
+
+        // Prove CairoPie in-memory (no disk write for PIE).
+        let timer = StepTimer::start();
+        let _prover_output =
+            prove_in_memory(runner_output.cairo_pie).expect("prove_in_memory should succeed");
+        timing.add_step("Prove CairoPie (in-memory)", timer.stop());
+
+        timing.finalize();
+        timing
+    }
+
+    /// Benchmark test comparing all proving methods.
     ///
     /// # Running
     ///
     /// ```bash
     /// SEPOLIA_NODE_URL=https://your-rpc-node \
     /// rustup run nightly-2025-07-14 cargo test -p starknet_os_runner \
-    ///   --features stwo_native \
+    ///   --features stwo_native,in_memory_proving \
     ///   test_benchmark_proving_methods \
     ///   -- --ignored --nocapture
     /// ```
@@ -387,13 +427,58 @@ mod tests {
             via_pie_runs.push(timing);
         }
 
+        // Run in-memory method benchmarks (if feature enabled).
+        #[cfg(feature = "in_memory_proving")]
+        let in_memory_runs = {
+            println!("\n--- Running In-Memory method benchmarks ---");
+            let mut runs = Vec::new();
+            for i in 0..NUM_RUNS {
+                println!("  Run {}/{}...", i + 1, NUM_RUNS);
+                let timing = run_in_memory_method(&sepolia_runner_factory, block_number).await;
+                println!("  Completed in {:?}", timing.total_duration);
+                runs.push(timing);
+            }
+            runs
+        };
+
         // Compute statistics.
         let direct_stats = BenchmarkStats::from_runs("Direct (stwo_direct)", direct_runs);
         let via_pie_stats = BenchmarkStats::from_runs("Via PIE", via_pie_runs);
+        #[cfg(feature = "in_memory_proving")]
+        let in_memory_stats = BenchmarkStats::from_runs("In-Memory", in_memory_runs);
 
-        // Compare and display results.
-        let comparison = BenchmarkComparison::compare(via_pie_stats, direct_stats);
+        // Display results.
+        println!("\n{}", "=".repeat(80));
+        println!("BENCHMARK RESULTS SUMMARY");
+        println!("{}", "=".repeat(80));
+
+        // Display all stats.
+        for stats in [&direct_stats, &via_pie_stats] {
+            println!("\n{}:", stats.method_name);
+            println!("  Mean:   {:>12.3?}", stats.mean);
+            println!("  Min:    {:>12.3?}", stats.min);
+            println!("  Max:    {:>12.3?}", stats.max);
+            println!("  StdDev: {:>12.3?}", stats.stddev);
+        }
+        #[cfg(feature = "in_memory_proving")]
+        {
+            println!("\n{}:", in_memory_stats.method_name);
+            println!("  Mean:   {:>12.3?}", in_memory_stats.mean);
+            println!("  Min:    {:>12.3?}", in_memory_stats.min);
+            println!("  Max:    {:>12.3?}", in_memory_stats.max);
+            println!("  StdDev: {:>12.3?}", in_memory_stats.stddev);
+        }
+
+        // Compare Via-PIE vs Direct.
+        let comparison = BenchmarkComparison::compare(via_pie_stats.clone(), direct_stats.clone());
         println!("{comparison}");
+
+        // Compare In-Memory vs Via-PIE (if feature enabled).
+        #[cfg(feature = "in_memory_proving")]
+        {
+            let comparison = BenchmarkComparison::compare(via_pie_stats, in_memory_stats);
+            println!("{comparison}");
+        }
     }
 
     /// Single-run comparison test for quick testing.
@@ -403,7 +488,7 @@ mod tests {
     /// ```bash
     /// SEPOLIA_NODE_URL=https://your-rpc-node \
     /// rustup run nightly-2025-07-14 cargo test -p starknet_os_runner \
-    ///   --features stwo_native \
+    ///   --features stwo_native,in_memory_proving \
     ///   test_quick_comparison \
     ///   -- --ignored --nocapture
     /// ```
@@ -420,7 +505,7 @@ mod tests {
         let block_number = fetch_sepolia_block_number().await;
         println!("Using block number: {block_number}");
 
-        // Run both methods.
+        // Run all methods.
         println!("\n--- Direct method ---");
         let direct_timing = run_direct_method(&sepolia_runner_factory, block_number).await;
         for step in &direct_timing.steps {
@@ -435,13 +520,24 @@ mod tests {
         }
         println!("  {:<40} {:>12.3?}", "TOTAL", via_pie_timing.total_duration);
 
+        #[cfg(feature = "in_memory_proving")]
+        let in_memory_timing = {
+            println!("\n--- In-Memory method ---");
+            let timing = run_in_memory_method(&sepolia_runner_factory, block_number).await;
+            for step in &timing.steps {
+                println!("  {:<40} {:>12.3?}", step.name, step.duration);
+            }
+            println!("  {:<40} {:>12.3?}", "TOTAL", timing.total_duration);
+            timing
+        };
+
         // Simple comparison.
         let direct_nanos = direct_timing.total_duration.as_nanos() as f64;
         let via_pie_nanos = via_pie_timing.total_duration.as_nanos() as f64;
-        let speedup = via_pie_nanos / direct_nanos;
 
         println!("\n{}", "-".repeat(80));
-        println!("COMPARISON:");
+        println!("COMPARISON (Direct vs Via-PIE):");
+        let speedup = via_pie_nanos / direct_nanos;
         if speedup > 1.0 {
             println!(
                 "  Direct is {:.2}x faster ({:.1}% improvement)",
@@ -457,6 +553,29 @@ mod tests {
         } else {
             println!("  Both methods have equivalent performance");
         }
+
+        #[cfg(feature = "in_memory_proving")]
+        {
+            let in_memory_nanos = in_memory_timing.total_duration.as_nanos() as f64;
+            println!("\nCOMPARISON (In-Memory vs Via-PIE):");
+            let speedup = via_pie_nanos / in_memory_nanos;
+            if speedup > 1.0 {
+                println!(
+                    "  In-Memory is {:.2}x faster ({:.1}% improvement)",
+                    speedup,
+                    (1.0 - in_memory_nanos / via_pie_nanos) * 100.0
+                );
+            } else if speedup < 1.0 {
+                println!(
+                    "  Via-PIE is {:.2}x faster ({:.1}% improvement)",
+                    1.0 / speedup,
+                    (1.0 - via_pie_nanos / in_memory_nanos) * 100.0
+                );
+            } else {
+                println!("  Both methods have equivalent performance");
+            }
+        }
+
         println!("{}", "=".repeat(80));
     }
 }
