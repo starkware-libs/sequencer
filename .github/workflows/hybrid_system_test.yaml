@@ -283,6 +283,14 @@ jobs:
       - name: Create storage files
         run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-hybrid 0 --n-distributed 0
 
+      - name: Populate PVCs with state data
+        run: |
+          pipenv run python ./scripts/system_tests/populate_pvcs.py \
+            --layout ${{ env.layout }} \
+            --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
+            --data-dir "./output/data/node_0"
+
       - name: Generate k8s manifests
         working-directory: deployments/sequencer
         run: |
@@ -291,11 +299,19 @@ jobs:
           echo "Generating Kubernetes manifests using hybrid layout"
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} -l ${{ env.layout }} -o ${{ env.overlay }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/sequencer:${{ github.sha }}"
 
+      - name: Apply PVCs only
+        working-directory: deployments/sequencer
+        run: |
+          echo "Applying PVCs..."
+          kubectl create namespace ${{ env.namespace }} || true
+          find ./dist -name "*PersistentVolumeClaim*.yaml" -exec kubectl apply -f {} \;
+          echo "Waiting for PVCs to be bound..."
+          kubectl wait --for=condition=Bound pvc -n ${{ env.namespace }} --timeout=60s || true
+
       - name: Deploy Sequencer
         working-directory: deployments/sequencer
         run: |
           echo "Deploying Sequencer..."
-          kubectl create namespace ${{ env.namespace }}
           kubectl apply -R -f ./dist/
 
       - name: Set default namespace
@@ -316,12 +332,6 @@ jobs:
             --overlay ${{ env.overlay }} \
             --timeout ${{ env.check_timeout_sec }} \
             --interval ${{ env.check_interval_sec }}
-
-      - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }} --data-dir "./output/data/node_0"
-
-      - name: Run readiness check
-        run: pipenv run python ./scripts/system_tests/readiness_check.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }}
 
       - name: Port-forward Anvil pod to localhost:${{ env.anvil_port }}
         run: |
