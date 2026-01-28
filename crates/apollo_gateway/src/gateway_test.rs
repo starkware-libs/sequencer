@@ -102,6 +102,7 @@ use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateR
 use crate::stateful_transaction_validator::{
     MockStatefulTransactionValidatorFactoryTrait,
     MockStatefulTransactionValidatorTrait,
+    StatefulTransactionValidatorFactory,
 };
 use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
 
@@ -165,7 +166,11 @@ struct MockDependencies {
 impl MockDependencies {
     fn gateway(
         mut self,
-    ) -> GenericGateway<MockStatelessTransactionValidatorTrait, MockTransactionConverterTrait> {
+    ) -> GenericGateway<
+        MockStatelessTransactionValidatorTrait,
+        MockTransactionConverterTrait,
+        StatefulTransactionValidatorFactory<TestStateReaderFactory>,
+    > {
         // TODO(Einat): Move to mock dependencies fixture.
         let proof_manager_client: Arc<dyn ProofManagerClient> =
             Arc::new(self.mock_proof_manager_client);
@@ -629,6 +634,7 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
     let gateway = GenericGateway::<
         MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
+        MockStatefulTransactionValidatorFactoryTrait,
     > {
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
@@ -685,6 +691,7 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
     let gateway = GenericGateway::<
         MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
+        MockStatefulTransactionValidatorFactoryTrait,
     > {
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),

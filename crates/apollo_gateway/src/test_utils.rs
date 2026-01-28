@@ -35,7 +35,8 @@ use starknet_types_core::felt::Felt;
 use crate::errors::GatewayResult;
 use crate::gateway::GenericGateway;
 use crate::proof_archive_writer::MockProofArchiveWriterTrait;
-use crate::state_reader_test_utils::local_test_state_reader_factory;
+use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::stateful_transaction_validator::StatefulTransactionValidatorFactory;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
@@ -162,7 +163,13 @@ pub fn rpc_tx_for_testing(
     }
 }
 
-pub struct GatewayForBenchmark(GenericGateway<StatelessTransactionValidator, TransactionConverter>);
+pub struct GatewayForBenchmark(
+    GenericGateway<
+        StatelessTransactionValidator,
+        TransactionConverter,
+        StatefulTransactionValidatorFactory<TestStateReaderFactory>,
+    >,
+);
 
 impl GatewayForBenchmark {
     pub async fn add_tx(
