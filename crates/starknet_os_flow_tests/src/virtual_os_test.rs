@@ -200,7 +200,7 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
         ProofFacts::default()
     } else {
         ProofFacts::snos_proof_facts_for_testing_with_config_hash(
-            test_builder.compute_os_config_hash(),
+            test_builder.compute_virtual_os_config_hash(),
         )
     };
     let expected_execution_info = ExpectedExecutionInfo {
