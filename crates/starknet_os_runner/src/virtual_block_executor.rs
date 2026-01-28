@@ -87,7 +87,7 @@ impl TryFrom<(BlockHeader, ChainId)> for BaseBlockInfo {
         let block_context = BlockContext::new(
             block_info,
             chain_info,
-            versioned_constants.clone(),
+            versioned_constants,
             BouncerConfig::default(),
         );
 

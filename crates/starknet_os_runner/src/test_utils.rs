@@ -5,14 +5,12 @@ use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use rstest::fixture;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
+use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
 use crate::storage_proofs::RpcStorageProofsProvider;
 use crate::virtual_block_executor::RpcVirtualBlockExecutor;
-
-/// Block number to use for testing (mainnet block with known state).
-pub const TEST_BLOCK_NUMBER: u64 = 800000;
 
 /// STRK token contract address on mainnet.
 pub const STRK_TOKEN_ADDRESS: Felt =
@@ -27,14 +25,39 @@ pub fn get_rpc_url() -> String {
     env::var("NODE_URL").expect("NODE_URL environment variable required for this test")
 }
 
-/// Fixture that creates an RpcStateReader for testing.
+/// Fixture that fetches the latest block number from RPC.
+/// Note: This fixture creates its own tokio runtime, so it should NOT be used
+/// in tests that use #[tokio::test]. For async tests, fetch the block number
+/// directly using rpc_provider.0.block_number().await.
 #[fixture]
-pub fn rpc_state_reader() -> RpcStateReader {
+pub fn latest_block_number(rpc_provider: RpcStorageProofsProvider) -> BlockNumber {
+    let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+    let block_number = runtime
+        .block_on(async { rpc_provider.0.block_number().await })
+        .expect("Failed to fetch latest block number");
+    BlockNumber(block_number)
+}
+
+/// Fixture that creates an RpcStateReader for testing.
+/// Uses the latest block number fetched via rpc_provider.
+#[fixture]
+pub fn rpc_state_reader(latest_block_number: BlockNumber) -> RpcStateReader {
     let node_url = get_rpc_url();
     RpcStateReader::new_with_config_from_url(
         node_url,
         ChainId::Mainnet,
-        BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
+        BlockId::Number(latest_block_number),
+    )
+}
+
+/// Fixture that creates an RpcStateReader for a specific block.
+/// Use this in async tests where you've already fetched the block number.
+pub fn rpc_state_reader_for_block(block_number: BlockNumber) -> RpcStateReader {
+    let node_url = get_rpc_url();
+    RpcStateReader::new_with_config_from_url(
+        node_url,
+        ChainId::Mainnet,
+        BlockId::Number(block_number),
     )
 }
 

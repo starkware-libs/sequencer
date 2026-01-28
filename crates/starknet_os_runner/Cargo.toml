@@ -20,6 +20,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive"] }
+ethnum.workspace = true
 futures.workspace = true
 hyper.workspace = true
 indexmap.workspace = true
@@ -31,8 +32,10 @@ starknet-rust.workspace = true
 starknet-rust-core.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_committer.workspace = true
 starknet_os.workspace = true
 starknet_patricia.workspace = true
+starknet_patricia_storage.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }

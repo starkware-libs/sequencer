@@ -1,6 +1,7 @@
 use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 
@@ -19,7 +20,7 @@ struct TestSubTree<'a> {
 }
 
 impl<'a> SubTreeTrait<'a> for TestSubTree<'a> {
-    type NodeData = ();
+    type NodeData = HashOutput;
     type NodeDeserializeContext = ();
 
     fn create(
