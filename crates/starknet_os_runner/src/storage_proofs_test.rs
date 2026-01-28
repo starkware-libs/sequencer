@@ -53,6 +53,7 @@ fn test_get_storage_proofs_from_rpc(
             base_block_header_commitments: BlockHeaderCommitments::default(),
         },
         initial_reads: state_maps,
+        state_diff: StateMaps::default(),
         executed_class_hashes: HashSet::new(),
     };
 
