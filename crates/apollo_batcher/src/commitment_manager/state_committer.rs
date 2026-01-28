@@ -3,7 +3,7 @@
 use std::time::Duration;
 
 use apollo_committer_types::committer_types::{CommitBlockRequest, RevertBlockRequest};
-use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
+use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_committer_types::errors::CommitterClientResult;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -57,7 +57,7 @@ impl StateCommitter {
         committer_client: SharedCommitterClient,
     ) {
         // TODO(Yoav): Test this function.
-        while let Some(CommitterTaskInput(request)) = tasks_receiver.recv().await {
+        while let Some(request) = tasks_receiver.recv().await {
             let output = perform_task(request, &committer_client).await;
             let height = output.height();
             match results_sender.try_send(output.clone()) {
@@ -79,15 +79,15 @@ impl StateCommitter {
 /// Performs a commitment task by calling the committer.
 /// Retries at errors.
 async fn perform_task(
-    request: CommitterRequest,
+    request: CommitterTaskInput,
     committer_client: &SharedCommitterClient,
 ) -> CommitterTaskOutput {
     loop {
         let result = match &request {
-            CommitterRequest::CommitBlock(commit_block_request) => {
+            CommitterTaskInput::Commit(commit_block_request) => {
                 perform_commit_block_task(commit_block_request.clone(), committer_client).await
             }
-            CommitterRequest::RevertBlock(revert_block_request) => {
+            CommitterTaskInput::Revert(revert_block_request) => {
                 perform_revert_block_task(revert_block_request.clone(), committer_client).await
             }
         };

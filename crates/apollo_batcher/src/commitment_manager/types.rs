@@ -1,16 +1,47 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::time::Instant;
 
-use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
-use apollo_committer_types::communication::{CommitterRequest, CommitterRequestLabelValue};
+use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
+    CommitBlockResponse,
+    RevertBlockRequest,
+    RevertBlockResponse,
+};
+use apollo_committer_types::communication::CommitterRequestLabelValue;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::GlobalRoot;
 use tracing::warn;
 
 /// Input for commitment tasks.
-pub(crate) struct CommitterTaskInput(pub(crate) CommitterRequest);
+pub(crate) enum CommitterTaskInput {
+    Commit(CommitBlockRequest),
+    Revert(RevertBlockRequest),
+}
+
+impl CommitterTaskInput {
+    pub(crate) fn height(&self) -> BlockNumber {
+        match self {
+            Self::Commit(request) => request.height,
+            Self::Revert(request) => request.height,
+        }
+    }
+}
+
+impl Display for CommitterTaskInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Commit(request) => write!(
+                f,
+                "Commit(height={}, state_diff_commitment={:?})",
+                request.height, request.state_diff_commitment
+            ),
+            Self::Revert(request) => write!(f, "Revert(height={})", request.height),
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct CommitmentTaskOutput {
