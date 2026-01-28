@@ -24,7 +24,7 @@ use url::Url;
 
 use crate::errors::{ProvingError, RunnerError};
 use crate::proving::prover::prove;
-use crate::runner::RpcRunnerFactory;
+use crate::runner::{RpcRunnerFactory, RunnerFactory, VirtualSnosRunner};
 use crate::server::config::ServiceConfig;
 
 /// Error type for the virtual SNOS prover.
@@ -68,17 +68,24 @@ pub struct VirtualSnosProverOutput {
 ///
 /// Encapsulates all proving logic, including OS execution and proof generation.
 /// This prover is independent of the HTTP layer and can be used directly for testing.
+///
+/// The prover is generic over the runner factory, allowing different implementations
+/// (RPC-based, mock, etc.) to be used interchangeably.
 #[derive(Clone)]
-pub struct VirtualSnosProver {
-    // TODO(Avi): Make `RunnerFactory` generic and not just RPC-based.
-    /// Factory for creating RPC-based runners.
-    runner_factory: RpcRunnerFactory,
+pub(crate) struct VirtualSnosProver<F: RunnerFactory> {
+    /// Factory for creating runners.
+    runner_factory: F,
     /// Chain ID for transaction hash calculation.
     chain_id: ChainId,
 }
 
-impl VirtualSnosProver {
+/// Type alias for the RPC-based virtual SNOS prover.
+pub(crate) type RpcVirtualSnosProver = VirtualSnosProver<RpcRunnerFactory>;
+
+impl VirtualSnosProver<RpcRunnerFactory> {
     /// Creates a new VirtualSnosProver from configuration.
+    ///
+    /// This constructor creates an RPC-based prover using the configuration values.
     pub fn new(config: &ServiceConfig) -> Self {
         let contract_class_manager =
             ContractClassManager::start(config.contract_class_manager_config.clone());
@@ -86,6 +93,16 @@ impl VirtualSnosProver {
         let runner_factory =
             RpcRunnerFactory::new(node_url, config.chain_id.clone(), contract_class_manager);
         Self { runner_factory, chain_id: config.chain_id.clone() }
+    }
+}
+
+impl<F: RunnerFactory> VirtualSnosProver<F> {
+    /// Creates a new VirtualSnosProver from a runner factory.
+    ///
+    /// This constructor allows using any runner factory implementation.
+    #[allow(dead_code)]
+    pub(crate) fn from_factory(runner_factory: F, chain_id: ChainId) -> Self {
+        Self { runner_factory, chain_id }
     }
 
     /// Proves a transaction on top of the specified block.
