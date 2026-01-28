@@ -24,7 +24,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, info, instrument, trace};
 
 use crate::metrics::{
     metric_count_committed_txs,
@@ -377,7 +377,7 @@ impl Mempool {
                 // These error variants are not informative and they spam the logs.
             }
             _ => {
-                error!(
+                debug!(
                     tx_nonce = %args.tx.nonce(),
                     tx_hash = %args.tx.tx_hash,
                     tx_tip = %args.tx.tip(),
