@@ -99,7 +99,6 @@ pub struct RawVersionedConstants {
 #[serde(deny_unknown_fields)]
 pub struct RawOsConstants {
     // Allowed virtual OS program hashes for client-side proving.
-    // TODO(Meshi): Add a test that the latest virtual OS program hash is in this list.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
 
     // Selectors.
