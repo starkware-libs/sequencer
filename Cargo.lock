@@ -2051,6 +2051,7 @@ dependencies = [
  "assert_matches",
  "async-stream",
  "async-trait",
+ "asynchronous-codec",
  "bytes",
  "clap",
  "deadqueue",
