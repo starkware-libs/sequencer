@@ -12,7 +12,7 @@ use starknet_patricia_storage::aerospike_storage::{
 };
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
-use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
+use starknet_patricia_storage::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
 use starknet_patricia_storage::storage_trait::{EmptyStorageConfig, Storage};
 
@@ -296,12 +296,6 @@ pub struct RocksdbArgs {
     pub file_storage_args: FileStorageArgs,
     #[clap(flatten)]
     pub interference_args: InterferenceArgs,
-
-    /// If true, the storage will use memory-mapped files.
-    /// False by default, as fact storage layout does not benefit from mapping disk pages to
-    /// memory, as there is no locality of related data.
-    #[clap(long, short, action=ArgAction::SetTrue)]
-    pub allow_mmap: bool,
 }
 
 #[async_trait]
@@ -309,21 +303,15 @@ impl StorageFromArgs for RocksdbArgs {
     type Storage = RocksDbStorage;
 
     fn storage_config(&self) -> <Self::Storage as Storage>::Config {
-        EmptyStorageConfig::default()
+        RocksDbStorageConfig::default()
     }
 
     async fn storage(&self) -> Self::Storage {
-        RocksDbStorage::open(
+        RocksDbStorage::new(
             Path::new(&self.file_storage_args.initialize_storage_path(StorageType::Rocksdb)),
-            self.rocksdb_options(),
+            self.storage_config(),
         )
         .unwrap()
-    }
-}
-
-impl RocksdbArgs {
-    pub fn rocksdb_options(&self) -> RocksDbOptions {
-        if self.allow_mmap { RocksDbOptions::default() } else { RocksDbOptions::default_no_mmap() }
     }
 }
 
