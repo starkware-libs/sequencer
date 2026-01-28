@@ -85,8 +85,7 @@ fn starknet_resources() -> StarknetResources {
         state_resources,
         6.into(),
         execution_summary,
-        // TODO(AvivG): Modify to test with non-zero value for proof facts length.
-        0,
+        5_usize,
     )
 }
 
@@ -376,12 +375,12 @@ fn test_gas_computation_regression_test(
             true => GasVector {
                 l1_gas: GasAmount(21543),
                 l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(87040),
+                l2_gas: GasAmount(112640),
             },
             false => GasVector {
                 l1_gas: GasAmount(62834),
                 l1_data_gas: GasAmount(0),
-                l2_gas: GasAmount(87040),
+                l2_gas: GasAmount(112640),
             },
         },
     };
@@ -436,12 +435,12 @@ fn test_gas_computation_regression_test(
             true => GasVector {
                 l1_gas: GasAmount(21543),
                 l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(1120394),
+                l2_gas: GasAmount(1145994),
             },
             false => GasVector {
                 l1_gas: GasAmount(62834),
                 l1_data_gas: GasAmount(0),
-                l2_gas: GasAmount(1120394),
+                l2_gas: GasAmount(1145994),
             },
         },
     };
