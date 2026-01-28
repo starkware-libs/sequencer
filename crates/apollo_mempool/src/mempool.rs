@@ -42,6 +42,7 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
 use crate::transaction_pool::TransactionPool;
+use crate::transaction_queue_trait::TransactionQueueTrait;
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
