@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769602050300,
+  "lastUpdate": 1769603818330,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1053,6 +1053,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1323.4946213699998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "abaecdaf4a5e579893cd9e7e4db2632196b95f79",
+          "message": "starknet_committer: rename timing_util and TimeMeasurementTrait and structs (#11970)",
+          "timestamp": "2026-01-28T12:07:17Z",
+          "tree_id": "1bb7a7b403668f3aca5a99ad6977f58452cc7bfa",
+          "url": "https://github.com/starkware-libs/sequencer/commit/abaecdaf4a5e579893cd9e7e4db2632196b95f79"
+        },
+        "date": 1769603818013,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 861.67102919,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1300.3800959,
             "unit": "ms"
           }
         ]
