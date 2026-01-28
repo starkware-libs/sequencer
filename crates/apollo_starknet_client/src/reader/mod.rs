@@ -33,6 +33,7 @@ pub use crate::reader::objects::block::{
     BlockSignatureMessage,
     TransactionReceiptsError,
 };
+use crate::reader::objects::block::BlockStatus;
 pub use crate::reader::objects::pending_data::PendingData;
 pub use crate::reader::objects::state::{
     ContractClass,
@@ -69,6 +70,8 @@ pub enum ReaderClientError {
     TransactionReceiptsError(#[from] TransactionReceiptsError),
     #[error("Invalid transaction: {:?}, error: {:?}.", tx_hash, msg)]
     BadTransaction { tx_hash: TransactionHash, msg: String },
+    #[error("Aborted block {:?}.", block_number)]
+    AbortedBlock { block_number: BlockNumber },
 }
 
 pub type ReaderClientResult<T> = Result<T, ReaderClientError>;
@@ -245,11 +248,20 @@ impl StarknetFeederGatewayClient {
         block_number: Option<BlockNumber>,
     ) -> ReaderClientResult<Option<Block>> {
         let response = self.request_block_raw(block_number, false).await;
-        load_object_from_response(
+        let block = load_object_from_response(
             response,
             Some(KnownStarknetErrorCode::BlockNotFound),
             format!("Failed to get block number {block_number:?} from starknet server."),
-        )
+        )?;
+        if let Some(Block::PostV0_13_1(block_data)) = block.as_ref() {
+            if matches!(block_data.status, BlockStatus::Aborted) {
+                debug!("Aborted block {:?}; returning error for retry.", block_data.block_number);
+                return Err(ReaderClientError::AbortedBlock {
+                    block_number: block_data.block_number,
+                });
+            }
+        }
+        Ok(block)
     }
 
     // TODO(shahak): reduce code duplication with request_block.

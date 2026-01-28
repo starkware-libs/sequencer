@@ -56,6 +56,7 @@ pub struct BlockPostV0_13_1 {
     #[serde(default)]
     pub timestamp: BlockTimestamp,
     pub transactions: Vec<Transaction>,
+    #[serde(default)]
     pub transaction_receipts: Vec<TransactionReceipt>,
     // Default to PreV0_9_1 for compatibility with old blocks that don't include this field.
     #[serde(default = "default_old_starknet_version")]
