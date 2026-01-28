@@ -115,6 +115,7 @@ fn compute_public_keys_hash(public_keys: Option<&Vec<Felt>>) -> Felt {
 // TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct OsChainInfo {
+    #[serde(deserialize_with = "deserialize_chain_id_from_hex")]
     pub chain_id: ChainId,
     pub strk_fee_token_address: ContractAddress,
 }
