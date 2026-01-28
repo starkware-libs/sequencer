@@ -10,14 +10,14 @@ use starknet_api::transaction::TransactionHash;
 use crate::mempool::TransactionReference;
 
 #[cfg(test)]
-#[path = "transaction_queue_test_utils.rs"]
-pub mod transaction_queue_test_utils;
+#[path = "fee_transaction_queue_test_utils.rs"]
+pub mod fee_transaction_queue_test_utils;
 
 // A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
 #[derive(Debug, Default)]
-pub struct TransactionQueue {
+pub struct FeeTransactionQueue {
     gas_price_threshold: GasPrice,
     // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
@@ -27,7 +27,7 @@ pub struct TransactionQueue {
     address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
 
-impl TransactionQueue {
+impl FeeTransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
     /// If `validate_resource_bounds` is false, the transaction is added to the priority queue,
