@@ -495,6 +495,9 @@ pub struct ArchivalDataGasCosts {
     // where rational numbers are supported.
     pub gas_per_code_byte: ResourceCost,
     // TODO(AvivG): Update value for 0.14.2 once the value is finalized.
+    // Note: This field is only present in archival_data_gas_costs (for V3+ transactions with
+    // proof facts). It's not present in deprecated_l2_resource_gas_costs (for V0-V2 transactions).
+    #[serde(default)]
     pub gas_per_proof: ResourceCost,
 }
 
