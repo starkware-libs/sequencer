@@ -162,3 +162,15 @@ async fn declared_class_requests() {
 
     assert_eq!(class_response, StorageReaderResponse::DeclaredClassesFromLocation(expected_class));
 }
+
+#[tokio::test]
+async fn declared_class_block_request() {
+    let block_number = BlockNumber(0);
+    let (app, _reader, _state_diff, _temp_dir, (class_hash, _expected_class)) =
+        setup_test_server(block_number, unique_u16!());
+
+    let request = StorageReaderRequest::DeclaredClassesBlock(class_hash);
+    let response: StorageReaderResponse = get_response(app, &request, StatusCode::OK).await;
+
+    assert_eq!(response, StorageReaderResponse::DeclaredClassesBlock(block_number));
+}
