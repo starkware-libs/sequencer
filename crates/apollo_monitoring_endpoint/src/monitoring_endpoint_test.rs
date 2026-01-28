@@ -30,7 +30,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::{nonce, tx_hash};
 use tokio::spawn;
 use tokio::task::yield_now;
-use tower::ServiceExt;
+use tower_05::util::ServiceExt;
 
 use crate::monitoring_endpoint::{
     create_monitoring_endpoint,

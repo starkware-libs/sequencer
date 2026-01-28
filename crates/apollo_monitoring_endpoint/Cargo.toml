@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Monitoring and observability endpoints for the Starknet sequencer."
 
 [features]
-testing = ["apollo_metrics/testing", "num-traits", "thiserror", "tower"]
+testing = ["apollo_metrics/testing", "num-traits", "thiserror", "tower_05"]
 
 [lints]
 workspace = true
@@ -28,7 +28,7 @@ metrics-exporter-prometheus.workspace = true
 num-traits = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["net", "rt"] }
-tower = { workspace = true, optional = true }
+tower_05 = { workspace = true, optional = true }
 tracing.workspace = true
 
 [dev-dependencies]
@@ -43,4 +43,4 @@ starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 thiserror.workspace = true
 tokio.workspace = true
-tower.workspace = true
+tower_05.workspace = true

@@ -938,7 +938,7 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "async-trait",
- "axum 0.6.20",
+ "axum",
  "blockifier",
  "chrono",
  "derive_more 2.1.1",
@@ -951,7 +951,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
- "tower 0.4.13",
+ "tower 0.5.2",
 ]
 
 [[package]]
@@ -1577,7 +1577,7 @@ dependencies = [
  "apollo_proc_macros",
  "assert_matches",
  "async-trait",
- "axum 0.8.8",
+ "axum",
  "base64 0.13.1",
  "blockifier",
  "blockifier_reexecution",
@@ -1719,7 +1719,7 @@ dependencies = [
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
- "axum 0.8.8",
+ "axum",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
@@ -2016,7 +2016,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_monitoring_endpoint_config",
  "async-trait",
- "axum 0.8.8",
+ "axum",
  "http-body-util",
  "hyper-util",
  "metrics",
@@ -2028,7 +2028,7 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
- "tower 0.4.13",
+ "tower 0.5.2",
  "tracing",
 ]
 
@@ -2357,6 +2357,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "tokio",
  "tower 0.4.13",
+ "tower 0.5.2",
  "tracing",
  "validator",
 ]
@@ -2644,7 +2645,7 @@ dependencies = [
  "apollo_test_utils",
  "assert_matches",
  "async-trait",
- "axum 0.8.8",
+ "axum",
  "byteorder",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -3249,43 +3250,11 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.6.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b829e4e32b91e643de6eafe82b1d90675f5874230191a4ffbc1b336dec4d6bf"
-dependencies = [
- "async-trait",
- "axum-core 0.3.4",
- "bitflags 1.2.1",
- "bytes",
- "futures-util",
- "http 0.2.12",
- "http-body 0.4.6",
- "hyper 0.14.32",
- "itoa",
- "matchit 0.7.3",
- "memchr",
- "mime",
- "percent-encoding",
- "pin-project-lite",
- "rustversion",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "serde_urlencoded",
- "sync_wrapper 0.1.2",
- "tokio",
- "tower 0.4.13",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "axum"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b52af3cb4058c895d37317bb27508dccc8e5f2d39454016b297bf4a400597b8"
 dependencies = [
- "axum-core 0.5.6",
+ "axum-core",
  "bytes",
  "form_urlencoded",
  "futures-util",
@@ -3295,7 +3264,7 @@ dependencies = [
  "hyper 1.8.0",
  "hyper-util",
  "itoa",
- "matchit 0.8.4",
+ "matchit",
  "memchr",
  "mime",
  "percent-encoding",
@@ -3310,23 +3279,6 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "759fa577a247914fd3f7f76d62972792636412fbfd634cd452f6a385a74d2d2c"
-dependencies = [
- "async-trait",
- "bytes",
- "futures-util",
- "http 0.2.12",
- "http-body 0.4.6",
- "mime",
- "rustversion",
- "tower-layer",
- "tower-service",
 ]
 
 [[package]]
@@ -7997,12 +7949,6 @@ dependencies = [
 
 [[package]]
 name = "matchit"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
-
-[[package]]
-name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
@@ -12235,9 +12181,13 @@ checksum = "d039ad9159c98b70ecfd540b2573b97f7f52c3e8d9f8ad57a24b916a536975f9"
 dependencies = [
  "futures-core",
  "futures-util",
+ "hdrhistogram",
+ "indexmap 2.12.0",
  "pin-project-lite",
+ "slab",
  "sync_wrapper 1.0.2",
  "tokio",
+ "tokio-util",
  "tower-layer",
  "tower-service",
  "tracing",
