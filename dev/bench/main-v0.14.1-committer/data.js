@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769610987877,
+  "lastUpdate": 1769611952022,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1189,6 +1189,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1320.32154084,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "160594433+victorkstarkware@users.noreply.github.com",
+            "name": "victorkstarkware",
+            "username": "victorkstarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c5dc5f18ef8c3e19ec1cf1a7609c0fcfcb26be01",
+          "message": "workspace: migrate hyper to 1.x PART 11 (#12075)",
+          "timestamp": "2026-01-28T13:34:46Z",
+          "tree_id": "60d9687a741b0765399473367d868f0a1a939cc8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c5dc5f18ef8c3e19ec1cf1a7609c0fcfcb26be01"
+        },
+        "date": 1769611951704,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 791.2267393,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1234.06711169,
             "unit": "ms"
           }
         ]
