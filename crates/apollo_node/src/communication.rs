@@ -13,7 +13,7 @@ use apollo_node_config::component_execution_config::ExpectedComponentConfig;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_signature_manager_types::SignatureManagerRequestWrapper;
 use apollo_state_sync_types::communication::StateSyncRequestWrapper;
-use tokio::sync::mpsc::{Receiver, Sender, channel};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 
 pub struct SequencerNodeCommunication {

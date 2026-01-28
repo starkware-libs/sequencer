@@ -6,7 +6,9 @@ use std::sync::LazyLock;
 
 use clap::{ArgAction, Args, Subcommand};
 use starknet_patricia_storage::aerospike_storage::{
-    AerospikeStorage, AerospikeStorageConfig, DEFAULT_PORT,
+    AerospikeStorage,
+    AerospikeStorageConfig,
+    DEFAULT_PORT,
 };
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;

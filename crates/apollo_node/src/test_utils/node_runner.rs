@@ -1,5 +1,5 @@
 use std::fs::create_dir_all;
-use std::io::{Stdout, Write, stdout};
+use std::io::{stdout, Stdout, Write};
 use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::{Mutex, OnceLock};

@@ -7,7 +7,7 @@ use blockifier::context::BlockContext;
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionInfoCreator;
-use pyo3::{PyAny, pyclass, pymethods};
+use pyo3::{pyclass, pymethods, PyAny};
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::transaction::TransactionHash;
@@ -17,7 +17,7 @@ use crate::errors::NativeBlockifierResult;
 use crate::py_block_executor::PyOsConfig;
 use crate::py_objects::PyVersionedConstantsOverrides;
 use crate::py_state_diff::PyBlockInfo;
-use crate::py_transaction::{PY_TX_PARSING_ERR, PyClassInfo, py_account_tx};
+use crate::py_transaction::{py_account_tx, PyClassInfo, PY_TX_PARSING_ERR};
 use crate::py_utils::PyFelt;
 use crate::state_readers::py_state_reader::PyStateReader;
 

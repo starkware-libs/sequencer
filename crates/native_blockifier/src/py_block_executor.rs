@@ -5,7 +5,9 @@ use std::str::FromStr;
 use apollo_state_reader::apollo_state::ApolloReader;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
-    BlockExecutionSummary, TransactionExecutor, TransactionExecutorError,
+    BlockExecutionSummary,
+    TransactionExecutor,
+    TransactionExecutorError,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -29,14 +31,21 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_objects::{
-    PyBouncerConfig, PyCasmHashComputationData, PyCompiledClassHashesForMigration,
-    PyConcurrencyConfig, PyContractClassManagerConfig, PyVersionedConstantsOverrides,
+    PyBouncerConfig,
+    PyCasmHashComputationData,
+    PyCompiledClassHashesForMigration,
+    PyConcurrencyConfig,
+    PyContractClassManagerConfig,
+    PyVersionedConstantsOverrides,
 };
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
-use crate::py_transaction::{PY_TX_PARSING_ERR, PyClassInfo, py_tx};
-use crate::py_utils::{PyFelt, int_to_chain_id, into_block_number_hash_pair};
+use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
+use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
 use crate::storage::{
-    PapyrusStorage, RawDeclaredClassMapping, RawDeprecatedDeclaredClassMapping, Storage,
+    PapyrusStorage,
+    RawDeclaredClassMapping,
+    RawDeprecatedDeclaredClassMapping,
+    Storage,
     StorageConfig,
 };
 

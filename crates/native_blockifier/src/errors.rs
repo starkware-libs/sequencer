@@ -8,8 +8,8 @@ use num_bigint::BigUint;
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use starknet_api::StarknetApiError;
 use starknet_api::executable_transaction::TransactionType;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
