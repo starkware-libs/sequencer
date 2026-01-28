@@ -447,9 +447,11 @@ impl Serialize for Row {
 /// metric. Assumes there was an increase in the last 12 hours.
 pub(crate) fn get_time_since_last_increase_expr(metric_name: &str) -> String {
     const TIME_RANGE: &str = "12h";
+    // Lookback window for detecting an increment in `increase(...)`.
+    const LAST_INCREASE_LOOKBACK: &str = "5s";
     format!(
         // The max over time is the timestamp of the last increase in the last 12 hours.
-        "time() - max_over_time((timestamp(increase({metric_name}[{TIME_RANGE}])) != \
-         0)[{TIME_RANGE}:])"
+        "time() - max_over_time(timestamp(increase({metric_name}[{LAST_INCREASE_LOOKBACK}]) > \
+         0)[{TIME_RANGE}:$__interval])"
     )
 }
