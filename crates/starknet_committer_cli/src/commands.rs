@@ -603,4 +603,7 @@ async fn maybe_sleep_between_iterations(
         info!("Sleeping for {milliseconds_to_sleep} milliseconds before next iteration.");
         sleep(Duration::from_millis(milliseconds_to_sleep)).await;
     }
+    let milliseconds_to_sleep = 1000;
+    info!("Sleeping for {milliseconds_to_sleep} milliseconds before next iteration.");
+    sleep(Duration::from_millis(milliseconds_to_sleep)).await;
 }
