@@ -21,7 +21,15 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     TransactionSignature,
 };
-use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
+use starknet_api::{
+    calldata,
+    contract_address,
+    declare_tx_args,
+    felt,
+    proof,
+    proof_facts,
+    StarknetApiError,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StatelessTransactionValidatorResult;
@@ -274,6 +282,18 @@ fn test_invalid_max_l2_gas_amount(
     },
     vec![TransactionType::DeployAccount, TransactionType::Invoke],
 )]
+#[case::client_side_proving_calldata_too_long(
+    StatelessTransactionValidatorConfig {
+        max_calldata_length: 1,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    RpcTransactionArgs { calldata: calldata![Felt::ONE], proof_facts: proof_facts![Felt::TWO], ..Default::default() },
+    StatelessTransactionValidatorError::CalldataTooLong {
+        calldata_length: 2,
+        max_calldata_length: 1
+    },
+    vec![TransactionType::Invoke],
+)]
 #[case::signature_too_long(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs {
@@ -285,6 +305,18 @@ fn test_invalid_max_l2_gas_amount(
         max_signature_length: 1
     },
     vec![TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke],
+)]
+#[case::client_side_proving_proof_too_large(
+    StatelessTransactionValidatorConfig {
+        max_proof_size: 1,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    RpcTransactionArgs { proof_facts: proof_facts![Felt::ONE], proof: proof![1, 2], ..Default::default() },
+    StatelessTransactionValidatorError::ProofTooLarge {
+        proof_size: 2,
+        max_proof_size: 1
+    },
+    vec![TransactionType::Invoke],
 )]
 #[case::nonce_data_availability_mode(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
