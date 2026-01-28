@@ -55,6 +55,7 @@ pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
 pub mod l1_handler;
+pub mod privacy_transaction;
 
 // TODO(Dori, 1/2/2024): Remove these constants once all tests use the `contracts` and
 //   `initial_test_state` modules for testing.
