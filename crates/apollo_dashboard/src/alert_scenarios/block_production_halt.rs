@@ -6,8 +6,9 @@ use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_infra_utils::template::Template;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::alert_definitions::BLOCK_TIME_SEC;
 use crate::alert_placeholders::{
+    format_sampling_window,
+    ComparisonValueOrPlaceholder,
     ExpressionOrExpressionWithPlaceholder,
     SeverityValueOrPlaceholder,
 };
@@ -43,7 +44,7 @@ fn get_consensus_block_number_stuck(
         AlertGroup::Consensus,
         ExpressionOrExpressionWithPlaceholder::Placeholder(
             Template::new(expr_template_string),
-            vec![alert_name.to_string()],
+            vec![format_sampling_window(alert_name)],
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
@@ -84,18 +85,19 @@ pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
 fn get_batched_transactions_stuck(
     alert_name: &'static str,
     alert_env_filtering: AlertEnvFiltering,
-    duration: Duration,
-    // TODO(Tsabary): remove the `_alert_severity` argument.
+    // TODO(Tsabary): remove the `_duration` and `_alert_severity` arguments.
+    _duration: Duration,
     _alert_severity: AlertSeverity,
 ) -> Alert {
+    let expr_template_string =
+        format!("changes({}[{{}}s])", BATCHED_TRANSACTIONS.get_name_with_filter());
     Alert::new(
         alert_name,
         "Batched transactions stuck",
         AlertGroup::Batcher,
-        format!(
-            "changes({}[{}s])",
-            BATCHED_TRANSACTIONS.get_name_with_filter(),
-            duration.as_secs()
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![format_sampling_window(alert_name)],
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
@@ -186,14 +188,15 @@ fn get_consensus_round_high(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
 ) -> Alert {
+    const ALERT_NAME: &str = "consensus_round_high";
     Alert::new(
-        "consensus_round_high",
+        ALERT_NAME,
         "Consensus round high",
         AlertGroup::Consensus,
         format!("max_over_time({}[2m])", CONSENSUS_ROUND.get_name_with_filter()),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
-            120.0 / BLOCK_TIME_SEC,
+            ComparisonValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
