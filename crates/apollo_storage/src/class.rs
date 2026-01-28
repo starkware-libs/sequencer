@@ -162,7 +162,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         class_hash: &ClassHash,
     ) -> StorageResult<Option<crate::LocationInFile>> {
         let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
-        Ok(declared_classes_table.get(&self.txn, class_hash)?)
+        Ok(declared_classes_table.get(self.txn(), class_hash)?)
     }
 
     fn get_class_from_location(
@@ -189,7 +189,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         let deprecated_declared_classes_table =
             self.open_table(&self.tables.deprecated_declared_classes)?;
         let deprecated_contract_class_location =
-            deprecated_declared_classes_table.get(&self.txn, class_hash)?;
+            deprecated_declared_classes_table.get(self.txn(), class_hash)?;
         Ok(deprecated_contract_class_location.map(|value| value.location_in_file))
     }
 
@@ -202,7 +202,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
 
     fn get_class_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        Ok(markers_table.get(&self.txn, &MarkerKind::Class)?.unwrap_or_default())
+        Ok(markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default())
     }
 }
 
@@ -217,11 +217,11 @@ impl ClassStorageWriter for StorageTxn<'_, RW> {
         let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
         let deprecated_declared_classes_table =
             self.open_table(&self.tables.deprecated_declared_classes)?;
-        let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
+        let file_offset_table = self.txn().open_table(&self.tables.file_offsets)?;
         let markers_table = self.open_table(&self.tables.markers)?;
 
         let marker_block_number =
-            markers_table.get(&self.txn, &MarkerKind::Class)?.unwrap_or_default();
+            markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default();
         if block_number != marker_block_number {
             return Err(StorageError::MarkerMismatch {
                 expected: marker_block_number,
@@ -231,7 +231,7 @@ impl ClassStorageWriter for StorageTxn<'_, RW> {
 
         write_classes(
             classes,
-            &self.txn,
+            self.txn(),
             &declared_classes_table,
             &self.file_handlers,
             &file_offset_table,
@@ -239,14 +239,14 @@ impl ClassStorageWriter for StorageTxn<'_, RW> {
 
         write_deprecated_classes(
             deprecated_classes,
-            &self.txn,
+            self.txn(),
             block_number,
             &deprecated_declared_classes_table,
             &self.file_handlers,
             &file_offset_table,
         )?;
 
-        markers_table.upsert(&self.txn, &MarkerKind::Class, &block_number.unchecked_next())?;
+        markers_table.upsert(self.txn(), &MarkerKind::Class, &block_number.unchecked_next())?;
 
         Ok(self)
     }

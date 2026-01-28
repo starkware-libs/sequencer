@@ -49,13 +49,13 @@ where
 impl<Mode: TransactionKind> ClassManagerStorageReader for StorageTxn<'_, Mode> {
     fn get_class_manager_block_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        Ok(markers_table.get(&self.txn, &MarkerKind::ClassManagerBlock)?.unwrap_or_default())
+        Ok(markers_table.get(self.txn(), &MarkerKind::ClassManagerBlock)?.unwrap_or_default())
     }
 
     fn get_compiler_backward_compatibility_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
         Ok(markers_table
-            .get(&self.txn, &MarkerKind::CompilerBackwardCompatibility)?
+            .get(self.txn(), &MarkerKind::CompilerBackwardCompatibility)?
             .unwrap_or_default())
     }
 }
@@ -63,7 +63,7 @@ impl<Mode: TransactionKind> ClassManagerStorageReader for StorageTxn<'_, Mode> {
 impl ClassManagerStorageWriter for StorageTxn<'_, RW> {
     fn update_class_manager_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        markers_table.upsert(&self.txn, &MarkerKind::ClassManagerBlock, block_number)?;
+        markers_table.upsert(self.txn(), &MarkerKind::ClassManagerBlock, block_number)?;
         Ok(self)
     }
 
@@ -85,7 +85,7 @@ impl ClassManagerStorageWriter for StorageTxn<'_, RW> {
     ) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
         markers_table.upsert(
-            &self.txn,
+            self.txn(),
             &MarkerKind::CompilerBackwardCompatibility,
             block_number,
         )?;

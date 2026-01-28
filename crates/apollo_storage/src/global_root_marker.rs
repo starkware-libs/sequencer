@@ -31,7 +31,7 @@ where
 impl<Mode: TransactionKind> GlobalRootMarkerStorageReader for StorageTxn<'_, Mode> {
     fn get_global_root_marker(&self) -> StorageResult<BlockNumber> {
         let table = self.open_table(&self.tables.markers)?;
-        Ok(table.get(&self.txn, &MarkerKind::GlobalRoot)?.unwrap_or_default())
+        Ok(table.get(self.txn(), &MarkerKind::GlobalRoot)?.unwrap_or_default())
     }
 }
 
@@ -49,7 +49,7 @@ impl GlobalRootMarkerStorageWriter for StorageTxn<'_, RW> {
         }
         let markers_table = self.open_table(&self.tables.markers)?;
         markers_table.upsert(
-            &self.txn,
+            self.txn(),
             &MarkerKind::GlobalRoot,
             &current_marker.unchecked_next(),
         )?;
