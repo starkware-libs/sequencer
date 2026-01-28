@@ -346,7 +346,12 @@ impl ArchivalDataResources {
 
         match mode {
             GasVectorComputationMode::All => GasVector::from_l2_gas(total),
-            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(total),
+            GasVectorComputationMode::NoL2Gas => {
+                unreachable!(
+                    "Client side proving is only supported from V3 transactions, which use \
+                     AllResourceBounds."
+                )
+            }
         }
     }
 }
