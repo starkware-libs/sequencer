@@ -103,6 +103,14 @@ impl VirtualSnosProver {
     ) -> Result<VirtualSnosProverOutput, VirtualSnosProverError> {
         let start_time = Instant::now();
 
+        // Validate block_id is not pending.
+        if matches!(block_id, BlockId::Pending) {
+            return Err(VirtualSnosProverError::ValidationError(
+                "Pending blocks are not supported; only finalized blocks can be proven."
+                    .to_string(),
+            ));
+        }
+
         let invoke_tx = extract_invoke_tx(transaction)?;
         let tx_hash = calculate_tx_hash(&invoke_tx, &self.chain_id)?;
 
