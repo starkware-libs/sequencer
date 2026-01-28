@@ -64,13 +64,14 @@ pub(crate) trait FlowTestState: Default + UpdatableState + Send {}
 impl<S: Default + UpdatableState + Send> FlowTestState for S {}
 
 /// Gathers the information needed to execute a flow test.
+#[derive(Clone)]
 pub(crate) struct InitialStateData<S: FlowTestState> {
     pub(crate) initial_state: InitialState<S>,
     pub(crate) nonce_manager: NonceManager,
     pub(crate) execution_contracts: OsExecutionContracts,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct OsExecutionContracts {
     // Cairo contracts that are executed during the OS execution.
     pub(crate) executed: ExecutedContracts,
@@ -99,7 +100,7 @@ impl OsExecutionContracts {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct ExecutedContracts {
     pub(crate) contracts: BTreeMap<CompiledClassHash, CasmContractClass>,
     pub(crate) deprecated_contracts: BTreeMap<ClassHash, DeprecatedContractClass>,
@@ -119,6 +120,7 @@ impl ExecutedContracts {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct InitialState<S: FlowTestState> {
     pub(crate) updatable_state: S,
     pub(crate) commitment_storage: MapStorage,
