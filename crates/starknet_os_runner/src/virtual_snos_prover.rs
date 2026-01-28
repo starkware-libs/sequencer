@@ -24,7 +24,7 @@ use url::Url;
 
 use crate::errors::{ProvingError, RunnerError};
 use crate::proving::prover::prove;
-use crate::runner::RpcRunnerFactory;
+use crate::runner::{RpcRunnerFactory, VirtualSnosRunner};
 use crate::server::config::ServiceConfig;
 
 /// Error type for the virtual SNOS prover.
@@ -68,24 +68,41 @@ pub struct VirtualSnosProverOutput {
 ///
 /// Encapsulates all proving logic, including OS execution and proof generation.
 /// This prover is independent of the HTTP layer and can be used directly for testing.
+///
+/// The prover is generic over the runner, allowing different implementations
+/// (RPC-based, mock, etc.) to be used interchangeably.
 #[derive(Clone)]
-pub struct VirtualSnosProver {
-    // TODO(Avi): Make `RunnerFactory` generic and not just RPC-based.
-    /// Factory for creating RPC-based runners.
-    runner_factory: RpcRunnerFactory,
+pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
+    /// Runner for executing the virtual OS.
+    runner: R,
     /// Chain ID for transaction hash calculation.
     chain_id: ChainId,
 }
 
-impl VirtualSnosProver {
+/// Type alias for the RPC-based virtual SNOS prover.
+pub(crate) type RpcVirtualSnosProver = VirtualSnosProver<RpcRunnerFactory>;
+
+impl VirtualSnosProver<RpcRunnerFactory> {
     /// Creates a new VirtualSnosProver from configuration.
+    ///
+    /// This constructor creates an RPC-based prover using the configuration values.
     pub fn new(config: &ServiceConfig) -> Self {
         let contract_class_manager =
             ContractClassManager::start(config.contract_class_manager_config.clone());
         let node_url = Url::parse(&config.rpc_node_url).expect("Invalid RPC node URL in config");
-        let runner_factory =
+        let runner =
             RpcRunnerFactory::new(node_url, config.chain_id.clone(), contract_class_manager);
-        Self { runner_factory, chain_id: config.chain_id.clone() }
+        Self { runner, chain_id: config.chain_id.clone() }
+    }
+}
+
+impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
+    /// Creates a new VirtualSnosProver from a runner.
+    ///
+    /// This constructor allows using any runner implementation.
+    #[allow(dead_code)]
+    pub(crate) fn from_runner(runner: R, chain_id: ChainId) -> Self {
+        Self { runner, chain_id }
     }
 
     /// Proves a transaction on top of the specified block.
@@ -123,12 +140,10 @@ impl VirtualSnosProver {
         // Run OS and get output.
         let os_start = Instant::now();
 
-        // Create a runner using the factory.
-        let runner = self.runner_factory.create_runner(block_id);
-
         let txs = vec![(invoke_tx, tx_hash)];
-        let runner_output = runner
-            .run_virtual_os(txs)
+        let runner_output = self
+            .runner
+            .run_virtual_os(block_id, txs)
             .await
             .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
 
