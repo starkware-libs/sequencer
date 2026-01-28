@@ -2,12 +2,11 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use async_trait::async_trait;
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::body::Body;
-use axum_08::http::{Request, StatusCode};
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHeader, BlockNumber};
-use tower_05::util::ServiceExt;
+use tower::util::ServiceExt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::storage_reader_server::{ServerConfig, StorageReaderServer, StorageReaderServerHandler};

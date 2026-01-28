@@ -7,14 +7,13 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
-// TODO(victork): finalise migration to hyper 1.x
 use bytes::Bytes;
-use http_1::header::CONTENT_TYPE;
-use http_1::StatusCode;
+use http::header::CONTENT_TYPE;
+use http::StatusCode;
 use http_body_util::{BodyExt, Full};
-use hyper_1::body::Incoming;
-use hyper_1::service::{service_fn, Service};
-use hyper_1::{Request as HyperRequest, Response as HyperResponse};
+use hyper::body::Incoming;
+use hyper::service::{service_fn, Service};
+use hyper::{Request as HyperRequest, Response as HyperResponse};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder as ServerBuilder;
 use serde::de::DeserializeOwned;
@@ -134,7 +133,7 @@ where
         request_id: RequestId,
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
-    ) -> Result<HyperResponse<Full<Bytes>>, hyper_1::Error> {
+    ) -> Result<HyperResponse<Full<Bytes>>, hyper::Error> {
         trace!("Received HTTP request: {http_request:?}");
         let body_bytes = http_request.into_body().collect().await?.to_bytes();
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
@@ -275,7 +274,7 @@ where
                                     // Error type ambiguity.
                                     let wrapped_response: Result<
                                         HyperResponse<Full<Bytes>>,
-                                        hyper_1::Error,
+                                        hyper::Error,
                                     > = Ok(response);
                                     wrapped_response
                                 });

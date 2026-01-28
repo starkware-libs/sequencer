@@ -6,13 +6,12 @@ use std::time::Duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-// TODO(victork): finalise migration to hyper 1.x
 use bytes::Bytes;
-use http_1::header::CONTENT_TYPE;
-use http_1::{StatusCode, Uri};
+use http::header::CONTENT_TYPE;
+use http::{StatusCode, Uri};
 use http_body_util::{BodyExt, Full};
-use hyper_1::body::Body;
-use hyper_1::{Request as HyperRequest, Response as HyperResponse};
+use hyper::body::Body;
+use hyper::{Request as HyperRequest, Response as HyperResponse};
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;

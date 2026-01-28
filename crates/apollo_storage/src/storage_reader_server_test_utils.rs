@@ -1,14 +1,13 @@
 //! Test utilities for storage reader server testing.
 
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::body::{Body, Bytes};
-use axum_08::http::{Request, StatusCode};
-use axum_08::response::Response;
-use axum_08::Router;
+use axum::body::{Body, Bytes};
+use axum::http::{Request, StatusCode};
+use axum::response::Response;
+use axum::Router;
 use http_body_util::BodyExt;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tower_05::util::ServiceExt;
+use tower::util::ServiceExt;
 
 /// Helper function to send a storage query request.
 pub async fn send_storage_query<T: Serialize>(app: Router, request: &T) -> Response {

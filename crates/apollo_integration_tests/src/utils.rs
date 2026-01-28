@@ -61,10 +61,10 @@ use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
-use axum_08::extract::Query;
-use axum_08::http::StatusCode;
-use axum_08::routing::{get, post};
-use axum_08::{Json, Router};
+use axum::extract::Query;
+use axum::http::StatusCode;
+use axum::routing::{get, post};
+use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::CairoNativeRunConfig;
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
@@ -417,7 +417,7 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
                 }),
             );
         let listener = TcpListener::bind(socket_address).await.unwrap();
-        axum_08::serve(listener, router).await.unwrap();
+        serve(listener, router).await.unwrap();
     })
 }
 
@@ -455,7 +455,7 @@ pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle
     tokio::spawn(async move {
         let router = Router::new().route(ETH_TO_STRK_ORACLE_PATH, get(get_price));
         let listener = TcpListener::bind(socket_address).await.unwrap();
-        axum_08::serve(listener, router).await.unwrap();
+        serve(listener, router).await.unwrap();
     })
 }
 
