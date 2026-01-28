@@ -120,7 +120,7 @@ impl BenchmarkMeasurements {
             let total_duration: u128 = self.block_measurements
                 [window_start..window_start + window_size]
                 .iter()
-                .map(|measurement| measurement.block_duration)
+                .map(|measurement| measurement.durations.block)
                 .sum();
             let sum_of_entries: usize = self.block_measurements
                 [window_start..window_start + window_size]
@@ -202,10 +202,10 @@ impl BenchmarkMeasurements {
                 measurement.n_reads.to_string(),
                 self.initial_db_entry_count[i].to_string(),
                 self.time_of_measurement[i].to_string(),
-                measurement.block_duration.to_string(),
-                measurement.read_duration.to_string(),
-                measurement.compute_duration.to_string(),
-                measurement.write_duration.to_string(),
+                measurement.durations.block.to_string(),
+                measurement.durations.read.to_string(),
+                measurement.durations.compute.to_string(),
+                measurement.durations.write.to_string(),
             ];
             if i == n_results - 1 {
                 record
