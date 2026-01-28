@@ -110,6 +110,7 @@ class BenchmarkData:
                 "n_storage_tries_modifications",
                 "n_contracts_trie_modifications",
                 "n_classes_trie_modifications",
+                "n_emptied_storage_leaves",
             ]
             for col in modifications_columns:
                 if col in data[0]:
