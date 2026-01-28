@@ -4,6 +4,7 @@ use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_definitions::BLOCK_TIME_SEC;
+use crate::alert_placeholders::ComparisonValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -151,8 +152,9 @@ fn get_consensus_block_number_progress_is_slow(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
 ) -> Alert {
+    const ALERT_NAME: &str = "get_consensus_block_number_progress_is_slow";
     Alert::new(
-        "get_consensus_block_number_progress_is_slow",
+        ALERT_NAME,
         "Consensus block number progress is slow",
         AlertGroup::Consensus,
         format!(
@@ -161,7 +163,7 @@ fn get_consensus_block_number_progress_is_slow(
         ),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
-            60.0 / BLOCK_TIME_SEC,
+            ComparisonValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,

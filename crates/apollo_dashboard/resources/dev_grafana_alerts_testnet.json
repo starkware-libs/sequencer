@@ -961,7 +961,7 @@
         {
           "evaluator": {
             "params": [
-              6.666666666666667
+              "$$$GET_CONSENSUS_BLOCK_NUMBER_PROGRESS_IS_SLOW-COMPARISON$$$"
             ],
             "type": "lt"
           },
