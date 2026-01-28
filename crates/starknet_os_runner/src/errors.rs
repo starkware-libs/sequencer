@@ -46,6 +46,8 @@ pub enum ProofProviderError {
     SerializationError(#[from] SerializationError),
     #[error("Invalid RPC proof response: {0}")]
     InvalidProofResponse(String),
+    #[error("Block commitment error: {0}")]
+    BlockCommitmentError(String),
 }
 
 #[derive(Debug, Error)]

@@ -22,6 +22,7 @@ use starknet_rust_core::types::{
     StorageProof as RpcStorageProof,
 };
 
+use crate::commit::create_facts_db_from_storage_proof;
 use crate::errors::ProofProviderError;
 use crate::virtual_block_executor::VirtualBlockExecutionData;
 
@@ -193,12 +194,39 @@ impl RpcStorageProofsProvider {
     }
 
     /// Convert an RPC storage proof response to OS input format.
-    /// Runing the committer to compute the new commitments facts.
-    pub(crate) fn to_storage_proofs_with_committer(
-        _rpc_proof: &RpcStorageProof,
-        _query: &RpcStorageProofsQuery,
+    /// Runs the committer to compute the new state roots.
+    ///
+    /// TODO: Proper commitment info generation with new facts will be implemented in the next PR.
+    /// Currently returns unimplemented because we need to use `create_commitment_infos` from
+    /// starknet_os_flow_tests which fetches the new facts from the committer's storage.
+    pub(crate) async fn to_storage_proofs_with_committer(
+        rpc_proof: &RpcStorageProof,
+        query: &RpcStorageProofsQuery,
+        execution_data: &VirtualBlockExecutionData,
     ) -> Result<StorageProofs, ProofProviderError> {
-        unimplemented!("Running the committer is not supported yet");
+        // Build FactsDb from RPC proofs and execution initial reads
+        let mut facts_db =
+            create_facts_db_from_storage_proof(rpc_proof, query, &execution_data.initial_reads)?;
+
+        // Get initial state roots from RPC proof
+        let contracts_trie_root_hash = HashOutput(rpc_proof.global_roots.contracts_tree_root);
+        let classes_trie_root_hash = HashOutput(rpc_proof.global_roots.classes_tree_root);
+
+        // Commit state diff using the committer
+        let _new_roots = crate::commit::commit_state_diff(
+            &mut facts_db,
+            contracts_trie_root_hash,
+            classes_trie_root_hash,
+            execution_data.committer_state_diff.clone(),
+        )
+        .await?;
+
+        // TODO: Use create_commitment_infos from starknet_os_flow_tests (to be moved to committer
+        // crate) to properly generate commitment infos with the new facts from the
+        // committer.
+        unimplemented!(
+            "Proper commitment info generation with committer facts will be implemented in next PR"
+        );
     }
 
     fn build_commitment_infos(
@@ -334,7 +362,9 @@ impl StorageProofProvider for RpcStorageProofsProvider {
 
         let rpc_proof = self.fetch_proofs(block_number, &query).await?;
         match config.run_committer {
-            true => Self::to_storage_proofs_with_committer(&rpc_proof, &query),
+            true => {
+                Self::to_storage_proofs_with_committer(&rpc_proof, &query, execution_data).await
+            }
             false => Self::to_storage_proofs_without_committer(&rpc_proof, &query),
         }
     }
