@@ -21,10 +21,6 @@
         "gas_per_code_byte": [
             32,
             1000
-        ],
-        "gas_per_proof": [
-            1000000000,
-            1
         ]
     },
     "archival_data_gas_costs": {
