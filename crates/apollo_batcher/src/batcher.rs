@@ -65,7 +65,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
+use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
@@ -702,13 +702,12 @@ impl Batcher {
         )
         .await?;
 
-        self.commitment_manager
-            .add_commitment_task(height, state_diff, optional_state_diff_commitment)
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
-
-        // Write ready commitments to storage.
-        self.write_commitment_results_to_storage().await?;
+        self.write_commitment_results_and_add_commitment_task(
+            height,
+            state_diff,
+            optional_state_diff_commitment,
+        )
+        .await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -763,17 +762,12 @@ impl Batcher {
         )
         .await?;
 
-        self.commitment_manager
-            .add_commitment_task(
-                height,
-                state_diff.clone(), // TODO(Nimrod): Remove the clone here.
-                Some(state_diff_commitment),
-            )
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
-
-        // Write ready commitments to storage.
-        self.write_commitment_results_to_storage().await?;
+        self.write_commitment_results_and_add_commitment_task(
+            height,
+            state_diff.clone(), // TODO(Nimrod): Remove the clone here.
+            Some(state_diff_commitment),
+        )
+        .await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1153,6 +1147,25 @@ impl Batcher {
                 }))
             }
         }
+    }
+
+    // TODO(Amos): Move this and `write_commitment_results_to_storage` to the commitment manager.
+    async fn write_commitment_results_and_add_commitment_task(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        state_diff_commitment: Option<StateDiffCommitment>,
+    ) -> BatcherResult<()> {
+        // Write ready commitments to storage. Important to do this before adding the commitment
+        // task, to avoid a possible deadlock.
+        self.write_commitment_results_to_storage().await?;
+
+        self.commitment_manager
+            .add_commitment_task(height, state_diff, state_diff_commitment)
+            .await
+            .expect("The commitment offset unexpectedly doesn't match the given block height.");
+
+        Ok(())
     }
 
     /// Writes the ready commitment results to storage.
