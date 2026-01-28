@@ -1,7 +1,7 @@
 use std::fs;
 
 use apollo_starknet_os_program::program_hash::compute_program_hash_blake;
-use apollo_transaction_converter::proof_verification::verify_proof;
+use apollo_transaction_converter::proof_verification::stwo_verify;
 use apollo_transaction_converter::transaction_converter::BOOTLOADER_PROGRAM_HASH;
 use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::types::program::Program;
@@ -32,7 +32,7 @@ async fn test_prove_cairo_pie_10_transfers() {
     let output = prove(cairo_pie).await.expect("Failed to prove Cairo PIE");
 
     // Verify the proof.
-    let verify_output = verify_proof(output.proof.clone()).expect("Failed to verify proof");
+    let verify_output = stwo_verify(output.proof.clone()).expect("Failed to verify proof");
 
     // Check that the verified program output matches the prover output.
     assert_eq!(
