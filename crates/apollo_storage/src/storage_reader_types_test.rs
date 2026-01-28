@@ -313,15 +313,21 @@ async fn nonces_request() {
 }
 
 #[tokio::test]
-async fn nonces_request() {
+async fn compiled_class_hash_request() {
     let block_number = BlockNumber(0);
     let setup = setup_test_server(block_number, unique_u16!());
 
-    // Extract the test data from the state diff
-    let (contract_address, nonce) = setup.state_diff.nonces.iter().next().unwrap();
+    let expected_compiled_class_hash = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_compiled_class_hash(setup.class_hash, block_number)
+        .unwrap()
+        .expect("Compiled class hash should exist");
 
-    // Request the nonce value
-    let request = StorageReaderRequest::Nonces(*contract_address, block_number);
+    // Test CompiledClassHash request
+    let request = StorageReaderRequest::CompiledClassHash(setup.class_hash, block_number);
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
-    assert_eq!(response, StorageReaderResponse::Nonces(*nonce));
+
+    assert_eq!(response, StorageReaderResponse::CompiledClassHash(expected_compiled_class_hash));
 }
