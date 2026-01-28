@@ -1303,6 +1303,8 @@ async fn revert_block() {
     let mock_dependencies =
         MockDependencies { storage_reader, storage_writer, ..Default::default() };
 
+    let committer_offset = mock_dependencies.clients.committer_client.get_offset();
+
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let metrics = recorder.handle().render();
@@ -1310,7 +1312,9 @@ async fn revert_block() {
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
 
+    assert_eq!(*(committer_offset.lock().await), INITIAL_HEIGHT);
     batcher.revert_block(revert_input).await.unwrap();
+    assert_eq!(*committer_offset.lock().await, LATEST_BLOCK_IN_STORAGE);
 
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
