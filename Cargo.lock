@@ -1375,6 +1375,7 @@ dependencies = [
  "apollo_proc_macros",
  "apollo_protobuf",
  "apollo_sizeof",
+ "apollo_staking",
  "apollo_starknet_client",
  "apollo_state_sync_types",
  "apollo_storage",

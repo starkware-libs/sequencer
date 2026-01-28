@@ -42,6 +42,7 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
+use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -179,6 +180,7 @@ pub struct SequencerConsensusContextDeps {
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    pub committee_provider: Option<Arc<Mutex<dyn CommitteeProvider + Send>>>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
     // Used to initiate new outbound proposal streams.
