@@ -1,10 +1,13 @@
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
+use apollo_infra_utils::template::Template;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::alert_definitions::BLOCK_TIME_SEC;
-use crate::alert_placeholders::ComparisonValueOrPlaceholder;
+use crate::alert_placeholders::{
+    ComparisonValueOrPlaceholder,
+    ExpressionOrExpressionWithPlaceholder,
+};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -38,14 +41,20 @@ fn get_consensus_round_above_zero_multiple_times(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
 ) -> Alert {
+    const ALERT_NAME: &str = "consensus_round_above_zero_multiple_times";
+    let expr_template_string =
+        format!("increase({}[{{}}s])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter());
     Alert::new(
-        "consensus_round_above_zero_multiple_times",
+        ALERT_NAME,
         "Consensus round above zero multiple times",
         AlertGroup::Consensus,
-        format!("increase({}[10m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![ALERT_NAME.to_string()],
+        ),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
-            180.0 / BLOCK_TIME_SEC,
+            ComparisonValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
@@ -153,13 +162,17 @@ fn get_consensus_block_number_progress_is_slow(
     alert_severity: AlertSeverity,
 ) -> Alert {
     const ALERT_NAME: &str = "get_consensus_block_number_progress_is_slow";
+    let expr_template_string = format!(
+        "sum(increase({}[{{}}s])) or vector(0)",
+        CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+    );
     Alert::new(
         ALERT_NAME,
         "Consensus block number progress is slow",
         AlertGroup::Consensus,
-        format!(
-            "sum(increase({}[2m])) or vector(0)",
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![ALERT_NAME.to_string()],
         ),
         vec![AlertCondition::new(
             AlertComparisonOp::LessThan,
