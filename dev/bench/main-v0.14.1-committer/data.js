@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769605223361,
+  "lastUpdate": 1769606037926,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1121,6 +1121,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1303.11844157,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "545dccc9187cb63938daffbe9f15ead90f0a3227",
+          "message": "starknet_committer: define BlockDurations and use it in BlockMeasurement (#11971)",
+          "timestamp": "2026-01-28T12:43:32Z",
+          "tree_id": "94348cc06e8fa8c3f0799e7183d9f8d1e45a3092",
+          "url": "https://github.com/starkware-libs/sequencer/commit/545dccc9187cb63938daffbe9f15ead90f0a3227"
+        },
+        "date": 1769606037568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 832.55302959,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1454.33997674,
             "unit": "ms"
           }
         ]
