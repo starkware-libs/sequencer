@@ -125,6 +125,18 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         }
     }
 
+    fn rewind_txs(
+        &mut self,
+        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
+        validate_resource_bounds: bool,
+    ) {
+        // Rewind by re-inserting the next transaction for each address.
+        for (address, tx_reference) in next_txs_by_address {
+            self.remove_by_address(address);
+            self.insert(tx_reference, validate_resource_bounds);
+        }
+    }
+
     fn priority_queue_len(&self) -> usize {
         self.priority_queue.len()
     }

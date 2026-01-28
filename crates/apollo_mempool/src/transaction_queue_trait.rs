@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -26,6 +28,12 @@ pub trait TransactionQueueTrait: Send + Sync {
     fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference>;
 
     fn queue_snapshot(&self) -> TransactionQueueSnapshot;
+
+    fn rewind_txs(
+        &mut self,
+        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
+        validate_resource_bounds: bool,
+    );
 
     // Default implementation returns 0 (for queues that don't distinguish priority/pending).
     fn priority_queue_len(&self) -> usize {
