@@ -24,8 +24,6 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_rpc_execution::ExecutionConfig;
 use apollo_starknet_client::reader::PendingData;
-use apollo_starknet_client::writer::StarknetGatewayClient;
-use apollo_starknet_client::RetryConfig;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::body::events::EventIndex;
 use apollo_storage::db::TransactionKind;
@@ -79,8 +77,6 @@ pub struct RpcConfig {
     pub max_events_keys: usize,
     // TODO(lev,shahak): remove once we remove papyrus.
     pub collect_metrics: bool,
-    pub starknet_url: String,
-    pub apollo_gateway_retry_config: RetryConfig,
     pub execution_config: ExecutionConfig,
 }
 
@@ -93,12 +89,6 @@ impl Default for RpcConfig {
             max_events_chunk_size: 1000,
             max_events_keys: 100,
             collect_metrics: false,
-            starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
-            apollo_gateway_retry_config: RetryConfig {
-                retry_base_millis: 50,
-                retry_max_delay_millis: 1000,
-                max_retries: 5,
-            },
             execution_config: ExecutionConfig::default(),
         }
     }
@@ -142,28 +132,10 @@ impl SerializeConfig for RpcConfig {
                 "If true, collect metrics for the rpc.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "starknet_url",
-                &self.starknet_url,
-                "URL for communicating with Starknet in write_api methods.",
-                ParamPrivacyInput::Public,
-            ),
         ]);
 
         self_params_dump
             .append(&mut prepend_sub_config_name(self.execution_config.dump(), "execution_config"));
-        let mut retry_config_dump = prepend_sub_config_name(
-            self.apollo_gateway_retry_config.dump(),
-            "apollo_gateway_retry_config",
-        );
-        for param in retry_config_dump.values_mut() {
-            param.description = format!(
-                "For communicating with Starknet gateway, {}{}",
-                param.description[0..1].to_lowercase(),
-                &param.description[1..]
-            );
-        }
-        self_params_dump.append(&mut retry_config_dump);
         self_params_dump
     }
 }
@@ -234,11 +206,6 @@ pub async fn run_server(
         shared_highest_block,
         pending_data,
         pending_classes,
-        Arc::new(StarknetGatewayClient::new(
-            &config.starknet_url,
-            node_version,
-            config.apollo_gateway_retry_config,
-        )?),
         class_manager_client,
     );
     let addr;
