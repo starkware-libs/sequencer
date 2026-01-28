@@ -118,6 +118,7 @@ pub struct StatelessTransactionValidatorConfig {
 
     // If true, allows transactions with non-empty proof_facts or proof fields.
     pub allow_client_side_proving: bool,
+    pub max_proof_size: usize,
 }
 
 impl Default for StatelessTransactionValidatorConfig {
@@ -133,6 +134,7 @@ impl Default for StatelessTransactionValidatorConfig {
             min_sierra_version: VersionId::new(1, 1, 0),
             max_sierra_version: VersionId::new(1, 7, usize::MAX),
             allow_client_side_proving: false,
+            max_proof_size: 90000,
         }
     }
 }
@@ -187,6 +189,12 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 "allow_client_side_proving",
                 &self.allow_client_side_proving,
                 "If true, allows transactions with non-empty proof_facts or proof fields.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_proof_size",
+                &self.max_proof_size,
+                "Maximum length of proof facts array.",
                 ParamPrivacyInput::Public,
             ),
         ]);
