@@ -119,7 +119,7 @@ pub(crate) async fn raw_call<R: JsonRpcServerTrait, S: Serialize, T: for<'a> Des
         .raw_json_request(req.as_str(), 1)
         .await
         .unwrap_or_else(|_| panic!("request format, got: {req}"));
-    let json_resp: Value = serde_json::from_str(&resp_result).unwrap();
+    let json_resp: Value = serde_json::from_str(resp_result.get()).unwrap();
     let result: Result<T, jsonrpsee::types::ErrorObject<'_>> =
         match json_resp.get("result") {
             Some(resp) => Ok(serde_json::from_value::<T>(resp.clone())

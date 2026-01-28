@@ -3,11 +3,9 @@ mod rpc_metrics_test;
 
 use std::collections::HashSet;
 use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
 use std::time::Instant;
 
-use jsonrpsee::server::middleware::rpc::RpcServiceT;
+use jsonrpsee::server::middleware::rpc::{Batch, Notification, RpcServiceT};
 use jsonrpsee::server::MethodResponse;
 use jsonrpsee::types::Request;
 use jsonrpsee::Methods;
@@ -83,42 +81,48 @@ pub(crate) struct MetricLoggerService<S> {
     logger: MetricLogger,
 }
 
-impl<'a, S> RpcServiceT<'a> for MetricLoggerService<S>
+impl<S> RpcServiceT for MetricLoggerService<S>
 where
-    S: RpcServiceT<'a> + Send + Sync + Clone + 'static,
+    S: RpcServiceT<
+            MethodResponse = MethodResponse,
+            BatchResponse = MethodResponse,
+            NotificationResponse = MethodResponse,
+        > + Send
+        + Sync
+        + Clone
+        + 'static,
 {
-    type Future = MetricResponseFuture<S::Future>;
+    type MethodResponse = MethodResponse;
+    type BatchResponse = MethodResponse;
+    type NotificationResponse = MethodResponse;
 
-    fn call(&self, request: Request<'a>) -> Self::Future {
+    fn call<'a>(
+        &self,
+        request: Request<'a>,
+    ) -> impl Future<Output = Self::MethodResponse> + Send + 'a {
         let method_name = request.method_name().to_string();
-        MetricResponseFuture {
-            fut: Box::pin(self.service.call(request)),
-            method_name,
-            logger: self.logger.clone(),
-            started_at: Instant::now(),
+        let logger = self.logger.clone();
+        let service = self.service.clone();
+        let started_at = Instant::now();
+
+        async move {
+            let response = service.call(request).await;
+            logger.on_result(&method_name, response.is_success(), started_at);
+            response
         }
     }
-}
 
-/// Response future that records metrics when the response is ready.
-pub(crate) struct MetricResponseFuture<F> {
-    fut: Pin<Box<F>>,
-    method_name: String,
-    logger: MetricLogger,
-    started_at: Instant,
-}
+    fn batch<'a>(&self, batch: Batch<'a>) -> impl Future<Output = Self::BatchResponse> + Send + 'a {
+        let service = self.service.clone();
+        async move { service.batch(batch).await }
+    }
 
-impl<F: Future<Output = MethodResponse>> Future for MetricResponseFuture<F> {
-    type Output = MethodResponse;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let res = self.fut.as_mut().poll(cx);
-
-        if let Poll::Ready(ref response) = res {
-            self.logger.on_result(&self.method_name, response.is_success(), self.started_at);
-        }
-
-        res
+    fn notification<'a>(
+        &self,
+        n: Notification<'a>,
+    ) -> impl Future<Output = Self::NotificationResponse> + Send + 'a {
+        let service = self.service.clone();
+        async move { service.notification(n).await }
     }
 }
 
