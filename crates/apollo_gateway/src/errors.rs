@@ -422,7 +422,8 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
         | StarknetApiError::ResourceHexToFeltConversion(..)
         | StarknetApiError::OutOfRange { .. }
         | StarknetApiError::InvalidChainIdHex(..)
-        | StarknetApiError::MissingBlockHeaderCommitments { .. } => StarknetError {
+        | StarknetApiError::MissingBlockHeaderCommitments { .. }
+        | StarknetApiError::InvalidProofFacts(..) => StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
             message: err.to_string(),
         },
@@ -432,8 +433,5 @@ fn convert_sn_api_error(err: StarknetApiError) -> StarknetError {
             ),
             message: err.to_string(),
         },
-        StarknetApiError::InvalidProofFacts(_) => {
-            todo!()
-        }
     }
 }
