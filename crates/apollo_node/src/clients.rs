@@ -2,31 +2,51 @@ use std::sync::Arc;
 
 use apollo_batcher::metrics::BATCHER_INFRA_METRICS;
 use apollo_batcher_types::communication::{
-    BatcherRequest, BatcherResponse, LocalBatcherClient, RemoteBatcherClient, SharedBatcherClient,
+    BatcherRequest,
+    BatcherResponse,
+    LocalBatcherClient,
+    RemoteBatcherClient,
+    SharedBatcherClient,
 };
 use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_class_manager_types::{
-    ClassManagerRequest, ClassManagerResponse, LocalClassManagerClient, RemoteClassManagerClient,
+    ClassManagerRequest,
+    ClassManagerResponse,
+    LocalClassManagerClient,
+    RemoteClassManagerClient,
     SharedClassManagerClient,
 };
 use apollo_committer::metrics::COMMITTER_INFRA_METRICS;
 use apollo_committer_types::communication::{
-    CommitterRequest, CommitterResponse, LocalCommitterClient, RemoteCommitterClient,
+    CommitterRequest,
+    CommitterResponse,
+    LocalCommitterClient,
+    RemoteCommitterClient,
     SharedCommitterClient,
 };
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_compile_to_casm_types::{
-    LocalSierraCompilerClient, RemoteSierraCompilerClient, SharedSierraCompilerClient,
-    SierraCompilerRequest, SierraCompilerResponse,
+    LocalSierraCompilerClient,
+    RemoteSierraCompilerClient,
+    SharedSierraCompilerClient,
+    SierraCompilerRequest,
+    SierraCompilerResponse,
 };
 use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_config_manager_types::communication::{
-    ConfigManagerRequest, ConfigManagerResponse, LocalConfigManagerClient,
-    RemoteConfigManagerClient, SharedConfigManagerClient,
+    ConfigManagerRequest,
+    ConfigManagerResponse,
+    LocalConfigManagerClient,
+    RemoteConfigManagerClient,
+    SharedConfigManagerClient,
 };
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_gateway_types::communication::{
-    GatewayRequest, GatewayResponse, LocalGatewayClient, RemoteGatewayClient, SharedGatewayClient,
+    GatewayRequest,
+    GatewayResponse,
+    LocalGatewayClient,
+    RemoteGatewayClient,
+    SharedGatewayClient,
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
@@ -38,22 +58,35 @@ use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1Pr
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
 use apollo_mempool_p2p_types::communication::{
-    LocalMempoolP2pPropagatorClient, MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse,
-    RemoteMempoolP2pPropagatorClient, SharedMempoolP2pPropagatorClient,
+    LocalMempoolP2pPropagatorClient,
+    MempoolP2pPropagatorRequest,
+    MempoolP2pPropagatorResponse,
+    RemoteMempoolP2pPropagatorClient,
+    SharedMempoolP2pPropagatorClient,
 };
 use apollo_mempool_types::communication::{
-    LocalMempoolClient, MempoolRequest, MempoolResponse, RemoteMempoolClient, SharedMempoolClient,
+    LocalMempoolClient,
+    MempoolRequest,
+    MempoolResponse,
+    RemoteMempoolClient,
+    SharedMempoolClient,
 };
 use apollo_node_config::component_execution_config::ReactiveComponentExecutionMode;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_signature_manager::metrics::SIGNATURE_MANAGER_INFRA_METRICS;
 use apollo_signature_manager_types::{
-    LocalSignatureManagerClient, RemoteSignatureManagerClient, SharedSignatureManagerClient,
-    SignatureManagerRequest, SignatureManagerResponse,
+    LocalSignatureManagerClient,
+    RemoteSignatureManagerClient,
+    SharedSignatureManagerClient,
+    SignatureManagerRequest,
+    SignatureManagerResponse,
 };
 use apollo_state_sync_metrics::metrics::STATE_SYNC_INFRA_METRICS;
 use apollo_state_sync_types::communication::{
-    LocalStateSyncClient, RemoteStateSyncClient, SharedStateSyncClient, StateSyncRequest,
+    LocalStateSyncClient,
+    RemoteStateSyncClient,
+    SharedStateSyncClient,
+    StateSyncRequest,
     StateSyncResponse,
 };
 use tracing::info;

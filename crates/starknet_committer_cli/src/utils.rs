@@ -6,7 +6,10 @@ use csv::Writer;
 use serde::{Deserialize, Serialize};
 use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::timing_util::{
-    Action, BlockMeasurement, MeasurementNotStartedError, SingleBlockTimeMeasurement,
+    Action,
+    BlockMeasurement,
+    MeasurementNotStartedError,
+    SingleBlockTimeMeasurement,
     TimeMeasurementTrait,
 };
 use starknet_types_core::felt::Felt;
