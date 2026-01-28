@@ -490,7 +490,7 @@ impl StorageReader {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading data from the storage.
     pub fn begin_ro_txn(&self) -> StorageResult<StorageTxn<'_, RO>> {
-        Ok(StorageTxn::new(
+        Ok(StorageTxn::new_owned(
             self.db_reader.begin_ro_txn()?,
             self.file_readers.clone(),
             self.tables.clone(),
@@ -533,7 +533,7 @@ impl StorageWriter {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading and modifying data in the storage.
     pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxn<'_, RW>> {
-        Ok(StorageTxn::new(
+        Ok(StorageTxn::new_owned(
             self.db_writer.begin_rw_txn()?,
             self.file_writers.clone(),
             self.tables.clone(),
@@ -567,10 +567,15 @@ impl Drop for MetricsHandler {
     }
 }
 
+enum TxnHolder<'env, Mode: TransactionKind> {
+    Owned(DbTransaction<'env, Mode>),
+    Borrowed(&'env DbTransaction<'env, Mode>),
+}
+
 /// A struct for interacting with the storage.
 /// The actually functionality is implemented on the transaction in multiple traits.
 pub struct StorageTxn<'env, Mode: TransactionKind> {
-    txn: DbTransaction<'env, Mode>,
+    txn: TxnHolder<'env, Mode>,
     file_handlers: FileHandlers<Mode>,
     tables: Arc<Tables>,
     scope: StorageScope,
@@ -583,19 +588,57 @@ impl StorageTxn<'_, RW> {
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(self) -> StorageResult<()> {
         self.file_handlers.flush();
-        Ok(self.txn.commit()?)
+        match self.txn {
+            TxnHolder::Owned(txn) => {
+                // Normal mode: commit the owned transaction
+                txn.commit()?;
+            }
+            TxnHolder::Borrowed(_) => {
+                // Persistent mode: don't commit, managed by StorageWriter
+            }
+        }
+        Ok(())
     }
 }
 
 impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
-    fn new(
+    fn new_owned(
         txn: DbTransaction<'env, Mode>,
         file_handlers: FileHandlers<Mode>,
         tables: Arc<Tables>,
         scope: StorageScope,
         metric_updater: MetricsHandler,
     ) -> Self {
-        Self { txn, file_handlers, tables, scope, _metric_updater: metric_updater }
+        Self {
+            txn: TxnHolder::Owned(txn),
+            file_handlers,
+            tables,
+            scope,
+            _metric_updater: metric_updater,
+        }
+    }
+
+    fn new_borrowed(
+        txn: &'env DbTransaction<'env, Mode>,
+        file_handlers: FileHandlers<Mode>,
+        tables: Arc<Tables>,
+        scope: StorageScope,
+        metric_updater: MetricsHandler,
+    ) -> Self {
+        Self {
+            txn: TxnHolder::Borrowed(txn),
+            file_handlers,
+            tables,
+            scope,
+            _metric_updater: metric_updater,
+        }
+    }
+
+    fn txn(&self) -> &DbTransaction<'env, Mode> {
+        match &self.txn {
+            TxnHolder::Owned(ref t) => t,
+            TxnHolder::Borrowed(t) => t,
+        }
     }
 
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
@@ -615,7 +658,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
                 });
             }
         }
-        Ok(self.txn.open_table(table_id)?)
+        Ok(self.txn().open_table(table_id)?)
     }
 
     /// Returns the location of the state diff in the mmap file for the given block number.
@@ -624,7 +667,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         block_number: BlockNumber,
     ) -> StorageResult<Option<LocationInFile>> {
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
-        Ok(state_diffs_table.get(&self.txn, &block_number)?)
+        Ok(state_diffs_table.get(self.txn(), &block_number)?)
     }
 
     /// Returns the thin state diff stored in the mmap file at the given location.
@@ -642,13 +685,13 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         block_number: BlockNumber,
     ) -> StorageResult<Option<Nonce>> {
         let nonces_table = self.open_table(&self.tables.nonces)?;
-        Ok(nonces_table.get(&self.txn, &(contract_address, block_number))?)
+        Ok(nonces_table.get(self.txn(), &(contract_address, block_number))?)
     }
 
     /// Returns the file offset for a given offset kind.
     pub fn get_file_offset(&self, offset_kind: OffsetKind) -> StorageResult<Option<usize>> {
         let table = self.open_table(&self.tables.file_offsets)?;
-        Ok(table.get(&self.txn, &offset_kind)?)
+        Ok(table.get(self.txn(), &offset_kind)?)
     }
 }
 
