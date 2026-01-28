@@ -12392,6 +12392,7 @@ dependencies = [
  "starknet_api",
  "starknet_committer",
  "starknet_os",
+ "starknet_os_runner",
  "starknet_patricia",
  "starknet_patricia_storage",
  "tokio",

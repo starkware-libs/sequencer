@@ -69,6 +69,7 @@ use starknet_os::io::os_output_types::{
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
+use starknet_os_runner::committer_utils::state_maps_to_committer_state_diff;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -83,7 +84,6 @@ use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     commit_state_diff,
     create_commitment_infos,
-    create_committer_state_diff,
     divide_vec_into_n_parts,
     execute_transactions,
     get_extended_initial_reads,
@@ -379,13 +379,13 @@ impl<S: FlowTestState> TestRunner<S> {
             &self.os_hints,
             self.messages_to_l1,
             self.messages_to_l2,
-            create_committer_state_diff(entire_state_diff.clone()),
+            state_maps_to_committer_state_diff(entire_state_diff.clone()),
         );
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, self.os_hints).unwrap();
 
         let decompressed_state_diff =
-            create_committer_state_diff(TestBuilder::<S>::get_decompressed_state_diff(
+            state_maps_to_committer_state_diff(TestBuilder::<S>::get_decompressed_state_diff(
                 &os_output,
                 &final_state,
                 entire_initial_reads.alias_keys(),
@@ -787,7 +787,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             state = final_state.state;
             state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
             // Commit the state diff.
-            let committer_state_diff = create_committer_state_diff(state_diff);
+            let committer_state_diff = state_maps_to_committer_state_diff(state_diff);
             let mut db = FactsDb::new(map_storage);
             let new_state_roots = commit_state_diff(
                 &mut db,

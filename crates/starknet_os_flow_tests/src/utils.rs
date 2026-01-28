@@ -8,13 +8,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
 };
 use blockifier::context::BlockContext;
-use blockifier::state::cached_state::{
-    CachedState,
-    StateChangesKeys,
-    StateMaps,
-    StorageDiff,
-    StorageView,
-};
+use blockifier::state::cached_state::{CachedState, StateChangesKeys, StateMaps};
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
@@ -49,11 +43,7 @@ use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
-use starknet_committer::patricia_merkle_tree::types::{
-    CompiledClassHash,
-    RootHashes,
-    StarknetForestProofs,
-};
+use starknet_committer::patricia_merkle_tree::types::{RootHashes, StarknetForestProofs};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
 use starknet_os::io::os_input::{CommitmentInfo, StateCommitmentInfos};
@@ -121,31 +111,6 @@ pub(crate) fn execute_transactions<S: StateReader + Send>(
 
     let final_state = executor.block_state.unwrap();
     ExecutionOutput { execution_outputs, final_state }
-}
-
-/// Creates a state diff input for the committer based on the execution state diff.
-pub(crate) fn create_committer_state_diff(state_diff: StateMaps) -> StateDiff {
-    StateDiff {
-        address_to_class_hash: state_diff.class_hashes,
-        address_to_nonce: state_diff.nonces,
-        class_hash_to_compiled_class_hash: state_diff
-            .compiled_class_hashes
-            .into_iter()
-            .map(|(k, v)| (k, CompiledClassHash(v.0)))
-            .collect(),
-        storage_updates: StorageDiff::from(StorageView(state_diff.storage))
-            .into_iter()
-            .map(|(address, updates)| {
-                (
-                    address,
-                    updates
-                        .into_iter()
-                        .map(|(key, value)| (StarknetStorageKey(key), StarknetStorageValue(value)))
-                        .collect(),
-                )
-            })
-            .collect(),
-    }
 }
 
 /// Commits the state diff, saves the new commitments and returns the computed roots.

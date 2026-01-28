@@ -106,6 +106,8 @@ pub(crate) struct VirtualBlockExecutionData {
     pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
     /// The initial state reads (accessed state) during execution.
     pub(crate) initial_reads: StateMaps,
+    /// The state diff (changes made by transactions).
+    pub(crate) state_diff: StateMaps,
     /// The class hashes of all contracts executed in the virtual block.
     pub(crate) executed_class_hashes: HashSet<ClassHash>,
     /// L2 to L1 messages.
@@ -190,17 +192,28 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        // Get initial state reads.
-        let initial_reads = transaction_executor
+        let block_state = transaction_executor
             .block_state
-            .as_ref()
-            .ok_or(VirtualBlockExecutorError::StateUnavailable)?
+            .as_mut()
+            .ok_or(VirtualBlockExecutorError::StateUnavailable)?;
+        // Get initial state reads.
+        let initial_reads = block_state
             .get_initial_reads()
             .map(|mut initial_reads| {
                 initial_reads.declared_contracts.clear();
                 initial_reads
             })
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
+
+        // Get state diff (changes made by transactions).
+        let state_diff = block_state
+            .to_state_diff()
+            .map_err(|e| {
+                VirtualBlockExecutorError::TransactionExecutionError(format!(
+                    "Failed to get state diff: {e}"
+                ))
+            })?
+            .state_maps;
 
         let executed_class_hashes = transaction_executor
             .bouncer
@@ -231,6 +244,7 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
             execution_outputs,
             base_block_info,
             initial_reads,
+            state_diff,
             l2_to_l1_messages,
             executed_class_hashes,
         })
