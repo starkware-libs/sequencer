@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use starknet_api::block::GasPrice;
@@ -123,6 +123,18 @@ impl TransactionQueueTrait for FeeTransactionQueue {
             priority_queue,
             pending_queue,
         }
+    }
+
+    fn rewind_txs(
+        &mut self,
+        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
+    ) -> HashSet<TransactionHash> {
+        // Rewind by re-inserting the next transaction for each address.
+        for (address, tx_reference) in next_txs_by_address {
+            self.remove_by_address(address);
+            self.insert(tx_reference, true);
+        }
+        HashSet::new() // Fee Priority queue doesn't track rewound transactions
     }
 }
 
