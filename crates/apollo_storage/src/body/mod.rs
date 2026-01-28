@@ -181,12 +181,12 @@ where
 impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
     fn get_body_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        Ok(markers_table.get(&self.txn, &MarkerKind::Body)?.unwrap_or_default())
+        Ok(markers_table.get(self.txn(), &MarkerKind::Body)?.unwrap_or_default())
     }
 
     fn get_event_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        Ok(markers_table.get(&self.txn, &MarkerKind::Event)?.unwrap_or_default())
+        Ok(markers_table.get(self.txn(), &MarkerKind::Event)?.unwrap_or_default())
     }
 
     // TODO(dvir): add option to get transaction with its hash.
@@ -219,7 +219,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
     ) -> StorageResult<Option<TransactionIndex>> {
         let transaction_hash_to_idx_table =
             self.open_table(&self.tables.transaction_hash_to_idx)?;
-        let idx = transaction_hash_to_idx_table.get(&self.txn, tx_hash)?;
+        let idx = transaction_hash_to_idx_table.get(self.txn(), tx_hash)?;
         Ok(idx)
     }
 
@@ -238,7 +238,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         tx_index: &TransactionIndex,
     ) -> StorageResult<Option<TransactionMetadata>> {
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let metadata = transaction_metadata_table.get(&self.txn, tx_index)?;
+        let metadata = transaction_metadata_table.get(self.txn(), tx_index)?;
         Ok(metadata)
     }
 
@@ -285,7 +285,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         }
 
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let mut cursor = transaction_metadata_table.cursor(&self.txn)?;
+        let mut cursor = transaction_metadata_table.cursor(self.txn())?;
         let Some(next_block_number) = block_number.next() else {
             return Ok(None);
         };
@@ -315,7 +315,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         if self.get_body_marker()? <= block_number {
             return Ok(None);
         }
-        let mut cursor = transaction_metadata_table.cursor(&self.txn)?;
+        let mut cursor = transaction_metadata_table.cursor(self.txn())?;
         let mut current =
             cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
 
@@ -394,18 +394,18 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_body_latency_seconds", false)]
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
-        update_marker(&self.txn, &markers_table, block_number)?;
+        update_marker(self.txn(), &markers_table, block_number)?;
 
         if self.scope != StorageScope::StateOnly {
             let events_table = self.open_table(&self.tables.events)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-            let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
+            let file_offset_table = self.txn().open_table(&self.tables.file_offsets)?;
 
             write_transactions(
                 &block_body,
-                &self.txn,
+                self.txn(),
                 &self.file_handlers,
                 &file_offset_table,
                 &transaction_hash_to_idx_table,
@@ -465,16 +465,16 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
 
                 for event in tx_output.events().iter() {
-                    events_table.delete(&self.txn, &(event.from_address, tx_index))?;
+                    events_table.delete(self.txn(), &(event.from_address, tx_index))?;
                 }
-                transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
-                transaction_metadata_table.delete(&self.txn, &tx_index)?;
+                transaction_hash_to_idx_table.delete(self.txn(), tx_hash)?;
+                transaction_metadata_table.delete(self.txn(), &tx_index)?;
             }
             Some((transactions, transaction_outputs, transaction_hashes))
         };
 
-        markers_table.upsert(&self.txn, &MarkerKind::Body, &block_number)?;
-        markers_table.upsert(&self.txn, &MarkerKind::Event, &block_number)?;
+        markers_table.upsert(self.txn(), &MarkerKind::Body, &block_number)?;
+        markers_table.upsert(self.txn(), &MarkerKind::Event, &block_number)?;
         Ok((self, reverted_block_body))
     }
 }
