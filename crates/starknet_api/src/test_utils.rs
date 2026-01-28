@@ -44,7 +44,6 @@ use crate::transaction::{Transaction, TransactionHash};
 
 /// OS config hash for testing.
 /// This is the Pedersen hash of [STARKNET_OS_CONFIG_HASH_VERSION, chain_id, strk_fee_token_address]
-/// computed with the test chain ID and fee token address.
 pub static TEST_OS_CONFIG_HASH: LazyLock<Felt> = LazyLock::new(|| {
     let chain_id_felt: Felt = (&*CHAIN_ID_FOR_TESTS).try_into().unwrap();
     let strk_fee_token_address: Felt = contract_address!(TEST_ERC20_CONTRACT_ADDRESS2).into();
