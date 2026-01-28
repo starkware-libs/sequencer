@@ -3,12 +3,14 @@
 Generic configuration override mechanism for replacing placeholders in JSON objects.
 
 This module provides functions to:
+- Expand simple placeholders ($$$_X_$$$) to full path-based placeholders ($$$_ITEM_NAME.FIELD_$$$)
 - Load YAML configuration files
 - Replace placeholders in the format $$$_ITEM_NAME.FIELD_$$$ with values from config
 - Validate that all placeholders have corresponding config entries
 - Detect unused config keys
 
 The placeholder format is: $$$_ITEM_NAME.FIELD_$$$ or $$$_ITEM_NAME.PART1.PART2_$$$
+Simple placeholders like $$$_X_$$$ are automatically expanded based on their location in the JSON.
 The config key format is: item_name.field or item_name.part1.part2 (all lowercase)
 """
 
@@ -33,8 +35,160 @@ PLACEHOLDER_PATTERN = r"\$\$\$_(?![_])([A-Z0-9_]+)\.([A-Z0-9_.]*[A-Z0-9.])_\$\$\
 # Matches: $...$_...$...$ (any number of $ at start, underscore, content, any number of $ at end)
 POTENTIAL_PLACEHOLDER_PATTERN = r"\$+_[A-Z0-9_.]+\$+"
 
+# Pattern to match simple placeholders (without dot) that need expansion
+# Valid: $$$_X_$$$, $$$_PLACEHOLDER_$$$, $$$_SOMETHING_$$$
+# Invalid (already expanded): $$$_ALERT_NAME.FIELD_$$$
+SIMPLE_PLACEHOLDER_PATTERN = re.compile(r"^\$\$\$_[A-Za-z0-9_]+_\$\$\$$", re.IGNORECASE)
+ALREADY_EXPANDED_PATTERN = re.compile(
+    r"^\$\$\$_[A-Za-z0-9_]+\.[A-Za-z0-9_.]+_\$\$\$$", re.IGNORECASE
+)
 
-def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
+
+def is_simple_placeholder(value: str) -> bool:
+    """
+    Check if value is a simple placeholder that needs expansion.
+
+    Args:
+        value: The string value to check
+
+    Returns:
+        True if it's a simple placeholder (no dot), False otherwise
+    """
+    if not isinstance(value, str):
+        return False
+    # Must match simple pattern AND NOT match already-expanded pattern
+    return bool(
+        SIMPLE_PLACEHOLDER_PATTERN.match(value) and not ALREADY_EXPANDED_PATTERN.match(value)
+    )
+
+
+def expand_simple_placeholders_recursive(
+    obj: Any,
+    item_name: str,
+    path_parts: list[str] = None,
+    logger_instance=None,
+) -> Any:
+    """
+    Recursively expand simple placeholders ($$$_X_$$$) to full path-based placeholders
+    ($$$_ITEM_NAME.FIELD.PATH_$$$) based on their location in the JSON.
+
+    Args:
+        obj: The object to process (dict, list, or primitive)
+        item_name: The item name (e.g., alert name) to use in expanded placeholders
+        path_parts: List of path components (keys/indices) to reach this value
+        logger_instance: Optional logger instance
+
+    Returns:
+        The object with simple placeholders expanded
+    """
+    if path_parts is None:
+        path_parts = []
+
+    log = logger_instance
+
+    if isinstance(obj, dict):
+        result = {}
+        for key, value in obj.items():
+            result[key] = expand_simple_placeholders_recursive(
+                value, item_name, path_parts + [key], logger_instance
+            )
+        return result
+    elif isinstance(obj, list):
+        result = []
+        for i, item in enumerate(obj):
+            result.append(
+                expand_simple_placeholders_recursive(
+                    item, item_name, path_parts + [str(i)], logger_instance
+                )
+            )
+        return result
+    elif is_simple_placeholder(obj):
+        full_path = ".".join(path_parts)
+        expanded = f"$$$_{item_name}.{full_path}_$$$".upper()
+        if log:
+            log.debug(f"Expanded simple placeholder '{obj}' to '{expanded}' (path: {full_path})")
+        return expanded
+    else:
+        return obj
+
+
+def expand_simple_placeholders(
+    items: list[dict[str, Any]],
+    item_name_extractor: Optional[Callable[[dict], str]] = None,
+    logger_instance=None,
+) -> list[dict[str, Any]]:
+    """
+    Expand all simple placeholders in items to full path-based placeholders.
+
+    This allows developers to write simple placeholders like $$$_X_$$$ which are
+    automatically expanded to $$$_ITEM_NAME.FIELD_$$$ based on their location.
+
+    Args:
+        items: List of item dictionaries (e.g., alerts, dashboards)
+        item_name_extractor: Optional function(item) -> str to extract item name
+                           Default: item["name"]
+        logger_instance: Optional logger instance
+
+    Returns:
+        List of items with simple placeholders expanded
+    """
+    # Default extractor
+    if item_name_extractor is None:
+        item_name_extractor = lambda item: item["name"]
+
+    log = logger_instance
+
+    # Track if any placeholders were actually expanded
+    placeholder_count = {"count": 0}
+
+    def expand_with_tracking(obj, item_name, path_parts=None):
+        """Wrapper to track placeholder expansions"""
+        if path_parts is None:
+            path_parts = []
+
+        if isinstance(obj, dict):
+            result = {}
+            for key, value in obj.items():
+                result[key] = expand_with_tracking(value, item_name, path_parts + [key])
+            return result
+        elif isinstance(obj, list):
+            result = []
+            for i, item in enumerate(obj):
+                result.append(expand_with_tracking(item, item_name, path_parts + [str(i)]))
+            return result
+        elif is_simple_placeholder(obj):
+            placeholder_count["count"] += 1
+            full_path = ".".join(path_parts)
+            expanded = f"$$$_{item_name}.{full_path}_$$$".upper()
+            if log:
+                log.debug(
+                    f"Expanded simple placeholder '{obj}' to '{expanded}' (path: {full_path})"
+                )
+            return expanded
+        else:
+            return obj
+
+    if log:
+        log.info("Expanding simple placeholders to full path-based placeholders...")
+
+    expanded_items = []
+    for item in items:
+        item_name = item_name_extractor(item)
+        expanded_item = expand_with_tracking(item, item_name)
+        expanded_items.append(expanded_item)
+
+    if log:
+        if placeholder_count["count"] > 0:
+            log.info(
+                f"Expanded simple placeholders in {placeholder_count['count']} location(s) across {len(expanded_items)} item(s)"
+            )
+        else:
+            log.info("No simple placeholders found to expand")
+
+    return expanded_items
+
+
+def load_config_file(alert_rules_overrids_config_path: Optional[str], logger_instance=None) -> dict:
     """
     Load YAML config file with overrides.
     Returns empty dict if file doesn't exist or path is None.
@@ -46,13 +200,13 @@ def load_config_file(config_path: Optional[str], logger_instance=None) -> dict:
     Returns:
         Dictionary with config overrides
     """
-    if not config_path or not os.path.isfile(config_path):
+    if not alert_rules_overrids_config_path or not os.path.isfile(alert_rules_overrids_config_path):
         return {}
 
     log = logger_instance
     if log:
-        log.debug(f"Loading config file: {config_path}")
-    with open(config_path, "r") as f:
+        log.debug(f"Loading config file: {alert_rules_overrids_config_path}")
+    with open(alert_rules_overrids_config_path, "r") as f:
         config = yaml.safe_load(f) or {}
     if log:
         log.debug(f"Loaded config: {config}")
