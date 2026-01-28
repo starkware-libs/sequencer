@@ -6,7 +6,10 @@ use std::path::PathBuf;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
-    CairoNativeRunConfig, ConcurrencyConfig, ContractClassManagerConfig, NativeClassesWhitelist,
+    CairoNativeRunConfig,
+    ConcurrencyConfig,
+    ContractClassManagerConfig,
+    NativeClassesWhitelist,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstantsOverrides};

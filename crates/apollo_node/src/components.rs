@@ -1,36 +1,38 @@
 use std::sync::Arc;
 
-use apollo_batcher::batcher::{Batcher, create_batcher};
+use apollo_batcher::batcher::{create_batcher, Batcher};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
-use apollo_class_manager::ClassManager;
 use apollo_class_manager::class_manager::create_class_manager;
+use apollo_class_manager::ClassManager;
 use apollo_committer::committer::ApolloCommitter;
-use apollo_compile_to_casm::{SierraCompiler, create_sierra_compiler};
+use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
 use apollo_consensus_manager::consensus_manager::{ConsensusManager, ConsensusManagerArgs};
-use apollo_gateway::gateway::{Gateway, create_gateway};
-use apollo_http_server::http_server::{HttpServer, create_http_server};
+use apollo_gateway::gateway::{create_gateway, Gateway};
+use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::l1_scraper::L1Scraper;
-use apollo_mempool::communication::{MempoolCommunicationWrapper, create_mempool};
+use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use apollo_mempool_p2p::create_p2p_propagator_and_runner;
 use apollo_mempool_p2p::propagator::MempoolP2pPropagator;
 use apollo_mempool_p2p::runner::MempoolP2pRunner;
 use apollo_monitoring_endpoint::monitoring_endpoint::{
-    MonitoringEndpoint, create_monitoring_endpoint,
+    create_monitoring_endpoint,
+    MonitoringEndpoint,
 };
 use apollo_node_config::component_execution_config::{
-    ActiveComponentExecutionMode, ReactiveComponentExecutionMode,
+    ActiveComponentExecutionMode,
+    ReactiveComponentExecutionMode,
 };
 use apollo_node_config::node_config::{NodeDynamicConfig, SequencerNodeConfig};
 use apollo_node_config::version::VERSION_FULL;
-use apollo_signature_manager::{SignatureManager, create_signature_manager};
+use apollo_signature_manager::{create_signature_manager, SignatureManager};
 use apollo_state_sync::runner::StateSyncRunner;
-use apollo_state_sync::{StateSync, create_state_sync_and_runner};
+use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
