@@ -317,8 +317,18 @@ jobs:
             --timeout ${{ env.check_timeout_sec }} \
             --interval ${{ env.check_interval_sec }}
 
+      - name: debug
+        run: |
+          du -hs ./output/data/node_0
+
       - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }} --data-dir "./output/data/node_0"
+        run: |
+          pipenv run python ./scripts/system_tests/copy_state_and_restart.py \
+            --layout ${{ env.layout }} \
+            --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
+            --data-dir "./output/data/node_0" \
+            --verbose
 
       - name: Run readiness check
         run: pipenv run python ./scripts/system_tests/readiness_check.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }}
