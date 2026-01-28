@@ -2,11 +2,8 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_node_config::config_utils::private_parameters;
 use apollo_node_config::node_config::{
+    CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS, CONFIG_SCHEMA_PATH, CONFIG_SECRETS_SCHEMA_PATH,
     SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_POINTERS,
-    CONFIG_SCHEMA_PATH,
-    CONFIG_SECRETS_SCHEMA_PATH,
 };
 
 /// Updates the apollo node config schema.

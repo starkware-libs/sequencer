@@ -5,24 +5,17 @@ use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use indexmap::IndexMap;
-use pyo3::prelude::*;
 use pyo3::FromPyObject;
+use pyo3::prelude::*;
 use starknet_api::block::{
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    NonzeroGasPrice,
-    StarknetVersion,
+    BlockInfo, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice, StarknetVersion,
 };
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateDiff, StorageKey};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
 use crate::errors::{
-    InvalidNativeBlockifierInputError,
-    NativeBlockifierError,
-    NativeBlockifierInputError,
+    InvalidNativeBlockifierInputError, NativeBlockifierError, NativeBlockifierInputError,
     NativeBlockifierResult,
 };
 use crate::py_utils::PyFelt;

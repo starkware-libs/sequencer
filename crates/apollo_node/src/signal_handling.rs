@@ -1,4 +1,4 @@
-use tokio::signal::unix::{signal, SignalKind};
+use tokio::signal::unix::{SignalKind, signal};
 use tracing::warn;
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 use nix::sys::signal;
 use nix::unistd::getpid;
 use rstest::rstest;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 use tracing_test::traced_test;
 
 use super::handle_signals;

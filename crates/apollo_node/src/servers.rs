@@ -8,8 +8,7 @@ use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_committer::communication::{LocalCommitterServer, RemoteCommitterServer};
 use apollo_committer::metrics::COMMITTER_INFRA_METRICS;
 use apollo_compile_to_casm::communication::{
-    LocalSierraCompilerServer,
-    RemoteSierraCompilerServer,
+    LocalSierraCompilerServer, RemoteSierraCompilerServer,
 };
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_config_manager::communication::{ConfigManagerRunnerServer, LocalConfigManagerServer};
@@ -19,41 +18,31 @@ use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
 use apollo_http_server::communication::HttpServer;
 use apollo_infra::component_server::{
-    ComponentServerStarter,
-    ConcurrentLocalComponentServer,
-    LocalComponentServer,
-    RemoteComponentServer,
-    WrapperServer,
+    ComponentServerStarter, ConcurrentLocalComponentServer, LocalComponentServer,
+    RemoteComponentServer, WrapperServer,
 };
 use apollo_l1_gas_price::communication::{
-    L1GasPriceScraperServer,
-    LocalL1GasPriceServer,
-    RemoteL1GasPriceServer,
+    L1GasPriceScraperServer, LocalL1GasPriceServer, RemoteL1GasPriceServer,
 };
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_l1_provider::communication::{
-    L1ScraperServer,
-    LocalL1ProviderServer,
-    RemoteL1ProviderServer,
+    L1ScraperServer, LocalL1ProviderServer, RemoteL1ProviderServer,
 };
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
 use apollo_mempool_p2p::propagator::{
-    LocalMempoolP2pPropagatorServer,
-    RemoteMempoolP2pPropagatorServer,
+    LocalMempoolP2pPropagatorServer, RemoteMempoolP2pPropagatorServer,
 };
 use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
 use apollo_node_config::component_execution_config::{
-    ActiveComponentExecutionMode,
-    ReactiveComponentExecutionMode,
+    ActiveComponentExecutionMode, ReactiveComponentExecutionMode,
 };
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_signature_manager::communication::{
-    LocalSignatureManagerServer,
-    RemoteSignatureManagerServer,
+    LocalSignatureManagerServer, RemoteSignatureManagerServer,
 };
 use apollo_signature_manager::metrics::SIGNATURE_MANAGER_INFRA_METRICS;
 use apollo_state_sync::runner::StateSyncRunnerServer;

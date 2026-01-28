@@ -1,6 +1,6 @@
 use std::env::args;
 
-use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
+use apollo_infra::metrics::{MetricsConfig, metrics_recorder};
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::set_global_allocator;
 use apollo_node::servers::run_component_servers;

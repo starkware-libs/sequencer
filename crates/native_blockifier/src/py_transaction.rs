@@ -4,20 +4,16 @@ use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use starknet_api::StarknetApiError;
 use starknet_api::block::GasPrice;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::executable_transaction::{
-    AccountTransaction as ExecutableTransaction,
-    TransactionType,
+    AccountTransaction as ExecutableTransaction, TransactionType,
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
-    DeprecatedResourceBoundsMapping,
-    Resource,
-    ResourceBounds,
-    ValidResourceBounds,
+    DeprecatedResourceBoundsMapping, Resource, ResourceBounds, ValidResourceBounds,
 };
-use starknet_api::StarknetApiError;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_declare::py_declare;
