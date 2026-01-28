@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -236,8 +237,6 @@ where
     /// 4. Runs the virtual OS.
     ///
     /// Consumes the runner since the virtual block executor is single-use per block.
-    ///
-    /// Returns the virtual OS output containing the Cairo PIE and L2 to L1 messages.
     pub async fn run_virtual_os(
         self,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
@@ -283,6 +282,25 @@ where
 }
 
 // ================================================================================================
+// VirtualSnosRunner Trait
+// ================================================================================================
+
+/// Trait for runners that can execute the virtual Starknet OS.
+///
+/// This trait abstracts the execution of transactions through the virtual OS,
+/// allowing different runner implementations (RPC-based, mock, etc.) to be used
+/// interchangeably.
+#[async_trait]
+pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
+    /// Runs the Starknet virtual OS with the given transactions on top of the specified block.
+    async fn run_virtual_os(
+        &self,
+        block_id: BlockId,
+        txs: Vec<(InvokeTransaction, TransactionHash)>,
+    ) -> Result<RunnerOutput, RunnerError>;
+}
+
+// ================================================================================================
 // RPC Runner Factory
 // ================================================================================================
 
@@ -292,7 +310,6 @@ where
 /// - `Arc<StateReaderAndContractManager<RpcStateReader>>` for class fetching.
 /// - `RpcStorageProofsProvider` for storage proofs.
 /// - `RpcVirtualBlockExecutor` for transaction execution.
-#[allow(dead_code)]
 pub(crate) type RpcRunner = Runner<
     Arc<StateReaderAndContractManager<RpcStateReader>>,
     RpcStorageProofsProvider,
@@ -337,12 +354,11 @@ impl RpcRunnerFactory {
     ) -> Self {
         Self { node_url, chain_id, contract_class_manager }
     }
+}
 
+impl RpcRunnerFactory {
     /// Creates a runner configured for the given block ID.
-    ///
-    /// The runner is ready to execute transactions on top of the specified block.
-    /// Each runner is single-use (consumed when `run_os` is called).
-    pub(crate) fn create_runner(&self, block_id: BlockId) -> RpcRunner {
+    fn create_runner(&self, block_id: BlockId) -> RpcRunner {
         // Create the virtual block executor for this block.
         let virtual_block_executor = RpcVirtualBlockExecutor::new(
             self.node_url.to_string(),
@@ -374,5 +390,17 @@ impl RpcRunnerFactory {
             self.contract_class_manager.clone(),
             block_id,
         )
+    }
+}
+
+#[async_trait]
+impl VirtualSnosRunner for RpcRunnerFactory {
+    async fn run_virtual_os(
+        &self,
+        block_id: BlockId,
+        txs: Vec<(InvokeTransaction, TransactionHash)>,
+    ) -> Result<RunnerOutput, RunnerError> {
+        let runner = self.create_runner(block_id);
+        runner.run_virtual_os(txs).await
     }
 }
