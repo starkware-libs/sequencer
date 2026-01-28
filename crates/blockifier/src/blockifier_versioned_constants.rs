@@ -534,6 +534,7 @@ impl CairoNativeStackConfig {
 pub struct VersionedConstantsGatewayLimits {
     pub max_calldata_length: usize,
     pub max_contract_bytecode_size: usize,
+    pub max_proof_size: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]

@@ -2594,6 +2594,11 @@
     "privacy": "Public",
     "value": 4089446
   },
+  "gateway_config.stateless_tx_validator_config.max_proof_size": {
+    "description": "Limitation of proof size.",
+    "privacy": "Public",
+    "value": 90000
+  },
   "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": {
     "description": "Maximum allowed L2 gas amount for transactions.",
     "privacy": "Public",
