@@ -39,6 +39,7 @@ fn get_test_config_with_path(storage_scope: Option<StorageScope>, path: PathBuf)
             growth_step: 1 << 20,     // 1MB
             max_object_size: 1 << 16, // 64KB
         },
+        batch_config: Default::default(),
     }
 }
 
