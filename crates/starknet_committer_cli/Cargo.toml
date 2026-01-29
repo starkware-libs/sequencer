@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 apollo_infra_utils.workspace = true
 apollo_storage.workspace = true
+async-trait.workspace = true
 blake2.workspace = true
 clap = { workspace = true, features = ["cargo", "derive", "string"] }
 csv.workspace = true
