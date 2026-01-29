@@ -22,7 +22,7 @@ pub mod utils_test;
 
 pub struct BenchmarkMeasurements {
     pub current_measurement: SingleBlockMeasurements,
-    pub total_time: u128, // Total duration of all blocks (milliseconds).
+    pub total_time: f64, // Total duration of all blocks (seconds).
     pub block_measurements: Vec<BlockMeasurement>,
     pub initial_db_entry_count: Vec<usize>, /* Number of DB entries prior to the current
                                              * block. */
@@ -43,21 +43,21 @@ impl MeasurementsTrait for BenchmarkMeasurements {
     /// Attempts to stop the measurement for the given action and adds the duration to the
     /// corresponding vector. For Read/Write actions, `entries_count` is the number of entries
     /// read from / written to the DB. For other actions, it is ignored.
-    /// Returns the duration in milliseconds.
+    /// Returns the duration in seconds.
     /// Panics if the measurement was not started.
     fn attempt_to_stop_measurement(
         &mut self,
         action: Action,
         entries_count: usize,
-    ) -> Result<u128, MeasurementNotStartedError> {
-        let duration_in_millis = self
+    ) -> Result<f64, MeasurementNotStartedError> {
+        let duration_in_seconds = self
             .current_measurement
             .attempt_to_stop_measurement(action, entries_count)
             .expect("Failed to stop measurement");
         info!(
             "Time elapsed for {action:?} in iteration {}: {} milliseconds",
             self.n_results(),
-            duration_in_millis,
+            duration_in_seconds * 1000.0,
         );
 
         match action {
@@ -66,7 +66,7 @@ impl MeasurementsTrait for BenchmarkMeasurements {
                 self.total_db_entry_count += entries_count;
             }
             Action::EndToEnd => {
-                self.total_time += duration_in_millis;
+                self.total_time += duration_in_seconds;
                 self.block_number += 1;
                 self.block_measurements.push(take(&mut self.current_measurement.block_measurement));
                 self.time_of_measurement
@@ -74,7 +74,7 @@ impl MeasurementsTrait for BenchmarkMeasurements {
             }
             _ => {}
         }
-        Ok(duration_in_millis)
+        Ok(duration_in_seconds)
     }
 
     fn set_number_of_modifications(
@@ -89,7 +89,7 @@ impl BenchmarkMeasurements {
     pub fn new(size: usize, storage_stat_columns: Vec<&'static str>) -> Self {
         Self {
             current_measurement: SingleBlockMeasurements::default(),
-            total_time: 0,
+            total_time: 0.0,
             block_measurements: Vec::with_capacity(size),
             block_number: 0,
             total_db_entry_count: 0,
@@ -113,19 +113,19 @@ impl BenchmarkMeasurements {
     fn block_average_time(&self) -> f64 {
         #[allow(clippy::as_conversions)]
         {
-            self.total_time as f64 / self.n_results() as f64
+            self.total_time * 1000.0 / self.n_results() as f64
         }
     }
 
     /// Returns the average time per entry over a window of `window_size` blocks (microseconds).
     fn average_window_time(&self, window_size: usize) -> Vec<f64> {
-        let mut averages = Vec::new(); // In milliseconds.
+        let mut averages = Vec::new(); // In microseconds.
         // Takes only the full windows, so if the last window is smaller than `window_size`, it is
         // ignored.
         let n_windows = self.n_results() / window_size;
         for i in 0..n_windows {
             let window_start = i * window_size;
-            let total_duration: u128 = self.block_measurements
+            let total_duration: f64 = self.block_measurements
                 [window_start..window_start + window_size]
                 .iter()
                 .map(|measurement| measurement.durations.block)
@@ -136,7 +136,8 @@ impl BenchmarkMeasurements {
                 .map(|measurement| measurement.n_writes)
                 .sum();
             #[allow(clippy::as_conversions)]
-            averages.push(1000.0 * total_duration as f64 / sum_of_entries as f64);
+            // Convert seconds to microseconds.
+            averages.push(1_000_000.0 * total_duration / sum_of_entries as f64);
         }
         averages
     }
@@ -214,10 +215,11 @@ impl BenchmarkMeasurements {
                 measurement.n_reads.to_string(),
                 self.initial_db_entry_count[i].to_string(),
                 self.time_of_measurement[i].to_string(),
-                measurement.durations.block.to_string(),
-                measurement.durations.read.to_string(),
-                measurement.durations.compute.to_string(),
-                measurement.durations.write.to_string(),
+                // Convert seconds to milliseconds.
+                (measurement.durations.block * 1000.0).to_string(),
+                (measurement.durations.read * 1000.0).to_string(),
+                (measurement.durations.compute * 1000.0).to_string(),
+                (measurement.durations.write * 1000.0).to_string(),
                 measurement.modifications_counts.storage_tries.to_string(),
                 measurement.modifications_counts.contracts_trie.to_string(),
                 measurement.modifications_counts.classes_trie.to_string(),
