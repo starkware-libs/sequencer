@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769678240760,
+  "lastUpdate": 1769680156284,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1257,6 +1257,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1177.14540695,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "05aad19fc5ea58c6f4af775ca7d0f95559c4e6cb",
+          "message": "apollo_batcher: full revert commitment flow (#11496)",
+          "timestamp": "2026-01-29T09:21:05Z",
+          "tree_id": "385941d0aa67adb0b4b1ac697a0239848784dde5",
+          "url": "https://github.com/starkware-libs/sequencer/commit/05aad19fc5ea58c6f4af775ca7d0f95559c4e6cb"
+        },
+        "date": 1769680156018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 808.27237292,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1174.60667503,
             "unit": "ms"
           }
         ]
