@@ -2,12 +2,12 @@
 
 use clap::Parser;
 use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
-use starknet_os_runner::server::http_server::ProvingHttpServer;
+use starknet_os_runner::server::http_server::ProvingRpcHttpServer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     // Initialize tracing with RUST_LOG (default: info,starknet_os_runner=debug).
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info,starknet_os_runner=debug"));
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ServiceConfig::from_args(args)?;
 
     // Create and run server.
-    let server = ProvingHttpServer::new(config);
+    let server = ProvingRpcHttpServer::new(config);
     server.run().await?;
 
     Ok(())

@@ -12401,11 +12401,11 @@ dependencies = [
 name = "starknet_os_runner"
 version = "0.18.0-dev.0"
 dependencies = [
+ "anyhow",
  "apollo_infra_utils",
  "apollo_starknet_os_program",
  "apollo_transaction_converter",
  "async-trait",
- "axum 0.6.20",
  "blockifier",
  "blockifier_reexecution",
  "blockifier_test_utils",
@@ -12414,7 +12414,6 @@ dependencies = [
  "cairo-vm",
  "clap",
  "futures",
- "hyper 0.14.32",
  "indexmap 2.12.0",
  "jsonrpsee",
  "proving_utils",
