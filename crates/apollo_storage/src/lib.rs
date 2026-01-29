@@ -336,6 +336,7 @@ fn set_version_if_needed(
     }
     // Update the version if it's lower than the crate version.
     let mut wtxn = writer.begin_rw_txn()?;
+    let mut needs_commit = false;
     match existing_storage_version {
         StorageVersion::FullArchive(FullArchiveVersion { state_version, blocks_version }) => {
             // This allow is for when STORAGE_VERSION_STATE.minor = 0.
@@ -348,6 +349,7 @@ fn set_version_if_needed(
                     state_version, STORAGE_VERSION_STATE
                 );
                 wtxn = wtxn.set_state_version(&STORAGE_VERSION_STATE)?;
+                needs_commit = true;
             }
             // This allow is for when STORAGE_VERSION_BLOCKS.minor = 0.
             #[allow(clippy::absurd_extreme_comparisons)]
@@ -359,6 +361,7 @@ fn set_version_if_needed(
                     blocks_version, STORAGE_VERSION_BLOCKS
                 );
                 wtxn = wtxn.set_blocks_version(&STORAGE_VERSION_BLOCKS)?;
+                needs_commit = true;
             }
         }
         StorageVersion::StateOnly(StateOnlyVersion { state_version }) => {
@@ -372,10 +375,18 @@ fn set_version_if_needed(
                     state_version, STORAGE_VERSION_STATE
                 );
                 wtxn = wtxn.set_state_version(&STORAGE_VERSION_STATE)?;
+                needs_commit = true;
             }
         }
     }
-    wtxn.commit()?;
+    // Only commit if we actually updated something.
+    // This avoids incrementing the batch counter for empty transactions.
+    if needs_commit {
+        wtxn.commit()?;
+    } else {
+        // Drop the transaction without committing to release the borrow on writer
+        drop(wtxn);
+    }
     Ok(writer)
 }
 
