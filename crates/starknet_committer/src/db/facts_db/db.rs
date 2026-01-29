@@ -111,7 +111,7 @@ impl<S: Storage> ForestReader for FactsDb<S> {
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         read_forest::<S, FactsNodeLayout>(
-            &mut self.storage,
+            &self.storage,
             roots,
             storage_updates,
             classes_updates,

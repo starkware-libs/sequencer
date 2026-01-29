@@ -675,7 +675,7 @@ impl<S: FlowTestState> TestManager<S> {
                 create_cached_state_input_and_commitment_infos(
                     &previous_state_roots,
                     &new_state_roots,
-                    &mut map_storage,
+                    &map_storage,
                     &extended_state_diff,
                     &class_hashes_from_execution_infos,
                 )

@@ -229,7 +229,7 @@ pub(crate) struct CommitmentInfos {
 pub(crate) async fn create_cached_state_input_and_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
-    commitments: &mut MapStorage,
+    commitments: &MapStorage,
     extended_state_diff: &StateMaps,
     class_hashes_from_execution_infos: &HashSet<ClassHash>,
 ) -> (CachedStateInput, CommitmentInfos) {
@@ -374,7 +374,7 @@ pub(crate) async fn get_previous_states_and_new_storage_roots<
     contract_addresses: I,
     previous_contract_trie_root: HashOutput,
     new_contract_trie_root: HashOutput,
-    commitments: &mut MapStorage,
+    commitments: &MapStorage,
 ) -> (HashMap<NodeIndex, ContractState>, HashMap<ContractAddress, HashOutput>) {
     let mut contract_leaf_indices: Vec<NodeIndex> =
         contract_addresses.map(|address| NodeIndex::from_leaf_felt(&address.0)).collect();
@@ -468,7 +468,7 @@ pub(crate) fn get_class_hash_of_feature_contract(feature_contract: FeatureContra
 
 async fn fetch_storage_proofs_from_state_maps(
     state_maps: &StateMaps,
-    storage: &mut MapStorage,
+    storage: &MapStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
     class_hashes_from_execution_infos: &HashSet<ClassHash>,

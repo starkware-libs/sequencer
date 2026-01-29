@@ -89,7 +89,7 @@ pub async fn convert_facts_forest_db_to_index_db(
 /// Converts a single Facts-layout trie to Index-layout.
 /// Expects all nodes to exist (panics if a node is missing).
 pub async fn convert_facts_db_to_index_db<FactsLeaf, IndexLeaf, KeyContext>(
-    storage: &mut MapStorage,
+    storage: &MapStorage,
     root_hash: HashOutput,
     key_context: &KeyContext,
     current_leaves: &mut Option<&mut Vec<(NodeIndex, FactsLeaf)>>,
@@ -105,7 +105,7 @@ where
 
 /// Converts a single trie from Facts-layout to Index-layout.
 async fn convert_single_trie<FactsLeaf, IndexLeaf, KeyContext>(
-    storage: &mut MapStorage,
+    storage: &MapStorage,
     root_hash: HashOutput,
     key_context: &KeyContext,
     current_leaves: &mut Option<&mut Vec<(NodeIndex, FactsLeaf)>>,
@@ -136,7 +136,7 @@ where
 /// Recursively traverses a Facts-layout trie and converts each node to Index-layout.
 #[async_recursion]
 async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
-    facts_storage: &mut MapStorage,
+    facts_storage: &MapStorage,
     index_layout_storage: &mut MapStorage,
     subtree: FactsSubTree<'async_recursion>,
     key_context: &KeyContext,
