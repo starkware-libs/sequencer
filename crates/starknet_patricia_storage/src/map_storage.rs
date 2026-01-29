@@ -53,11 +53,11 @@ impl Storage for MapStorage {
         Ok(())
     }
 
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.0.get(key).cloned())
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(keys.iter().map(|key| self.0.get(key).cloned()).collect())
     }
 
@@ -227,7 +227,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
     type Config = CachedStorageConfig<S::Config>;
 
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         if let Some(cached_value) = self.cache.peek(key) {
             self.cached_reads.fetch_add(1, Ordering::Relaxed);
             return Ok(cached_value.clone());
@@ -245,7 +245,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
         Ok(())
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut values = vec![None; keys.len()]; // The None values are placeholders.
         let mut keys_to_fetch = Vec::new();
         let mut indices_to_fetch = Vec::new();
