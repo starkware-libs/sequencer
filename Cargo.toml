@@ -2,7 +2,7 @@
 # Using version 2 to avoid unifying features. For more info, read:
 #   https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2
 resolver = "2"
-
+# dummy comment
 members = [
   "crates/apollo_base_layer_tests",
   "crates/apollo_batcher",
