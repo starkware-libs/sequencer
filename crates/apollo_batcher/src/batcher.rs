@@ -709,8 +709,7 @@ impl Batcher {
             .await
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
-        // Write ready commitments to storage.
-        self.get_and_write_commitment_results_to_storage().await?;
+        self.get_commitment_results_and_write_to_storage().await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -774,8 +773,7 @@ impl Batcher {
             .await
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
-        // Write ready commitments to storage.
-        self.get_and_write_commitment_results_to_storage().await?;
+        self.get_commitment_results_and_write_to_storage().await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1160,24 +1158,6 @@ impl Batcher {
         }
     }
 
-    /// Writes the ready commitment results to storage.
-    async fn get_and_write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
-        let commitment_results = self.commitment_manager.get_commitment_results().await;
-        self.commitment_manager
-            .write_commitment_results_to_storage(
-                commitment_results,
-                self.config.first_block_with_partial_block_hash.clone(),
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .map_err(|err| {
-                error!("Failed to write commitment results to storage: {err}");
-                BatcherError::InternalError
-            })?;
-        Ok(())
-    }
-
     /// Reverts the commitment for the given height.
     /// Adds a revert task to the commitment manager channel and waits for the result.
     /// Writes commitment results to storage and handles the revert task result.
@@ -1195,7 +1175,7 @@ impl Batcher {
         self.commitment_manager
             .write_commitment_results_to_storage(
                 commitment_results,
-                self.config.first_block_with_partial_block_hash.clone(),
+                &self.config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -1248,6 +1228,19 @@ impl Batcher {
                 BatcherError::InternalError
             })?
             .ok_or(BatcherError::BlockHashNotFound(block_number))
+    }
+    async fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
+        self.commitment_manager
+            .get_commitment_results_and_write_to_storage(
+                &self.config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
+            .await
+            .map_err(|err| {
+                error!("Failed to get commitment results and write to storage: {err}");
+                BatcherError::InternalError
+            })
     }
 }
 
