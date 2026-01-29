@@ -277,7 +277,7 @@ impl Storage for RocksDbStorage {
     type Stats = RocksDbStats;
     type Config = RocksDbStorageConfig;
 
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(self.db.get(&key.0)?.map(DbValue))
     }
 
@@ -285,7 +285,7 @@ impl Storage for RocksDbStorage {
         Ok(self.db.put_opt(&key.0, &value.0, &self.options.write_options)?)
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let raw_keys = keys.iter().map(|k| &k.0);
         let res = self
             .db
