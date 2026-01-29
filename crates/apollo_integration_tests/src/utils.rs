@@ -56,8 +56,15 @@ use apollo_node_config::component_execution_config::ExpectedComponentConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::monitoring::MonitoringConfig;
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
+use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
+use apollo_staking_config::config::{
+    ConfiguredStaker,
+    StakersConfig,
+    StakingManagerConfig,
+    StakingManagerDynamicConfig,
+};
 use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
@@ -82,6 +89,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::staking::StakingWeight;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_types_core::felt::Felt;
@@ -353,6 +361,28 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     let mut timeouts = TimeoutsConfig::default();
     // Scale by 2.0 for integration runs to avoid timeouts.
     timeouts.scale_by(2.0);
+
+    // Create stakers config for epoch 0 with all validators
+    let stakers: Vec<ConfiguredStaker> = (0..n_composed_nodes)
+        .map(|i| {
+            let address = ContractAddress::from(DEFAULT_VALIDATOR_ID + u64::try_from(i).unwrap());
+            ConfiguredStaker {
+                address,
+                weight: StakingWeight(1),
+                public_key: Felt::ZERO,
+                can_propose: true,
+            }
+        })
+        .collect();
+
+    let staking_manager_config = StakingManagerConfig {
+        dynamic_config: StakingManagerDynamicConfig {
+            committee_size: n_composed_nodes,
+            stakers_config: vec![StakersConfig { start_epoch: 0, stakers }],
+        },
+        static_config: Default::default(),
+    };
+
     network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
@@ -387,6 +417,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 ..Default::default()
             },
             assume_no_malicious_validators: true,
+            staking_manager_config: staking_manager_config.clone(),
             ..Default::default()
         })
         .collect()

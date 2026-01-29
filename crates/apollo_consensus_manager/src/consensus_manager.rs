@@ -265,7 +265,6 @@ impl ConsensusManager {
         (proposals_broadcast_channels, votes_broadcast_channels)
     }
 
-    #[allow(unused)]
     fn create_committee_provider(&self) -> Option<Arc<dyn CommitteeProvider>> {
         let staking_manager_config = &self.config.staking_manager_config;
 
@@ -309,8 +308,7 @@ impl ConsensusManager {
                     Arc::clone(&self.class_manager_client),
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
-                // TODO(Asmaa): pass committee_provider
-                committee_provider: None,
+                committee_provider: self.create_committee_provider(),
                 clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
