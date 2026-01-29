@@ -11,7 +11,6 @@ use starknet_api::core::{
 use starknet_api::transaction::fields::{PROOF_VERSION, VIRTUAL_OS_OUTPUT_VERSION, VIRTUAL_SNOS};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::hash_function::hash::CONTRACT_CLASS_LEAF_V0;
-use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
 use crate::hints::vars::{CairoStruct, Const};
@@ -69,20 +68,20 @@ fn test_compiled_class_version() {
 fn test_virtual_os_output_version() {
     assert_eq!(
         Const::VirtualOsOutputVersion.fetch_from_os_program().unwrap(),
-        Felt::from(VIRTUAL_OS_OUTPUT_VERSION)
+        VIRTUAL_OS_OUTPUT_VERSION
     );
 }
 
 /// Asserts that the Rust VIRTUAL_SNOS constant matches the Cairo constant.
 #[test]
 fn test_virtual_snos() {
-    assert_eq!(Const::VirtualSnos.fetch_from_os_program().unwrap(), Felt::from(VIRTUAL_SNOS));
+    assert_eq!(Const::VirtualSnos.fetch_from_os_program().unwrap(), VIRTUAL_SNOS);
 }
 
 /// Asserts that the Rust PROOF_VERSION constant matches the Cairo constant.
 #[test]
 fn test_proof_version() {
-    assert_eq!(Const::ProofVersion.fetch_from_os_program().unwrap(), Felt::from(PROOF_VERSION));
+    assert_eq!(Const::ProofVersion.fetch_from_os_program().unwrap(), PROOF_VERSION);
 }
 
 /// Asserts that the Rust STARKNET_OS_CONFIG_HASH_VERSION constant matches the Cairo constant.
