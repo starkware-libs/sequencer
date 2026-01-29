@@ -42,7 +42,7 @@ use crate::transaction::test_utils::{
     create_init_data_for_compiled_class_hash_migration_test,
     TestInitData,
 };
-use crate::utils::{add_maps, u64_from_usize};
+use crate::utils::{add_maps, u64_from_usize, usize_from_u64};
 
 #[fixture]
 fn block_context() -> BlockContext {
@@ -761,16 +761,19 @@ fn class_hash_migration_data_from_state(
     }
     assert_eq!(migration_data.class_hashes_to_migrate, expected);
 
+    let blake_opcode_gas =
+        usize_from_u64(block_context.bouncer_config.builtin_weights.gas_costs.blake).unwrap();
+
     // Assert migration gas.
     let migration_sierra_gas = migration_data.to_gas(
         &block_context.versioned_constants.os_constants.gas_costs.builtins,
         &block_context.versioned_constants,
-        block_context.bouncer_config.blake_weight,
+        blake_opcode_gas,
     );
     let migration_proving_gas = migration_data.to_gas(
         &block_context.bouncer_config.builtin_weights.gas_costs,
         &block_context.versioned_constants,
-        block_context.bouncer_config.blake_weight,
+        blake_opcode_gas,
     );
 
     if should_migrate {
@@ -823,15 +826,19 @@ fn get_tx_weights_applies_migration_gas_delta(
         assert!(!migration_data.class_hashes_to_migrate.is_empty());
     }
 
+    let blake_opcode_gas =
+        usize_from_u64(bc_migration_enabled.bouncer_config.builtin_weights.gas_costs.blake)
+            .unwrap();
+
     let expected_migration_sierra_gas = migration_data.to_gas(
         &bc_migration_enabled.versioned_constants.os_constants.gas_costs.builtins,
         &bc_migration_enabled.versioned_constants,
-        bc_migration_enabled.bouncer_config.blake_weight,
+        blake_opcode_gas,
     );
     let expected_migration_proving_gas = migration_data.to_gas(
         &bc_migration_enabled.bouncer_config.builtin_weights.gas_costs,
         &bc_migration_enabled.versioned_constants,
-        bc_migration_enabled.bouncer_config.blake_weight,
+        blake_opcode_gas,
     );
 
     // Sanity check - migration gas is zero only when not applicable.

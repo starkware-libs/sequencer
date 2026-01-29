@@ -940,10 +940,6 @@ pub struct BuiltinGasCosts {
     pub add_mod: u64,
     pub mul_mod: u64,
     pub ecdsa: u64,
-    // Placeholder for future Blake fee charging. Currently, Blake is only accounted for by the
-    // bouncer (via `blake_weight`) and is not priced during entry point execution.
-    // TODO(YonatanK): Once Blake gas costing is supported, remove `blake_weight` from
-    // `BouncerConfig`.
     pub blake: u64,
 }
 
