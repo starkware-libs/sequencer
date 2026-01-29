@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769703148719,
+  "lastUpdate": 1769711517088,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1359,6 +1359,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1374.11525789,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e1711969bf8bafc5925968bcd84bd9afba5ecb14",
+          "message": "starknet_committer: add number of empty leaves to BlockModificationsCounts (#11919)",
+          "timestamp": "2026-01-29T17:57:24Z",
+          "tree_id": "ae43f74561c41e71dbfb009cf03080ee877b30c8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e1711969bf8bafc5925968bcd84bd9afba5ecb14"
+        },
+        "date": 1769711516712,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 893.0606316699999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1318.50253451,
             "unit": "ms"
           }
         ]
