@@ -231,7 +231,25 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
-        // Need a concrete Option type.
-        None::<NullStorage>
+        let underlying_storage = self.storage.get_async_self()?;
+        Some(CachedStorage {
+            storage: underlying_storage,
+            cache: self.cache.clone(), // This clone is cheap.
+            cache_on_write: self.cache_on_write,
+            writes: self.writes,
+            include_inner_stats: self.include_inner_stats,
+        })
+    }
+}
+
+impl<S: AsyncStorage> Clone for CachedStorage<S> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            cache: self.cache.clone(), // This clone is cheap.
+            cache_on_write: self.cache_on_write,
+            writes: self.writes,
+            include_inner_stats: self.include_inner_stats,
+        }
     }
 }
