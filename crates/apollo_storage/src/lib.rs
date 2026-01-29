@@ -634,6 +634,16 @@ impl StorageWriter {
             ))
         }
     }
+
+    /// Resets the batch counter to zero. This is a test-only helper function.
+    ///
+    /// This is useful for tests that need predictable batch behavior without accounting for
+    /// empty commits that occur during storage initialization (e.g., from set_version_if_needed).
+    #[cfg(test)]
+    pub(crate) fn reset_batch_counter_for_testing(&mut self) {
+        let mut state = self.batching_state.lock().unwrap();
+        state.commit_counter = 0;
+    }
 }
 
 /// A struct for increasing a gauge metric when an instance is created and decreasing it when it is
@@ -698,21 +708,15 @@ impl StorageTxn<'_, RW> {
                 // Batching mode: don't commit the database transaction immediately.
                 // Instead, increment the counter and potentially commit if batch size is reached.
                 //
-                // NOTE: Empty Commits Are Allowed
-                // ===============================
-                // We increment the counter for ALL commits, including empty transactions that
-                // didn't perform any writes. We are aware that this can happen and accept it
-                // as a trade-off for simpler implementation.
+                // Note: Empty Commits Are Allowed:
+                // We increment the counter for all commits, including empty transactions that
+                // didn't perform any writes.
                 //
-                // This means the actual batch size (number of transactions with real writes)
-                // may be less than the configured batch_size due to empty commits incrementing
-                // the counter. Empty commits can occur in scenarios such as:
-                // - Version checks that find no update needed
-                // - Read-only operations that still call commit() for consistency
-                // - Conditional writes where the condition evaluates to false
-                //
-                // The simpler logic (always increment) avoids the complexity of maintaining
-                // a "dirty flag" and calling mark_dirty() throughout the codebase.
+                // This means the actual batch size may be less than the configured batch_size due
+                // to empty commits incrementing the counter. Empty commits can occur in scenarios
+                // such as version checks that find no update needed, read-only operations that
+                // still call commit() for consistency, and conditional writes where the condition
+                // evaluates to false.
                 if let Some(state_arc) = self.batching_state {
                     let mut state = state_arc.lock().unwrap();
                     state.commit_counter += 1;
