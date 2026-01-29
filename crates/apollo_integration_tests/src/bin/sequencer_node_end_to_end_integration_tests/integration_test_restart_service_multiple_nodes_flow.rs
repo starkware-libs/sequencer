@@ -23,7 +23,8 @@ async fn main() {
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
     /// The number of hybrid sequencers that participate in the test.
     const N_HYBRID_SEQUENCERS: usize = 5;
-
+    /// The number of validator sequencers that participate in the test.
+    const N_VALIDATOR_SEQUENCERS: usize = 0;
     // This test assumes that there are no consolidated or distributed sequencers.
     const_assert!(N_CONSOLIDATED_SEQUENCERS == 0);
     const_assert!(N_DISTRIBUTED_SEQUENCERS == 0);
@@ -33,6 +34,7 @@ async fn main() {
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         N_HYBRID_SEQUENCERS,
+        N_VALIDATOR_SEQUENCERS,
         None,
         TestIdentifier::RestartServiceMultipleNodesFlowIntegrationTest,
     )

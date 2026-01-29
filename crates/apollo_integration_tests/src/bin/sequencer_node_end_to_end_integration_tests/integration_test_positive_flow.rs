@@ -16,12 +16,16 @@ async fn main() {
     const N_DISTRIBUTED_SEQUENCERS: usize = 1;
     /// The number of hybrid sequencers that participate in the test.
     const N_HYBRID_SEQUENCERS: usize = 1;
+    /// The number of validator sequencers that participate in the test.
+    /// // TODO(Tsabary): enable the validator sequencer by setting this to 1.
+    const N_VALIDATOR_SEQUENCERS: usize = 0;
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         N_HYBRID_SEQUENCERS,
+        N_VALIDATOR_SEQUENCERS,
         None,
         TestIdentifier::PositiveFlowIntegrationTest,
     )

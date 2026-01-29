@@ -23,6 +23,8 @@ async fn main() {
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
     /// The number of hybrid sequencers that participate in the test.
     const N_HYBRID_SEQUENCERS: usize = 3;
+    /// The number of validator sequencers that participate in the test.
+    const N_VALIDATOR_SEQUENCERS: usize = 0;
     // The indices of the nodes that we will be shutting down.
     // The test restarts a hybrid node's service and shuts down a non-consolidated
     // (hybrid/distributed) node.
@@ -33,6 +35,7 @@ async fn main() {
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         N_HYBRID_SEQUENCERS,
+        N_VALIDATOR_SEQUENCERS,
         None,
         TestIdentifier::RestartServiceSingleNodeFlowIntegrationTest,
     )
