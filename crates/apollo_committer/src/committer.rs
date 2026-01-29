@@ -3,11 +3,7 @@ use std::error::Error;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
-use apollo_committer_config::config::{
-    ApolloStorage,
-    CommitterConfig,
-    APOLLO_CACHE_STORAGE_CONFIG,
-};
+use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
@@ -113,11 +109,11 @@ pub trait StorageConstructor: Storage {
 }
 
 impl StorageConstructor for ApolloStorage {
-    fn create_storage(db_path: PathBuf, _rocksdb_config: Self::Config) -> Self {
+    fn create_storage(db_path: PathBuf, storage_config: Self::Config) -> Self {
         let rocksdb_storage = RocksDbStorage::open(Path::new(&db_path), RocksDbOptions::default())
             .inspect_err(|e| error!("Failed to open committer DB: {e}"))
             .unwrap();
-        CachedStorage::new(rocksdb_storage, APOLLO_CACHE_STORAGE_CONFIG)
+        CachedStorage::new(rocksdb_storage, storage_config)
     }
 }
 
