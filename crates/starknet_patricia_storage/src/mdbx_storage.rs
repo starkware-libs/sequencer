@@ -103,7 +103,7 @@ impl Storage for MdbxStorage {
     type Stats = MdbxStorageStats;
     type Config = EmptyStorageConfig;
 
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         Ok(txn.get(&table, &key.0)?.map(DbValue))
@@ -117,7 +117,7 @@ impl Storage for MdbxStorage {
         Ok(())
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let txn = self.db.begin_ro_txn()?;
         let table = txn.open_table(None)?;
         let mut res = Vec::with_capacity(keys.len());
