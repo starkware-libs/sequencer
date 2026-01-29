@@ -190,7 +190,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     pub(crate) async fn write_commitment_results_to_storage(
         &mut self,
         commitment_results: Vec<CommitmentTaskOutput>,
-        first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
+        first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
         storage_reader: Arc<dyn BatcherStorageReader>,
         storage_writer: &mut Box<dyn BatcherStorageWriter>,
     ) -> CommitmentManagerResult<()> {
@@ -238,6 +238,24 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             storage_writer.set_global_root_and_block_hash(height, global_root, block_hash)?;
         }
 
+        Ok(())
+    }
+
+    /// Writes the ready commitment results to storage.
+    pub(crate) async fn get_and_write_commitment_results_to_storage(
+        &mut self,
+        first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
+        storage_reader: Arc<dyn BatcherStorageReader>,
+        storage_writer: &mut Box<dyn BatcherStorageWriter>,
+    ) -> CommitmentManagerResult<()> {
+        let commitment_results = self.get_commitment_results().await;
+        self.write_commitment_results_to_storage(
+            commitment_results,
+            first_block_with_partial_block_hash,
+            storage_reader.clone(),
+            storage_writer,
+        )
+        .await?;
         Ok(())
     }
 
