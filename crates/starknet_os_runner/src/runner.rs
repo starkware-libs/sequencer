@@ -14,13 +14,8 @@ use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, OsChainInfo};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, TransactionHash};
-use starknet_os::io::os_input::{
-    CommitmentInfo,
-    OsBlockInput,
-    OsHints,
-    OsHintsConfig,
-    StarknetOsInput,
-};
+use starknet_os::commitment_infos::CommitmentInfo;
+use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::runner::run_virtual_os;
 use url::Url;
 
