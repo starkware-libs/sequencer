@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769611952022,
+  "lastUpdate": 1769678240760,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1223,6 +1223,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1234.06711169,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "010e55d01e766e628a539b256881bbb6e36eb16a",
+          "message": "starknet_committer: add number of modifications to BlockMeasurement and impl set function (#11917)",
+          "timestamp": "2026-01-29T08:50:09Z",
+          "tree_id": "c9b355039da5a9d92839c1e65eddc51bf56d1985",
+          "url": "https://github.com/starkware-libs/sequencer/commit/010e55d01e766e628a539b256881bbb6e36eb16a"
+        },
+        "date": 1769678240466,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 751.5030739700001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1177.14540695,
             "unit": "ms"
           }
         ]
