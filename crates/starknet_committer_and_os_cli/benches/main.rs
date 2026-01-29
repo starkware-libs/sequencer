@@ -69,6 +69,12 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
         .collect::<LeafModifications<StarknetStorageValue>>();
 
+    // Print input sizes for debugging (using stderr to avoid Criterion capturing).
+    eprintln!("\n=== single_tree_flow_benchmark input sizes ===");
+    eprintln!("Leaf modifications: {}", leaf_modifications.len());
+    eprintln!("Initial storage entries: {}", storage.0.len());
+    eprintln!("===============================================\n");
+
     let dummy_contract_address = ContractAddress::from(0_u128);
 
     criterion.bench_function("tree_computation_flow", move |benchmark| {
@@ -110,6 +116,28 @@ pub fn full_committer_flow_benchmark(criterion: &mut Criterion) {
     // TODO(Aner, 8/7/2024): use structs for deserialization.
     let input: HashMap<String, String> = serde_json::from_str(FLOW_TEST_INPUT).unwrap();
     let committer_input_string = input.get("committer_input").unwrap();
+
+    // Print input sizes for debugging (using stderr to avoid Criterion capturing).
+    {
+        let CommitterFactsDbInputImpl { input, storage, .. } =
+            parse_input(committer_input_string).expect("Failed to parse the given input.");
+        let total_storage_keys: usize =
+            input.state_diff.storage_updates.values().map(|m| m.len()).sum();
+        eprintln!("\n=== full_committer_flow_benchmark input sizes ===");
+        eprintln!("Initial storage entries: {}", storage.0.len());
+        eprintln!("Contracts with storage updates: {}", input.state_diff.storage_updates.len());
+        eprintln!("Total storage keys modified: {}", total_storage_keys);
+        eprintln!(
+            "Address to class hash entries: {}",
+            input.state_diff.address_to_class_hash.len()
+        );
+        eprintln!("Address to nonce entries: {}", input.state_diff.address_to_nonce.len());
+        eprintln!(
+            "Class hash to compiled class hash entries: {}",
+            input.state_diff.class_hash_to_compiled_class_hash.len()
+        );
+        eprintln!("=================================================\n");
+    }
 
     // TODO(Aner, 27/06/2024): output path should be a pipe (file on memory)
     // to avoid disk IO in the benchmark.
