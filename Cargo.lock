@@ -12416,6 +12416,7 @@ dependencies = [
  "futures",
  "hyper 0.14.32",
  "indexmap 2.12.0",
+ "jsonrpsee",
  "proving_utils",
  "rstest",
  "serde",
