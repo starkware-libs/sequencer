@@ -141,9 +141,11 @@ impl AlertCondition {
         Self { comparison_op, comparison_value: comparison_value.into(), logical_op }
     }
 
-    pub(crate) fn get_comparison_value_placeholder_name(&self) -> Option<&String> {
+    pub(crate) fn get_comparison_value_placeholder_name(&self) -> Option<String> {
         match &self.comparison_value {
-            ComparisonValueOrPlaceholder::Placeholder(placeholder_name) => Some(placeholder_name),
+            ComparisonValueOrPlaceholder::Placeholder(_) => {
+                self.comparison_value.unique_alert_placeholder_name()
+            }
             ComparisonValueOrPlaceholder::ConcreteValue(_) => None,
         }
     }
@@ -264,28 +266,18 @@ impl Alert {
         let severity = severity.into();
 
         // Collect all placeholder names from the conditions and severity field.
-        let severity_placeholder = match &severity {
-            SeverityValueOrPlaceholder::Placeholder(name) => Some(name),
-            SeverityValueOrPlaceholder::ConcreteValue(_) => None,
-        };
+        let severity_placeholder = severity.unique_alert_placeholder_name();
 
         // Extract the expression and the placeholder names from the expression field.
         let expr = expr.into();
-        let expr_placeholder_names = match &expr {
-            ExpressionOrExpressionWithPlaceholder::ConcreteValue(_) => {
-                vec![]
-            }
-            ExpressionOrExpressionWithPlaceholder::Placeholder(_, placeholders) => {
-                placeholders.clone()
-            }
-        };
+        let expr_placeholder_names = expr.unique_alert_placeholder_name();
 
         // Validate there are no duplicate placeholder names.
         let placeholder_names = conditions
             .iter()
             .filter_map(|condition| condition.get_comparison_value_placeholder_name())
             .chain(severity_placeholder)
-            .chain(expr_placeholder_names.iter())
+            .chain(expr_placeholder_names.into_iter().flatten())
             .try_fold(HashSet::new(), |mut set, name| {
                 set.insert(name.clone()).then_some(set).ok_or(name)
             })
@@ -306,7 +298,6 @@ impl Alert {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn get_placeholder_names(&self) -> &HashSet<String> {
         &self.placeholder_names
     }
