@@ -26,6 +26,7 @@ use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
 
+use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::metrics::{
     metric_count_committed_txs,
     metric_count_evicted_txs,
@@ -41,12 +42,11 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
 use crate::transaction_pool::TransactionPool;
-use crate::transaction_queue::TransactionQueue;
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
-#[path = "mempool_test.rs"]
-pub mod mempool_test;
+#[path = "fee_mempool_test.rs"]
+pub mod fee_mempool_test;
 
 #[cfg(test)]
 #[path = "mempool_flow_tests.rs"]
@@ -246,7 +246,7 @@ pub struct Mempool {
     // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
-    tx_queue: TransactionQueue,
+    tx_queue: FeeTransactionQueue,
     // Accounts whose lowest transaction nonce is greater than the account nonce, which are
     // therefore candidates for eviction.
     accounts_with_gap: AccountsWithGap,
@@ -260,7 +260,7 @@ impl Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
-            tx_queue: TransactionQueue::default(),
+            tx_queue: FeeTransactionQueue::default(),
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
