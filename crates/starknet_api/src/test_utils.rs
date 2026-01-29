@@ -232,7 +232,7 @@ pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ET
 // Virtual OS program hash for testing. Should match one of the allowed virtual OS program hashes in
 // the current versioned constants.
 pub const VIRTUAL_OS_PROGRAM_HASH: StarkHash = StarkHash::from_hex_unchecked(
-    "0x130206a40921880628605041292e995870334451179c63090221210893986a2",
+    "0x56cb82807b5af2736cee1da0919bc265b499836623bd32265eacc8c8dc98421",
 );
 
 /// Computes a deterministic block hash for testing purposes.
