@@ -16,6 +16,7 @@ use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
 use tempfile::TempDir;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
+use crate::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use crate::state::StateStorageWriter;
 use crate::storage_reader_server::ServerConfig;
 use crate::storage_reader_server_test_utils::get_response;
@@ -248,5 +249,40 @@ async fn deprecated_declared_class_requests() {
     assert_eq!(
         class_response,
         StorageReaderResponse::DeprecatedDeclaredClassesFromLocation(setup.deprecated_class)
+    );
+}
+
+#[tokio::test]
+async fn stateless_compiled_class_hash_v2_request() {
+    let block_number = BlockNumber(0);
+    let setup = setup_test_server(block_number, unique_u16!());
+
+    // Set up the executable class hash v2 for the class
+    let executable_class_hash_v2 = compiled_class_hash!(2_u8);
+    setup
+        .reader
+        .begin_rw_txn()
+        .unwrap()
+        .set_executable_class_hash_v2(&setup.class_hash, executable_class_hash_v2)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Verify it was stored correctly
+    let stored_executable_class_hash = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_executable_class_hash_v2(&setup.class_hash)
+        .unwrap()
+        .expect("Executable class hash v2 should exist");
+
+    // Test StatelessCompiledClassHashV2 request
+    let request = StorageReaderRequest::StatelessCompiledClassHashV2(setup.class_hash);
+    let response: StorageReaderResponse = get_response(setup.app, &request, StatusCode::OK).await;
+
+    assert_eq!(
+        response,
+        StorageReaderResponse::StatelessCompiledClassHashV2(stored_executable_class_hash)
     );
 }
