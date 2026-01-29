@@ -9,6 +9,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
@@ -26,6 +27,8 @@ use crate::storage_reader_types::{
 use crate::test_utils::get_test_storage;
 use crate::StorageReader;
 
+const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
+
 /// Test server setup containing all the components needed for testing storage reader requests.
 struct TestServerSetup {
     app: Router,
@@ -34,6 +37,8 @@ struct TestServerSetup {
     _temp_dir: TempDir,
     class_hash: ClassHash,
     class: SierraContractClass,
+    deprecated_class_hash: ClassHash,
+    deprecated_class: DeprecatedContractClass,
 }
 
 impl TestServerSetup {
@@ -66,12 +71,17 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     let expected_class: SierraContractClass = read_json_file("class.json");
     let class_hash = expected_class.calculate_class_hash();
 
+    let expected_deprecated_class: DeprecatedContractClass =
+        read_json_file("deprecated_class.json");
+    let deprecated_class_hash = ClassHash(felt!("0x1"));
+
     let state_diff = ThinStateDiff {
         storage_diffs: IndexMap::from([(contract_address, storage_diffs)]),
         class_hash_to_compiled_class_hash: IndexMap::from([(
             class_hash,
             compiled_class_hash!(1_u8),
         )]),
+        deprecated_declared_classes: vec![deprecated_class_hash],
         ..Default::default()
     };
 
@@ -80,7 +90,11 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .unwrap()
         .append_state_diff(block_number, state_diff.clone())
         .unwrap()
-        .append_classes(block_number, &[(class_hash, &expected_class)], &[])
+        .append_classes(
+            block_number,
+            &[(class_hash, &expected_class)],
+            &[(deprecated_class_hash, &expected_deprecated_class)],
+        )
         .unwrap()
         .commit()
         .unwrap();
@@ -100,23 +114,24 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         _temp_dir: temp_dir,
         class_hash,
         class: expected_class,
+        deprecated_class_hash,
+        deprecated_class: expected_deprecated_class,
     }
 }
 
 #[tokio::test]
 async fn state_diff_location_request() {
-    let block_number = BlockNumber(0);
-    let setup = setup_test_server(block_number, unique_u16!());
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
 
     let expected_location = setup
         .reader
         .begin_ro_txn()
         .unwrap()
-        .get_state_diff_location(block_number)
+        .get_state_diff_location(TEST_BLOCK_NUMBER)
         .unwrap()
         .expect("State diff location should exist");
 
-    let location_request = StorageReaderRequest::StateDiffsLocation(block_number);
+    let location_request = StorageReaderRequest::StateDiffsLocation(TEST_BLOCK_NUMBER);
     let location_response: StorageReaderResponse =
         setup.get_success_response(&location_request).await;
 
@@ -141,8 +156,7 @@ async fn state_diff_location_request() {
 
 #[tokio::test]
 async fn contract_storage_request() {
-    let block_number = BlockNumber(0);
-    let setup = setup_test_server(block_number, unique_u16!());
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
 
     // Extract the test data from the state diff
     let (contract_address, storage_diffs) = setup.state_diff.storage_diffs.iter().next().unwrap();
@@ -150,7 +164,7 @@ async fn contract_storage_request() {
 
     // Request the storage value
     let request =
-        StorageReaderRequest::ContractStorage((*contract_address, *storage_key), block_number);
+        StorageReaderRequest::ContractStorage((*contract_address, *storage_key), TEST_BLOCK_NUMBER);
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::ContractStorage(*storage_value));
@@ -158,8 +172,7 @@ async fn contract_storage_request() {
 
 #[tokio::test]
 async fn declared_class_requests() {
-    let block_number = BlockNumber(0);
-    let setup = setup_test_server(block_number, unique_u16!());
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
 
     // Get the expected location
     let expected_location = setup
@@ -192,11 +205,48 @@ async fn declared_class_requests() {
 
 #[tokio::test]
 async fn declared_class_block_request() {
-    let block_number = BlockNumber(0);
-    let setup = setup_test_server(block_number, unique_u16!());
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
 
     let request = StorageReaderRequest::DeclaredClassesBlock(setup.class_hash);
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
-    assert_eq!(response, StorageReaderResponse::DeclaredClassesBlock(block_number));
+    assert_eq!(response, StorageReaderResponse::DeclaredClassesBlock(TEST_BLOCK_NUMBER));
+}
+
+#[tokio::test]
+async fn deprecated_declared_class_requests() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    // Get the expected location
+    let expected_location = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_deprecated_class_location(&setup.deprecated_class_hash)
+        .unwrap()
+        .expect("Deprecated class location should exist");
+
+    // Test DeprecatedDeclaredClassesLocation request
+    let location_request =
+        StorageReaderRequest::DeprecatedDeclaredClassesLocation(setup.deprecated_class_hash);
+    let location_response: StorageReaderResponse =
+        get_response(setup.app.clone(), &location_request, StatusCode::OK).await;
+
+    let location = match location_response {
+        StorageReaderResponse::DeprecatedDeclaredClassesLocation(loc) => {
+            assert_eq!(loc, expected_location);
+            loc
+        }
+        _ => panic!("Expected DeprecatedDeclaredClassesLocation response"),
+    };
+
+    // Test DeprecatedDeclaredClassesFromLocation request
+    let class_request = StorageReaderRequest::DeprecatedDeclaredClassesFromLocation(location);
+    let class_response: StorageReaderResponse =
+        get_response(setup.app, &class_request, StatusCode::OK).await;
+
+    assert_eq!(
+        class_response,
+        StorageReaderResponse::DeprecatedDeclaredClassesFromLocation(setup.deprecated_class)
+    );
 }
