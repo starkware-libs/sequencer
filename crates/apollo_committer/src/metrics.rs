@@ -36,12 +36,12 @@ define_metrics!(
         MetricHistogram {
             READ_DURATION_PER_BLOCK_HIST,
             "read_duration_per_block_hist",
-            "Duration of the read operation per block in milliseconds"
+            "Duration of the read operation per block in seconds"
         },
         MetricGauge {
             READ_DURATION_PER_BLOCK,
             "read_duration_per_block",
-            "Duration of the read operation per block in milliseconds"
+            "Duration of the read operation per block in seconds"
         },
         MetricGauge {
             READ_DB_ENTRIES_PER_BLOCK,
@@ -51,12 +51,12 @@ define_metrics!(
         MetricHistogram {
             WRITE_DURATION_PER_BLOCK_HIST,
             "write_duration_per_block",
-            "Duration of the write operation per block in milliseconds"
+            "Duration of the write operation per block in seconds"
         },
         MetricGauge {
             WRITE_DURATION_PER_BLOCK,
             "write_duration_per_block",
-            "Duration of the write operation per block in milliseconds"
+            "Duration of the write operation per block in seconds"
         },
         MetricGauge {
             WRITE_DB_ENTRIES_PER_BLOCK,
@@ -66,12 +66,12 @@ define_metrics!(
         MetricHistogram {
             COMPUTE_DURATION_PER_BLOCK_HIST,
             "compute_duration_per_block",
-            "Duration of the compute operation per block in milliseconds"
+            "Duration of the compute operation per block in seconds"
         },
         MetricGauge {
             COMPUTE_DURATION_PER_BLOCK,
             "compute_duration_per_block",
-            "Duration of the compute operation per block in milliseconds"
+            "Duration of the compute operation per block in seconds"
         },
     },
 );
