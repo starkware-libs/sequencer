@@ -28,6 +28,13 @@ impl CommitterTaskInput {
             Self::Revert(request) => request.height,
         }
     }
+
+    pub(crate) fn task_type(&self) -> CommitterRequestLabelValue {
+        match self {
+            Self::Commit(_) => CommitterRequestLabelValue::CommitBlock,
+            Self::Revert(_) => CommitterRequestLabelValue::RevertBlock,
+        }
+    }
 }
 
 impl Display for CommitterTaskInput {
