@@ -260,10 +260,10 @@ where
         let max_attempts = self.config.retries + 1;
         trace!("Starting retry loop: max_attempts = {max_attempts}");
         let mut retry_interval_ms = self.config.initial_retry_delay_ms;
+        let http_request =
+            self.construct_http_request(serialized_request_bytes.clone(), &request_id);
         for attempt in 1..max_attempts + 1 {
             trace!("Request {log_message} attempt {attempt} of {max_attempts}");
-            let http_request =
-                self.construct_http_request(serialized_request_bytes.clone(), &request_id);
             let start = Instant::now();
             let res = self.try_send(http_request).await;
             let elapsed = start.elapsed();
