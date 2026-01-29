@@ -13,7 +13,6 @@ cairo_native = ["blockifier/cairo_native"]
 apollo_infra_utils.workspace = true
 apollo_transaction_converter.workspace = true
 async-trait.workspace = true
-axum.workspace = true
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
 cairo-lang-starknet-classes.workspace = true

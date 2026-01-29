@@ -12405,7 +12405,6 @@ dependencies = [
  "apollo_starknet_os_program",
  "apollo_transaction_converter",
  "async-trait",
- "axum 0.6.20",
  "blockifier",
  "blockifier_reexecution",
  "blockifier_test_utils",

@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
-use starknet_os_runner::server::http_server::ProvingHttpServer;
+use starknet_os_runner::server::http_server::ProvingRpcHttpServer;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ServiceConfig::from_args(args)?;
 
     // Create and run server.
-    let server = ProvingHttpServer::new(config);
+    let server = ProvingRpcHttpServer::new(config);
     server.run().await?;
 
     Ok(())
