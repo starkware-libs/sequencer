@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::num::NonZeroUsize;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -105,8 +107,8 @@ pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
     pub cache_on_write: bool,
-    reads: u128,
-    cached_reads: u128,
+    reads: Arc<AtomicU64>,
+    cached_reads: Arc<AtomicU64>,
     writes: u128,
     include_inner_stats: bool,
 }
@@ -233,8 +235,8 @@ impl<S: Storage> CachedStorage<S> {
             storage,
             cache: LruCache::new(config.cache_size),
             cache_on_write: config.cache_on_write,
-            reads: 0,
-            cached_reads: 0,
+            reads: Arc::new(AtomicU64::new(0)),
+            cached_reads: Arc::new(AtomicU64::new(0)),
             writes: 0,
             include_inner_stats: config.include_inner_stats,
         }
@@ -252,14 +254,6 @@ impl<S: Storage> CachedStorage<S> {
         });
     }
 
-    pub fn total_reads(&self) -> u128 {
-        self.reads
-    }
-
-    pub fn total_cached_reads(&self) -> u128 {
-        self.cached_reads
-    }
-
     pub fn total_writes(&self) -> u128 {
         self.writes
     }
@@ -267,9 +261,9 @@ impl<S: Storage> CachedStorage<S> {
 
 impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
     async fn get_mut(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        self.reads += 1;
+        self.reads.fetch_add(1, Ordering::Relaxed);
         if let Some(cached_value) = self.cache.get(key) {
-            self.cached_reads += 1;
+            self.cached_reads.fetch_add(1, Ordering::Relaxed);
             return Ok(cached_value.clone());
         }
 
@@ -292,9 +286,11 @@ impl<S: Storage> ReadOnlyStorage for CachedStorage<S> {
             }
         }
 
-        self.reads += u128::try_from(keys.len()).expect("usize should fit in u128");
-        self.cached_reads +=
-            u128::try_from(keys.len() - keys_to_fetch.len()).expect("usize should fit in u128");
+        let n_keys = u64::try_from(keys.len()).expect("keys length should fit in u64");
+        let cached_reads =
+            u64::try_from(keys.len() - keys_to_fetch.len()).expect("usize should fit in u64");
+        self.reads.fetch_add(n_keys, Ordering::Relaxed);
+        self.cached_reads.fetch_add(cached_reads, Ordering::Relaxed);
 
         let fetched_values = self.storage.mget_mut(keys_to_fetch.as_slice()).await?;
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
@@ -352,10 +348,13 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
+        let reads = u128::from(self.reads.load(Ordering::Acquire));
+        let cached_reads = u128::from(self.cached_reads.load(Ordering::Acquire));
+        let writes = self.writes;
         Ok(CachedStorageStats {
-            reads: self.reads,
-            cached_reads: self.cached_reads,
-            writes: self.writes,
+            reads,
+            cached_reads,
+            writes,
             inner_stats: if self.include_inner_stats {
                 Some(self.storage.get_stats()?)
             } else {
@@ -365,8 +364,8 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
-        self.reads = 0;
-        self.cached_reads = 0;
+        self.reads.store(0, Ordering::Release);
+        self.cached_reads.store(0, Ordering::Release);
         self.writes = 0;
         self.storage.reset_stats()
     }
