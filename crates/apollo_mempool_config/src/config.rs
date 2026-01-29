@@ -4,6 +4,7 @@ use std::time::Duration;
 use apollo_config::converters::deserialize_seconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_deployment_mode::DeploymentMode;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -70,6 +71,15 @@ pub struct MempoolStaticConfig {
     pub committed_nonce_retention_block_count: usize,
     // The maximum size of the mempool, in bytes.
     pub capacity_in_bytes: u64,
+    // Deployment mode: determines queue type and other behavior.
+    pub deployment_mode: DeploymentMode,
+}
+
+impl MempoolStaticConfig {
+    /// Returns true if the deployment mode is Echonet (test/replay mode with FIFO queue).
+    pub fn is_echonet(&self) -> bool {
+        matches!(self.deployment_mode, DeploymentMode::Echonet)
+    }
 }
 
 impl Default for MempoolStaticConfig {
@@ -81,6 +91,7 @@ impl Default for MempoolStaticConfig {
             declare_delay: Duration::from_secs(1),
             committed_nonce_retention_block_count: 100,
             capacity_in_bytes: 1 << 30, // 1GB.
+            deployment_mode: DeploymentMode::Starknet,
         }
     }
 }
@@ -125,6 +136,12 @@ impl SerializeConfig for MempoolStaticConfig {
                 "capacity_in_bytes",
                 &self.capacity_in_bytes,
                 "Maximum size of the mempool, in bytes.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "deployment_mode",
+                &format!("{:?}", self.deployment_mode).to_lowercase(),
+                "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
                 ParamPrivacyInput::Public,
             ),
         ])

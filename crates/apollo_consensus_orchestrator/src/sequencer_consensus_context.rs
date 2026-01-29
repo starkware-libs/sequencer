@@ -30,6 +30,12 @@ use apollo_consensus::types::{
     ValidatorId,
 };
 use apollo_consensus_orchestrator_config::config::ContextConfig;
+use apollo_deployment_mode::DeploymentMode;
+
+/// Helper function to determine if state sync block timestamps should be used.
+fn should_use_state_sync_block_timestamp(mode: &DeploymentMode) -> bool {
+    matches!(mode, DeploymentMode::Echonet)
+}
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
@@ -509,7 +515,7 @@ impl ConsensusContext for SequencerConsensusContext {
             );
 
         let use_state_sync_block_timestamp =
-            self.config.static_config.deployment_mode.use_state_sync_block_timestamp();
+            should_use_state_sync_block_timestamp(&self.config.static_config.deployment_mode);
 
         let round = proposal_init.round;
         let args = ProposalBuildArguments {

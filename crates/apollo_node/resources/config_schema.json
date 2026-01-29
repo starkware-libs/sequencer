@@ -2191,8 +2191,8 @@
   },
   "consensus_manager_config.context_config.static_config.deployment_mode": {
     "description": "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
-    "privacy": "Public",
-    "value": "starknet"
+    "pointer_target": "deployment_mode",
+    "privacy": "Public"
   },
   "consensus_manager_config.context_config.static_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
@@ -2353,6 +2353,11 @@
     "description": "The topic for consensus votes.",
     "privacy": "Public",
     "value": "consensus_votes"
+  },
+  "deployment_mode": {
+    "description": "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "privacy": "TemporaryValue",
+    "value": "starknet"
   },
   "eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
@@ -2778,6 +2783,11 @@
     "description": "Time to wait before allowing a Declare transaction to be returned, in seconds.",
     "privacy": "Public",
     "value": 1
+  },
+  "mempool_config.static_config.deployment_mode": {
+    "description": "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "deployment_mode",
+    "privacy": "Public"
   },
   "mempool_config.static_config.enable_fee_escalation": {
     "description": "If true, transactions can be replaced with higher fee transactions.",
