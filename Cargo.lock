@@ -11502,7 +11502,7 @@ dependencies = [
  "digest 0.10.7",
  "hex",
  "libmdbx",
- "lru 0.12.5",
+ "moka",
  "page_size",
  "rstest",
  "rust-rocksdb",
