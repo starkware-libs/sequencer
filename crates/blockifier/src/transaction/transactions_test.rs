@@ -140,6 +140,7 @@ use crate::test_utils::l1_handler::{
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
+    create_valid_proof_facts_for_testing,
     get_const_syscall_resources,
     get_tx_resources,
     test_erc20_sequencer_balance_key,
@@ -599,7 +600,7 @@ fn test_invoke_tx(
     #[case] mut expected_arguments: ExpectedResultTestInvokeTx,
     #[case] account_cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
-    #[values(ProofFacts::default(), ProofFacts::snos_proof_facts_for_testing())]
+    #[values(ProofFacts::default(), create_valid_proof_facts_for_testing())]
     proof_facts: ProofFacts,
 ) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);

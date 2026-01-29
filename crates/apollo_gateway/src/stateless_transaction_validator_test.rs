@@ -4,6 +4,7 @@ use std::vec;
 use apollo_gateway_config::compiler_version::{VersionId, VersionIdError};
 use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use assert_matches::assert_matches;
+use blockifier::test_utils::create_valid_proof_facts_for_testing;
 use rstest::rstest;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
@@ -146,7 +147,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::client_side_proving(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    RpcTransactionArgs { proof_facts: ProofFacts::snos_proof_facts_for_testing(), proof: Proof::proof_for_testing(), ..Default::default()}
+    RpcTransactionArgs { proof_facts: create_valid_proof_facts_for_testing(), proof: Proof::proof_for_testing(), ..Default::default()}
 )]
 #[case::client_side_proving_disabled(
     StatelessTransactionValidatorConfig {
@@ -638,16 +639,16 @@ fn test_declare_entry_points_not_sorted_by_selector(
 
 #[rstest]
 #[case::no_proof_data_allowed_when_disabled(false, None, None)]
-#[case::proof_facts_only(false, Some(ProofFacts::snos_proof_facts_for_testing()), None)]
+#[case::proof_facts_only(false, Some(create_valid_proof_facts_for_testing()), None)]
 #[case::proof_only(false, None, Some(Proof::proof_for_testing()))]
 #[case::both_proof_and_facts(
     false,
-    Some(ProofFacts::snos_proof_facts_for_testing()),
+    Some(create_valid_proof_facts_for_testing()),
     Some(Proof::proof_for_testing())
 )]
 #[case::enabled_accepts_both(
     true,
-    Some(ProofFacts::snos_proof_facts_for_testing()),
+    Some(create_valid_proof_facts_for_testing()),
     Some(Proof::proof_for_testing())
 )]
 fn test_client_side_proving_flag(
@@ -687,12 +688,8 @@ fn test_client_side_proving_flag(
 // Tests that the proof facts and the proof must be either both empty or both non-empty.
 #[rstest]
 #[case::both_empty(ProofFacts::default(), Proof::default(), true)]
-#[case::both_non_empty(
-    ProofFacts::snos_proof_facts_for_testing(),
-    Proof::proof_for_testing(),
-    true
-)]
-#[case::proof_facts_only(ProofFacts::snos_proof_facts_for_testing(), Proof::default(), false)]
+#[case::both_non_empty(create_valid_proof_facts_for_testing(), Proof::proof_for_testing(), true)]
+#[case::proof_facts_only(create_valid_proof_facts_for_testing(), Proof::default(), false)]
 #[case::proof_only(ProofFacts::default(), Proof::proof_for_testing(), false)]
 fn test_proof_facts_and_proof_consistency(
     #[case] proof_facts: ProofFacts,
