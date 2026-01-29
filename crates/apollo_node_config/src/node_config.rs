@@ -171,6 +171,18 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ]),
     );
     pointers.append(&mut common_execution_config);
+
+    pointers.push((
+        ser_pointer_target_param(
+            "deployment_mode",
+            &"starknet".to_string(),
+            "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+        ),
+        set_pointing_param_paths(&[
+            "consensus_manager_config.context_config.static_config.deployment_mode",
+            "mempool_config.static_config.deployment_mode",
+        ]),
+    ));
     pointers
 });
 

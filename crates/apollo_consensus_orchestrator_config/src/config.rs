@@ -11,26 +11,11 @@ use apollo_config::converters::{
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_deployment_mode::DeploymentMode;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
 use validator::Validate;
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum DeploymentMode {
-    // Production mode.
-    #[default]
-    Starknet,
-    // Echonet mode.
-    Echonet,
-}
-
-impl DeploymentMode {
-    pub fn use_state_sync_block_timestamp(&self) -> bool {
-        matches!(self, DeploymentMode::Echonet)
-    }
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
