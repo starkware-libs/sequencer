@@ -1,9 +1,15 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, RwLock};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::Round;
-use apollo_staking_config::config::{find_config_for_epoch, StakersConfig, StakingManagerConfig};
+use apollo_staking_config::config::{
+    find_config_for_epoch,
+    StakersConfig,
+    StakingManagerConfig,
+    StakingManagerDynamicConfig,
+    StakingManagerStaticConfig,
+};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -80,13 +86,14 @@ impl Epoch {
 pub struct StakingManager {
     staking_contract: Arc<dyn StakingContract>,
     state_sync_client: SharedStateSyncClient,
-    committee_data_cache: CommitteeDataCache,
+    committee_data_cache: Mutex<CommitteeDataCache>,
 
     // Caches the current epoch fetched from the state.
-    cached_epoch: Option<Epoch>,
+    cached_epoch: Mutex<Option<Epoch>>,
 
     random_generator: Box<dyn BlockRandomGenerator>,
-    config: StakingManagerConfig,
+    static_config: StakingManagerStaticConfig,
+    dynamic_config: RwLock<StakingManagerDynamicConfig>,
     config_manager_client: Option<SharedConfigManagerClient>,
 }
 
@@ -118,22 +125,26 @@ impl StakingManager {
         Self {
             staking_contract,
             state_sync_client,
-            committee_data_cache: CommitteeDataCache::new(config.static_config.max_cached_epochs),
-            cached_epoch: None,
+            committee_data_cache: Mutex::new(CommitteeDataCache::new(
+                config.static_config.max_cached_epochs,
+            )),
+            cached_epoch: Mutex::new(None),
             random_generator,
-            config,
+            static_config: config.static_config,
+            dynamic_config: RwLock::new(config.dynamic_config),
             config_manager_client,
         }
     }
 
-    async fn update_dynamic_config(&mut self) {
+    async fn update_dynamic_config(&self) {
         let Some(client) = &self.config_manager_client else {
             return;
         };
 
         match client.get_staking_manager_dynamic_config().await {
-            Ok(dynamic_config) => {
-                self.config.dynamic_config = dynamic_config;
+            Ok(new_config) => {
+                let mut dynamic_config = self.dynamic_config.write().expect("RwLock poisoned");
+                *dynamic_config = new_config;
             }
             Err(error) => {
                 warn!("Failed to fetch staking manager dynamic config: {error}");
@@ -144,19 +155,25 @@ impl StakingManager {
     // Returns the committee data for the given epoch.
     // If the data is not cached, it is fetched from the state and cached.
     async fn committee_data_at_height(
-        &mut self,
+        &self,
         height: BlockNumber,
     ) -> CommitteeProviderResult<Arc<CommitteeData>> {
         let epoch = self.epoch_at_height(height).await?;
 
         // Attempt to read from cache.
-        if let Some(committee_data) = self.committee_data_cache.get(epoch) {
-            return Ok(committee_data.clone());
+        {
+            let cache = self.committee_data_cache.lock().expect("Mutex poisoned");
+            if let Some(committee_data) = cache.get(epoch) {
+                return Ok(committee_data.clone());
+            }
         }
 
         // Otherwise, build the committee from state, and cache the result.
         let committee_data = Arc::new(self.fetch_and_build_committee_data(epoch).await?);
-        self.committee_data_cache.insert(epoch, committee_data.clone());
+
+        // Cache the result.
+        let mut cache = self.committee_data_cache.lock().expect("Mutex poisoned");
+        cache.insert(epoch, committee_data.clone());
 
         Ok(committee_data)
     }
@@ -196,7 +213,8 @@ impl StakingManager {
         stakers.sort_by_key(|staker| (staker.weight, staker.address));
 
         // Take the top `committee_size` stakers by weight.
-        stakers.into_iter().rev().take(self.config.dynamic_config.committee_size).collect()
+        let committee_size = self.dynamic_config.read().expect("RwLock poisoned").committee_size;
+        stakers.into_iter().rev().take(committee_size).collect()
     }
 
     async fn proposer_randomness_block_hash(
@@ -205,7 +223,7 @@ impl StakingManager {
     ) -> CommitteeProviderResult<Option<BlockHash>> {
         let randomness_source_block = current_block_number
             .0
-            .checked_sub(self.config.static_config.proposer_prediction_window_in_heights);
+            .checked_sub(self.static_config.proposer_prediction_window_in_heights);
 
         match randomness_source_block {
             None => {
@@ -268,8 +286,8 @@ impl StakingManager {
         epoch: u64,
     ) -> Vec<&'a Staker> {
         // Find the stakers config for the given epoch
-        let stakers_config = &self.config.dynamic_config.stakers_config;
-        let config_entry = find_config_for_epoch(stakers_config, epoch);
+        let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned");
+        let config_entry = find_config_for_epoch(&dynamic_config.stakers_config, epoch);
 
         let Some(StakersConfig { stakers, .. }) = config_entry else {
             warn!("No stakers config found for epoch {epoch}, returning empty list.");
@@ -289,22 +307,36 @@ impl StakingManager {
             .collect()
     }
 
-    async fn epoch_at_height(&mut self, height: BlockNumber) -> CommitteeProviderResult<u64> {
-        if self.cached_epoch.as_ref().is_none_or(|epoch| !epoch.contains(height)) {
-            // Fetch the epoch from the state.
-            let epoch = self.staking_contract.get_current_epoch().await?;
-            self.cached_epoch = Some(epoch);
-        }
-
-        let cached_epoch = self.cached_epoch.as_ref().expect("cached_epoch should be set");
-
-        if cached_epoch.contains(height) {
-            Ok(cached_epoch.epoch_id)
-        } else if cached_epoch.within_next_epoch_min_bounds(height) {
-            Ok(cached_epoch.epoch_id + 1)
+    fn try_resolve_epoch_id(&self, epoch: &Epoch, height: BlockNumber) -> Option<u64> {
+        if epoch.contains(height) {
+            Some(epoch.epoch_id)
+        } else if epoch.within_next_epoch_min_bounds(height) {
+            Some(epoch.epoch_id + 1)
         } else {
-            Err(CommitteeProviderError::InvalidHeight { height })
+            None
         }
+    }
+
+    async fn epoch_at_height(&self, height: BlockNumber) -> CommitteeProviderResult<u64> {
+        // Check if we can resolve the epoch from the cache.
+        {
+            let cached_epoch_guard = self.cached_epoch.lock().expect("Mutex poisoned");
+            if let Some(epoch_id) = cached_epoch_guard
+                .as_ref()
+                .and_then(|epoch| self.try_resolve_epoch_id(epoch, height))
+            {
+                return Ok(epoch_id);
+            }
+        }
+
+        // Otherwise, fetch the epoch from the state and cache the result.
+        let epoch = self.staking_contract.get_current_epoch().await?;
+
+        let mut cached_epoch_guard = self.cached_epoch.lock().expect("Mutex poisoned");
+        *cached_epoch_guard = Some(epoch);
+
+        self.try_resolve_epoch_id(cached_epoch_guard.as_ref().unwrap(), height)
+            .ok_or(CommitteeProviderError::InvalidHeight { height })
     }
 }
 
@@ -313,10 +345,7 @@ impl CommitteeProvider for StakingManager {
     // Returns the committee for the epoch at the given height.
     // The height must be within the bounds of the current epoch, or the next epoch's min bounds
     // (see `MIN_EPOCH_LENGTH`).
-    async fn get_committee(
-        &mut self,
-        height: BlockNumber,
-    ) -> CommitteeProviderResult<Arc<Committee>> {
+    async fn get_committee(&self, height: BlockNumber) -> CommitteeProviderResult<Arc<Committee>> {
         self.update_dynamic_config().await;
 
         let committee_data = self.committee_data_at_height(height).await?;
@@ -328,7 +357,7 @@ impl CommitteeProvider for StakingManager {
     // Selection is based on a deterministic random number derived from the height, round,
     // and the hash of a past block — offset by `config.proposer_prediction_window`.
     async fn get_proposer(
-        &mut self,
+        &self,
         height: BlockNumber,
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress> {
@@ -352,7 +381,7 @@ impl CommitteeProvider for StakingManager {
     // stakers. Unlike `get_proposer` which uses weighted random selection, this method filters the
     // committee based on the `can_propose` configuration and uses deterministic round-robin.
     async fn get_actual_proposer(
-        &mut self,
+        &self,
         height: BlockNumber,
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress> {
