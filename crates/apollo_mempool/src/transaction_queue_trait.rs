@@ -22,7 +22,7 @@ pub trait TransactionQueueTrait: Send + Sync {
 
     fn update_gas_price_threshold(&mut self, threshold: GasPrice);
 
-    fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference>;
+    fn iter_over_ready_txs(&self) -> Box<dyn Iterator<Item = &TransactionReference> + '_>;
 
     fn queue_snapshot(&self) -> TransactionQueueSnapshot;
 
@@ -30,4 +30,13 @@ pub trait TransactionQueueTrait: Send + Sync {
         &mut self,
         next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
     ) -> HashSet<TransactionHash>;
+
+    // TODO(Ayelet): Rethink these methods after implementing FIFO queue, since it doesn't have a
+    // concept of "pending" transactions.
+    fn priority_queue_len(&self) -> usize;
+
+    fn pending_queue_len(&self) -> usize;
+
+    #[cfg(test)]
+    fn pending_txs(&self) -> Vec<TransactionReference>;
 }

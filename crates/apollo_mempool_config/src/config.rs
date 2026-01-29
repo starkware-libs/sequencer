@@ -7,6 +7,12 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum QueueType {
+    Fee,
+    Fifo,
+}
 /// Configuration for consensus containing both static and dynamic configs.
 #[derive(Debug, Deserialize, Default, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolConfig {
@@ -70,6 +76,8 @@ pub struct MempoolStaticConfig {
     pub committed_nonce_retention_block_count: usize,
     // The maximum size of the mempool, in bytes.
     pub capacity_in_bytes: u64,
+    // Type of transaction queue to use: priority based on fee or FIFO.
+    pub queue_type: QueueType,
 }
 
 impl Default for MempoolStaticConfig {
@@ -81,6 +89,7 @@ impl Default for MempoolStaticConfig {
             declare_delay: Duration::from_secs(1),
             committed_nonce_retention_block_count: 100,
             capacity_in_bytes: 1 << 30, // 1GB.
+            queue_type: QueueType::Fee,
         }
     }
 }
@@ -125,6 +134,12 @@ impl SerializeConfig for MempoolStaticConfig {
                 "capacity_in_bytes",
                 &self.capacity_in_bytes,
                 "Maximum size of the mempool, in bytes.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "queue_type",
+                &format!("{:?}", self.queue_type).to_lowercase(),
+                "Type of transaction queue to use: priority based on fee or FIFO.",
                 ParamPrivacyInput::Public,
             ),
         ])
