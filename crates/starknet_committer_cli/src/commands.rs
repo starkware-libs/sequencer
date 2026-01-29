@@ -376,7 +376,7 @@ fn apply_interference<S: AsyncStorage>(
     n_updates_arg: usize,
     block_number: usize,
     task_set: &mut JoinSet<()>,
-    mut storage: S,
+    storage: S,
     rng: &mut SmallRng,
 ) {
     match interference_type {
