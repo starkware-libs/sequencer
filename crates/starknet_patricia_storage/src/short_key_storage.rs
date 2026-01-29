@@ -50,7 +50,7 @@ macro_rules! define_short_key_storage {
             type Stats = S::Stats;
             type Config = EmptyStorageConfig;
 
-            async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+            async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
                 self.storage.get(&Self::small_key(key)).await
             }
 
@@ -58,7 +58,7 @@ macro_rules! define_short_key_storage {
                 self.storage.set(Self::small_key(&key), value).await
             }
 
-            async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+            async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
                 let small_keys = keys
                     .iter()
                     .map(|key| Self::small_key(key))

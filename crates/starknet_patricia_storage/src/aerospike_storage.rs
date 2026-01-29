@@ -117,7 +117,7 @@ impl Storage for AerospikeStorage {
     type Stats = NoStats;
     type Config = EmptyStorageConfig;
 
-    async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let record = self
             .client
             .get(&self.config.read_policy, &self.get_key(key.clone())?, Bins::All)
@@ -136,7 +136,7 @@ impl Storage for AerospikeStorage {
             .await?)
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         let mut ops = Vec::new();
         for key in keys.iter() {
             ops.push(BatchOperation::read(
