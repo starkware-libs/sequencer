@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
-use starknet_os::io::os_input::{CommitmentInfo, StateCommitmentInfos};
+use starknet_os::commitment_infos::{CommitmentInfo, StateCommitmentInfos};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     flatten_preimages,
     Preimage,
