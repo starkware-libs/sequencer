@@ -57,7 +57,7 @@ macro_rules! log_trivial_modification {
 pub(crate) async fn fetch_nodes<'a, L, Layout>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
     subtrees: Vec<Layout::SubTree>,
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig,
     mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -241,7 +241,7 @@ fn handle_child_subtree<'a, SubTree: SubTreeTrait<'a>>(
 // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
 pub async fn get_roots_from_storage<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     subtrees: &[Layout::SubTree],
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>> {
     let mut subtrees_roots = vec![];
@@ -293,7 +293,7 @@ pub(crate) fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug
 ///   fetching nodes from storage.
 /// - `leaf_modifications` and `previous_leaves`: Their leaf type `L` is constrained by `Layout`.
 pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
     config: &impl OriginalSkeletonTreeConfig,
@@ -338,7 +338,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
 }
 
 pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
@@ -380,7 +380,7 @@ where
 /// Creates the contracts trie original skeleton.
 /// Also returns the previous contracts state of the modified contracts.
 pub async fn create_contracts_trie<'a, Layout: NodeLayoutFor<ContractState>>(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     contracts_trie_root_hash: HashOutput,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
 ) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)>
@@ -408,7 +408,7 @@ where
 }
 
 pub async fn create_classes_trie<'a, Layout: NodeLayoutFor<CompiledClassHash>>(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     actual_classes_updates: &LeafModifications<CompiledClassHash>,
     classes_trie_root_hash: HashOutput,
     config: &ReaderConfig,

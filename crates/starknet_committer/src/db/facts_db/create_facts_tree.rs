@@ -19,7 +19,7 @@ pub mod create_facts_tree_test;
 /// Note that ATM, the Rust committer does not manage history and is not used for storage proofs;
 /// Thus, this function assumes facts layout.
 pub async fn get_leaves<'a, L: Leaf>(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'a>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
