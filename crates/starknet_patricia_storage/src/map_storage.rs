@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
-use std::num::NonZeroUsize;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -23,7 +22,7 @@ use crate::storage_trait::{
 };
 
 // 1M entries.
-const DEFAULT_CACHE_SIZE: usize = 1000000;
+const DEFAULT_CACHE_SIZE: u64 = 1000000;
 
 #[derive(Debug, Default, PartialEq, Serialize)]
 pub struct MapStorage(pub DbHashMap);
@@ -85,7 +84,7 @@ pub struct CachedStorage<S: Storage> {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CachedStorageConfig<InnerStorageConfig: StorageConfigTrait> {
     // Max number of entries in the cache.
-    pub cache_size: NonZeroUsize, // TODO(Nimrod): Change type to `u64`.
+    pub cache_size: u64,
 
     // If true, the cache is updated on write operations even if the value is not in the cache.
     pub cache_on_write: bool,
@@ -100,7 +99,7 @@ pub struct CachedStorageConfig<InnerStorageConfig: StorageConfigTrait> {
 impl<InnerStorageConfig: StorageConfigTrait> Default for CachedStorageConfig<InnerStorageConfig> {
     fn default() -> Self {
         Self {
-            cache_size: NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap(),
+            cache_size: DEFAULT_CACHE_SIZE,
             cache_on_write: true,
             include_inner_stats: true,
             inner_storage_config: InnerStorageConfig::default(),
@@ -203,9 +202,7 @@ impl<S: Storage> CachedStorage<S> {
         // TODO(Nimrod): Consider defining custom eviction policies.
         Self {
             storage,
-            cache: Cache::builder()
-                .max_capacity(config.cache_size.get().try_into().unwrap())
-                .build(),
+            cache: Cache::builder().max_capacity(config.cache_size).build(),
             cache_on_write: config.cache_on_write,
             reads: 0,
             cached_reads: 0,
