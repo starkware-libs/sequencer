@@ -33,7 +33,7 @@ impl VirtualOsOutput {
         let mut iter = raw_output.iter().copied();
 
         let version = wrap_missing(iter.next(), "version")?;
-        let expected_version = Felt::from(VIRTUAL_OS_OUTPUT_VERSION);
+        let expected_version = VIRTUAL_OS_OUTPUT_VERSION;
         if version != expected_version {
             return Err(OsOutputError::InvalidOsOutputField {
                 value_name: "version".to_string(),

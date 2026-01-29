@@ -419,7 +419,7 @@ impl TransactionConverter {
         }
 
         // Validate that the first element of proof facts is PROOF_VERSION.
-        let expected_proof_version = Felt::from(PROOF_VERSION);
+        let expected_proof_version = PROOF_VERSION;
         let actual_first = proof_facts.0.first().copied().unwrap_or_default();
         if actual_first != expected_proof_version {
             return Err(VerifyProofError::InvalidProofVersion {

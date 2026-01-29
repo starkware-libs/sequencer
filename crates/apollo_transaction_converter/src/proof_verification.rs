@@ -106,7 +106,7 @@ impl ProgramOutput {
             return Err(ProgramOutputError::InvalidNumTasks(*num_tasks));
         }
         // Add the proof version and variant markers in place of num_tasks.
-        let mut facts = vec![Felt::from(PROOF_VERSION)];
+        let mut facts = vec![PROOF_VERSION];
         facts.push(program_variant);
         // Add the rest of the program output (everything after num_tasks).
         facts.extend_from_slice(&self.0[1..]);

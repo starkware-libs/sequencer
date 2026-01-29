@@ -617,14 +617,15 @@ impl AccountDeploymentData {
 }
 
 // Represent the string `VIRTUAL_SNOS` as a Felt.
-pub const VIRTUAL_SNOS: u128 = 0x5649525455414c5f534e4f53;
+pub const VIRTUAL_SNOS: Felt = Felt::from_hex_unchecked("0x5649525455414c5f534e4f53");
 
 // Represent the `PROOF_VERSION` marker as a Felt ('PROOF0').
-pub const PROOF_VERSION: u128 = 0x50524f4f4630;
+pub const PROOF_VERSION: Felt = Felt::from_hex_unchecked("0x50524f4f4630");
 
 /// The version of the virtual OS output (short string 'VIRTUAL_SNOS0').
 /// This must match the Cairo constant `VIRTUAL_OS_OUTPUT_VERSION` in `virtual_os_output.cairo`.
-pub const VIRTUAL_OS_OUTPUT_VERSION: u128 = 0x5649525455414c5f534e4f5330;
+pub const VIRTUAL_OS_OUTPUT_VERSION: Felt =
+    Felt::from_hex_unchecked("0x5649525455414c5f534e4f5330");
 
 /// Client-provided proof facts used for client-side proving.
 /// Only needed when the client supplies a proof; otherwise empty.
@@ -670,21 +671,19 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         };
 
         // Validate that the first element is PROOF_VERSION.
-        if *proof_version != Felt::from(PROOF_VERSION) {
+        if *proof_version != PROOF_VERSION {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "Expected first field to be {} (PROOF_VERSION), but got {}",
-                Felt::from(PROOF_VERSION),
-                proof_version
+                PROOF_VERSION, proof_version
             )));
         }
 
         // Validate that the second element is VIRTUAL_SNOS.
-        if *variant_marker != Felt::from(VIRTUAL_SNOS) {
+        if *variant_marker != VIRTUAL_SNOS {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "Non-SNOS proofs are not currently supported. Expected second field to be {} \
                  (VIRTUAL_SNOS), but got {}",
-                Felt::from(VIRTUAL_SNOS),
-                variant_marker
+                VIRTUAL_SNOS, variant_marker
             )));
         }
 
@@ -698,7 +697,7 @@ impl TryFrom<&ProofFacts> for ProofFactsVariant {
         };
 
         // TODO(Yoni): reuse VirtualOsOutput parsing.
-        let expected_version = Felt::from(VIRTUAL_OS_OUTPUT_VERSION);
+        let expected_version = VIRTUAL_OS_OUTPUT_VERSION;
         if *output_version != expected_version {
             return Err(StarknetApiError::InvalidProofFacts(format!(
                 "Expected SNOS proof facts version to be {} (VIRTUAL_OS_OUTPUT_VERSION), but got \

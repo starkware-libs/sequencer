@@ -409,7 +409,6 @@ impl ProofFacts {
     ///
     /// Use this when the test environment uses different chain info than the defaults.
     pub fn snos_proof_facts_for_testing_with_config_hash(config_hash: Felt) -> Self {
-        let output_version = felt!(VIRTUAL_OS_OUTPUT_VERSION);
         let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
         let block_number_u64 = block_hash_history_start + 2;
         let block_number = felt!(block_number_u64);
@@ -424,8 +423,8 @@ impl ProofFacts {
         // These fields are not verified by the OS (they are application-related).
         let messages_to_l1_segment_size = Felt::ZERO;
         proof_facts![
-            felt!(PROOF_VERSION),
-            felt!(VIRTUAL_SNOS),
+            PROOF_VERSION,
+            VIRTUAL_SNOS,
             VIRTUAL_OS_PROGRAM_HASH,
             output_version,
             block_number,
