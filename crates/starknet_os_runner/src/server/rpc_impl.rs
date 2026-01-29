@@ -1,0 +1,58 @@
+//! JSON-RPC trait implementation for the proving service.
+
+use async_trait::async_trait;
+use blockifier_reexecution::state_reader::rpc_objects::BlockId;
+use jsonrpsee::core::RpcResult;
+use jsonrpsee::types::ErrorObjectOwned;
+use starknet_api::rpc_transaction::RpcTransaction;
+
+use crate::server::config::ServiceConfig;
+use crate::server::rpc_trait::{ProveTransactionResult, ProvingRpcServer};
+use crate::virtual_snos_prover::VirtualSnosProver;
+
+/// Starknet RPC specification version.
+const SPEC_VERSION: &str = "0.10.0";
+
+/// Implementation of the ProvingRpc trait.
+#[derive(Clone)]
+pub struct ProvingRpcServerImpl {
+    prover: VirtualSnosProver,
+}
+
+impl ProvingRpcServerImpl {
+    /// Creates a new ProvingRpcServerImpl from a prover.
+    pub fn new(prover: VirtualSnosProver) -> Self {
+        Self { prover }
+    }
+
+    /// Creates a new ProvingRpcServerImpl from configuration.
+    pub fn from_config(config: &ServiceConfig) -> Self {
+        let prover = VirtualSnosProver::new(config);
+        Self::new(prover)
+    }
+}
+
+#[async_trait]
+impl ProvingRpcServer for ProvingRpcServerImpl {
+    async fn spec_version(&self) -> RpcResult<String> {
+        Ok(SPEC_VERSION.to_string())
+    }
+
+    async fn prove_transaction(
+        &self,
+        block_id: BlockId,
+        transaction: RpcTransaction,
+    ) -> RpcResult<ProveTransactionResult> {
+        let output = self
+            .prover
+            .prove_transaction(block_id, transaction)
+            .await
+            .map_err(ErrorObjectOwned::from)?;
+
+        Ok(ProveTransactionResult {
+            proof: output.proof,
+            proof_facts: output.proof_facts,
+            l2_to_l1_messages: output.l2_to_l1_messages,
+        })
+    }
+}
