@@ -57,7 +57,13 @@ impl StateCommitter {
         committer_client: SharedCommitterClient,
     ) {
         // TODO(Yoav): Test this function.
+        info!("StateCommitter task loop running.");
         while let Some(request) = tasks_receiver.recv().await {
+            info!(
+                "Processing task of type {:?} for height {:?}",
+                request.task_type(),
+                request.height(),
+            );
             let output = perform_task(request, &committer_client).await;
             let height = output.height();
             match results_sender.try_send(output.clone()) {
