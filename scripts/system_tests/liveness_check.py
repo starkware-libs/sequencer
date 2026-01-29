@@ -2,7 +2,6 @@ import argparse
 import os
 import random
 import socket
-import subprocess
 import sys
 import time
 from multiprocessing import Process, Queue
@@ -10,7 +9,8 @@ from typing import Any, Dict, List, Optional, Union
 
 import numbers
 import requests
-from config_loader import find_workspace_root, load_and_merge_configs
+from utils.config_loader import find_workspace_root, load_and_merge_configs
+from utils.k8s_utils import get_pod_name, port_forward
 
 
 def get_services_from_configs(services: List[Dict[str, Any]]) -> List[str]:
@@ -47,31 +47,6 @@ def get_monitoring_endpoint_port(service_config: Dict[str, Any]) -> Union[int, f
     raise ValueError(
         f"monitoring_endpoint_config_port not found or not a valid number for service {service_config.get('name', 'unknown')}"
     )
-
-
-def run(
-    cmd: List[str], capture_output: bool = False, check: bool = True, text: bool = True
-) -> subprocess.CompletedProcess:
-    """
-    Run a command and handle errors with detailed output.
-
-    When check=True, always capture output to preserve error details on failure.
-    """
-    # If check=True, we need to capture output to show errors on failure
-    should_capture = capture_output or check
-
-    try:
-        result = subprocess.run(cmd, capture_output=should_capture, check=check, text=text)
-        return result
-    except subprocess.CalledProcessError as e:
-        # Print detailed error information
-        print(f"❌ Command failed: {' '.join(cmd)}")
-        if e.stdout:
-            print(f"stdout:\n{e.stdout}")
-        if e.stderr:
-            print(f"stderr:\n{e.stderr}")
-        # Re-raise to maintain original behavior
-        raise
 
 
 def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
@@ -118,6 +93,7 @@ def check_service_alive(
 def run_service_check(
     service_name: str,
     pod_name: str,
+    namespace: str,
     monitoring_port: int,
     offset: int,
     timeout: int,
@@ -148,18 +124,12 @@ def run_service_check(
                 f"[{service_name}] 🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {monitoring_port}"
             )
 
-            port_forward_cmd = [
-                "kubectl",
-                "port-forward",
-                pod_name,
-                f"{local_port}:{monitoring_port}",
-            ]
-            if verbose:
-                port_forward_cmd.insert(1, "-v=6")
-            pf_process = subprocess.Popen(
-                port_forward_cmd,
-                stdout=subprocess.DEVNULL if not verbose else None,
-                stderr=subprocess.DEVNULL if not verbose else None,
+            pf_process = port_forward(
+                pod_name=pod_name,
+                local_port=local_port,
+                remote_port=monitoring_port,
+                namespace=namespace,
+                verbose=verbose,
             )
 
             # Wait for port to be ready
@@ -246,27 +216,14 @@ def main(
             time.sleep(delay)
 
         try:
-            get_cmd = [
-                "kubectl",
-                "get",
-                "pods",
-                "-n",
-                namespace,
-                "-l",
-                f"service={service_label}",
-                "-o",
-                "jsonpath={.items[0].metadata.name}",
-            ]
-            if verbose:
-                get_cmd.insert(1, "-v=6")
-            pod_name = run(get_cmd, capture_output=True).stdout.strip()
+            pod_name = get_pod_name(
+                label_selector=f"service={service_label}",
+                namespace=namespace,
+                verbose=verbose,
+            )
             print(f"Found pod for {service_name}: {pod_name}")
-        except subprocess.CalledProcessError:
-            print(f"❌ Missing pod for {service_name}. Aborting!")
-            sys.exit(1)
-
-        if not pod_name:
-            print(f"❌ No pod found for {service_name}. Aborting!")
+        except RuntimeError as e:
+            print(f"❌ Missing pod for {service_name}: {e}")
             sys.exit(1)
 
         # Get monitoring port from merged config
@@ -282,6 +239,7 @@ def main(
             args=(
                 service_name,
                 pod_name,
+                namespace,
                 monitoring_port,
                 offset,
                 timeout,

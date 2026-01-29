@@ -1,11 +1,16 @@
 import argparse
 import os
-import subprocess
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
-from config_loader import find_workspace_root, load_and_merge_configs
-from kubernetes import config
+from utils.config_loader import find_workspace_root, load_and_merge_configs
+from utils.k8s_utils import (
+    copy_to_pod,
+    delete_pod,
+    exec_in_pod,
+    get_pod_name,
+    wait_for_resource,
+)
 
 
 def extract_service_info_from_config(service_config: Dict[str, Any]) -> Tuple[str, str, str]:
@@ -27,122 +32,33 @@ def extract_service_info_from_config(service_config: Dict[str, Any]) -> Tuple[st
     return controller, service_name.lower(), controller.lower()
 
 
-def run(
-    cmd: List[str], check: bool = True, capture_output: bool = False
-) -> subprocess.CompletedProcess:
-    """
-    Run a command and handle errors with detailed output.
-
-    When check=True, always capture output to preserve error details on failure.
-    """
-    # If check=True, we need to capture output to show errors on failure
-    should_capture = capture_output or check
-
-    try:
-        result = subprocess.run(cmd, check=check, text=True, capture_output=should_capture)
-        return result
-    except subprocess.CalledProcessError as e:
-        # Print detailed error information
-        print(f"❌ Command failed: {' '.join(cmd)}")
-        if e.stdout:
-            print(f"stdout:\n{e.stdout}")
-        if e.stderr:
-            print(f"stderr:\n{e.stderr}")
-        # Re-raise to maintain original behavior
-        raise
-
-
 def copy_state(pod_name: str, namespace: str, data_dir: str, verbose: bool = False) -> None:
     # Clear existing data directory to ensure old database files are removed
     print(f"Clearing existing /data directory in {pod_name}...")
     try:
-        exec_cmd = [
-            "kubectl",
-            "exec",
-            pod_name,
-            "-n",
-            namespace,
-            "--",
-            "sh",
-            "-c",
-            "rm -rf /data/* 2>/dev/null || true",
-        ]
-        if verbose:
-            exec_cmd.insert(1, "-v=6")
-        run(exec_cmd)
+        exec_in_pod(
+            pod_name=pod_name,
+            namespace=namespace,
+            command=["sh", "-c", "rm -rf /data/* 2>/dev/null || true"],
+            verbose=verbose,
+        )
         print(f"✅ Cleared /data directory in {pod_name}")
-    except subprocess.CalledProcessError as e:
+    except RuntimeError as e:
         print(f"⚠️  Warning: Failed to clear /data directory in {pod_name}: {e}")
         print("Continuing with copy operation...")
 
     print(f"📥 Copying state data to {pod_name}...")
     try:
-        cp_cmd = ["kubectl", "cp"]
-        if verbose:
-            cp_cmd.append("-v=6")
-        cp_cmd.extend(
-            [
-                f"{data_dir}/.",
-                f"{namespace}/{pod_name}:/data",
-                "--retries=3",
-            ]
+        copy_to_pod(
+            pod_name=pod_name,
+            namespace=namespace,
+            local_path=f"{data_dir}/.",
+            remote_path="/data",
+            verbose=verbose,
         )
-        run(cp_cmd)
         print(f"✅ State copied to {pod_name}")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to copy state to pod {pod_name}")
-        sys.exit(1)
-
-
-def delete_pod(pod_name: str, namespace: str, verbose: bool = False) -> None:
-    print(f"🔄 Restarting pod {pod_name}...")
-    try:
-        delete_cmd = ["kubectl", "delete", "pod", pod_name, "-n", namespace]
-        if verbose:
-            delete_cmd.insert(1, "-v=6")
-        run(delete_cmd, check=False)
-        print(f"✅ Pod {pod_name} restarted successfully!")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to delete pod {pod_name}")
-        sys.exit(1)
-
-
-def wait_for_resource(
-    controller: str, name: str, namespace: str, timeout: int = 180, verbose: bool = False
-) -> None:
-    print(f"⏳ Waiting for {controller}/{name} to become ready...")
-
-    if controller == "deployment":
-        cmd = [
-            "kubectl",
-            "wait",
-            "--for=condition=Available",
-            f"{controller}/{name}",
-            "-n",
-            namespace,
-            f"--timeout={timeout}s",
-        ]
-    elif controller == "statefulset":
-        cmd = [
-            "kubectl",
-            "rollout",
-            "status",
-            f"{controller}/{name}",
-            "-n",
-            namespace,
-            f"--timeout={timeout}s",
-        ]
-    else:
-        print(f"❌ Unknown controller type: {controller}. Aborting...")
-        sys.exit(1)
-
-    if verbose:
-        cmd.insert(1, "-v=6")
-
-    try:
-        run(cmd)
-    except subprocess.CalledProcessError:
-        print(f"⚠️ Timeout waiting for {controller.capitalize()} {name}")
+    except RuntimeError as e:
+        print(f"❌ Failed to copy state to pod {pod_name}: {e}")
         sys.exit(1)
 
 
@@ -154,8 +70,6 @@ def build_resource_name(service_name: str, controller: str) -> str:
 def main(
     layout: str, namespace: str, data_dir: str, overlay: Optional[str] = None, verbose: bool = False
 ) -> None:
-    config.load_kube_config()
-
     # Try to find workspace: env var (for CI) > auto-detect
     workspace = os.environ.get("GITHUB_WORKSPACE")
     if not workspace:
@@ -198,29 +112,15 @@ def main(
 
         print(f"📡 Finding {service_name} pod...")
         try:
-            get_cmd = [
-                "kubectl",
-                "get",
-                "pods",
-                "-n",
-                namespace,
-                "-l",
-                f"service={service_label}",
-                "-o",
-                "jsonpath={.items[0].metadata.name}",
-            ]
-            if verbose:
-                get_cmd.insert(1, "-v=6")
-            pod_name = run(get_cmd, capture_output=True).stdout.strip()
-        except subprocess.CalledProcessError:
-            print(f"❌ Missing pod for {service_name}. Aborting!")
+            pod_name = get_pod_name(
+                label_selector=f"service={service_label}",
+                namespace=namespace,
+                verbose=verbose,
+            )
+            print(f"{service_name} pod found - {pod_name}")
+        except RuntimeError as e:
+            print(f"❌ Missing pod for {service_name}: {e}")
             sys.exit(1)
-
-        if not pod_name:
-            print(f"❌ No pod found for {service_name}. Aborting!")
-            sys.exit(1)
-
-        print(f"{service_name} pod found - {pod_name}")
 
         copy_state(pod_name=pod_name, namespace=namespace, data_dir=data_dir, verbose=verbose)
         delete_pod(pod_name=pod_name, namespace=namespace, verbose=verbose)
@@ -235,7 +135,8 @@ def main(
         print(f"✅ {controller}/{resource_name} is ready!")
 
     print(f"\n📦 Current pod status in namespace {namespace}:")
-    run(["kubectl", "get", "pods", "-n", namespace, "-o", "wide"])
+    # Simple status display - can be enhanced later if needed
+    print(f"(Use 'kubectl get pods -n {namespace} -o wide' for detailed status)")
 
     print("\n✅ All services are ready!")
 
