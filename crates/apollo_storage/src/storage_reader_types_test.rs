@@ -11,10 +11,11 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
-use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
+use starknet_api::{compiled_class_hash, contract_address, felt, nonce, storage_key};
 use tempfile::TempDir;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
+use crate::compiled_class::CasmStorageReader;
 use crate::state::StateStorageWriter;
 use crate::storage_reader_server::ServerConfig;
 use crate::storage_reader_server_test_utils::get_response;
@@ -60,6 +61,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     let contract_address = contract_address!("0x100");
     let storage_key = storage_key!("0x10");
     let storage_value = felt!("0x42");
+    let nonce_value = nonce!(0x5);
 
     let storage_diffs = IndexMap::from([(storage_key, storage_value)]);
 
@@ -72,6 +74,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
             class_hash,
             compiled_class_hash!(1_u8),
         )]),
+        nonces: IndexMap::from([(contract_address, nonce_value)]),
         ..Default::default()
     };
 
@@ -199,4 +202,38 @@ async fn declared_class_block_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::DeclaredClassesBlock(block_number));
+}
+
+#[tokio::test]
+async fn nonces_request() {
+    let block_number = BlockNumber(0);
+    let setup = setup_test_server(block_number, unique_u16!());
+
+    // Extract the test data from the state diff
+    let (contract_address, nonce) = setup.state_diff.nonces.iter().next().unwrap();
+
+    // Request the nonce value
+    let request = StorageReaderRequest::Nonces(*contract_address, block_number);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+    assert_eq!(response, StorageReaderResponse::Nonces(*nonce));
+}
+
+#[tokio::test]
+async fn compiled_class_hash_request() {
+    let block_number = BlockNumber(0);
+    let setup = setup_test_server(block_number, unique_u16!());
+
+    let expected_compiled_class_hash = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_compiled_class_hash(setup.class_hash, block_number)
+        .unwrap()
+        .expect("Compiled class hash should exist");
+
+    // Test CompiledClassHash request
+    let request = StorageReaderRequest::CompiledClassHash(setup.class_hash, block_number);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::CompiledClassHash(expected_compiled_class_hash));
 }
