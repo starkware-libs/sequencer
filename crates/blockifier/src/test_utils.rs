@@ -36,6 +36,7 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
+    TEST_OS_CONFIG_HASH,
     TEST_SEQUENCER_ADDRESS,
 };
 use starknet_api::transaction::fields::{
@@ -43,6 +44,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
+    ProofFacts,
 };
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{contract_address, felt};
@@ -75,6 +77,24 @@ pub const ERC20_CONTRACT_PATH: &str = "../blockifier_test_utils/resources/ERC20/
 
 pub static ALIAS_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| ContractAddress(PatriciaKey::try_from(Felt::TWO).unwrap()));
+
+/// Returns the first allowed virtual OS program hash from versioned constants.
+pub fn get_valid_virtual_os_program_hash() -> StarkHash {
+    let vc = VersionedConstants::latest_constants();
+    *vc.os_constants
+        .allowed_virtual_os_program_hashes
+        .first()
+        .expect("No allowed virtual OS program hashes in versioned constants")
+}
+
+/// Creates valid proof facts for testing using the first allowed virtual OS program hash
+/// from versioned constants and the default test OS config hash.
+pub fn create_valid_proof_facts_for_testing() -> ProofFacts {
+    ProofFacts::custom_proof_facts_for_testing(
+        get_valid_virtual_os_program_hash(),
+        *TEST_OS_CONFIG_HASH,
+    )
+}
 
 #[derive(Clone, Copy, EnumCountMacro, PartialEq, Eq, Debug)]
 pub enum CompilerBasedVersion {
