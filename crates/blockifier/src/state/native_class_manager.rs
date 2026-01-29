@@ -15,7 +15,7 @@ use thiserror::Error;
 
 use crate::blockifier::config::{
     CairoNativeRunConfig,
-    ContractClassManagerConfig,
+    ContractClassManagerStaticConfig,
     NativeClassesWhitelist,
 };
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
@@ -67,7 +67,7 @@ impl NativeClassManager {
     /// 1. The feature `cairo_native` is not enabled.
     /// 2. `config.run_cairo_native` is `false`.
     /// 3. `config.wait_on_native_compilation` is `true`.
-    pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
+    pub fn start(config: ContractClassManagerStaticConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let class_cache = RawClassCache::new(config.contract_cache_size);
         let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);

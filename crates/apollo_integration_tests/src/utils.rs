@@ -67,7 +67,7 @@ use axum::routing::{get, post};
 use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::CairoNativeRunConfig;
-use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
+use blockifier::blockifier::config::{ContractClassManagerStaticConfig, WorkerPoolConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -640,7 +640,7 @@ pub fn create_gateway_config(
         validate_resource_bounds: validate_non_zero_resource_bounds,
         ..Default::default()
     };
-    let contract_class_manager_config = ContractClassManagerConfig::default();
+    let contract_class_manager_config = ContractClassManagerStaticConfig::default();
 
     GatewayConfig {
         stateless_tx_validator_config,
@@ -734,8 +734,8 @@ pub fn create_state_sync_configs(
 }
 
 #[cfg(feature = "cairo_native")]
-fn cairo_native_class_manager_config() -> ContractClassManagerConfig {
-    ContractClassManagerConfig {
+fn cairo_native_class_manager_config() -> ContractClassManagerStaticConfig {
+    ContractClassManagerStaticConfig {
         cairo_native_run_config: CairoNativeRunConfig {
             run_cairo_native: true,
             wait_on_native_compilation: true,

@@ -36,7 +36,7 @@ use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, Vali
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
-use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::blockifier::config::ContractClassManagerStaticConfig;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -122,7 +122,7 @@ fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
         stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
         stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
-        contract_class_manager_config: ContractClassManagerConfig::default(),
+        contract_class_manager_config: ContractClassManagerStaticConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
         authorized_declarer_accounts: None,

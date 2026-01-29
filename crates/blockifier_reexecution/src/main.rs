@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use apollo_gateway_config::config::RpcStateReaderConfig;
-use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::blockifier::config::ContractClassManagerStaticConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::cli::{
     parse_block_numbers_args,
@@ -49,7 +49,7 @@ async fn main() {
     };
 
     // Initialize the contract class manager.
-    let mut contract_class_manager_config = ContractClassManagerConfig::default();
+    let mut contract_class_manager_config = ContractClassManagerStaticConfig::default();
     if cfg!(feature = "cairo_native") {
         contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
         contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;

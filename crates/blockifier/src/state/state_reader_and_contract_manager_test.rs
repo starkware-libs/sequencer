@@ -13,7 +13,7 @@ use starknet_api::core::ClassHash;
 
 #[cfg(not(feature = "cairo_native"))]
 use crate::blockifier::config::CairoNativeRunConfig;
-use crate::blockifier::config::ContractClassManagerConfig;
+use crate::blockifier::config::ContractClassManagerStaticConfig;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
 #[cfg(not(feature = "cairo_native"))]
@@ -38,7 +38,7 @@ static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u3
 
 fn build_reader_and_declare_contract(
     contract: FeatureContractData,
-    contract_manager_config: ContractClassManagerConfig,
+    contract_manager_config: ContractClassManagerStaticConfig,
 ) -> StateReaderAndContractManager<DictStateReader> {
     let mut reader = DictStateReader::default();
 
@@ -71,7 +71,7 @@ fn test_get_compiled_class_without_native_in_cache(
 
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_class_hash = test_contract.get_class_hash();
-    let contract_manager_config = ContractClassManagerConfig::create_for_testing(
+    let contract_manager_config = ContractClassManagerStaticConfig::create_for_testing(
         run_cairo_native,
         wait_on_native_compilation,
     );
@@ -117,7 +117,7 @@ fn test_get_compiled_class_without_native_in_cache(
 fn test_get_compiled_class_when_native_is_cached() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
     let test_class_hash = test_contract.get_class_hash();
-    let contract_manager_config = ContractClassManagerConfig::create_for_testing(true, true);
+    let contract_manager_config = ContractClassManagerStaticConfig::create_for_testing(true, true);
 
     let state_reader =
         build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
@@ -257,7 +257,7 @@ fn test_get_compiled_class_caching_scenarios(
     #[case] first_scenario: GetCompiledClassTestScenario,
     #[case] second_scenario: GetCompiledClassTestScenario,
 ) {
-    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig {
+    let contract_class_manager = ContractClassManager::start(ContractClassManagerStaticConfig {
         cairo_native_run_config: CairoNativeRunConfig {
             wait_on_native_compilation: false,
             ..Default::default()

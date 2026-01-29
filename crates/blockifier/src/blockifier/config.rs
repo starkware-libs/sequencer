@@ -137,13 +137,13 @@ impl SerializeConfig for WorkerPoolConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct ContractClassManagerConfig {
+pub struct ContractClassManagerStaticConfig {
     pub cairo_native_run_config: CairoNativeRunConfig,
     pub contract_cache_size: usize,
     pub native_compiler_config: SierraCompilationConfig,
 }
 
-impl Default for ContractClassManagerConfig {
+impl Default for ContractClassManagerStaticConfig {
     fn default() -> Self {
         Self {
             cairo_native_run_config: CairoNativeRunConfig::default(),
@@ -153,7 +153,7 @@ impl Default for ContractClassManagerConfig {
     }
 }
 
-impl ContractClassManagerConfig {
+impl ContractClassManagerStaticConfig {
     #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
     pub fn create_for_testing(run_cairo_native: bool, wait_on_native_compilation: bool) -> Self {
         let cairo_native_run_config = CairoNativeRunConfig {
@@ -166,7 +166,7 @@ impl ContractClassManagerConfig {
     }
 }
 
-impl SerializeConfig for ContractClassManagerConfig {
+impl SerializeConfig for ContractClassManagerStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([ser_param(
             "contract_cache_size",

@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use apollo_state_reader::apollo_state::ApolloReader;
-use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
+use blockifier::blockifier::config::{ContractClassManagerStaticConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
     TransactionExecutor,
@@ -425,7 +425,7 @@ impl PyBlockExecutor {
             versioned_constants: VersionedConstants::latest_constants().clone(),
             tx_executor: None,
             contract_class_manager: ContractClassManager::start(
-                ContractClassManagerConfig::default(),
+                ContractClassManagerStaticConfig::default(),
             ),
         }
     }

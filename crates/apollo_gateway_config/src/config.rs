@@ -12,7 +12,7 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::blockifier::config::ContractClassManagerStaticConfig;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ const JSON_RPC_VERSION: &str = "2.0";
 pub struct GatewayConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
-    pub contract_class_manager_config: ContractClassManagerConfig,
+    pub contract_class_manager_config: ContractClassManagerStaticConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
@@ -40,7 +40,7 @@ impl Default for GatewayConfig {
         Self {
             stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
             stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
-            contract_class_manager_config: ContractClassManagerConfig {
+            contract_class_manager_config: ContractClassManagerStaticConfig {
                 contract_cache_size: 300,
                 ..Default::default()
             },
