@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
-use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
+use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, QueueType};
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
     AccountState,
@@ -247,7 +247,7 @@ pub struct Mempool {
     // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
-    tx_queue: FeeTransactionQueue,
+    tx_queue: Box<dyn TransactionQueueTrait>,
     // Accounts whose lowest transaction nonce is greater than the account nonce, which are
     // therefore candidates for eviction.
     accounts_with_gap: AccountsWithGap,
@@ -257,11 +257,18 @@ pub struct Mempool {
 
 impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
+        let tx_queue: Box<dyn TransactionQueueTrait> = match config.static_config.queue_type {
+            QueueType::Fee => Box::new(FeeTransactionQueue::default()),
+            QueueType::Fifo => {
+                panic!("FIFO queue is not yet implemented");
+            }
+        };
+
         Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
-            tx_queue: FeeTransactionQueue::default(),
+            tx_queue,
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,

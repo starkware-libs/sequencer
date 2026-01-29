@@ -67,8 +67,8 @@ impl TransactionQueueTrait for FeeTransactionQueue {
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
-    fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.priority_queue.iter().rev().map(|tx| &tx.0)
+    fn iter_over_ready_txs(&self) -> Box<dyn Iterator<Item = &TransactionReference> + '_> {
+        Box::new(self.priority_queue.iter().rev().map(|tx| &tx.0))
     }
 
     fn get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
@@ -136,7 +136,6 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         }
         HashSet::new() // Fee Priority queue doesn't track rewound transactions
     }
-}
 
     fn priority_queue_len(&self) -> usize {
         self.priority_queue.len()
