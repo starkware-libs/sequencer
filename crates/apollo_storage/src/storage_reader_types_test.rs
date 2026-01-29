@@ -2,6 +2,7 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_proc_macros::unique_u16;
+use apollo_test_utils::get_test_block;
 use axum::http::StatusCode;
 use axum::Router;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -13,9 +14,11 @@ use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
+use starknet_api::transaction::TransactionOffsetInBlock;
 use starknet_api::{compiled_class_hash, contract_address, felt, storage_key};
 use tempfile::TempDir;
 
+use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::state::StateStorageWriter;
@@ -43,6 +46,7 @@ struct TestServerSetup {
     deprecated_class: DeprecatedContractClass,
     casm_class_hash: ClassHash,
     casm: CasmContractClass,
+    tx_index: TransactionIndex,
 }
 
 impl TestServerSetup {
@@ -92,6 +96,10 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         ..Default::default()
     };
 
+    // Create a test block with transactions
+    let block = get_test_block(3, None, None, None);
+    let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(0));
+
     writer
         .begin_rw_txn()
         .unwrap()
@@ -104,6 +112,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         )
         .unwrap()
         .append_casm(&casm_class_hash, &expected_casm)
+        .unwrap()
+        .append_body(block_number, block.body)
         .unwrap()
         .commit()
         .unwrap();
@@ -127,6 +137,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         deprecated_class: expected_deprecated_class,
         casm_class_hash,
         casm: expected_casm,
+        tx_index,
     }
 }
 
@@ -295,4 +306,24 @@ async fn casm_requests() {
         get_response(setup.app, &casm_request, StatusCode::OK).await;
 
     assert_eq!(casm_response, StorageReaderResponse::CasmsFromLocation(setup.casm));
+}
+
+#[tokio::test]
+async fn transaction_metadata_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    // Get the expected transaction metadata directly from storage
+    let expected_metadata = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_transaction_metadata(&setup.tx_index)
+        .unwrap()
+        .expect("Transaction metadata should exist");
+
+    // Test TransactionMetadata request
+    let request = StorageReaderRequest::TransactionMetadata(setup.tx_index);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::TransactionMetadata(expected_metadata));
 }
