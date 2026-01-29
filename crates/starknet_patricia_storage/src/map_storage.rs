@@ -1,5 +1,4 @@
 use std::fmt::Display;
-use std::num::NonZeroUsize;
 
 use moka::sync::Cache;
 use serde::Serialize;
@@ -76,7 +75,7 @@ pub struct CachedStorage<S: Storage> {
 
 pub struct CachedStorageConfig {
     // Max number of entries in the cache.
-    pub cache_size: NonZeroUsize, // TODO(Nimrod): Change type to `u64`.
+    pub cache_size: u64,
 
     // If true, the cache is updated on write operations even if the value is not in the cache.
     pub cache_on_write: bool,
@@ -135,9 +134,7 @@ impl<S: Storage> CachedStorage<S> {
         // TODO(Nimrod): Consider defining custom eviction policies.
         Self {
             storage,
-            cache: Cache::builder()
-                .max_capacity(config.cache_size.get().try_into().unwrap())
-                .build(),
+            cache: Cache::builder().max_capacity(config.cache_size).build(),
             cache_on_write: config.cache_on_write,
             reads: 0,
             cached_reads: 0,
