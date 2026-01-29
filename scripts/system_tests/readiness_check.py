@@ -7,9 +7,9 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from config_loader import find_workspace_root, load_and_merge_configs
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
+from utils.config_loader import find_workspace_root, load_and_merge_configs
 
 # Enable line buffering for real-time output in CI
 sys.stdout.reconfigure(line_buffering=True)

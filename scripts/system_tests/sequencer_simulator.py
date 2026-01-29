@@ -4,6 +4,8 @@ import subprocess
 import time
 from enum import Enum
 
+from utils.k8s_utils import get_pod_name
+
 
 class NodeType(Enum):
     DISTRIBUTED = "distributed"
@@ -20,19 +22,6 @@ def get_service_label(node_type: NodeType, service: str) -> str:
         return f"sequencer-{service.lower()}"
     else:
         raise ValueError(f"Unknown node type: {node_type}. Aborting!")
-
-
-def get_pod_name(service_label: str) -> str:
-    cmd = [
-        "kubectl",
-        "get",
-        "pods",
-        "-l",
-        f"service={service_label}",
-        "-o",
-        "jsonpath={.items[0].metadata.name}",
-    ]
-    return subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
 
 
 def port_forward(
@@ -210,7 +199,8 @@ def run_simulator(http_port: int, monitoring_port: int, sender_address: str, rec
 
 
 def setup_port_forwarding(service_name: str, port: int, node_type: NodeType):
-    pod_name = get_pod_name(get_service_label(node_type, service_name))
+    service_label = get_service_label(node_type, service_name)
+    pod_name = get_pod_name(label_selector=f"service={service_label}")
     print(f"📡 Port-forwarding {pod_name} on local port {port}...", flush=True)
     port_forward(pod_name, port, port)
 
