@@ -276,8 +276,16 @@ impl Default for MockClients {
             (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
         });
 
+        let mut committer_client = MockCommitterClient::new();
+        committer_client
+            .expect_commit_block()
+            .returning(|_| Box::pin(async { Ok(CommitBlockResponse::default()) }));
+        committer_client.expect_revert_block().returning(|_| {
+            Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
+        });
+
         Self {
-            committer_client: MockCommitterClient::new(),
+            committer_client,
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
             block_builder_factory,
