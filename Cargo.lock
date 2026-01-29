@@ -2546,6 +2546,7 @@ name = "apollo_state_reader"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_infra",
  "apollo_storage",
  "assert_matches",
  "blockifier",
