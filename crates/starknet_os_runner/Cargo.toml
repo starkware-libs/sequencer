@@ -23,6 +23,7 @@ clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 hyper.workspace = true
 indexmap.workspace = true
+jsonrpsee = { workspace = true, features = ["macros", "server"] }
 proving_utils.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
