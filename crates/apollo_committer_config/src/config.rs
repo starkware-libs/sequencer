@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -12,14 +11,14 @@ use starknet_patricia_storage::storage_trait::{Storage, StorageConfigTrait};
 use validator::Validate;
 
 // 1M size cache.
-pub const DEFAULT_CACHE_MAX_ENTRIES: usize = 1000000;
+pub const DEFAULT_CACHE_MAX_ENTRIES: u64 = 1000000;
 
 pub type ApolloStorage = CachedStorage<RocksDbStorage>;
 
 pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
 
 pub const APOLLO_CACHE_STORAGE_CONFIG: CachedStorageConfig = CachedStorageConfig {
-    cache_size: NonZeroUsize::new(DEFAULT_CACHE_MAX_ENTRIES).unwrap(),
+    cache_size: DEFAULT_CACHE_MAX_ENTRIES,
     cache_on_write: true,
     include_inner_stats: true,
 };

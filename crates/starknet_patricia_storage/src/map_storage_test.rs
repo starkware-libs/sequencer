@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::num::NonZeroUsize;
 
 use rstest::rstest;
 
@@ -10,7 +9,7 @@ use crate::storage_trait::{DbKey, DbValue, Storage};
 #[case::map_storage(MapStorage::default())]
 #[case::cached_storage(
     CachedStorage::new(MapStorage::default(), CachedStorageConfig {
-        cache_size: NonZeroUsize::new(2).unwrap(),
+        cache_size: 2,
         cache_on_write: true,
         include_inner_stats: false,
     })
