@@ -24,6 +24,7 @@ use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::class_hash::ClassHashStorageWriter;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
+use crate::consensus::{ConsensusStorageWriter, LastVotedMarker};
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::storage_reader_server::ServerConfig;
@@ -52,6 +53,7 @@ struct TestServerSetup {
     casm: CasmContractClass,
     tx_index: TransactionIndex,
     executable_class_hash_v2: CompiledClassHash,
+    last_voted_marker: LastVotedMarker,
 }
 
 impl TestServerSetup {
@@ -94,6 +96,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     let expected_casm: CasmContractClass = read_json_file("compiled_class.json");
     let casm_class_hash = ClassHash(felt!("0x2"));
     let executable_class_hash_v2 = compiled_class_hash!(2_u8);
+    let last_voted_marker = LastVotedMarker { height: block_number };
 
     let state_diff = ThinStateDiff {
         deployed_contracts: IndexMap::from([(deployed_contract_address, deployed_class_hash)]),
@@ -129,6 +132,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .unwrap()
         .set_executable_class_hash_v2(&class_hash, executable_class_hash_v2)
         .unwrap()
+        .set_last_voted_marker(&last_voted_marker)
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -153,6 +158,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         casm: expected_casm,
         tx_index,
         executable_class_hash_v2,
+        last_voted_marker,
     }
 }
 
@@ -426,4 +432,15 @@ async fn transaction_hash_to_idx_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::TransactionHashToIdx(setup.tx_index));
+}
+
+#[tokio::test]
+async fn last_voted_marker_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    // Test LastVotedMarker request
+    let request = StorageReaderRequest::LastVotedMarker;
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::LastVotedMarker(setup.last_voted_marker));
 }
