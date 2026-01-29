@@ -161,7 +161,7 @@ pub(crate) fn tree_of_height_4_with_long_edge() -> CreateTreeCase {
 }
 
 pub(crate) async fn test_create_original_skeleton<L, Layout>(
-    storage: &mut MapStorage,
+    storage: &MapStorage,
     leaf_modifications: &LeafModifications<L>,
     root_hash: HashOutput,
     expected_skeleton_nodes: &HashMap<NodeIndex, OriginalSkeletonNode>,
