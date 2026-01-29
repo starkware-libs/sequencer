@@ -211,7 +211,7 @@ impl RpcStorageProofsProvider {
         let previous_state_roots = StateRoots { contracts_trie_root_hash, classes_trie_root_hash };
 
         // Consume the new facts from the committer storage.
-        let mut map_storage: MapStorage = facts_db.consume_storage();
+        let map_storage: MapStorage = facts_db.consume_storage();
 
         // Get extended initial reads keys.
         let initial_reads_keys = extended_initial_reads.keys();
@@ -221,7 +221,7 @@ impl RpcStorageProofsProvider {
         let mut commitment_infos = create_commitment_infos(
             &previous_state_roots,
             &new_roots,
-            &mut map_storage,
+            &map_storage,
             &initial_reads_keys,
         )
         .await

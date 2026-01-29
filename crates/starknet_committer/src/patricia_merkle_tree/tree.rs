@@ -55,7 +55,7 @@ impl OriginalSkeletonTreeConfig for OriginalSkeletonTrieConfig {
 /// Assumption: `contract_sorted_leaf_indices` contains all `contract_storage_sorted_leaf_indices`
 /// keys.
 async fn fetch_all_patricia_paths(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     classes_trie_root_hash: HashOutput,
     contracts_trie_root_hash: HashOutput,
     class_sorted_leaf_indices: SortedLeafIndices<'_>,
@@ -163,7 +163,7 @@ async fn fetch_all_patricia_paths(
 /// and contracts storage tries for both the previous and new root hashes.
 /// Fetch the leaves in the contracts trie only, to be able to get the storage root hashes.
 pub async fn fetch_previous_and_new_patricia_paths(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
     class_hashes: &[ClassHash],

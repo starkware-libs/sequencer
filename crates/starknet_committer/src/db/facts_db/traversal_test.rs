@@ -58,7 +58,6 @@ async fn test_fetch_patricia_paths_inner_impl(
     height: SubTreeHeight,
     expected_nodes: PreimageMap,
 ) {
-    let mut storage = storage;
     let expected_fetched_leaves = leaf_indices
         .iter()
         .map(|&idx| {
@@ -84,7 +83,7 @@ async fn test_fetch_patricia_paths_inner_impl(
     let mut fetched_leaves = HashMap::new();
 
     fetch_patricia_paths_inner::<MockLeaf>(
-        &mut storage,
+        &storage,
         vec![main_subtree],
         &mut nodes,
         Some(&mut fetched_leaves),
