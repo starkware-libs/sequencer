@@ -22,6 +22,7 @@ cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 hyper.workspace = true
+jsonrpsee = { workspace = true, features = ["full"] }
 indexmap.workspace = true
 proving_utils.workspace = true
 serde = { workspace = true, features = ["derive"] }
