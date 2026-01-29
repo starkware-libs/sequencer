@@ -196,6 +196,7 @@ impl BenchmarkMeasurements {
                     "n_storage_tries_modifications",
                     "n_contracts_trie_modifications",
                     "n_classes_trie_modifications",
+                    "n_emptied_storage_leaves",
                 ],
                 self.storage_stat_columns.clone(),
             ]
@@ -220,6 +221,7 @@ impl BenchmarkMeasurements {
                 measurement.modifications_counts.storage_tries.to_string(),
                 measurement.modifications_counts.contracts_trie.to_string(),
                 measurement.modifications_counts.classes_trie.to_string(),
+                measurement.modifications_counts.emptied_storage_leaves.to_string(),
             ];
             if i == n_results - 1 {
                 record

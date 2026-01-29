@@ -3,10 +3,16 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_types_core::felt::Felt;
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
-use crate::block_committer::input::{contract_address_into_node_index, Input, StateDiff};
+use crate::block_committer::input::{
+    contract_address_into_node_index,
+    Input,
+    StarknetStorageValue,
+    StateDiff,
+};
 use crate::block_committer::measurements_util::{
     Action,
     BlockModificationsCounts,
@@ -45,15 +51,13 @@ pub trait CommitBlockTrait: Send {
         let actual_storage_updates = input.state_diff.actual_storage_updates();
         let actual_classes_updates = input.state_diff.actual_classes_updates();
         // Record the number of modifications.
-        let n_storage_tries_modifications =
-            actual_storage_updates.values().map(|value| value.len()).sum();
-        measurements.set_number_of_modifications(BlockModificationsCounts {
-            storage_tries: n_storage_tries_modifications,
-            contracts_trie: n_contracts_trie_modifications,
-            classes_trie: actual_classes_updates.len(),
-        });
+        measure_number_of_modifications(
+            measurements,
+            &actual_storage_updates,
+            n_contracts_trie_modifications,
+            actual_classes_updates.len(),
+        );
         // Reads - fetch_nodes.
-
         measurements.start_measurement(Action::Read);
         let roots =
             trie_reader.read_roots(input.initial_read_context).await.map_err(ForestError::from)?;
@@ -169,4 +173,23 @@ pub(crate) fn get_all_modified_indices(
         })
         .collect();
     (storage_tries_indices, contracts_trie_indices, classes_trie_indices)
+}
+
+fn measure_number_of_modifications(
+    measurements: &mut impl MeasurementsTrait,
+    storage_modifications: &HashMap<ContractAddress, HashMap<NodeIndex, StarknetStorageValue>>,
+    n_contracts_trie_modifications: usize,
+    n_classes_trie_modifications: usize,
+) {
+    let storage_tries = storage_modifications.values().map(|value| value.len()).sum();
+    let emptied_storage_leaves = storage_modifications
+        .values()
+        .map(|storage_entry| storage_entry.values().filter(|value| value.0 == Felt::ZERO).count())
+        .sum::<usize>();
+    measurements.set_number_of_modifications(BlockModificationsCounts {
+        storage_tries,
+        contracts_trie: n_contracts_trie_modifications,
+        classes_trie: n_classes_trie_modifications,
+        emptied_storage_leaves,
+    });
 }
