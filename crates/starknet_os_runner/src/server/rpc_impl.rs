@@ -7,8 +7,8 @@ use jsonrpsee::types::ErrorObjectOwned;
 use starknet_api::rpc_transaction::RpcTransaction;
 
 use crate::server::config::ServiceConfig;
-use crate::server::rpc_trait::{ProveTransactionResult, ProvingRpcServer};
-use crate::virtual_snos_prover::RpcVirtualSnosProver;
+use crate::server::rpc_trait::ProvingRpcServer;
+use crate::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 
 /// Starknet RPC specification version.
 const SPEC_VERSION: &str = "0.10.0";
@@ -21,7 +21,7 @@ pub struct ProvingRpcServerImpl {
 
 impl ProvingRpcServerImpl {
     /// Creates a new ProvingRpcServerImpl from a prover.
-    pub fn new(prover: RpcVirtualSnosProver) -> Self {
+    pub(crate) fn new(prover: RpcVirtualSnosProver) -> Self {
         Self { prover }
     }
 
@@ -49,10 +49,6 @@ impl ProvingRpcServer for ProvingRpcServerImpl {
             .await
             .map_err(ErrorObjectOwned::from)?;
 
-        Ok(ProveTransactionResult {
-            proof: output.proof,
-            proof_facts: output.proof_facts,
-            l2_to_l1_messages: output.l2_to_l1_messages,
-        })
+        Ok(output.result)
     }
 }
