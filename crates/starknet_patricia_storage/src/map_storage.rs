@@ -75,8 +75,6 @@ pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: Cache<DbKey, Option<DbValue>>,
     pub cache_on_write: bool,
-    reads: u128,
-    cached_reads: u128,
     writes: u128,
     include_inner_stats: bool,
 }
@@ -204,8 +202,6 @@ impl<S: Storage> CachedStorage<S> {
             storage,
             cache: Cache::builder().max_capacity(config.cache_size).build(),
             cache_on_write: config.cache_on_write,
-            reads: 0,
-            cached_reads: 0,
             writes: 0,
             include_inner_stats: config.include_inner_stats,
         }
@@ -215,14 +211,6 @@ impl<S: Storage> CachedStorage<S> {
         if self.cache_on_write || self.cache.contains_key(key) {
             self.cache.insert(key.clone(), Some(value.clone()));
         }
-    }
-
-    pub fn total_reads(&self) -> u128 {
-        self.reads
-    }
-
-    pub fn total_cached_reads(&self) -> u128 {
-        self.cached_reads
     }
 
     pub fn total_writes(&self) -> u128 {
@@ -235,9 +223,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     type Config = CachedStorageConfig<S::Config>;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        self.reads += 1;
         if let Some(cached_value) = self.cache.get(key) {
-            self.cached_reads += 1;
             return Ok(cached_value);
         }
 
@@ -267,10 +253,6 @@ impl<S: Storage> Storage for CachedStorage<S> {
             }
         }
 
-        self.reads += u128::try_from(keys.len()).expect("usize should fit in u128");
-        self.cached_reads +=
-            u128::try_from(keys.len() - keys_to_fetch.len()).expect("usize should fit in u128");
-
         let fetched_values = self.storage.mget(keys_to_fetch.as_slice()).await?;
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
             |((index, key), value)| {
@@ -297,9 +279,10 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
+        // TODO(Nimrod): Don't return dummy values for reads and cached reads.
         Ok(CachedStorageStats {
-            reads: self.reads,
-            cached_reads: self.cached_reads,
+            reads: 0,
+            cached_reads: 0,
             writes: self.writes,
             inner_stats: if self.include_inner_stats {
                 Some(self.storage.get_stats()?)
@@ -310,8 +293,6 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
-        self.reads = 0;
-        self.cached_reads = 0;
         self.writes = 0;
         self.storage.reset_stats()
     }
