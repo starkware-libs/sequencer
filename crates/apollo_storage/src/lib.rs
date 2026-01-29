@@ -620,6 +620,7 @@ impl StorageWriter {
             // Batching mode: create persistent transaction if it doesn't exist.
             let mut state = self.batching_state.lock().unwrap();
             if state.active_txn.is_none() {
+                eprintln!("[BATCH DEBUG] Creating new persistent transaction");
                 state.active_txn = Some(self.db_writer.begin_persistent_rw_txn()?);
             }
             drop(state);

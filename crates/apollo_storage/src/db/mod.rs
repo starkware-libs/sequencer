@@ -277,12 +277,14 @@ impl DbWriter {
     /// 3. libmdbx transactions are valid as long as their environment is valid
     #[allow(dead_code)]
     pub(crate) fn begin_persistent_rw_txn(&self) -> DbResult<OwnedDbWriteTransaction> {
+        eprintln!("[DB DEBUG] Creating persistent RW transaction");
         let env = self.env.clone();
         let db_txn = DbWriteTransaction { txn: env.begin_rw_txn()? };
         // Safety: We're transmuting the lifetime to 'static, which is safe because
         // OwnedDbWriteTransaction holds an Arc<Environment>, ensuring the environment
         // lives as long as the transaction.
         let static_txn: DbWriteTransaction<'static> = unsafe { std::mem::transmute(db_txn) };
+        eprintln!("[DB DEBUG] Persistent RW transaction created successfully");
         Ok(OwnedDbWriteTransaction { txn: static_txn, env })
     }
 }
@@ -318,7 +320,13 @@ impl OwnedDbWriteTransaction {
     /// Commits the transaction.
     #[latency_histogram("storage_commit_inner_db_latency_seconds", false)]
     pub(crate) fn commit(self) -> DbResult<()> {
-        self.txn.commit()
+        eprintln!("[DB DEBUG] OwnedDbWriteTransaction::commit() called");
+        let result = self.txn.commit();
+        eprintln!(
+            "[DB DEBUG] OwnedDbWriteTransaction::commit() completed with result: {:?}",
+            result.is_ok()
+        );
+        result
     }
 }
 
