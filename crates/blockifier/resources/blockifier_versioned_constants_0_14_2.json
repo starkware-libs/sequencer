@@ -116,7 +116,8 @@
             "poseidon": 491,
             "add_mod": 230,
             "mul_mod": 604,
-            "ecdsa": 10561
+            "ecdsa": 10561,
+            "blake2s": 3334
         },
         "l1_handler_max_amount_bounds": {
             "l1_gas": 40000,

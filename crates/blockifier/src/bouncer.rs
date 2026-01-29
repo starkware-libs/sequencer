@@ -25,6 +25,8 @@ use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
 use crate::utils::{add_maps, should_migrate, u64_from_usize, usize_from_u64};
 
+const DEFAULT_BLAKE2S_GAS_COST: usize = 3334;
+
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
 mod test;
@@ -68,7 +70,6 @@ macro_rules! impl_field_wise_ops {
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
     pub builtin_weights: BuiltinWeights,
-    pub blake_weight: usize,
 }
 
 impl Default for BouncerConfig {
@@ -76,7 +77,6 @@ impl Default for BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::default(),
             builtin_weights: BuiltinWeights::default(),
-            blake_weight: 3334,
         }
     }
 }
@@ -86,7 +86,6 @@ impl BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::empty(),
             builtin_weights: BuiltinWeights::empty(),
-            blake_weight: 0,
         }
     }
 
@@ -122,12 +121,6 @@ impl SerializeConfig for BouncerConfig {
         let mut dump =
             prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
         dump.append(&mut prepend_sub_config_name(self.builtin_weights.dump(), "builtin_weights"));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "blake_weight",
-            &self.blake_weight,
-            "blake opcode gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
         dump
     }
 }
@@ -414,6 +407,7 @@ impl BuiltinWeights {
                 mul_mod: 0,
                 add_mod: 0,
                 range_check96: 0,
+                blake2s: 0,
             },
         }
     }
@@ -433,6 +427,7 @@ impl Default for BuiltinWeights {
                 add_mod: 2000,
                 mul_mod: 2000,
                 range_check96: 179,
+                blake2s: 3334,
             },
         }
     }
@@ -498,6 +493,12 @@ impl SerializeConfig for BuiltinWeights {
             "gas_costs.bitwise",
             &self.gas_costs.bitwise,
             "Bitwise gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "gas_costs.blake2s",
+            &self.gas_costs.blake2s,
+            "Blake2s gas weight.",
             ParamPrivacyInput::Public,
         )]));
 
@@ -873,7 +874,7 @@ pub fn get_tx_weights<S: StateReader>(
     };
     total_state_changes_keys.extend(state_changes_keys);
 
-    let blake_opcode_gas = bouncer_config.blake_weight;
+    let blake_opcode_gas = usize_from_u64(bouncer_config.builtin_weights.gas_costs.blake2s).unwrap_or(DEFAULT_BLAKE2S_GAS_COST);
 
     // Migration occurs once per contract and is not included in the CASM hash computation, which
     // is performed every time a contract is loaded.

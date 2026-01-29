@@ -113,7 +113,6 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
 pub struct PyBouncerConfig {
     pub full_total_weights: HashMap<String, usize>,
     pub builtin_weights: HashMap<String, usize>,
-    pub blake_weight: usize,
 }
 
 impl TryFrom<PyBouncerConfig> for BouncerConfig {
@@ -126,7 +125,6 @@ impl TryFrom<PyBouncerConfig> for BouncerConfig {
             builtin_weights: hash_map_into_builtin_weights(
                 py_bouncer_config.builtin_weights.clone(),
             )?,
-            blake_weight: py_bouncer_config.blake_weight,
         })
     }
 }
@@ -195,6 +193,9 @@ fn hash_map_into_builtin_weights(
     );
     let poseidon =
         u64_from_usize(data.remove(Builtin::Poseidon.name()).expect("poseidon must be present"));
+    let blake2s = u64_from_usize(
+        data.remove("blake2s").expect("blake2s must be present"),
+    );
 
     assert!(data.is_empty(), "Unexpected keys in builtin weights: {:?}", data.keys());
 
@@ -210,6 +211,7 @@ fn hash_map_into_builtin_weights(
             ecop,
             range_check96,
             poseidon,
+            blake2s,
         },
     })
 }
