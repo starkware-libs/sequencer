@@ -1,6 +1,5 @@
 use std::fs;
 use std::future::Future;
-use std::num::NonZeroUsize;
 use std::path::Path;
 use std::sync::LazyLock;
 
@@ -212,7 +211,7 @@ pub struct CachedStorageArgs<A: StorageFromArgs> {
 
     /// The size of the cache.
     #[clap(long, default_value = "1000000")]
-    pub cache_size: usize,
+    pub cache_size: u64,
 }
 
 impl<A: StorageFromArgs + Sync> StorageFromArgs for CachedStorageArgs<A> {
@@ -222,8 +221,8 @@ impl<A: StorageFromArgs + Sync> StorageFromArgs for CachedStorageArgs<A> {
 }
 
 impl<A: StorageFromArgs> CachedStorageArgs<A> {
-    pub fn cache_size(&self) -> NonZeroUsize {
-        NonZeroUsize::new(self.cache_size).unwrap()
+    pub fn cache_size(&self) -> u64 {
+        self.cache_size
     }
 
     pub fn cached_storage_config(&self) -> CachedStorageConfig {
