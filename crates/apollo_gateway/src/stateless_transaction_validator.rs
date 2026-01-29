@@ -257,6 +257,23 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
+    // TODO(AvivG): integrate into stateless validations.
+    #[allow(dead_code)]
+    fn validate_proof_size(
+        &self,
+        tx: &RpcInvokeTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let RpcInvokeTransaction::V3(tx) = tx;
+        let proof_size = tx.proof.0.len();
+        if proof_size > self.config.max_proof_size {
+            return Err(StatelessTransactionValidatorError::ProofTooLarge {
+                proof_size,
+                max_proof_size: self.config.max_proof_size,
+            });
+        }
+        Ok(())
+    }
+
     fn validate_declare_tx(
         &self,
         declare_tx: &RpcDeclareTransaction,

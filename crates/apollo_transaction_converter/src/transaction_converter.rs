@@ -33,11 +33,11 @@ use starknet_types_core::felt::Felt;
 use thiserror::Error;
 use tracing::info;
 
-use crate::proof_verification::{verify_proof, VerifyProofAndFactsError};
+use crate::proof_verification::{stwo_verify, VerifyProofError};
 
 /// The expected bootloader program hash for proof verification.
-pub const BOOTLOADER_PROGRAM_HASH: &str =
-    "0x3faf9fbac01a844107ca8f272e78763d3818ac40ed9107307271b651e7efe0d";
+pub const BOOTLOADER_PROGRAM_HASH: Felt =
+    Felt::from_hex_unchecked("0x3faf9fbac01a844107ca8f272e78763d3818ac40ed9107307271b651e7efe0d");
 
 #[cfg(test)]
 #[path = "transaction_converter_test.rs"]
@@ -54,7 +54,7 @@ pub enum TransactionConverterError {
     #[error(transparent)]
     ProofManagerClientError(#[from] ProofManagerClientError),
     #[error(transparent)]
-    ProofVerificationError(#[from] VerifyProofAndFactsError),
+    ProofVerificationError(#[from] VerifyProofError),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
@@ -400,7 +400,7 @@ impl TransactionConverter {
         }
 
         let verify_start = Instant::now();
-        self.verify_proof_and_facts(proof_facts.clone(), proof.clone())?;
+        self.verify_proof(proof_facts.clone(), proof.clone())?;
         let verify_duration = verify_start.elapsed();
         let proof_facts_hash = proof_facts.hash();
         info!(
@@ -412,41 +412,34 @@ impl TransactionConverter {
 
     /// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
     /// program hash to the expected value.
-    fn verify_proof_and_facts(
-        &self,
-        proof_facts: ProofFacts,
-        proof: Proof,
-    ) -> Result<(), VerifyProofAndFactsError> {
+    fn verify_proof(&self, proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
         // Reject empty proof payloads before running the verifier.
         if proof.is_empty() {
-            return Err(VerifyProofAndFactsError::EmptyProof);
+            return Err(VerifyProofError::EmptyProof);
         }
 
         // Validate that the first element of proof facts is PROOF_VERSION.
         let expected_proof_version = Felt::from(PROOF_VERSION);
         let actual_first = proof_facts.0.first().copied().unwrap_or_default();
         if actual_first != expected_proof_version {
-            return Err(VerifyProofAndFactsError::InvalidProofVersion {
+            return Err(VerifyProofError::InvalidProofVersion {
                 expected: expected_proof_version,
                 actual: actual_first,
             });
         }
 
         // Verify proof and extract program output and program hash.
-        let output = verify_proof(proof)?;
+        let output = stwo_verify(proof)?;
 
         let program_variant = proof_facts.0.get(1).copied().unwrap_or_default();
         let expected_proof_facts = output.program_output.try_into_proof_facts(program_variant)?;
         if expected_proof_facts != proof_facts {
-            return Err(VerifyProofAndFactsError::ProofFactsMismatch);
+            return Err(VerifyProofError::ProofFactsMismatch);
         }
 
         // Validate the bootloader program hash output against the expected bootloader hash.
-        let expected_program_hash = Felt::from_hex(BOOTLOADER_PROGRAM_HASH.trim())
-            .map_err(VerifyProofAndFactsError::ParseExpectedHash)?;
-
-        if output.program_hash != expected_program_hash {
-            return Err(VerifyProofAndFactsError::BootloaderHashMismatch);
+        if output.program_hash != BOOTLOADER_PROGRAM_HASH {
+            return Err(VerifyProofError::BootloaderHashMismatch);
         }
 
         Ok(())

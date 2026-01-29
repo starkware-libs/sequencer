@@ -604,6 +604,32 @@ fn test_invoke_tx(
 ) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
+
+    // Adjust resource bounds for client-side proving transactions.
+    let resource_bounds = if proof_facts.is_empty() {
+        resource_bounds
+    } else {
+        match resource_bounds {
+            ValidResourceBounds::AllResources(all_bounds) => {
+                // For client-side proving transactions, reserve extra L2 gas for the fixed proof
+                // cost.
+                let proof_gas_cost: u64 =
+                    versioned_constants.archival_data_gas_costs.gas_per_proof.to_integer();
+
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l2_gas: ResourceBounds {
+                        max_amount: GasAmount(all_bounds.l2_gas.max_amount.0 + proof_gas_cost),
+                        ..all_bounds.l2_gas
+                    },
+                    ..all_bounds
+                })
+            }
+            // Skip impossible combination: proof_facts only exist in V3 transactions,
+            // and V3 uses AllResourceBounds (L1Gas is legacy-only).
+            ValidResourceBounds::L1Gas(_) => return,
+        }
+    };
+
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let chain_info = &block_context.chain_info;
@@ -623,6 +649,7 @@ fn test_invoke_tx(
     // transaction.
     let calldata_length = invoke_tx.calldata_length();
     let signature_length = invoke_tx.signature_length();
+    let proof_facts_length = invoke_tx.proof_facts_length();
     let state_changes_for_fee = StateChangesCount {
         n_storage_updates: 1,
         n_modified_contracts: 1,
@@ -635,6 +662,7 @@ fn test_invoke_tx(
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
+        proof_facts_length,
     );
     let sender_address = invoke_tx.sender_address();
 
@@ -1872,6 +1900,7 @@ fn test_declare_tx(
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
+        0,
     );
     let account_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
         declare_tx_args! {

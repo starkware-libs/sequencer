@@ -129,6 +129,11 @@
     "privacy": "Public",
     "value": 179
   },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.blake2s": {
+    "description": "blake2s gas weight.",
+    "privacy": "Public",
+    "value": 3334
+  },
   "batcher_config.block_builder_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
@@ -2593,6 +2598,11 @@
     "description": "Limitation of contract class object size.",
     "privacy": "Public",
     "value": 4089446
+  },
+  "gateway_config.stateless_tx_validator_config.max_proof_size": {
+    "description": "Limitation of proof size.",
+    "privacy": "Public",
+    "value": 90000
   },
   "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": {
     "description": "Maximum allowed L2 gas amount for transactions.",

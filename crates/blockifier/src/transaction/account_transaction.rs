@@ -220,6 +220,10 @@ impl AccountTransaction {
         self.signature().0.len()
     }
 
+    pub fn proof_facts_length(&self) -> usize {
+        if let Transaction::Invoke(tx) = &self.tx { tx.proof_facts_length() } else { 0 }
+    }
+
     pub fn enforce_fee(&self) -> bool {
         self.create_tx_info().enforce_fee()
     }

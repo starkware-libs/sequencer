@@ -137,7 +137,7 @@ impl StarknetResources {
         state_resources: StateResources,
         l1_handler_payload_size: Option<usize>,
         execution_summary_without_fee_transfer: ExecutionSummary,
-        // TODO(AvivG): Add proof_facts_length as a parameter.
+        proof_facts_length: usize,
     ) -> Self {
         // TODO(Yoni): store the entire summary.
         Self {
@@ -146,7 +146,7 @@ impl StarknetResources {
                 calldata_length,
                 signature_length,
                 code_size,
-                proof_facts_length: 0,
+                proof_facts_length,
             },
             messages: MessageResources::new(
                 execution_summary_without_fee_transfer.l2_to_l1_payload_lengths,

@@ -534,6 +534,7 @@ impl CairoNativeStackConfig {
 pub struct VersionedConstantsGatewayLimits {
     pub max_calldata_length: usize,
     pub max_contract_bytecode_size: usize,
+    pub max_proof_size: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
@@ -937,6 +938,7 @@ pub struct BuiltinGasCosts {
     pub add_mod: u64,
     pub mul_mod: u64,
     pub ecdsa: u64,
+    pub blake2s: u64,
 }
 
 impl BuiltinGasCosts {

@@ -109,6 +109,7 @@ pub struct StatelessTransactionValidatorConfig {
     pub max_l2_gas_amount: u64,
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
+    pub max_proof_size: usize,
 
     // Declare txs specific config.
     pub max_contract_bytecode_size: usize,
@@ -133,6 +134,9 @@ impl Default for StatelessTransactionValidatorConfig {
             min_sierra_version: VersionId::new(1, 1, 0),
             max_sierra_version: VersionId::new(1, 7, usize::MAX),
             allow_client_side_proving: false,
+            // TODO(AvivG): This value is a placeholder and will be updated once the actual value is
+            // determined.
+            max_proof_size: 90000,
         }
     }
 }
@@ -187,6 +191,12 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 "allow_client_side_proving",
                 &self.allow_client_side_proving,
                 "If true, allows transactions with non-empty proof_facts or proof fields.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_proof_size",
+                &self.max_proof_size,
+                "Limitation of proof size.",
                 ParamPrivacyInput::Public,
             ),
         ]);

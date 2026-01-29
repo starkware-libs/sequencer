@@ -6,7 +6,8 @@
     },
     "gateway": {
         "max_calldata_length": 5000,
-        "max_contract_bytecode_size": 81920
+        "max_contract_bytecode_size": 81920,
+        "max_proof_size": 90000
     },
     "invoke_tx_max_n_steps": 10000000,
     "deprecated_l2_resource_gas_costs": {
@@ -115,7 +116,8 @@
             "poseidon": 491,
             "add_mod": 230,
             "mul_mod": 604,
-            "ecdsa": 10561
+            "ecdsa": 10561,
+            "blake2s": 0
         },
         "l1_handler_max_amount_bounds": {
             "l1_gas": 40000,
