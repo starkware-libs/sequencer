@@ -2,7 +2,11 @@
 
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    CommitmentManagerConfig,
+    FirstBlockWithPartialBlockHash,
+};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
@@ -20,7 +24,7 @@ use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 
-use crate::batcher::BatcherStorageReader;
+use crate::batcher::{BatcherStorageReader, BatcherStorageWriter};
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::commitment_manager::state_committer::{StateCommitter, StateCommitterTrait};
 use crate::commitment_manager::types::{
@@ -183,6 +187,60 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         }
     }
 
+    pub(crate) async fn write_commitment_results_to_storage(
+        &mut self,
+        commitment_results: Vec<CommitmentTaskOutput>,
+        first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
+        storage_reader: Arc<dyn BatcherStorageReader>,
+        storage_writer: &mut Box<dyn BatcherStorageWriter>,
+    ) -> CommitmentManagerResult<()> {
+        for commitment_task_output in commitment_results.into_iter() {
+            let height = commitment_task_output.height;
+            info!("Writing commitment results to storage for height {}.", height);
+
+            // Decide whether to finalize the block hash based on the config.
+            let should_finalize_block_hash = match first_block_with_partial_block_hash.as_ref() {
+                Some(FirstBlockWithPartialBlockHash { block_number, .. }) => {
+                    height >= *block_number
+                }
+                None => true,
+            };
+
+            // Get the final commitment.
+            let FinalBlockCommitment { height, block_hash, global_root } =
+                Self::finalize_commitment_output(
+                    storage_reader.clone(),
+                    commitment_task_output,
+                    should_finalize_block_hash,
+                )?;
+
+            // Verify the first new block hash matches the configured block hash.
+            if let Some(FirstBlockWithPartialBlockHash {
+                block_number,
+                block_hash: expected_block_hash,
+                ..
+            }) = first_block_with_partial_block_hash.as_ref()
+            {
+                if height == *block_number {
+                    assert_eq!(
+                        *expected_block_hash,
+                        block_hash.expect(
+                            "The block hash of the first new block should be finalized and \
+                             therefore set."
+                        ),
+                        "The calculated block hash of the first new block ({block_hash:?}) does \
+                         not match the configured block hash ({expected_block_hash:?})"
+                    );
+                }
+            }
+
+            // Write the block hash and global root to storage.
+            storage_writer.set_global_root_and_block_hash(height, global_root, block_hash)?;
+        }
+
+        Ok(())
+    }
+
     // Private methods.
 
     fn successfully_added_commitment_task(
@@ -311,7 +369,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// Otherwise, returns the final commitment with no block hash.
     // TODO(Rotem): Test this function.
     // TODO(Amos): Test blocks [0,10] in OS flow tests.
-    pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
+    fn finalize_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
         CommitmentTaskOutput { response: CommitBlockResponse { state_root: global_root }, height }: CommitmentTaskOutput,
         should_finalize_block_hash: bool,
