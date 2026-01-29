@@ -350,6 +350,7 @@ pub fn create_gateway(
 impl ComponentStarter for Gateway {
     async fn start(&mut self) {
         register_metrics();
+        self.0.proof_archive_writer.connect().await;
     }
 }
 
