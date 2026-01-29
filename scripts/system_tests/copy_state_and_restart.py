@@ -27,6 +27,18 @@ def extract_service_info_from_config(service_config: Dict[str, Any]) -> Tuple[st
     return controller, service_name.lower(), controller.lower()
 
 
+def make_cmd_verbose_if_needed(cmd: List[str], verbose: bool) -> List[str]:
+    """
+    Add verbose flag to kubectl command if needed.
+
+    Inserts `-v=6` at position 1 (after "kubectl") when verbose is True.
+    """
+    if verbose:
+        cmd = cmd.copy()  # Don't modify the original list
+        cmd.insert(1, "-v=6")
+    return cmd
+
+
 def run(
     cmd: List[str], check: bool = True, capture_output: bool = False
 ) -> subprocess.CompletedProcess:
@@ -56,19 +68,20 @@ def copy_state(pod_name: str, namespace: str, data_dir: str, verbose: bool = Fal
     # Clear existing data directory to ensure old database files are removed
     print(f"Clearing existing /data directory in {pod_name}...")
     try:
-        exec_cmd = [
-            "kubectl",
-            "exec",
-            pod_name,
-            "-n",
-            namespace,
-            "--",
-            "sh",
-            "-c",
-            "rm -rf /data/* 2>/dev/null || true",
-        ]
-        if verbose:
-            exec_cmd.insert(1, "-v=6")
+        exec_cmd = make_cmd_verbose_if_needed(
+            [
+                "kubectl",
+                "exec",
+                pod_name,
+                "-n",
+                namespace,
+                "--",
+                "sh",
+                "-c",
+                "rm -rf /data/* 2>/dev/null || true",
+            ],
+            verbose,
+        )
         run(exec_cmd)
         print(f"✅ Cleared /data directory in {pod_name}")
     except subprocess.CalledProcessError as e:
@@ -77,15 +90,15 @@ def copy_state(pod_name: str, namespace: str, data_dir: str, verbose: bool = Fal
 
     print(f"📥 Copying state data to {pod_name}...")
     try:
-        cp_cmd = ["kubectl", "cp"]
-        if verbose:
-            cp_cmd.append("-v=6")
-        cp_cmd.extend(
+        cp_cmd = make_cmd_verbose_if_needed(
             [
+                "kubectl",
+                "cp",
                 f"{data_dir}/.",
                 f"{namespace}/{pod_name}:/data",
                 "--retries=3",
-            ]
+            ],
+            verbose,
         )
         run(cp_cmd)
         print(f"✅ State copied to {pod_name}")
@@ -97,9 +110,9 @@ def copy_state(pod_name: str, namespace: str, data_dir: str, verbose: bool = Fal
 def delete_pod(pod_name: str, namespace: str, verbose: bool = False) -> None:
     print(f"🔄 Restarting pod {pod_name}...")
     try:
-        delete_cmd = ["kubectl", "delete", "pod", pod_name, "-n", namespace]
-        if verbose:
-            delete_cmd.insert(1, "-v=6")
+        delete_cmd = make_cmd_verbose_if_needed(
+            ["kubectl", "delete", "pod", pod_name, "-n", namespace], verbose
+        )
         run(delete_cmd, check=False)
         print(f"✅ Pod {pod_name} restarted successfully!")
     except subprocess.CalledProcessError as e:
@@ -136,8 +149,7 @@ def wait_for_resource(
         print(f"❌ Unknown controller type: {controller}. Aborting...")
         sys.exit(1)
 
-    if verbose:
-        cmd.insert(1, "-v=6")
+    cmd = make_cmd_verbose_if_needed(cmd, verbose)
 
     try:
         run(cmd)
@@ -198,19 +210,20 @@ def main(
 
         print(f"📡 Finding {service_name} pod...")
         try:
-            get_cmd = [
-                "kubectl",
-                "get",
-                "pods",
-                "-n",
-                namespace,
-                "-l",
-                f"service={service_label}",
-                "-o",
-                "jsonpath={.items[0].metadata.name}",
-            ]
-            if verbose:
-                get_cmd.insert(1, "-v=6")
+            get_cmd = make_cmd_verbose_if_needed(
+                [
+                    "kubectl",
+                    "get",
+                    "pods",
+                    "-n",
+                    namespace,
+                    "-l",
+                    f"service={service_label}",
+                    "-o",
+                    "jsonpath={.items[0].metadata.name}",
+                ],
+                verbose,
+            )
             pod_name = run(get_cmd, capture_output=True).stdout.strip()
         except subprocess.CalledProcessError:
             print(f"❌ Missing pod for {service_name}. Aborting!")
