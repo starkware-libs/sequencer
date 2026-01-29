@@ -803,7 +803,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             let commitment_infos = create_commitment_infos(
                 &previous_state_roots,
                 &new_state_roots,
-                &mut map_storage,
+                &map_storage,
                 &initial_reads.keys(),
             )
             .await;

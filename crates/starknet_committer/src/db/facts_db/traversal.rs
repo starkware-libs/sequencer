@@ -25,7 +25,7 @@ pub mod traversal_test;
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
 pub async fn fetch_patricia_paths<L: Leaf>(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     root_hash: HashOutput,
     sorted_leaf_indices: SortedLeafIndices<'_>,
     leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -60,7 +60,7 @@ pub async fn fetch_patricia_paths<L: Leaf>(
 /// If `leaves` is not `None`, it also fetches the modified leaves and inserts them into the
 /// provided map.
 pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     subtrees: Vec<FactsSubTree<'a>>,
     witnesses: &mut PreimageMap,
     mut leaves: Option<&mut HashMap<NodeIndex, L>>,

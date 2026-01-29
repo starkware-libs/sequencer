@@ -251,7 +251,7 @@ pub(crate) fn get_extended_initial_reads<S: StateReader>(state: &CachedState<S>)
 pub(crate) async fn create_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
-    commitments: &mut MapStorage,
+    commitments: &MapStorage,
     initial_reads_keys: &StateChangesKeys,
 ) -> StateCommitmentInfos {
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
@@ -354,7 +354,7 @@ pub(crate) async fn get_previous_states_and_new_storage_roots<
     contract_addresses: I,
     previous_contract_trie_root: HashOutput,
     new_contract_trie_root: HashOutput,
-    commitments: &mut MapStorage,
+    commitments: &MapStorage,
 ) -> (HashMap<NodeIndex, ContractState>, HashMap<ContractAddress, HashOutput>) {
     let mut contract_leaf_indices: Vec<NodeIndex> =
         contract_addresses.map(|address| NodeIndex::from_leaf_felt(&address.0)).collect();
@@ -448,7 +448,7 @@ pub(crate) fn get_class_hash_of_feature_contract(feature_contract: FeatureContra
 
 async fn fetch_storage_proofs_from_state_changes_keys(
     initial_reads_keys: &StateChangesKeys,
-    storage: &mut MapStorage,
+    storage: &MapStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
 ) -> StarknetForestProofs {
