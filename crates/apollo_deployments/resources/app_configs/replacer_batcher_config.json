@@ -1,5 +1,4 @@
 {
-  "batcher_config.block_builder_config.bouncer_config.blake_weight": 3334,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 4400000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": "$$$_BATCHER_CONFIG-BLOCK_BUILDER_CONFIG-BOUNCER_CONFIG-BLOCK_MAX_CAPACITY-N_EVENTS_$$$",
