@@ -198,7 +198,7 @@ use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
     SubTreeHeight::new(4),
 )]
 async fn test_create_tree(
-    #[case] mut storage: MapStorage,
+    #[case] storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<MockLeaf>,
     #[case] root_hash: HashOutput,
     #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
@@ -213,7 +213,7 @@ async fn test_create_tree(
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
     let skeleton_tree = create_original_skeleton_tree::<MockLeaf, FactsNodeLayout>(
-        &mut storage,
+        &storage,
         root_hash,
         sorted_leaf_indices,
         &config,
