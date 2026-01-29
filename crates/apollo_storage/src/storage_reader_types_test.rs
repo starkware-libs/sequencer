@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
@@ -21,6 +21,7 @@ use tempfile::TempDir;
 use crate::base_layer::BaseLayerStorageReader;
 use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::class::{ClassStorageReader, ClassStorageWriter};
+use crate::class_hash::ClassHashStorageWriter;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
@@ -50,6 +51,7 @@ struct TestServerSetup {
     casm_class_hash: ClassHash,
     casm: CasmContractClass,
     tx_index: TransactionIndex,
+    executable_class_hash_v2: CompiledClassHash,
 }
 
 impl TestServerSetup {
@@ -91,6 +93,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
 
     let expected_casm: CasmContractClass = read_json_file("compiled_class.json");
     let casm_class_hash = ClassHash(felt!("0x2"));
+    let executable_class_hash_v2 = compiled_class_hash!(2_u8);
 
     let state_diff = ThinStateDiff {
         deployed_contracts: IndexMap::from([(deployed_contract_address, deployed_class_hash)]),
@@ -124,6 +127,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .unwrap()
         .append_body(block_number, block.body)
         .unwrap()
+        .set_executable_class_hash_v2(&class_hash, executable_class_hash_v2)
+        .unwrap()
         .commit()
         .unwrap();
 
@@ -147,6 +152,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         casm_class_hash,
         casm: expected_casm,
         tx_index,
+        executable_class_hash_v2,
     }
 }
 
@@ -386,4 +392,18 @@ async fn deployed_contracts_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::DeployedContracts(*class_hash));
+}
+
+#[tokio::test]
+async fn stateless_compiled_class_hash_v2_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    // Test StatelessCompiledClassHashV2 request
+    let request = StorageReaderRequest::StatelessCompiledClassHashV2(setup.class_hash);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(
+        response,
+        StorageReaderResponse::StatelessCompiledClassHashV2(setup.executable_class_hash_v2)
+    );
 }
