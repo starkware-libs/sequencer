@@ -78,6 +78,8 @@ pub enum Unit {
     PercentUnit,
     MB,
     Microseconds,
+    #[allow(dead_code)] // TODO(Rotem): use in panels.
+    Milliseconds,
 }
 
 impl Unit {
@@ -88,6 +90,7 @@ impl Unit {
             Unit::PercentUnit => "percentunit",
             Unit::MB => "decmbytes",
             Unit::Microseconds => "µs",
+            Unit::Milliseconds => "ms",
         }
     }
 }
