@@ -67,8 +67,8 @@ impl TransactionQueueTrait for FeeTransactionQueue {
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
-    fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference> {
-        self.priority_queue.iter().rev().map(|tx| &tx.0)
+    fn iter_over_ready_txs(&self) -> Box<dyn Iterator<Item = &TransactionReference> + '_> {
+        Box::new(self.priority_queue.iter().rev().map(|tx| &tx.0))
     }
 
     fn get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
@@ -136,17 +136,22 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         }
         HashSet::new() // Fee Priority queue doesn't track rewound transactions
     }
-}
 
-impl FeeTransactionQueue {
-    pub fn priority_queue_len(&self) -> usize {
+    fn priority_queue_len(&self) -> usize {
         self.priority_queue.len()
     }
 
-    pub fn pending_queue_len(&self) -> usize {
+    fn pending_queue_len(&self) -> usize {
         self.pending_queue.len()
     }
 
+    #[cfg(test)]
+    fn pending_txs(&self) -> Vec<TransactionReference> {
+        self.pending_queue.iter().rev().map(|tx| tx.0).collect()
+    }
+}
+
+impl FeeTransactionQueue {
     fn promote_txs_to_priority(&mut self, threshold: GasPrice) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
             max_l2_gas_price: threshold,
