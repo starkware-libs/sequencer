@@ -2472,6 +2472,7 @@ dependencies = [
  "blockifier_test_utils",
  "mockall",
  "rstest",
+ "sha2 0.10.9",
  "starknet-types-core",
  "starknet_api",
  "static_assertions",
