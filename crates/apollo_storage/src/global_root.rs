@@ -48,6 +48,7 @@ impl GlobalRootStorageWriter for StorageTxn<'_, RW> {
     ) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.global_root)?;
         table.upsert(self.txn(), block_number, &global_root)?;
+        self.mark_dirty();
         Ok(self)
     }
 
@@ -56,6 +57,7 @@ impl GlobalRootStorageWriter for StorageTxn<'_, RW> {
         global_roots_table.delete(self.txn(), target_block_number)?;
         let markers_table = self.open_table(&self.tables.markers)?;
         markers_table.upsert(self.txn(), &MarkerKind::GlobalRoot, target_block_number)?;
+        self.mark_dirty();
         Ok(self)
     }
 }

@@ -92,6 +92,7 @@ impl VersionStorageWriter for StorageTxn<'_, RW> {
             };
         }
         version_table.upsert(self.txn(), &VERSION_STATE_KEY.to_string(), version)?;
+        self.mark_dirty();
         Ok(self)
     }
 
@@ -117,11 +118,13 @@ impl VersionStorageWriter for StorageTxn<'_, RW> {
             };
         }
         version_table.upsert(self.txn(), &VERSION_BLOCKS_KEY.to_string(), version)?;
+        self.mark_dirty();
         Ok(self)
     }
     fn delete_blocks_version(self) -> StorageResult<Self> {
         let version_table = self.open_table(&self.tables.storage_version)?;
         version_table.delete(self.txn(), &VERSION_BLOCKS_KEY.to_string())?;
+        self.mark_dirty();
         Ok(self)
     }
 }

@@ -47,12 +47,14 @@ impl BlockHashStorageWriter for StorageTxn<'_, RW> {
     ) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.block_hashes)?;
         table.upsert(self.txn(), block_number, &block_hash)?;
+        self.mark_dirty();
         Ok(self)
     }
 
     fn revert_block_hash(self, target_block_number: &BlockNumber) -> StorageResult<Self> {
         let block_hash_table = self.open_table(&self.tables.block_hashes)?;
         block_hash_table.delete(self.txn(), target_block_number)?;
+        self.mark_dirty();
         Ok(self)
     }
 }

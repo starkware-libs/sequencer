@@ -247,6 +247,7 @@ impl ClassStorageWriter for StorageTxn<'_, RW> {
         )?;
 
         markers_table.upsert(self.txn(), &MarkerKind::Class, &block_number.unchecked_next())?;
+        self.mark_dirty();
 
         Ok(self)
     }

@@ -64,6 +64,7 @@ impl ClassManagerStorageWriter for StorageTxn<'_, RW> {
     fn update_class_manager_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
         markers_table.upsert(self.txn(), &MarkerKind::ClassManagerBlock, block_number)?;
+        self.mark_dirty();
         Ok(self)
     }
 

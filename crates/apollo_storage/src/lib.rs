@@ -121,6 +121,7 @@ pub mod storage_reader_server_test_utils;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::fs;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -375,6 +376,8 @@ fn set_version_if_needed(
             }
         }
     }
+    // Commit the transaction. With the dirty flag implementation, empty transactions
+    // (where no version updates occurred) won't increment the batch counter.
     wtxn.commit()?;
     Ok(writer)
 }
@@ -700,9 +703,19 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     /// Optional shared reference to batching state for commit callbacks.
     /// Only set for RW transactions in batching mode when using a borrowed transaction.
     batching_state: Option<SharedBatchingState>,
+    /// Tracks whether this transaction has performed any writes.
+    /// Used in batching mode to only increment the batch counter for non-empty transactions.
+    /// Uses AtomicBool for thread-safe interior mutability.
+    has_writes: AtomicBool,
 }
 
 impl StorageTxn<'_, RW> {
+    /// Marks this transaction as having performed writes.
+    /// Used in batching mode to track whether the transaction should count toward the batch.
+    pub(crate) fn mark_dirty(&self) {
+        self.has_writes.store(true, Ordering::Relaxed);
+    }
+
     /// Commits the changes made in the transaction to the storage.
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(self) -> StorageResult<()> {
@@ -715,11 +728,17 @@ impl StorageTxn<'_, RW> {
             TxnHolder::Borrowed(_) => {
                 // Batching mode: don't commit the database transaction immediately.
                 // Instead, increment the counter and potentially commit if batch size is reached.
+                // Only increment counter if transaction has performed writes.
                 if let Some(state_arc) = self.batching_state {
                     let mut state = state_arc.lock().unwrap();
-                    state.commit_counter += 1;
 
-                    if state.commit_counter >= state.batch_size {
+                    if self.has_writes.load(Ordering::Relaxed) {
+                        state.commit_counter += 1;
+                    }
+
+                    if self.has_writes.load(Ordering::Relaxed)
+                        && state.commit_counter >= state.batch_size
+                    {
                         // Batch size reached - take the transaction and reset counter.
                         let txn_to_commit = state.active_txn.take();
                         state.commit_counter = 0;
@@ -791,6 +810,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
             scope,
             _metric_updater: metric_updater,
             batching_state: None,
+            has_writes: AtomicBool::new(false),
         }
     }
 }

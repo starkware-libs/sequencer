@@ -475,6 +475,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
 
         markers_table.upsert(self.txn(), &MarkerKind::Body, &block_number)?;
         markers_table.upsert(self.txn(), &MarkerKind::Event, &block_number)?;
+        self.mark_dirty();
         Ok((self, reverted_block_body))
     }
 }

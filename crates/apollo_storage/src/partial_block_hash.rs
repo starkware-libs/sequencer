@@ -58,6 +58,7 @@ impl PartialBlockHashComponentsStorageWriter for StorageTxn<'_, RW> {
     ) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.partial_block_hashes_components)?;
         table.insert(self.txn(), block_number, partial_block_hash)?;
+        self.mark_dirty();
         Ok(self)
     }
 
@@ -67,6 +68,7 @@ impl PartialBlockHashComponentsStorageWriter for StorageTxn<'_, RW> {
     ) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.partial_block_hashes_components)?;
         table.delete(self.txn(), block_number)?;
+        self.mark_dirty();
         Ok(self)
     }
 }

@@ -153,6 +153,7 @@ impl CasmStorageWriter for StorageTxn<'_, RW> {
         let location = self.file_handlers.append_casm(casm);
         casm_table.insert(self.txn(), class_hash, &location)?;
         file_offset_table.upsert(self.txn(), &OffsetKind::Casm, &location.next_offset())?;
+        self.mark_dirty();
         update_marker(
             self.txn(),
             &markers_table,

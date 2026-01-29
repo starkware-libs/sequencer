@@ -59,6 +59,7 @@ impl ClassHashStorageWriter for StorageTxn<'_, RW> {
     ) -> StorageResult<Self> {
         let table = self.open_table(&self.tables.stateless_compiled_class_hash_v2)?;
         table.upsert(self.txn(), class_hash, &executable_class_hash_v2)?;
+        self.mark_dirty();
         Ok(self)
     }
 }

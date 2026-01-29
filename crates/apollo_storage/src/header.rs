@@ -325,6 +325,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         };
 
         headers_table.append(self.txn(), &block_number, &storage_block_header)?;
+        self.mark_dirty();
 
         update_hash_mapping(
             self.txn(),
@@ -353,7 +354,10 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         match res {
             Some((_block_number, last_starknet_version))
                 if last_starknet_version == *starknet_version => {}
-            _ => starknet_version_table.insert(self.txn(), block_number, starknet_version)?,
+            _ => {
+                starknet_version_table.insert(self.txn(), block_number, starknet_version)?;
+                self.mark_dirty();
+            }
         }
         Ok(self)
     }
@@ -390,6 +394,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         markers_table.upsert(self.txn(), &MarkerKind::Header, &block_number)?;
         headers_table.delete(self.txn(), &block_number)?;
         block_hash_to_number_table.delete(self.txn(), &reverted_header.block_hash)?;
+        self.mark_dirty();
 
         // Revert starknet version and get the version.
         // TODO(shahak): Fix code duplication with get_starknet_version.
@@ -405,11 +410,13 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
             ),
         };
         starknet_version_table.delete(self.txn(), &block_number)?;
+        self.mark_dirty();
 
         // Revert block signature.
         let reverted_block_signature = block_signatures_table.get(self.txn(), &block_number)?;
         if reverted_block_signature.is_some() {
             block_signatures_table.delete(self.txn(), &block_number)?;
+            self.mark_dirty();
         }
 
         Ok((
@@ -457,6 +464,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
 
         let block_signatures_table = self.open_table(&self.tables.block_signatures)?;
         block_signatures_table.insert(self.txn(), &block_number, block_signature)?;
+        self.mark_dirty();
         Ok(self)
     }
 }

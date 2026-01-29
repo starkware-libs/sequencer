@@ -80,6 +80,7 @@ impl BaseLayerStorageWriter for StorageTxn<'_, RW> {
     fn update_base_layer_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
         markers_table.upsert(self.txn(), &MarkerKind::BaseLayerBlock, block_number)?;
+        self.mark_dirty();
         Ok(self)
     }
 
