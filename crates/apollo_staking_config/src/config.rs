@@ -22,6 +22,13 @@ pub struct StakersConfig {
     pub stakers: Vec<ConfiguredStaker>,
 }
 
+/// Finds the applicable StakersConfig for a given epoch.
+/// Returns the config with the highest start_epoch that is <= the given epoch.
+/// Returns None if no config applies to the given epoch.
+pub fn find_config_for_epoch(configs: &[StakersConfig], epoch: u64) -> Option<&StakersConfig> {
+    configs.iter().filter(|entry| epoch >= entry.start_epoch).max_by_key(|entry| entry.start_epoch)
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerConfig {
     pub dynamic_config: StakingManagerDynamicConfig,
