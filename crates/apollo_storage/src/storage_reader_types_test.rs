@@ -407,3 +407,23 @@ async fn stateless_compiled_class_hash_v2_request() {
         StorageReaderResponse::StatelessCompiledClassHashV2(setup.executable_class_hash_v2)
     );
 }
+
+#[tokio::test]
+async fn transaction_hash_to_idx_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    // Get the transaction hash from the stored transaction
+    let tx_hash = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_transaction_hash_by_idx(&setup.tx_index)
+        .unwrap()
+        .expect("Transaction hash should exist");
+
+    // Test TransactionHashToIdx request
+    let request = StorageReaderRequest::TransactionHashToIdx(tx_hash);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::TransactionHashToIdx(setup.tx_index));
+}
