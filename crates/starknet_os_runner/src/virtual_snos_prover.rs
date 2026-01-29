@@ -3,11 +3,12 @@
 //! This module contains the core proving logic, extracted from the HTTP layer
 //! to enable better separation of concerns and testability.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
+use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, VIRTUAL_SNOS};
@@ -46,21 +47,32 @@ pub enum VirtualSnosProverError {
     OutputParseError(#[from] OsOutputError),
 }
 
-/// Output from a successful proving operation.
-#[derive(Debug, Clone)]
-pub struct VirtualSnosProverOutput {
+/// Result of a successful prove transaction operation.
+///
+/// This struct is used both as the RPC response and as part of the internal prover output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProveTransactionResult {
     /// The generated proof.
     pub proof: Proof,
     /// The proof facts.
     pub proof_facts: ProofFacts,
     /// Messages sent from L2 to L1 during execution.
     pub l2_to_l1_messages: Vec<MessageToL1>,
+}
+
+/// Output from a successful proving operation.
+///
+/// Contains the RPC-facing result plus internal metrics.
+#[derive(Debug, Clone)]
+pub struct VirtualSnosProverOutput {
+    /// The proving result (proof, proof facts, and messages).
+    pub result: ProveTransactionResult,
     /// Duration of OS execution.
-    pub os_duration: std::time::Duration,
+    pub os_duration: Duration,
     /// Duration of proving.
-    pub prove_duration: std::time::Duration,
+    pub prove_duration: Duration,
     /// Total duration from start to finish.
-    pub total_duration: std::time::Duration,
+    pub total_duration: Duration,
 }
 
 /// Virtual SNOS prover for Starknet transactions.
@@ -167,14 +179,13 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
         // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
         let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
 
-        Ok(VirtualSnosProverOutput {
+        let result = ProveTransactionResult {
             proof: prover_output.proof,
             proof_facts,
             l2_to_l1_messages: runner_output.l2_to_l1_messages,
-            os_duration,
-            prove_duration,
-            total_duration,
-        })
+        };
+
+        Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
     }
 }
 
