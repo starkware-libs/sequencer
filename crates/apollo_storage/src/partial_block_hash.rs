@@ -7,7 +7,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
+use crate::db::{RW, TransactionKind};
 use crate::{StorageResult, StorageTxn};
 
 /// Interface for reading partial block hashes.

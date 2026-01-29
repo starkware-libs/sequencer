@@ -6,7 +6,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::GlobalRoot;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
+use crate::db::{RW, TransactionKind};
 use crate::{MarkerKind, StorageResult, StorageTxn};
 
 /// Interface for reading global root.

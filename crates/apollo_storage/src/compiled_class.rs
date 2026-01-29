@@ -56,7 +56,7 @@ use starknet_api::state::SierraContractClass;
 use crate::class::ClassStorageReader;
 use crate::db::serialization::VersionZeroWrapper;
 use crate::db::table_types::{SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::db::{DbTransaction, RW, TableHandle, TransactionKind};
 use crate::mmap_file::LocationInFile;
 use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTxn};
 

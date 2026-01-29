@@ -8,7 +8,7 @@
 use starknet_api::core::{ClassHash, CompiledClassHash};
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
+use crate::db::{RW, TransactionKind};
 use crate::{StorageResult, StorageTxn};
 
 #[cfg(test)]
