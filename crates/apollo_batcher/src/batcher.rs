@@ -26,6 +26,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
@@ -35,7 +36,7 @@ use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
-use apollo_storage::global_root::GlobalRootStorageWriter;
+use apollo_storage::global_root::{GlobalRootStorageReader, GlobalRootStorageWriter};
 use apollo_storage::global_root_marker::{
     GlobalRootMarkerStorageReader,
     GlobalRootMarkerStorageWriter,
@@ -86,7 +87,11 @@ use crate::commitment_manager::commitment_manager_impl::{
     ApolloCommitmentManager,
     CommitmentManager,
 };
-use crate::commitment_manager::types::FinalBlockCommitment;
+use crate::commitment_manager::types::{
+    CommitmentTaskOutput,
+    FinalBlockCommitment,
+    RevertTaskOutput,
+};
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
@@ -478,6 +483,7 @@ impl Batcher {
     }
 
     /// Clear all the proposals from the previous height.
+    #[cfg_attr(any(test, feature = "testing"), apollo_proc_macros::make_visibility(pub))]
     async fn abort_active_height(&mut self) {
         self.abort_active_proposal().await;
         self.executed_proposals.lock().await.clear();
@@ -708,7 +714,7 @@ impl Batcher {
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
         // Write ready commitments to storage.
-        self.write_commitment_results_to_storage().await?;
+        self.get_and_write_commitment_results_to_storage().await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -773,7 +779,7 @@ impl Batcher {
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
         // Write ready commitments to storage.
-        self.write_commitment_results_to_storage().await?;
+        self.get_and_write_commitment_results_to_storage().await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1107,6 +1113,9 @@ impl Batcher {
             self.abort_active_height().await;
         }
 
+        // Wait for the revert commitment to be completed before reverting the storage.
+        self.revert_commitment(height).await;
+
         self.storage_writer.revert_block(height);
         BUILDING_HEIGHT.decrement(1);
         GLOBAL_ROOT_HEIGHT.decrement(1);
@@ -1156,8 +1165,17 @@ impl Batcher {
     }
 
     /// Writes the ready commitment results to storage.
-    async fn write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
+    async fn get_and_write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
         let commitment_results = self.commitment_manager.get_commitment_results().await;
+        self.write_commitment_results_to_storage(commitment_results).await?;
+        Ok(())
+    }
+
+    /// Writes the given commitment results to storage.
+    async fn write_commitment_results_to_storage(
+        &mut self,
+        commitment_results: Vec<CommitmentTaskOutput>,
+    ) -> BatcherResult<()> {
         for commitment_task_output in commitment_results.into_iter() {
             let height = commitment_task_output.height;
             info!("Writing commitment results to storage for height {}.", height);
@@ -1215,6 +1233,62 @@ impl Batcher {
         }
 
         Ok(())
+    }
+
+    /// Reverts the commitment for the given height.
+    /// Adds a revert task to the commitment manager channel and waits for the result.
+    /// Writes commitment results to storage and handles the revert task result.
+    async fn revert_commitment(&mut self, height: BlockNumber) {
+        let reversed_state_diff = self
+            .storage_reader
+            .reversed_state_diff(height)
+            .expect("Failed to get reversed state diff from storage.");
+        self.commitment_manager
+            .add_revert_task(height, reversed_state_diff)
+            .await
+            .expect("Failed to add revert task to commitment manager.");
+        let (commitment_results, revert_task_result) =
+            self.commitment_manager.wait_for_revert_result().await;
+        self.write_commitment_results_to_storage(commitment_results)
+            .await
+            .expect("Failed to write commitment results to storage.");
+
+        info!("Revert task result: {revert_task_result:?}");
+        self.validate_revert_task_result(revert_task_result, height).await;
+        info!("Reverted commitment for height {height}.");
+    }
+
+    async fn validate_revert_task_result(
+        &self,
+        revert_task_output: RevertTaskOutput,
+        request_height_to_revert: BlockNumber,
+    ) {
+        assert_eq!(
+            revert_task_output.height, request_height_to_revert,
+            "The task output height does not match the request height."
+        );
+
+        match revert_task_output.response {
+            RevertBlockResponse::RevertedTo(global_root)
+            | RevertBlockResponse::AlreadyReverted(global_root) => {
+                // Verify the global root matches the stored global root.
+                let new_latest_height = revert_task_output
+                    .height
+                    .prev()
+                    .expect("Can't revert before the genesis block.");
+                let stored_global_root = self
+                    .storage_reader
+                    .global_root(new_latest_height)
+                    .expect("Failed to get global root from storage.")
+                    .expect("Global root is not set for height {new_latest_height}.");
+                assert_eq!(
+                    global_root, stored_global_root,
+                    "The given global root does not match the stored global root for height \
+                     {new_latest_height}."
+                );
+            }
+            RevertBlockResponse::Uncommitted => {}
+        }
     }
 
     pub fn get_block_hash(&self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
@@ -1341,6 +1415,8 @@ pub trait BatcherStorageReader: Send + Sync {
     /// Returns the first height the committer has finished calculating commitments for.
     fn global_root_height(&self) -> StorageResult<BlockNumber>;
 
+    fn global_root(&self, height: BlockNumber) -> StorageResult<Option<GlobalRoot>>;
+
     fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
 
     /// Returns the state diff that undoes the state diff at the given height.
@@ -1365,6 +1441,10 @@ impl BatcherStorageReader for StorageReader {
 
     fn global_root_height(&self) -> StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_global_root_marker()
+    }
+
+    fn global_root(&self, height: BlockNumber) -> StorageResult<Option<GlobalRoot>> {
+        self.begin_ro_txn()?.get_global_root(&height)
     }
 
     fn get_state_diff(&self, height: BlockNumber) -> StorageResult<Option<ThinStateDiff>> {

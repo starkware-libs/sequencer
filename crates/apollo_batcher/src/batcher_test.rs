@@ -48,7 +48,7 @@ use starknet_api::block::{
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
@@ -285,6 +285,15 @@ fn mock_create_builder_for_validate_block(
             Ok((Box::new(block_builder), abort_signal_sender()))
         },
     );
+}
+
+fn mock_storage_reader_for_revert() -> MockBatcherStorageReader {
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_reversed_state_diff().returning(|_| Ok(test_state_diff()));
+    storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root().returning(|_| Ok(Some(GlobalRoot::default())));
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader
 }
 
 fn mock_create_builder_for_propose_block(
@@ -777,14 +786,10 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
         );
     }
 
-    let mut storage_writer = MockBatcherStorageWriter::new();
-    storage_writer.expect_revert_block().times(N_PROPOSALS).returning(|_| ());
-
     let mut l1_provider_client = MockL1ProviderClient::new();
     l1_provider_client.expect_start_block().times(N_PROPOSALS).returning(|_, _| Ok(()));
 
     let mock_dependencies = MockDependencies {
-        storage_writer,
         clients: MockClients { block_builder_factory, l1_provider_client, ..Default::default() },
         ..Default::default()
     };
@@ -810,10 +815,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
         }
 
         batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
-        batcher
-            .revert_block(RevertBlockInput { height: INITIAL_HEIGHT.prev().unwrap() })
-            .await
-            .unwrap();
+        batcher.abort_active_height().await;
     }
 }
 
@@ -1297,7 +1299,9 @@ async fn revert_block() {
         .with(eq(LATEST_BLOCK_IN_STORAGE))
         .returning(|_| ());
 
-    let mock_dependencies = MockDependencies { storage_writer, ..Default::default() };
+    let storage_reader = mock_storage_reader_for_revert();
+    let mock_dependencies =
+        MockDependencies { storage_reader, storage_writer, ..Default::default() };
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -1305,6 +1309,7 @@ async fn revert_block() {
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
 
     let revert_input = RevertBlockInput { height: LATEST_BLOCK_IN_STORAGE };
+
     batcher.revert_block(revert_input).await.unwrap();
 
     let metrics = recorder.handle().render();
