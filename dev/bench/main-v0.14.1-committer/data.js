@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769680156284,
+  "lastUpdate": 1769696419049,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1291,6 +1291,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1174.60667503,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163830216+asmaastarkware@users.noreply.github.com",
+            "name": "asmaa-starkware",
+            "username": "asmaastarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bc395bab2976d340b1c87393f9f2edf752a777d8",
+          "message": "apollo_staking: implement deterministic pseudorandom generator (#12097)",
+          "timestamp": "2026-01-29T13:47:53Z",
+          "tree_id": "5808fdbd52bf4e633602dfe6664e242b26b83c5d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/bc395bab2976d340b1c87393f9f2edf752a777d8"
+        },
+        "date": 1769696418729,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 799.52182576,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1301.2830254300002,
             "unit": "ms"
           }
         ]
