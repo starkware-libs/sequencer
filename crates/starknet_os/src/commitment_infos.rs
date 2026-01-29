@@ -69,6 +69,7 @@ pub async fn create_commitment_infos(
         commitments,
     )
     .await;
+
     let mut address_to_previous_storage_root_hash = HashMap::new();
     for (address, contract_state) in previous_contract_states.into_iter() {
         let address = try_node_index_into_contract_address(&address).unwrap();
@@ -125,7 +126,8 @@ pub async fn create_commitment_infos(
         tree_height: starknet_patricia::patricia_merkle_tree::types::SubTreeHeight::ACTUAL_HEIGHT,
         commitment_facts: flatten_preimages(&storage_proofs.classes_trie_proof),
     };
-    let storage_tries_commitment_infos = address_to_previous_storage_root_hash
+    let storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo> =
+        address_to_previous_storage_root_hash
         .iter()
         .map(|(address, previous_root_hash)| {
             // Not all contracts in `address_to_previous_storage_root_hash` are in

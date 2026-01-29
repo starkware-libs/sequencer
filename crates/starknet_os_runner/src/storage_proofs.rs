@@ -171,10 +171,11 @@ impl RpcStorageProofsProvider {
         rpc_proof: &RpcStorageProof,
         query: &RpcStorageProofsQuery,
         execution_data: &VirtualBlockExecutionData,
+        extended_initial_reads: &StateMaps,
     ) -> Result<StateCommitmentInfos, ProofProviderError> {
-        // Build FactsDb from RPC proofs and execution initial reads.
+        // Build FactsDb from RPC proofs and extended initial reads.
         let mut facts_db =
-            create_facts_db_from_storage_proof(rpc_proof, query, &execution_data.initial_reads)?;
+            create_facts_db_from_storage_proof(rpc_proof, query, extended_initial_reads)?;
 
         // Get initial state roots from RPC proof.
         let contracts_trie_root_hash = HashOutput(rpc_proof.global_roots.contracts_tree_root);
@@ -194,16 +195,27 @@ impl RpcStorageProofsProvider {
         // Consume the new facts from the committer storage.
         let mut map_storage: MapStorage = facts_db.consume_storage();
 
-        // Get initial reads keys.
-        let initial_reads_keys = execution_data.initial_reads.keys();
+        // Get extended initial reads keys.
+        let initial_reads_keys = extended_initial_reads.keys();
 
-        let commitment_infos = create_commitment_infos(
+        let mut commitment_infos = create_commitment_infos(
             &previous_state_roots,
             &new_roots,
             &mut map_storage,
             &initial_reads_keys,
         )
         .await;
+
+        // If the classes trie root didn't change, we need to include the RPC proof facts
+        // because the OS still needs to traverse the tree, even if we made no changes.
+        if new_roots.classes_trie_root_hash == previous_state_roots.classes_trie_root_hash {
+            let classes_rpc_facts =
+                flatten_preimages(&Self::rpc_nodes_to_preimage_map(&rpc_proof.classes_proof));
+            commitment_infos
+                .classes_trie_commitment_info
+                .commitment_facts
+                .extend(classes_rpc_facts);
+        }
 
         Ok(commitment_infos)
     }
