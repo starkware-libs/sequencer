@@ -18,7 +18,6 @@ use starknet_api::transaction::{
     TransactionHasher,
 };
 use starknet_os::io::os_output::OsOutputError;
-use starknet_types_core::felt::Felt;
 use tracing::{info, instrument};
 use url::Url;
 
@@ -151,8 +150,7 @@ impl VirtualSnosProver {
         );
 
         // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
-        let proof_facts =
-            prover_output.program_output.try_into_proof_facts(Felt::from(VIRTUAL_SNOS))?;
+        let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
 
         Ok(VirtualSnosProverOutput {
             proof: prover_output.proof,
