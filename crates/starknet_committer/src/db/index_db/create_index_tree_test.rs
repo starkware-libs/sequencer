@@ -30,11 +30,11 @@ impl TreeHashFunction<MockLeaf> for MockTreeHashFunction {
 #[rstest]
 #[tokio::test]
 async fn test_create_tree_index_layout(
-    #[case] mut case: CreateTreeCase,
+    #[case] case: CreateTreeCase,
     #[values(true, false)] compare_modified_leaves: bool,
 ) {
-    let mut storage = convert_facts_db_to_index_db::<MockLeaf, MockLeaf, EmptyKeyContext>(
-        &mut case.storage,
+    let storage = convert_facts_db_to_index_db::<MockLeaf, MockLeaf, EmptyKeyContext>(
+        &case.storage,
         case.root_hash,
         &EmptyKeyContext,
         &mut None,
@@ -42,7 +42,7 @@ async fn test_create_tree_index_layout(
     .await;
 
     test_create_original_skeleton::<MockLeaf, IndexNodeLayout<MockTreeHashFunction>>(
-        &mut storage,
+        &storage,
         &case.leaf_modifications,
         case.root_hash,
         &case.expected_skeleton_nodes,
