@@ -1718,6 +1718,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_rpc",
  "apollo_sierra_compilation_config",
+ "apollo_staking_config",
  "apollo_state_sync_config",
  "apollo_state_sync_metrics",
  "apollo_storage",
