@@ -1,3 +1,4 @@
+pub mod commitment_infos;
 #[cfg(test)]
 pub mod constants_test;
 pub mod errors;
