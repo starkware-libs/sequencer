@@ -449,7 +449,7 @@ impl ComponentStarter for ApolloCommitter {
     }
 }
 
-fn update_metrics(BlockMeasurement { n_reads, n_writes, durations }: &BlockMeasurement) {
+fn update_metrics(BlockMeasurement { n_reads, n_writes, durations, .. }: &BlockMeasurement) {
     READ_DURATION_PER_BLOCK.set_lossy(durations.read);
     READ_DURATION_PER_BLOCK_HIST.record_lossy(durations.read);
     READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
