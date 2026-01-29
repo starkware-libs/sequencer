@@ -646,20 +646,33 @@ impl ConsensusContext for SequencerConsensusContext {
         );
     }
 
-    async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
-        self.validators.clone()
+    async fn validators(&self, _height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
+        Ok(self.validators.clone())
     }
 
-    fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId {
-        let height: usize = height.0.try_into().expect("Cannot convert to usize");
-        let round: usize = round.try_into().expect("Cannot convert to usize");
-        *self
-            .validators
-            .get((height + round) % self.validators.len())
-            .expect("There should be at least one validator")
+    fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError> {
+        let height: usize = height.0.try_into().map_err(|_| {
+            ConsensusError::InternalNetworkError(format!(
+                "Cannot convert height {} to usize",
+                height.0
+            ))
+        })?;
+        let round: usize = round.try_into().map_err(|_| {
+            ConsensusError::InternalNetworkError(format!("Cannot convert round {} to usize", round))
+        })?;
+        if self.validators.is_empty() {
+            return Err(ConsensusError::InternalNetworkError(
+                "Cannot select proposer: validators list is empty".to_string(),
+            ));
+        }
+        Ok(self.validators[(height + round) % self.validators.len()])
     }
 
-    fn virtual_proposer(&self, height: BlockNumber, round: Round) -> ValidatorId {
+    fn virtual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> Result<ValidatorId, ConsensusError> {
         // TODO(Asmaa): Update this when using the committee provider.
         // For now, keep the virtual proposer selection identical to the real proposer selection.
         self.proposer(height, round)
