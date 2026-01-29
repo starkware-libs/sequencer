@@ -8,11 +8,13 @@ use crate::metric_definitions::METRIC_LABEL_FILTER;
 mod metrics_tests;
 
 mod counters;
+mod gauge_histograms;
 mod gauges;
 mod histograms;
 
 // re exports
 pub use crate::metrics::counters::{LabeledMetricCounter, MetricCounter};
+pub use crate::metrics::gauge_histograms::MetricGaugeHistogram;
 pub use crate::metrics::gauges::{LabeledMetricGauge, MetricGauge};
 pub use crate::metrics::histograms::{HistogramValue, LabeledMetricHistogram, MetricHistogram};
 
