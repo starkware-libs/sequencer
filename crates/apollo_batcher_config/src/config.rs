@@ -15,7 +15,7 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerStaticConfig,
 };
 use apollo_storage::{StorageConfig, StorageScope};
-use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
+use blockifier::blockifier::config::{ContractClassManagerStaticConfig, WorkerPoolConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
@@ -233,7 +233,7 @@ pub struct BatcherStaticConfig {
     pub input_stream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
     pub pre_confirmed_block_writer_config: PreconfirmedBlockWriterConfig,
-    pub contract_class_manager_config: ContractClassManagerConfig,
+    pub contract_class_manager_config: ContractClassManagerStaticConfig,
     pub commitment_manager_config: CommitmentManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
@@ -323,7 +323,7 @@ impl Default for BatcherStaticConfig {
             input_stream_content_buffer_size: 400,
             block_builder_config: BlockBuilderConfig::default(),
             pre_confirmed_block_writer_config: PreconfirmedBlockWriterConfig::default(),
-            contract_class_manager_config: ContractClassManagerConfig::default(),
+            contract_class_manager_config: ContractClassManagerStaticConfig::default(),
             commitment_manager_config: CommitmentManagerConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
