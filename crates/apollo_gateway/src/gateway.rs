@@ -306,7 +306,7 @@ impl<
     }
 }
 
-pub fn create_gateway(
+pub async fn create_gateway(
     config: GatewayConfig,
     shared_state_sync_client: SharedStateSyncClient,
     mempool_client: SharedMempoolClient,
@@ -333,7 +333,7 @@ pub fn create_gateway(
         if config.proof_archive_writer_config.bucket_name.is_empty() {
             Arc::new(NoOpProofArchiveWriter)
         } else {
-            Arc::new(GcsProofArchiveWriter::new(config.proof_archive_writer_config.clone()))
+            Arc::new(GcsProofArchiveWriter::new(config.proof_archive_writer_config.clone()).await)
         };
 
     Gateway::new(

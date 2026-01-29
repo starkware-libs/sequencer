@@ -36,8 +36,10 @@ pub struct GcsProofArchiveWriter {
 }
 
 impl GcsProofArchiveWriter {
-    pub fn new(config: ProofArchiveWriterConfig) -> Self {
-        let client = Client::new(ClientConfig::default());
+    pub async fn new(config: ProofArchiveWriterConfig) -> Self {
+        let client = Client::new(
+            ClientConfig::default().with_auth().await.expect("Failed to create GCS client config"),
+        );
         Self { config, client }
     }
 }
