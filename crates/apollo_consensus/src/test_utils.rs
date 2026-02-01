@@ -19,8 +19,17 @@ use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;
 use starknet_types_core::felt::Felt;
 
+use crate::proposer_cache::ProposerLookup;
 use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait};
 use crate::types::{ConsensusContext, ConsensusError, Round, ValidatorId};
+
+mock! {
+    pub TestProposerLookup {}
+    impl ProposerLookup for TestProposerLookup {
+        fn actual_proposer(&self, round: Round) -> Result<ValidatorId, ConsensusError>;
+        fn virtual_proposer(&self, round: Round) -> Result<ValidatorId, ConsensusError>;
+    }
+}
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -97,9 +106,9 @@ mock! {
 
         async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError>;
 
-        fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
+        async fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
 
-        fn virtual_proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
+        async fn virtual_proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
 
         async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
@@ -155,6 +164,19 @@ pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -
 
 pub fn block_info(height: BlockNumber, round: Round, proposer: ValidatorId) -> ConsensusBlockInfo {
     ConsensusBlockInfo { height, round, proposer, ..Default::default() }
+}
+
+/// Creates a mock ProposerLookup for tests.
+/// `proposer_fn` and `virtual_proposer_fn` are sync functions used for rounds 0..=max_round.
+/// Rounds where either function returns Err are skipped (used for testing proposer lookup failure).
+pub fn make_test_proposer_cache(
+    proposer_fn: impl Fn(Round) -> Result<ValidatorId, ConsensusError> + Send + 'static,
+    virtual_proposer_fn: impl Fn(Round) -> Result<ValidatorId, ConsensusError> + Send + 'static,
+) -> std::sync::Arc<dyn ProposerLookup> {
+    let mut mock = MockTestProposerLookup::new();
+    mock.expect_actual_proposer().returning(proposer_fn);
+    mock.expect_virtual_proposer().returning(virtual_proposer_fn);
+    std::sync::Arc::new(mock)
 }
 
 #[derive(Debug)]

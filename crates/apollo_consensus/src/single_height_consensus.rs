@@ -13,7 +13,9 @@ mod single_height_consensus_test;
 mod simulation_test;
 
 use std::collections::{HashSet, VecDeque};
+use std::sync::Arc;
 
+use crate::proposer_cache::ProposerLookup;
 use crate::state_machine::VoteStatus;
 const REBROADCAST_LOG_PERIOD_MS: u64 = 10_000;
 const DUPLICATE_VOTE_LOG_PERIOD_MS: u64 = 10_000;
@@ -33,7 +35,7 @@ use crate::metrics::{
     CONSENSUS_PROPOSALS_VALID_INIT,
 };
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent};
-use crate::types::{LeaderElection, ProposalCommitment, Round, ValidatorId};
+use crate::types::{ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 /// Type alias for the requests returned by SHC.
@@ -57,6 +59,7 @@ pub(crate) struct SingleHeightConsensus {
     validators: Vec<ValidatorId>,
     timeouts: TimeoutsConfig,
     state_machine: StateMachine,
+    proposer_cache: Arc<dyn ProposerLookup>,
     // Tracks rounds for which we started validating a proposal to avoid duplicate validations.
     pending_validation_rounds: HashSet<Round>,
 }
@@ -69,12 +72,20 @@ impl SingleHeightConsensus {
         validators: Vec<ValidatorId>,
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
+        proposer_cache: Arc<dyn ProposerLookup>,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine = StateMachine::new(height, id, n_validators, is_observer, quorum_type);
-        Self { validators, timeouts, state_machine, pending_validation_rounds: HashSet::new() }
+        let state_machine =
+            StateMachine::new(height, id, n_validators, is_observer, quorum_type, proposer_cache.clone());
+        Self {
+            validators,
+            timeouts,
+            state_machine,
+            proposer_cache,
+            pending_validation_rounds: HashSet::new(),
+        }
     }
 
     pub(crate) fn current_round(&self) -> Round {
@@ -82,18 +93,14 @@ impl SingleHeightConsensus {
     }
 
     #[instrument(skip_all)]
-    pub(crate) fn start(&mut self, leader_election: &LeaderElection<'_>) -> Requests {
-        self.state_machine.start(leader_election)
+    pub(crate) fn start(&mut self) -> Requests {
+        self.state_machine.start()
     }
 
     /// Process the proposal block info message and initiate block validation by returning
     /// `SMRequest::StartValidateProposal` to the manager.
     #[instrument(skip_all)]
-    pub(crate) fn handle_proposal(
-        &mut self,
-        leader_election: &LeaderElection<'_>,
-        block_info: ConsensusBlockInfo,
-    ) -> Requests {
+    pub(crate) fn handle_proposal(&mut self, block_info: ConsensusBlockInfo) -> Requests {
         debug!("Received {block_info:?}");
         let height = self.state_machine.height();
         if block_info.height != height {
@@ -101,7 +108,7 @@ impl SingleHeightConsensus {
             return VecDeque::new();
         }
         // TODO(guyn): replace this with assert_eq, but also need to fix simulation_test.
-        let Some(proposer_id) = leader_election.virtual_proposer(block_info.round).ok() else {
+        let Some(proposer_id) = self.proposer_cache.virtual_proposer(block_info.round).ok() else {
             return VecDeque::new();
         };
         if block_info.proposer != proposer_id {
@@ -133,24 +140,18 @@ impl SingleHeightConsensus {
     }
 
     #[instrument(skip_all)]
-    pub(crate) fn handle_event(
-        &mut self,
-        leader_election: &LeaderElection<'_>,
-        event: StateMachineEvent,
-    ) -> Requests {
+    pub(crate) fn handle_event(&mut self, event: StateMachineEvent) -> Requests {
         trace!("Received StateMachineEvent: {:?}", event);
         match event {
             StateMachineEvent::TimeoutPropose(_)
             | StateMachineEvent::TimeoutPrevote(_)
-            | StateMachineEvent::TimeoutPrecommit(_) => {
-                self.handle_timeout_event(leader_election, event)
-            }
+            | StateMachineEvent::TimeoutPrecommit(_) => self.handle_timeout_event(event),
             StateMachineEvent::VoteBroadcasted(vote) => self.handle_vote_broadcasted(vote),
             StateMachineEvent::FinishedValidation(proposal_id, round, valid_round) => {
-                self.handle_finished_validation(leader_election, proposal_id, round, valid_round)
+                self.handle_finished_validation(proposal_id, round, valid_round)
             }
             StateMachineEvent::FinishedBuilding(proposal_id, round) => {
-                self.handle_finished_building(leader_election, proposal_id, round)
+                self.handle_finished_building(proposal_id, round)
             }
             StateMachineEvent::Prevote(_) | StateMachineEvent::Precommit(_) => {
                 unreachable!("Peer votes must be handled via handle_vote")
@@ -158,12 +159,8 @@ impl SingleHeightConsensus {
         }
     }
 
-    fn handle_timeout_event(
-        &mut self,
-        leader_election: &LeaderElection<'_>,
-        event: StateMachineEvent,
-    ) -> Requests {
-        self.state_machine.handle_event(event, leader_election)
+    fn handle_timeout_event(&mut self, event: StateMachineEvent) -> Requests {
+        self.state_machine.handle_event(event)
     }
 
     fn handle_vote_broadcasted(&mut self, vote: Vote) -> Requests {
@@ -183,13 +180,12 @@ impl SingleHeightConsensus {
 
     fn handle_finished_validation(
         &mut self,
-        leader_election: &LeaderElection<'_>,
         proposal_id: Option<ProposalCommitment>,
         round: Round,
         valid_round: Option<Round>,
     ) -> Requests {
         // virtual_proposer should never fail here, we already checked it.
-        let Some(proposer) = leader_election.virtual_proposer(round).ok() else {
+        let Some(proposer) = self.proposer_cache.virtual_proposer(round).ok() else {
             return VecDeque::new();
         };
         debug!(
@@ -208,15 +204,12 @@ impl SingleHeightConsensus {
         // Cleanup: validation for round {round} finished, so remove it from the pending
         // set. This doesn't affect logic.
         self.pending_validation_rounds.remove(&round);
-        self.state_machine.handle_event(
-            StateMachineEvent::FinishedValidation(proposal_id, round, None),
-            leader_election,
-        )
+        self.state_machine
+            .handle_event(StateMachineEvent::FinishedValidation(proposal_id, round, None))
     }
 
     fn handle_finished_building(
         &mut self,
-        leader_election: &LeaderElection<'_>,
         proposal_id: Option<ProposalCommitment>,
         round: Round,
     ) -> Requests {
@@ -236,16 +229,12 @@ impl SingleHeightConsensus {
         );
         debug!(%round, proposal_commitment = ?proposal_id, "Built proposal.");
         self.state_machine
-            .handle_event(StateMachineEvent::FinishedBuilding(proposal_id, round), leader_election)
+            .handle_event(StateMachineEvent::FinishedBuilding(proposal_id, round))
     }
 
     /// Handle vote messages from peer nodes.
     #[instrument(skip_all)]
-    pub(crate) fn handle_vote(
-        &mut self,
-        leader_election: &LeaderElection<'_>,
-        vote: Vote,
-    ) -> Requests {
+    pub(crate) fn handle_vote(&mut self, vote: Vote) -> Requests {
         // TODO(Asmaa): verify the signature
         trace!("Received {:?}", vote);
         let height = self.state_machine.height();
@@ -284,6 +273,6 @@ impl SingleHeightConsensus {
             VoteType::Prevote => StateMachineEvent::Prevote(vote),
             VoteType::Precommit => StateMachineEvent::Precommit(vote),
         };
-        self.state_machine.handle_event(sm_vote, leader_election)
+        self.state_machine.handle_event(sm_vote)
     }
 }
