@@ -90,7 +90,6 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct CommitmentManagerConfig {
     pub tasks_channel_size: usize,
     pub results_channel_size: usize,
-    // Wait for tasks channel to be available before sending.
     pub panic_if_task_channel_full: bool,
 }
 
