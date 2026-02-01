@@ -27,7 +27,6 @@ use crate::core::{ChainId, ContractAddress, Nonce, STARKNET_OS_CONFIG_HASH_VERSI
 use crate::deprecated_contract_class::{ContractClass as DeprecatedContractClass, Program};
 use crate::executable_transaction::AccountTransaction;
 use crate::execution_resources::GasAmount;
-use crate::hash::StarkHash;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use crate::transaction::fields::{
     AllResourceBounds,
@@ -229,11 +228,8 @@ pub const DEFAULT_GAS_PRICES: GasPrices = GasPrices {
 // Deprecated transactions:
 pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
 
-// Virtual OS program hash for testing. Should match one of the allowed virtual OS program hashes in
-// the current versioned constants.
-pub const VIRTUAL_OS_PROGRAM_HASH: StarkHash = StarkHash::from_hex_unchecked(
-    "0x56cb82807b5af2736cee1da0919bc265b499836623bd32265eacc8c8dc98421",
-);
+// Dummy virtual OS program hash for testing.
+pub const VIRTUAL_OS_PROGRAM_HASH: Felt = Felt::from_hex_unchecked("0x1");
 
 /// Computes a deterministic block hash for testing purposes.
 pub fn test_block_hash(block_number: u64) -> BlockHash {
@@ -395,20 +391,14 @@ pub(crate) fn py_json_dumps<T: ?Sized + Serialize>(value: &T) -> Result<String, 
 }
 
 impl ProofFacts {
-    /// Returns a ProofFacts instance for testing with SNOS proof facts structure.
-    /// Uses the default `TEST_OS_CONFIG_HASH` which is computed with
-    /// `TEST_ERC20_CONTRACT_ADDRESS2`.
-    ///
-    /// See [`crate::transaction::fields::ProofFacts`].
+    /// Returns a ProofFacts instance for testing with dummy program hash.
+    /// For tests requiring validation, use a custom program hash.
     pub fn snos_proof_facts_for_testing() -> Self {
-        Self::snos_proof_facts_for_testing_with_config_hash(*TEST_OS_CONFIG_HASH)
+        Self::custom_proof_facts_for_testing(VIRTUAL_OS_PROGRAM_HASH, *TEST_OS_CONFIG_HASH)
     }
 
-    /// Returns a ProofFacts instance for testing with SNOS proof facts structure
-    /// using a custom config hash.
-    ///
-    /// Use this when the test environment uses different chain info than the defaults.
-    pub fn snos_proof_facts_for_testing_with_config_hash(config_hash: Felt) -> Self {
+    /// Returns a ProofFacts instance for testing with custom fields.
+    pub fn custom_proof_facts_for_testing(program_hash: Felt, config_hash: Felt) -> Self {
         let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
         let block_number_u64 = block_hash_history_start + 2;
         let block_number = felt!(block_number_u64);
@@ -425,7 +415,7 @@ impl ProofFacts {
         proof_facts![
             PROOF_VERSION,
             VIRTUAL_SNOS,
-            VIRTUAL_OS_PROGRAM_HASH,
+            program_hash,
             VIRTUAL_OS_OUTPUT_VERSION,
             block_number,
             block_hash,

@@ -49,6 +49,7 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
+    TEST_OS_CONFIG_HASH,
 };
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
@@ -112,8 +113,10 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::test_templates::cairo_version;
 use crate::test_utils::{
+    create_valid_proof_facts_for_testing,
     get_const_syscall_resources,
     get_tx_resources,
+    get_valid_virtual_os_program_hash,
     CompilerBasedVersion,
     BALANCE,
 };
@@ -2215,56 +2218,64 @@ fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
 
 /// Returns valid proof_facts with the maximum allowed block number.
 fn proof_facts_with_max_allowed_block() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
     let block_number = CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER;
-    snos_proof_facts.block_number = BlockNumber(block_number);
-    snos_proof_facts.block_hash = test_block_hash(block_number);
-    snos_to_proof_facts(snos_proof_facts)
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.block_number = BlockNumber(block_number);
+            snos.block_hash = test_block_hash(block_number);
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
 }
 
 /// Returns invalid proof_facts with a too recent block number (at the boundary).
 fn proof_facts_with_too_recent_block() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
     // Set the proof block number to the first invalid value:
     // `current_block_number - STORED_BLOCK_HASH_BUFFER + 1`
     // (i.e. last allowed block + 1).
-    snos_proof_facts.block_number =
-        BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER + 1);
-    snos_to_proof_facts(snos_proof_facts)
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.block_number = BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER + 1);
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
 }
 
 /// Returns invalid proof_facts with a mismatched block hash.
 fn proof_facts_with_mismatched_hash() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
-    snos_proof_facts.block_hash = BlockHash(snos_proof_facts.block_hash.0 + 1);
-    snos_to_proof_facts(snos_proof_facts)
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.block_hash = BlockHash(snos.block_hash.0 + 1);
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
 }
 
 /// Returns invalid proof_facts with a zero block hash.
 fn proof_facts_with_zero_block_hash() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
-    snos_proof_facts.block_hash = BlockHash(Felt::ZERO);
-    snos_to_proof_facts(snos_proof_facts)
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.block_hash = BlockHash(Felt::ZERO);
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
 }
 
 /// Returns invalid proof_facts with an invalid program hash.
 fn proof_facts_with_invalid_program_hash() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
-    snos_proof_facts.program_hash = Felt::from(0x12345678_u64);
-    snos_to_proof_facts(snos_proof_facts)
+    ProofFacts::custom_proof_facts_for_testing(Felt::from(0x12345678_u64), *TEST_OS_CONFIG_HASH)
 }
 
 /// Returns invalid proof_facts with a mismatched config hash.
 fn proof_facts_with_invalid_config_hash() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
-    snos_proof_facts.config_hash = Felt::from(0x12345678_u64);
-    snos_to_proof_facts(snos_proof_facts)
+    ProofFacts::custom_proof_facts_for_testing(
+        get_valid_virtual_os_program_hash(),
+        Felt::from(0x12345678_u64),
+    )
 }
 
 /// Tests the `validate_proof_facts` function for Invoke V3 transactions.
@@ -2278,7 +2289,7 @@ fn proof_facts_with_invalid_config_hash() -> ProofFacts {
     Some("is too recent")
 )]
 #[case::current_block_number_too_small(
-    ProofFacts::snos_proof_facts_for_testing(),
+    create_valid_proof_facts_for_testing(),
     STORED_BLOCK_HASH_BUFFER - 1,
     Some("is below the required")
 )]

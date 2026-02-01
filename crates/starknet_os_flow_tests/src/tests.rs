@@ -6,7 +6,7 @@ use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
+use blockifier::test_utils::{get_valid_virtual_os_program_hash, ALIAS_CONTRACT_ADDRESS};
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -590,7 +590,10 @@ async fn test_os_logic(
         &[**contract_addresses[0]],
     );
     let config_hash = test_builder.compute_virtual_os_config_hash();
-    let proof_facts = ProofFacts::snos_proof_facts_for_testing_with_config_hash(config_hash);
+    let proof_facts = ProofFacts::custom_proof_facts_for_testing(
+        get_valid_virtual_os_program_hash(),
+        config_hash,
+    );
     test_builder.add_funded_account_invoke(invoke_tx_args! {
         calldata,
         proof_facts,
@@ -1108,7 +1111,10 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     let test_call_contract_selector_name = "test_call_contract";
     let test_execution_info_selector = selector_from_name("test_get_execution_info_v3");
     let config_hash = test_builder.compute_virtual_os_config_hash();
-    let proof_facts = ProofFacts::snos_proof_facts_for_testing_with_config_hash(config_hash);
+    let proof_facts = ProofFacts::custom_proof_facts_for_testing(
+        get_valid_virtual_os_program_hash(),
+        config_hash,
+    );
     let only_query = false;
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,

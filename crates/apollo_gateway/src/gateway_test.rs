@@ -40,8 +40,11 @@ use apollo_transaction_converter::{
 };
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::generate_block_hash_storage_updates;
 use blockifier::test_utils::initial_test_state::fund_account;
+use blockifier::test_utils::{
+    create_valid_proof_facts_for_testing,
+    generate_block_hash_storage_updates,
+};
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -211,7 +214,7 @@ fn invoke_args() -> InvokeTxArgs {
 }
 
 fn invoke_args_with_client_side_proving() -> InvokeTxArgs {
-    invoke_args_impl(ProofFacts::snos_proof_facts_for_testing(), Proof::proof_for_testing())
+    invoke_args_impl(create_valid_proof_facts_for_testing(), Proof::proof_for_testing())
 }
 
 fn invoke_args_impl(proof_facts: ProofFacts, proof: Proof) -> InvokeTxArgs {
