@@ -8,7 +8,7 @@ use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
-use crate::transaction_queue_trait::TransactionQueueTrait;
+use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
 
 #[cfg(test)]
 #[path = "fee_transaction_queue_test_utils.rs"]
@@ -86,6 +86,16 @@ impl TransactionQueueTrait for FeeTransactionQueue {
             || self.pending_queue.remove(&tx_reference.into())
     }
 
+    fn remove_by_hash(&mut self, tx_hash: TransactionHash) -> bool {
+        if let Some((&address, _)) =
+            self.address_to_tx.iter().find(|(_, tx_ref)| tx_ref.tx_hash == tx_hash)
+        {
+            self.remove_by_address(address)
+        } else {
+            false
+        }
+    }
+
     /// Removes the given transactions from the queue.
     /// If a transaction is not found, it is ignored.
     fn remove_txs(&mut self, txs: &[TransactionReference]) -> Vec<TransactionReference> {
@@ -125,10 +135,10 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         }
     }
 
-    fn rewind_txs(
-        &mut self,
-        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
-    ) -> HashSet<TransactionHash> {
+    fn rewind_txs(&mut self, rewind_data: RewindData) -> HashSet<TransactionHash> {
+        let RewindData::FeePriority { next_txs_by_address } = rewind_data else {
+            panic!("Fee Priority queue requires RewindData::FeePriority variant");
+        };
         // Rewind by re-inserting the next transaction for each address.
         for (address, tx_reference) in next_txs_by_address {
             self.remove_by_address(address);
