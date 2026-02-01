@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use starknet_api::block::GasPrice;
@@ -8,7 +8,7 @@ use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
-use crate::transaction_queue_trait::TransactionQueueTrait;
+use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
 
 #[cfg(test)]
 #[path = "fee_transaction_queue_test_utils.rs"]
@@ -125,16 +125,17 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         }
     }
 
-    fn rewind_txs(
-        &mut self,
-        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
-        validate_resource_bounds: bool,
-    ) {
+    fn rewind_txs(&mut self, rewind_data: RewindData) -> Option<HashSet<TransactionHash>> {
+        let RewindData::FeePriority { next_txs_by_address, validate_resource_bounds } = rewind_data
+        else {
+            panic!("Fee Priority queue requires RewindData::FeePriority variant");
+        };
         // Rewind by re-inserting the next transaction for each address.
         for (address, tx_reference) in next_txs_by_address {
             self.remove_by_address(address);
             self.insert(tx_reference, validate_resource_bounds);
         }
+        None
     }
 
     fn priority_queue_len(&self) -> usize {
@@ -147,7 +148,7 @@ impl TransactionQueueTrait for FeeTransactionQueue {
 
     #[cfg(test)]
     fn pending_txs(&self) -> Vec<TransactionReference> {
-        self.pending_queue.iter().map(|tx| tx.0).collect()
+        self.pending_queue.iter().rev().map(|tx| tx.0).collect()
     }
 }
 

@@ -22,7 +22,6 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::test_utils::invoke::internal_invoke_tx;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
 use starknet_api::transaction::fields::TransactionSignature;
@@ -44,6 +43,7 @@ use crate::test_utils::{
     add_tx,
     add_tx_expect_error,
     commit_block,
+    declare_add_tx_input,
     get_txs_and_assert_expected,
     validate_tx,
     validate_tx_expect_error,
@@ -157,6 +157,7 @@ impl MempoolTestContentBuilder {
                 self.content.pending_txs.unwrap_or_default(),
                 self.gas_price_threshold,
             )),
+            staged_tx_refs: Vec::new(),
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(
                 self.config.static_config.committed_nonce_retention_block_count,
@@ -174,13 +175,6 @@ impl FromIterator<InternalRpcTransaction> for TransactionPool {
         }
         pool
     }
-}
-
-fn declare_add_tx_input(args: DeclareTxArgs) -> AddTransactionArgs {
-    let tx = internal_rpc_declare_tx(args);
-    let account_state = AccountState { address: tx.contract_address(), nonce: tx.nonce() };
-
-    AddTransactionArgs { tx, account_state }
 }
 
 #[track_caller]
