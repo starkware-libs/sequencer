@@ -19,7 +19,7 @@ use starknet_api::transaction::MessageToL1;
 use tracing::{info, instrument};
 
 use crate::server::config::ServiceConfig;
-use crate::virtual_snos_prover::{VirtualSnosProver, VirtualSnosProverError};
+use crate::virtual_snos_prover::{RpcVirtualSnosProver, VirtualSnosProverError};
 
 /// Request body for the prove_transaction endpoint.
 #[derive(Debug, Deserialize)]
@@ -100,7 +100,7 @@ impl IntoResponse for HttpServerError {
 #[derive(Clone)]
 pub struct AppState {
     /// The prover that handles business logic.
-    pub(crate) prover: VirtualSnosProver,
+    pub(crate) prover: RpcVirtualSnosProver,
 }
 
 /// Handler for the prove_transaction endpoint.
@@ -136,7 +136,7 @@ pub struct ProvingHttpServer {
 impl ProvingHttpServer {
     /// Creates a new ProvingHttpServer.
     pub fn new(config: ServiceConfig) -> Self {
-        let prover = VirtualSnosProver::new(&config);
+        let prover = RpcVirtualSnosProver::new(&config);
         let app_state = AppState { prover };
         Self { config, app_state }
     }
