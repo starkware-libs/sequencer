@@ -164,6 +164,7 @@ use crate::db::{
     DbReader,
     DbTransaction,
     DbWriter,
+    OwnedDbWriteTransaction,
     TableHandle,
     TableIdentifier,
     TransactionKind,
@@ -277,7 +278,7 @@ fn open_storage_internal(
         file_readers,
         open_readers_metric,
     };
-    let writer = StorageWriter { db_writer, tables, scope: storage_config.scope, file_writers };
+    let writer = StorageWriter::new(db_writer, file_writers, tables, storage_config.scope);
 
     let writer = set_version_if_needed(reader.clone(), writer)?;
     verify_storage_version(reader.clone())?;
@@ -527,19 +528,63 @@ pub struct StorageWriter {
     file_writers: FileHandlers<RW>,
     tables: Arc<Tables>,
     scope: StorageScope,
+    active_txn: Option<OwnedDbWriteTransaction>,
+    batching_enabled: bool,
+    #[allow(dead_code)]
+    batch_size: usize,
+    /// Counter tracking the number of logical commits in the current batch.
+    #[allow(dead_code)]
+    commit_counter: usize,
 }
 
 impl StorageWriter {
-    /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
-    /// reading and modifying data in the storage.
+    /// Creates a new StorageWriter with the given configuration.
+    fn new(
+        db_writer: DbWriter,
+        file_writers: FileHandlers<RW>,
+        tables: Arc<Tables>,
+        scope: StorageScope,
+    ) -> Self {
+        Self {
+            db_writer,
+            file_writers,
+            tables,
+            scope,
+            active_txn: None,
+            batching_enabled: false,
+            batch_size: 100,
+            commit_counter: 0,
+        }
+    }
+
+    /// Returns a [`StorageTxn`] for reading and modifying data in the storage.
+    ///
+    /// With batching enabled, this may return a reference to an ongoing persistent
+    /// transaction rather than a fresh snapshot. Multiple calls to `begin_rw_txn()`
+    /// will share the same underlying transaction until the batch commits.
     pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxn<'_, RW>> {
-        Ok(StorageTxn::new(
-            self.db_writer.begin_rw_txn()?,
-            self.file_writers.clone(),
-            self.tables.clone(),
-            self.scope,
-            MetricsHandler::new(None),
-        ))
+        if self.batching_enabled {
+            if self.active_txn.is_none() {
+                self.active_txn = Some(self.db_writer.begin_persistent_rw_txn()?);
+            }
+            // Borrow from the persistent transaction.
+            Ok(StorageTxn::new(
+                &self.active_txn.as_ref().unwrap().txn,
+                self.file_writers.clone(),
+                self.tables.clone(),
+                self.scope,
+                MetricsHandler::new(None),
+            ))
+        } else {
+            // Create an owned transaction.
+            Ok(StorageTxn::new(
+                self.db_writer.begin_rw_txn()?,
+                self.file_writers.clone(),
+                self.tables.clone(),
+                self.scope,
+                MetricsHandler::new(None),
+            ))
+        }
     }
 }
 
@@ -567,10 +612,20 @@ impl Drop for MetricsHandler {
     }
 }
 
+/// Holds either an owned or borrowed database transaction.
+///
+/// This enum enables `StorageTxn` to work in two modes:
+/// - `Owned`: Non-batching mode where each `StorageTxn` owns its transaction.
+/// - `Borrowed`: Batching mode where multiple `StorageTxn`s share a persistent transaction.
+enum TxnHolder<'env, Mode: TransactionKind> {
+    Owned(DbTransaction<'env, Mode>),
+    Borrowed(&'env DbTransaction<'env, Mode>),
+}
+
 /// A struct for interacting with the storage.
 /// The actually functionality is implemented on the transaction in multiple traits.
 pub struct StorageTxn<'env, Mode: TransactionKind> {
-    txn: DbTransaction<'env, Mode>,
+    txn_holder: TxnHolder<'env, Mode>,
     file_handlers: FileHandlers<Mode>,
     tables: Arc<Tables>,
     scope: StorageScope,
@@ -582,20 +637,62 @@ impl StorageTxn<'_, RW> {
     /// Commits the changes made in the transaction to the storage.
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(self) -> StorageResult<()> {
-        self.file_handlers.flush();
-        Ok(self.txn.commit()?)
+        match self.txn_holder {
+            TxnHolder::Owned(txn) => {
+                // Non-batching mode: flush and commit immediately.
+                self.file_handlers.flush();
+                Ok(txn.commit()?)
+            }
+            TxnHolder::Borrowed(_) => {
+                // Batching mode: don't commit or flush yet.
+                // The persistent transaction remains active. A callback to StorageWriter
+                // will check the commit_counter and perform the actual commit and flush when the
+                // batch limit is reached.
+                Ok(())
+            }
+        }
+    }
+}
+
+/// Trait for converting a transaction into a TxnHolder.
+trait IntoTxnHolder<'env, Mode: TransactionKind> {
+    fn into_holder(self) -> TxnHolder<'env, Mode>;
+}
+
+impl<'env, Mode: TransactionKind> IntoTxnHolder<'env, Mode> for DbTransaction<'env, Mode> {
+    fn into_holder(self) -> TxnHolder<'env, Mode> {
+        TxnHolder::Owned(self)
+    }
+}
+
+impl<'env, Mode: TransactionKind> IntoTxnHolder<'env, Mode> for &'env DbTransaction<'env, Mode> {
+    fn into_holder(self) -> TxnHolder<'env, Mode> {
+        TxnHolder::Borrowed(self)
     }
 }
 
 impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
+    fn txn(&self) -> &DbTransaction<'env, Mode> {
+        match &self.txn_holder {
+            TxnHolder::Owned(txn) => txn,
+            TxnHolder::Borrowed(txn) => txn,
+        }
+    }
+
     fn new(
-        txn: DbTransaction<'env, Mode>,
+        txn: impl IntoTxnHolder<'env, Mode>,
         file_handlers: FileHandlers<Mode>,
         tables: Arc<Tables>,
         scope: StorageScope,
         metric_updater: MetricsHandler,
     ) -> Self {
-        Self { txn, file_handlers, tables, scope, _metric_updater: metric_updater }
+        Self {
+            txn_holder: txn.into_holder(),
+            file_handlers,
+            tables,
+            scope,
+            _metric_updater: metric_updater,
+        }
     }
 
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
@@ -615,7 +712,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
                 });
             }
         }
-        Ok(self.txn.open_table(table_id)?)
+        Ok(self.txn().open_table(table_id)?)
     }
 
     /// Returns the location of the state diff in the mmap file for the given block number.
@@ -624,7 +721,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         block_number: BlockNumber,
     ) -> StorageResult<Option<LocationInFile>> {
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
-        Ok(state_diffs_table.get(&self.txn, &block_number)?)
+        Ok(state_diffs_table.get(self.txn(), &block_number)?)
     }
 
     /// Returns the thin state diff stored in the mmap file at the given location.
@@ -642,13 +739,13 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         block_number: BlockNumber,
     ) -> StorageResult<Option<Nonce>> {
         let nonces_table = self.open_table(&self.tables.nonces)?;
-        Ok(nonces_table.get(&self.txn, &(contract_address, block_number))?)
+        Ok(nonces_table.get(self.txn(), &(contract_address, block_number))?)
     }
 
     /// Returns the file offset for a given offset kind.
     pub fn get_file_offset(&self, offset_kind: OffsetKind) -> StorageResult<Option<usize>> {
         let table = self.open_table(&self.tables.file_offsets)?;
-        Ok(table.get(&self.txn, &offset_kind)?)
+        Ok(table.get(self.txn(), &offset_kind)?)
     }
 }
 
