@@ -5,7 +5,11 @@ use apollo_config_manager_types::communication::{
     MockConfigManagerClient,
 };
 use apollo_config_manager_types::errors::ConfigManagerError;
-use apollo_staking_config::config::{ConfiguredStaker, StakersConfig, StakingManagerDynamicConfig};
+use apollo_staking_config::config::{
+    CommitteeConfig,
+    ConfiguredStaker,
+    StakingManagerDynamicConfig,
+};
 use apollo_state_sync_types::communication::{MockStateSyncClient, SharedStateSyncClient};
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
@@ -45,30 +49,40 @@ fn mock_client_with_latest(block: Option<BlockNumber>) -> SharedStateSyncClient 
 #[rstest]
 #[tokio::test]
 async fn get_stakers_picks_latest_config_for_epoch(mock_state_sync_client: SharedStateSyncClient) {
-    let config = vec![
-        StakersConfig { start_epoch: 0, stakers: vec![STAKER_1] },
-        StakersConfig { start_epoch: 3, stakers: vec![STAKER_1, STAKER_2] },
-    ];
+    let default_config =
+        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
+    let override_config = Some(CommitteeConfig {
+        start_epoch: 3,
+        committee_size: 100,
+        stakers: vec![STAKER_1, STAKER_2],
+    });
 
-    let contract = MockStakingContract::new(mock_state_sync_client, config, None);
+    let contract =
+        MockStakingContract::new(mock_state_sync_client, default_config, override_config, None);
 
+    // Epoch 1 < 3, so should use default (STAKER_1 only)
     let stakers = contract.get_stakers(1).await.unwrap();
     assert_eq!(stakers.len(), 1);
 
+    // Epoch 4 >= 3, so should use override (STAKER_1 and STAKER_2)
     let stakers = contract.get_stakers(4).await.unwrap();
     assert_eq!(stakers.len(), 2);
 }
 
 #[rstest]
 #[tokio::test]
-async fn get_stakers_missing_config(mock_state_sync_client: SharedStateSyncClient) {
-    let config = vec![StakersConfig { start_epoch: 5, stakers: vec![STAKER_1] }];
+async fn get_stakers_no_override(mock_state_sync_client: SharedStateSyncClient) {
+    let default_config =
+        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
 
-    let contract = MockStakingContract::new(mock_state_sync_client, config, None);
+    let contract = MockStakingContract::new(mock_state_sync_client, default_config, None, None);
 
-    // Should return empty vec because the epoch is before the first config entry.
+    // Should always return default stakers when no override is present
     let stakers = contract.get_stakers(0).await.unwrap();
-    assert!(stakers.is_empty());
+    assert_eq!(stakers.len(), 1);
+
+    let stakers = contract.get_stakers(100).await.unwrap();
+    assert_eq!(stakers.len(), 1);
 }
 
 #[rstest]
@@ -76,19 +90,25 @@ async fn get_stakers_missing_config(mock_state_sync_client: SharedStateSyncClien
 async fn get_stakers_fetches_dynamic_config_successfully(
     mock_state_sync_client: SharedStateSyncClient,
 ) {
-    let initial_config = vec![StakersConfig { start_epoch: 0, stakers: vec![STAKER_1] }];
+    let initial_default =
+        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
 
     let mut mock_config_client = MockConfigManagerClient::new();
     mock_config_client.expect_get_staking_manager_dynamic_config().returning(move || {
         Ok(StakingManagerDynamicConfig {
-            stakers_config: vec![StakersConfig { start_epoch: 0, stakers: vec![STAKER_2] }],
-            ..Default::default()
+            default_committee: CommitteeConfig {
+                start_epoch: 0,
+                committee_size: 100,
+                stakers: vec![STAKER_2],
+            },
+            override_committee: None,
         })
     });
 
     let contract = MockStakingContract::new(
         mock_state_sync_client,
-        initial_config,
+        initial_default,
+        None,
         Some(Arc::new(mock_config_client)),
     );
 
@@ -102,7 +122,8 @@ async fn get_stakers_fetches_dynamic_config_successfully(
 async fn get_stakers_falls_back_to_initial_config_when_fetch_fails(
     mock_state_sync_client: SharedStateSyncClient,
 ) {
-    let initial_config = vec![StakersConfig { start_epoch: 0, stakers: vec![STAKER_1] }];
+    let initial_default =
+        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
 
     let mut mock_config_client = MockConfigManagerClient::new();
     mock_config_client.expect_get_staking_manager_dynamic_config().returning(|| {
@@ -113,7 +134,8 @@ async fn get_stakers_falls_back_to_initial_config_when_fetch_fails(
 
     let contract = MockStakingContract::new(
         mock_state_sync_client,
-        initial_config,
+        initial_default,
+        None,
         Some(Arc::new(mock_config_client)),
     );
 
@@ -133,8 +155,12 @@ async fn get_current_epoch_success(
     #[case] block_number: BlockNumber,
     #[case] expected_epoch: Epoch,
 ) {
-    let contract =
-        MockStakingContract::new(mock_client_with_latest(Some(block_number)), vec![], None);
+    let contract = MockStakingContract::new(
+        mock_client_with_latest(Some(block_number)),
+        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
+        None,
+        None,
+    );
 
     let epoch = contract.get_current_epoch().await.unwrap();
     assert_eq!(epoch, expected_epoch);
@@ -142,7 +168,12 @@ async fn get_current_epoch_success(
 
 #[tokio::test]
 async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks() {
-    let contract = MockStakingContract::new(mock_client_with_latest(None), vec![], None);
+    let contract = MockStakingContract::new(
+        mock_client_with_latest(None),
+        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
+        None,
+        None,
+    );
 
     let epoch = contract.get_current_epoch().await.unwrap();
     assert_eq!(
