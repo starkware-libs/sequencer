@@ -338,6 +338,9 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
     Ok(skeleton_tree)
 }
 
+/// Creates the original skeleton trees of the storage tries of modified contracts.
+/// If the storage supports async operations, the tries are created concurrently.
+/// Otherwise, they are created sequentially.
 pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
     storage: &impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
@@ -349,14 +352,28 @@ where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
-    create_storage_tries_sequentially::<Layout>(
-        storage,
-        actual_storage_updates,
-        original_contracts_trie_leaves,
-        config,
-        storage_tries_sorted_indices,
-    )
-    .await
+    match storage.get_async_self() {
+        Some(async_storage) => {
+            create_storage_tries_concurrently::<Layout>(
+                &async_storage,
+                actual_storage_updates,
+                original_contracts_trie_leaves,
+                config,
+                storage_tries_sorted_indices,
+            )
+            .await
+        }
+        None => {
+            create_storage_tries_sequentially::<Layout>(
+                storage,
+                actual_storage_updates,
+                original_contracts_trie_leaves,
+                config,
+                storage_tries_sorted_indices,
+            )
+            .await
+        }
+    }
 }
 
 /// Creates the contracts trie original skeleton.
