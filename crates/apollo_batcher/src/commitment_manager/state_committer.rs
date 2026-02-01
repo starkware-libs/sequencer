@@ -66,15 +66,12 @@ impl StateCommitter {
             );
             let output = perform_task(request, &committer_client).await;
             let height = output.height();
-            match results_sender.try_send(output.clone()) {
+            match results_sender.send(output.clone()).await {
                 Ok(_) => {
                     info!(
                         "Successfully sent the committer result to the results channel: \
                          {output:?}."
                     );
-                }
-                Err(TrySendError::Full(_)) => {
-                    panic!("Results channel is full for height {height}.")
                 }
                 Err(err) => panic!("Failed to send results for height {height}. error: {err}"),
             }
