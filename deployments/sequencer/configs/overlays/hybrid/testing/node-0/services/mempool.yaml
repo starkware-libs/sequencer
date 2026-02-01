@@ -11,6 +11,8 @@ config:
     components.gateway.url: sequencer-gateway-service
     components.mempool.port: 55006
     components.mempool.url: sequencer-mempool-service
+    components.proof_manager.port: 55012
+    components.proof_manager.url: sequencer-core-service
     mempool_config.dynamic_config.transaction_ttl: 300
     mempool_p2p_config.network_config.advertised_multiaddr.#is_none: true
     mempool_p2p_config.network_config.advertised_multiaddr: ""

@@ -11,6 +11,8 @@ config:
     components.mempool.url: sequencer-mempool-service
     components.gateway.port: 55002
     components.gateway.url: sequencer-gateway-service
+    components.proof_manager.port: 55012
+    components.proof_manager.url: sequencer-core-service
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
     gateway_config.authorized_declarer_accounts: ""

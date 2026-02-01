@@ -2313,7 +2313,6 @@ version = "0.18.0-dev.0"
 dependencies = [
  "apollo_infra",
  "apollo_metrics",
- "apollo_proc_macros",
  "async-trait",
  "mockall",
  "serde",
@@ -12256,7 +12255,6 @@ dependencies = [
  "cairo-vm",
  "clap",
  "futures",
- "hyper 1.8.0",
  "indexmap 2.12.0",
  "proving_utils",
  "rstest",
