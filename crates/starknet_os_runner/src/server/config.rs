@@ -3,11 +3,12 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
-use blockifier::blockifier::config::ContractClassManagerConfig;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use tracing::info;
+
+use crate::config::ProverConfig;
 
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
@@ -16,12 +17,9 @@ const DEFAULT_PORT: u16 = 3000;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ServiceConfig {
-    /// Configuration for the contract class manager.
-    pub contract_class_manager_config: ContractClassManagerConfig,
-    /// Chain ID for transaction hash calculation.
-    pub chain_id: ChainId,
-    /// RPC node URL for fetching state.
-    pub rpc_node_url: String,
+    /// Configuration for the prover.
+    #[serde(flatten)]
+    pub prover_config: ProverConfig,
     /// IP address to bind the server to.
     pub ip: IpAddr,
     /// Port to bind the server to.
@@ -30,13 +28,7 @@ pub struct ServiceConfig {
 
 impl Default for ServiceConfig {
     fn default() -> Self {
-        Self {
-            contract_class_manager_config: ContractClassManagerConfig::default(),
-            chain_id: ChainId::Mainnet,
-            rpc_node_url: String::new(),
-            ip: DEFAULT_IP,
-            port: DEFAULT_PORT,
-        }
+        Self { prover_config: ProverConfig::default(), ip: DEFAULT_IP, port: DEFAULT_PORT }
     }
 }
 
@@ -64,16 +56,22 @@ impl ServiceConfig {
 
         // Override with CLI arguments if provided.
         if let Some(rpc_url) = args.rpc_url {
-            if rpc_url != config.rpc_node_url {
-                info!("CLI override: rpc_node_url: {} -> {}", config.rpc_node_url, rpc_url);
-                config.rpc_node_url = rpc_url;
+            if rpc_url != config.prover_config.rpc_node_url {
+                info!(
+                    "CLI override: rpc_node_url: {} -> {}",
+                    config.prover_config.rpc_node_url, rpc_url
+                );
+                config.prover_config.rpc_node_url = rpc_url;
             }
         }
         if let Some(chain_id) = args.chain_id {
             let new_chain_id = ChainId::from(chain_id.clone());
-            if new_chain_id != config.chain_id {
-                info!("CLI override: chain_id: {} -> {}", config.chain_id, new_chain_id);
-                config.chain_id = new_chain_id;
+            if new_chain_id != config.prover_config.chain_id {
+                info!(
+                    "CLI override: chain_id: {} -> {}",
+                    config.prover_config.chain_id, new_chain_id
+                );
+                config.prover_config.chain_id = new_chain_id;
             }
         }
         if let Some(port) = args.port {
@@ -93,7 +91,7 @@ impl ServiceConfig {
         }
 
         // Validate required fields.
-        if config.rpc_node_url.is_empty() {
+        if config.prover_config.rpc_node_url.is_empty() {
             return Err(ConfigError::MissingRequiredField(
                 "rpc_node_url is required (provide via --rpc-url or config file)".to_string(),
             ));
