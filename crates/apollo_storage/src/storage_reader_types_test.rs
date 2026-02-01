@@ -517,3 +517,13 @@ async fn blocks_storage_version_request() {
 
     assert_eq!(response, StorageReaderResponse::BlocksStorageVersion(expected_version));
 }
+
+#[tokio::test]
+async fn deprecated_declared_class_block_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let request = StorageReaderRequest::DeprecatedDeclaredClassesBlock(setup.deprecated_class_hash);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::DeprecatedDeclaredClassesBlock(TEST_BLOCK_NUMBER));
+}
