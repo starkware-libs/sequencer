@@ -1,17 +1,34 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
+use indexmap::IndexSet;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
+
+pub enum RewindData {
+    Fifo {
+        staged_tx_refs: Vec<TransactionReference>,
+        committed_nonces: HashMap<ContractAddress, Nonce>,
+        rejected_tx_hashes: IndexSet<TransactionHash>,
+    },
+    FeePriority {
+        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
+        validate_resource_bounds: bool,
+    },
+}
 
 pub trait TransactionQueueTrait: Send + Sync {
     fn insert(&mut self, tx_reference: TransactionReference, validate_resource_bounds: bool);
 
     fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference>;
 
-    fn remove_by_address(&mut self, address: ContractAddress) -> bool;
+    // Default implementation returns false (for queues that don't support removal by address).
+    fn remove_by_address(&mut self, _address: ContractAddress) -> bool {
+        false
+    }
 
     fn remove_txs(&mut self, txs: &[TransactionReference]) -> Vec<TransactionReference>;
 
@@ -29,11 +46,7 @@ pub trait TransactionQueueTrait: Send + Sync {
 
     fn queue_snapshot(&self) -> TransactionQueueSnapshot;
 
-    fn rewind_txs(
-        &mut self,
-        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
-        validate_resource_bounds: bool,
-    );
+    fn rewind_txs(&mut self, rewind_data: RewindData) -> Option<HashSet<TransactionHash>>;
 
     // Default implementation returns 0 (for queues that don't distinguish priority/pending).
     fn priority_queue_len(&self) -> usize {
@@ -46,5 +59,9 @@ pub trait TransactionQueueTrait: Send + Sync {
     }
 
     #[cfg(test)]
-    fn pending_txs(&self) -> Vec<TransactionReference>;
+    // Default implementation returns empty vec (for queues that don't distinguish
+    // priority/pending).
+    fn pending_txs(&self) -> Vec<TransactionReference> {
+        Vec::new()
+    }
 }
