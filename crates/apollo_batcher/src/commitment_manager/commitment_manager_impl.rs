@@ -313,7 +313,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // TODO(Amos): Test blocks [0,10] in OS flow tests.
     pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
-        CommitmentTaskOutput { response: CommitBlockResponse { state_root: global_root }, height }: CommitmentTaskOutput,
+        CommitmentTaskOutput { response: CommitBlockResponse { global_root }, height }: CommitmentTaskOutput,
         should_finalize_block_hash: bool,
     ) -> CommitmentManagerResult<FinalBlockCommitment> {
         match should_finalize_block_hash {
