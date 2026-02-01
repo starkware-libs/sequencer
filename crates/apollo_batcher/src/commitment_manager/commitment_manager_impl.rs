@@ -34,6 +34,7 @@ use crate::commitment_manager::types::{
 use crate::metrics::{
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
     COMMITMENT_MANAGER_NUM_COMMIT_RESULTS_HIST,
+    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
 };
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
@@ -142,14 +143,13 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         loop {
             match self.results_receiver.try_recv() {
                 Ok(result) => {
-                    let task_duration = self
-                        .task_timer
-                        .stop_timer(CommitterRequestLabelValue::CommitBlock, result.height());
-                    if let Some(task_duration) = task_duration {
-                        // TODO(Rotem): add panels in the dashboard for the latency metrics.
-                        COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.set_lossy(task_duration);
-                    }
-                    results.push(result.expect_commitment())
+                    let commitment_task_output = result.expect_commitment();
+                    // TODO(Rotem): add panels in the dashboard for the latency metrics.
+                    self.update_task_duration_metric(
+                        CommitterRequestLabelValue::CommitBlock,
+                        commitment_task_output.height,
+                    );
+                    results.push(commitment_task_output)
                 }
                 Err(TryRecvError::Empty) => break,
                 Err(err) => {
@@ -171,9 +171,17 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             // Sleep until a message is sent or the channel is closed.
             match self.results_receiver.recv().await {
                 Some(CommitterTaskOutput::Commit(commitment_task_result)) => {
+                    self.update_task_duration_metric(
+                        CommitterRequestLabelValue::CommitBlock,
+                        commitment_task_result.height,
+                    );
                     commitment_results.push(commitment_task_result)
                 }
                 Some(CommitterTaskOutput::Revert(revert_task_result)) => {
+                    self.update_task_duration_metric(
+                        CommitterRequestLabelValue::RevertBlock,
+                        revert_task_result.height,
+                    );
                     return (commitment_results, revert_task_result);
                 }
                 None => panic!("Channel closed while waiting for revert results."),
@@ -194,6 +202,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
              state committer."
         );
         self.increase_commitment_task_offset();
+    }
+
+    fn successfully_added_revert_task(&mut self, height: BlockNumber) {
+        self.task_timer.start_timer(CommitterRequestLabelValue::RevertBlock, height);
+        info!("Sent revert task for block {height}.");
+        self.decrease_commitment_task_offset();
     }
 
     /// Initializes the CommitmentManager. This includes starting the state committer task.
@@ -298,8 +312,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let revert_task_input =
             CommitterTaskInput::Revert(RevertBlockRequest { height, reversed_state_diff });
         self.add_task(revert_task_input).await?;
-        info!("Sent revert task for block {height}.");
-        self.decrease_commitment_task_offset();
+        self.successfully_added_revert_task(height);
         Ok(())
     }
 
@@ -334,6 +347,24 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 let block_hash =
                     calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
                 Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
+            }
+        }
+    }
+
+    fn update_task_duration_metric(
+        &mut self,
+        task_type: CommitterRequestLabelValue,
+        height: BlockNumber,
+    ) {
+        let task_duration = self.task_timer.stop_timer(task_type, height);
+        if let Some(task_duration) = task_duration {
+            match task_type {
+                CommitterRequestLabelValue::CommitBlock => {
+                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.set_lossy(task_duration)
+                }
+                CommitterRequestLabelValue::RevertBlock => {
+                    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.set_lossy(task_duration)
+                }
             }
         }
     }
