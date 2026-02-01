@@ -66,7 +66,7 @@ pub enum ConfigManagerRequest {
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
     GetStakingManagerDynamicConfig,
-    SetNodeDynamicConfig(NodeDynamicConfig),
+    SetNodeDynamicConfig(Box<NodeDynamicConfig>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
 impl_labeled_request!(ConfigManagerRequest, ConfigManagerRequestLabelValue);
@@ -178,7 +178,7 @@ where
         &self,
         config: NodeDynamicConfig,
     ) -> ConfigManagerClientResult<()> {
-        let request = ConfigManagerRequest::SetNodeDynamicConfig(config);
+        let request = ConfigManagerRequest::SetNodeDynamicConfig(Box::new(config));
         handle_all_response_variants!(
             self,
             request,
