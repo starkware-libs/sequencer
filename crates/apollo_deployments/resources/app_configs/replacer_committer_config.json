@@ -10,6 +10,7 @@
   "committer_config.storage_config.inner_storage_config.enable_statistics": true,
   "committer_config.storage_config.inner_storage_config.max_background_jobs": 8,
   "committer_config.storage_config.inner_storage_config.use_mmap_reads": false,
+  "committer_config.storage_config.inner_storage_config.spawn_blocking_reads": false,
   "committer_config.storage_config.inner_storage_config.max_subcompactions": 8,
   "committer_config.storage_config.inner_storage_config.max_write_buffers": 4,
   "committer_config.storage_config.inner_storage_config.num_threads": 8,
