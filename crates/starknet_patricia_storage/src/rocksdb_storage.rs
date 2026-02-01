@@ -17,6 +17,7 @@ use rust_rocksdb::{
     DB,
 };
 use serde::{Deserialize, Serialize};
+use tokio::task::spawn_blocking;
 use validator::Validate;
 
 use crate::storage_trait::{
@@ -279,18 +280,23 @@ impl StorageStats for RocksDbStats {
 
 impl ImmutableReadOnlyStorage for RocksDbStorage {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        Ok(self.db.get(&key.0)?.map(DbValue))
+        // TODO(Nimrod): Config should indicate whether to spawn a task or not.
+        let db = self.db.clone();
+        let key = key.clone();
+        Ok(spawn_blocking(move || db.get(&key.0).map(|opt| opt.map(DbValue))).await??)
     }
 
     async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        let raw_keys = keys.iter().map(|k| &k.0);
-        let res = self
-            .db
-            .multi_get(raw_keys)
-            .into_iter()
-            .map(|r| r.map(|opt| opt.map(DbValue)))
-            .collect::<Result<_, _>>()?;
-        Ok(res)
+        // TODO(Nimrod): Config should indicate whether to spawn a task or not.
+        let db = self.db.clone();
+        let keys: Vec<Vec<u8>> = keys.iter().map(|k| k.0.clone()).collect();
+        spawn_blocking(move || {
+            db.multi_get(keys)
+                .into_iter()
+                .map(|r| Ok(r?.map(DbValue)))
+                .collect::<PatriciaStorageResult<_>>()
+        })
+        .await?
     }
 }
 
