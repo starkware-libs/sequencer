@@ -45,5 +45,5 @@ pub enum DeserializationError {
     // TODO(Ariel): This is only used for EdgeNode construction failures (path length etc.), add
     // error types here and use them instead of the general ValueError.
     #[error("Invalid value for deserialization: {0}.")]
-    ValueError(Box<dyn std::error::Error>),
+    ValueError(Box<dyn std::error::Error + Send>),
 }
