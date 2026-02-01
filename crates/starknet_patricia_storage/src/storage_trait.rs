@@ -7,6 +7,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
+use tokio::task::JoinError;
 use validator::Validate;
 
 use crate::errors::DeserializationError;
@@ -37,6 +38,8 @@ pub enum PatriciaStorageError {
     AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
     #[error(transparent)]
     Deserialization(#[from] DeserializationError),
+    #[error(transparent)]
+    Join(#[from] JoinError),
     #[cfg(feature = "mdbx_storage")]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
