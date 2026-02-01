@@ -36,6 +36,8 @@ pub mod stream_handler;
 
 mod manager;
 #[allow(missing_docs)]
+mod proposer_cache;
+#[allow(missing_docs)]
 mod single_height_consensus;
 #[allow(missing_docs)]
 mod state_machine;
