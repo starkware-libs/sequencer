@@ -155,7 +155,16 @@ impl Scheduler {
     /// Tries to takes the lock on the commit index. Returns a `TransactionCommitter` if successful,
     /// or None if the lock is already taken.
     pub fn try_enter_commit_phase(&self) -> Option<TransactionCommitter<'_>> {
-        match self.commit_index.try_lock() {
+        println!(
+            "TEMPDEBUG102 [thread: {:?}] trying to lock commit index for commit phase",
+            std::thread::current().id()
+        );
+        let commit_index_guard = self.commit_index.try_lock();
+        println!(
+            "TEMPDEBUG103 [thread: {:?}] commit index locked for commit phase",
+            std::thread::current().id()
+        );
+        match commit_index_guard {
             Ok(guard) => Some(TransactionCommitter::new(self, guard)),
             Err(TryLockError::WouldBlock) => None,
             Err(TryLockError::Poisoned(error)) => {
@@ -165,7 +174,16 @@ impl Scheduler {
     }
 
     pub fn get_n_committed_txs(&self) -> usize {
-        *self.commit_index.lock().unwrap()
+        println!(
+            "TEMPDEBUG100 [thread: {:?}] trying to lock commit index for get_n_committed_txs",
+            std::thread::current().id()
+        );
+        let res = self.commit_index.lock().unwrap();
+        println!(
+            "TEMPDEBUG101 [thread: {:?}] commit index locked for get_n_committed_txs",
+            std::thread::current().id()
+        );
+        *res
     }
 
     pub fn halt(&self) {
