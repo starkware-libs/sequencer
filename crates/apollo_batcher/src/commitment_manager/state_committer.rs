@@ -5,7 +5,6 @@ use std::time::Duration;
 use apollo_committer_types::committer_types::{CommitBlockRequest, RevertBlockRequest};
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_committer_types::errors::CommitterClientResult;
-use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
 use tracing::{error, info};
