@@ -110,12 +110,12 @@ impl TaskTimer {
         };
     }
 
-    /// Returns the duration of the task in milliseconds.
+    /// Returns the duration of the task in seconds.
     pub(crate) fn stop_timer(
         &mut self,
         task: CommitterRequestLabelValue,
         height: BlockNumber,
-    ) -> Option<u128> {
+    ) -> Option<f64> {
         let map = match task {
             CommitterRequestLabelValue::CommitBlock => &mut self.commit,
             CommitterRequestLabelValue::RevertBlock => &mut self.revert,
@@ -129,6 +129,6 @@ impl TaskTimer {
             );
             return None;
         };
-        Some(instant.elapsed().as_millis())
+        Some(instant.elapsed().as_secs_f64())
     }
 }
