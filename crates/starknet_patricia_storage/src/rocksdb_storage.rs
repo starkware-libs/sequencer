@@ -148,6 +148,8 @@ pub struct RocksDbStorageConfig {
     pub enable_statistics: bool,
     /// Whether to use mmap for reading SST files.
     pub use_mmap_reads: bool,
+    /// Whether to spawn blocking tasks for read operations.
+    pub spawn_blocking_reads: bool,
 }
 
 impl Default for RocksDbStorageConfig {
@@ -167,6 +169,7 @@ impl Default for RocksDbStorageConfig {
             bloom_filter_bits: BLOOM_FILTER_NUM_BITS,
             enable_statistics: true,
             use_mmap_reads: false,
+            spawn_blocking_reads: false,
         }
     }
 }
@@ -238,6 +241,12 @@ impl SerializeConfig for RocksDbStorageConfig {
                 "use_mmap_reads",
                 &self.use_mmap_reads,
                 "Whether to use mmap for reading SST files",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "spawn_blocking_reads",
+                &self.spawn_blocking_reads,
+                "Whether to spawn blocking tasks for read operations",
                 ParamPrivacyInput::Public,
             ),
         ])
