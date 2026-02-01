@@ -19,6 +19,7 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    EmptyStorageConfig,
     PatriciaStorageResult,
     Storage,
     StorageStats,
@@ -100,6 +101,7 @@ impl MdbxStorage {
 
 impl Storage for MdbxStorage {
     type Stats = MdbxStorageStats;
+    type Config = EmptyStorageConfig;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;

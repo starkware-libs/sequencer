@@ -499,10 +499,80 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "committer_config.db_path": {
+    "description": "Path to the committer storage directory.",
+    "privacy": "Public",
+    "value": "/data/committer"
+  },
   "committer_config.reader_config.warn_on_trivial_modifications": {
     "description": "Whether to warn on trivial state update.",
     "privacy": "Public",
     "value": false
+  },
+  "committer_config.storage_config.cache_on_write": {
+    "description": "If true, the cache is updated on write operations",
+    "privacy": "Public",
+    "value": true
+  },
+  "committer_config.storage_config.cache_size": {
+    "description": "Max number of entries in the cache",
+    "privacy": "Public",
+    "value": 1000000
+  },
+  "committer_config.storage_config.include_inner_stats": {
+    "description": "If true, the inner stats are included when collecting statistics",
+    "privacy": "Public",
+    "value": true
+  },
+  "committer_config.storage_config.inner_storage_config.bloom_filter_bits": {
+    "description": "Number of bits in the bloom filter per key",
+    "privacy": "Public",
+    "value": 10
+  },
+  "committer_config.storage_config.inner_storage_config.bytes_per_sync": {
+    "description": "Bytes to sync to disk incrementally during writes",
+    "privacy": "Public",
+    "value": 1048576
+  },
+  "committer_config.storage_config.inner_storage_config.cache_size": {
+    "description": "Size of the block cache in bytes",
+    "privacy": "Public",
+    "value": 8589934592
+  },
+  "committer_config.storage_config.inner_storage_config.enable_statistics": {
+    "description": "Flag that determines whether to enable RocksDB statistics collection",
+    "privacy": "Public",
+    "value": true
+  },
+  "committer_config.storage_config.inner_storage_config.max_background_jobs": {
+    "description": "Maximum number of background compaction and flush jobs",
+    "privacy": "Public",
+    "value": 8
+  },
+  "committer_config.storage_config.inner_storage_config.max_subcompactions": {
+    "description": "Maximum number of subcompactions for parallel compaction",
+    "privacy": "Public",
+    "value": 8
+  },
+  "committer_config.storage_config.inner_storage_config.max_write_buffers": {
+    "description": "Maximum number of write buffers (memtables)",
+    "privacy": "Public",
+    "value": 4
+  },
+  "committer_config.storage_config.inner_storage_config.num_threads": {
+    "description": "Number of threads for parallelism",
+    "privacy": "Public",
+    "value": 8
+  },
+  "committer_config.storage_config.inner_storage_config.use_mmap_reads": {
+    "description": "Whether to use mmap for reading SST files",
+    "privacy": "Public",
+    "value": false
+  },
+  "committer_config.storage_config.inner_storage_config.write_buffer_size": {
+    "description": "Amount of data to build up in memory before writing to disk",
+    "privacy": "Public",
+    "value": 134217728
   },
   "committer_config.verify_state_diff_hash": {
     "description": "If true, the committer will verify the state diff hash.",
@@ -3144,11 +3214,6 @@
     "privacy": "Public",
     "value": 10
   },
-  "state_sync_config.central_sync_client_config.sync_config.block_propagation_sleep_duration": {
-    "description": "Time in seconds before checking for a new block after the node is synchronized.",
-    "privacy": "Public",
-    "value": 2
-  },
   "state_sync_config.central_sync_client_config.sync_config.blocks_max_stream_size": {
     "description": "Max amount of blocks to download in a stream.",
     "privacy": "Public",
@@ -3158,6 +3223,11 @@
     "description": "Whether to collect data on pending blocks.",
     "privacy": "Public",
     "value": false
+  },
+  "state_sync_config.central_sync_client_config.sync_config.latest_block_poll_interval_millis": {
+    "description": "Time in milliseconds between polling for the latest block while node is synchronized.",
+    "privacy": "Public",
+    "value": 500
   },
   "state_sync_config.central_sync_client_config.sync_config.recoverable_error_sleep_duration": {
     "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",

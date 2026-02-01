@@ -18,8 +18,12 @@ apollo_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
+bytes.workspace = true
 derive_more = { workspace = true, features = ["display", "from_str"] }
-hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
+http.workspace = true
+http-body-util.workspace = true
+hyper = { workspace = true, features = ["server"] }
+hyper-util = { workspace = true, features = ["client-legacy", "server-auto", "tokio"] }
 metrics-exporter-prometheus.workspace = true
 rand.workspace = true
 rstest.workspace = true
@@ -30,7 +34,6 @@ thiserror.workspace = true
 time = { workspace = true, features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tokio-metrics = { workspace = true, features = ["metrics-rs-integration", "rt"] }
-tower = { workspace = true, features = ["limit", "util"] }
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter", "json", "time"] }
 validator.workspace = true
@@ -38,6 +41,7 @@ validator.workspace = true
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
+apollo_proc_macros.workspace = true
 assert_matches.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true

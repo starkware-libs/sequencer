@@ -1,6 +1,5 @@
 use std::future::Future;
 use std::net::{SocketAddr, ToSocketAddrs};
-use std::time::Duration;
 
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -8,7 +7,6 @@ use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransac
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use tokio::select;
-use tokio::time::sleep;
 use tracing::info;
 use url::Url;
 
@@ -95,9 +93,6 @@ impl SequencerSimulator {
         sender_account: AccountId,
     ) {
         const N_TXS: usize = 50;
-        // TODO(Tsabary/NoamSp): Do we need this sleep at all? Potentially we're already waiting in
-        // the `await_txs_accepted` fn below.
-        const SLEEP_DURATION: Duration = Duration::from_millis(100);
 
         let mut i = 1;
         loop {
@@ -117,7 +112,6 @@ impl SequencerSimulator {
                 break;
             }
 
-            sleep(SLEEP_DURATION).await;
             i += 1;
         }
     }

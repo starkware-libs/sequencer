@@ -33,7 +33,7 @@ use crate::block_committer::input::{
 };
 use crate::db::facts_db::db::FactsDb;
 use crate::db::facts_db::types::FactsDbInitialRead;
-use crate::db::forest_trait::ForestReader;
+use crate::db::forest_trait::{ForestReader, StorageInitializer};
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
@@ -320,9 +320,10 @@ async fn test_create_original_skeleton_forest(
 
     let actual_storage_updates = input.state_diff.actual_storage_updates();
     let actual_classes_updates = input.state_diff.actual_classes_updates();
-    let (actual_forest, original_contracts_trie_leaves) = FactsDb::new(storage)
+    let mut facts_db = FactsDb::new(storage);
+    let (actual_forest, original_contracts_trie_leaves) = facts_db
         .read(
-            input.initial_read_context,
+            input.initial_read_context.0,
             &actual_storage_updates,
             &actual_classes_updates,
             &forest_sorted_indices,

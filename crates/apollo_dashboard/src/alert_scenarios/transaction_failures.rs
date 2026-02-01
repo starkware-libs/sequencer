@@ -32,11 +32,7 @@ pub(crate) fn get_http_server_high_deprecated_transaction_failure_ratio() -> Ale
             ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.1,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.1, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -56,14 +52,10 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
             ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.5,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.5, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::WorkingHours,
+        AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
         AlertEnvFiltering::All,
     )
@@ -82,11 +74,7 @@ fn get_http_server_internal_error_ratio(
             ADDED_TRANSACTIONS_INTERNAL_ERROR.get_name_with_filter(),
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.01,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.01, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -121,12 +109,12 @@ fn get_mempool_transaction_drop_ratio(
             MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filter(),
             MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
             // TODO(leo): Decide on the final ratio and who should be alerted.
-            comparison_value: 0.2,
-            logical_op: AlertLogicalOp::And,
-        }],
+            0.2,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -157,11 +145,7 @@ pub(crate) fn get_http_server_internal_error_once() -> Alert {
             "increase({}[20m]) or vector(0)",
             ADDED_TRANSACTIONS_INTERNAL_ERROR.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,

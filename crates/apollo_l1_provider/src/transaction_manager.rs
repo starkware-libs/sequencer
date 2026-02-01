@@ -9,6 +9,7 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, warn};
 
+use crate::metrics::L1_PROVIDER_NUM_PENDING_TXS;
 use crate::transaction_record::{
     Records,
     TransactionPayload,
@@ -389,6 +390,9 @@ impl TransactionManager {
                     Entry::Vacant(_) => {}
                 }
             }
+
+            let num_pending_txs = self.proposable_index.len();
+            L1_PROVIDER_NUM_PENDING_TXS.set_lossy(num_pending_txs);
 
             // If this tx was consumed, add it to the consumed queue.
             if let Some(consumed_at) = record.get_consumed_at_timestamp() {

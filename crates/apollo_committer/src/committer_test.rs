@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use apollo_committer_config::config::CommitterConfig;
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
@@ -8,18 +10,28 @@ use apollo_committer_types::errors::CommitterError;
 use assert_matches::assert_matches;
 use indexmap::indexmap;
 use starknet_api::block::BlockNumber;
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ClassHash, CompiledClassHash, StateDiffCommitment};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
+use starknet_committer::db::mock_forest_storage::MockForestStorage;
 use starknet_patricia_storage::map_storage::MapStorage;
 
-use super::{CommitBlockMock, Committer};
+use super::Committer;
+use crate::committer::{CommitBlockMock, StorageConstructor};
 
 pub type ApolloTestStorage = MapStorage;
-pub type ApolloTestCommitter = Committer<ApolloTestStorage, CommitBlockMock>;
+pub type ApolloTestCommitter =
+    Committer<ApolloTestStorage, MockForestStorage<ApolloTestStorage>, CommitBlockMock>;
+
+impl StorageConstructor for ApolloTestStorage {
+    fn create_storage(_db_path: PathBuf, _storage_config: Self::Config) -> Self {
+        MapStorage::default()
+    }
+}
 
 async fn new_test_committer() -> ApolloTestCommitter {
-    Committer::new(CommitterConfig::default()).await
+    Committer::new(CommitterConfig { verify_state_diff_hash: false, ..Default::default() }).await
 }
 
 fn get_state_diff(state_diff_info: u64) -> ThinStateDiff {
@@ -173,7 +185,7 @@ async fn revert_happy_flow() {
         .commit_block(commit_block_request(state_diff_1, Some(1), height))
         .await
         .unwrap()
-        .state_root;
+        .global_root;
 
     height = 1;
     committer.commit_block(commit_block_request(state_diff_2, Some(2), height)).await.unwrap();
@@ -199,7 +211,7 @@ async fn revert_to_invalid_global_root() {
         .commit_block(commit_block_request(1, Some(1), height_0))
         .await
         .unwrap()
-        .state_root;
+        .global_root;
 
     let height_1 = 1;
     committer.commit_block(commit_block_request(2, Some(2), height_1)).await.unwrap();
@@ -232,7 +244,7 @@ async fn revert_invalid_height() {
         .commit_block(commit_block_request(state_diff_1, Some(2), 1))
         .await
         .unwrap()
-        .state_root;
+        .global_root;
     let offset = height + 1;
 
     // Revert a future height.
@@ -258,4 +270,31 @@ async fn revert_invalid_height() {
     );
 
     assert_eq!(committer.offset, BlockNumber(offset));
+}
+
+#[tokio::test]
+async fn verify_state_diff_hash_succeeds() {
+    let mut committer = new_test_committer().await;
+    committer.config.verify_state_diff_hash = true;
+    let state_diff = get_state_diff(1);
+    let state_diff_commitment = Some(calculate_state_diff_hash(&state_diff));
+    let height = BlockNumber(0);
+    committer
+        .commit_block(CommitBlockRequest { state_diff, state_diff_commitment, height })
+        .await
+        .unwrap();
+    assert_eq!(committer.offset, BlockNumber(height.0 + 1));
+}
+
+#[tokio::test]
+async fn verify_state_diff_hash_fails() {
+    let mut committer = new_test_committer().await;
+    committer.config.verify_state_diff_hash = true;
+    let state_diff = get_state_diff(1);
+    let state_diff_commitment = Some(StateDiffCommitment(PoseidonHash(17.into())));
+    let height = BlockNumber(0);
+    let result = committer
+        .commit_block(CommitBlockRequest { state_diff, state_diff_commitment, height })
+        .await;
+    assert_matches!(result, Err(CommitterError::StateDiffHashMismatch { .. }));
 }

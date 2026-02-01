@@ -18,6 +18,8 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{
     signed_tx_version,
+    Event,
+    MessageToL1,
     RevertedTransactionExecutionStatus,
     TransactionExecutionStatus,
     TransactionHash,
@@ -27,7 +29,14 @@ use starknet_api::transaction::{
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::{BuiltinCounterMap, CallInfo, ExecutionSummary};
+use crate::execution::call_info::{
+    BuiltinCounterMap,
+    CallInfo,
+    ExecutionSummary,
+    OrderedEvent,
+    OrderedItem,
+    OrderedL2ToL1Message,
+};
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
@@ -293,6 +302,20 @@ impl TransactionExecutionInfo {
                 .flat_map(|call_info| call_info.get_sorted_l2_to_l1_messages())
                 .collect(),
         }
+    }
+
+    fn accumulated_sorted_items<T: OrderedItem>(&self) -> Vec<T::UnorderedItem> {
+        self.non_optional_call_infos()
+            .flat_map(|main_call_info| T::sorted_items(main_call_info))
+            .collect()
+    }
+
+    pub fn accumulated_sorted_events(&self) -> Vec<Event> {
+        self.accumulated_sorted_items::<OrderedEvent>()
+    }
+
+    pub fn accumulated_sorted_l2_to_l1_messages(&self) -> Vec<MessageToL1> {
+        self.accumulated_sorted_items::<OrderedL2ToL1Message>()
     }
 }
 

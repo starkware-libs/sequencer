@@ -87,9 +87,34 @@ pub enum ReconstructionError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
+// TODO(AndrewL): rename to ChannelSetupError
 pub enum PeerSetError {
     #[error("Local peer is not a member in the channel you're requesting")]
     LocalPeerNotInChannel,
     #[error("Invalid public key")]
     InvalidPublicKey,
+    #[error("Duplicate peer IDs")]
+    DuplicatePeerIds,
+}
+
+/// Specific errors that can occur during shard verification.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum ShardValidationError {
+    #[error("Self received a shard from myself (libp2p should not allow this)")]
+    SelfSending,
+    #[error("Publisher should not receive their own shard")]
+    ReceivedSelfPublishedShard,
+    #[error("Received shard that is already in cache (duplicate)")]
+    DuplicateShard,
+    #[error("Received shard but error getting parent in tree topology: {0}")]
+    ScheduleManagerError(TreeGenerationError),
+    #[error(
+        "Shard failed parent verification (expected sender = {expected_sender}, shard index = \
+         {shard_index:?})"
+    )]
+    UnexpectedSender { expected_sender: PeerId, shard_index: ShardIndex },
+    #[error("Shard failed signature verification: {0}")]
+    SignatureVerificationFailed(ShardSignatureVerificationError),
+    #[error("Shard failed Merkle proof verification")]
+    MerkleProofVerificationFailed,
 }

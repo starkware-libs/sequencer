@@ -7,6 +7,7 @@ use apollo_http_server_config::config::HttpServerDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
+use apollo_staking_config::config::StakingManagerDynamicConfig;
 use async_trait::async_trait;
 use tracing::info;
 
@@ -53,6 +54,12 @@ impl ConfigManager {
     pub(crate) fn get_mempool_dynamic_config(&self) -> ConfigManagerResult<MempoolDynamicConfig> {
         Ok(self.latest_node_dynamic_config.mempool_dynamic_config.as_ref().unwrap().clone())
     }
+
+    pub(crate) fn get_staking_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerResult<StakingManagerDynamicConfig> {
+        Ok(self.latest_node_dynamic_config.staking_manager_dynamic_config.as_ref().unwrap().clone())
+    }
 }
 
 #[async_trait]
@@ -76,6 +83,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             }
             ConfigManagerRequest::GetMempoolDynamicConfig => {
                 ConfigManagerResponse::GetMempoolDynamicConfig(self.get_mempool_dynamic_config())
+            }
+            ConfigManagerRequest::GetStakingManagerDynamicConfig => {
+                ConfigManagerResponse::GetStakingManagerDynamicConfig(
+                    self.get_staking_manager_dynamic_config(),
+                )
             }
             ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {
                 ConfigManagerResponse::SetNodeDynamicConfig(

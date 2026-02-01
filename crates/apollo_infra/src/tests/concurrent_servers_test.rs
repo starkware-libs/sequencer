@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_proc_macros::unique_u16;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use strum::EnumVariantNames;
@@ -158,7 +159,7 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
 // Uses available_ports_factory with index 7.
 async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
     let local_client = setup_concurrent_local_test().await;
-    let socket = available_ports_factory(7).get_next_local_host_socket();
+    let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
     let remote_client_config = RemoteClientConfig::default();
 
     let max_concurrency = 10;

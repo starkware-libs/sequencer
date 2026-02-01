@@ -1,6 +1,4 @@
-use std::sync::LazyLock;
-
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, PATRICIA_KEY_UPPER_BOUND};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::LeafResult;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
@@ -15,8 +13,13 @@ use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
+use crate::db::index_db::db::{CLASSES_TREE_PREFIX, CONTRACTS_TREE_PREFIX};
+use crate::db::mock_forest_storage::EMPTY_DB_KEY_SEPARATOR;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
+
+pub const INDEX_LAYOUT_DB_KEY_SEPARATOR: &[u8] = EMPTY_DB_KEY_SEPARATOR;
+
 // Wrap the leaves types so that we can implement the [DBObject] trait differently in index
 // layout.
 #[derive(
@@ -31,22 +34,6 @@ pub struct IndexLayoutCompiledClassHash(pub CompiledClassHash);
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, derive_more::From, derive_more::Into)]
 pub struct IndexLayoutStarknetStorageValue(pub StarknetStorageValue);
-
-/// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
-static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
-    LazyLock::new(|| Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND) + Felt::ONE);
-
-/// The db key prefix of nodes in the contracts trie.
-///
-/// Set to FIRST_AVAILABLE_PREFIX_FELT
-static CONTRACTS_TREE_PREFIX: LazyLock<[u8; 32]> =
-    LazyLock::new(|| FIRST_AVAILABLE_PREFIX_FELT.to_bytes_be());
-
-/// The db key prefix of nodes in the contracts trie.
-///
-/// Set to FIRST_AVAILABLE_PREFIX_FELT + 1
-static CLASSES_TREE_PREFIX: LazyLock<[u8; 32]> =
-    LazyLock::new(|| (*FIRST_AVAILABLE_PREFIX_FELT + Felt::ONE).to_bytes_be());
 
 macro_rules! impl_has_static_prefix_empty_context {
     ($($ty:ty => $prefix:expr),* $(,)?) => {
@@ -106,7 +93,10 @@ impl_leaf_for_wrappers!(
 );
 
 impl DBObject for IndexLayoutContractState {
+    const DB_KEY_SEPARATOR: &[u8] = INDEX_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
+
     fn serialize(&self) -> Result<DbValue, SerializationError> {
         serialize_felts(&[self.0.class_hash.0, self.0.storage_root_hash.0, self.0.nonce.0])
     }
@@ -131,6 +121,8 @@ impl DBObject for IndexLayoutContractState {
 }
 
 impl DBObject for IndexLayoutCompiledClassHash {
+    const DB_KEY_SEPARATOR: &[u8] = INDEX_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
 
     fn serialize(&self) -> Result<DbValue, SerializationError> {
@@ -148,6 +140,8 @@ impl DBObject for IndexLayoutCompiledClassHash {
 }
 
 impl DBObject for IndexLayoutStarknetStorageValue {
+    const DB_KEY_SEPARATOR: &[u8] = INDEX_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
 
     fn serialize(&self) -> Result<DbValue, SerializationError> {

@@ -13,12 +13,12 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable, Mapping, Sequence, TypeVar
+from typing import Callable, Sequence, TypeVar
 
 import requests
 
 from echonet import helpers
-from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject
+from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, RevertErrorInfo
 from echonet.report_models import SnapshotModel
 
 T = TypeVar("T")
@@ -47,7 +47,11 @@ class BaseRevertComparisonTextReport(ABC):
     Subclasses implement `_render_section(...)` and inherit the shared `render()` skeleton.
     """
 
-    def render(self, mainnet_reverts: Mapping[str, str], echonet_reverts: Mapping[str, str]) -> str:
+    def render(
+        self,
+        mainnet_reverts: dict[str, RevertErrorInfo],
+        echonet_reverts: dict[str, RevertErrorInfo],
+    ) -> str:
         total_mainnet = len(mainnet_reverts)
         total_echonet = len(echonet_reverts)
 
@@ -62,7 +66,7 @@ class BaseRevertComparisonTextReport(ABC):
         return "\n".join(lines).rstrip() + "\n"
 
     @abstractmethod
-    def _render_section(self, title: str, reverts: Mapping[str, str]) -> list[str]:
+    def _render_section(self, title: str, reverts: dict[str, RevertErrorInfo]) -> list[str]:
         raise NotImplementedError
 
 
@@ -294,11 +298,13 @@ class RevertClassifier:
                 return rule.name
         return "Other"
 
-    def group(self, reverts: Mapping[str, str]) -> dict[str, list[tuple[str, str]]]:
-        grouped: dict[str, list[tuple[str, str]]] = defaultdict(list)
-        for tx_hash, raw_msg in reverts.items():
-            revert_reason = self.extract_revert_reason(raw_msg)
-            grouped[self.classify(revert_reason)].append((tx_hash, revert_reason))
+    def group(self, reverts: dict[str, RevertErrorInfo]) -> dict[str, list[tuple[str, int, str]]]:
+        grouped: dict[str, list[tuple[str, int, str]]] = defaultdict(list)
+        for tx_hash, info in reverts.items():
+            revert_reason = self.extract_revert_reason(info["error"])
+            grouped[self.classify(revert_reason)].append(
+                (tx_hash, info["block_number"], revert_reason)
+            )
         return grouped
 
     @staticmethod
@@ -357,7 +363,7 @@ class RevertComparisonTextReport(BaseRevertComparisonTextReport):
     def __init__(self, classifier: RevertClassifier) -> None:
         self._classifier = classifier
 
-    def _render_section(self, title: str, reverts: Mapping[str, str]) -> list[str]:
+    def _render_section(self, title: str, reverts: dict[str, RevertErrorInfo]) -> list[str]:
         grouped = self._classifier.group(reverts)
         total = sum(len(v) for v in grouped.values())
         lines: list[str] = [f"=== {title} ({total} txs) ==="]
@@ -368,8 +374,8 @@ class RevertComparisonTextReport(BaseRevertComparisonTextReport):
         for error_type, txs in sorted(grouped.items(), key=lambda kv: (-len(kv[1]), kv[0])):
             lines.append("")
             lines.append(f"-- {error_type} ({len(txs)} txs, {_format_percent(len(txs), total)}) --")
-            for tx_hash, revert_reason in sorted(txs, key=lambda x: x[0]):
-                lines.append(f"{tx_hash}: {revert_reason}")
+            for tx_hash, src_bn, revert_reason in sorted(txs, key=lambda x: x[1]):  # src_bn
+                lines.append(f"bn={str(src_bn)} {tx_hash}: {revert_reason}")
         return lines
 
 
@@ -381,16 +387,17 @@ class RawRevertComparisonTextReport(BaseRevertComparisonTextReport):
     the full original revert errors after the classified summary.
     """
 
-    def _render_section(self, title: str, reverts: Mapping[str, str]) -> list[str]:
+    def _render_section(self, title: str, reverts: dict[str, RevertErrorInfo]) -> list[str]:
         total = len(reverts)
         lines: list[str] = [f"=== {title} ({total} txs) ==="]
         if total == 0:
             lines.append("(none)")
             return lines
 
-        for tx_hash, raw in sorted(reverts.items(), key=lambda kv: kv[0]):
+        for tx_hash, info in sorted(reverts.items(), key=lambda kv: kv[1]["block_number"]):
+            raw = info["error"]
             lines.append("")
-            lines.append(f"{tx_hash}:")
+            lines.append(f"bn={str(info['block_number'])} {tx_hash}:")
             if not raw:
                 lines.append("  (empty)")
                 continue

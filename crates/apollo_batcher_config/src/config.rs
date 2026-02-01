@@ -33,7 +33,6 @@ pub struct BlockBuilderConfig {
     pub n_concurrent_txs: usize,
     pub tx_polling_interval_millis: u64,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    // TODO(dan): add validation for this field. Probably should be bounded.
     pub proposer_idle_detection_delay_millis: Duration,
     pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
 }
@@ -341,5 +340,17 @@ fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), Validat
             "input_stream_content_buffer_size must be at least n_concurrent_txs",
         ));
     }
+
+    // Idle detection delay must be > polling interval to allow time for polling to find
+    // transactions.
+    let idle_delay = batcher_config.block_builder_config.proposer_idle_detection_delay_millis;
+    let polling_interval =
+        Duration::from_millis(batcher_config.block_builder_config.tx_polling_interval_millis);
+    if idle_delay <= polling_interval {
+        return Err(ValidationError::new(
+            "proposer_idle_detection_delay_millis must be greater than tx_polling_interval_millis",
+        ));
+    }
+
     Ok(())
 }

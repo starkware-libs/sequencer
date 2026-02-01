@@ -1,8 +1,9 @@
 use std::future::Future;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
 use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
 use apollo_class_manager_config::config::{
@@ -11,7 +12,7 @@ use apollo_class_manager_config::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
-use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::{
@@ -35,7 +36,8 @@ use apollo_gateway_config::config::{
     StatelessTransactionValidatorConfig,
 };
 use apollo_http_server::test_utils::create_http_server_config;
-use apollo_infra_utils::test_utils::AvailablePorts;
+use apollo_infra::trace_util::configure_tracing;
+use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_l1_gas_price::eth_to_strk_oracle::ETH_TO_STRK_QUANTIZATION;
 use apollo_l1_gas_price_provider_config::config::{
     EthToStrkOracleConfig,
@@ -63,7 +65,7 @@ use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::CairoNativeRunConfig;
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
@@ -72,7 +74,9 @@ use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
@@ -82,10 +86,12 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_types_core::felt::Felt;
+use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
+use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup, NUM_OF_SEQUENCERS};
 use crate::state_reader::StorageTestConfig;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
@@ -201,7 +207,10 @@ pub fn create_node_config(
         chain_info.clone(),
         block_max_capacity_gas,
     );
-    let committer_config = CommitterConfig::default();
+    let committer_config = ApolloCommitterConfig {
+        db_path: storage_config.committer_db_path.clone(),
+        ..Default::default()
+    };
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
@@ -412,14 +421,13 @@ pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
                     .instrument(tracing::debug_span!("success recorder write_pre_confirmed_block"))
                 }),
             );
-        axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
+        let listener = TcpListener::bind(socket_address).await.unwrap();
+        serve(listener, router).await.unwrap();
     })
 }
 
 pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
-    // [127, 0, 0, 1] is the localhost IP address.
-    let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
-    // TODO(Tsabary): create a socket-to-url function.
+    let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}")).unwrap();
     let join_handle = spawn_success_recorder(socket_address);
     (url, join_handle)
@@ -451,13 +459,14 @@ async fn get_price(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json
 pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
         let router = Router::new().route(ETH_TO_STRK_ORACLE_PATH, get(get_price));
-        axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
+        let listener = TcpListener::bind(socket_address).await.unwrap();
+        serve(listener, router).await.unwrap();
     })
 }
 
 /// Starts the fake eth to fri oracle server and returns its URL and handle.
 pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (UrlAndHeaders, JoinHandle<()>) {
-    let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
+    let socket_address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
     let url = Url::parse(&format!("http://{socket_address}{ETH_TO_STRK_ORACLE_PATH}")).unwrap();
     let url_and_headers = UrlAndHeaders {
         url,
@@ -489,7 +498,7 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
 }
 
 /// Creates a multi-account transaction generator for the flow test.
-pub fn create_flow_test_tx_generator() -> MultiAccountTransactionGenerator {
+fn create_flow_test_tx_generator() -> MultiAccountTransactionGenerator {
     let mut tx_generator: MultiAccountTransactionGenerator =
         MultiAccountTransactionGenerator::new();
 
@@ -569,7 +578,7 @@ where
 // TODO(yair): Consolidate create_rpc_txs_fn and test_tx_hashes_fn into a single function.
 /// Creates and runs the integration test scenario for the sequencer integration test. Returns a
 /// list of transaction hashes, in the order they are expected to be in the mempool.
-pub async fn run_test_scenario<'a, Fut>(
+async fn run_test_scenario<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     create_rpc_txs_fn: CreateRpcTxsFn,
     l1_handlers: Vec<L1HandlerTransaction>,
@@ -719,7 +728,7 @@ pub fn create_state_sync_configs(
             storage_config: state_sync_storage_config.clone(),
             network_config: Some(network_config),
             rpc_config: RpcConfig {
-                ip: [127, 0, 0, 1].into(),
+                ip: Ipv4Addr::LOCALHOST.into(),
                 port: rpc_ports.remove(0),
                 ..Default::default()
             },
@@ -796,4 +805,237 @@ impl AccumulatedTransactions {
             panic!("Expected round to be greater or equal to the last round.");
         }
     }
+}
+
+pub struct EndToEndTestScenario {
+    pub create_rpc_txs_fn: CreateRpcTxsFn,
+    pub create_l1_to_l2_messages_args_fn: CreateL1ToL2MessagesArgsFn,
+    // TODO(Arni): replace with an optional apply shuffle to the tx hashes + a length assertion
+    // parameter.
+    pub test_tx_hashes_fn: TestTxHashesFn,
+}
+
+pub struct EndToEndFlowArgs {
+    pub test_identifier: TestIdentifier,
+    pub instance_indices: [u16; 3],
+    pub test_scenario: EndToEndTestScenario,
+    pub block_max_capacity_gas: GasAmount, // Used to max both sierra and proving gas.
+    pub expecting_full_blocks: bool,
+    pub expecting_reverted_transactions: bool,
+    pub allow_bootstrap_txs: bool,
+}
+
+impl EndToEndFlowArgs {
+    pub fn new(
+        test_identifier: TestIdentifier,
+        test_scenario: EndToEndTestScenario,
+        block_max_capacity_gas: GasAmount,
+    ) -> Self {
+        Self {
+            test_identifier,
+            instance_indices: [0, 1, 2],
+            test_scenario,
+            block_max_capacity_gas,
+            expecting_full_blocks: false,
+            expecting_reverted_transactions: false,
+            allow_bootstrap_txs: false,
+        }
+    }
+
+    pub fn expecting_full_blocks(self) -> Self {
+        Self { expecting_full_blocks: true, ..self }
+    }
+
+    pub fn expecting_reverted_transactions(self) -> Self {
+        Self { expecting_reverted_transactions: true, ..self }
+    }
+
+    pub fn allow_bootstrap_txs(self) -> Self {
+        Self { allow_bootstrap_txs: true, ..self }
+    }
+
+    pub fn instance_indices(self, instance_indices: [u16; 3]) -> Self {
+        Self { instance_indices, ..self }
+    }
+}
+
+// Note: run integration/flow tests from separate files in `tests/`, which helps cargo ensure
+// isolation (prevent cross-contamination of services/resources) and that these tests won't be
+// parallelized (which won't work with fixed ports).
+pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
+    let EndToEndFlowArgs {
+        test_identifier,
+        instance_indices,
+        test_scenario,
+        block_max_capacity_gas,
+        expecting_full_blocks,
+        expecting_reverted_transactions,
+        allow_bootstrap_txs,
+    } = args;
+    configure_tracing().await;
+
+    let mut tx_generator = create_flow_test_tx_generator();
+    let global_recorder_handle = PrometheusBuilder::new()
+        .install_recorder()
+        .expect("Should be able to install global prometheus recorder");
+
+    const TEST_SCENARIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(50);
+    // Setup.
+    let mock_running_system = FlowTestSetup::new_from_tx_generator(
+        &tx_generator,
+        test_identifier.into(),
+        block_max_capacity_gas,
+        allow_bootstrap_txs,
+        instance_indices,
+    )
+    .await;
+
+    tokio::join!(
+        wait_for_sequencer_node(&mock_running_system.sequencer_0),
+        wait_for_sequencer_node(&mock_running_system.sequencer_1),
+    );
+
+    let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
+    // We use only the first sequencer's gateway to test that the mempools are syncing.
+    let sequencer_to_add_txs = *sequencers.first().unwrap();
+    let mut expected_proposer_iter = sequencers.iter().cycle();
+    // We start at height 1, so we need to skip the proposer of the initial height.
+    expected_proposer_iter.next().unwrap();
+    let chain_id = mock_running_system.chain_id().clone();
+    let mut send_rpc_tx_fn = |tx| sequencer_to_add_txs.assert_add_tx_success(tx);
+
+    // In this test each sequencer increases the BATCHED_TRANSACTIONS metric which tracks the number
+    // of accepted transactions. This tracks the cumulative count across all sequencers and
+    // scenarios.
+    let mut total_expected_batched_txs_count = 0;
+
+    // Build multiple heights to ensure heights are committed.
+    let EndToEndTestScenario {
+        create_rpc_txs_fn,
+        create_l1_to_l2_messages_args_fn,
+        test_tx_hashes_fn,
+    } = test_scenario;
+
+    // Create and send transactions.
+    // TODO(Arni): move send messages to l2 into [run_test_scenario].
+    let l1_handlers = create_l1_to_l2_messages_args_fn(&mut tx_generator);
+    mock_running_system.send_messages_to_l2(&l1_handlers).await;
+
+    // Run the test scenario and get the expected batched tx hashes of the current scenario.
+    let expected_batched_tx_hashes = run_test_scenario(
+        &mut tx_generator,
+        create_rpc_txs_fn,
+        l1_handlers,
+        &mut send_rpc_tx_fn,
+        test_tx_hashes_fn,
+        &chain_id,
+    )
+    .await;
+
+    // Each sequencer increases the same BATCHED_TRANSACTIONS metric because they are running
+    // in the same process in this test.
+    total_expected_batched_txs_count += NUM_OF_SEQUENCERS * expected_batched_tx_hashes.len();
+    let mut current_batched_txs_count = 0;
+
+    tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
+        loop {
+            info!(
+                "Waiting for more txs to be batched in a block. Expected batched txs: \
+                 {total_expected_batched_txs_count}, Currently batched txs: \
+                 {current_batched_txs_count}"
+            );
+
+            current_batched_txs_count = get_total_batched_txs_count(&global_recorder_handle);
+            if current_batched_txs_count == total_expected_batched_txs_count {
+                break;
+            }
+
+            tokio::time::sleep(Duration::from_millis(2000)).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "Expected transactions should be included in a block by now, Expected amount of \
+             batched txs: {total_expected_batched_txs_count}, Currently amount of batched txs: \
+             {current_batched_txs_count}"
+        )
+    });
+
+    assert_full_blocks_flow(&global_recorder_handle, expecting_full_blocks);
+    assert_on_number_of_reverted_transactions_flow(
+        &global_recorder_handle,
+        expecting_reverted_transactions,
+    );
+}
+
+fn get_total_batched_txs_count(recorder_handle: &PrometheusHandle) -> usize {
+    let metrics = recorder_handle.render();
+    apollo_batcher::metrics::BATCHED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics).unwrap()
+}
+
+fn assert_full_blocks_flow(recorder_handle: &PrometheusHandle, expecting_full_blocks: bool) {
+    if expecting_full_blocks {
+        let metrics = recorder_handle.render();
+        let full_blocks_metric = apollo_batcher::metrics::BLOCK_CLOSE_REASON
+            .parse_numeric_metric::<u64>(
+                &metrics,
+                &[(
+                    apollo_batcher::metrics::LABEL_NAME_BLOCK_CLOSE_REASON,
+                    apollo_batcher::metrics::BlockCloseReason::FullBlock.into(),
+                )],
+            )
+            .unwrap();
+        assert!(
+            full_blocks_metric > 0,
+            "Expected full blocks, but found {full_blocks_metric} full blocks."
+        );
+    }
+    // Just because we don't expect full blocks, doesn't mean we should assert that the metric is 0.
+    // It is possible that a block is filled, no need to assert that this is not the case.
+    // TODO(Arni): In the `else` case, assert that some block closed due to time.
+}
+
+fn assert_on_number_of_reverted_transactions_flow(
+    recorder_handle: &PrometheusHandle,
+    expecting_reverted_transactions: bool,
+) {
+    let metrics = recorder_handle.render();
+    let reverted_transactions_metric =
+        REVERTED_TRANSACTIONS.parse_numeric_metric::<u64>(&metrics).unwrap();
+
+    if expecting_reverted_transactions {
+        assert!(
+            reverted_transactions_metric > 0,
+            "Expected reverted transactions, but found {reverted_transactions_metric} reverted \
+             transactions."
+        );
+    } else {
+        assert_eq!(
+            reverted_transactions_metric, 0,
+            "Expected no reverted transactions, but found {reverted_transactions_metric} reverted \
+             transactions."
+        );
+    }
+}
+
+async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
+    sequencer.monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
+}
+
+pub fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+    validate_tx_count(tx_hashes, 1)
+}
+
+#[track_caller]
+pub fn validate_tx_count(
+    tx_hashes: &[TransactionHash],
+    expected_count: usize,
+) -> Vec<TransactionHash> {
+    let tx_hashes_len = tx_hashes.len();
+    assert_eq!(
+        tx_hashes_len, expected_count,
+        "Expected {expected_count} txs, but found {tx_hashes_len} txs.",
+    );
+    tx_hashes.to_vec()
 }

@@ -22,6 +22,7 @@ use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::catchupper::Catchupper;
+use crate::metrics::register_provider_metrics;
 use crate::transaction_manager::TransactionManager;
 use crate::L1ProviderConfig;
 
@@ -65,6 +66,7 @@ impl L1Provider {
         state_sync_client: SharedStateSyncClient,
         clock: Option<Arc<dyn Clock>>,
     ) -> Self {
+        register_provider_metrics();
         let catchupper = Catchupper::new(
             l1_provider_client,
             state_sync_client,

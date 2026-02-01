@@ -8,6 +8,7 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    EmptyStorageConfig,
     PatriciaStorageResult,
     Storage,
 };
@@ -47,6 +48,7 @@ macro_rules! define_short_key_storage {
 
         impl<S: Storage> Storage for $name<S> {
             type Stats = S::Stats;
+            type Config = EmptyStorageConfig;
 
             async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
                 self.storage.get(&Self::small_key(key)).await

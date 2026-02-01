@@ -3,9 +3,14 @@ use std::time::Duration;
 use apollo_batcher::metrics::BATCHED_TRANSACTIONS;
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
+use apollo_infra_utils::template::Template;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_definitions::BLOCK_TIME_SEC;
+use crate::alert_placeholders::{
+    ExpressionOrExpressionWithPlaceholder,
+    SeverityValueOrPlaceholder,
+};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -24,23 +29,23 @@ use crate::alerts::{
 fn get_consensus_block_number_stuck(
     alert_name: &'static str,
     alert_env_filtering: AlertEnvFiltering,
-    duration: Duration,
+    // TODO(Tsabary): remove the `_duration` argument.
+    _duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
+    let expr_template_string = format!(
+        "sum(increase({}[{{}}s])) or vector(0)",
+        CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+    );
     Alert::new(
         alert_name,
         "Consensus block number stuck",
         AlertGroup::Consensus,
-        format!(
-            "sum(increase({}[{}s])) or vector(0)",
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
-            duration.as_secs(),
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![alert_name.to_string()],
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -72,11 +77,16 @@ pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
     ]
 }
 
+// TODO(Tsabary): settle all the required parameters that are different among envs using the
+// placeholder mechanism.
+// TODO(Tsabary): remove `AlertEnvFiltering` throughout and use the placeholder mechanism instead.
+
 fn get_batched_transactions_stuck(
     alert_name: &'static str,
     alert_env_filtering: AlertEnvFiltering,
     duration: Duration,
-    alert_severity: AlertSeverity,
+    // TODO(Tsabary): remove the `_alert_severity` argument.
+    _alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
         alert_name,
@@ -87,14 +97,10 @@ fn get_batched_transactions_stuck(
             BATCHED_TRANSACTIONS.get_name_with_filter(),
             duration.as_secs()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(alert_name.to_string()),
         ObserverApplicability::NotApplicable,
         alert_env_filtering,
     )
@@ -138,13 +144,13 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
             CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter(),
             duration.as_secs()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
+        vec![AlertCondition::new(
+            AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators and
             // assume_no_malicious_validators
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+            1.0,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -185,11 +191,11 @@ fn get_consensus_round_high(
         "Consensus round high",
         AlertGroup::Consensus,
         format!("max_over_time({}[2m])", CONSENSUS_ROUND.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 120.0 / BLOCK_TIME_SEC,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            120.0 / BLOCK_TIME_SEC,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,

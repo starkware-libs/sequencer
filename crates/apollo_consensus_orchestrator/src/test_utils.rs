@@ -81,9 +81,9 @@ pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
     StateDiffCommitment(PoseidonHash(Felt::ZERO));
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 
-// In order for gas price in ETH to be greather than 0 (required) we must have large enough
+// In order for gas price in ETH to be greater than 0 (required) we must have large enough
 // values here.
-pub(crate) const ETH_TO_FRI_RATE: u128 = u128::pow(10, 18);
+pub(crate) const ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
 
 pub(crate) static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
     LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
@@ -127,6 +127,7 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             batcher: Arc::new(deps.batcher),
             cende_ambassador: Arc::new(deps.cende_ambassador),
             l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
+            committee_provider: None,
             clock: deps.clock,
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
@@ -354,7 +355,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
+pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
@@ -370,6 +371,9 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         .expect("L1 data gas price must be non-zero");
     ConsensusBlockInfo {
         height,
+        round,
+        valid_round: None,
+        proposer: Default::default(),
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
@@ -385,11 +389,9 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
 // content_receiver.
 pub(crate) async fn send_proposal_to_validator_context(
     context: &mut SequencerConsensusContext,
-    block_info: ConsensusBlockInfo,
 ) -> mpsc::Receiver<ProposalPart> {
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.get_config().static_config.proposal_buffer_size);
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
         .await

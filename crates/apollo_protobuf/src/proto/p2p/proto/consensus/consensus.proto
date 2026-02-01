@@ -32,6 +32,7 @@ message Vote {
     // This is optional since a vote can be NIL.
     optional Hash proposal_commitment = 5;
     Address       voter               = 6;
+    Hashes        signature           = 7;
 }
 
 message StreamMessage {
@@ -43,23 +44,19 @@ message StreamMessage {
     uint64 message_id = 4;
 }
 
-message ProposalInit {
-    uint64 height               = 1;
-    uint32 round                = 2;
-    optional uint32 valid_round = 3;
-    Address proposer            = 4;
-}
-
 message BlockInfo {
     uint64 height                     = 1;
-    uint64 timestamp                  = 2;
-    Address builder                   = 3;
-    L1DataAvailabilityMode l1_da_mode = 4;
-    Uint128 l2_gas_price_fri          = 5;
-    Uint128 l1_gas_price_fri          = 6;
-    Uint128 l1_data_gas_price_fri     = 7;
-    Uint128 l1_gas_price_wei          = 8;
-    Uint128 l1_data_gas_price_wei     = 9;
+    uint32 round                      = 2;
+    optional uint32 valid_round       = 3;
+    Address proposer                  = 4;
+    uint64 timestamp                  = 5;
+    Address builder                   = 6;
+    L1DataAvailabilityMode l1_da_mode = 7;
+    Uint128 l2_gas_price_fri          = 8;
+    Uint128 l1_gas_price_fri          = 9;
+    Uint128 l1_data_gas_price_fri     = 10;
+    Uint128 l1_gas_price_wei          = 11;
+    Uint128 l1_data_gas_price_wei     = 12;
 }
 
 message TransactionBatch {
@@ -74,19 +71,13 @@ message ProposalFin {
 }
 
 // Network format:
-// 1. First message is ProposalInit
-// 2. block_info is sent once
+// 1. First message is BlockInfo (includes all block metadata)
+// 2. transactions is sent repeatedly (for non-empty blocks)
 // 3. Last message is ProposalFin
-//
-// Empty block - no other messages sent.
-//
-// Block with transactions:
-// 4. transactions is sent repeatedly
 message ProposalPart {
     oneof message {
-        ProposalInit init         = 1;
-        ProposalFin fin           = 2;
-        BlockInfo block_info      = 3;
-        TransactionBatch transactions = 4;
+        BlockInfo block_info          = 1;
+        ProposalFin fin               = 2;
+        TransactionBatch transactions = 3;
     }
 }

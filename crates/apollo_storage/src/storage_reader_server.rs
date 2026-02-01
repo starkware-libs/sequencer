@@ -10,9 +10,10 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use axum::{Json, Router};
+use axum::{serve, Json, Router};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::net::TcpListener;
 use tokio::task::AbortHandle;
 use tracing::{error, info};
 use validator::Validate;
@@ -156,7 +157,11 @@ where
         info!("Storage reader server listening on {}", socket);
 
         // Start the server
-        axum::Server::bind(&socket).serve(app.into_make_service()).await.map_err(|e| {
+        let listener = TcpListener::bind(&socket).await.map_err(|e| {
+            error!("Storage reader server error: {}", e);
+            StorageError::IOError(io::Error::other(e))
+        })?;
+        serve(listener, app).await.map_err(|e| {
             error!("Storage reader server error: {}", e);
             StorageError::IOError(io::Error::other(e))
         })

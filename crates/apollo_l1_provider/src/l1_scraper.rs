@@ -24,6 +24,7 @@ use tracing::{debug, info, instrument, trace, warn};
 use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
@@ -240,6 +241,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
         let add_events_result = self.l1_provider_client.add_events(events).await;
         handle_client_error(add_events_result)?;
 
+        L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK.set_lossy(latest_l1_block.number);
         // Successfully scraped events up to latest l1 block.
         self.scrape_from_this_l1_block = Some(latest_l1_block);
 

@@ -454,21 +454,6 @@ fn create_local_servers(
         config.components.sierra_compiler.max_concurrency
     );
 
-    let state_sync_server = create_local_server!(
-        CONCURRENT_LOCAL_SERVER,
-        &config.components.state_sync.execution_mode,
-        &mut components.state_sync,
-        &config
-            .components
-            .state_sync
-            .local_server_config
-            .as_ref()
-            .expect("State sync local server config should be available."),
-        communication.take_state_sync_rx(),
-        &STATE_SYNC_INFRA_METRICS.get_local_server_metrics(),
-        config.components.state_sync.max_concurrency
-    );
-
     let signature_manager_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
         &config.components.signature_manager.execution_mode,
@@ -482,6 +467,21 @@ fn create_local_servers(
         communication.take_signature_manager_rx(),
         &SIGNATURE_MANAGER_INFRA_METRICS.get_local_server_metrics(),
         config.components.signature_manager.max_concurrency
+    );
+
+    let state_sync_server = create_local_server!(
+        CONCURRENT_LOCAL_SERVER,
+        &config.components.state_sync.execution_mode,
+        &mut components.state_sync,
+        &config
+            .components
+            .state_sync
+            .local_server_config
+            .as_ref()
+            .expect("State sync local server config should be available."),
+        communication.take_state_sync_rx(),
+        &STATE_SYNC_INFRA_METRICS.get_local_server_metrics(),
+        config.components.state_sync.max_concurrency
     );
 
     LocalServers {
@@ -716,6 +716,7 @@ fn create_wrapper_servers(
         &config.components.mempool_p2p.execution_mode.clone().into(),
         components.mempool_p2p_runner
     );
+
     let state_sync_runner_server = create_wrapper_server!(
         &config.components.state_sync.execution_mode.clone().into(),
         components.state_sync_runner
@@ -765,7 +766,7 @@ pub fn create_node_servers(
 }
 
 pub async fn run_component_servers(servers: SequencerNodeServers) {
-    // TODO(alonl): check if we can use create_servers instead of extending a new
+    // TODO(Tsabary): check if we can use create_servers instead of extending a new
     // FuturesUnordered.
     let mut all_servers = FuturesUnordered::new();
     all_servers.extend(servers.local_servers.run().await);
@@ -773,8 +774,8 @@ pub async fn run_component_servers(servers: SequencerNodeServers) {
     all_servers.extend(servers.wrapper_servers.run().await);
 
     if let Some(servers_type) = all_servers.next().await {
-        // TODO(alonl): check all tasks are exited properly in case of a server failure before
-        // panicing.
+        // TODO(Tsabary): check all tasks are exited properly in case of a server failure before
+        // panicking.
         panic!("{servers_type} Servers ended unexpectedly.");
     } else {
         unreachable!("all_servers is never empty");

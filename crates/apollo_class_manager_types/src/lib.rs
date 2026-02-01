@@ -9,8 +9,11 @@ use apollo_infra::component_definitions::{
     RequestPriority,
     RequestWrapper,
 };
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
-use apollo_proc_macros::handle_all_response_variants;
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -186,6 +189,8 @@ where
         let raw_class = RawClass::try_from(class).map_err(ClassManagerError::from)?;
         let request = ClassManagerRequest::AddClass(raw_class);
         handle_all_response_variants!(
+            self,
+            request,
             ClassManagerResponse,
             AddClass,
             ClassManagerClientError,
@@ -203,6 +208,8 @@ where
             .map_err(ClassManagerError::from)?;
         let request = ClassManagerRequest::AddDeprecatedClass(class_id, raw_executable);
         handle_all_response_variants!(
+            self,
+            request,
             ClassManagerResponse,
             AddDeprecatedClass,
             ClassManagerClientError,
@@ -217,6 +224,8 @@ where
     ) -> ClassManagerClientResult<Option<ExecutableClass>> {
         let request = ClassManagerRequest::GetExecutable(class_id);
         let raw_result = handle_all_response_variants!(
+            self,
+            request,
             ClassManagerResponse,
             GetExecutable,
             ClassManagerClientError,
@@ -233,6 +242,8 @@ where
     async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
         let request = ClassManagerRequest::GetSierra(class_id);
         let raw_result = handle_all_response_variants!(
+            self,
+            request,
             ClassManagerResponse,
             GetSierra,
             ClassManagerClientError,
@@ -252,6 +263,8 @@ where
     ) -> ClassManagerClientResult<Option<ExecutableClassHash>> {
         let request = ClassManagerRequest::GetExecutableClassHashV2(class_id);
         handle_all_response_variants!(
+            self,
+            request,
             ClassManagerResponse,
             GetExecutableClassHashV2,
             ClassManagerClientError,
@@ -274,6 +287,8 @@ where
             RawExecutableClass::try_from(executable_class).map_err(ClassManagerError::from)?,
         );
         handle_all_response_variants!(
+            self,
+            request,
             ClassManagerResponse,
             AddClassAndExecutableUnsafe,
             ClassManagerClientError,

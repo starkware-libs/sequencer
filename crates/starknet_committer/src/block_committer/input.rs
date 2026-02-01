@@ -149,9 +149,9 @@ impl SerializeConfig for ReaderConfig {
 }
 
 /// Defines the context type for the input of the committer.
-pub trait InputContext {}
+pub trait InputContext: Clone {}
 
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Input<I: InputContext> {
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
