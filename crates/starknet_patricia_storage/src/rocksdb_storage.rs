@@ -170,7 +170,7 @@ impl Default for RocksDbStorageConfig {
             bloom_filter_bits: BLOOM_FILTER_NUM_BITS,
             enable_statistics: true,
             use_mmap_reads: false,
-            spawn_blocking_reads: false,
+            spawn_blocking_reads: true,
         }
     }
 }
