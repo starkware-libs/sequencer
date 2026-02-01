@@ -37,11 +37,37 @@ pub struct ClassReader {
 
 impl ClassReader {
     fn read_executable(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+        let reader = self.reader.clone();
+        let runtime = self.runtime.clone();
+
         println!(
             "TEMPDEBUG300 [thread: {:?}] trying to block on get_executable",
             std::thread::current().id()
         );
-        let block_on_result = self.runtime.block_on(self.reader.get_executable(class_hash));
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            println!(
+                "TEMPDEBUG300.1 [thread: {:?}] starting block on get_executable",
+                std::thread::current().id()
+            );
+            let result = runtime.block_on(reader.get_executable(class_hash));
+            println!(
+                "TEMPDEBUG300.2 [thread: {:?}] block on get_executable result received",
+                std::thread::current().id()
+            );
+            // Ignore send error - receiver may have timed out and dropped.
+            let _ = tx.send(result);
+        });
+
+        let timeout = std::time::Duration::from_secs(15);
+        let block_on_result = rx.recv_timeout(timeout).map_err(|err| {
+            println!(
+                "TEMPDEBUG300.3 [thread: {:?}] block on get_executable result
+                Failed to receive result from thread.",
+                std::thread::current().id()
+            );
+            StateError::StateReadError(err.to_string())
+        })?;
         println!(
             "TEMPDEBUG301 [thread: {:?}] block on get_executable result",
             std::thread::current().id()
