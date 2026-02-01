@@ -256,6 +256,16 @@ impl RocksDbStorage {
         let db = Arc::new(DB::open(&options.db_options, path)?);
         Ok(Self { db, options: Arc::new(options), config })
     }
+
+    fn mget_from_raw_keys<K: AsRef<[u8]>, RK: IntoIterator<Item = K>>(
+        raw_keys: RK,
+        db: Arc<DB>,
+    ) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+        db.multi_get(raw_keys)
+            .into_iter()
+            .map(|r| r.map(|opt| opt.map(DbValue)).map_err(|e| e.into()))
+            .collect::<Result<Vec<_>, PatriciaStorageError>>()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -300,22 +310,10 @@ impl Storage for RocksDbStorage {
         if self.config.spawn_blocking_reads {
             let db = self.db.clone();
             let keys: Vec<Vec<u8>> = keys.iter().map(|k| k.0.clone()).collect();
-            Ok(spawn_blocking(move || {
-                let raw_keys = keys.iter().map(|k| k.as_slice());
-                db.multi_get(raw_keys)
-                    .into_iter()
-                    .map(|r| r.map(|opt| opt.map(DbValue)).map_err(|e| e.into()))
-                    .collect::<Result<Vec<_>, PatriciaStorageError>>()
-            })
-            .await??)
+            Ok(spawn_blocking(move || Self::mget_from_raw_keys(keys, db)).await??)
         } else {
             let raw_keys = keys.iter().map(|k| k.0.as_slice());
-            Ok(self
-                .db
-                .multi_get(raw_keys)
-                .into_iter()
-                .map(|r| r.map(|opt| opt.map(DbValue)).map_err(|e| e.into()))
-                .collect::<Result<Vec<_>, PatriciaStorageError>>()?)
+            Ok(Self::mget_from_raw_keys(raw_keys, self.db.clone())?)
         }
     }
 
