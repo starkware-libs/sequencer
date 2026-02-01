@@ -35,6 +35,7 @@ use crate::storage_reader_types::{
     StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
+use crate::version::VersionStorageReader;
 use crate::{MarkerKind, OffsetKind, StorageReader};
 
 const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
@@ -479,4 +480,22 @@ async fn starknet_version_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::StarknetVersion(expected_version));
+}
+
+#[tokio::test]
+async fn state_storage_version_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_version = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_state_version()
+        .unwrap()
+        .expect("State storage version should exist");
+
+    let request = StorageReaderRequest::StateStorageVersion;
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::StateStorageVersion(expected_version));
 }
