@@ -507,25 +507,13 @@ async fn unconnected_server() {
 // Uses available_ports_factory with indices 8,9.
 #[rstest]
 #[case::request_deserialization_failure(
-<<<<<<< HEAD
-    create_client_and_faulty_server(8,
-||||||| 2787ec6b2d
-    create_client_and_faulty_server(
-=======
     create_client_and_faulty_server(unique_u16!(),
->>>>>>> origin/main-v0.14.1-committer
         ServerError::RequestDeserializationFailure(MOCK_SERVER_ERROR.to_string())
     ).await,
     &[StatusCode::BAD_REQUEST.as_str()],
 )]
 #[case::response_deserialization_failure(
-<<<<<<< HEAD
-    create_client_and_faulty_server(9, ARBITRARY_DATA.to_string()).await,
-||||||| 2787ec6b2d
-    create_client_and_faulty_server(ARBITRARY_DATA.to_string()).await,
-=======
     create_client_and_faulty_server(unique_u16!(), ARBITRARY_DATA.to_string()).await,
->>>>>>> origin/main-v0.14.1-committer
     &[BAD_REQUEST_ERROR_MESSAGE],
 )]
 #[tokio::test]

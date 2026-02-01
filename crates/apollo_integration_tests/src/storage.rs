@@ -50,18 +50,14 @@ impl StorageExecutablePaths {
         &self.path
     }
 
-<<<<<<< HEAD
     pub fn get_proof_manager_exec_path(&self) -> &PathBuf {
         &self.path
     }
 
-||||||| 2787ec6b2d
-=======
     pub fn get_committer_exec_path(&self) -> &PathBuf {
         &self.path
     }
 
->>>>>>> origin/main-v0.14.1-committer
     pub fn get_batcher_path_with_db_suffix(&self) -> PathBuf {
         self.path.join(BATCHER_DB_PATH_SUFFIX)
     }
@@ -77,17 +73,14 @@ impl StorageExecutablePaths {
     pub fn get_consensus_path_with_db_suffix(&self) -> PathBuf {
         self.path.join(CONSENSUS_DB_PATH_SUFFIX)
     }
-<<<<<<< HEAD
+
     pub fn get_proof_manager_path_with_db_suffix(&self) -> PathBuf {
         self.path.join(PROOF_MANAGER_DB_PATH_SUFFIX)
     }
-||||||| 2787ec6b2d
-=======
 
     pub fn get_committer_path_with_db_suffix(&self) -> PathBuf {
         self.path.join(COMMITTER_DB_PATH_SUFFIX)
     }
->>>>>>> origin/main-v0.14.1-committer
 }
 
 #[derive(Debug, Clone)]
@@ -156,15 +149,11 @@ pub fn get_integration_test_storage(
                 .join(CLASSES_STORAGE_DB_PATH_SUFFIX);
             storage_config.consensus_storage_config.db_config.path_prefix =
                 custom_storage_exec_paths.get_consensus_exec_path().join(CONSENSUS_DB_PATH_SUFFIX);
-<<<<<<< HEAD
             storage_config.proof_manager_config.persistent_root = custom_storage_exec_paths
                 .get_proof_manager_exec_path()
                 .join(PROOF_MANAGER_DB_PATH_SUFFIX);
-||||||| 2787ec6b2d
-=======
             storage_config.committer_db_path =
                 custom_storage_exec_paths.get_committer_exec_path().join(COMMITTER_DB_PATH_SUFFIX);
->>>>>>> origin/main-v0.14.1-committer
         }
     }
 
@@ -174,12 +163,8 @@ pub fn get_integration_test_storage(
             storage_config.state_sync_storage_config,
             storage_config.class_manager_storage_config,
             storage_config.consensus_storage_config,
-<<<<<<< HEAD
             storage_config.proof_manager_config,
-||||||| 2787ec6b2d
-=======
             storage_config.committer_db_path,
->>>>>>> origin/main-v0.14.1-committer
         ),
         storage_handles,
     }
