@@ -4,7 +4,6 @@ use std::time::Duration;
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::communication::MockCommitterClient;
 use assert_matches::assert_matches;
-use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
@@ -15,7 +14,6 @@ use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::test_utils::{
     await_results,
-    get_dummy_parent_hash_and_partial_block_hash_components,
     get_number_of_tasks_in_sender,
     test_state_diff,
     wait_for_n_results,
@@ -57,7 +55,6 @@ async fn create_mock_commitment_manager(
     mock_dependencies: MockDependencies,
 ) -> MockCommitmentManager {
     CommitmentManager::create_commitment_manager(
-        &mock_dependencies.batcher_config,
         &mock_dependencies.batcher_config.commitment_manager_config,
         &mock_dependencies.storage_reader,
         Arc::new(mock_dependencies.committer_client),
@@ -81,38 +78,6 @@ async fn test_create_commitment_manager(mut mock_dependencies: MockDependencies)
         0,
         "There should be no tasks in the channel."
     );
-}
-
-#[rstest]
-#[tokio::test]
-async fn test_create_commitment_manager_with_missing_tasks(
-    mut mock_dependencies: MockDependencies,
-) {
-    let global_root_height = INITIAL_HEIGHT.prev().unwrap();
-    mock_dependencies.storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
-    mock_dependencies
-        .storage_reader
-        .expect_global_root_height()
-        .returning(move || Ok(global_root_height));
-    mock_dependencies
-        .storage_reader
-        .expect_get_parent_hash_and_partial_block_hash_components()
-        .with(eq(global_root_height))
-        .returning(|height| get_dummy_parent_hash_and_partial_block_hash_components(&height));
-    mock_dependencies
-        .storage_reader
-        .expect_get_state_diff()
-        .with(eq(global_root_height))
-        .returning(|_| Ok(Some(test_state_diff())));
-
-    let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
-
-    assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT,);
-    assert_eq!(get_number_of_tasks_in_sender(&commitment_manager.tasks_sender), 1,);
-    commitment_manager.state_committer.pop_task_and_insert_result().await;
-    let results = await_results(&mut commitment_manager.results_receiver, 1).await;
-    let result = (results.first().unwrap()).clone().expect_commitment();
-    assert_eq!(result.height, global_root_height);
 }
 
 #[rstest]

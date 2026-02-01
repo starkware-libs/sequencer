@@ -87,6 +87,9 @@ use crate::metrics::{
     SYNCED_TRANSACTIONS,
 };
 use crate::test_utils::{
+    await_results,
+    get_dummy_parent_hash_and_partial_block_hash_components,
+    get_number_of_tasks_in_sender,
     propose_block_input,
     test_contract_nonces,
     test_l1_handler_txs,
@@ -233,7 +236,6 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
 ) -> Batcher {
     let committer_client = Arc::new(clients.committer_client);
     let commitment_manager = CommitmentManager::create_commitment_manager(
-        &config,
         &config.commitment_manager_config,
         storage_reader.as_ref(),
         committer_client.clone(),
@@ -521,8 +523,7 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
 #[tokio::test]
 async fn consecutive_heights_success() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
-    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // create commitment manager
+    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // batcher start
     storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader
         .expect_state_diff_height()
@@ -1683,4 +1684,36 @@ async fn test_reversed_state_diff() {
         original_state_diff.nonces.clone(),
         reversed_state_diff.nonces,
     );
+}
+
+/// Tests that when the batcher starts with missing commitment tasks (global_root_height <
+/// state_diff_height), the missing tasks are added and sent to the committer.
+#[tokio::test]
+async fn batcher_start_add_missing_commitment_task() {
+    let global_root_height = INITIAL_HEIGHT.prev().unwrap();
+
+    let mut storage_reader = MockBatcherStorageReader::new();
+    storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
+    storage_reader.expect_global_root_height().returning(move || Ok(global_root_height));
+    storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(global_root_height))
+        .returning(|height| get_dummy_parent_hash_and_partial_block_hash_components(&height));
+    storage_reader
+        .expect_get_state_diff()
+        .with(eq(global_root_height))
+        .returning(|_| Ok(Some(test_state_diff())));
+
+    // create_batcher calls batcher.start(), which calls add_missing_commitment_tasks.
+    let mut batcher =
+        create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
+
+    // Verify a task was added for the missing commitment.
+    assert_eq!(batcher.commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT,);
+    assert_eq!(get_number_of_tasks_in_sender(&batcher.commitment_manager.tasks_sender), 1,);
+
+    // Verify the result.
+    let results = await_results(&mut batcher.commitment_manager.results_receiver, 1).await;
+    let result = results.first().unwrap().clone().expect_commitment();
+    assert_eq!(result.height, global_root_height, "Result height should match global_root_height.");
 }
