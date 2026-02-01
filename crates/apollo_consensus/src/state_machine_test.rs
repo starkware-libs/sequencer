@@ -9,7 +9,8 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
-use crate::types::{ConsensusError, LeaderElection, ProposalCommitment, ValidatorId};
+use crate::test_utils::make_test_proposer_cache;
+use crate::types::{ConsensusError, ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 lazy_static! {
@@ -55,7 +56,6 @@ fn assert_decision_reached(wrapper: &mut TestWrapper, expected_block: Option<Pro
 
 struct TestWrapper {
     state_machine: StateMachine,
-    leader_election: LeaderElection<'static>,
     requests: VecDeque<SMRequest>,
     peer_voters: Vec<ValidatorId>,
     next_peer_idx: usize,
@@ -76,9 +76,16 @@ impl TestWrapper {
             .collect::<Vec<_>>();
         // Ensure deterministic order.
         peer_voters.sort();
+        let proposer_cache = make_test_proposer_cache(proposer, virtual_proposer);
         Self {
-            state_machine: StateMachine::new(HEIGHT, id, total_weight, is_observer, quorum_type),
-            leader_election: LeaderElection::new(Box::new(proposer), Box::new(virtual_proposer)),
+            state_machine: StateMachine::new(
+                HEIGHT,
+                id,
+                total_weight,
+                is_observer,
+                quorum_type,
+                proposer_cache,
+            ),
             requests: VecDeque::new(),
             peer_voters,
             next_peer_idx: 0,
@@ -96,7 +103,7 @@ impl TestWrapper {
     }
 
     pub fn start(&mut self) {
-        self.requests.append(&mut self.state_machine.start(&self.leader_election))
+        self.requests.append(&mut self.state_machine.start())
     }
 
     pub fn send_finished_building(
@@ -176,7 +183,7 @@ impl TestWrapper {
     }
 
     fn send_event(&mut self, event: StateMachineEvent) {
-        self.requests.append(&mut self.state_machine.handle_event(event, &self.leader_election));
+        self.requests.append(&mut self.state_machine.handle_event(event));
     }
 }
 
