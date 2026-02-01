@@ -74,7 +74,6 @@ fn get_number_of_items_in_channel_from_receiver<T>(receiver: &Receiver<T>) -> us
 
 async fn create_commitment_manager(mock_dependencies: MockDependencies) -> ApolloCommitmentManager {
     CommitmentManager::create_commitment_manager(
-        &mock_dependencies.batcher_config,
         &mock_dependencies.batcher_config.commitment_manager_config,
         &mock_dependencies.storage_reader,
         Arc::new(mock_dependencies.committer_client),
@@ -189,11 +188,8 @@ async fn test_create_commitment_manager(mut mock_dependencies: MockDependencies)
 
 #[rstest]
 #[tokio::test]
-async fn test_create_commitment_manager_with_missing_tasks(
-    mut mock_dependencies: MockDependencies,
-) {
+async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependencies) {
     let global_root_height = INITIAL_HEIGHT.prev().unwrap();
-    mock_dependencies.storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     mock_dependencies
         .storage_reader
         .expect_global_root_height()
@@ -209,9 +205,23 @@ async fn test_create_commitment_manager_with_missing_tasks(
         .with(eq(global_root_height))
         .returning(|_| Ok(Some(test_state_diff())));
 
-    let mut commitment_manager = create_commitment_manager(mock_dependencies).await;
+    let mut commitment_manager: ApolloCommitmentManager =
+        CommitmentManager::create_commitment_manager(
+            &mock_dependencies.batcher_config.commitment_manager_config,
+            &mock_dependencies.storage_reader,
+            Arc::new(mock_dependencies.committer_client),
+        )
+        .await;
 
-    assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT,);
+    commitment_manager
+        .add_missing_commitment_tasks(
+            INITIAL_HEIGHT,
+            &mock_dependencies.batcher_config,
+            &mock_dependencies.storage_reader,
+        )
+        .await;
+
+    assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT);
     let results = await_items(&mut commitment_manager.results_receiver, 1).await;
     let result = (results.first().unwrap()).clone().expect_commitment();
     assert_eq!(result.height, global_root_height);

@@ -58,10 +58,8 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
 impl<S: StateCommitterTrait> CommitmentManager<S> {
     // Public methods.
 
-    /// Creates and initializes the commitment manager, and also adds
-    /// missing commitment tasks.
+    /// Creates and initializes the commitment manager.
     pub(crate) async fn create_commitment_manager<R: BatcherStorageReader>(
-        batcher_config: &BatcherConfig,
         commitment_manager_config: &CommitmentManagerConfig,
         storage_reader: &R,
         committer_client: SharedCommitterClient,
@@ -70,17 +68,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             .global_root_height()
             .expect("Failed to get global root height from storage.");
         info!("Initializing commitment manager.");
-        let mut commitment_manager = CommitmentManager::initialize(
+        CommitmentManager::initialize(
             commitment_manager_config,
             global_root_height,
             committer_client,
-        );
-        let block_height =
-            storage_reader.state_diff_height().expect("Failed to get block height from storage.");
-        commitment_manager
-            .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
-            .await;
-        commitment_manager
+        )
     }
 
     pub(crate) fn get_commitment_task_offset(&self) -> BlockNumber {
@@ -307,7 +299,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             self.commitment_task_offset.prev().expect("Can't revert before the genesis block.");
     }
 
-    async fn read_commitment_input_and_add_task<R: BatcherStorageReader>(
+    async fn read_commitment_input_and_add_task<R: BatcherStorageReader + ?Sized>(
         &mut self,
         height: BlockNumber,
         batcher_storage_reader: &R,
@@ -343,7 +335,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// Adds missing commitment tasks to the commitment manager. Missing tasks are caused by
     /// unfinished commitment tasks / results not written to storage when the sequencer is shut
     /// down.
-    async fn add_missing_commitment_tasks<R: BatcherStorageReader>(
+    pub(crate) async fn add_missing_commitment_tasks<R: BatcherStorageReader + ?Sized>(
         &mut self,
         current_block_height: BlockNumber,
         batcher_config: &BatcherConfig,

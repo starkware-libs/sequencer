@@ -175,7 +175,7 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
-    commitment_manager: ApolloCommitmentManager,
+    pub(crate) commitment_manager: ApolloCommitmentManager,
 
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
@@ -1326,7 +1326,6 @@ pub async fn create_batcher(
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
     let commitment_manager = CommitmentManager::create_commitment_manager(
-        &config,
         &config.commitment_manager_config,
         storage_reader.as_ref(),
         committer_client.clone(),
@@ -1558,6 +1557,15 @@ impl ComponentStarter for Batcher {
             .storage_reader
             .global_root_height()
             .expect("Failed to get global roots height from storage during batcher creation.");
+
+        self.commitment_manager
+            .add_missing_commitment_tasks(
+                storage_height,
+                &self.config,
+                self.storage_reader.as_ref(),
+            )
+            .await;
+
         register_metrics(storage_height, global_root_height);
     }
 }
