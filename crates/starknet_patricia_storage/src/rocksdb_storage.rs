@@ -123,6 +123,7 @@ impl RocksDbOptions {
 pub struct RocksDbStorage {
     db: Arc<DB>,
     options: Arc<RocksDbOptions>,
+    _config: RocksDbStorageConfig,
 }
 
 /// Configuration for RocksDB storage.
@@ -263,7 +264,7 @@ impl RocksDbStorage {
     pub fn new(path: &Path, config: RocksDbStorageConfig) -> PatriciaStorageResult<Self> {
         let options = RocksDbOptions::from_config(&config);
         let db = Arc::new(DB::open(&options.db_options, path)?);
-        Ok(Self { db, options: Arc::new(options) })
+        Ok(Self { db, options: Arc::new(options), _config: config })
     }
 }
 
