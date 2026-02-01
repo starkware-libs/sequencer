@@ -190,7 +190,10 @@ where
 
     async fn try_send(&self, http_request: HyperRequest<Full<Bytes>>) -> ClientResult<Response> {
         trace!("Sending HTTP request");
-        let http_response = self.client.request(http_request).await.map_err(|err| {
+        println!("TEMPDEBUG400 [thread: {:?}] trying to request", std::thread::current().id());
+        let client_request_result = self.client.request(http_request).await;
+        println!("TEMPDEBUG401 [thread: {:?}] request result", std::thread::current().id());
+        let http_response = client_request_result.map_err(|err| {
             warn!("HTTP request to {} failed with error: {err:?}", self.uri);
             ClientError::CommunicationFailure(err.to_string())
         })?;
