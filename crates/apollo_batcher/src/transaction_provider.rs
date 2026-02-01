@@ -15,8 +15,10 @@ use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
+use tokio::time::Duration;
 
 use crate::metrics::BATCHER_L1_PROVIDER_ERRORS;
+use crate::echonet_tx_filter_client::{EchonetTxFilterClient, EchonetTxFilterClientTrait};
 
 type TransactionProviderResult<T> = Result<T, TransactionProviderError>;
 
@@ -60,6 +62,9 @@ pub struct ProposeTransactionProvider {
     pub l1_provider_client: SharedL1ProviderClient,
     pub max_l1_handler_txs_per_block: usize,
     pub height: BlockNumber,
+    pub block_timestamp_seconds: u64,
+    pub echonet_tx_timestamp_filter_enabled: bool,
+    echonet_tx_filter_client: Option<EchonetTxFilterClient>,
     phase: TxProviderPhase,
     n_l1handler_txs_so_far: usize,
 }
@@ -78,13 +83,25 @@ impl ProposeTransactionProvider {
         l1_provider_client: SharedL1ProviderClient,
         max_l1_handler_txs_per_block: usize,
         height: BlockNumber,
+        block_timestamp_seconds: u64,
         start_phase: TxProviderPhase,
+        echonet_tx_timestamp_filter_enabled: bool,
+        echonet_tx_timestamp_filter_timeout: Duration,
+        recorder_url: apollo_config::secrets::Sensitive<url::Url>,
     ) -> Self {
+        let echonet_tx_filter_client = if echonet_tx_timestamp_filter_enabled {
+            Some(EchonetTxFilterClient::new(recorder_url, echonet_tx_timestamp_filter_timeout))
+        } else {
+            None
+        };
         Self {
             mempool_client,
             l1_provider_client,
             max_l1_handler_txs_per_block,
             height,
+            block_timestamp_seconds,
+            echonet_tx_timestamp_filter_enabled,
+            echonet_tx_filter_client,
             phase: start_phase,
             n_l1handler_txs_so_far: 0,
         }
@@ -111,13 +128,39 @@ impl ProposeTransactionProvider {
         &mut self,
         n_txs: usize,
     ) -> TransactionProviderResult<Vec<InternalConsensusTransaction>> {
-        Ok(self
+        let mempool_txs: Vec<InternalConsensusTransaction> = self
             .mempool_client
             .get_txs(n_txs)
             .await?
             .into_iter()
             .map(InternalConsensusTransaction::RpcTransaction)
-            .collect())
+            .collect();
+
+        if !self.echonet_tx_timestamp_filter_enabled {
+            return Ok(mempool_txs);
+        }
+        let Some(client) = &self.echonet_tx_filter_client else {
+            return Ok(mempool_txs);
+        };
+        if mempool_txs.is_empty() {
+            return Ok(mempool_txs);
+        }
+
+        let hashes: Vec<TransactionHash> = mempool_txs.iter().map(|t| t.tx_hash()).collect();
+        match client.allowed_txs_for_timestamp(self.block_timestamp_seconds, &hashes).await {
+            Ok(allowed_hex) => {
+                let filtered: Vec<InternalConsensusTransaction> = mempool_txs
+                    .into_iter()
+                    .filter(|t| allowed_hex.contains(&t.tx_hash().0.to_hex_string()))
+                    .collect();
+                Ok(filtered)
+            }
+            Err(err) => {
+                // Fail-open: if echonet filter is unavailable, do not block block production.
+                tracing::warn!("Echonet tx timestamp filter failed; allowing all txs: {err}");
+                Ok(mempool_txs)
+            }
+        }
     }
 }
 

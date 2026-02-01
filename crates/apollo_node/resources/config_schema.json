@@ -269,6 +269,16 @@
     "privacy": "Public",
     "value": 2
   },
+  "batcher_config.echonet_tx_timestamp_filter_enabled": {
+    "description": "If true, batcher will call echonet to filter txs based on timestamp.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.echonet_tx_timestamp_filter_timeout_millis": {
+    "description": "Timeout (ms) for the echonet tx timestamp filter request.",
+    "privacy": "Public",
+    "value": 200
+  },
   "batcher_config.input_stream_content_buffer_size": {
     "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
     "privacy": "Public",

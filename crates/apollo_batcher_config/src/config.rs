@@ -158,6 +158,11 @@ pub struct BatcherConfig {
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
+    /// If true, the batcher will call an Echonet endpoint to filter candidate txs based on the
+    /// current block timestamp.
+    pub echonet_tx_timestamp_filter_enabled: bool,
+    /// HTTP timeout (ms) for the echonet tx timestamp filter request.
+    pub echonet_tx_timestamp_filter_timeout_millis: u64,
     pub propose_l1_txs_every: u64,
     pub storage_reader_server_config: ServerConfig,
 }
@@ -213,6 +218,20 @@ impl SerializeConfig for BatcherConfig {
             self.pre_confirmed_cende_config.dump(),
             "pre_confirmed_cende_config",
         ));
+        dump.append(&mut BTreeMap::from_iter([
+            ser_param(
+                "echonet_tx_timestamp_filter_enabled",
+                &self.echonet_tx_timestamp_filter_enabled,
+                "If true, batcher will call echonet to filter txs based on timestamp.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "echonet_tx_timestamp_filter_timeout_millis",
+                &self.echonet_tx_timestamp_filter_timeout_millis,
+                "Timeout (ms) for the echonet tx timestamp filter request.",
+                ParamPrivacyInput::Public,
+            ),
+        ]));
         dump
     }
 }
@@ -237,6 +256,8 @@ impl Default for BatcherConfig {
             contract_class_manager_config: ContractClassManagerConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
+            echonet_tx_timestamp_filter_enabled: false,
+            echonet_tx_timestamp_filter_timeout_millis: 200,
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             storage_reader_server_config: ServerConfig::default(),
         }

@@ -71,6 +71,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use url::Url;
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{BlobParameters, CendeAmbassadorError, CendeContext};
@@ -179,6 +180,7 @@ pub struct SequencerConsensusContextDeps {
     pub state_sync_client: Arc<dyn StateSyncClient>,
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
+    pub cende_recorder_url: Url,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
@@ -527,6 +529,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .retrospective_block_hash_retry_interval_millis,
             use_state_sync_block_timestamp,
+            cende_recorder_url: self.deps.cende_recorder_url.clone(),
         };
         let handle = tokio::spawn(
             async move {

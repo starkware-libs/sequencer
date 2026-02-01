@@ -23,7 +23,6 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, DateTime};
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -35,6 +34,7 @@ use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, info, trace, warn};
+use url::Url;
 
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
@@ -66,6 +66,7 @@ pub(crate) struct ProposalBuildArguments {
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
     pub use_state_sync_block_timestamp: bool,
+    pub cende_recorder_url: Url,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -132,22 +133,40 @@ pub(crate) async fn build_proposal(
 
 async fn get_proposal_timestamp(
     use_state_sync_block_timestamp: bool,
-    state_sync_client: &SharedStateSyncClient,
+    cende_recorder_url: &Url,
     clock: &dyn Clock,
 ) -> u64 {
     if use_state_sync_block_timestamp {
-        if let Ok(Some(block_header)) = state_sync_client.get_latest_block_header().await {
-            return block_header.block_header_without_hash.timestamp.0;
+        // In echonet mode, read the timestamp from echo_center (shared_context), which is set by
+        // echonet/transaction_sender right before forwarding txs for a new source block.
+        if let Some(ts) = fetch_timestamp_from_echonet(cende_recorder_url).await {
+            return ts;
         }
-        warn!("No latest block header available from state sync, falling back to clock time");
+        warn!("No timestamp available from echonet, falling back to clock time");
     }
     clock.unix_now()
+}
+
+#[derive(serde::Deserialize)]
+struct EchonetTimestampResponse {
+    timestamp: u64,
+}
+
+async fn fetch_timestamp_from_echonet(cende_recorder_url: &Url) -> Option<u64> {
+    let url = cende_recorder_url.join("/echonet/timestamp").ok()?;
+    let client = reqwest::Client::new();
+    let response = client.get(url).send().await.ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let payload: EchonetTimestampResponse = response.json().await.ok()?;
+    Some(payload.timestamp)
 }
 
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
     let timestamp = get_proposal_timestamp(
         args.use_state_sync_block_timestamp,
-        &args.deps.state_sync_client,
+        &args.cende_recorder_url,
         args.deps.clock.as_ref(),
     )
     .await;

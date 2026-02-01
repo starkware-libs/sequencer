@@ -278,6 +278,7 @@ impl ConsensusManager {
                     self.config.cende_config.clone(),
                     Arc::clone(&self.class_manager_client),
                 )),
+                cende_recorder_url: self.config.cende_config.recorder_url.peek_secret().clone(),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
                 clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,

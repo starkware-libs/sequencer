@@ -47,6 +47,7 @@ use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
+use url::Url;
 
 use crate::cende::MockCendeContext;
 use crate::orchestrator_versioned_constants::VersionedConstants;
@@ -90,6 +91,7 @@ pub(crate) struct TestDeps {
     pub state_sync_client: MockStateSyncClient,
     pub batcher: MockBatcherClient,
     pub cende_ambassador: MockCendeContext,
+    pub cende_recorder_url: Url,
     pub l1_gas_price_provider: MockL1GasPriceProviderClient,
     pub clock: Arc<dyn Clock>,
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
@@ -103,6 +105,7 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             state_sync_client: Arc::new(deps.state_sync_client),
             batcher: Arc::new(deps.batcher),
             cende_ambassador: Arc::new(deps.cende_ambassador),
+            cende_recorder_url: deps.cende_recorder_url,
             l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
             clock: deps.clock,
             outbound_proposal_sender: deps.outbound_proposal_sender,
@@ -256,6 +259,8 @@ pub(crate) fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) 
     let state_sync_client = MockStateSyncClient::new();
     let batcher = MockBatcherClient::new();
     let cende_ambassador = MockCendeContext::new();
+    let cende_recorder_url =
+        "http://localhost:0".parse::<Url>().expect("Failed to parse test recorder url");
     let l1_gas_price_provider = MockL1GasPriceProviderClient::new();
     let clock = Arc::new(DefaultClock);
 
@@ -264,6 +269,7 @@ pub(crate) fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) 
         state_sync_client,
         batcher,
         cende_ambassador,
+        cende_recorder_url,
         l1_gas_price_provider,
         clock,
         outbound_proposal_sender,

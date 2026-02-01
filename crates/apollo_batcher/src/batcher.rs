@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Duration;
 use std::fmt::Write;
 use std::sync::Arc;
 
@@ -279,7 +280,11 @@ impl Batcher {
             self.l1_provider_client.clone(),
             self.config.max_l1_handler_txs_per_block_proposal,
             propose_block_input.block_info.block_number,
+            propose_block_input.block_info.block_timestamp.0,
             start_phase,
+            self.config.echonet_tx_timestamp_filter_enabled,
+            Duration::from_millis(self.config.echonet_tx_timestamp_filter_timeout_millis),
+            self.config.pre_confirmed_cende_config.recorder_url.clone(),
         );
 
         // A channel to receive the transactions included in the proposed block.

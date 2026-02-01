@@ -9,6 +9,7 @@ pub mod communication;
 pub mod metrics;
 pub mod pre_confirmed_block_writer;
 pub mod pre_confirmed_cende_client;
+pub mod echonet_tx_filter_client;
 #[cfg(test)]
 mod pre_confirmed_cende_client_test;
 #[cfg(test)]
