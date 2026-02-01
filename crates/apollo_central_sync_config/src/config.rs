@@ -179,7 +179,7 @@ impl SerializeConfig for SyncConfig {
 impl Default for SyncConfig {
     fn default() -> Self {
         SyncConfig {
-            block_propagation_sleep_duration: Duration::from_secs(2),
+            block_propagation_sleep_duration: Duration::from_secs(1),
             base_layer_propagation_sleep_duration: Duration::from_secs(10),
             recoverable_error_sleep_duration: Duration::from_secs(3),
             blocks_max_stream_size: 1000,

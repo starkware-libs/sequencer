@@ -8,7 +8,7 @@
     "description": "The block number at which the Fusaka upgrade was deployed (not including any BPO updates).",
     "privacy": "Public",
     "value": 0
-  },  
+  },
   "base_layer.bpo1_start_block_number": {
     "description": "The block number at which BPO1 update was deployed.",
     "privacy": "Public",
@@ -647,7 +647,7 @@
   "sync.block_propagation_sleep_duration": {
     "description": "Time in seconds before checking for a new block after the node is synchronized.",
     "privacy": "Public",
-    "value": 2
+    "value": 1
   },
   "sync.blocks_max_stream_size": {
     "description": "Max amount of blocks to download in a stream.",
