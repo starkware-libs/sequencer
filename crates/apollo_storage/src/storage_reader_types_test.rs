@@ -462,3 +462,21 @@ async fn file_offsets_request() {
 
     assert_eq!(response, StorageReaderResponse::FileOffsets(expected_offset));
 }
+
+#[tokio::test]
+async fn starknet_version_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_version = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_starknet_version_by_key(TEST_BLOCK_NUMBER)
+        .unwrap()
+        .expect("Starknet version should exist");
+
+    let request = StorageReaderRequest::StarknetVersion(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::StarknetVersion(expected_version));
+}
