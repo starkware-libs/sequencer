@@ -11319,6 +11319,7 @@ dependencies = [
  "async-trait",
  "derive_more 2.1.1",
  "ethnum",
+ "futures",
  "hex",
  "pretty_assertions",
  "rand 0.8.5",
