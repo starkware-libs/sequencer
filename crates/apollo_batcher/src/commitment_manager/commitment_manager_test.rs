@@ -73,7 +73,6 @@ async fn create_mock_commitment_manager(
     mock_dependencies: MockDependencies,
 ) -> MockCommitmentManager {
     CommitmentManager::create_commitment_manager(
-        &mock_dependencies.batcher_config,
         &mock_dependencies.batcher_config.commitment_manager_config,
         &mock_dependencies.storage_reader,
         Arc::new(mock_dependencies.committer_client),
@@ -130,11 +129,8 @@ async fn test_create_commitment_manager(mut mock_dependencies: MockDependencies)
 
 #[rstest]
 #[tokio::test]
-async fn test_create_commitment_manager_with_missing_tasks(
-    mut mock_dependencies: MockDependencies,
-) {
+async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependencies) {
     let global_root_height = INITIAL_HEIGHT.prev().unwrap();
-    mock_dependencies.storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     mock_dependencies
         .storage_reader
         .expect_global_root_height()
@@ -150,10 +146,22 @@ async fn test_create_commitment_manager_with_missing_tasks(
         .with(eq(global_root_height))
         .returning(|_| Ok(Some(test_state_diff())));
 
-    let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
+    let batcher_config = mock_dependencies.batcher_config;
+    let storage_reader = mock_dependencies.storage_reader;
+    let mut commitment_manager: CommitmentManager<MockStateCommitter> =
+        CommitmentManager::create_commitment_manager(
+            &batcher_config.commitment_manager_config,
+            &storage_reader,
+            Arc::new(mock_dependencies.committer_client),
+        )
+        .await;
 
-    assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT,);
-    assert_eq!(get_number_of_tasks_in_sender(&commitment_manager.tasks_sender), 1,);
+    commitment_manager
+        .add_missing_commitment_tasks(INITIAL_HEIGHT, &batcher_config, &storage_reader)
+        .await;
+
+    assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT);
+    assert_eq!(get_number_of_tasks_in_sender(&commitment_manager.tasks_sender), 1);
     commitment_manager.state_committer.pop_task_and_insert_result().await;
     let results = await_results(&mut commitment_manager.results_receiver, 1).await;
     let result = (results.first().unwrap()).clone().expect_commitment();
