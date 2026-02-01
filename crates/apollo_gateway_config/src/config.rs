@@ -12,7 +12,10 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::blockifier::config::{
+    ContractClassManagerConfig,
+    ContractClassManagerStaticConfig,
+};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
@@ -27,7 +30,7 @@ const JSON_RPC_VERSION: &str = "2.0";
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
 pub struct GatewayDynamicConfig {
     // TODO(Arni): replace this placeholder with a struct that holds the
-    // static_config.contract_class_manager_config.cairo_native_run_config.
+    // static_config.contract_class_manager_config.static_config.cairo_native_run_config.
     // native_classes_whitelist.
     pub placeholder: bool,
 }
@@ -60,8 +63,10 @@ impl Default for GatewayStaticConfig {
             stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
             stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
             contract_class_manager_config: ContractClassManagerConfig {
-                contract_cache_size: 300,
-                ..Default::default()
+                static_config: ContractClassManagerStaticConfig {
+                    contract_cache_size: 300,
+                    ..Default::default()
+                },
             },
             chain_info: ChainInfo::default(),
             block_declare: false,

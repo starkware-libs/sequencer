@@ -226,7 +226,7 @@ impl SerializeConfig for FirstBlockWithPartialBlockHash {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate, Default)]
 pub struct BatcherDynamicConfig {
     // TODO(Arni): replace this placeholder with a struct that holds the
-    // static_config.contract_class_manager_config.cairo_native_run_config.
+    // static_config.contract_class_manager_config.static_config.cairo_native_run_config.
     // native_classes_whitelist.
     pub placeholder: bool,
 }

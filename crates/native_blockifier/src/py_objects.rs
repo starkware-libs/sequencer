@@ -9,6 +9,7 @@ use blockifier::blockifier::config::{
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerConfig,
+    ContractClassManagerStaticConfig,
     NativeClassesWhitelist,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
@@ -316,15 +317,21 @@ impl Default for PyContractClassManagerConfig {
     }
 }
 
-impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
+impl From<PyContractClassManagerConfig> for ContractClassManagerStaticConfig {
     fn from(py_contract_class_manager_config: PyContractClassManagerConfig) -> Self {
-        ContractClassManagerConfig {
+        ContractClassManagerStaticConfig {
             contract_cache_size: py_contract_class_manager_config.contract_cache_size,
             cairo_native_run_config: py_contract_class_manager_config
                 .cairo_native_run_config
                 .into(),
             native_compiler_config: py_contract_class_manager_config.native_compiler_config.into(),
         }
+    }
+}
+
+impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
+    fn from(py_contract_class_manager_config: PyContractClassManagerConfig) -> Self {
+        ContractClassManagerConfig { static_config: py_contract_class_manager_config.into() }
     }
 }
 

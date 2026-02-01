@@ -69,9 +69,10 @@ impl NativeClassManager {
     /// 3. `config.wait_on_native_compilation` is `true`.
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
-        let class_cache = RawClassCache::new(config.contract_cache_size);
-        let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
-        let cairo_native_run_config = config.cairo_native_run_config;
+        let class_cache = RawClassCache::new(config.static_config.contract_cache_size);
+        let compiled_class_hash_v2_cache =
+            GlobalContractCache::new(config.static_config.contract_cache_size);
+        let cairo_native_run_config = config.static_config.cairo_native_run_config;
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
