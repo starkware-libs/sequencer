@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769711517088,
+  "lastUpdate": 1769935894579,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1393,6 +1393,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1318.50253451,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a7137509abaa9121b1eacd739edb5ae422286480",
+          "message": "apollo_committer_types: extend mock committer client (#12115)",
+          "timestamp": "2026-02-01T08:25:27Z",
+          "tree_id": "327515006346b78a6876d51d66a6238e73601547",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a7137509abaa9121b1eacd739edb5ae422286480"
+        },
+        "date": 1769935894312,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 820.7128976399999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1223.5605400999998,
             "unit": "ms"
           }
         ]
