@@ -24,7 +24,11 @@ use starknet_api::test_utils::{
 };
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
-use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+use crate::blockifier::config::{
+    CairoNativeRunConfig,
+    ContractClassManagerConfig,
+    ContractClassManagerStaticConfig,
+};
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
@@ -239,8 +243,10 @@ impl CallExecution {
 impl ContractClassManager {
     pub fn create_for_testing(native_config: CairoNativeRunConfig) -> Self {
         let config = ContractClassManagerConfig {
-            cairo_native_run_config: native_config,
-            ..Default::default()
+            static_config: ContractClassManagerStaticConfig {
+                cairo_native_run_config: native_config,
+                ..Default::default()
+            },
         };
         ContractClassManager::start(config)
     }

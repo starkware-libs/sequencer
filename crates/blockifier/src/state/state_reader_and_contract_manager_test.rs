@@ -13,7 +13,7 @@ use starknet_api::core::ClassHash;
 
 #[cfg(not(feature = "cairo_native"))]
 use crate::blockifier::config::CairoNativeRunConfig;
-use crate::blockifier::config::ContractClassManagerConfig;
+use crate::blockifier::config::{ContractClassManagerConfig, ContractClassManagerStaticConfig};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
 #[cfg(not(feature = "cairo_native"))]
@@ -258,11 +258,13 @@ fn test_get_compiled_class_caching_scenarios(
     #[case] second_scenario: GetCompiledClassTestScenario,
 ) {
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig {
-        cairo_native_run_config: CairoNativeRunConfig {
-            wait_on_native_compilation: false,
+        static_config: ContractClassManagerStaticConfig {
+            cairo_native_run_config: CairoNativeRunConfig {
+                wait_on_native_compilation: false,
+                ..Default::default()
+            },
             ..Default::default()
         },
-        ..Default::default()
     });
     let class_hash = *DUMMY_CLASS_HASH;
 

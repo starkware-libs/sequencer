@@ -24,12 +24,14 @@ pub mod trivial_class_manager {
     impl TrivialClassManager {
         pub fn start(config: ContractClassManagerConfig) -> Self {
             assert!(
-                !config.cairo_native_run_config.run_cairo_native,
+                !config.static_config.cairo_native_run_config.run_cairo_native,
                 "Cairo Native feature is off."
             );
             Self {
-                class_cache: RawClassCache::new(config.contract_cache_size),
-                compiled_class_hash_v2_cache: GlobalContractCache::new(config.contract_cache_size),
+                class_cache: RawClassCache::new(config.static_config.contract_cache_size),
+                compiled_class_hash_v2_cache: GlobalContractCache::new(
+                    config.static_config.contract_cache_size,
+                ),
             }
         }
 

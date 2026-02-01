@@ -12,7 +12,10 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::blockifier::config::{
+    ContractClassManagerConfig,
+    ContractClassManagerStaticConfig,
+};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
 use serde::{Deserialize, Serialize};
@@ -60,8 +63,10 @@ impl Default for GatewayStaticConfig {
             stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
             stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
             contract_class_manager_config: ContractClassManagerConfig {
-                contract_cache_size: 300,
-                ..Default::default()
+                static_config: ContractClassManagerStaticConfig {
+                    contract_cache_size: 300,
+                    ..Default::default()
+                },
             },
             chain_info: ChainInfo::default(),
             block_declare: false,
