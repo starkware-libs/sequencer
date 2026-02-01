@@ -227,7 +227,7 @@ async fn create_batcher_with_real_storage(
 
 async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     storage_reader: Arc<R>,
-    storage_writer: Box<dyn BatcherStorageWriter>,
+    mut storage_writer: Box<dyn BatcherStorageWriter>,
     clients: MockClients,
     config: BatcherConfig,
 ) -> Batcher {
@@ -235,7 +235,8 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
         &config.commitment_manager_config,
-        storage_reader.as_ref(),
+        storage_reader.clone(),
+        &mut storage_writer,
         committer_client.clone(),
     )
     .await;

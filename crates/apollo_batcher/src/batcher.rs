@@ -705,7 +705,14 @@ impl Batcher {
         .await?;
 
         self.commitment_manager
-            .add_commitment_task(height, state_diff, optional_state_diff_commitment)
+            .add_commitment_task(
+                height,
+                state_diff,
+                optional_state_diff_commitment,
+                &self.config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
             .await
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
@@ -769,6 +776,9 @@ impl Batcher {
                 height,
                 state_diff.clone(), // TODO(Nimrod): Remove the clone here.
                 Some(state_diff_commitment),
+                &self.config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
             )
             .await
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
@@ -1167,7 +1177,13 @@ impl Batcher {
             .reversed_state_diff(height)
             .expect("Failed to get reversed state diff from storage.");
         self.commitment_manager
-            .add_revert_task(height, reversed_state_diff)
+            .add_revert_task(
+                height,
+                reversed_state_diff,
+                &self.config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
             .await
             .expect("Failed to add revert task to commitment manager.");
         let (commitment_results, revert_task_result) =
@@ -1321,14 +1337,15 @@ pub async fn create_batcher(
         worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
-    let storage_writer = Box::new(storage_writer);
+    let mut storage_writer = Box::new(storage_writer);
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
         &config.commitment_manager_config,
-        storage_reader.as_ref(),
+        storage_reader.clone(),
+        &mut storage_writer,
         committer_client.clone(),
     )
     .await;

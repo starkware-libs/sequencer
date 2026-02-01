@@ -90,7 +90,6 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct CommitmentManagerConfig {
     pub tasks_channel_size: usize,
     pub results_channel_size: usize,
-    // Wait for tasks channel to be available before sending.
     pub panic_if_task_channel_full: bool,
 }
 
@@ -237,6 +236,7 @@ pub struct BatcherConfig {
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
+    // TODO(Amos): Move to commitment manager config.
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
     pub storage_reader_server_config: ServerConfig,
 }
