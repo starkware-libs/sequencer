@@ -23,7 +23,6 @@ workspace = true
 
 [dependencies]
 apollo_config_manager_types.workspace = true
-apollo_deployment_mode.workspace = true
 apollo_infra.workspace = true
 apollo_mempool_config.workspace = true
 apollo_mempool_p2p_types.workspace = true
@@ -43,6 +42,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_deployment_mode.workspace = true
 apollo_mempool_p2p_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_network = { workspace = true, features = ["testing"] }

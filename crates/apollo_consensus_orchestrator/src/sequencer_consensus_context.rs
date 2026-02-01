@@ -31,6 +31,7 @@ use apollo_consensus::types::{
 };
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_deployment_mode::DeploymentMode;
+use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 
 /// Helper function to determine if state sync block timestamps should be used.
 fn should_use_state_sync_block_timestamp(mode: &DeploymentMode) -> bool {
@@ -511,7 +512,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .mul_f32(self.config.build_proposal_time_ratio_for_retrospective_block_hash);
 
         let use_state_sync_block_timestamp =
-            should_use_state_sync_block_timestamp(&self.config.static_config.deployment_mode);
+            should_use_state_sync_block_timestamp(&self.config.deployment_mode);
 
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),

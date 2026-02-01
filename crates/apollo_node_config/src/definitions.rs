@@ -55,6 +55,10 @@ impl ConfigPointersMap {
             "starknet_url",
             to_value("http://localhost:8081").expect("Failed to serialize starknet_url"),
         );
+        config_pointers_map.change_target_value(
+            "deployment_mode",
+            to_value("starknet").expect("Failed to serialize deployment_mode"),
+        );
 
         config_pointers_map
     }
