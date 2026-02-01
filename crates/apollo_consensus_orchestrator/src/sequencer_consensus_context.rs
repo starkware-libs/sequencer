@@ -650,7 +650,11 @@ impl ConsensusContext for SequencerConsensusContext {
         Ok(self.validators.clone())
     }
 
-    fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError> {
+    async fn proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> Result<ValidatorId, ConsensusError> {
         let height: usize = height.0.try_into().expect("Cannot convert to usize");
         let round: usize = round.try_into().expect("Cannot convert to usize");
         Ok(*self
@@ -659,14 +663,14 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("There should be at least one validator"))
     }
 
-    fn virtual_proposer(
+    async fn virtual_proposer(
         &self,
         height: BlockNumber,
         round: Round,
     ) -> Result<ValidatorId, ConsensusError> {
         // TODO(Asmaa): Update this when using the committee provider.
         // For now, keep the virtual proposer selection identical to the real proposer selection.
-        self.proposer(height, round)
+        self.proposer(height, round).await
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
