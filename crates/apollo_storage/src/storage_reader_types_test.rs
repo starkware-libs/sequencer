@@ -545,3 +545,21 @@ async fn headers_request() {
 
     assert_eq!(response, StorageReaderResponse::Headers(expected_header));
 }
+
+#[tokio::test]
+async fn block_hash_to_number_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let header = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_storage_block_header(&TEST_BLOCK_NUMBER)
+        .unwrap()
+        .expect("Block header should exist");
+
+    let request = StorageReaderRequest::BlockHashToNumber(header.block_hash);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::BlockHashToNumber(TEST_BLOCK_NUMBER));
+}
