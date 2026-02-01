@@ -499,3 +499,21 @@ async fn state_storage_version_request() {
 
     assert_eq!(response, StorageReaderResponse::StateStorageVersion(expected_version));
 }
+
+#[tokio::test]
+async fn blocks_storage_version_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_version = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_blocks_version()
+        .unwrap()
+        .expect("Blocks storage version should exist");
+
+    let request = StorageReaderRequest::BlocksStorageVersion;
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::BlocksStorageVersion(expected_version));
+}
