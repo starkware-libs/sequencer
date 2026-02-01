@@ -119,7 +119,7 @@ impl RocksDbOptions {
 pub struct RocksDbStorage {
     db: Arc<DB>,
     options: Arc<RocksDbOptions>,
-    _config: RocksDbStorageConfig,
+    config: RocksDbStorageConfig,
 }
 
 /// Configuration for RocksDB storage.
@@ -254,7 +254,7 @@ impl RocksDbStorage {
     pub fn new(path: &Path, config: RocksDbStorageConfig) -> PatriciaStorageResult<Self> {
         let options = RocksDbOptions::from_config(&config);
         let db = Arc::new(DB::open(&options.db_options, path)?);
-        Ok(Self { db, options: Arc::new(options), _config: config })
+        Ok(Self { db, options: Arc::new(options), config })
     }
 }
 
@@ -283,10 +283,13 @@ impl Storage for RocksDbStorage {
     type Config = RocksDbStorageConfig;
 
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        // TODO(Nimrod): Config should indicate whether to spawn a task or not.
-        let db = self.db.clone();
-        let key = key.clone();
-        Ok(spawn_blocking(move || db.get(&key.0).map(|opt| opt.map(DbValue))).await??)
+        if self.config.spawn_blocking_reads {
+            let db = self.db.clone();
+            let key = key.clone();
+            Ok(spawn_blocking(move || db.get(&key.0).map(|opt| opt.map(DbValue))).await??)
+        } else {
+            Ok(self.db.get(&key.0).map(|opt| opt.map(DbValue))?)
+        }
     }
 
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
@@ -294,17 +297,26 @@ impl Storage for RocksDbStorage {
     }
 
     async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        // TODO(Nimrod): Config should indicate whether to spawn a task or not.
-        let db = self.db.clone();
-        let keys: Vec<Vec<u8>> = keys.iter().map(|k| k.0.clone()).collect();
-        spawn_blocking(move || {
-            let raw_keys = keys.iter().map(|k| k.as_slice());
-            db.multi_get(raw_keys)
+        if self.config.spawn_blocking_reads {
+            let db = self.db.clone();
+            let keys: Vec<Vec<u8>> = keys.iter().map(|k| k.0.clone()).collect();
+            Ok(spawn_blocking(move || {
+                let raw_keys = keys.iter().map(|k| k.as_slice());
+                db.multi_get(raw_keys)
+                    .into_iter()
+                    .map(|r| r.map(|opt| opt.map(DbValue)).map_err(|e| e.into()))
+                    .collect::<Result<Vec<_>, PatriciaStorageError>>()
+            })
+            .await??)
+        } else {
+            let raw_keys = keys.iter().map(|k| k.0.as_slice());
+            Ok(self
+                .db
+                .multi_get(raw_keys)
                 .into_iter()
                 .map(|r| r.map(|opt| opt.map(DbValue)).map_err(|e| e.into()))
-                .collect::<Result<Vec<_>, PatriciaStorageError>>()
-        })
-        .await?
+                .collect::<Result<Vec<_>, PatriciaStorageError>>()?)
+        }
     }
 
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
