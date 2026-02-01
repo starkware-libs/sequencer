@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "python3 .cursor/hooks/format_after_file_edit.py"
+      }
+    ],
+    "afterTabFileEdit": [
+      {
+        "command": "python3 .cursor/hooks/format_after_file_edit.py"
+      }
+    ]
+  }
+}
