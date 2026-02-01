@@ -1,24 +1,24 @@
-use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
 use apollo_committer_types::communication::MockCommitterClient;
-use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
-use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::time::{sleep, timeout};
+use tokio::time::timeout;
 
 use crate::batcher::MockBatcherStorageReader;
 use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::test_utils::{
+    await_results,
+    get_dummy_parent_hash_and_partial_block_hash_components,
+    get_number_of_tasks_in_sender,
     test_state_diff,
+    wait_for_n_results,
     MockStateCommitter,
     INITIAL_HEIGHT,
     LATEST_BLOCK_IN_STORAGE,
@@ -53,22 +53,6 @@ fn add_initial_heights(mock_dependencies: &mut MockDependencies) {
     mock_dependencies.storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 }
 
-fn get_dummy_parent_hash_and_partial_block_hash_components(
-    height: &BlockNumber,
-) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)> {
-    let partial_block_hash_components =
-        PartialBlockHashComponents { block_number: *height, ..Default::default() };
-    Ok((Some(BlockHash::default()), Some(partial_block_hash_components)))
-}
-
-fn get_number_of_tasks_in_sender<T>(sender: &Sender<T>) -> usize {
-    sender.max_capacity() - sender.capacity()
-}
-
-fn get_number_of_tasks_in_receiver<T>(receiver: &Receiver<T>) -> usize {
-    receiver.max_capacity() - receiver.capacity()
-}
-
 async fn create_mock_commitment_manager(
     mock_dependencies: MockDependencies,
 ) -> MockCommitmentManager {
@@ -79,35 +63,6 @@ async fn create_mock_commitment_manager(
         Arc::new(mock_dependencies.committer_client),
     )
     .await
-}
-
-async fn wait_for_n_results<T>(receiver: &mut Receiver<T>, expected_n_results: usize) {
-    let max_n_retries = 3;
-    let mut n_retries = 0;
-    while get_number_of_tasks_in_receiver(receiver) < expected_n_results {
-        sleep(Duration::from_millis(500)).await;
-        n_retries += 1;
-        if n_retries >= max_n_retries {
-            panic!(
-                "Timed out waiting for {} results after {} retries.",
-                expected_n_results, max_n_retries
-            );
-        }
-    }
-}
-
-async fn await_results<T>(receiver: &mut Receiver<T>, expected_n_results: usize) -> Vec<T> {
-    wait_for_n_results(receiver, expected_n_results).await;
-    let mut results = Vec::new();
-    while let Ok(result) = receiver.try_recv() {
-        results.push(result);
-    }
-    assert_eq!(
-        results.len(),
-        expected_n_results,
-        "Number of received results should be equal to expected number of results."
-    );
-    results
 }
 
 #[rstest]

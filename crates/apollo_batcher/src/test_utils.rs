@@ -379,3 +379,59 @@ impl MockStateCommitter {
         self.mock_task_sender.send(()).await.unwrap();
     }
 }
+
+// Commitment manager utility functions for testing.
+
+pub(crate) fn get_number_of_tasks_in_sender<T>(sender: &Sender<T>) -> usize {
+    sender.max_capacity() - sender.capacity()
+}
+
+pub(crate) fn get_number_of_tasks_in_receiver<T>(receiver: &Receiver<T>) -> usize {
+    receiver.max_capacity() - receiver.capacity()
+}
+
+pub(crate) async fn wait_for_n_results<T>(receiver: &mut Receiver<T>, expected_n_results: usize) {
+    let max_n_retries = 3;
+    let mut n_retries = 0;
+    while get_number_of_tasks_in_receiver(receiver) < expected_n_results {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        n_retries += 1;
+        if n_retries >= max_n_retries {
+            panic!(
+                "Timed out waiting for {} results after {} retries.",
+                expected_n_results, max_n_retries
+            );
+        }
+    }
+}
+
+pub(crate) async fn await_results<T>(
+    receiver: &mut Receiver<T>,
+    expected_n_results: usize,
+) -> Vec<T> {
+    wait_for_n_results(receiver, expected_n_results).await;
+    let mut results = Vec::new();
+    while let Ok(result) = receiver.try_recv() {
+        results.push(result);
+    }
+    assert_eq!(
+        results.len(),
+        expected_n_results,
+        "Number of received results should be equal to expected number of results."
+    );
+    results
+}
+
+pub(crate) fn get_dummy_parent_hash_and_partial_block_hash_components(
+    height: &BlockNumber,
+) -> apollo_storage::StorageResult<(
+    Option<BlockHash>,
+    Option<starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents>,
+)> {
+    let partial_block_hash_components =
+        starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents {
+            block_number: *height,
+            ..Default::default()
+        };
+    Ok((Some(BlockHash::default()), Some(partial_block_hash_components)))
+}
