@@ -78,26 +78,17 @@ pub(crate) const CLASS_HASH_STORAGE_DB_PATH_SUFFIX: &str = "class_hash_storage";
 pub(crate) const CLASSES_STORAGE_DB_PATH_SUFFIX: &str = "classes";
 pub(crate) const STATE_SYNC_DB_PATH_SUFFIX: &str = "state_sync";
 pub(crate) const CONSENSUS_DB_PATH_SUFFIX: &str = "consensus";
-<<<<<<< HEAD
 pub(crate) const PROOF_MANAGER_DB_PATH_SUFFIX: &str = "proof_manager";
-
-||||||| 2787ec6b2d
-
-=======
 pub(crate) const COMMITTER_DB_PATH_SUFFIX: &str = "committer";
->>>>>>> origin/main-v0.14.1-committer
+
 #[derive(Debug, Clone)]
 pub struct StorageTestConfig {
     pub batcher_storage_config: StorageConfig,
     pub state_sync_storage_config: StorageConfig,
     pub class_manager_storage_config: FsClassStorageConfig,
     pub consensus_storage_config: StorageConfig,
-<<<<<<< HEAD
     pub proof_manager_config: ProofManagerConfig,
-||||||| 2787ec6b2d
-=======
     pub committer_db_path: PathBuf,
->>>>>>> origin/main-v0.14.1-committer
 }
 
 impl StorageTestConfig {
@@ -106,24 +97,16 @@ impl StorageTestConfig {
         state_sync_storage_config: StorageConfig,
         class_manager_storage_config: FsClassStorageConfig,
         consensus_storage_config: StorageConfig,
-<<<<<<< HEAD
         proof_manager_config: ProofManagerConfig,
-||||||| 2787ec6b2d
-=======
         committer_db_path: PathBuf,
->>>>>>> origin/main-v0.14.1-committer
     ) -> Self {
         Self {
             batcher_storage_config,
             state_sync_storage_config,
             class_manager_storage_config,
             consensus_storage_config,
-<<<<<<< HEAD
             proof_manager_config,
-||||||| 2787ec6b2d
-=======
             committer_db_path,
->>>>>>> origin/main-v0.14.1-committer
         }
     }
 }
@@ -134,12 +117,8 @@ pub struct StorageTestHandles {
     pub state_sync_storage_handle: Option<TempDir>,
     pub class_manager_storage_handles: Option<TempDirHandlePair>,
     pub consensus_storage_handle: Option<TempDir>,
-<<<<<<< HEAD
     pub proof_manager_storage_handle: Option<TempDir>,
-||||||| 2787ec6b2d
-=======
     pub committer_storage_handle: Option<TempDir>,
->>>>>>> origin/main-v0.14.1-committer
 }
 
 impl StorageTestHandles {
@@ -148,24 +127,16 @@ impl StorageTestHandles {
         state_sync_storage_handle: Option<TempDir>,
         class_manager_storage_handles: Option<TempDirHandlePair>,
         consensus_storage_handle: Option<TempDir>,
-<<<<<<< HEAD
         proof_manager_storage_handle: Option<TempDir>,
-||||||| 2787ec6b2d
-=======
         committer_storage_handle: Option<TempDir>,
->>>>>>> origin/main-v0.14.1-committer
     ) -> Self {
         Self {
             batcher_storage_handle,
             state_sync_storage_handle,
             class_manager_storage_handles,
             consensus_storage_handle,
-<<<<<<< HEAD
             proof_manager_storage_handle,
-||||||| 2787ec6b2d
-=======
             committer_storage_handle,
->>>>>>> origin/main-v0.14.1-committer
         }
     }
 }
@@ -265,24 +236,16 @@ impl StorageTestSetup {
                 state_sync_storage_config,
                 class_manager_storage_config,
                 consensus_storage_config,
-<<<<<<< HEAD
                 proof_manager_config,
-||||||| 2787ec6b2d
-=======
                 committer_db_path,
->>>>>>> origin/main-v0.14.1-committer
             ),
             storage_handles: StorageTestHandles::new(
                 batcher_storage_handle,
                 state_sync_storage_handle,
                 class_manager_storage_handles,
                 consensus_storage_handle,
-<<<<<<< HEAD
                 proof_manager_storage_handle,
-||||||| 2787ec6b2d
-=======
                 committer_storage_handle,
->>>>>>> origin/main-v0.14.1-committer
             ),
         }
     }

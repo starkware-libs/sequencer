@@ -3,15 +3,7 @@ use std::ops::Range;
 
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
-<<<<<<< HEAD
-use apollo_committer_types::committer_types::CommitBlockResponse;
-||||||| 2787ec6b2d
-use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use apollo_committer_types::committer_types::CommitBlockResponse;
-=======
-use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
->>>>>>> origin/main-v0.14.1-committer
 use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_provider_types::MockL1ProviderClient;
