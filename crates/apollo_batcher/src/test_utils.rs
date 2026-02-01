@@ -11,6 +11,7 @@ use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+use apollo_storage::StorageResult;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::BlockExecutionSummary;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -20,6 +21,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -31,6 +33,7 @@ use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::{channel, Receiver, Sender, UnboundedSender};
 use tokio::task::JoinHandle;
+use tokio::time::sleep;
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::block_builder::{
@@ -378,4 +381,54 @@ impl MockStateCommitter {
     pub(crate) async fn pop_task_and_insert_result(&self) {
         self.mock_task_sender.send(()).await.unwrap();
     }
+}
+
+// Commitment manager utility functions for testing.
+
+pub(crate) fn get_number_of_tasks_in_sender<T>(sender: &Sender<T>) -> usize {
+    sender.max_capacity() - sender.capacity()
+}
+
+pub(crate) fn get_number_of_tasks_in_receiver<T>(receiver: &Receiver<T>) -> usize {
+    receiver.max_capacity() - receiver.capacity()
+}
+
+pub(crate) async fn wait_for_n_results<T>(receiver: &mut Receiver<T>, expected_n_results: usize) {
+    let max_n_retries = 3;
+    let mut n_retries = 0;
+    while get_number_of_tasks_in_receiver(receiver) < expected_n_results {
+        sleep(std::time::Duration::from_millis(500)).await;
+        n_retries += 1;
+        if n_retries >= max_n_retries {
+            panic!(
+                "Timed out waiting for {} results after {} retries.",
+                expected_n_results, max_n_retries
+            );
+        }
+    }
+}
+
+pub(crate) async fn await_results<T>(
+    receiver: &mut Receiver<T>,
+    expected_n_results: usize,
+) -> Vec<T> {
+    wait_for_n_results(receiver, expected_n_results).await;
+    let mut results = Vec::new();
+    while let Ok(result) = receiver.try_recv() {
+        results.push(result);
+    }
+    assert_eq!(
+        results.len(),
+        expected_n_results,
+        "Number of received results should be equal to expected number of results."
+    );
+    results
+}
+
+pub(crate) fn get_dummy_parent_hash_and_partial_block_hash_components(
+    height: &BlockNumber,
+) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)> {
+    let partial_block_hash_components =
+        PartialBlockHashComponents { block_number: *height, ..Default::default() };
+    Ok((Some(BlockHash::default()), Some(partial_block_hash_components)))
 }
