@@ -59,13 +59,11 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
 impl<S: StateCommitterTrait> CommitmentManager<S> {
     // Public methods.
 
-    /// Creates and initializes the commitment manager, and also adds
-    /// missing commitment tasks.
+    /// Creates and initializes the commitment manager.
     pub(crate) async fn create_commitment_manager<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
     >(
-        batcher_config: &BatcherConfig,
         commitment_manager_config: &CommitmentManagerConfig,
         storage_reader: Arc<R>,
         storage_writer: &mut Box<W>,
@@ -75,22 +73,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             .global_root_height()
             .expect("Failed to get global root height from storage.");
         info!("Initializing commitment manager.");
-        let mut commitment_manager = CommitmentManager::initialize(
+        CommitmentManager::initialize(
             commitment_manager_config,
             global_root_height,
             committer_client,
-        );
-        let block_height =
-            storage_reader.state_diff_height().expect("Failed to get block height from storage.");
-        commitment_manager
-            .add_missing_commitment_tasks(
-                block_height,
-                batcher_config,
-                storage_reader,
-                storage_writer,
-            )
-            .await;
-        commitment_manager
+        )
     }
 
     pub(crate) fn get_commitment_task_offset(&self) -> BlockNumber {
@@ -419,7 +406,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// Adds missing commitment tasks to the commitment manager. Missing tasks are caused by
     /// unfinished commitment tasks / results not written to storage when the sequencer is shut
     /// down.
-    async fn add_missing_commitment_tasks<
+    pub(crate) async fn add_missing_commitment_tasks<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
     >(

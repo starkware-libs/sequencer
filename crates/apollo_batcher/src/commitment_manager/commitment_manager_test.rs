@@ -83,7 +83,6 @@ async fn create_commitment_manager(
 ) -> (ApolloCommitmentManager, Arc<MockBatcherStorageReader>, Box<MockBatcherStorageWriter>) {
     let storage_reader = Arc::new(mock_dependencies.storage_reader);
     let commitment_manager = CommitmentManager::create_commitment_manager(
-        &mock_dependencies.batcher_config,
         &mock_dependencies.batcher_config.commitment_manager_config,
         storage_reader.clone(),
         &mut mock_dependencies.storage_writer,
@@ -227,11 +226,8 @@ async fn test_create_commitment_manager(mut mock_dependencies: MockDependencies)
 
 #[rstest]
 #[tokio::test]
-async fn test_create_commitment_manager_with_missing_tasks(
-    mut mock_dependencies: MockDependencies,
-) {
+async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependencies) {
     let global_root_height = INITIAL_HEIGHT.prev().unwrap();
-    mock_dependencies.storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     mock_dependencies
         .storage_reader
         .expect_global_root_height()
@@ -247,10 +243,20 @@ async fn test_create_commitment_manager_with_missing_tasks(
         .with(eq(global_root_height))
         .returning(|_| Ok(Some(test_state_diff())));
 
-    let (mut commitment_manager, _storage_reader, _storage_writer) =
+    let batcher_config = mock_dependencies.batcher_config.clone();
+    let (mut commitment_manager, storage_reader, mut storage_writer) =
         create_commitment_manager(mock_dependencies).await;
 
-    assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT,);
+    commitment_manager
+        .add_missing_commitment_tasks(
+            INITIAL_HEIGHT,
+            &batcher_config,
+            storage_reader,
+            &mut storage_writer,
+        )
+        .await;
+
+    assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT);
     let results = await_items(&mut commitment_manager.results_receiver, 1).await;
     let result = (results.first().unwrap()).clone().expect_commitment();
     assert_eq!(result.height, global_root_height);

@@ -1342,7 +1342,6 @@ pub async fn create_batcher(
         TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
 
     let commitment_manager = CommitmentManager::create_commitment_manager(
-        &config,
         &config.commitment_manager_config,
         storage_reader.clone(),
         &mut storage_writer,
@@ -1575,6 +1574,16 @@ impl ComponentStarter for Batcher {
             .storage_reader
             .global_root_height()
             .expect("Failed to get global roots height from storage during batcher creation.");
+
+        self.commitment_manager
+            .add_missing_commitment_tasks(
+                storage_height,
+                &self.config,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
+            .await;
+
         register_metrics(storage_height, global_root_height);
     }
 }
