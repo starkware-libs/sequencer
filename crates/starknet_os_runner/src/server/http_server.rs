@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_api::transaction::MessageToL1;
+use tokio::net::TcpListener;
 use tracing::{info, instrument};
 
 use crate::server::config::ServiceConfig;
@@ -56,6 +57,8 @@ pub enum HttpServerError {
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
     #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
     Prover(#[from] VirtualSnosProverError),
 }
 
@@ -64,6 +67,9 @@ impl IntoResponse for HttpServerError {
         let (status, error_code, message) = match &self {
             HttpServerError::InvalidRequest(msg) => {
                 (StatusCode::BAD_REQUEST, "INVALID_REQUEST", msg.clone())
+            }
+            HttpServerError::Io(e) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "IO_ERROR", e.to_string())
             }
             HttpServerError::Prover(e) => match e {
                 VirtualSnosProverError::InvalidTransactionType(msg) => {
@@ -142,10 +148,11 @@ impl ProvingHttpServer {
     }
 
     /// Runs the server.
-    pub async fn run(&self) -> Result<(), hyper::Error> {
+    pub async fn run(&self) -> Result<(), HttpServerError> {
         let addr = SocketAddr::new(self.config.ip, self.config.port);
         let app = create_router(self.app_state.clone());
         info!("ProvingHttpServer running on {}", addr);
-        axum::Server::bind(&addr).serve(app.into_make_service()).await
+        let listener = TcpListener::bind(&addr).await?;
+        Ok(axum::serve(listener, app.into_make_service()).await?)
     }
 }
