@@ -5,21 +5,9 @@
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::proc_macros::rpc;
-use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::fields::{Proof, ProofFacts};
-use starknet_api::transaction::MessageToL1;
 
-/// Response for the proveTransaction method.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProveTransactionResult {
-    /// The generated proof.
-    pub proof: Proof,
-    /// The proof facts.
-    pub proof_facts: ProofFacts,
-    /// Messages sent from L2 to L1 during execution.
-    pub l2_to_l1_messages: Vec<MessageToL1>,
-}
+use crate::virtual_snos_prover::ProveTransactionResult;
 
 /// JSON-RPC trait for the proving service.
 ///
