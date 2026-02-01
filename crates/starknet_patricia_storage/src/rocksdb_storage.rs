@@ -123,7 +123,7 @@ impl RocksDbOptions {
 pub struct RocksDbStorage {
     db: Arc<DB>,
     options: Arc<RocksDbOptions>,
-    _config: RocksDbStorageConfig,
+    config: RocksDbStorageConfig,
 }
 
 /// Configuration for RocksDB storage.
@@ -174,7 +174,7 @@ impl Default for RocksDbStorageConfig {
             bloom_filter_bits: BLOOM_FILTER_NUM_BITS,
             enable_statistics: true,
             use_mmap_reads: false,
-            spawn_blocking_reads: false,
+            spawn_blocking_reads: true,
         }
     }
 }
@@ -264,7 +264,7 @@ impl RocksDbStorage {
     pub fn new(path: &Path, config: RocksDbStorageConfig) -> PatriciaStorageResult<Self> {
         let options = RocksDbOptions::from_config(&config);
         let db = Arc::new(DB::open(&options.db_options, path)?);
-        Ok(Self { db, options: Arc::new(options), _config: config })
+        Ok(Self { db, options: Arc::new(options), config })
     }
 }
 
@@ -290,23 +290,35 @@ impl StorageStats for RocksDbStats {
 
 impl ImmutableReadOnlyStorage for RocksDbStorage {
     async fn get(&self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
-        // TODO(Nimrod): Config should indicate whether to spawn a task or not.
-        let db = self.db.clone();
-        let key = key.clone();
-        Ok(spawn_blocking(move || db.get(&key.0).map(|opt| opt.map(DbValue))).await??)
+        if self.config.spawn_blocking_reads {
+            let db = self.db.clone();
+            let key = key.clone();
+            Ok(spawn_blocking(move || db.get(&key.0).map(|opt| opt.map(DbValue))).await??)
+        } else {
+            Ok(self.db.get(&key.0)?.map(DbValue))
+        }
     }
 
     async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
-        // TODO(Nimrod): Config should indicate whether to spawn a task or not.
-        let db = self.db.clone();
-        let keys: Vec<Vec<u8>> = keys.iter().map(|k| k.0.clone()).collect();
-        spawn_blocking(move || {
-            db.multi_get(keys)
+        if self.config.spawn_blocking_reads {
+            let db = self.db.clone();
+            let keys: Vec<Vec<u8>> = keys.iter().map(|k| k.0.clone()).collect();
+            Ok(spawn_blocking(move || {
+                db.multi_get(keys)
+                    .into_iter()
+                    .map(|r| Ok(r?.map(DbValue)))
+                    .collect::<PatriciaStorageResult<_>>()
+            })
+            .await??)
+        } else {
+            let raw_keys = keys.iter().map(|k| k.0.as_slice());
+            Ok(self
+                .db
+                .multi_get(raw_keys)
                 .into_iter()
-                .map(|r| Ok(r?.map(DbValue)))
-                .collect::<PatriciaStorageResult<_>>()
-        })
-        .await?
+                .map(|r| r.map(|opt| opt.map(DbValue)).map_err(|e| e.into()))
+                .collect::<Result<Vec<_>, PatriciaStorageError>>()?)
+        }
     }
 }
 
