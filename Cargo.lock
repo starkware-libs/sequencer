@@ -12107,6 +12107,7 @@ dependencies = [
  "derive_more 2.1.1",
  "ethnum",
  "expect-test",
+ "futures",
  "hex",
  "pretty_assertions",
  "rand 0.8.5",
