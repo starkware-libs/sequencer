@@ -39,7 +39,9 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
     Vote,
+    DEFAULT_VALIDATOR_ID,
 };
+use apollo_staking::committee_provider::{Committee, CommitteeProvider, Staker};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DateTime, DefaultClock};
 use futures::channel::mpsc;
@@ -57,6 +59,7 @@ use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
+use starknet_api::staking::StakingWeight;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
@@ -76,6 +79,54 @@ use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
 pub(crate) const NUM_VALIDATORS: u64 = 4;
+
+/// Committee provider for tests that returns a fixed set of validators with round-robin proposer
+/// selection: `(height + round) % committee.len()`.
+pub(crate) struct TestCommitteeProvider {
+    committee: Arc<Committee>,
+}
+
+impl TestCommitteeProvider {
+    pub(crate) fn new() -> Self {
+        let committee: Committee = (0..NUM_VALIDATORS)
+            .map(|i| Staker {
+                address: ContractAddress::from(DEFAULT_VALIDATOR_ID + i),
+                weight: StakingWeight(1),
+                public_key: Felt::ZERO,
+            })
+            .collect();
+        Self { committee: Arc::new(committee) }
+    }
+}
+
+#[async_trait::async_trait]
+impl CommitteeProvider for TestCommitteeProvider {
+    async fn get_committee(
+        &self,
+        _height: BlockNumber,
+    ) -> apollo_staking::committee_provider::CommitteeProviderResult<Arc<Committee>> {
+        Ok(Arc::clone(&self.committee))
+    }
+
+    async fn get_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> apollo_staking::committee_provider::CommitteeProviderResult<ContractAddress> {
+        let height: usize = height.0.try_into().expect("Cannot convert to usize");
+        let round: usize = round.try_into().expect("Cannot convert to usize");
+        let i = (height + round) % self.committee.len();
+        Ok(self.committee[i].address)
+    }
+
+    async fn get_actual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> apollo_staking::committee_provider::CommitteeProviderResult<ContractAddress> {
+        self.get_proposer(height, round).await
+    }
+}
 pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
     StateDiffCommitment(PoseidonHash(Felt::ZERO));
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
@@ -122,7 +173,7 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             batcher: Arc::new(deps.batcher),
             cende_ambassador: Arc::new(deps.cende_ambassador),
             l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
-            committee_provider: None,
+            committee_provider: Arc::new(TestCommitteeProvider::new()),
             clock: deps.clock,
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,

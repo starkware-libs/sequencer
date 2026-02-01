@@ -265,7 +265,7 @@ impl ConsensusManager {
         (proposals_broadcast_channels, votes_broadcast_channels)
     }
 
-    fn create_committee_provider(&self) -> Option<Arc<dyn CommitteeProvider>> {
+    fn create_committee_provider(&self) -> Arc<dyn CommitteeProvider> {
         let staking_manager_config = &self.config.staking_manager_config;
 
         // Create MockStakingContract with stakers config from dynamic config
@@ -285,7 +285,7 @@ impl ConsensusManager {
             Some(Arc::clone(&self.config_manager_client)),
         );
 
-        Some(Arc::new(staking_manager))
+        Arc::new(staking_manager)
     }
 
     fn create_sequencer_consensus_context(
