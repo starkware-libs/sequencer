@@ -9,7 +9,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
@@ -55,6 +55,7 @@ struct TestServerSetup {
     tx_index: TransactionIndex,
     executable_class_hash_v2: CompiledClassHash,
     last_voted_marker: LastVotedMarker,
+    block_signature: BlockSignature,
 }
 
 impl TestServerSetup {
@@ -113,6 +114,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     // Create a test block with transactions
     let block = get_test_block(3, Some(1), None, None);
     let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(0));
+    let block_signature = BlockSignature::default();
 
     writer
         .begin_rw_txn()
@@ -128,6 +130,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .append_casm(&casm_class_hash, &expected_casm)
         .unwrap()
         .append_header(block_number, &block.header)
+        .unwrap()
+        .append_block_signature(block_number, &block_signature)
         .unwrap()
         .append_body(block_number, block.body)
         .unwrap()
@@ -160,6 +164,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         tx_index,
         executable_class_hash_v2,
         last_voted_marker,
+        block_signature,
     }
 }
 
@@ -562,4 +567,14 @@ async fn block_hash_to_number_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::BlockHashToNumber(TEST_BLOCK_NUMBER));
+}
+
+#[tokio::test]
+async fn block_signatures_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let request = StorageReaderRequest::BlockSignatures(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::BlockSignatures(setup.block_signature));
 }
