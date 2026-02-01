@@ -95,11 +95,11 @@ mock! {
             init: ProposalInit,
         );
 
-        async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
+        async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError>;
 
-        fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
+        fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
 
-        fn virtual_proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
+        fn virtual_proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
 
         async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
