@@ -309,7 +309,13 @@ pub struct VersionedStateProxy<S: StateReader> {
 
 impl<S: StateReader> VersionedStateProxy<S> {
     fn state(&self) -> LockedVersionedState<'_, S> {
-        self.state.lock().expect("Failed to acquire state lock.")
+        println!(
+            "TEMPDEBUG200 [thread: {:?}] trying to lock versioned state",
+            std::thread::current().id()
+        );
+        let state_lock_result = self.state.lock();
+        println!("TEMPDEBUG201 [thread: {:?}] versioned state locked", std::thread::current().id());
+        state_lock_result.expect("Failed to acquire state lock.")
     }
 
     pub fn validate_reads(&self, reads: &StateMaps) -> Result<bool, VersionedStateError> {
