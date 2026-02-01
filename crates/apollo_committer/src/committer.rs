@@ -48,17 +48,14 @@ use tracing::{debug, error, info, warn};
 use crate::metrics::{
     register_metrics,
     COMPUTE_DURATION_PER_BLOCK,
-    COMPUTE_DURATION_PER_BLOCK_HIST,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
     OFFSET,
     READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
-    READ_DURATION_PER_BLOCK_HIST,
     WRITE_DB_ENTRIES_PER_BLOCK,
     WRITE_DURATION_PER_BLOCK,
-    WRITE_DURATION_PER_BLOCK_HIST,
 };
 
 #[cfg(test)]
@@ -453,12 +450,9 @@ fn update_metrics(
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
     READ_DURATION_PER_BLOCK.set_lossy(durations.read);
-    READ_DURATION_PER_BLOCK_HIST.record_lossy(durations.read);
     READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
     COMPUTE_DURATION_PER_BLOCK.set_lossy(durations.compute);
-    COMPUTE_DURATION_PER_BLOCK_HIST.record_lossy(durations.compute);
     WRITE_DURATION_PER_BLOCK.set_lossy(durations.write);
-    WRITE_DURATION_PER_BLOCK_HIST.record_lossy(durations.write);
     WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.contracts_trie);
