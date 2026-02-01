@@ -3027,7 +3027,7 @@
   "proof_manager_config.cache_size": {
     "description": "Number of proofs to cache in memory.",
     "privacy": "Public",
-    "value": 50
+    "value": 500
   },
   "proof_manager_config.persistent_root": {
     "description": "Persistent root for proof storage.",
