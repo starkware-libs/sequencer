@@ -35,7 +35,7 @@ use crate::storage_reader_types::{
     StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
-use crate::{MarkerKind, StorageReader};
+use crate::{MarkerKind, OffsetKind, StorageReader};
 
 const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
 
@@ -443,4 +443,22 @@ async fn last_voted_marker_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::LastVotedMarker(setup.last_voted_marker));
+}
+
+#[tokio::test]
+async fn file_offsets_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_offset = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_file_offset(OffsetKind::ThinStateDiff)
+        .unwrap()
+        .expect("File offset should exist");
+
+    let request = StorageReaderRequest::FileOffsets(OffsetKind::ThinStateDiff);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::FileOffsets(expected_offset));
 }
