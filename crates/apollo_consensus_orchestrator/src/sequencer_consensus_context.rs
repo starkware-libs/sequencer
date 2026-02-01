@@ -40,7 +40,6 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
     Vote,
-    DEFAULT_VALIDATOR_ID,
 };
 use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
@@ -150,7 +149,6 @@ impl BuiltProposals {
 pub struct SequencerConsensusContext {
     config: ContextConfig,
     deps: SequencerConsensusContextDeps,
-    validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
     // valid_proposals map upon completion, ensuring consistency across tasks.
@@ -180,7 +178,7 @@ pub struct SequencerConsensusContextDeps {
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    pub committee_provider: Option<Arc<dyn CommitteeProvider>>,
+    pub committee_provider: Arc<dyn CommitteeProvider>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
     // Used to initiate new outbound proposal streams.
@@ -201,22 +199,14 @@ enum ReproposeError {
 impl SequencerConsensusContext {
     pub fn new(config: ContextConfig, deps: SequencerConsensusContextDeps) -> Self {
         register_metrics();
-        let num_validators = config.static_config.num_validators;
         let l1_da_mode = if config.static_config.l1_da_mode {
             L1DataAvailabilityMode::Blob
         } else {
             L1DataAvailabilityMode::Calldata
         };
-        let validators = if let Some(ids) = config.static_config.validator_ids.clone() {
-            ids.into_iter().collect()
-        } else {
-            (0..num_validators).map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i)).collect()
-        };
         Self {
             config,
             deps,
-            // TODO(Matan): Set the actual validator IDs (contract addresses).
-            validators,
             valid_proposals: Arc::new(Mutex::new(BuiltProposals::new())),
             proposal_id: 0,
             current_height: None,
@@ -647,15 +637,13 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
-        if let Some(committee_provider) = &self.deps.committee_provider {
-            let committee = committee_provider
-                .get_committee(height)
-                .await
-                .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))?;
-            Ok(committee.iter().map(|staker| staker.address).collect())
-        } else {
-            Ok(self.validators.clone())
-        }
+        let committee = self
+            .deps
+            .committee_provider
+            .get_committee(height)
+            .await
+            .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))?;
+        Ok(committee.iter().map(|staker| staker.address).collect())
     }
 
     async fn proposer(
@@ -663,19 +651,11 @@ impl ConsensusContext for SequencerConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<ValidatorId, ConsensusError> {
-        if let Some(committee_provider) = &self.deps.committee_provider {
-            committee_provider
-                .get_actual_proposer(height, round)
-                .await
-                .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))
-        } else {
-            let height: usize = height.0.try_into().expect("Cannot convert to usize");
-            let round: usize = round.try_into().expect("Cannot convert to usize");
-            Ok(*self
-                .validators
-                .get((height + round) % self.validators.len())
-                .expect("There should be at least one validator"))
-        }
+        self.deps
+            .committee_provider
+            .get_actual_proposer(height, round)
+            .await
+            .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))
     }
 
     async fn virtual_proposer(
@@ -686,12 +666,12 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(Asmaa): Remove once the staking manager has a flag for whether to support virtual
         // proposer.
         if self.config.dynamic_config.use_different_virtual_proposer {
-            if let Some(committee_provider) = &self.deps.committee_provider {
-                return committee_provider
-                    .get_proposer(height, round)
-                    .await
-                    .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()));
-            }
+            return self
+                .deps
+                .committee_provider
+                .get_proposer(height, round)
+                .await
+                .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()));
         }
         self.proposer(height, round).await
     }
