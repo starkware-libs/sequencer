@@ -27,7 +27,7 @@ use starknet_patricia::patricia_merkle_tree::traversal::{
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage};
+use starknet_patricia_storage::storage_trait::{DbKey, Storage};
 use tracing::warn;
 
 use crate::block_committer::input::{
@@ -338,6 +338,9 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
     Ok(skeleton_tree)
 }
 
+/// Creates the original skeleton trees of the storage tries of modified contracts.
+/// If the storage supports async operations, the tries are created concurrently.
+/// Otherwise, they are created sequentially.
 pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
     storage: &impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
@@ -349,14 +352,28 @@ where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
-    create_storage_tries_sequentially::<Layout>(
-        storage,
-        actual_storage_updates,
-        original_contracts_trie_leaves,
-        config,
-        storage_tries_sorted_indices,
-    )
-    .await
+    match storage.get_async_self() {
+        Some(async_storage) => {
+            create_storage_tries_concurrently::<Layout>(
+                &async_storage,
+                actual_storage_updates,
+                original_contracts_trie_leaves,
+                config,
+                storage_tries_sorted_indices,
+            )
+            .await
+        }
+        None => {
+            create_storage_tries_sequentially::<Layout>(
+                storage,
+                actual_storage_updates,
+                original_contracts_trie_leaves,
+                config,
+                storage_tries_sorted_indices,
+            )
+            .await
+        }
+    }
 }
 
 /// Creates the contracts trie original skeleton.
@@ -464,7 +481,7 @@ where
 // TODO(Nimrod): Remove the `allow(dead_code)` once we use this function.
 #[allow(dead_code)]
 async fn create_storage_tries_concurrently<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
-    storage: &impl AsyncStorage,
+    storage: &impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
@@ -489,9 +506,6 @@ where
             config.warn_on_trivial_modifications(),
         );
 
-        // Prepare data for the async operation.
-        let address = *address;
-        let cloned_storage = storage.clone();
         // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
         // iterator over borrowed data so that the conversion below is costless.
         let leaf_modifications: HashMap<
@@ -502,13 +516,13 @@ where
         // Create the future - tokio will poll all futures concurrently.
         futures.push(async move {
             let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
-                &cloned_storage,
+                storage,
                 contract_state.storage_root_hash,
                 sorted_leaf_indices,
                 &trie_config,
                 &leaf_modifications,
                 None,
-                &address,
+                address,
             )
             .await?;
             Ok::<_, ForestError>((address, original_skeleton))
@@ -518,7 +532,7 @@ where
     // Collect all results as they complete.
     while let Some(result) = futures.next().await {
         let (address, original_skeleton) = result?;
-        storage_tries.insert(address, original_skeleton);
+        storage_tries.insert(*address, original_skeleton);
     }
 
     Ok(storage_tries)
