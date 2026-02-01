@@ -90,8 +90,7 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct CommitmentManagerConfig {
     pub tasks_channel_size: usize,
     pub results_channel_size: usize,
-    // Wait for tasks channel to be available before sending.
-    pub wait_for_tasks_channel: bool,
+    pub panic_if_task_channel_full: bool,
 }
 
 impl Default for CommitmentManagerConfig {
@@ -99,7 +98,7 @@ impl Default for CommitmentManagerConfig {
         Self {
             tasks_channel_size: DEFAULT_TASKS_CHANNEL_SIZE,
             results_channel_size: DEFAULT_RESULTS_CHANNEL_SIZE,
-            wait_for_tasks_channel: true,
+            panic_if_task_channel_full: false,
         }
     }
 }
@@ -120,10 +119,10 @@ impl SerializeConfig for CommitmentManagerConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "wait_for_tasks_channel",
-                &self.wait_for_tasks_channel,
-                "If the task channel is full: if true, will wait for the tasks channel to be \
-                 available. If false, will panic.",
+                "panic_if_task_channel_full",
+                &self.panic_if_task_channel_full,
+                "If the task channel is full: if true, will panic. If false, will wait for the \
+                 tasks channel to be available.",
                 ParamPrivacyInput::Public,
             ),
         ])

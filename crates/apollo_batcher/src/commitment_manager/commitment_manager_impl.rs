@@ -22,6 +22,7 @@ use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::time::{sleep, Duration};
 use tracing::info;
 
 use crate::batcher::{BatcherStorageReader, BatcherStorageWriter};
@@ -60,10 +61,14 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     /// Creates and initializes the commitment manager, and also adds
     /// missing commitment tasks.
-    pub(crate) async fn create_commitment_manager<R: BatcherStorageReader>(
+    pub(crate) async fn create_commitment_manager<
+        R: BatcherStorageReader + ?Sized,
+        W: BatcherStorageWriter + ?Sized,
+    >(
         batcher_config: &BatcherConfig,
         commitment_manager_config: &CommitmentManagerConfig,
-        storage_reader: &R,
+        storage_reader: Arc<R>,
+        storage_writer: &mut Box<W>,
         committer_client: SharedCommitterClient,
     ) -> Self {
         let global_root_height = storage_reader
@@ -78,7 +83,12 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let block_height =
             storage_reader.state_diff_height().expect("Failed to get block height from storage.");
         commitment_manager
-            .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
+            .add_missing_commitment_tasks(
+                block_height,
+                batcher_config,
+                storage_reader,
+                storage_writer,
+            )
             .await;
         commitment_manager
     }
@@ -89,11 +99,17 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     /// Adds a commitment task to the state committer. If the task height does not match the
     /// task offset, an error is returned.
-    pub(crate) async fn add_commitment_task(
+    pub(crate) async fn add_commitment_task<
+        R: BatcherStorageReader + ?Sized,
+        W: BatcherStorageWriter + ?Sized,
+    >(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
         state_diff_commitment: Option<StateDiffCommitment>,
+        first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
+        storage_reader: Arc<R>,
+        storage_writer: &mut Box<W>,
     ) -> CommitmentManagerResult<()> {
         if height != self.commitment_task_offset {
             return Err(CommitmentManagerError::WrongCommitmentTaskHeight {
@@ -107,37 +123,76 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             state_diff,
             state_diff_commitment,
         });
-        self.add_task(commitment_task_input).await?;
+        self.add_task(
+            commitment_task_input,
+            first_block_with_partial_block_hash,
+            storage_reader,
+            storage_writer,
+        )
+        .await?;
         self.successfully_added_commitment_task(height, state_diff_commitment);
         Ok(())
     }
 
-    /// If the tasks channel is full, the behavior depends on the config: if
-    /// `wait_for_tasks_channel` is true, it will wait until there is space in the channel;
-    /// otherwise, it will panic. Any other error when sending the task will also cause a panic.
-    async fn add_task(&self, task_input: CommitterTaskInput) -> CommitmentManagerResult<()> {
-        let error_message = format!("Failed to send task to state committer: {task_input}",);
+    async fn add_task_if_channel_not_full(
+        &mut self,
+        task_input: CommitterTaskInput,
+    ) -> Result<(), TrySendError<CommitterTaskInput>> {
+        let task_height = task_input.height();
+        let task_type = task_input.task_type();
+        match self.tasks_sender.try_send(task_input) {
+            Ok(_) => Ok(()),
+            Err(TrySendError::Full(err)) => Err(TrySendError::Full(err))?,
+            Err(err) => panic!(
+                "Failed to send task to state committer: task height {task_height}, task type: \
+                 {task_type:?}. \n error: {err}"
+            ),
+        }
+    }
 
-        if self.config.wait_for_tasks_channel {
-            info!("Waiting to send task for {task_input} to state committer.");
-            self.tasks_sender
-                .send(task_input)
-                .await
-                .unwrap_or_else(|err| panic!("{error_message}. error: {err}"));
-        } else {
-            match self.tasks_sender.try_send(task_input) {
-                Ok(_) => (),
-                Err(TrySendError::Full(_)) => {
+    /// If the tasks channel is full, the behavior depends on the config: if
+    /// `panic_if_task_channel_full` is true, it will panic; otherwise, it will retry after reading
+    /// results from the tasks channel. Any other error when sending the task will also cause a
+    /// panic.
+    async fn add_task<R: BatcherStorageReader + ?Sized, W: BatcherStorageWriter + ?Sized>(
+        &mut self,
+        task_input: CommitterTaskInput,
+        first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
+        storage_reader: Arc<R>,
+        storage_writer: &mut Box<W>,
+    ) -> CommitmentManagerResult<()> {
+        loop {
+            let result = self.add_task_if_channel_not_full(task_input.clone()).await;
+            match result {
+                Ok(_) => return Ok(()),
+                Err(TrySendError::Full(err)) => {
                     let channel_size = self.tasks_sender.max_capacity();
-                    panic!(
-                        "{error_message}. The channel is full. channel size: {channel_size}. \
-                         Consider increasing the channel size or enabling waiting in the config.",
+                    let channel_is_full_msg = format!(
+                        "The commitment manager tasks channel is full. channel size: \
+                         {channel_size}.\n"
                     );
+                    if self.config.panic_if_task_channel_full {
+                        panic!(
+                            "{channel_is_full_msg} Panicking because `panic_if_task_channel_full` \
+                             is set to true.",
+                        );
+                    } else {
+                        info!(
+                            "{channel_is_full_msg} Will retry after reading results from the \
+                             tasks channel."
+                        );
+                        sleep(Duration::from_millis(100)).await;
+                        self.get_and_write_commitment_results_to_storage(
+                            first_block_with_partial_block_hash,
+                            storage_reader.clone(),
+                            storage_writer,
+                        )
+                        .await?;
+                    }
                 }
-                Err(err) => panic!("{error_message}. error: {err}"),
+                _ => unreachable!(),
             }
         }
-        Ok(())
     }
 
     /// Fetches all ready commitment results from the state committer. Panics if any task is a
@@ -187,12 +242,15 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         }
     }
 
-    pub(crate) async fn write_commitment_results_to_storage(
+    pub(crate) async fn write_commitment_results_to_storage<
+        R: BatcherStorageReader + ?Sized,
+        W: BatcherStorageWriter + ?Sized,
+    >(
         &mut self,
         commitment_results: Vec<CommitmentTaskOutput>,
         first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
-        storage_reader: Arc<dyn BatcherStorageReader>,
-        storage_writer: &mut Box<dyn BatcherStorageWriter>,
+        storage_reader: Arc<R>,
+        storage_writer: &mut Box<W>,
     ) -> CommitmentManagerResult<()> {
         for commitment_task_output in commitment_results.into_iter() {
             let height = commitment_task_output.height;
@@ -242,11 +300,14 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     }
 
     /// Writes the ready commitment results to storage.
-    pub(crate) async fn get_commitment_results_and_write_to_storage(
+    pub(crate) async fn get_commitment_results_and_write_to_storage<
+        R: BatcherStorageReader + ?Sized,
+        W: BatcherStorageWriter + ?Sized,
+    >(
         &mut self,
         first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
-        storage_reader: Arc<dyn BatcherStorageReader>,
-        storage_writer: &mut Box<dyn BatcherStorageWriter>,
+        storage_reader: Arc<R>,
+        storage_writer: &mut Box<W>,
     ) -> CommitmentManagerResult<()> {
         let commitment_results = self.get_commitment_results().await;
         self.write_commitment_results_to_storage(
@@ -307,11 +368,15 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             self.commitment_task_offset.prev().expect("Can't revert before the genesis block.");
     }
 
-    async fn read_commitment_input_and_add_task<R: BatcherStorageReader>(
+    async fn read_commitment_input_and_add_task<
+        R: BatcherStorageReader + ?Sized,
+        W: BatcherStorageWriter + ?Sized,
+    >(
         &mut self,
         height: BlockNumber,
-        batcher_storage_reader: &R,
+        batcher_storage_reader: Arc<R>,
         batcher_config: &BatcherConfig,
+        storage_writer: &mut Box<W>,
     ) {
         let state_diff = match batcher_storage_reader.get_state_diff(height) {
             Ok(Some(diff)) => diff,
@@ -333,7 +398,16 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 Err(err) => panic!("Failed to read hash commitment for height {height}: {err}"),
             }
         };
-        self.add_commitment_task(height, state_diff, state_diff_commitment).await.unwrap();
+        self.add_commitment_task(
+            height,
+            state_diff,
+            state_diff_commitment,
+            &batcher_config.first_block_with_partial_block_hash,
+            batcher_storage_reader,
+            storage_writer,
+        )
+        .await
+        .unwrap();
         info!(
             "Added commitment task for block {height}, {state_diff_commitment:?} to commitment \
              manager."
@@ -343,17 +417,26 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     /// Adds missing commitment tasks to the commitment manager. Missing tasks are caused by
     /// unfinished commitment tasks / results not written to storage when the sequencer is shut
     /// down.
-    async fn add_missing_commitment_tasks<R: BatcherStorageReader>(
+    async fn add_missing_commitment_tasks<
+        R: BatcherStorageReader + ?Sized,
+        W: BatcherStorageWriter + ?Sized,
+    >(
         &mut self,
         current_block_height: BlockNumber,
         batcher_config: &BatcherConfig,
-        batcher_storage_reader: &R,
+        batcher_storage_reader: Arc<R>,
+        storage_writer: &mut Box<W>,
     ) {
         let start = self.get_commitment_task_offset();
         let end = current_block_height;
         for height in start.iter_up_to(end) {
-            self.read_commitment_input_and_add_task(height, batcher_storage_reader, batcher_config)
-                .await;
+            self.read_commitment_input_and_add_task(
+                height,
+                batcher_storage_reader.clone(),
+                batcher_config,
+                storage_writer,
+            )
+            .await;
         }
         info!("Added missing commitment tasks for blocks [{start}, {end}) to commitment manager.");
     }
@@ -375,7 +458,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         }
         let revert_task_input =
             CommitterTaskInput::Revert(RevertBlockRequest { height, reversed_state_diff });
-        self.add_task(revert_task_input).await?;
+        self.add_task_if_channel_not_full(revert_task_input)
+            .await
+            .expect("Tasks channel should be empty.");
         info!("Sent revert task for block {height}.");
         self.decrease_commitment_task_offset();
         Ok(())
