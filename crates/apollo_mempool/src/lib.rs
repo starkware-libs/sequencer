@@ -1,5 +1,6 @@
 pub mod communication;
 pub(crate) mod fee_transaction_queue;
+pub(crate) mod fifo_transaction_queue;
 pub mod mempool;
 pub mod metrics;
 pub(crate) mod suspended_transaction_pool;
