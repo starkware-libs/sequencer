@@ -36,17 +36,17 @@ impl BlockTimers {
     }
 
     /// Attempts to stop the measurement for the given action and returns the duration in
-    /// milliseconds.
+    /// seconds.
     pub fn attempt_to_stop_measurement(
         &mut self,
         action: &Action,
-    ) -> Result<u128, MeasurementNotStartedError> {
+    ) -> Result<f64, MeasurementNotStartedError> {
         self.get_mut_timers(action).as_mut().map_or_else(
             || {
                 error!("attempt_to_stop_measurement called before start_measurement.");
                 Err(MeasurementNotStartedError)
             },
-            |instant_timer| Ok(instant_timer.elapsed().as_millis()),
+            |instant_timer| Ok(instant_timer.elapsed().as_secs_f64()),
         )
     }
 }
@@ -55,12 +55,12 @@ pub trait MeasurementsTrait {
     fn start_measurement(&mut self, action: Action);
 
     /// Attempts to stop the measurement for the given action and returns the duration in
-    /// milliseconds.
+    /// seconds.
     fn attempt_to_stop_measurement(
         &mut self,
         action: Action,
         entries_count: usize,
-    ) -> Result<u128, MeasurementNotStartedError>;
+    ) -> Result<f64, MeasurementNotStartedError>;
 
     fn set_number_of_modifications(&mut self, block_modifications_counts: BlockModificationsCounts);
 }
@@ -74,7 +74,7 @@ impl MeasurementsTrait for NoMeasurements {
         &mut self,
         _action: Action,
         _entries_count: usize,
-    ) -> Result<u128, MeasurementNotStartedError> {
+    ) -> Result<f64, MeasurementNotStartedError> {
         Err(MeasurementNotStartedError)
     }
 
@@ -87,10 +87,10 @@ impl MeasurementsTrait for NoMeasurements {
 
 #[derive(Default, Clone)]
 pub struct BlockDurations {
-    pub block: u128,   // Duration of a block commit (milliseconds).
-    pub read: u128,    // Duration of a read phase (milliseconds).
-    pub compute: u128, // Duration of a computation phase (milliseconds).
-    pub write: u128,   // Duration of a write phase (milliseconds).
+    pub block: f64,   // Duration of a block commit (seconds).
+    pub read: f64,    // Duration of a read phase (seconds).
+    pub compute: f64, // Duration of a computation phase (seconds).
+    pub write: f64,   // Duration of a write phase (seconds).
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
@@ -114,22 +114,22 @@ impl BlockMeasurement {
         &mut self,
         action: &Action,
         entries_count: usize,
-        duration_in_millis: u128,
+        duration_in_seconds: f64,
     ) {
         match action {
             Action::Read => {
-                self.durations.read = duration_in_millis;
+                self.durations.read = duration_in_seconds;
                 self.n_reads = entries_count;
             }
             Action::Compute => {
-                self.durations.compute = duration_in_millis;
+                self.durations.compute = duration_in_seconds;
             }
             Action::Write => {
-                self.durations.write = duration_in_millis;
+                self.durations.write = duration_in_seconds;
                 self.n_writes = entries_count;
             }
             Action::EndToEnd => {
-                self.durations.block = duration_in_millis;
+                self.durations.block = duration_in_seconds;
             }
         }
     }
@@ -150,10 +150,10 @@ impl MeasurementsTrait for SingleBlockMeasurements {
         &mut self,
         action: Action,
         entries_count: usize,
-    ) -> Result<u128, MeasurementNotStartedError> {
-        let duration_in_millis = self.block_timers.attempt_to_stop_measurement(&action)?;
-        self.block_measurement.update_after_action(&action, entries_count, duration_in_millis);
-        Ok(duration_in_millis)
+    ) -> Result<f64, MeasurementNotStartedError> {
+        let duration_in_seconds = self.block_timers.attempt_to_stop_measurement(&action)?;
+        self.block_measurement.update_after_action(&action, entries_count, duration_in_seconds);
+        Ok(duration_in_seconds)
     }
 
     fn set_number_of_modifications(

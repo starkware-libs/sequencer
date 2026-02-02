@@ -9,9 +9,9 @@ use tokio::time::sleep;
 
 use crate::utils::BenchmarkMeasurements;
 
-const READ_DURATION: u64 = 100;
-const COMPUTE_DURATION: u64 = 100;
-const WRITE_DURATION: u64 = 100;
+const READ_DURATION: f64 = 0.1; // seconds
+const COMPUTE_DURATION: f64 = 0.1; // seconds
+const WRITE_DURATION: f64 = 0.1; // seconds
 const N_READ_ENTRIES: usize = 100;
 const N_WRITE_ENTRIES: usize = 100;
 const N_MODIFICATIONS: usize = 100;
@@ -26,13 +26,13 @@ async fn measure_block(measurements: &mut BenchmarkMeasurements) {
     });
     measurements.start_measurement(Action::EndToEnd);
     measurements.start_measurement(Action::Read);
-    sleep(Duration::from_millis(READ_DURATION)).await;
+    sleep(Duration::from_secs_f64(READ_DURATION)).await;
     measurements.attempt_to_stop_measurement(Action::Read, N_READ_ENTRIES).unwrap();
     measurements.start_measurement(Action::Compute);
-    sleep(Duration::from_millis(COMPUTE_DURATION)).await;
+    sleep(Duration::from_secs_f64(COMPUTE_DURATION)).await;
     measurements.attempt_to_stop_measurement(Action::Compute, 0).unwrap();
     measurements.start_measurement(Action::Write);
-    sleep(Duration::from_millis(WRITE_DURATION)).await;
+    sleep(Duration::from_secs_f64(WRITE_DURATION)).await;
     measurements.attempt_to_stop_measurement(Action::Write, N_WRITE_ENTRIES).unwrap();
     measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).unwrap();
 }
@@ -44,7 +44,7 @@ fn assert_block_measurement(measurements: &BenchmarkMeasurements, number_of_bloc
             .block_measurements
             .iter()
             .map(|measurement| measurement.durations.block)
-            .sum::<u128>()
+            .sum::<f64>()
     );
     assert_eq!(measurements.block_measurements.len(), number_of_blocks);
     assert_eq!(measurements.block_number, number_of_blocks);
@@ -56,13 +56,10 @@ fn assert_block_measurement(measurements: &BenchmarkMeasurements, number_of_bloc
         .zip(measurements.initial_db_entry_count.iter())
         .enumerate()
     {
-        assert!(
-            measurement.durations.block
-                >= u128::from(READ_DURATION + COMPUTE_DURATION + WRITE_DURATION)
-        );
-        assert!(measurement.durations.read >= u128::from(READ_DURATION));
-        assert!(measurement.durations.compute >= u128::from(COMPUTE_DURATION));
-        assert!(measurement.durations.write >= u128::from(WRITE_DURATION));
+        assert!(measurement.durations.block >= READ_DURATION + COMPUTE_DURATION + WRITE_DURATION);
+        assert!(measurement.durations.read >= READ_DURATION);
+        assert!(measurement.durations.compute >= COMPUTE_DURATION);
+        assert!(measurement.durations.write >= WRITE_DURATION);
         assert_eq!(measurement.n_writes, N_WRITE_ENTRIES);
         assert_eq!(measurement.n_reads, N_READ_ENTRIES);
         assert_eq!(*db_entry_count, N_WRITE_ENTRIES * i);

@@ -101,7 +101,7 @@ Examples:
   # Update different service types
   %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -j Gateway --config-overrides gateway_config.port=8080
   %(prog)s -n apollo-sepolia-integration -m 3 -t one_by_one -j Mempool --config-overrides mempool_config.max_size=1000
-  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -j L1 --config-overrides l1_config.endpoint=\"https://eth-mainnet.alchemyapi.io/v2/your-key\"
+  %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -j L1 --config-overrides l1_config.endpoint=\"https://eth-mainnet.g.alchemy.com/v2/your-key\"
   %(prog)s -n apollo-sepolia-integration -m 3 -t all_at_once -j SierraCompiler --config-overrides sierra_compiler_config.timeout=30000
   
   # Update starting from specific node index

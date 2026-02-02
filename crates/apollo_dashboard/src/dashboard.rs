@@ -263,7 +263,6 @@ impl Panel {
         self
     }
 
-    #[allow(dead_code)] // TODO(Ron): use in panels
     /// - The first step must have `value = None` → becomes `null` in Grafana. This defines the base
     ///   color for all values below the first numeric threshold.
     /// - All following steps must be `Some(number)` with **strictly increasing values**. Grafana
@@ -276,6 +275,8 @@ impl Panel {
         self.with_thresholds(ThresholdMode::Absolute, steps)
     }
 
+    #[allow(dead_code)] // TODO(Ron): use in panels
+    // Percentage means relative to min and max.
     pub fn with_percentage_thresholds(self, steps: Vec<(impl ToString, Option<f64>)>) -> Self {
         self.with_thresholds(ThresholdMode::Percentage, steps)
     }
