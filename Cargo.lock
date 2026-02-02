@@ -12247,12 +12247,6 @@ dependencies = [
  "apollo_starknet_os_program",
  "apollo_transaction_converter",
  "async-trait",
-<<<<<<< HEAD
- "axum",
-||||||| faff9e9732
- "axum 0.6.20",
-=======
->>>>>>> origin/main-v0.14.2
  "blockifier",
  "blockifier_reexecution",
  "blockifier_test_utils",
