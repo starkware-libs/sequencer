@@ -52,7 +52,7 @@ fn get_pod_cpu_request_utilization_panel() -> Panel {
     )
     .with_legends(POD_LEGEND)
     .with_unit(Unit::PercentUnit)
-    .with_percentage_thresholds(pod_metric_thresholds())
+    .with_absolute_thresholds(pod_metric_thresholds())
 }
 
 // Pod CPU throttling as a ratio of:
@@ -83,7 +83,7 @@ fn get_pod_cpu_throttling_panel() -> Panel {
     )
     .with_legends(POD_LEGEND)
     .with_unit(Unit::PercentUnit)
-    .with_percentage_thresholds(pod_metric_thresholds())
+    .with_absolute_thresholds(pod_metric_thresholds())
 }
 
 // ---------------------------- MEMORY ----------------------------
@@ -117,7 +117,7 @@ fn get_pod_memory_request_utilization_panel() -> Panel {
     )
     .with_legends(POD_LEGEND)
     .with_unit(Unit::PercentUnit)
-    .with_percentage_thresholds(pod_metric_thresholds())
+    .with_absolute_thresholds(pod_metric_thresholds())
 }
 
 // Pod memory limit utilization as a ratio of:
@@ -150,7 +150,7 @@ fn get_pod_memory_limit_utilization_panel() -> Panel {
     )
     .with_legends(POD_LEGEND)
     .with_unit(Unit::PercentUnit)
-    .with_percentage_thresholds(pod_metric_thresholds())
+    .with_absolute_thresholds(pod_metric_thresholds())
 }
 
 // ---------------------------- DISK ----------------------------
@@ -184,7 +184,7 @@ fn get_pod_disk_utilization_panel() -> Panel {
     )
     .with_legends(POD_LEGEND)
     .with_unit(Unit::PercentUnit)
-    .with_percentage_thresholds(pod_metric_thresholds())
+    .with_absolute_thresholds(pod_metric_thresholds())
 }
 
 // Pod disk limit utilization (PVC) as a ratio of:
@@ -216,7 +216,7 @@ fn get_pod_disk_limit_utilization_panel() -> Panel {
     )
     .with_legends(POD_LEGEND)
     .with_unit(Unit::PercentUnit)
-    .with_percentage_thresholds(pod_metric_thresholds())
+    .with_absolute_thresholds(pod_metric_thresholds())
 }
 
 fn pod_metric_thresholds() -> Vec<(&'static str, Option<f64>)> {
