@@ -110,7 +110,7 @@ fn test_builtin_counts_consistency() {
     // Check that all builtins are covered by this test.
     for builtin in expected_builtins {
         assert!(
-            casm_call_info.builtin_counters.get(&builtin).copied().unwrap_or(0) > 0,
+            casm_call_info.builtin_counters.get(&builtin.into()).copied().unwrap_or(0) > 0,
             "Builtin {builtin:?} was not called"
         );
     }
