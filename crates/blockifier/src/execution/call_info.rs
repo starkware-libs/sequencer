@@ -304,14 +304,10 @@ pub type ResourceCounterMap = BTreeMap<ResourceName, usize>;
 
 pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
 
-pub trait IntoCounterMap<T> {
-    fn into_counter_map(self) -> T;
-}
-
-impl IntoCounterMap<ResourceCounterMap> for BuiltinCounterMap {
-    fn into_counter_map(self) -> ResourceCounterMap {
-        self.into_iter().map(|(name, count)| (name.into(), count)).collect()
-    }
+pub fn resource_counter_map<T: Into<ResourceName>>(
+    resources: impl IntoIterator<Item = (T, usize)>,
+) -> ResourceCounterMap {
+    resources.into_iter().map(|(name, count)| (name.into(), count)).collect()
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
@@ -341,9 +337,9 @@ pub struct CallInfo {
 
     // Additional information gathered during execution.
     pub storage_access_tracker: StorageAccessTracker,
-    // Tracks how many times each builtin was called during execution (excluding inner calls).
-    // Used by the bouncer to decide when to close a block.
-    pub builtin_counters: BuiltinCounterMap,
+    // Tracks how many times each resource (builtin or opcode) was called during execution
+    // (excluding inner calls). Used by the bouncer to decide when to close a block.
+    pub builtin_counters: ResourceCounterMap,
     // Tracks how many times each syscall was called during execution (excluding inner calls).
     pub syscalls_usage: SyscallUsageMap,
 }
