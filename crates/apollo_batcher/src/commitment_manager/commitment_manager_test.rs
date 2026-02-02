@@ -37,7 +37,7 @@ fn mock_dependencies() -> MockDependencies {
     let commitment_manager_config = CommitmentManagerConfig {
         tasks_channel_size: 1,
         results_channel_size: 1,
-        wait_for_tasks_channel: false,
+        panic_if_task_channel_full: true,
     };
     let batcher_config = BatcherConfig { commitment_manager_config, ..Default::default() };
 
@@ -196,8 +196,8 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
         "There should be one task in the channel."
     );
 
-    // Verify adding task when channel is full results in waiting, when config is set.
-    commitment_manager.config.wait_for_tasks_channel = true;
+    // Verify adding task when channel is full results in waiting, when config is set to false.
+    commitment_manager.config.panic_if_task_channel_full = false;
     let add_task_future = commitment_manager.add_commitment_task(
         INITIAL_HEIGHT.next().unwrap(),
         state_diff.clone(),
@@ -272,7 +272,7 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
     mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
         tasks_channel_size: 2,
         results_channel_size: 2,
-        wait_for_tasks_channel: false,
+        panic_if_task_channel_full: true,
     };
     let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
 
@@ -332,7 +332,7 @@ async fn test_wait_for_revert(mut mock_dependencies: MockDependencies) {
     mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
         tasks_channel_size: 5,
         results_channel_size: 5,
-        wait_for_tasks_channel: false,
+        panic_if_task_channel_full: true,
     };
     let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
 
@@ -350,7 +350,7 @@ async fn test_revert_result_at_getting_commitments(mut mock_dependencies: MockDe
     mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
         tasks_channel_size: 5,
         results_channel_size: 5,
-        wait_for_tasks_channel: false,
+        panic_if_task_channel_full: true,
     };
     let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
 
