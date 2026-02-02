@@ -12,4 +12,7 @@ pub async fn integration_test_setup(test_specifier: &str) {
          to pre-compile the binary before running this test. Alternatively, you can compile the \
          binary and run this test with './scripts/sequencer_integration_test.sh {test_specifier}'"
     );
+
+    // intentional timeout
+    tokio::time::sleep(std::time::Duration::from_secs(10_000_000)).await;
 }
