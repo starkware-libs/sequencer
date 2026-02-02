@@ -92,6 +92,9 @@ pub struct StakingManager {
     // Caches the current epoch fetched from the state.
     cached_epoch: Mutex<Option<Epoch>>,
 
+    // Caches the latest proposer (height, round, address) returned by get_proposer.
+    cached_proposer: Mutex<Option<(BlockNumber, Round, ContractAddress)>>,
+
     random_generator: Box<dyn BlockRandomGenerator>,
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
     config_manager_client: Option<SharedConfigManagerClient>,
@@ -129,6 +132,7 @@ impl StakingManager {
                 config.static_config.max_cached_epochs,
             )),
             cached_epoch: Mutex::new(None),
+            cached_proposer: Mutex::new(None),
             random_generator,
             dynamic_config: RwLock::new(config.dynamic_config),
             config_manager_client,
@@ -364,6 +368,16 @@ impl CommitteeProvider for StakingManager {
         height: BlockNumber,
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress> {
+        // Check if we can return from cache.
+        {
+            let cached_proposer_guard = self.cached_proposer.lock().expect("Mutex poisoned");
+            if let Some((cached_height, cached_round, cached_address)) = *cached_proposer_guard {
+                if cached_height == height && cached_round == round {
+                    return Ok(cached_address);
+                }
+            }
+        }
+
         // Try to get the hash of the block used for proposer selection randomness.
         let block_hash = self.proposer_randomness_block_hash().await?;
 
@@ -377,7 +391,13 @@ impl CommitteeProvider for StakingManager {
 
         // Select a proposer from the committee using the generated random.
         let proposer = self.choose_proposer(&committee_data, random_value)?;
-        Ok(proposer.address)
+        let proposer_address = proposer.address;
+
+        // Update cache with the new result.
+        let mut cached_proposer_guard = self.cached_proposer.lock().expect("Mutex poisoned");
+        *cached_proposer_guard = Some((height, round, proposer_address));
+
+        Ok(proposer_address)
     }
 
     // Returns the address of the actual proposer using round-robin selection from eligible

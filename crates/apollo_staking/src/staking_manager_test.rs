@@ -377,6 +377,56 @@ async fn get_proposer_random_value_exceeds_total_weight(
     let _ = committee_manager.get_proposer(E1_H1, 0).await;
 }
 
+#[rstest]
+#[tokio::test]
+async fn get_proposer_cache(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+
+    let mut state_sync_client = MockStateSyncClient::new();
+    // Expect get_block_hash to be called 3 times total (once per cache miss).
+    state_sync_client
+        .expect_get_block_hash()
+        .times(3)
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+
+    let mut random_generator = MockBlockRandomGenerator::new();
+    // Expect generate to be called 3 times total (once per cache miss).
+    random_generator.expect_generate().times(3).returning(move |_, _, _, _| 0);
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(state_sync_client),
+        Box::new(random_generator),
+        default_config,
+        None,
+    );
+
+    // Query 1: (E1_H1, 0) - cache miss, should fetch from state.
+    let proposer1 = committee_manager.get_proposer(E1_H1, 0).await.unwrap();
+    assert_eq!(proposer1, STAKER_4.address);
+
+    // Query 2: (E1_H1, 0) - cache hit, should return from cache.
+    let proposer2 = committee_manager.get_proposer(E1_H1, 0).await.unwrap();
+    assert_eq!(proposer2, STAKER_4.address);
+
+    // Query 3: (E1_H2, 0) - different height, cache miss.
+    let proposer3 = committee_manager.get_proposer(E1_H2, 0).await.unwrap();
+    assert_eq!(proposer3, STAKER_4.address);
+
+    // Query 4: (E1_H2, 1) - different round, cache miss.
+    let proposer4 = committee_manager.get_proposer(E1_H2, 1).await.unwrap();
+    assert_eq!(proposer4, STAKER_4.address);
+
+    // Query 5: (E1_H2, 1) - cache hit.
+    let proposer5 = committee_manager.get_proposer(E1_H2, 1).await.unwrap();
+    assert_eq!(proposer5, STAKER_4.address);
+}
+
 // Helper function to create ConfiguredStaker for testing
 fn create_configured_staker(staker: &Staker, can_propose: bool) -> ConfiguredStaker {
     ConfiguredStaker {
