@@ -22,6 +22,7 @@ use apollo_starknet_client::reader::StorageEntry;
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
+    IntoResourceCounterMap,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -554,7 +555,7 @@ fn call_info() -> CallInfo {
             read_block_hash_values: vec![BlockHash(felt!("0xdeafbee"))],
             accessed_blocks: HashSet::from([BlockNumber(100)]),
         },
-        builtin_counters: execution_resources().prover_builtins(),
+        builtin_counters: execution_resources().prover_builtins().into_resource_counter_map(),
         syscalls_usage: HashMap::from([
             (SyscallSelector::CallContract, SyscallUsage { call_count: 7, linear_factor: 0 }),
             (SyscallSelector::StorageRead, SyscallUsage { call_count: 4, linear_factor: 0 }),

@@ -2,7 +2,13 @@ use cairo_native::execution_result::{BuiltinStats, ContractExecutionResult};
 use cairo_native::utils::BuiltinCosts;
 use cairo_vm::types::builtin_name::BuiltinName;
 
-use crate::execution::call_info::{BuiltinCounterMap, CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{
+    BuiltinCounterMap,
+    CallExecution,
+    CallInfo,
+    IntoResourceCounterMap,
+    Retdata,
+};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
     EntryPointExecutionContext,
@@ -113,7 +119,7 @@ fn create_callinfo(
         inner_calls: syscall_handler.base.inner_calls,
         storage_access_tracker: syscall_handler.base.storage_access_tracker,
         tracked_resource: TrackedResource::SierraGas,
-        builtin_counters,
+        builtin_counters: builtin_counters.into_resource_counter_map(),
         syscalls_usage: syscall_handler.base.syscalls_usage,
     })
 }

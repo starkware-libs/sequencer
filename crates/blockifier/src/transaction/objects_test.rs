@@ -19,6 +19,7 @@ use crate::execution::call_info::{
     ChargedResources,
     EventSummary,
     ExecutionSummary,
+    IntoResourceCounterMap,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -101,7 +102,7 @@ impl TestExecutionSummary {
                 accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
                 ..Default::default()
             },
-            builtin_counters: self.builtin_counters.clone(),
+            builtin_counters: self.builtin_counters.clone().into_resource_counter_map(),
             inner_calls: vec![inner_call_info(&self.inner_builtin_counters, self.cairo_native)],
             ..Default::default()
         }
@@ -118,7 +119,7 @@ fn shared_call_info() -> CallInfo {
 fn inner_call_info(builtin_counters: &BuiltinCounterMap, cairo_native: bool) -> CallInfo {
     CallInfo {
         call: CallEntryPoint { class_hash: Some(class_hash!("0x1")), ..Default::default() },
-        builtin_counters: builtin_counters.clone(),
+        builtin_counters: builtin_counters.clone().into_resource_counter_map(),
         execution: CallExecution { cairo_native, ..Default::default() },
         ..Default::default()
     }
