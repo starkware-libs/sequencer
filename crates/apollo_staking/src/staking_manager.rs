@@ -8,7 +8,6 @@ use apollo_staking_config::config::{
     ConfiguredStaker,
     StakingManagerConfig,
     StakingManagerDynamicConfig,
-    StakingManagerStaticConfig,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
@@ -94,7 +93,6 @@ pub struct StakingManager {
     cached_epoch: Mutex<Option<Epoch>>,
 
     random_generator: Box<dyn BlockRandomGenerator>,
-    static_config: StakingManagerStaticConfig,
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
     config_manager_client: Option<SharedConfigManagerClient>,
 }
@@ -132,7 +130,6 @@ impl StakingManager {
             )),
             cached_epoch: Mutex::new(None),
             random_generator,
-            static_config: config.static_config,
             dynamic_config: RwLock::new(config.dynamic_config),
             config_manager_client,
         }
@@ -236,21 +233,18 @@ impl StakingManager {
         stakers.into_iter().rev().take(committee_size).collect()
     }
 
-    async fn proposer_randomness_block_hash(
-        &self,
-        current_block_number: BlockNumber,
-    ) -> CommitteeProviderResult<Option<BlockHash>> {
-        let randomness_source_block = current_block_number
-            .0
-            .checked_sub(self.static_config.proposer_prediction_window_in_heights);
+    async fn proposer_randomness_block_hash(&self) -> CommitteeProviderResult<Option<BlockHash>> {
+        // Get the previous epoch to determine the randomness source block.
+        let previous_epoch = self.staking_contract.get_previous_epoch().await?;
 
-        match randomness_source_block {
+        match previous_epoch {
             None => {
-                Ok(None) // Not enough history to look back; return None.
+                Ok(None) // First epoch; no previous epoch to look back to.
             }
-            Some(block_number) => {
+            Some(prev_epoch) => {
+                // Get the hash of the first block in the previous epoch.
                 let block_hash =
-                    self.state_sync_client.get_block_hash(BlockNumber(block_number)).await?;
+                    self.state_sync_client.get_block_hash(prev_epoch.start_block).await?;
                 Ok(Some(block_hash))
             }
         }
@@ -371,7 +365,7 @@ impl CommitteeProvider for StakingManager {
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress> {
         // Try to get the hash of the block used for proposer selection randomness.
-        let block_hash = self.proposer_randomness_block_hash(height).await?;
+        let block_hash = self.proposer_randomness_block_hash().await?;
 
         // Get the committee for the epoch this height belongs to.
         let committee_data = self.committee_data_at_height(height).await?;

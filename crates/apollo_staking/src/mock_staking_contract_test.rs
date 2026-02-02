@@ -35,6 +35,31 @@ const STAKER_2: ConfiguredStaker = ConfiguredStaker {
     can_propose: false,
 };
 
+const EPOCH_LENGTH: u64 = MockStakingContract::EPOCH_LENGTH;
+
+const EPOCH_0: Epoch =
+    Epoch { epoch_id: 0, start_block: BlockNumber(0), epoch_length: EPOCH_LENGTH };
+// A block in the middle of epoch 0.
+const E0_H1: BlockNumber = BlockNumber(EPOCH_LENGTH / 2);
+
+const EPOCH_1: Epoch =
+    Epoch { epoch_id: 1, start_block: BlockNumber(EPOCH_LENGTH), epoch_length: EPOCH_LENGTH };
+// A block in the middle of epoch 1.
+const E1_H1: BlockNumber = BlockNumber(EPOCH_LENGTH + EPOCH_LENGTH / 2);
+
+const EPOCH_2: Epoch =
+    Epoch { epoch_id: 2, start_block: BlockNumber(2 * EPOCH_LENGTH), epoch_length: EPOCH_LENGTH };
+// First block of epoch 2.
+const E2_H1: BlockNumber = BlockNumber(2 * EPOCH_LENGTH);
+
+const EPOCH_9: Epoch =
+    Epoch { epoch_id: 9, start_block: BlockNumber(9 * EPOCH_LENGTH), epoch_length: EPOCH_LENGTH };
+
+const EPOCH_10: Epoch =
+    Epoch { epoch_id: 10, start_block: BlockNumber(10 * EPOCH_LENGTH), epoch_length: EPOCH_LENGTH };
+// A block in the middle of epoch 10.
+const E10_H1: BlockNumber = BlockNumber(10 * EPOCH_LENGTH + 1);
+
 #[fixture]
 fn mock_state_sync_client() -> SharedStateSyncClient {
     Arc::new(MockStateSyncClient::new())
@@ -146,10 +171,10 @@ async fn get_stakers_falls_back_to_initial_config_when_fetch_fails(
 }
 
 #[rstest]
-#[case::epoch_0(BlockNumber(15), Epoch { epoch_id: 0, start_block: BlockNumber(0), epoch_length: MockStakingContract::EPOCH_LENGTH })]
-#[case::epoch_1(BlockNumber(45), Epoch { epoch_id: 1, start_block: BlockNumber(30), epoch_length: MockStakingContract::EPOCH_LENGTH })]
-#[case::epoch_2(BlockNumber(60), Epoch { epoch_id: 2, start_block: BlockNumber(60), epoch_length: MockStakingContract::EPOCH_LENGTH })]
-#[case::epoch_5(BlockNumber(301), Epoch { epoch_id: 10, start_block: BlockNumber(300), epoch_length: MockStakingContract::EPOCH_LENGTH })]
+#[case::epoch_0(E0_H1, EPOCH_0)]
+#[case::epoch_1(E1_H1, EPOCH_1)]
+#[case::epoch_2(E2_H1, EPOCH_2)]
+#[case::epoch_10(E10_H1, EPOCH_10)]
 #[tokio::test]
 async fn get_current_epoch_success(
     #[case] block_number: BlockNumber,
@@ -176,12 +201,39 @@ async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks() {
     );
 
     let epoch = contract.get_current_epoch().await.unwrap();
-    assert_eq!(
-        epoch,
-        Epoch {
-            epoch_id: 0,
-            start_block: BlockNumber(0),
-            epoch_length: MockStakingContract::EPOCH_LENGTH
-        }
+    assert_eq!(epoch, EPOCH_0);
+}
+
+#[rstest]
+#[case::epoch_0_returns_none(E0_H1, None)]
+#[case::epoch_1_returns_epoch_0(E1_H1, Some(EPOCH_0))]
+#[case::epoch_2_returns_epoch_1(E2_H1, Some(EPOCH_1))]
+#[case::epoch_10_returns_epoch_9(E10_H1, Some(EPOCH_9))]
+#[tokio::test]
+async fn get_previous_epoch_success(
+    #[case] block_number: BlockNumber,
+    #[case] expected_previous_epoch: Option<Epoch>,
+) {
+    let contract = MockStakingContract::new(
+        mock_client_with_latest(Some(block_number)),
+        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
+        None,
+        None,
     );
+
+    let previous_epoch = contract.get_previous_epoch().await.unwrap();
+    assert_eq!(previous_epoch, expected_previous_epoch);
+}
+
+#[tokio::test]
+async fn get_previous_epoch_returns_none_when_no_blocks() {
+    let contract = MockStakingContract::new(
+        mock_client_with_latest(None),
+        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
+        None,
+        None,
+    );
+
+    let previous_epoch = contract.get_previous_epoch().await.unwrap();
+    assert_eq!(previous_epoch, None);
 }

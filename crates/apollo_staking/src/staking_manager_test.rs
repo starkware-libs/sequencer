@@ -45,6 +45,7 @@ const STAKER_4: Staker = Staker {
     public_key: Felt::from_raw([0, 0, 0, 4]),
 };
 
+const EPOCH_0: Epoch = Epoch { epoch_id: 0, start_block: BlockNumber(0), epoch_length: 100 };
 const EPOCH_1: Epoch = Epoch { epoch_id: 1, start_block: BlockNumber(1), epoch_length: 100 };
 const EPOCH_2: Epoch = Epoch { epoch_id: 2, start_block: BlockNumber(101), epoch_length: 100 };
 
@@ -69,10 +70,7 @@ fn default_config() -> StakingManagerConfig {
             },
             override_committee: None,
         },
-        static_config: StakingManagerStaticConfig {
-            max_cached_epochs: 10,
-            proposer_prediction_window_in_heights: 10,
-        },
+        static_config: StakingManagerStaticConfig { max_cached_epochs: 10 },
     }
 }
 
@@ -90,6 +88,10 @@ fn set_current_epoch_with_times(
     times: impl Into<TimesRange>,
 ) {
     contract.expect_get_current_epoch().times(times).returning(move || Ok(epoch.clone()));
+}
+
+fn set_previous_epoch(contract: &mut MockStakingContract, epoch: Option<Epoch>) {
+    contract.expect_get_previous_epoch().times(1..).returning(move || Ok(epoch.clone()));
 }
 
 #[rstest]
@@ -270,6 +272,7 @@ async fn get_proposer_success(
     #[case] expected_proposer: Staker,
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
 
     // The staker weights are 1000, 2000, 3000, and 4000, totaling 10,000.
     // Based on the cumulative weight ranges:
@@ -280,12 +283,17 @@ async fn get_proposer_success(
 
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| random_value);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(MockStateSyncClient::new()),
+        Arc::new(state_sync_client),
         Box::new(random_generator),
         default_config,
         None,
@@ -303,14 +311,20 @@ async fn get_proposer_empty_committee(
     mut contract: MockStakingContract,
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![]);
+
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
 
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 0);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(MockStateSyncClient::new()),
+        Arc::new(state_sync_client),
         Box::new(random_generator),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig {
@@ -338,9 +352,15 @@ async fn get_proposer_random_value_exceeds_total_weight(
     mut contract: MockStakingContract,
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
 
     // Stakers with total weight 10000.
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
 
     // Random value is out of range. Valid range is [0, 10000).
     let mut random_generator = MockBlockRandomGenerator::new();
@@ -348,8 +368,8 @@ async fn get_proposer_random_value_exceeds_total_weight(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(MockStateSyncClient::new()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(state_sync_client),
+        Box::new(random_generator),
         default_config,
         None,
     );
