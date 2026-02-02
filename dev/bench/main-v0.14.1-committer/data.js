@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769969386532,
+  "lastUpdate": 1770010414663,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1529,6 +1529,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1144.2724621099999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "658dbb336244597bdd9d4a40793fd37d99b2d274",
+          "message": "starknet_committer,starknet_patricia: layout-based original tree creation tests (#11236)",
+          "timestamp": "2026-02-02T05:04:29Z",
+          "tree_id": "6e5b8b46d48553fae43f0fa6c4d3f689ef8d2741",
+          "url": "https://github.com/starkware-libs/sequencer/commit/658dbb336244597bdd9d4a40793fd37d99b2d274"
+        },
+        "date": 1770010414356,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 894.50318663,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1326.8248468699999,
             "unit": "ms"
           }
         ]
