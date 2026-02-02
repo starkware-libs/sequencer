@@ -394,17 +394,17 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
-  "batcher_config.static_config.storage_reader_server_config.enable": {
+  "batcher_config.dynamic_config.storage_reader_server_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
     "value": false
   },
-  "batcher_config.static_config.storage_reader_server_config.ip": {
+  "batcher_config.dynamic_config.storage_reader_server_config.ip": {
     "description": "The IP address for the storage reader HTTP server.",
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "batcher_config.static_config.storage_reader_server_config.port": {
+  "batcher_config.dynamic_config.storage_reader_server_config.port": {
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
     "value": 8091

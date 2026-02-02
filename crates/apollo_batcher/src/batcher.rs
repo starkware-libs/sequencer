@@ -1305,7 +1305,7 @@ pub async fn create_batcher(
         open_storage_with_metric_and_server(
             config.static_config.storage.clone(),
             &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-            config.static_config.storage_reader_server_config.clone(),
+            config.dynamic_config.storage_reader_server_config.clone(),
         )
         .expect("Failed to open batcher's storage");
 

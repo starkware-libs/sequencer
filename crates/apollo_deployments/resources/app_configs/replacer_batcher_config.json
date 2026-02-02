@@ -61,5 +61,5 @@
   "batcher_config.static_config.storage.scope": "StateOnly",
   "batcher_config.dynamic_config.storage_reader_server_config.enable": false,
   "batcher_config.dynamic_config.storage_reader_server_config.ip": "0.0.0.0",
-  "batcher_config.dynamic_config.storage_reader_server_config.port": "$$$_batcher_config.static_config-STORAGE_READER_SERVER_CONFIG-PORT_$$$"
+  "batcher_config.dynamic_config.storage_reader_server_config.port": "$$$_batcher_config.dynamic_config-STORAGE_READER_SERVER_CONFIG-PORT_$$$"
 }

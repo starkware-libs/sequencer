@@ -237,7 +237,6 @@ pub struct BatcherStaticConfig {
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
-    pub storage_reader_server_config: ServerConfig,
 }
 
 impl SerializeConfig for BatcherStaticConfig {
@@ -271,10 +270,6 @@ impl SerializeConfig for BatcherStaticConfig {
             ),
         ]);
         dump.append(&mut prepend_sub_config_name(self.storage.dump(), "storage"));
-        dump.append(&mut prepend_sub_config_name(
-            self.storage_reader_server_config.dump(),
-            "storage_reader_server_config",
-        ));
         dump.append(&mut prepend_sub_config_name(
             self.block_builder_config.dump(),
             "block_builder_config",
@@ -326,17 +321,21 @@ impl Default for BatcherStaticConfig {
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             first_block_with_partial_block_hash: None,
-            storage_reader_server_config: ServerConfig::default(),
         }
     }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct BatcherDynamicConfig {}
+pub struct BatcherDynamicConfig {
+    pub storage_reader_server_config: ServerConfig,
+}
 
 impl SerializeConfig for BatcherDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::new()
+        prepend_sub_config_name(
+            self.storage_reader_server_config.dump(),
+            "storage_reader_server_config",
+        )
     }
 }
 
