@@ -577,6 +577,66 @@
           "extra_params": {
             "log_query": "\"rates (read/compute/write):\""
           }
+        },
+        {
+          "title": "Storage Tries Modifications Per Block",
+          "description": "Count of storage tries modifications per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(count_storage_tries_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(count_storage_tries_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"modifications count (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves):\""
+          }
+        },
+        {
+          "title": "Contracts Trie Modifications Per Block",
+          "description": "Count of contracts trie modifications per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(count_contracts_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(count_contracts_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"modifications count (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves):\""
+          }
+        },
+        {
+          "title": "Classes Trie Modifications Per Block",
+          "description": "Count of classes trie modifications per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(count_classes_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(count_classes_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"modifications count (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves):\""
+          }
+        },
+        {
+          "title": "Emptied Leaves Per Block",
+          "description": "Count of storage tries leaves emptied per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(count_emptied_leaves_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(count_emptied_leaves_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"modifications count (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves):\""
+          }
+        },
+        {
+          "title": "Percentage Emptied Leaves Per Block",
+          "description": "Percentage of storage tries leaves emptied over the total number of storage tries leaves per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(emptied_leaves_percentage_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(emptied_leaves_percentage_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"modifications count (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves):\""
+          }
         }
       ],
       "collapsed": true
