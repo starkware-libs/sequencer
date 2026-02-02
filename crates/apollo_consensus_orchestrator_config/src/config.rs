@@ -3,10 +3,8 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_comma_separated_str,
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
-    serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{
     prepend_sub_config_name,
@@ -119,12 +117,6 @@ impl SerializeConfig for ContextConfig {
 pub struct ContextStaticConfig {
     /// Buffer size for streaming outbound proposals.
     pub proposal_buffer_size: usize,
-    /// The number of validators.
-    pub num_validators: u64,
-    /// Optional explicit set of validator IDs (contract addresses) to use.
-    /// If provided, this overrides `num_validators`.
-    #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
-    pub validator_ids: Option<Vec<ContractAddress>>,
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
     /// Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.
@@ -160,12 +152,6 @@ impl SerializeConfig for ContextStaticConfig {
                 "proposal_buffer_size",
                 &self.proposal_buffer_size,
                 "The buffer size for streaming outbound proposals.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "num_validators",
-                &self.num_validators,
-                "The number of validators.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -222,13 +208,6 @@ impl SerializeConfig for ContextStaticConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        dump.extend(ser_optional_param(
-            &serialize_optional_comma_separated(&self.validator_ids),
-            "".to_string(),
-            "validator_ids",
-            "Optional explicit set of validator IDs (comma separated).",
-            ParamPrivacyInput::Public,
-        ));
         dump.extend([ser_param(
             "deployment_mode",
             &format!("{:?}", self.deployment_mode).to_lowercase(),
@@ -243,8 +222,6 @@ impl Default for ContextStaticConfig {
     fn default() -> Self {
         Self {
             proposal_buffer_size: 100,
-            num_validators: 1,
-            validator_ids: None,
             chain_id: ChainId::Mainnet,
             block_timestamp_window_seconds: 1,
             l1_da_mode: true,

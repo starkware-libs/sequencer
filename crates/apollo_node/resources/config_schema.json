@@ -2219,11 +2219,6 @@
     "privacy": "Public",
     "value": true
   },
-  "consensus_manager_config.context_config.static_config.num_validators": {
-    "description": "The number of validators.",
-    "privacy": "Public",
-    "value": 1
-  },
   "consensus_manager_config.context_config.static_config.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",
@@ -2238,16 +2233,6 @@
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
     "value": 10000
-  },
-  "consensus_manager_config.context_config.static_config.validator_ids": {
-    "description": "Optional explicit set of validator IDs (comma separated).",
-    "privacy": "Public",
-    "value": ""
-  },
-  "consensus_manager_config.context_config.static_config.validator_ids.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "consensus_manager_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
