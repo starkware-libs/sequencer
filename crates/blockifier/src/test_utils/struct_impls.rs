@@ -24,7 +24,6 @@ use starknet_api::test_utils::{
 };
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
-use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
@@ -40,7 +39,6 @@ use crate::execution::entry_point::{
 };
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
-use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_api::State;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
@@ -236,15 +234,6 @@ impl CallExecution {
     }
 }
 
-impl ContractClassManager {
-    pub fn create_for_testing(native_config: CairoNativeRunConfig) -> Self {
-        let config = ContractClassManagerConfig {
-            cairo_native_run_config: native_config,
-            ..Default::default()
-        };
-        ContractClassManager::start(config)
-    }
-}
 // Contract loaders.
 
 // TODO(Noa): Consider using PathBuf.
