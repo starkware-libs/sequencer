@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::sync::LazyLock;
 
 use async_trait::async_trait;
@@ -43,6 +44,7 @@ use crate::db::index_db::leaves::{
 use crate::db::index_db::types::{
     EmptyNodeData,
     IndexFilledNode,
+    IndexFilledNodeWithHasher,
     IndexLayoutSubTree,
     IndexNodeContext,
 };
@@ -79,8 +81,9 @@ static STATE_ROOT_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
     (Felt::from_bytes_be(&STATE_DIFF_HASH_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
 });
 
-pub struct IndexDb<S: Storage> {
+pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
+    phantom: PhantomData<H>,
 }
 
 impl<S: Storage> IndexDb<S> {
@@ -98,10 +101,10 @@ impl<S: Storage> IndexDb<S> {
     }
 }
 
-impl<S: Storage> StorageInitializer for IndexDb<S> {
+impl<S: Storage, H> StorageInitializer for IndexDb<S, H> {
     type Storage = S;
     fn new(storage: Self::Storage) -> Self {
-        Self { storage }
+        Self { storage, phantom: PhantomData }
     }
 }
 
@@ -118,15 +121,29 @@ impl EmptyInitialReadContext for IndexDbReadContext {
     }
 }
 
-pub struct IndexNodeLayout {}
+pub struct IndexNodeLayout<H = TreeHashFunctionImpl>(PhantomData<H>);
 
-impl<'a, L> NodeLayout<'a, L> for IndexNodeLayout
+pub trait IndexLayoutHasher:
+    TreeHashFunction<IndexLayoutStarknetStorageValue>
+    + TreeHashFunction<IndexLayoutContractState>
+    + TreeHashFunction<IndexLayoutCompiledClassHash>
+{
+}
+
+impl<H> IndexLayoutHasher for H where
+    H: TreeHashFunction<IndexLayoutStarknetStorageValue>
+        + TreeHashFunction<IndexLayoutContractState>
+        + TreeHashFunction<IndexLayoutCompiledClassHash>
+{
+}
+
+impl<'a, L, H> NodeLayout<'a, L> for IndexNodeLayout<H>
 where
     L: Leaf,
-    TreeHashFunctionImpl: TreeHashFunction<L>,
+    H: TreeHashFunction<L>,
 {
     type NodeData = EmptyNodeData;
-    type NodeDbObject = IndexFilledNode<L>;
+    type NodeDbObject = IndexFilledNodeWithHasher<L, H>;
     type DeserializationContext = IndexNodeContext;
     type SubTree = IndexLayoutSubTree<'a>;
 
@@ -137,7 +154,7 @@ where
     ) -> (DbKey, Self::NodeDbObject) {
         let filled_node = Self::convert_node_data_and_leaf(filled_node);
 
-        let db_filled_node = IndexFilledNode(filled_node);
+        let db_filled_node = IndexFilledNodeWithHasher::<L, H>::new(filled_node);
 
         let suffix = &node_index.0.to_be_bytes();
         let key = db_filled_node.get_db_key(key_context, suffix);
@@ -146,29 +163,44 @@ where
     }
 }
 
-impl NodeLayoutFor<StarknetStorageValue> for IndexNodeLayout {
+impl<H> NodeLayoutFor<StarknetStorageValue> for IndexNodeLayout<H>
+where
+    H: TreeHashFunction<IndexLayoutStarknetStorageValue>,
+{
     type DbLeaf = IndexLayoutStarknetStorageValue;
 }
 
-impl NodeLayoutFor<ContractState> for IndexNodeLayout {
+impl<H> NodeLayoutFor<ContractState> for IndexNodeLayout<H>
+where
+    H: TreeHashFunction<IndexLayoutContractState>,
+{
     type DbLeaf = IndexLayoutContractState;
 }
 
-impl NodeLayoutFor<CompiledClassHash> for IndexNodeLayout {
+impl<H> NodeLayoutFor<CompiledClassHash> for IndexNodeLayout<H>
+where
+    H: TreeHashFunction<IndexLayoutCompiledClassHash>,
+{
     type DbLeaf = IndexLayoutCompiledClassHash;
 }
 
-impl DbLayout for IndexNodeLayout {
+impl<H> DbLayout for IndexNodeLayout<H>
+where
+    H: IndexLayoutHasher,
+{
     type ContractStateDbLeaf = IndexLayoutContractState;
     type CompiledClassHashDbLeaf = IndexLayoutCompiledClassHash;
     type StarknetStorageValueDbLeaf = IndexLayoutStarknetStorageValue;
-    type NodeLayout = IndexNodeLayout;
+    type NodeLayout = IndexNodeLayout<H>;
 }
 
 // TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
 // create_xxx_trie.
 #[async_trait]
-impl<S: Storage> ForestReader for IndexDb<S> {
+impl<S: Storage, H: Send> ForestReader for IndexDb<S, H>
+where
+    H: IndexLayoutHasher,
+{
     type InitialReadContext = IndexDbReadContext;
 
     /// Creates an original skeleton forest that includes the storage tries of the modified
@@ -182,7 +214,7 @@ impl<S: Storage> ForestReader for IndexDb<S> {
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
-        read_forest::<S, IndexNodeLayout>(
+        read_forest::<S, IndexNodeLayout<H>>(
             &mut self.storage,
             roots,
             storage_updates,
