@@ -88,6 +88,7 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
+    resource_counter_map,
     CallExecution,
     CallInfo,
     ExecutionSummary,
@@ -354,10 +355,11 @@ fn expected_validate_call_info(
         resources: vm_resources,
         execution: CallExecution { retdata, gas_consumed, cairo_native, ..Default::default() },
         tracked_resource,
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, n_range_checks)])
-            .into_iter()
-            .filter(|builtin| builtin.1 > 0)
-            .collect(),
+        builtin_counters: resource_counter_map(
+            [(BuiltinName::range_check, n_range_checks)]
+                .into_iter()
+                .filter(|(_, count)| *count > 0),
+        ),
         ..Default::default()
     })
 }
@@ -422,10 +424,10 @@ fn expected_fee_transfer_call_info(
     let cairo_native = cairo_version.is_cairo_native();
     let builtin_counters = match cairo_version {
         CairoVersion::Cairo0 => {
-            BTreeMap::from([(BuiltinName::range_check, 32), (BuiltinName::pedersen, 4)])
+            resource_counter_map([(BuiltinName::range_check, 32), (BuiltinName::pedersen, 4)])
         }
         CairoVersion::Cairo1(_) => {
-            BTreeMap::from([(BuiltinName::range_check, 38), (BuiltinName::pedersen, 4)])
+            resource_counter_map([(BuiltinName::range_check, 38), (BuiltinName::pedersen, 4)])
         }
     };
     let expected_tracked_resource = match cairo_version {
@@ -479,7 +481,7 @@ fn expected_fee_transfer_call_info(
             ..Default::default()
         },
         tracked_resource: expected_tracked_resource,
-        builtin_counters,
+        builtin_counters: resource_counter_map(builtin_counters),
         syscalls_usage,
         ..Default::default()
     })
@@ -743,8 +745,8 @@ fn test_invoke_tx(
         }
     };
     let builtin_counters = match account_cairo_version {
-        CairoVersion::Cairo0 => BTreeMap::from([(BuiltinName::range_check, 19)]),
-        CairoVersion::Cairo1(_) => BTreeMap::from([(BuiltinName::range_check, 27)]),
+        CairoVersion::Cairo0 => resource_counter_map([(BuiltinName::range_check, 19)]),
+        CairoVersion::Cairo1(_) => resource_counter_map([(BuiltinName::range_check, 27)]),
     };
     let syscalls_usage = match account_cairo_version {
         CairoVersion::Cairo0 => HashMap::from([(
@@ -767,7 +769,7 @@ fn test_invoke_tx(
         resources: expected_arguments.resources,
         inner_calls: expected_inner_calls,
         tracked_resource,
-        builtin_counters,
+        builtin_counters: resource_counter_map(builtin_counters),
         syscalls_usage,
         ..Default::default()
     });
@@ -2763,7 +2765,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         tracked_resource: test_contract
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 6)]),
+        builtin_counters: resource_counter_map([(BuiltinName::range_check, 6)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::StorageWrite,
             SyscallUsage { call_count: 1, linear_factor: 0 },

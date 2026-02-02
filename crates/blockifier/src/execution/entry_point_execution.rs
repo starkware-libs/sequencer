@@ -13,7 +13,7 @@ use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::GasCosts;
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{resource_counter_map, CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     EntryPointExecutionContext,
@@ -482,7 +482,7 @@ pub fn finalize_execution(
         tracked_resource,
         resources: vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
-        builtin_counters: vm_resources_without_inner_calls.prover_builtins(),
+        builtin_counters: resource_counter_map(vm_resources_without_inner_calls.prover_builtins()),
         syscalls_usage: syscall_handler_base.syscalls_usage,
     })
 }
