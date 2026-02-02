@@ -113,29 +113,29 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     }
 
     /// If the tasks channel is full, the behavior depends on the config: if
-    /// `wait_for_tasks_channel` is true, it will wait until there is space in the channel;
-    /// otherwise, it will panic. Any other error when sending the task will also cause a panic.
+    /// `panic_if_task_channel_full` is true, it will panic; otherwise, it will wait until there
+    /// is space in the channel. Any other error when sending the task will also cause a panic.
     async fn add_task(&self, task_input: CommitterTaskInput) -> CommitmentManagerResult<()> {
         let error_message = format!("Failed to send task to state committer: {task_input}",);
 
-        if self.config.wait_for_tasks_channel {
-            info!("Waiting to send task for {task_input} to state committer.");
-            self.tasks_sender
-                .send(task_input)
-                .await
-                .unwrap_or_else(|err| panic!("{error_message}. error: {err}"));
-        } else {
+        if self.config.panic_if_task_channel_full {
             match self.tasks_sender.try_send(task_input) {
                 Ok(_) => (),
                 Err(TrySendError::Full(_)) => {
                     let channel_size = self.tasks_sender.max_capacity();
                     panic!(
                         "{error_message}. The channel is full. channel size: {channel_size}. \
-                         Consider increasing the channel size or enabling waiting in the config.",
+                         Consider increasing the channel size or disabling panic in the config.",
                     );
                 }
                 Err(err) => panic!("{error_message}. error: {err}"),
             }
+        } else {
+            info!("Waiting to send task for {task_input} to state committer.");
+            self.tasks_sender
+                .send(task_input)
+                .await
+                .unwrap_or_else(|err| panic!("{error_message}. error: {err}"));
         }
         Ok(())
     }
