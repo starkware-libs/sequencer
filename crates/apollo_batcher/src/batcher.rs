@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Write;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -62,6 +62,7 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
+use blockifier::blockifier::config::ContractClassManagerDynamicConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use futures::FutureExt;
@@ -1357,6 +1358,9 @@ pub async fn create_batcher(
         storage_reader: storage_reader.clone(),
         contract_class_manager: ContractClassManager::start(
             config.static_config.contract_class_manager_config.clone(),
+            Arc::new(RwLock::new(ContractClassManagerDynamicConfig::from(
+                &config.static_config.contract_class_manager_config,
+            ))),
         ),
         class_manager_client: class_manager_client.clone(),
         worker_pool,
