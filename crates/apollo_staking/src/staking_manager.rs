@@ -56,6 +56,8 @@ pub struct Committee {
     randomness_block_hash: Option<BlockHash>,
     // Random generator for weighted proposer selection.
     random_generator: Arc<dyn BlockRandomGenerator>,
+    // Stores the most recently requested proposer address, keyed by height and round.
+    proposer_cache: std::sync::Mutex<Option<(BlockNumber, Round, ContractAddress)>>,
 }
 
 // Holds committee data for the highest known epochs, limited in size by `capacity``.
@@ -294,6 +296,7 @@ impl StakingManager {
             eligible_proposers,
             randomness_block_hash,
             random_generator: self.random_generator.clone(),
+            proposer_cache: std::sync::Mutex::new(None),
         })
     }
 
@@ -385,6 +388,17 @@ impl CommitteeTrait for Committee {
             return Err(CommitteeError::EmptyCommittee);
         }
 
+        // Check if we can return from cache.
+        if let Some(address) = self
+            .proposer_cache
+            .lock()
+            .expect("Mutex poisoned")
+            .filter(|(h, r, _)| *h == height && *r == round)
+            .map(|(_, _, addr)| addr)
+        {
+            return Ok(address);
+        }
+
         // Generate a pseudorandom value in the range [0, total_weight) based on the height, round,
         // and block hash.
         let random_value = self.random_generator.generate(
@@ -394,8 +408,11 @@ impl CommitteeTrait for Committee {
             self.total_weight,
         );
 
-        // Select a proposer from the committee using the generated random.
-        Ok(self.choose_proposer(random_value))
+        // Select a proposer from the committee using the generated random and update the cache.
+        let proposer = self.choose_proposer(random_value);
+        *self.proposer_cache.lock().expect("Mutex poisoned") = Some((height, round, proposer));
+
+        Ok(proposer)
     }
 
     fn get_actual_proposer(&self, height: BlockNumber, round: Round) -> ContractAddress {
