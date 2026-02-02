@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use apollo_batcher_config::config::{
     BatcherConfig,
+    BatcherStaticConfig,
     CommitmentManagerConfig,
     FirstBlockWithPartialBlockHash,
 };
@@ -390,8 +391,8 @@ async fn test_add_task_panic_on_full_channel(mut mock_dependencies: MockDependen
     let (mut commitment_manager, storage_reader, mut storage_writer) =
         create_commitment_manager(mock_dependencies).await;
     assert!(
-        !commitment_manager.config.panic_if_task_channel_full,
-        "Wait for tasks channel should be false for this test (panic on full)."
+        commitment_manager.config.panic_if_task_channel_full,
+        "Panic on full channel should be true for this test."
     );
 
     let next_height =

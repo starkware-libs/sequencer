@@ -715,7 +715,7 @@ impl Batcher {
                 height,
                 state_diff,
                 optional_state_diff_commitment,
-                &self.config.first_block_with_partial_block_hash,
+                &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -782,7 +782,7 @@ impl Batcher {
                 height,
                 state_diff.clone(), // TODO(Nimrod): Remove the clone here.
                 Some(state_diff_commitment),
-                &self.config.first_block_with_partial_block_hash,
+                &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -1187,7 +1187,7 @@ impl Batcher {
             .add_revert_task(
                 height,
                 reversed_state_diff,
-                &self.config.first_block_with_partial_block_hash,
+                &self.config.static_config.first_block_with_partial_block_hash,
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
@@ -1321,7 +1321,7 @@ pub async fn create_batcher(
         open_storage_with_metric_and_server(
             config.static_config.storage.clone(),
             &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-            config.static_config.storage_reader_server_config.clone(),
+            config.dynamic_config.storage_reader_server_config.clone(),
         )
         .expect("Failed to open batcher's storage");
 

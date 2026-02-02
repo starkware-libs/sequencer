@@ -404,7 +404,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             height,
             state_diff,
             state_diff_commitment,
-            &batcher_config.first_block_with_partial_block_hash,
+            &batcher_config.static_config.first_block_with_partial_block_hash,
             batcher_storage_reader,
             storage_writer,
         )
