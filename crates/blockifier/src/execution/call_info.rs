@@ -165,8 +165,6 @@ pub struct CallSummary {
     pub n_calls_running_native: u64,
 }
 
-pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
-
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub charged_resources: ChargedResources,
@@ -273,6 +271,33 @@ impl AddAssign<&ChargedResources> for ChargedResources {
             self.gas_consumed.checked_add(other.gas_consumed).expect("Gas for fee overflowed.");
     }
 }
+
+#[derive(Eq, PartialEq, Ord, PartialOrd)]
+pub enum OpcodeName {
+    Blake,
+}
+
+#[derive(Eq, PartialEq, Ord, PartialOrd)]
+pub enum ResourceName {
+    Builtin(BuiltinName),
+    Opcode(OpcodeName),
+}
+
+impl From<BuiltinName> for ResourceName {
+    fn from(builtin_name: BuiltinName) -> Self {
+        ResourceName::Builtin(builtin_name)
+    }
+}
+
+impl From<OpcodeName> for ResourceName {
+    fn from(opcode_name: OpcodeName) -> Self {
+        ResourceName::Opcode(opcode_name)
+    }
+}
+
+pub type ResourceCounterMap = BTreeMap<ResourceName, usize>;
+
+pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
