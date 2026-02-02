@@ -286,7 +286,6 @@ pub struct ContextDynamicConfig {
     /// If given, will override the conversion rate.
     pub override_eth_to_fri_rate: Option<u128>,
     /// When true, the virtual proposer election differs from the actual proposer election.
-    #[serde(default)]
     pub use_different_virtual_proposer: bool,
 }
 

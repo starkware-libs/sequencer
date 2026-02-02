@@ -85,6 +85,7 @@ impl TestWrapper {
                 is_observer,
                 quorum_type,
                 proposer_cache,
+                true,
             ),
             requests: VecDeque::new(),
             peer_voters,
@@ -782,7 +783,7 @@ fn observer_does_not_record_self_votes() {
 }
 
 #[test]
-fn quorums_require_virtual_leader_in_favor_for_value() {
+fn quorums_require_virtual_proposer_in_favor_for_value() {
     // Virtual leader (VALIDATOR_ID_3) must be one of the voters in favor for precommit quorum for a
     // value to reach decision.
     let mut wrapper = TestWrapper::new(

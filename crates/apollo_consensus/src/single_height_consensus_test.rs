@@ -30,6 +30,8 @@ lazy_static! {
 const HEIGHT_0: BlockNumber = BlockNumber(0);
 const ROUND_0: Round = 0;
 const ROUND_1: Round = 1;
+/// When true, require the virtual proposer to have voted in favor before reaching a decision.
+const REQUIRE_VIRTUAL_PROPOSER_VOTE: bool = true;
 
 #[test]
 fn proposer() {
@@ -43,6 +45,7 @@ fn proposer() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     // Start should request to build proposal.
     let start_ret = shc.start();
@@ -98,6 +101,7 @@ fn validator(repeat_proposal: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
 
     // Accept block info -> should request validation.
@@ -159,6 +163,7 @@ fn vote_twice(same_vote: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     // Validate a proposal so the SM is ready to prevote.
     let round = block_info.round;
@@ -214,6 +219,7 @@ fn rebroadcast_votes() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     // Start and build.
     let _ = shc.start();
@@ -286,6 +292,7 @@ fn repropose() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let _ = shc.start();
     // After building the proposal, the proposer broadcasts a prevote for round 0.
@@ -344,6 +351,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let ret = shc.start();
     assert_matches!(ret, mut reqs => {
@@ -392,6 +400,7 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
 
     // 1. Accept proposal -> should request validation

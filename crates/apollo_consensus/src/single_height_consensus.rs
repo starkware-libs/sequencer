@@ -65,6 +65,7 @@ pub(crate) struct SingleHeightConsensus {
 }
 
 impl SingleHeightConsensus {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         height: BlockNumber,
         is_observer: bool,
@@ -73,6 +74,7 @@ impl SingleHeightConsensus {
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
         proposer_cache: Arc<dyn ProposerLookup>,
+        require_virtual_proposer_vote: bool,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
@@ -84,6 +86,7 @@ impl SingleHeightConsensus {
             is_observer,
             quorum_type,
             proposer_cache.clone(),
+            require_virtual_proposer_vote,
         );
         Self {
             validators,

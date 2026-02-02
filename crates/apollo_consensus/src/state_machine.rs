@@ -111,6 +111,7 @@ pub(crate) struct StateMachine {
     round_skip_threshold: VotesThreshold,
     total_weight: u64,
     is_observer: bool,
+    require_virtual_proposer_vote: bool,
     // {round: (proposal_id, valid_round)}
     proposals: HashMap<Round, (Option<ProposalCommitment>, Option<Round>)>,
     // {(round, voter): (vote, weight)}
@@ -140,6 +141,7 @@ impl StateMachine {
         is_observer: bool,
         quorum_type: QuorumType,
         proposer_cache: Arc<dyn ProposerLookup>,
+        require_virtual_proposer_vote: bool,
     ) -> Self {
         Self {
             height,
@@ -152,6 +154,7 @@ impl StateMachine {
             round_skip_threshold: ROUND_SKIP_THRESHOLD,
             total_weight,
             is_observer,
+            require_virtual_proposer_vote,
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
             precommits: HashMap::new(),
@@ -690,7 +693,7 @@ impl StateMachine {
         {
             return VecDeque::new();
         }
-        if !self.virtual_leader_in_favor(&self.precommits, round, &Some(*proposal_id)) {
+        if !self.virtual_proposer_in_favor(&self.precommits, round, &Some(*proposal_id)) {
             return VecDeque::new();
         }
         // Collect all supporting precommits for this proposal and round.
@@ -755,16 +758,18 @@ impl StateMachine {
         threshold.is_met(weight_sum, self.total_weight)
     }
 
-    fn virtual_leader_in_favor(
+    fn virtual_proposer_in_favor(
         &self,
         votes: &VotesMap,
         round: Round,
         value: &Option<ProposalCommitment>,
     ) -> bool {
-        // TODO(Asmaa): add a config flag to bypass this virtual leader check
-        let Some(virtual_leader) = self.proposer_cache.virtual_proposer(round).ok() else {
+        if !self.require_virtual_proposer_vote {
+            return true;
+        }
+        let Some(virtual_proposer) = self.proposer_cache.virtual_proposer(round).ok() else {
             return false;
         };
-        votes.get(&(round, virtual_leader)).is_some_and(|(v, _w)| &v.proposal_commitment == value)
+        votes.get(&(round, virtual_proposer)).is_some_and(|(v, _w)| &v.proposal_commitment == value)
     }
 }
