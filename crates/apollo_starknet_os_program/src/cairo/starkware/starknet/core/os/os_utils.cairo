@@ -38,7 +38,6 @@ func pre_process_block{
 
     // Update the contract class changes according to the migration.
     local n_classes_to_migrate;
-    // TODO(Meshi): Change to rust VM notion once all python tests only uses the rust VM.
     %{ GetNClassHashesToMigrate %}
     migrate_classes_to_v2_casm_hash(n_classes=n_classes_to_migrate, block_context=block_context);
     return ();
