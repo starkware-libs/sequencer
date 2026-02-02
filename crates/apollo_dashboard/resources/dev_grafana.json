@@ -541,6 +541,42 @@
           "extra_params": {
             "log_query": "\"Average write rate of block\""
           }
+        },
+        {
+          "title": "Storage Tries Modifications Per Block",
+          "description": "Count of storage tries modifications per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(count_storage_tries_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(count_storage_tries_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"Storage tries modifications in block\""
+          }
+        },
+        {
+          "title": "Contracts Trie Modifications Per Block",
+          "description": "Count of contracts trie modifications per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(count_contracts_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(count_contracts_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"Contracts trie modifications in block\""
+          }
+        },
+        {
+          "title": "Classes Trie Modifications Per Block",
+          "description": "Count of classes trie modifications per block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(count_classes_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(count_classes_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"Classes trie modifications in block\""
+          }
         }
       ],
       "collapsed": true

@@ -3,6 +3,9 @@ use apollo_committer::metrics::{
     AVERAGE_READ_RATE,
     AVERAGE_WRITE_RATE,
     COMPUTE_DURATION_PER_BLOCK,
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
     OFFSET,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
@@ -72,6 +75,33 @@ fn get_average_write_rate_panel() -> Panel {
     .with_log_query("Average write rate of block")
 }
 
+fn get_count_storage_tries_modifications_per_block_panel() -> Panel {
+    Panel::from_hist(
+        &COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
+        "Storage Tries Modifications per Block",
+        "Count of storage tries modifications per block",
+    )
+    .with_log_query("Storage tries modifications in block")
+}
+
+fn get_count_contracts_trie_modifications_per_block_panel() -> Panel {
+    Panel::from_hist(
+        &COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+        "Contracts Trie Modifications per Block",
+        "Count of contracts trie modifications per block",
+    )
+    .with_log_query("Contracts trie modifications in block")
+}
+
+fn get_count_classes_trie_modifications_per_block_panel() -> Panel {
+    Panel::from_hist(
+        &COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
+        "Classes Trie Modifications per Block",
+        "Count of classes trie modifications per block",
+    )
+    .with_log_query("Classes trie modifications in block")
+}
+
 pub(crate) fn get_committer_row() -> Row {
     Row::new(
         "Committer",
@@ -84,6 +114,9 @@ pub(crate) fn get_committer_row() -> Row {
             get_average_compute_rate_panel(),
             get_write_duration_per_block_panel(),
             get_average_write_rate_panel(),
+            get_count_storage_tries_modifications_per_block_panel(),
+            get_count_contracts_trie_modifications_per_block_panel(),
+            get_count_classes_trie_modifications_per_block_panel(),
         ],
     )
 }
