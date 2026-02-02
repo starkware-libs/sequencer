@@ -95,6 +95,8 @@ jobs:
   # └─────────────────────┴───────────────────────────────────────────────────────┘
   benchmarking:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    # Skip benchmarking if explicitly requested in the PR title.
+    if: ${{ !contains(github.event.pull_request.title, '(SKIP COMMITTER BENCH)') }}
     permissions:
       contents: write # Required for pushing to gh-pages on push events.
     steps:
