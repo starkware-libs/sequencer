@@ -12,6 +12,7 @@ use aerospike::{
     Bins,
     Client,
     ClientPolicy,
+    CommitLevel,
     Error as AerospikeError,
     Host,
     Key,
@@ -79,10 +80,16 @@ impl AerospikeStorageConfig {
                 ..Default::default()
             },
             read_policy: ReadPolicy::default(),
-            write_policy: WritePolicy::default(),
+            write_policy: WritePolicy {
+                commit_level: CommitLevel::CommitAll,
+                ..WritePolicy::default()
+            },
             batch_policy: BatchPolicy::default(),
             batch_read_policy: BatchReadPolicy::default(),
-            batch_write_policy: BatchWritePolicy::default(),
+            batch_write_policy: BatchWritePolicy {
+                commit_level: CommitLevel::CommitAll,
+                ..BatchWritePolicy::default()
+            },
             bin_name: "default_bin".to_string(),
         }
     }
