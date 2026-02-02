@@ -358,9 +358,9 @@ pub struct CallInfo {
 
     // Additional information gathered during execution.
     pub storage_access_tracker: StorageAccessTracker,
-    // Tracks how many times each builtin was called during execution (excluding inner calls).
-    // Used by the bouncer to decide when to close a block.
-    pub builtin_counters: BuiltinCounterMap,
+    // Tracks how many times each resource (builtin or opcode) was called during execution
+    // (excluding inner calls). Used by the bouncer to decide when to close a block.
+    pub builtin_counters: ResourceCounterMap,
     // Tracks how many times each syscall was called during execution (excluding inner calls).
     pub syscalls_usage: SyscallUsageMap,
 }

@@ -88,9 +88,11 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
+    BuiltinCounterMap,
     CallExecution,
     CallInfo,
     ExecutionSummary,
+    IntoResourceCounterMap,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -357,7 +359,8 @@ fn expected_validate_call_info(
         builtin_counters: BTreeMap::from([(BuiltinName::range_check, n_range_checks)])
             .into_iter()
             .filter(|builtin| builtin.1 > 0)
-            .collect(),
+            .collect::<BuiltinCounterMap>()
+            .into_resource_counter_map(),
         ..Default::default()
     })
 }
@@ -479,7 +482,7 @@ fn expected_fee_transfer_call_info(
             ..Default::default()
         },
         tracked_resource: expected_tracked_resource,
-        builtin_counters,
+        builtin_counters: builtin_counters.into_resource_counter_map(),
         syscalls_usage,
         ..Default::default()
     })
@@ -767,7 +770,7 @@ fn test_invoke_tx(
         resources: expected_arguments.resources,
         inner_calls: expected_inner_calls,
         tracked_resource,
-        builtin_counters,
+        builtin_counters: builtin_counters.into_resource_counter_map(),
         syscalls_usage,
         ..Default::default()
     });
@@ -2763,7 +2766,8 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         tracked_resource: test_contract
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 6)]),
+        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 6)])
+            .into_resource_counter_map(),
         syscalls_usage: HashMap::from([(
             SyscallSelector::StorageWrite,
             SyscallUsage { call_count: 1, linear_factor: 0 },

@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
+    IntoResourceCounterMap,
     MessageToL1 as BlockifierMessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -214,7 +215,8 @@ fn create_call_info(
         builtin_counters: BTreeMap::from([
             (cairo_vm::types::builtin_name::BuiltinName::range_check, 10),
             (cairo_vm::types::builtin_name::BuiltinName::pedersen, 5),
-        ]),
+        ])
+        .into_resource_counter_map(),
         syscalls_usage: HashMap::new(),
     }
 }
