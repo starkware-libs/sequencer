@@ -10,10 +10,10 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 cairo_native = ["blockifier/cairo_native"]
 
 [dependencies]
+anyhow.workspace = true
 apollo_infra_utils.workspace = true
 apollo_transaction_converter.workspace = true
 async-trait.workspace = true
-axum.workspace = true
 blockifier.workspace = true
 blockifier_reexecution.workspace = true
 cairo-lang-starknet-classes.workspace = true
@@ -22,6 +22,7 @@ cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 indexmap.workspace = true
+jsonrpsee = { workspace = true, features = ["macros", "server"] }
 proving_utils.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
