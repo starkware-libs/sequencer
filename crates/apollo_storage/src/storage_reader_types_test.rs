@@ -578,3 +578,23 @@ async fn block_signatures_request() {
 
     assert_eq!(response, StorageReaderResponse::BlockSignatures(setup.block_signature));
 }
+
+#[tokio::test]
+async fn events_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let tx_output = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_transaction_output(setup.tx_index)
+        .unwrap()
+        .expect("Transaction output should exist");
+    let event_address =
+        tx_output.events().first().expect("Transaction should have events").from_address;
+
+    let request = StorageReaderRequest::Events(event_address, setup.tx_index);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::Events);
+}
