@@ -165,6 +165,32 @@ pub struct CallSummary {
     pub n_calls_running_native: u64,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Debug, Eq, PartialEq, Serialize, Ord, PartialOrd)]
+pub enum OpcodeName {
+    Blake,
+}
+
+// #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+// #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+// #[derive(Debug, Eq, PartialEq, Serialize, Ord, PartialOrd)]
+pub enum ResourceName {
+    Builtin(BuiltinName),
+    Opcode(OpcodeName),
+}
+
+impl ResourceName {
+    pub fn from_builtin_name(builtin_name: BuiltinName) -> Self {
+        ResourceName::Builtin(builtin_name)
+    }
+    pub fn from_opcode_name(opcode_name: OpcodeName) -> Self {
+        ResourceName::Opcode(opcode_name)
+    }
+}
+
+pub type ResourceCounterMap = BTreeMap<ResourceName, usize>;
+
 pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
 
 #[derive(Clone, Debug, Default, PartialEq)]
