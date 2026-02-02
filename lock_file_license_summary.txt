@@ -1,0 +1,950 @@
+================================================================================
+LICENSE DETAILS (ALL DEPENDENCIES INCLUDING TRANSITIVE)
+================================================================================
+encoding_rs                      (Apache-2.0 OR MIT) AND BSD-3-Clause
+moka                             (MIT OR Apache-2.0) AND Apache-2.0
+unicode-ident                    (MIT OR Apache-2.0) AND Unicode-3.0
+enum-iterator                    0BSD
+enum-iterator-derive             0BSD
+adler2                           0BSD OR MIT OR Apache-2.0
+aerospike                        Apache-2.0
+aerospike-core                   Apache-2.0
+aerospike-macro                  Apache-2.0
+aerospike-rt                     Apache-2.0
+blst                             Apache-2.0
+borsh-derive                     Apache-2.0
+c-kzg                            Apache-2.0
+cairo-native                     Apache-2.0
+cairo-vm                         Apache-2.0
+ciborium                         Apache-2.0
+ciborium-io                      Apache-2.0
+ciborium-ll                      Apache-2.0
+clang-sys                        Apache-2.0
+dissimilar                       Apache-2.0
+fragile                          Apache-2.0
+google-cloud-auth                Apache-2.0
+google-cloud-storage             Apache-2.0
+insta                            Apache-2.0
+lambdaworks-crypto               Apache-2.0
+lambdaworks-math                 Apache-2.0
+lifetimed-bytes                  Apache-2.0
+melior                           Apache-2.0
+melior-macro                     Apache-2.0
+microlp                          Apache-2.0
+num-modular                      Apache-2.0
+num-prime                        Apache-2.0
+openssl                          Apache-2.0
+parity-scale-codec               Apache-2.0
+parity-scale-codec-derive        Apache-2.0
+prometheus-parse                 Apache-2.0
+prost                            Apache-2.0
+prost-build                      Apache-2.0
+prost-derive                     Apache-2.0
+prost-types                      Apache-2.0
+rust-rocksdb                     Apache-2.0
+similar                          Apache-2.0
+sketches-ddsketch                Apache-2.0
+sync_wrapper                     Apache-2.0
+fnv                              Apache-2.0 / MIT
+ring                             Apache-2.0 AND ISC
+ryu                              Apache-2.0 OR BSL-1.0
+hyper-rustls                     Apache-2.0 OR ISC OR MIT
+rustls                           Apache-2.0 OR ISC OR MIT
+rustls-native-certs              Apache-2.0 OR ISC OR MIT
+rustls-pemfile                   Apache-2.0 OR ISC OR MIT
+sct                              Apache-2.0 OR ISC OR MIT
+aes-gcm                          Apache-2.0 OR MIT
+async-channel                    Apache-2.0 OR MIT
+async-io                         Apache-2.0 OR MIT
+async-lock                       Apache-2.0 OR MIT
+atomic-waker                     Apache-2.0 OR MIT
+autocfg                          Apache-2.0 OR MIT
+base16ct                         Apache-2.0 OR MIT
+base64ct                         Apache-2.0 OR MIT
+bit-set                          Apache-2.0 OR MIT
+bit-vec                          Apache-2.0 OR MIT
+chacha20poly1305                 Apache-2.0 OR MIT
+concurrent-queue                 Apache-2.0 OR MIT
+const-oid                        Apache-2.0 OR MIT
+core2                            Apache-2.0 OR MIT
+criterion                        Apache-2.0 OR MIT
+criterion-plot                   Apache-2.0 OR MIT
+crypto-bigint                    Apache-2.0 OR MIT
+der                              Apache-2.0 OR MIT
+ecdsa                            Apache-2.0 OR MIT
+ed25519                          Apache-2.0 OR MIT
+elliptic-curve                   Apache-2.0 OR MIT
+encode_unicode                   Apache-2.0 OR MIT
+equivalent                       Apache-2.0 OR MIT
+event-listener                   Apache-2.0 OR MIT
+event-listener-strategy          Apache-2.0 OR MIT
+fastrand                         Apache-2.0 OR MIT
+futures-lite                     Apache-2.0 OR MIT
+ghash                            Apache-2.0 OR MIT
+idna_adapter                     Apache-2.0 OR MIT
+indexmap                         Apache-2.0 OR MIT
+k256                             Apache-2.0 OR MIT
+keccak                           Apache-2.0 OR MIT
+lalrpop                          Apache-2.0 OR MIT
+lalrpop-util                     Apache-2.0 OR MIT
+nohash-hasher                    Apache-2.0 OR MIT
+parking                          Apache-2.0 OR MIT
+pem-rfc7468                      Apache-2.0 OR MIT
+pin-project                      Apache-2.0 OR MIT
+pin-project-internal             Apache-2.0 OR MIT
+pin-project-lite                 Apache-2.0 OR MIT
+pkcs8                            Apache-2.0 OR MIT
+polling                          Apache-2.0 OR MIT
+poly1305                         Apache-2.0 OR MIT
+polyval                          Apache-2.0 OR MIT
+portable-atomic                  Apache-2.0 OR MIT
+portable-atomic-util             Apache-2.0 OR MIT
+prometheus-client                Apache-2.0 OR MIT
+prometheus-client-derive-encode  Apache-2.0 OR MIT
+pyo3-log                         Apache-2.0 OR MIT
+rfc6979                          Apache-2.0 OR MIT
+rust-analyzer-salsa              Apache-2.0 OR MIT
+rust-analyzer-salsa-macros       Apache-2.0 OR MIT
+rustc-hash                       Apache-2.0 OR MIT
+sec1                             Apache-2.0 OR MIT
+serdect                          Apache-2.0 OR MIT
+signature                        Apache-2.0 OR MIT
+snow                             Apache-2.0 OR MIT
+soketto                          Apache-2.0 OR MIT
+spki                             Apache-2.0 OR MIT
+test-log                         Apache-2.0 OR MIT
+test-log-macros                  Apache-2.0 OR MIT
+tinytemplate                     Apache-2.0 OR MIT
+utf8_iter                        Apache-2.0 OR MIT
+utf8parse                        Apache-2.0 OR MIT
+uuid                             Apache-2.0 OR MIT
+waker-fn                         Apache-2.0 OR MIT
+yamux                            Apache-2.0 OR MIT
+zeroize                          Apache-2.0 OR MIT
+zeroize_derive                   Apache-2.0 OR MIT
+target-lexicon                   Apache-2.0 WITH LLVM-exception
+linux-raw-sys                    Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+rustix                           Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+wasi                             Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+wasip2                           Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+wit-bindgen                      Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
+ascii-canvas                     Apache-2.0/MIT
+bytecount                        Apache-2.0/MIT
+cexpr                            Apache-2.0/MIT
+impl-trait-for-tuples            Apache-2.0/MIT
+arrayref                         BSD-2-Clause
+comrak                           BSD-2-Clause
+human_bytes                      BSD-2-Clause
+zerocopy                         BSD-2-Clause OR Apache-2.0 OR MIT
+zerocopy-derive                  BSD-2-Clause OR Apache-2.0 OR MIT
+bindgen                          BSD-3-Clause
+curve25519-dalek                 BSD-3-Clause
+deunicode                        BSD-3-Clause
+ed25519-dalek                    BSD-3-Clause
+instant                          BSD-3-Clause
+keccak-asm                       BSD-3-Clause
+sha3-asm                         BSD-3-Clause
+subtle                           BSD-3-Clause
+x25519-dalek                     BSD-3-Clause
+num_enum                         BSD-3-Clause OR MIT OR Apache-2.0
+num_enum_derive                  BSD-3-Clause OR MIT OR Apache-2.0
+xxhash-rust                      BSL-1.0
+bitcoin-io                       CC0-1.0
+bitcoin_hashes                   CC0-1.0
+hex-conservative                 CC0-1.0
+notify                           CC0-1.0
+secp256k1                        CC0-1.0
+secp256k1-sys                    CC0-1.0
+tiny-keccak                      CC0-1.0
+dunce                            CC0-1.0 OR MIT-0 OR Apache-2.0
+webpki-roots                     CDLA-Permissive-2.0
+rhexdump                         GPL-3.0-or-later
+unescaper                        GPL-3.0/MIT
+inotify                          ISC
+inotify-sys                      ISC
+libloading                       ISC
+rustls-webpki                    ISC
+simple_asn1                      ISC
+untrusted                        ISC
+aws-lc-rs                        ISC AND (Apache-2.0 OR ISC)
+aws-lc-sys                       ISC AND (Apache-2.0 OR ISC) AND OpenSSL
+aquamarine                       MIT
+assert-json-diff                 MIT
+async-stream                     MIT
+async-stream-impl                MIT
+asynchronous-codec               MIT
+axum                             MIT
+axum-core                        MIT
+base-x                           MIT
+base256emoji                     MIT
+bincode                          MIT
+bincode_derive                   MIT
+bitvec                           MIT
+block2                           MIT
+byte-slice-cast                  MIT
+bytes                            MIT
+cached                           MIT
+cached_proc_macro                MIT
+cached_proc_macro_types          MIT
+caseless                         MIT
+cfg_aliases                      MIT
+console                          MIT
+const-fnv1a-hash                 MIT
+const-str                        MIT
+convert_case                     MIT
+crunchy                          MIT
+darling                          MIT
+darling_core                     MIT
+darling_macro                    MIT
+dashmap                          MIT
+data-encoding                    MIT
+data-encoding-macro              MIT
+data-encoding-macro-internal     MIT
+defaultmap                       MIT
+derive_more                      MIT
+derive_more-impl                 MIT
+downcast                         MIT
+educe                            MIT
+entities                         MIT
+enum-ordinalize                  MIT
+enum-ordinalize-derive           MIT
+fancy-regex                      MIT
+fs_extra                         MIT
+fsevent-sys                      MIT
+funty                            MIT
+futures-bounded                  MIT
+generic-array                    MIT
+good_lp                          MIT
+google-cloud-metadata            MIT
+google-cloud-token               MIT
+h2                               MIT
+http-body                        MIT
+http-body-util                   MIT
+hyper                            MIT
+hyper-util                       MIT
+igd-next                         MIT
+include_dir                      MIT
+include_dir_macros               MIT
+integer-encoding                 MIT
+is-terminal                      MIT
+iso8601                          MIT
+jsonrpsee                        MIT
+jsonrpsee-client-transport       MIT
+jsonrpsee-core                   MIT
+jsonrpsee-http-client            MIT
+jsonrpsee-proc-macros            MIT
+jsonrpsee-server                 MIT
+jsonrpsee-types                  MIT
+jsonrpsee-wasm-client            MIT
+jsonrpsee-ws-client              MIT
+jsonschema                       MIT
+jsonwebtoken                     MIT
+kqueue                           MIT
+kqueue-sys                       MIT
+libm                             MIT
+libp2p                           MIT
+libp2p-allow-block-list          MIT
+libp2p-connection-limits         MIT
+libp2p-core                      MIT
+libp2p-dns                       MIT
+libp2p-gossipsub                 MIT
+libp2p-identify                  MIT
+libp2p-identity                  MIT
+libp2p-kad                       MIT
+libp2p-mdns                      MIT
+libp2p-metrics                   MIT
+libp2p-noise                     MIT
+libp2p-ping                      MIT
+libp2p-plaintext                 MIT
+libp2p-quic                      MIT
+libp2p-swarm                     MIT
+libp2p-swarm-derive              MIT
+libp2p-swarm-test                MIT
+libp2p-tcp                       MIT
+libp2p-tls                       MIT
+libp2p-upnp                      MIT
+libp2p-yamux                     MIT
+llvm-sys                         MIT
+lru                              MIT
+lz4-sys                          MIT
+match-lookup                     MIT
+matchers                         MIT
+memoffset                        MIT
+metrics                          MIT
+metrics-exporter-prometheus      MIT
+metrics-util                     MIT
+mime_guess                       MIT
+mio                              MIT
+mockito                          MIT
+multiaddr                        MIT
+multibase                        MIT
+multihash                        MIT
+multistream-select               MIT
+netlink-packet-core              MIT
+netlink-packet-route             MIT
+netlink-packet-utils             MIT
+netlink-proto                    MIT
+netlink-sys                      MIT
+new_debug_unreachable            MIT
+nix                              MIT
+nom                              MIT
+nu-ansi-term                     MIT
+objc2                            MIT
+objc2-encode                     MIT
+objc2-foundation                 MIT
+oorandom                         MIT
+openssl-sys                      MIT
+os_info                          MIT
+pem                              MIT
+phf                              MIT
+phf_generator                    MIT
+phf_macros                       MIT
+phf_shared                       MIT
+pico-args                        MIT
+plotters                         MIT
+plotters-backend                 MIT
+plotters-svg                     MIT
+precomputed-hash                 MIT
+protoc-prebuilt                  MIT
+pwhash                           MIT
+quanta                           MIT
+quick-protobuf                   MIT
+quick-protobuf-codec             MIT
+radium                           MIT
+raw-cpuid                        MIT
+readme-rustdocifier              MIT
+redox_syscall                    MIT
+retry                            MIT
+rlimit                           MIT
+route-recognizer                 MIT
+rtnetlink                        MIT
+ruint                            MIT
+ruint-macro                      MIT
+rust_decimal                     MIT
+rw-stream-sink                   MIT
+schannel                         MIT
+schemars                         MIT
+schemars_derive                  MIT
+sharded-slab                     MIT
+simd-adler32                     MIT
+simple_logger                    MIT
+slab                             MIT
+spin                             MIT
+starknet-types-core              MIT
+strsim                           MIT
+strum                            MIT
+strum_macros                     MIT
+synstructure                     MIT
+tap                              MIT
+termtree                         MIT
+test-case                        MIT
+test-case-core                   MIT
+test-case-macros                 MIT
+tokio                            MIT
+tokio-macros                     MIT
+tokio-metrics                    MIT
+tokio-native-tls                 MIT
+tokio-retry                      MIT
+tokio-stream                     MIT
+tokio-test                       MIT
+tokio-util                       MIT
+tower                            MIT
+tower-http                       MIT
+tower-layer                      MIT
+tower-service                    MIT
+tracing                          MIT
+tracing-attributes               MIT
+tracing-core                     MIT
+tracing-log                      MIT
+tracing-serde                    MIT
+tracing-subscriber               MIT
+tracing-test                     MIT
+tracing-test-macro               MIT
+try-lock                         MIT
+typed-arena                      MIT
+unsigned-varint                  MIT
+urlencoding                      MIT
+validator                        MIT
+validator_derive                 MIT
+valuable                         MIT
+virtue                           MIT
+void                             MIT
+want                             MIT
+wasm-timer                       MIT
+wasmtimer                        MIT
+winnow                           MIT
+winreg                           MIT
+wyz                              MIT
+xml-rs                           MIT
+xmltree                          MIT
+zip                              MIT
+zstd                             MIT
+matchit                          MIT AND BSD-3-Clause
+reed-solomon-simd                MIT AND BSD-3-Clause
+aead                             MIT OR Apache-2.0
+aes                              MIT OR Apache-2.0
+ahash                            MIT OR Apache-2.0
+allocator-api2                   MIT OR Apache-2.0
+alloy                            MIT OR Apache-2.0
+alloy-chains                     MIT OR Apache-2.0
+alloy-consensus                  MIT OR Apache-2.0
+alloy-consensus-any              MIT OR Apache-2.0
+alloy-contract                   MIT OR Apache-2.0
+alloy-core                       MIT OR Apache-2.0
+alloy-dyn-abi                    MIT OR Apache-2.0
+alloy-eip2124                    MIT OR Apache-2.0
+alloy-eip2930                    MIT OR Apache-2.0
+alloy-eip7702                    MIT OR Apache-2.0
+alloy-eips                       MIT OR Apache-2.0
+alloy-genesis                    MIT OR Apache-2.0
+alloy-hardforks                  MIT OR Apache-2.0
+alloy-json-abi                   MIT OR Apache-2.0
+alloy-json-rpc                   MIT OR Apache-2.0
+alloy-network                    MIT OR Apache-2.0
+alloy-network-primitives         MIT OR Apache-2.0
+alloy-node-bindings              MIT OR Apache-2.0
+alloy-primitives                 MIT OR Apache-2.0
+alloy-provider                   MIT OR Apache-2.0
+alloy-rlp                        MIT OR Apache-2.0
+alloy-rlp-derive                 MIT OR Apache-2.0
+alloy-rpc-client                 MIT OR Apache-2.0
+alloy-rpc-types                  MIT OR Apache-2.0
+alloy-rpc-types-anvil            MIT OR Apache-2.0
+alloy-rpc-types-any              MIT OR Apache-2.0
+alloy-rpc-types-eth              MIT OR Apache-2.0
+alloy-serde                      MIT OR Apache-2.0
+alloy-signer                     MIT OR Apache-2.0
+alloy-signer-local               MIT OR Apache-2.0
+alloy-sol-macro                  MIT OR Apache-2.0
+alloy-sol-macro-expander         MIT OR Apache-2.0
+alloy-sol-macro-input            MIT OR Apache-2.0
+alloy-sol-type-parser            MIT OR Apache-2.0
+alloy-sol-types                  MIT OR Apache-2.0
+alloy-transport                  MIT OR Apache-2.0
+alloy-transport-http             MIT OR Apache-2.0
+alloy-trie                       MIT OR Apache-2.0
+alloy-tx-macros                  MIT OR Apache-2.0
+anes                             MIT OR Apache-2.0
+anstream                         MIT OR Apache-2.0
+anstyle                          MIT OR Apache-2.0
+anstyle-parse                    MIT OR Apache-2.0
+anstyle-query                    MIT OR Apache-2.0
+anstyle-wincon                   MIT OR Apache-2.0
+anyhow                           MIT OR Apache-2.0
+arc-swap                         MIT OR Apache-2.0
+ark-bls12-381                    MIT OR Apache-2.0
+ark-ec                           MIT OR Apache-2.0
+ark-ff                           MIT OR Apache-2.0
+ark-ff-asm                       MIT OR Apache-2.0
+ark-ff-macros                    MIT OR Apache-2.0
+ark-poly                         MIT OR Apache-2.0
+ark-secp256k1                    MIT OR Apache-2.0
+ark-secp256r1                    MIT OR Apache-2.0
+ark-serialize                    MIT OR Apache-2.0
+ark-serialize-derive             MIT OR Apache-2.0
+arrayvec                         MIT OR Apache-2.0
+asn1-rs                          MIT OR Apache-2.0
+asn1-rs-derive                   MIT OR Apache-2.0
+asn1-rs-impl                     MIT OR Apache-2.0
+async-recursion                  MIT OR Apache-2.0
+async-trait                      MIT OR Apache-2.0
+auto_impl                        MIT OR Apache-2.0
+base64                           MIT OR Apache-2.0
+beef                             MIT OR Apache-2.0
+bitflags                         MIT OR Apache-2.0
+blake2                           MIT OR Apache-2.0
+block-buffer                     MIT OR Apache-2.0
+blowfish                         MIT OR Apache-2.0
+borsh                            MIT OR Apache-2.0
+bstr                             MIT OR Apache-2.0
+bumpalo                          MIT OR Apache-2.0
+camelpaste                       MIT OR Apache-2.0
+cast                             MIT OR Apache-2.0
+cc                               MIT OR Apache-2.0
+cfg-if                           MIT OR Apache-2.0
+chacha20                         MIT OR Apache-2.0
+chrono                           MIT OR Apache-2.0
+cipher                           MIT OR Apache-2.0
+clap                             MIT OR Apache-2.0
+clap_builder                     MIT OR Apache-2.0
+clap_derive                      MIT OR Apache-2.0
+clap_lex                         MIT OR Apache-2.0
+cmake                            MIT OR Apache-2.0
+colorchoice                      MIT OR Apache-2.0
+const-hex                        MIT OR Apache-2.0
+core-foundation                  MIT OR Apache-2.0
+core-foundation-sys              MIT OR Apache-2.0
+cpufeatures                      MIT OR Apache-2.0
+crc                              MIT OR Apache-2.0
+crc-catalog                      MIT OR Apache-2.0
+crc32fast                        MIT OR Apache-2.0
+critical-section                 MIT OR Apache-2.0
+crossbeam-channel                MIT OR Apache-2.0
+crossbeam-deque                  MIT OR Apache-2.0
+crossbeam-epoch                  MIT OR Apache-2.0
+crossbeam-queue                  MIT OR Apache-2.0
+crossbeam-utils                  MIT OR Apache-2.0
+crypto-common                    MIT OR Apache-2.0
+crypto-mac                       MIT OR Apache-2.0
+ctr                              MIT OR Apache-2.0
+der-parser                       MIT OR Apache-2.0
+deranged                         MIT OR Apache-2.0
+diff                             MIT OR Apache-2.0
+diffy                            MIT OR Apache-2.0
+digest                           MIT OR Apache-2.0
+displaydoc                       MIT OR Apache-2.0
+dtoa                             MIT OR Apache-2.0
+dyn-clone                        MIT OR Apache-2.0
+either                           MIT OR Apache-2.0
+ena                              MIT OR Apache-2.0
+enum-assoc                       MIT OR Apache-2.0
+env_filter                       MIT OR Apache-2.0
+env_logger                       MIT OR Apache-2.0
+erased-serde                     MIT OR Apache-2.0
+errno                            MIT OR Apache-2.0
+ethnum                           MIT OR Apache-2.0
+expect-test                      MIT OR Apache-2.0
+find-msvc-tools                  MIT OR Apache-2.0
+fixed-hash                       MIT OR Apache-2.0
+fixedbitset                      MIT OR Apache-2.0
+flate2                           MIT OR Apache-2.0
+form_urlencoded                  MIT OR Apache-2.0
+futures                          MIT OR Apache-2.0
+futures-channel                  MIT OR Apache-2.0
+futures-core                     MIT OR Apache-2.0
+futures-executor                 MIT OR Apache-2.0
+futures-io                       MIT OR Apache-2.0
+futures-macro                    MIT OR Apache-2.0
+futures-sink                     MIT OR Apache-2.0
+futures-task                     MIT OR Apache-2.0
+futures-util                     MIT OR Apache-2.0
+futures-utils-wasm               MIT OR Apache-2.0
+genco                            MIT OR Apache-2.0
+genco-macros                     MIT OR Apache-2.0
+getrandom                        MIT OR Apache-2.0
+glob                             MIT OR Apache-2.0
+gloo-net                         MIT OR Apache-2.0
+gloo-timers                      MIT OR Apache-2.0
+gloo-utils                       MIT OR Apache-2.0
+half                             MIT OR Apache-2.0
+hashbrown                        MIT OR Apache-2.0
+hashlink                         MIT OR Apache-2.0
+heck                             MIT OR Apache-2.0
+hermit-abi                       MIT OR Apache-2.0
+hex                              MIT OR Apache-2.0
+hickory-proto                    MIT OR Apache-2.0
+hickory-resolver                 MIT OR Apache-2.0
+hkdf                             MIT OR Apache-2.0
+hmac                             MIT OR Apache-2.0
+home                             MIT OR Apache-2.0
+http                             MIT OR Apache-2.0
+httparse                         MIT OR Apache-2.0
+httpdate                         MIT OR Apache-2.0
+iana-time-zone                   MIT OR Apache-2.0
+iana-time-zone-haiku             MIT OR Apache-2.0
+idna                             MIT OR Apache-2.0
+if-watch                         MIT OR Apache-2.0
+impl-codec                       MIT OR Apache-2.0
+impl-serde                       MIT OR Apache-2.0
+indoc                            MIT OR Apache-2.0
+inout                            MIT OR Apache-2.0
+inventory                        MIT OR Apache-2.0
+ipnet                            MIT OR Apache-2.0
+iri-string                       MIT OR Apache-2.0
+is_terminal_polyfill             MIT OR Apache-2.0
+itertools                        MIT OR Apache-2.0
+itoa                             MIT OR Apache-2.0
+jobserver                        MIT OR Apache-2.0
+js-sys                           MIT OR Apache-2.0
+jsonptr                          MIT OR Apache-2.0
+lazy_static                      MIT OR Apache-2.0
+libc                             MIT OR Apache-2.0
+libz-sys                         MIT OR Apache-2.0
+lock_api                         MIT OR Apache-2.0
+log                              MIT OR Apache-2.0
+macro-string                     MIT OR Apache-2.0
+md-5                             MIT OR Apache-2.0
+memmap2                          MIT OR Apache-2.0
+mime                             MIT OR Apache-2.0
+mockall                          MIT OR Apache-2.0
+mockall_derive                   MIT OR Apache-2.0
+multimap                         MIT OR Apache-2.0
+native-tls                       MIT OR Apache-2.0
+ndarray                          MIT OR Apache-2.0
+notify-types                     MIT OR Apache-2.0
+num-conv                         MIT OR Apache-2.0
+num-integer                      MIT OR Apache-2.0
+num-iter                         MIT OR Apache-2.0
+num-traits                       MIT OR Apache-2.0
+num_cpus                         MIT OR Apache-2.0
+num_threads                      MIT OR Apache-2.0
+nybbles                          MIT OR Apache-2.0
+oid-registry                     MIT OR Apache-2.0
+once_cell                        MIT OR Apache-2.0
+once_cell_polyfill               MIT OR Apache-2.0
+opaque-debug                     MIT OR Apache-2.0
+openssl-probe                    MIT OR Apache-2.0
+parking_lot                      MIT OR Apache-2.0
+parking_lot_core                 MIT OR Apache-2.0
+paste                            MIT OR Apache-2.0
+path-clean                       MIT OR Apache-2.0
+peeking_take_while               MIT OR Apache-2.0
+percent-encoding                 MIT OR Apache-2.0
+pest                             MIT OR Apache-2.0
+petgraph                         MIT OR Apache-2.0
+pin-utils                        MIT OR Apache-2.0
+pkg-config                       MIT OR Apache-2.0
+powerfmt                         MIT OR Apache-2.0
+ppv-lite86                       MIT OR Apache-2.0
+predicates                       MIT OR Apache-2.0
+predicates-core                  MIT OR Apache-2.0
+predicates-tree                  MIT OR Apache-2.0
+pretty_assertions                MIT OR Apache-2.0
+prettyplease                     MIT OR Apache-2.0
+primitive-types                  MIT OR Apache-2.0
+proc-macro-crate                 MIT OR Apache-2.0
+proc-macro-error-attr2           MIT OR Apache-2.0
+proc-macro-error2                MIT OR Apache-2.0
+proc-macro2                      MIT OR Apache-2.0
+proptest                         MIT OR Apache-2.0
+pyo3                             MIT OR Apache-2.0
+pyo3-build-config                MIT OR Apache-2.0
+pyo3-ffi                         MIT OR Apache-2.0
+pyo3-macros                      MIT OR Apache-2.0
+pyo3-macros-backend              MIT OR Apache-2.0
+quinn                            MIT OR Apache-2.0
+quinn-proto                      MIT OR Apache-2.0
+quinn-udp                        MIT OR Apache-2.0
+quote                            MIT OR Apache-2.0
+rand                             MIT OR Apache-2.0
+rand_chacha                      MIT OR Apache-2.0
+rand_core                        MIT OR Apache-2.0
+rand_distr                       MIT OR Apache-2.0
+rand_xorshift                    MIT OR Apache-2.0
+rand_xoshiro                     MIT OR Apache-2.0
+rapidhash                        MIT OR Apache-2.0
+rayon                            MIT OR Apache-2.0
+rayon-core                       MIT OR Apache-2.0
+rcgen                            MIT OR Apache-2.0
+ref-cast                         MIT OR Apache-2.0
+ref-cast-impl                    MIT OR Apache-2.0
+regex                            MIT OR Apache-2.0
+regex-automata                   MIT OR Apache-2.0
+regex-lite                       MIT OR Apache-2.0
+regex-syntax                     MIT OR Apache-2.0
+relative-path                    MIT OR Apache-2.0
+replace_with                     MIT OR Apache-2.0
+reqwest                          MIT OR Apache-2.0
+reqwest-middleware               MIT OR Apache-2.0
+reqwest-retry                    MIT OR Apache-2.0
+resolv-conf                      MIT OR Apache-2.0
+retry-policies                   MIT OR Apache-2.0
+ripemd                           MIT OR Apache-2.0
+rlp                              MIT OR Apache-2.0
+rstest                           MIT OR Apache-2.0
+rstest_macros                    MIT OR Apache-2.0
+rstest_reuse                     MIT OR Apache-2.0
+rustc_version                    MIT OR Apache-2.0
+rustls-pki-types                 MIT OR Apache-2.0
+rustversion                      MIT OR Apache-2.0
+scopeguard                       MIT OR Apache-2.0
+security-framework               MIT OR Apache-2.0
+security-framework-sys           MIT OR Apache-2.0
+semver                           MIT OR Apache-2.0
+serde                            MIT OR Apache-2.0
+serde_core                       MIT OR Apache-2.0
+serde_derive                     MIT OR Apache-2.0
+serde_derive_internals           MIT OR Apache-2.0
+serde_json                       MIT OR Apache-2.0
+serde_json_pythonic              MIT OR Apache-2.0
+serde_path_to_error              MIT OR Apache-2.0
+serde_repr                       MIT OR Apache-2.0
+serde_spanned                    MIT OR Apache-2.0
+serde_with                       MIT OR Apache-2.0
+serde_with_macros                MIT OR Apache-2.0
+sha-1                            MIT OR Apache-2.0
+sha2                             MIT OR Apache-2.0
+sha3                             MIT OR Apache-2.0
+shlex                            MIT OR Apache-2.0
+signal-hook-registry             MIT OR Apache-2.0
+smallvec                         MIT OR Apache-2.0
+smol_str                         MIT OR Apache-2.0
+socket2                          MIT OR Apache-2.0
+sprs                             MIT OR Apache-2.0
+stable_deref_trait               MIT OR Apache-2.0
+starknet-core                    MIT OR Apache-2.0
+starknet-core-derive             MIT OR Apache-2.0
+starknet-crypto                  MIT OR Apache-2.0
+starknet-curve                   MIT OR Apache-2.0
+static_assertions                MIT OR Apache-2.0
+string_cache                     MIT OR Apache-2.0
+syn                              MIT OR Apache-2.0
+syn-solidity                     MIT OR Apache-2.0
+system-configuration             MIT OR Apache-2.0
+system-configuration-sys         MIT OR Apache-2.0
+target-triple                    MIT OR Apache-2.0
+tblgen                           MIT OR Apache-2.0
+tempfile                         MIT OR Apache-2.0
+term                             MIT OR Apache-2.0
+thiserror                        MIT OR Apache-2.0
+thiserror-impl                   MIT OR Apache-2.0
+thread_local                     MIT OR Apache-2.0
+time                             MIT OR Apache-2.0
+time-core                        MIT OR Apache-2.0
+time-macros                      MIT OR Apache-2.0
+tokio-rustls                     MIT OR Apache-2.0
+toml                             MIT OR Apache-2.0
+toml_datetime                    MIT OR Apache-2.0
+toml_edit                        MIT OR Apache-2.0
+toml_parser                      MIT OR Apache-2.0
+toml_write                       MIT OR Apache-2.0
+toml_writer                      MIT OR Apache-2.0
+triomphe                         MIT OR Apache-2.0
+trybuild                         MIT OR Apache-2.0
+typeid                           MIT OR Apache-2.0
+typenum                          MIT OR Apache-2.0
+typetag                          MIT OR Apache-2.0
+typetag-impl                     MIT OR Apache-2.0
+ucd-trie                         MIT OR Apache-2.0
+uint                             MIT OR Apache-2.0
+unarray                          MIT OR Apache-2.0
+unicase                          MIT OR Apache-2.0
+unicode-normalization            MIT OR Apache-2.0
+unicode-segmentation             MIT OR Apache-2.0
+unicode-xid                      MIT OR Apache-2.0
+unicode_categories               MIT OR Apache-2.0
+unindent                         MIT OR Apache-2.0
+universal-hash                   MIT OR Apache-2.0
+unty                             MIT OR Apache-2.0
+ureq                             MIT OR Apache-2.0
+url                              MIT OR Apache-2.0
+wasm-bindgen                     MIT OR Apache-2.0
+wasm-bindgen-futures             MIT OR Apache-2.0
+wasm-bindgen-macro               MIT OR Apache-2.0
+wasm-bindgen-macro-support       MIT OR Apache-2.0
+wasm-bindgen-shared              MIT OR Apache-2.0
+wasm-streams                     MIT OR Apache-2.0
+web-sys                          MIT OR Apache-2.0
+web-time                         MIT OR Apache-2.0
+widestring                       MIT OR Apache-2.0
+windows                          MIT OR Apache-2.0
+windows-core                     MIT OR Apache-2.0
+windows-implement                MIT OR Apache-2.0
+windows-interface                MIT OR Apache-2.0
+windows-link                     MIT OR Apache-2.0
+windows-registry                 MIT OR Apache-2.0
+windows-result                   MIT OR Apache-2.0
+windows-strings                  MIT OR Apache-2.0
+windows-sys                      MIT OR Apache-2.0
+windows-targets                  MIT OR Apache-2.0
+windows_aarch64_gnullvm          MIT OR Apache-2.0
+windows_aarch64_msvc             MIT OR Apache-2.0
+windows_i686_gnu                 MIT OR Apache-2.0
+windows_i686_gnullvm             MIT OR Apache-2.0
+windows_i686_msvc                MIT OR Apache-2.0
+windows_x86_64_gnu               MIT OR Apache-2.0
+windows_x86_64_gnullvm           MIT OR Apache-2.0
+windows_x86_64_msvc              MIT OR Apache-2.0
+x509-parser                      MIT OR Apache-2.0
+xshell                           MIT OR Apache-2.0
+xshell-macros                    MIT OR Apache-2.0
+yansi                            MIT OR Apache-2.0
+yasna                            MIT OR Apache-2.0
+zstd-safe                        MIT OR Apache-2.0
+fiat-crypto                      MIT OR Apache-2.0 OR BSD-1-Clause
+r-efi                            MIT OR Apache-2.0 OR LGPL-2.1-or-later
+lru-slab                         MIT OR Apache-2.0 OR Zlib
+tinyvec_macros                   MIT OR Apache-2.0 OR Zlib
+if-addrs                         MIT OR BSD-3-Clause
+miniz_oxide                      MIT OR Zlib OR Apache-2.0
+android_system_properties        MIT/Apache-2.0
+ark-std                          MIT/Apache-2.0
+assert_matches                   MIT/Apache-2.0
+bs58                             MIT/Apache-2.0
+bzip2-sys                        MIT/Apache-2.0
+curve25519-dalek-derive          MIT/Apache-2.0
+deadqueue                        MIT/Apache-2.0
+derivative                       MIT/Apache-2.0
+enum-as-inner                    MIT/Apache-2.0
+ff                               MIT/Apache-2.0
+foreign-types                    MIT/Apache-2.0
+foreign-types-shared             MIT/Apache-2.0
+fraction                         MIT/Apache-2.0
+futures-rustls                   MIT/Apache-2.0
+futures-timer                    MIT/Apache-2.0
+group                            MIT/Apache-2.0
+hdrhistogram                     MIT/Apache-2.0
+hex_fmt                          MIT/Apache-2.0
+hyper-tls                        MIT/Apache-2.0
+id-arena                         MIT/Apache-2.0
+ident_case                       MIT/Apache-2.0
+ipconfig                         MIT/Apache-2.0
+json-patch                       MIT/Apache-2.0
+lazycell                         MIT/Apache-2.0
+matrixmultiply                   MIT/Apache-2.0
+minimal-lexical                  MIT/Apache-2.0
+num                              MIT/Apache-2.0
+num-bigint                       MIT/Apache-2.0
+num-cmp                          MIT/Apache-2.0
+num-complex                      MIT/Apache-2.0
+num-rational                     MIT/Apache-2.0
+openssl-macros                   MIT/Apache-2.0
+page_size                        MIT/Apache-2.0
+quick-error                      MIT/Apache-2.0
+rawpointer                       MIT/Apache-2.0
+rustc-hex                        MIT/Apache-2.0
+rusticata-macros                 MIT/Apache-2.0
+rusty-fork                       MIT/Apache-2.0
+semver-parser                    MIT/Apache-2.0
+send_wrapper                     MIT/Apache-2.0
+serde_urlencoded                 MIT/Apache-2.0
+siphasher                        MIT/Apache-2.0
+slug                             MIT/Apache-2.0
+tagptr                           MIT/Apache-2.0
+threadpool                       MIT/Apache-2.0
+tikv-jemalloc-sys                MIT/Apache-2.0
+tikv-jemallocator                MIT/Apache-2.0
+vcpkg                            MIT/Apache-2.0
+version_check                    MIT/Apache-2.0
+wait-timeout                     MIT/Apache-2.0
+winapi                           MIT/Apache-2.0
+winapi-i686-pc-windows-gnu       MIT/Apache-2.0
+winapi-x86_64-pc-windows-gnu     MIT/Apache-2.0
+zstd-sys                         MIT/Apache-2.0
+rust-librocksdb-sys              MIT/Apache-2.0/BSD-3-Clause
+attohttpc                        MPL-2.0
+colored                          MPL-2.0
+fastrlp                          MPL-2.0
+indent                           MPL-2.0
+libmdbx                          MPL-2.0
+mdbx-sys                         MPL-2.0
+icu_collections                  Unicode-3.0
+icu_locale_core                  Unicode-3.0
+icu_normalizer                   Unicode-3.0
+icu_normalizer_data              Unicode-3.0
+icu_properties                   Unicode-3.0
+icu_properties_data              Unicode-3.0
+icu_provider                     Unicode-3.0
+litemap                          Unicode-3.0
+potential_utf                    Unicode-3.0
+tinystr                          Unicode-3.0
+writeable                        Unicode-3.0
+yoke                             Unicode-3.0
+yoke-derive                      Unicode-3.0
+zerofrom                         Unicode-3.0
+zerofrom-derive                  Unicode-3.0
+zerotrie                         Unicode-3.0
+zerovec                          Unicode-3.0
+zerovec-derive                   Unicode-3.0
+aho-corasick                     Unlicense OR MIT
+byteorder                        Unlicense OR MIT
+globset                          Unlicense OR MIT
+ignore                           Unlicense OR MIT
+memchr                           Unlicense OR MIT
+termcolor                        Unlicense OR MIT
+winapi-util                      Unlicense OR MIT
+csv                              Unlicense/MIT
+csv-core                         Unlicense/MIT
+same-file                        Unlicense/MIT
+walkdir                          Unlicense/MIT
+const_format                     Zlib
+const_format_proc_macros         Zlib
+foldhash                         Zlib
+dispatch2                        Zlib OR Apache-2.0 OR MIT
+objc2-cloud-kit                  Zlib OR Apache-2.0 OR MIT
+objc2-core-data                  Zlib OR Apache-2.0 OR MIT
+objc2-core-foundation            Zlib OR Apache-2.0 OR MIT
+objc2-core-graphics              Zlib OR Apache-2.0 OR MIT
+objc2-core-image                 Zlib OR Apache-2.0 OR MIT
+objc2-core-location              Zlib OR Apache-2.0 OR MIT
+objc2-core-text                  Zlib OR Apache-2.0 OR MIT
+objc2-io-surface                 Zlib OR Apache-2.0 OR MIT
+objc2-quartz-core                Zlib OR Apache-2.0 OR MIT
+objc2-ui-kit                     Zlib OR Apache-2.0 OR MIT
+objc2-user-notifications         Zlib OR Apache-2.0 OR MIT
+tinyvec                          Zlib OR Apache-2.0 OR MIT
+cairo-lang-casm                  non-standard
+cairo-lang-compiler              non-standard
+cairo-lang-debug                 non-standard
+cairo-lang-defs                  non-standard
+cairo-lang-diagnostics           non-standard
+cairo-lang-eq-solver             non-standard
+cairo-lang-filesystem            non-standard
+cairo-lang-formatter             non-standard
+cairo-lang-lowering              non-standard
+cairo-lang-parser                non-standard
+cairo-lang-plugins               non-standard
+cairo-lang-primitive-token       non-standard
+cairo-lang-proc-macros           non-standard
+cairo-lang-project               non-standard
+cairo-lang-runnable-utils        non-standard
+cairo-lang-runner                non-standard
+cairo-lang-semantic              non-standard
+cairo-lang-sierra                non-standard
+cairo-lang-sierra-ap-change      non-standard
+cairo-lang-sierra-gas            non-standard
+cairo-lang-sierra-generator      non-standard
+cairo-lang-sierra-to-casm        non-standard
+cairo-lang-sierra-type-size      non-standard
+cairo-lang-starknet              non-standard
+cairo-lang-starknet-classes      non-standard
+cairo-lang-syntax                non-standard
+cairo-lang-syntax-codegen        non-standard
+cairo-lang-test-utils            non-standard
+cairo-lang-utils                 non-standard
+mlir-sys                         non-standard
+
+================================================================================
+LICENSE SUMMARY
+================================================================================
+Total dependencies found: 892
+Published crates: 892
+Unpublished crates: 0
+
+Unique licenses: 44
+
+License breakdown:
+  MIT OR Apache-2.0              370 crate(s) (41.5%)
+  MIT                            211 crate(s) (23.7%)
+  Apache-2.0 OR MIT               69 crate(s) (7.7%)
+  MIT/Apache-2.0                  54 crate(s) (6.1%)
+  Apache-2.0                      38 crate(s) (4.3%)
+  non-standard                    30 crate(s) (3.4%)
+  Unicode-3.0                     18 crate(s) (2.0%)
+  Zlib OR Apache-2.0 OR MIT       13 crate(s) (1.5%)
+  BSD-3-Clause                     9 crate(s) (1.0%)
+  CC0-1.0                          7 crate(s) (0.8%)
+  Unlicense OR MIT                 7 crate(s) (0.8%)
+  ISC                              6 crate(s) (0.7%)
+  MPL-2.0                          6 crate(s) (0.7%)
+  Apache-2.0 OR ISC OR MIT         5 crate(s) (0.6%)
+  Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT   5 crate(s) (0.6%)
+  Apache-2.0/MIT                   4 crate(s) (0.4%)
+  Unlicense/MIT                    4 crate(s) (0.4%)
+  BSD-2-Clause                     3 crate(s) (0.3%)
+  Zlib                             3 crate(s) (0.3%)
+  0BSD                             2 crate(s) (0.2%)
+  BSD-2-Clause OR Apache-2.0 OR MIT   2 crate(s) (0.2%)
+  BSD-3-Clause OR MIT OR Apache-2.0   2 crate(s) (0.2%)
+  MIT AND BSD-3-Clause             2 crate(s) (0.2%)
+  MIT OR Apache-2.0 OR Zlib        2 crate(s) (0.2%)
+  (Apache-2.0 OR MIT) AND BSD-3-Clause   1 crate(s) (0.1%)
+  (MIT OR Apache-2.0) AND Apache-2.0   1 crate(s) (0.1%)
+  (MIT OR Apache-2.0) AND Unicode-3.0   1 crate(s) (0.1%)
+  0BSD OR MIT OR Apache-2.0        1 crate(s) (0.1%)
+  Apache-2.0 / MIT                 1 crate(s) (0.1%)
+  Apache-2.0 AND ISC               1 crate(s) (0.1%)
+  Apache-2.0 OR BSL-1.0            1 crate(s) (0.1%)
+  Apache-2.0 WITH LLVM-exception   1 crate(s) (0.1%)
+  BSL-1.0                          1 crate(s) (0.1%)
+  CC0-1.0 OR MIT-0 OR Apache-2.0   1 crate(s) (0.1%)
+  CDLA-Permissive-2.0              1 crate(s) (0.1%)
+  GPL-3.0-or-later                 1 crate(s) (0.1%)
+  GPL-3.0/MIT                      1 crate(s) (0.1%)
+  ISC AND (Apache-2.0 OR ISC)      1 crate(s) (0.1%)
+  ISC AND (Apache-2.0 OR ISC) AND OpenSSL   1 crate(s) (0.1%)
+  MIT OR Apache-2.0 OR BSD-1-Clause   1 crate(s) (0.1%)
+  MIT OR Apache-2.0 OR LGPL-2.1-or-later   1 crate(s) (0.1%)
+  MIT OR BSD-3-Clause              1 crate(s) (0.1%)
+  MIT OR Zlib OR Apache-2.0        1 crate(s) (0.1%)
+  MIT/Apache-2.0/BSD-3-Clause      1 crate(s) (0.1%)
