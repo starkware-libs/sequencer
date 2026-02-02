@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{BatcherConfig, BatcherStaticConfig, BlockBuilderConfig};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -195,7 +195,10 @@ impl Default for MockDependenciesWithRealStorage {
             storage_writer,
             clients: MockClients::default(),
             batcher_config: BatcherConfig {
-                outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+                static_config: BatcherStaticConfig {
+                    outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             _temp_dir: temp_dir,
@@ -234,7 +237,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     let committer_client = Arc::new(clients.committer_client);
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config,
-        &config.commitment_manager_config,
+        &config.static_config.commitment_manager_config,
         storage_reader.as_ref(),
         committer_client.clone(),
     )
@@ -796,7 +799,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 
     let mut batcher = create_batcher(mock_dependencies).await;
     // Only propose L1 txs every PROPOSALS_L1_MODULATOR proposals.
-    batcher.config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
+    batcher.config.static_config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
 
     for i in 0..N_PROPOSALS {
         batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
@@ -1511,8 +1514,14 @@ async fn mempool_not_ready() {
 #[test]
 fn validate_batcher_config_failure() {
     let config = BatcherConfig {
-        input_stream_content_buffer_size: 99,
-        block_builder_config: BlockBuilderConfig { n_concurrent_txs: 100, ..Default::default() },
+        static_config: BatcherStaticConfig {
+            input_stream_content_buffer_size: 99,
+            block_builder_config: BlockBuilderConfig {
+                n_concurrent_txs: 100,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         ..Default::default()
     };
 

@@ -2,7 +2,7 @@ use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
+use apollo_batcher_config::config::{BatcherConfig, BatcherStaticConfig, CommitmentManagerConfig};
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_storage::StorageResult;
@@ -36,7 +36,10 @@ fn mock_dependencies() -> MockDependencies {
         results_channel_size: 1,
         panic_if_task_channel_full: true,
     };
-    let batcher_config = BatcherConfig { commitment_manager_config, ..Default::default() };
+    let batcher_config = BatcherConfig {
+        static_config: BatcherStaticConfig { commitment_manager_config, ..Default::default() },
+        ..Default::default()
+    };
     let mut committer_client = MockCommitterClient::new();
     committer_client
         .expect_commit_block()
@@ -75,7 +78,7 @@ fn get_number_of_items_in_channel_from_receiver<T>(receiver: &Receiver<T>) -> us
 async fn create_commitment_manager(mock_dependencies: MockDependencies) -> ApolloCommitmentManager {
     CommitmentManager::create_commitment_manager(
         &mock_dependencies.batcher_config,
-        &mock_dependencies.batcher_config.commitment_manager_config,
+        &mock_dependencies.batcher_config.static_config.commitment_manager_config,
         &mock_dependencies.storage_reader,
         Arc::new(mock_dependencies.committer_client),
     )
@@ -295,8 +298,8 @@ async fn test_add_task_panic_on_full_channel(mut mock_dependencies: MockDependen
     add_initial_heights(&mut mock_dependencies);
     let mut commitment_manager = create_commitment_manager(mock_dependencies).await;
     assert!(
-        commitment_manager.config.panic_if_task_channel_full,
-        "Panic if tasks channel full should be true for this test."
+        !commitment_manager.config.panic_if_task_channel_full,
+        "Wait for tasks channel should be false for this test (panic on full)."
     );
 
     let next_height = fill_channels(&mut commitment_manager).await;
@@ -315,11 +318,12 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
     let state_diff = test_state_diff();
     let state_diff_commitment = Some(StateDiffCommitment::default());
 
-    mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
-        tasks_channel_size: 2,
-        results_channel_size: 2,
-        panic_if_task_channel_full: true,
-    };
+    mock_dependencies.batcher_config.static_config.commitment_manager_config =
+        CommitmentManagerConfig {
+            tasks_channel_size: 2,
+            results_channel_size: 2,
+            panic_if_task_channel_full: true,
+        };
     let mut commitment_manager = create_commitment_manager(mock_dependencies).await;
 
     // Verify the commitment manager doesn't wait if there are no results.
@@ -370,11 +374,12 @@ async fn add_commitments_and_revert_tasks(
 #[tokio::test]
 async fn test_wait_for_revert(mut mock_dependencies: MockDependencies) {
     add_initial_heights(&mut mock_dependencies);
-    mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
-        tasks_channel_size: 5,
-        results_channel_size: 5,
-        panic_if_task_channel_full: true,
-    };
+    mock_dependencies.batcher_config.static_config.commitment_manager_config =
+        CommitmentManagerConfig {
+            tasks_channel_size: 5,
+            results_channel_size: 5,
+            panic_if_task_channel_full: true,
+        };
     let mut commitment_manager = create_commitment_manager(mock_dependencies).await;
 
     let height = add_commitments_and_revert_tasks(&mut commitment_manager, INITIAL_HEIGHT).await;
@@ -388,11 +393,12 @@ async fn test_wait_for_revert(mut mock_dependencies: MockDependencies) {
 #[should_panic(expected = "Got revert output")]
 async fn test_revert_result_at_getting_commitments(mut mock_dependencies: MockDependencies) {
     add_initial_heights(&mut mock_dependencies);
-    mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
-        tasks_channel_size: 5,
-        results_channel_size: 5,
-        panic_if_task_channel_full: true,
-    };
+    mock_dependencies.batcher_config.static_config.commitment_manager_config =
+        CommitmentManagerConfig {
+            tasks_channel_size: 5,
+            results_channel_size: 5,
+            panic_if_task_channel_full: true,
+        };
     let mut commitment_manager = create_commitment_manager(mock_dependencies).await;
 
     add_commitments_and_revert_tasks(&mut commitment_manager, INITIAL_HEIGHT).await;

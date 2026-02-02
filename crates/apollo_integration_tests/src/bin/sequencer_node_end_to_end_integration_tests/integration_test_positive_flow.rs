@@ -29,7 +29,7 @@ async fn main() {
 
     // TODO(Tsabary): consider decreasing
     // "consensus_manager_config.consensus_manager_config.static_config.startup_delay" and
-    // "batcher_config.block_builder_config.proposer_idle_detection_delay_millis".
+    // "batcher_config.static_config.block_builder_config.proposer_idle_detection_delay_millis".
 
     let node_indices = integration_test_manager.get_node_indices();
     // Run the nodes.
