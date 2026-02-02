@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770010414663,
+  "lastUpdate": 1770022351483,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1563,6 +1563,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1326.8248468699999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "88497213+amosStarkware@users.noreply.github.com",
+            "name": "amosStarkware",
+            "username": "amosStarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5ac6b3990bccf706be9e18cc7203e6e2455961ee",
+          "message": "starknet_patricia_storage: make aerospike commit level explicit (#11745)",
+          "timestamp": "2026-02-02T08:21:47Z",
+          "tree_id": "76fdf5430c4b5c4a700a5e0cbafd75a2d2ec9ce1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5ac6b3990bccf706be9e18cc7203e6e2455961ee"
+        },
+        "date": 1770022351197,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 829.18088571,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1244.89634771,
             "unit": "ms"
           }
         ]
