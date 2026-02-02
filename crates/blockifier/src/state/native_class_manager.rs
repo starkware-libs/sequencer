@@ -17,6 +17,7 @@ use crate::blockifier::config::{
     CairoNativeRunConfig,
     ContractClassManagerStaticConfig,
     NativeClassesWhitelist,
+    SharedContractClassManagerDynamicConfig,
 };
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -48,6 +49,7 @@ type CompilationRequest = (ClassHash, Arc<SierraContractClass>, CompiledClassV1)
 #[derive(Clone)]
 pub struct NativeClassManager {
     cairo_native_run_config: CairoNativeRunConfig,
+    dynamic_config: SharedContractClassManagerDynamicConfig,
     /// The global cache of raw contract classes.
     class_cache: RawClassCache,
     /// The global cache of compiled class hashes v2.
@@ -65,17 +67,23 @@ impl NativeClassManager {
     /// Returns the contract class manager.
     /// NOTE: the compilation worker is not spawned if one of the following conditions is met:
     /// 1. The feature `cairo_native` is not enabled.
-    /// 2. `config.run_cairo_native` is `false`.
-    /// 3. `config.wait_on_native_compilation` is `true`.
-    pub fn start(config: ContractClassManagerStaticConfig) -> NativeClassManager {
+    /// 2. `static_config.cairo_native_run_config.run_cairo_native` is `false`.
+    /// 3. `static_config.cairo_native_run_config.wait_on_native_compilation` is `true`.
+    pub fn start(
+        static_config: ContractClassManagerStaticConfig,
+        dynamic_config: SharedContractClassManagerDynamicConfig,
+    ) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
-        let class_cache = RawClassCache::new(config.contract_cache_size);
-        let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
-        let cairo_native_run_config = config.cairo_native_run_config;
+        let class_cache = RawClassCache::new(static_config.contract_cache_size);
+        let compiled_class_hash_v2_cache =
+            GlobalContractCache::new(static_config.contract_cache_size);
+        let cairo_native_run_config = static_config.cairo_native_run_config;
+
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
                 cairo_native_run_config,
+                dynamic_config,
                 class_cache,
                 compiled_class_hash_v2_cache,
                 sender: None,
@@ -83,12 +91,13 @@ impl NativeClassManager {
             };
         }
 
-        let compiler_config = config.native_compiler_config.clone();
+        let compiler_config = static_config.native_compiler_config.clone();
         let compiler = Arc::new(SierraToNativeCompiler::new(compiler_config));
         if cairo_native_run_config.wait_on_native_compilation {
             // Compilation requests are processed synchronously. No need to start the worker.
             return NativeClassManager {
                 cairo_native_run_config,
+                dynamic_config,
                 class_cache,
                 compiled_class_hash_v2_cache,
                 sender: None,
@@ -113,6 +122,7 @@ impl NativeClassManager {
         // TODO(AVIV): Add private constructor with default values.
         NativeClassManager {
             cairo_native_run_config,
+            dynamic_config,
             class_cache,
             compiled_class_hash_v2_cache,
             sender: Some(sender),
@@ -225,7 +235,14 @@ impl NativeClassManager {
 
     /// Determines if a contract should run with cairo native based on the whitelist.
     pub fn run_class_with_cairo_native(&self, class_hash: &ClassHash) -> bool {
-        match &self.cairo_native_run_config.native_classes_whitelist {
+        let config = match self.dynamic_config.read() {
+            Ok(config) => config,
+            Err(err) => {
+                // TODO(Arni): handle this error gracefully.
+                panic!("Failed to acquire read lock on dynamic config: {err}");
+            }
+        };
+        match &config.native_classes_whitelist {
             NativeClassesWhitelist::All => true,
             NativeClassesWhitelist::Limited(contracts) => contracts.contains(class_hash),
         }

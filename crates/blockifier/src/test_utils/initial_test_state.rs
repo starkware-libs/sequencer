@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -8,7 +10,10 @@ use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
-use crate::blockifier::config::ContractClassManagerStaticConfig;
+use crate::blockifier::config::{
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+};
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
@@ -170,12 +175,16 @@ pub fn test_state_inner_with_contract_manager(
     let (run_cairo_native, wait_on_native_compilation) = (false, false);
     #[cfg(feature = "cairo_native")]
     let (run_cairo_native, wait_on_native_compilation) = (true, true);
+    let shared_contract_manager_dynamic_config =
+        Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default()));
 
-    let manager =
-        ContractClassManager::start(ContractClassManagerStaticConfig::create_for_testing(
+    let manager = ContractClassManager::start(
+        ContractClassManagerStaticConfig::create_for_testing(
             run_cairo_native,
             wait_on_native_compilation,
-        ));
+        ),
+        shared_contract_manager_dynamic_config,
+    );
 
     let reader = state_reader_and_contract_manager_for_testing(reader, manager);
 

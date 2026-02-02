@@ -1,5 +1,6 @@
 #[cfg(not(feature = "cairo_native"))]
 use std::sync::LazyLock;
+use std::sync::{Arc, RwLock};
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -13,7 +14,11 @@ use starknet_api::core::ClassHash;
 
 #[cfg(not(feature = "cairo_native"))]
 use crate::blockifier::config::CairoNativeRunConfig;
-use crate::blockifier::config::ContractClassManagerStaticConfig;
+use crate::blockifier::config::{
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+    SharedContractClassManagerDynamicConfig,
+};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
 #[cfg(not(feature = "cairo_native"))]
@@ -39,6 +44,7 @@ static DUMMY_CLASS_HASH: LazyLock<ClassHash> = LazyLock::new(|| class_hash!(2_u3
 fn build_reader_and_declare_contract(
     contract: FeatureContractData,
     contract_manager_config: ContractClassManagerStaticConfig,
+    shared_contract_manager_dynamic_config: SharedContractClassManagerDynamicConfig,
 ) -> StateReaderAndContractManager<DictStateReader> {
     let mut reader = DictStateReader::default();
 
@@ -47,7 +53,10 @@ fn build_reader_and_declare_contract(
 
     state_reader_and_contract_manager_for_testing(
         reader,
-        ContractClassManager::start(contract_manager_config),
+        ContractClassManager::start(
+            contract_manager_config,
+            shared_contract_manager_dynamic_config,
+        ),
     )
 }
 
@@ -76,8 +85,11 @@ fn test_get_compiled_class_without_native_in_cache(
         wait_on_native_compilation,
     );
 
-    let state_reader =
-        build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
+    let state_reader = build_reader_and_declare_contract(
+        test_contract.into(),
+        contract_manager_config,
+        Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default())),
+    );
 
     // Sanity check - the class manager's cache is empty.
     assert!(state_reader.contract_class_manager.get_runnable(&test_class_hash).is_none());
@@ -118,9 +130,14 @@ fn test_get_compiled_class_when_native_is_cached() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
     let test_class_hash = test_contract.get_class_hash();
     let contract_manager_config = ContractClassManagerStaticConfig::create_for_testing(true, true);
+    let shared_contract_manager_dynamic_config =
+        Arc::new(RwLock::new(ContractClassManagerDynamicConfig::from(&contract_manager_config)));
 
-    let state_reader =
-        build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
+    let state_reader = build_reader_and_declare_contract(
+        test_contract.into(),
+        contract_manager_config,
+        shared_contract_manager_dynamic_config,
+    );
 
     if let RunnableCompiledClass::V1Native(native_compiled_class) =
         test_contract.get_runnable_class()
@@ -257,13 +274,17 @@ fn test_get_compiled_class_caching_scenarios(
     #[case] first_scenario: GetCompiledClassTestScenario,
     #[case] second_scenario: GetCompiledClassTestScenario,
 ) {
-    let contract_class_manager = ContractClassManager::start(ContractClassManagerStaticConfig {
+    let contract_class_manager_static_config = ContractClassManagerStaticConfig {
         cairo_native_run_config: CairoNativeRunConfig {
             wait_on_native_compilation: false,
             ..Default::default()
         },
         ..Default::default()
-    });
+    };
+    let contract_class_manager = ContractClassManager::start(
+        contract_class_manager_static_config,
+        Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default())),
+    );
     let class_hash = *DUMMY_CLASS_HASH;
 
     // First execution.

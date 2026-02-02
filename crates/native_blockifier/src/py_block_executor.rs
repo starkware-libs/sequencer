@@ -1,9 +1,14 @@
 #![allow(non_local_definitions)]
 
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
 
 use apollo_state_reader::apollo_state::ApolloReader;
-use blockifier::blockifier::config::{ContractClassManagerStaticConfig, TransactionExecutorConfig};
+use blockifier::blockifier::config::{
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+    TransactionExecutorConfig,
+};
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
     TransactionExecutor,
@@ -108,6 +113,12 @@ impl PyBlockExecutor {
         ));
         log::debug!("Initialized Block Executor.");
 
+        let contract_class_manager_config =
+            ContractClassManagerStaticConfig::from(contract_class_manager_config);
+        let shared_contract_manager_dynamic_config = Arc::new(RwLock::new(
+            ContractClassManagerDynamicConfig::from(&contract_class_manager_config),
+        ));
+
         Self {
             bouncer_config: bouncer_config.try_into().expect("Failed to parse bouncer config."),
             tx_executor_config: TransactionExecutorConfig {
@@ -119,7 +130,8 @@ impl PyBlockExecutor {
             tx_executor: None,
             storage: Box::new(storage),
             contract_class_manager: ContractClassManager::start(
-                contract_class_manager_config.into(),
+                contract_class_manager_config,
+                shared_contract_manager_dynamic_config,
             ),
         }
     }
@@ -377,6 +389,12 @@ impl PyBlockExecutor {
             versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
         }
 
+        let contract_class_manager_config =
+            ContractClassManagerStaticConfig::from(contract_class_manager_config);
+        let shared_contract_manager_dynamic_config = Arc::new(RwLock::new(
+            ContractClassManagerDynamicConfig::from(&contract_class_manager_config),
+        ));
+
         Self {
             bouncer_config: BouncerConfig {
                 block_max_capacity: BouncerWeights {
@@ -394,7 +412,8 @@ impl PyBlockExecutor {
             versioned_constants,
             tx_executor: None,
             contract_class_manager: ContractClassManager::start(
-                contract_class_manager_config.into(),
+                contract_class_manager_config,
+                shared_contract_manager_dynamic_config,
             ),
         }
     }
@@ -426,6 +445,7 @@ impl PyBlockExecutor {
             tx_executor: None,
             contract_class_manager: ContractClassManager::start(
                 ContractClassManagerStaticConfig::default(),
+                Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default())),
             ),
         }
     }

@@ -10,13 +10,16 @@
 ///   may cause sporadic errors due to request limits.
 /// - `BLOCK_NUMBER`: Block number for testing. If not provided, defaults to the latest block.
 use std::env;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 use apollo_gateway::rpc_objects::BlockId;
 use apollo_gateway::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
 use apollo_gateway_config::config::RpcStateReaderConfig;
 use assert_matches::assert_matches;
-use blockifier::blockifier::config::ContractClassManagerStaticConfig;
+use blockifier::blockifier::config::{
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockInfo, BlockNumber};
@@ -122,7 +125,10 @@ pub fn last_constructed_block(test_block_number: BlockNumber) -> BlockNumber {
 
 #[fixture]
 pub fn contract_class_manager() -> ContractClassManager {
-    ContractClassManager::start(ContractClassManagerStaticConfig::default())
+    ContractClassManager::start(
+        ContractClassManagerStaticConfig::default(),
+        Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default())),
+    )
 }
 
 #[fixture]

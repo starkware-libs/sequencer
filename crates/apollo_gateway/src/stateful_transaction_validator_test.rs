@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
@@ -7,7 +7,10 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
-use blockifier::blockifier::config::ContractClassManagerStaticConfig;
+use blockifier::blockifier::config::{
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+};
 use blockifier::context::ChainInfo;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -138,6 +141,7 @@ async fn test_instantiate_validator() {
         state_reader_factory: Arc::new(state_reader_factory),
         contract_class_manager: ContractClassManager::start(
             ContractClassManagerStaticConfig::default(),
+            Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default())),
         ),
     };
 
