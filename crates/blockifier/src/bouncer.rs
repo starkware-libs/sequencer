@@ -64,21 +64,10 @@ macro_rules! impl_field_wise_ops {
     };
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
     pub builtin_weights: BuiltinWeights,
-    pub blake_weight: usize,
-}
-
-impl Default for BouncerConfig {
-    fn default() -> Self {
-        Self {
-            block_max_capacity: BouncerWeights::default(),
-            builtin_weights: BuiltinWeights::default(),
-            blake_weight: 3334,
-        }
-    }
 }
 
 impl BouncerConfig {
@@ -86,12 +75,14 @@ impl BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::empty(),
             builtin_weights: BuiltinWeights::empty(),
-            blake_weight: 0,
         }
     }
 
     pub fn max() -> Self {
-        Self { block_max_capacity: BouncerWeights::max(), ..Default::default() }
+        Self {
+            block_max_capacity: BouncerWeights::max(),
+            builtin_weights: BuiltinWeights::default(),
+        }
     }
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
@@ -122,12 +113,6 @@ impl SerializeConfig for BouncerConfig {
         let mut dump =
             prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
         dump.append(&mut prepend_sub_config_name(self.builtin_weights.dump(), "builtin_weights"));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "blake_weight",
-            &self.blake_weight,
-            "blake opcode gas weight.",
-            ParamPrivacyInput::Public,
-        )]));
         dump
     }
 }
@@ -881,7 +866,8 @@ pub fn get_tx_weights<S: StateReader>(
     };
     total_state_changes_keys.extend(state_changes_keys);
 
-    let blake_opcode_gas = bouncer_config.blake_weight;
+    let blake_opcode_gas = usize_from_u64(bouncer_config.builtin_weights.gas_costs.blake)
+        .expect("This conversion should not fail as blake opcode gas cost should fit in usize.");
 
     // Migration occurs once per contract and is not included in the CASM hash computation, which
     // is performed every time a contract is loaded.
