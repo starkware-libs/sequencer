@@ -435,28 +435,16 @@ where
 {
     let mut storage_tries = HashMap::new();
     for (address, updates) in actual_storage_updates {
-        let sorted_leaf_indices = storage_tries_sorted_indices
-            .get(address)
-            .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
-        let contract_state = original_contracts_trie_leaves
-            .get(&contract_address_into_node_index(address))
-            .ok_or(ForestError::MissingContractCurrentState(*address))?;
-        let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
-            config.warn_on_trivial_modifications(),
-        );
-
-        let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+        let original_skeleton = create_storage_trie::<Layout>(
             storage,
-            contract_state.storage_root_hash,
-            *sorted_leaf_indices,
-            &config,
-            // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
-            // iterator over borrowed data so that the conversion below is costless.
-            &updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect(),
-            None,
-            address,
+            *address,
+            updates,
+            original_contracts_trie_leaves,
+            storage_tries_sorted_indices,
+            config.warn_on_trivial_modifications(),
         )
         .await?;
+
         storage_tries.insert(*address, original_skeleton);
     }
     Ok(storage_tries)
@@ -478,48 +466,76 @@ where
     let mut futures = FuturesUnordered::new();
     let mut storage_tries = HashMap::new();
 
-    let trie_config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
-        config.warn_on_trivial_modifications(),
-    );
     for (address, updates) in actual_storage_updates {
-        // Extract data needed for this contract.
-        let sorted_leaf_indices = *storage_tries_sorted_indices
-            .get(address)
-            .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
-        let contract_state = original_contracts_trie_leaves
-            .get(&contract_address_into_node_index(address))
-            .ok_or(ForestError::MissingContractCurrentState(*address))?;
-        let cloned_trie_config = trie_config.clone();
-
-        // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
-        // iterator over borrowed data so that the conversion below is costless.
-        let leaf_modifications: HashMap<
-            NodeIndex,
-            <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf,
-        > = updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect();
-        let mut reads_collector_storage = ReadsCollectorStorage::new(storage);
         // Create the future - tokio will poll all futures concurrently.
         futures.push(async move {
-            let previous_leaves = None;
-            let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+            let mut reads_collector_storage = ReadsCollectorStorage::new(storage);
+            let original_skeleton = create_storage_trie::<Layout>(
                 &mut reads_collector_storage,
-                contract_state.storage_root_hash,
-                sorted_leaf_indices,
-                &cloned_trie_config,
-                &leaf_modifications,
-                previous_leaves,
-                address,
+                *address,
+                updates,
+                original_contracts_trie_leaves,
+                storage_tries_sorted_indices,
+                config.warn_on_trivial_modifications(),
             )
             .await?;
-            Ok::<_, ForestError>((address, original_skeleton))
+            Ok::<_, ForestError>((
+                *address,
+                original_skeleton,
+                reads_collector_storage.into_reads(),
+            ))
         });
     }
 
     // Collect all results as they complete.
     while let Some(result) = futures.next().await {
-        let (address, original_skeleton) = result?;
-        storage_tries.insert(*address, original_skeleton);
+        let (address, original_skeleton, _storage_reads) = result?;
+        storage_tries.insert(address, original_skeleton);
     }
 
     Ok(storage_tries)
+}
+
+/// Helper function to create a storage trie for a single contract.
+async fn create_storage_trie<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
+    storage: &mut impl ReadOnlyStorage,
+    address: ContractAddress,
+    updates: &LeafModifications<StarknetStorageValue>,
+    original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
+    storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
+    warn_on_trivial_modifications: bool,
+) -> ForestResult<OriginalSkeletonTreeImpl<'a>>
+where
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
+    // Extract data needed for this contract.
+    let sorted_leaf_indices = *storage_tries_sorted_indices
+        .get(&address)
+        .ok_or(ForestError::MissingSortedLeafIndices(address))?;
+    let contract_state = original_contracts_trie_leaves
+        .get(&contract_address_into_node_index(&address))
+        .ok_or(ForestError::MissingContractCurrentState(address))?;
+
+    let trie_config =
+        OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(warn_on_trivial_modifications);
+
+    // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
+    // iterator over borrowed data so that the conversion below is costless.
+    let leaf_modifications: HashMap<
+        NodeIndex,
+        <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf,
+    > = updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect();
+
+    let previous_leaves = None;
+    Ok(create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+        storage,
+        contract_state.storage_root_hash,
+        sorted_leaf_indices,
+        &trie_config,
+        &leaf_modifications,
+        previous_leaves,
+        &address,
+    )
+    .await?)
 }
