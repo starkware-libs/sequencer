@@ -1,5 +1,5 @@
 use std::clone::Clone;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
@@ -25,6 +25,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
+use blockifier::blockifier::config::ContractClassManagerDynamicConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
@@ -83,6 +84,9 @@ impl Gateway {
                 state_reader_factory,
                 contract_class_manager: ContractClassManager::start(
                     config.contract_class_manager_config.clone(),
+                    Arc::new(RwLock::new(ContractClassManagerDynamicConfig::from(
+                        &config.contract_class_manager_config,
+                    ))),
                 ),
             }),
             mempool_client,

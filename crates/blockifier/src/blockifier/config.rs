@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::{Arc, RwLock};
 
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -136,6 +137,44 @@ impl SerializeConfig for WorkerPoolConfig {
     }
 }
 
+pub type SharedContractClassManagerDynamicConfig = Arc<RwLock<ContractClassManagerDynamicConfig>>;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ContractClassManagerDynamicConfig {
+    pub native_classes_whitelist: NativeClassesWhitelist,
+}
+
+impl Default for ContractClassManagerDynamicConfig {
+    fn default() -> Self {
+        Self { native_classes_whitelist: NativeClassesWhitelist::All }
+    }
+}
+
+impl SerializeConfig for ContractClassManagerDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "native_classes_whitelist",
+            &self.native_classes_whitelist,
+            "Specifies whether to execute all class hashes or only specific ones using Cairo \
+             native. If limited, a specific list of class hashes is provided.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+// TODO(Arni): Delete this conversion once the field `native_classes_whitelist` is removed from the
+// `CairoNativeRunConfig`.
+impl From<&ContractClassManagerStaticConfig> for ContractClassManagerDynamicConfig {
+    fn from(static_config: &ContractClassManagerStaticConfig) -> Self {
+        Self {
+            native_classes_whitelist: static_config
+                .cairo_native_run_config
+                .native_classes_whitelist
+                .clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ContractClassManagerStaticConfig {
     pub cairo_native_run_config: CairoNativeRunConfig,
@@ -235,6 +274,7 @@ pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
+    // TODO(Arni): remove this field.
     pub native_classes_whitelist: NativeClassesWhitelist,
     pub panic_on_compilation_failure: bool,
 }

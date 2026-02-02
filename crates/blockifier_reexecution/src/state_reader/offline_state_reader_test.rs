@@ -1,4 +1,9 @@
-use blockifier::blockifier::config::ContractClassManagerStaticConfig;
+use std::sync::{Arc, RwLock};
+
+use blockifier::blockifier::config::{
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use rstest::rstest;
 use starknet_api::block::BlockNumber;
@@ -18,7 +23,13 @@ fn reexecute_block_for_testing(block_number: u64) {
         contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
         contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
     }
-    let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
+    let shared_contract_manager_dynamic_config = Arc::new(RwLock::new(
+        ContractClassManagerDynamicConfig::from(&contract_class_manager_config),
+    ));
+    let contract_class_manager = ContractClassManager::start(
+        contract_class_manager_config,
+        shared_contract_manager_dynamic_config,
+    );
 
     OfflineConsecutiveStateReaders::new_from_file(&full_file_path, contract_class_manager)
         .unwrap()

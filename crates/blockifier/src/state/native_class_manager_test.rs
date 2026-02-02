@@ -1,5 +1,5 @@
 use std::sync::mpsc::{sync_channel, TrySendError};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::thread::sleep;
 
 use apollo_compilation_utils::errors::CompilationUtilError;
@@ -11,7 +11,11 @@ use rstest::rstest;
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::ClassHash;
 
-use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
+use crate::blockifier::config::{
+    CairoNativeRunConfig,
+    ContractClassManagerDynamicConfig,
+    NativeClassesWhitelist,
+};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::global_cache::{
     CachedCairoNative,
@@ -161,6 +165,7 @@ fn test_send_compilation_request_channel_disconnected() {
     let (sender, receiver) = sync_channel(native_config.channel_size);
     let manager = NativeClassManager {
         cairo_native_run_config: native_config,
+        dynamic_config: Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default())),
         class_cache: RawClassCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         compiled_class_hash_v2_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         sender: Some(sender),

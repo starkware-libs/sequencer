@@ -1,8 +1,8 @@
 #[cfg(feature = "cairo_native")]
 use std::collections::HashMap;
-use std::sync::Arc;
 #[cfg(feature = "cairo_native")]
-use std::sync::{LazyLock, RwLock};
+use std::sync::LazyLock;
+use std::sync::{Arc, RwLock};
 
 use blockifier_test_utils::contracts::get_raw_contract_class;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -24,7 +24,11 @@ use starknet_api::test_utils::{
 };
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
-use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerStaticConfig};
+use crate::blockifier::config::{
+    CairoNativeRunConfig,
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+};
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
@@ -238,11 +242,12 @@ impl CallExecution {
 
 impl ContractClassManager {
     pub fn create_for_testing(native_config: CairoNativeRunConfig) -> Self {
-        let config = ContractClassManagerStaticConfig {
+        let static_config = ContractClassManagerStaticConfig {
             cairo_native_run_config: native_config,
             ..Default::default()
         };
-        ContractClassManager::start(config)
+        let dynamic_config = ContractClassManagerDynamicConfig::from(&static_config);
+        ContractClassManager::start(static_config, Arc::new(RwLock::new(dynamic_config)))
     }
 }
 // Contract loaders.
