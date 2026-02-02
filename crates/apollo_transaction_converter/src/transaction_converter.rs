@@ -31,6 +31,7 @@ use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
+use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::proof_verification::{stwo_verify, VerifyProofError};
@@ -62,6 +63,16 @@ pub enum TransactionConverterError {
 }
 
 pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
+
+pub type VerificationTask = JoinHandle<Result<(), TransactionConverterError>>;
+
+#[derive(Debug)]
+pub struct VerificationHandle {
+    // TODO(Dori): add a field for the class hash.
+    pub proof_facts: ProofFacts,
+    pub proof: Proof,
+    pub verification_task: VerificationTask,
+}
 
 #[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
@@ -233,13 +244,18 @@ impl TransactionConverterTrait for TransactionConverter {
     ) -> TransactionConverterResult<InternalRpcTransaction> {
         let tx_without_hash = match tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
-                // Verify proof here; storage happens in the caller after successful
+                // Spawn proof verification task; storage happens in the caller after successful
                 // conversion/validation.
-                self.handle_proof_verification(&tx.proof_facts, &tx.proof).await?;
+                let verification_handle =
+                    self.spawn_proof_verification(&tx.proof_facts, &tx.proof)?;
+                if let Some(handle) = verification_handle {
+                    handle.verification_task.await.unwrap()?;
+                }
                 InternalRpcTransactionWithoutTxHash::Invoke(tx.into())
             }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
                 let ClassHashes { class_hash, executable_class_hash_v2 } =
+                // TODO(Dori): Make this async and spawn a task to compile and add it to the class manager.
                     self.class_manager_client.add_class(tx.contract_class).await?;
                 // TODO(Aviv): Ensure that we do not want to
                 // allow declare with compiled class hash v1.
@@ -379,40 +395,59 @@ impl TransactionConverter {
         }
         Ok(internal_tx)
     }
-    async fn handle_proof_verification(
+    fn spawn_proof_verification(
         &self,
         proof_facts: &ProofFacts,
         proof: &Proof,
-    ) -> TransactionConverterResult<()> {
+    ) -> TransactionConverterResult<Option<VerificationHandle>> {
         // If the proof facts are empty, it is a standard transaction that does not use client-side
         // proving and we skip proof verification. We return Ok only if the proof facts are
         // empty (and not the proof) because the proof facts are trusted and we do not want
         // transactions that are missing proofs but contain proof facts to be accepted.
         if proof_facts.is_empty() {
-            return Ok(());
+            return Ok(None);
         }
 
-        let contains_proof = self.proof_manager_client.contains_proof(proof_facts.clone()).await?;
-        // If the proof already exists in the proof manager, indicating it has already been
-        // verified, we skip proof verification.
-        if contains_proof {
-            return Ok(());
-        }
+        // Clone data needed for the spawned task.
+        let proof_facts_for_task = proof_facts.clone();
+        let proof_for_task = proof.clone();
+        // Clone the proof manager client so it can be safely moved into the spawned async task
+        // without lifetime or ownership issues.
+        let proof_manager_client = self.proof_manager_client.clone();
 
-        let verify_start = Instant::now();
-        self.verify_proof(proof_facts.clone(), proof.clone())?;
-        let verify_duration = verify_start.elapsed();
-        let proof_facts_hash = proof_facts.hash();
-        info!(
-            "Proof verification took: {verify_duration:?} for proof facts hash: \
-             {proof_facts_hash:?}"
-        );
-        Ok(())
+        // Spawn verification task.
+        let verification_task = tokio::spawn(async move {
+            let contains_proof =
+                proof_manager_client.contains_proof(proof_facts_for_task.clone()).await?;
+
+            // If the proof already exists in the proof manager, indicating it has already been
+            // verified, we skip proof verification.
+            if contains_proof {
+                return Ok(());
+            }
+
+            let verify_start = Instant::now();
+            Self::verify_proof(proof_facts_for_task.clone(), proof_for_task)?;
+            let verify_duration = verify_start.elapsed();
+            let proof_facts_hash = proof_facts_for_task.hash();
+            info!(
+                "Proof verification took: {verify_duration:?} for proof facts hash: \
+                 {proof_facts_hash:?}"
+            );
+
+            Ok(())
+        });
+
+        Ok(Some(VerificationHandle {
+            proof_facts: proof_facts.clone(),
+            proof: proof.clone(),
+            verification_task,
+        }))
     }
 
     /// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
     /// program hash to the expected value.
-    fn verify_proof(&self, proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
+    fn verify_proof(proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
         // Reject empty proof payloads before running the verifier.
         if proof.is_empty() {
             return Err(VerifyProofError::EmptyProof);
