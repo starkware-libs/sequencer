@@ -37,7 +37,6 @@ config:
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base: 9.1
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max: 15.0
     consensus_manager_config.context_config.static_config.build_proposal_margin_millis: 1000
-    consensus_manager_config.context_config.static_config.num_validators: 1
     consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate.#is_none: true
     consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate: 0
     consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri.#is_none: true

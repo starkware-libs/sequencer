@@ -350,7 +350,6 @@ impl TestDeps {
             ContextConfig {
                 static_config: ContextStaticConfig {
                     proposal_buffer_size: CHANNEL_SIZE,
-                    num_validators: NUM_VALIDATORS,
                     chain_id: CHAIN_ID,
                     ..Default::default()
                 },
