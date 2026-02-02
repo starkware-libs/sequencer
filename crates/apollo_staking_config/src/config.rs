@@ -100,30 +100,15 @@ impl SerializeConfig for StakingManagerDynamicConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerStaticConfig {
     pub max_cached_epochs: usize,
-
-    // Defines how many heights in advance the proposer can be predicted.
-    // While the exact identity may depend on staker prediction constraints,
-    // the proposer selection logic becomes deterministic at this offset.
-    // TODO(Dafna): get the block hash of the first block in the previous epoch and remove this
-    // field.
-    pub proposer_prediction_window_in_heights: u64,
 }
 
 impl SerializeConfig for StakingManagerStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "max_cached_epochs",
-                &self.max_cached_epochs,
-                "The maximum number of epochs to cache",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "proposer_prediction_window_in_heights",
-                &self.proposer_prediction_window_in_heights,
-                "Defines how many heights in advance the proposer can be predicted",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        BTreeMap::from_iter([ser_param(
+            "max_cached_epochs",
+            &self.max_cached_epochs,
+            "The maximum number of epochs to cache",
+            ParamPrivacyInput::Public,
+        )])
     }
 }

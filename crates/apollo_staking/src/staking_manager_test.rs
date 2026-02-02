@@ -45,6 +45,7 @@ const STAKER_4: Staker = Staker {
     public_key: Felt::from_raw([0, 0, 0, 4]),
 };
 
+const EPOCH_0: Epoch = Epoch { epoch_id: 0, start_block: BlockNumber(0), epoch_length: 100 };
 const EPOCH_1: Epoch = Epoch { epoch_id: 1, start_block: BlockNumber(1), epoch_length: 100 };
 const EPOCH_2: Epoch = Epoch { epoch_id: 2, start_block: BlockNumber(101), epoch_length: 100 };
 
@@ -69,10 +70,7 @@ fn default_config() -> StakingManagerConfig {
             },
             override_committee: None,
         },
-        static_config: StakingManagerStaticConfig {
-            max_cached_epochs: 10,
-            proposer_prediction_window_in_heights: 10,
-        },
+        static_config: StakingManagerStaticConfig { max_cached_epochs: 10 },
     }
 }
 
@@ -92,6 +90,10 @@ fn set_current_epoch_with_times(
     contract.expect_get_current_epoch().times(times).returning(move || Ok(epoch.clone()));
 }
 
+fn set_previous_epoch(contract: &mut MockStakingContract, epoch: Option<Epoch>) {
+    contract.expect_get_previous_epoch().times(1..).returning(move || Ok(epoch.clone()));
+}
+
 #[rstest]
 #[case::no_stakers(vec![], vec![])]
 #[case::single_staker(vec![STAKER_1], vec![STAKER_1])]
@@ -107,6 +109,7 @@ async fn get_committee_success(
     #[case] expected_committee: Committee,
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, stakers);
 
     let committee_manager = StakingManager::new(
@@ -140,6 +143,7 @@ async fn get_committee_cache(
 ) {
     // Set contract expectations for the first query (Case 1).
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1]);
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_2]);
 
@@ -173,6 +177,7 @@ async fn get_committee_for_next_epoch(
     mut contract: MockStakingContract,
 ) {
     set_current_epoch_with_times(&mut contract, EPOCH_1, 1..);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
 
     // Set the stakers for the next epoch.
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2]);
@@ -213,6 +218,7 @@ async fn get_committee_applies_dynamic_config_changes(
     mut contract: MockStakingContract,
 ) {
     set_current_epoch_with_times(&mut contract, EPOCH_1, 1..);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
 
@@ -270,6 +276,7 @@ async fn get_proposer_success(
     #[case] expected_proposer: Staker,
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
 
     // The staker weights are 1000, 2000, 3000, and 4000, totaling 10,000.
     // Based on the cumulative weight ranges:
@@ -280,12 +287,18 @@ async fn get_proposer_success(
 
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client
+        .expect_get_block_hash()
+        .with(eq(EPOCH_0.start_block))
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| random_value);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(MockStateSyncClient::new()),
+        Arc::new(state_sync_client),
         Box::new(random_generator),
         default_config,
         None,
@@ -298,19 +311,61 @@ async fn get_proposer_success(
 
 #[rstest]
 #[tokio::test]
-async fn get_proposer_empty_committee(
+async fn get_proposer_for_next_epoch(
     default_config: StakingManagerConfig,
     mut contract: MockStakingContract,
 ) {
-    set_current_epoch(&mut contract, EPOCH_1);
-    set_stakers(&mut contract, EPOCH_1, vec![]);
+    set_current_epoch_with_times(&mut contract, EPOCH_1, 2);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client
+        .expect_get_block_hash()
+        .with(eq(EPOCH_1.start_block))
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
 
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 0);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(MockStateSyncClient::new()),
+        Arc::new(state_sync_client),
+        Box::new(random_generator),
+        default_config,
+        None,
+    );
+
+    // Query a height in Epoch 2, that is within the min bounds of the next epoch.
+    let proposer = committee_manager.get_proposer(E2_H1, 0).await.unwrap();
+    assert_eq!(proposer, STAKER_4.address);
+
+    // Query a height in Epoch 2, that is outside the min bounds of the next epoch.
+    let err = committee_manager.get_proposer(E2_H2, 0).await.unwrap_err();
+    assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_proposer_empty_committee(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![]);
+
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+
+    let mut random_generator = MockBlockRandomGenerator::new();
+    random_generator.expect_generate().returning(move |_, _, _, _| 0);
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(state_sync_client),
         Box::new(random_generator),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig {
@@ -338,9 +393,15 @@ async fn get_proposer_random_value_exceeds_total_weight(
     mut contract: MockStakingContract,
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
 
     // Stakers with total weight 10000.
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
 
     // Random value is out of range. Valid range is [0, 10000).
     let mut random_generator = MockBlockRandomGenerator::new();
@@ -348,8 +409,8 @@ async fn get_proposer_random_value_exceeds_total_weight(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(MockStateSyncClient::new()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(state_sync_client),
+        Box::new(random_generator),
         default_config,
         None,
     );
@@ -391,6 +452,7 @@ async fn get_actual_proposer_all_eligible(
     let configured_stakers = stakers.iter().map(|s| create_configured_staker(s, true)).collect();
 
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, stakers);
 
     let default_committee =
@@ -444,6 +506,7 @@ async fn get_actual_proposer_some_eligible(
     ];
 
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, stakers);
 
     let default_committee =
@@ -508,6 +571,7 @@ async fn test_get_actual_proposer_epoch_changes(
     mut contract: MockStakingContract,
 ) {
     set_current_epoch_with_times(&mut contract, EPOCH_1, 1..);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
 
@@ -563,6 +627,7 @@ async fn get_actual_proposer_invalid_height(
     mut contract: MockStakingContract,
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
 
     let committee_manager = StakingManager::new(

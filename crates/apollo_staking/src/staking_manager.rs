@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::Round;
@@ -8,7 +8,6 @@ use apollo_staking_config::config::{
     ConfiguredStaker,
     StakingManagerConfig,
     StakingManagerDynamicConfig,
-    StakingManagerStaticConfig,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
@@ -16,6 +15,7 @@ use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use static_assertions::const_assert;
+use tokio::sync::Mutex;
 use tracing::warn;
 
 use crate::committee_provider::{
@@ -82,6 +82,69 @@ impl Epoch {
     }
 }
 
+struct EpochCache {
+    current: Option<Epoch>,
+    previous: Option<Epoch>,
+}
+
+impl EpochCache {
+    fn new() -> Self {
+        Self { current: None, previous: None }
+    }
+
+    fn try_resolve_epoch_id(&self, height: BlockNumber) -> Option<u64> {
+        let current = self.current.as_ref()?;
+        if current.contains(height) {
+            Some(current.epoch_id)
+        } else if current.within_next_epoch_min_bounds(height) {
+            Some(current.epoch_id + 1)
+        } else {
+            None
+        }
+    }
+
+    async fn sync_epochs(
+        &mut self,
+        staking_contract: Arc<dyn StakingContract>,
+    ) -> CommitteeProviderResult<()> {
+        // Capture the current cached epoch to determine if we need to fetch previous epoch.
+        let displaced_epoch = self.current.clone();
+
+        // Fetch the current epoch from the state.
+        let latest_epoch = staking_contract.get_current_epoch().await?;
+
+        // Determine if we need to fetch the previous epoch.
+        let is_sequential =
+            displaced_epoch.as_ref().is_some_and(|old| old.epoch_id + 1 == latest_epoch.epoch_id);
+
+        let previous_epoch = if is_sequential {
+            displaced_epoch
+        } else {
+            staking_contract.get_previous_epoch().await?
+        };
+
+        // Update the cache with the fetched epochs.
+        self.current = Some(latest_epoch);
+        self.previous = previous_epoch;
+
+        Ok(())
+    }
+
+    fn get_epoch(&self, epoch_id: u64) -> Option<Epoch> {
+        if let Some(ref current) = self.current {
+            if current.epoch_id == epoch_id {
+                return Some(current.clone());
+            }
+        }
+        if let Some(ref previous) = self.previous {
+            if previous.epoch_id == epoch_id {
+                return Some(previous.clone());
+            }
+        }
+        None
+    }
+}
+
 // Responsible for fetching and storing the committee at a given epoch.
 // The committee is a subset of nodes (proposer and validators) that are selected to participate in
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
@@ -90,11 +153,10 @@ pub struct StakingManager {
     state_sync_client: SharedStateSyncClient,
     committee_data_cache: Mutex<CommitteeDataCache>,
 
-    // Caches the current epoch fetched from the state.
-    cached_epoch: Mutex<Option<Epoch>>,
+    // Caches the current and previous epochs fetched from the state.
+    epoch_cache: Mutex<EpochCache>,
 
     random_generator: Box<dyn BlockRandomGenerator>,
-    static_config: StakingManagerStaticConfig,
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
     config_manager_client: Option<SharedConfigManagerClient>,
 }
@@ -130,9 +192,8 @@ impl StakingManager {
             committee_data_cache: Mutex::new(CommitteeDataCache::new(
                 config.static_config.max_cached_epochs,
             )),
-            cached_epoch: Mutex::new(None),
+            epoch_cache: Mutex::new(EpochCache::new()),
             random_generator,
-            static_config: config.static_config,
             dynamic_config: RwLock::new(config.dynamic_config),
             config_manager_client,
         }
@@ -164,7 +225,7 @@ impl StakingManager {
 
         // Attempt to read from cache.
         {
-            let cache = self.committee_data_cache.lock().expect("Mutex poisoned");
+            let cache = self.committee_data_cache.lock().await;
             if let Some(committee_data) = cache.get(epoch) {
                 return Ok(committee_data.clone());
             }
@@ -174,7 +235,7 @@ impl StakingManager {
         let committee_data = Arc::new(self.fetch_and_build_committee_data(epoch).await?);
 
         // Cache the result.
-        let mut cache = self.committee_data_cache.lock().expect("Mutex poisoned");
+        let mut cache = self.committee_data_cache.lock().await;
         cache.insert(epoch, committee_data.clone());
 
         Ok(committee_data)
@@ -238,19 +299,19 @@ impl StakingManager {
 
     async fn proposer_randomness_block_hash(
         &self,
-        current_block_number: BlockNumber,
+        height: BlockNumber,
     ) -> CommitteeProviderResult<Option<BlockHash>> {
-        let randomness_source_block = current_block_number
-            .0
-            .checked_sub(self.static_config.proposer_prediction_window_in_heights);
+        // Get the previous epoch relative to the given height.
+        let previous_epoch = self.previous_epoch(height).await?;
 
-        match randomness_source_block {
+        match previous_epoch {
             None => {
-                Ok(None) // Not enough history to look back; return None.
+                Ok(None) // First epoch; no previous epoch to look back to.
             }
-            Some(block_number) => {
+            Some(prev_epoch) => {
+                // Get the hash of the first block in the previous epoch.
                 let block_hash =
-                    self.state_sync_client.get_block_hash(BlockNumber(block_number)).await?;
+                    self.state_sync_client.get_block_hash(prev_epoch.start_block).await?;
                 Ok(Some(block_hash))
             }
         }
@@ -318,36 +379,45 @@ impl StakingManager {
             .collect()
     }
 
-    fn try_resolve_epoch_id(&self, epoch: &Epoch, height: BlockNumber) -> Option<u64> {
-        if epoch.contains(height) {
-            Some(epoch.epoch_id)
-        } else if epoch.within_next_epoch_min_bounds(height) {
-            Some(epoch.epoch_id + 1)
-        } else {
-            None
+    async fn epoch_at_height(&self, height: BlockNumber) -> CommitteeProviderResult<u64> {
+        // Try to resolve the epoch from cache.
+        let mut epoch_cache = self.epoch_cache.lock().await;
+        if let Some(epoch_id) = epoch_cache.try_resolve_epoch_id(height) {
+            return Ok(epoch_id);
         }
+
+        // Otherwise, sync the epochs from the state.
+        epoch_cache.sync_epochs(self.staking_contract.clone()).await?;
+
+        epoch_cache
+            .try_resolve_epoch_id(height)
+            .ok_or(CommitteeProviderError::InvalidHeight { height })
     }
 
-    async fn epoch_at_height(&self, height: BlockNumber) -> CommitteeProviderResult<u64> {
-        // Check if we can resolve the epoch from the cache.
-        {
-            let cached_epoch_guard = self.cached_epoch.lock().expect("Mutex poisoned");
-            if let Some(epoch_id) = cached_epoch_guard
-                .as_ref()
-                .and_then(|epoch| self.try_resolve_epoch_id(epoch, height))
-            {
-                return Ok(epoch_id);
-            }
+    // Returns the previous epoch relative to the given height.
+    // If the height is in epoch N, this returns epoch N-1.
+    // Returns None if the height is in the first epoch (epoch 0).
+    async fn previous_epoch(&self, height: BlockNumber) -> CommitteeProviderResult<Option<Epoch>> {
+        // Get the epoch ID for the given height.
+        let epoch_id = self.epoch_at_height(height).await?;
+
+        // First epoch has no previous epoch.
+        if epoch_id == 0 {
+            return Ok(None);
         }
 
-        // Otherwise, fetch the epoch from the state and cache the result.
-        let epoch = self.staking_contract.get_current_epoch().await?;
+        let previous_epoch_id = epoch_id - 1;
 
-        let mut cached_epoch_guard = self.cached_epoch.lock().expect("Mutex poisoned");
-        *cached_epoch_guard = Some(epoch);
+        // Try to get the previous epoch from the cache.
+        let epoch = {
+            let cache = self.epoch_cache.lock().await;
+            cache.get_epoch(previous_epoch_id)
+        };
 
-        self.try_resolve_epoch_id(cached_epoch_guard.as_ref().unwrap(), height)
-            .ok_or(CommitteeProviderError::InvalidHeight { height })
+        // If the cache is missing an historical epoch, we treat it as an error.
+        epoch
+            .map(Some)
+            .ok_or(CommitteeProviderError::MissingInformation { epoch_id: previous_epoch_id })
     }
 }
 
