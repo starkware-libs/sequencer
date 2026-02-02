@@ -89,6 +89,7 @@ fn consensus_config() -> ConsensusConfig {
             timeouts: TIMEOUTS.clone(),
             sync_retry_interval: SYNC_RETRY_INTERVAL,
             future_msg_limit: FutureMsgLimitsConfig::default(),
+            require_virtual_leader_vote: true,
         },
         ConsensusStaticConfig {
             storage_config: StorageConfig::default(),

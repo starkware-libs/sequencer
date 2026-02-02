@@ -111,6 +111,7 @@ pub(crate) struct StateMachine {
     round_skip_threshold: VotesThreshold,
     total_weight: u64,
     is_observer: bool,
+    require_virtual_leader_vote: bool,
     // {round: (proposal_id, valid_round)}
     proposals: HashMap<Round, (Option<ProposalCommitment>, Option<Round>)>,
     // {(round, voter): (vote, weight)}
@@ -140,6 +141,7 @@ impl StateMachine {
         is_observer: bool,
         quorum_type: QuorumType,
         proposer_cache: Arc<dyn ProposerLookup>,
+        require_virtual_leader_vote: bool,
     ) -> Self {
         Self {
             height,
@@ -152,6 +154,7 @@ impl StateMachine {
             round_skip_threshold: ROUND_SKIP_THRESHOLD,
             total_weight,
             is_observer,
+            require_virtual_leader_vote,
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
             precommits: HashMap::new(),
@@ -761,7 +764,9 @@ impl StateMachine {
         round: Round,
         value: &Option<ProposalCommitment>,
     ) -> bool {
-        // TODO(Asmaa): add a config flag to bypass this virtual leader check
+        if !self.require_virtual_leader_vote {
+            return true;
+        }
         let Some(virtual_leader) = self.proposer_cache.virtual_proposer(round).ok() else {
             return false;
         };

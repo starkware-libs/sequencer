@@ -85,6 +85,7 @@ impl TestWrapper {
                 is_observer,
                 quorum_type,
                 proposer_cache,
+                true,
             ),
             requests: VecDeque::new(),
             peer_voters,

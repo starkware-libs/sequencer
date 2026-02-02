@@ -43,6 +43,7 @@ fn proposer() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        true,
     );
     // Start should request to build proposal.
     let start_ret = shc.start();
@@ -98,6 +99,7 @@ fn validator(repeat_proposal: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        true,
     );
 
     // Accept block info -> should request validation.
@@ -159,6 +161,7 @@ fn vote_twice(same_vote: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        true,
     );
     // Validate a proposal so the SM is ready to prevote.
     let round = block_info.round;
@@ -214,6 +217,7 @@ fn rebroadcast_votes() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        true,
     );
     // Start and build.
     let _ = shc.start();
@@ -286,6 +290,7 @@ fn repropose() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        true,
     );
     let _ = shc.start();
     // After building the proposal, the proposer broadcasts a prevote for round 0.
@@ -344,6 +349,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        true,
     );
     let ret = shc.start();
     assert_matches!(ret, mut reqs => {
@@ -392,6 +398,7 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         proposer_cache,
+        true,
     );
 
     // 1. Accept proposal -> should request validation

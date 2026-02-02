@@ -223,6 +223,7 @@ impl DiscreteEventSimulation {
             QuorumType::Byzantine,
             TimeoutsConfig::default(),
             proposer_cache,
+            true,
         );
 
         let quorum_threshold = (2 * total_nodes / 3) + 1;
