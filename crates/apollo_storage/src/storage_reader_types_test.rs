@@ -527,3 +527,21 @@ async fn deprecated_declared_class_block_request() {
 
     assert_eq!(response, StorageReaderResponse::DeprecatedDeclaredClassesBlock(TEST_BLOCK_NUMBER));
 }
+
+#[tokio::test]
+async fn headers_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_header = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_storage_block_header(&TEST_BLOCK_NUMBER)
+        .unwrap()
+        .expect("Block header should exist");
+
+    let request = StorageReaderRequest::Headers(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::Headers(expected_header));
+}
