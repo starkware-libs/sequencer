@@ -12,10 +12,16 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Mount Namespace cache volume
+      uses: namespacelabs/nscloud-cache-action@v1
+      with:
+        cache: rust
+        path: /home/runner/.cargo
+
     - uses: moonrepo/setup-rust@v1
       name: Install Rust toolchain and binaries
       with:
-        cache-base: main(-v[0-9].*)?
+        cache: false
         inherit-toolchain: true
         # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
         channel: ${{ inputs.extra_rust_toolchains }}
@@ -26,10 +32,7 @@ runs:
       shell: bash
       run: ./scripts/install_cargo_tools.sh
 
-    # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged
-    # binaries.
-    # TODO(Gilad): once we migrate to a cached Docker image, we can remove this step and just
-    # install it during dependencies.sh (which we don't do now since dependencies.sh isn't cached).
+    # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged binaries.
     - name: Install Anvil
       uses: foundry-rs/foundry-toolchain@v1
       with:
