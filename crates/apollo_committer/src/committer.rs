@@ -493,6 +493,7 @@ fn update_metrics(
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.classes_trie);
     info!("Classes trie modifications in block {height}: {}", modifications_counts.classes_trie);
     COUNT_EMPTIED_LEAVES_PER_BLOCK.record_lossy(modifications_counts.emptied_storage_leaves);
+    info!("Emptied leaves in block {height}: {}", modifications_counts.emptied_storage_leaves);
     if modifications_counts.storage_tries > 0 {
         let empty_leaves_percentage = modifications_counts.emptied_storage_leaves as f64
             / modifications_counts.storage_tries as f64;
