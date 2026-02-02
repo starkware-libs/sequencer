@@ -349,14 +349,13 @@ impl CasmHashMigrationData {
     }
 
     /// Converts the aggregated migration resources into gas amounts using the provided builtin gas
-    /// costs and `blake_opcode_gas`.
+    /// costs.
     fn to_gas(
         &self,
         builtin_gas_costs: &BuiltinGasCosts,
         versioned_constants: &VersionedConstants,
-        blake_opcode_gas: usize,
     ) -> GasAmount {
-        self.resources.to_gas(builtin_gas_costs, blake_opcode_gas, versioned_constants)
+        self.resources.to_gas(builtin_gas_costs, versioned_constants)
     }
 }
 
@@ -749,12 +748,11 @@ fn add_casm_hash_computation_gas_cost(
     gas_without_casm_hash_computation: GasAmount,
     builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
 ) -> (GasAmount, CasmHashComputationData) {
     let casm_hash_computation_data_gas = CasmHashComputationData::from_resources(
         class_hash_to_casm_hash_computation_resources,
         gas_without_casm_hash_computation,
-        |resources| resources.to_gas(builtin_gas_cost, blake_opcode_gas, versioned_constants),
+        |resources| resources.to_gas(builtin_gas_cost, versioned_constants),
     );
     (casm_hash_computation_data_gas.total_gas(), casm_hash_computation_data_gas)
 }
@@ -766,7 +764,6 @@ fn compute_sierra_gas(
     tx_resources: &TransactionResources,
     migration_gas: GasAmount,
     class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
-    blake_opcode_gas: usize,
 ) -> (GasAmount, CasmHashComputationData, GasAmount) {
     let mut vm_resources_sierra_gas =
         vm_resources_to_gas(vm_resources, sierra_builtin_gas_costs, versioned_constants);
@@ -783,10 +780,6 @@ fn compute_sierra_gas(
             sierra_gas_without_casm_hash_computation,
             sierra_builtin_gas_costs,
             versioned_constants,
-            // Sierra gas represents `stone` proving costs. However, a Blake opcode cannot be
-            // executed in `stone`, (i.e. this version is not supported by `stone`). For
-            // simplicity, the Blake `stwo` cost is used for the sierra gas estimation.
-            blake_opcode_gas,
         );
     (total_sierra_gas, casm_hash_computation_data_sierra_gas, vm_resources_sierra_gas)
 }
@@ -800,7 +793,6 @@ fn compute_proving_gas(
     sierra_builtin_gas_costs: &BuiltinGasCosts,
     migration_gas: GasAmount,
     class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
-    blake_opcode_gas: usize,
 ) -> (GasAmount, CasmHashComputationData) {
     let vm_resources_proving_gas = proving_gas_from_builtins_and_sierra_gas(
         vm_resources_sierra_gas,
@@ -817,7 +809,6 @@ fn compute_proving_gas(
         proving_gas_without_casm_hash_computation,
         proving_builtin_gas_costs,
         versioned_constants,
-        blake_opcode_gas,
     )
 }
 
@@ -866,15 +857,11 @@ pub fn get_tx_weights<S: StateReader>(
     };
     total_state_changes_keys.extend(state_changes_keys);
 
-    let blake_opcode_gas = usize_from_u64(bouncer_config.builtin_weights.gas_costs.blake)
-        .expect("This conversion should not fail as blake opcode gas cost should fit in usize.");
-
     // Migration occurs once per contract and is not included in the CASM hash computation, which
     // is performed every time a contract is loaded.
-    let sierra_migration_gas =
-        migration_data.to_gas(sierra_builtin_gas_costs, versioned_constants, blake_opcode_gas);
+    let sierra_migration_gas = migration_data.to_gas(sierra_builtin_gas_costs, versioned_constants);
     let proving_migration_gas =
-        migration_data.to_gas(proving_builtin_gas_costs, versioned_constants, blake_opcode_gas);
+        migration_data.to_gas(proving_builtin_gas_costs, versioned_constants);
 
     // Sierra gas computation.
     let (total_sierra_gas, casm_hash_computation_data_sierra_gas, vm_resources_sierra_gas) =
@@ -885,7 +872,6 @@ pub fn get_tx_weights<S: StateReader>(
             tx_resources,
             sierra_migration_gas,
             &class_hash_to_casm_hash_computation_resources,
-            blake_opcode_gas,
         );
 
     // Proving gas computation.
@@ -903,7 +889,6 @@ pub fn get_tx_weights<S: StateReader>(
         sierra_builtin_gas_costs,
         proving_migration_gas,
         &class_hash_to_casm_hash_computation_resources,
-        blake_opcode_gas,
     );
 
     let bouncer_weights = BouncerWeights {
