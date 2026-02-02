@@ -34,6 +34,7 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidReso
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 

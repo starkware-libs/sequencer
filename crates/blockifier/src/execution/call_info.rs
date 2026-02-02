@@ -37,6 +37,28 @@ macro_rules! retdata {
     };
 }
 
+pub(crate) trait OrderedItem: Sized {
+    type UnorderedItem;
+
+    /// converts to a tuple of (order, non-ordered struct).
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem);
+
+    fn get_items_from_call_execution(execution: &CallExecution) -> &[Self];
+
+    fn sorted_items(call_info: &CallInfo) -> Vec<Self::UnorderedItem> {
+        call_info
+            .iter()
+            .flat_map(|call_info| {
+                Self::get_items_from_call_execution(&call_info.execution)
+                    .iter()
+                    .map(|item| item.to_ordered_tuple(call_info.call.storage_address))
+            })
+            .sorted_by_key(|(order, _)| *order)
+            .map(|(_, unordered_struct)| unordered_struct)
+            .collect()
+    }
+}
+
 // TODO(Arni): Consider rename `OrderedEvent` to `OrderableEvent`.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -44,6 +66,18 @@ macro_rules! retdata {
 pub struct OrderedEvent {
     pub order: usize,
     pub event: EventContent,
+}
+
+impl OrderedItem for OrderedEvent {
+    type UnorderedItem = Event;
+
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
+        (self.order, Event { from_address, content: self.event.clone() })
+    }
+
+    fn get_items_from_call_execution(execution: &CallExecution) -> &[Self] {
+        &execution.events
+    }
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
@@ -60,6 +94,29 @@ pub struct MessageToL1 {
 pub struct OrderedL2ToL1Message {
     pub order: usize,
     pub message: MessageToL1,
+}
+
+impl OrderedItem for OrderedL2ToL1Message {
+    type UnorderedItem = StarknetAPIMessageToL1;
+
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
+        (
+            self.order,
+            StarknetAPIMessageToL1 {
+                from_address,
+                to_address: self
+                    .message
+                    .to_address
+                    .try_into()
+                    .expect("Failed to convert L1Address to EthAddress"),
+                payload: self.message.payload.clone(),
+            },
+        )
+    }
+
+    fn get_items_from_call_execution(execution: &CallExecution) -> &[Self] {
+        &execution.l2_to_l1_messages
+    }
 }
 
 /// Represents the effects of executing a single entry point.
@@ -349,49 +406,13 @@ impl CallInfo {
     /// Returns a vector of Starknet Event objects collected during the execution, sorted by the
     /// order in which they were emitted.
     pub fn get_sorted_events(&self) -> Vec<Event> {
-        self.iter()
-            .flat_map(|call_info| {
-                call_info.execution.events.iter().map(|OrderedEvent { order, event }| {
-                    (
-                        *order,
-                        Event {
-                            from_address: call_info.call.storage_address,
-                            content: event.clone(),
-                        },
-                    )
-                })
-            })
-            .sorted_by_key(|(order, _)| *order)
-            .map(|(_, event)| event)
-            .collect()
+        OrderedEvent::sorted_items(self)
     }
 
     /// Returns a vector of Starknet MessageToL1 objects collected during the execution,
     /// sorted by the order in which they were sent.
     pub fn get_sorted_l2_to_l1_messages(&self) -> Vec<StarknetAPIMessageToL1> {
-        self.iter()
-            .flat_map(|call_info| {
-                call_info.execution.l2_to_l1_messages.iter().map(
-                    |OrderedL2ToL1Message {
-                         order,
-                         message: MessageToL1 { to_address, payload },
-                     }| {
-                        (
-                            *order,
-                            StarknetAPIMessageToL1 {
-                                from_address: call_info.call.storage_address,
-                                to_address: (*to_address)
-                                    .try_into()
-                                    .expect("Failed to convert L1Address to EthAddress"),
-                                payload: payload.clone(),
-                            },
-                        )
-                    },
-                )
-            })
-            .sorted_by_key(|(order, _)| *order)
-            .map(|(_, message)| message)
-            .collect()
+        OrderedL2ToL1Message::sorted_items(self)
     }
 }
 

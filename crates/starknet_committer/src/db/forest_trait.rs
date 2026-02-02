@@ -3,15 +3,22 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ContractAddress;
-use starknet_patricia::db_layout::NodeLayoutFor;
+use starknet_api::hash::StateRoots;
+use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
+use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::errors::SerializationResult;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, DbValue, Storage};
+use starknet_patricia_storage::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageResult,
+    Storage,
+};
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
-use crate::db::facts_db::types::FactsDbInitialRead;
+use crate::db::db_layout::DbLayout;
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
 use crate::forest::filled_forest::FilledForest;
@@ -58,21 +65,29 @@ pub trait ForestMetadata {
 /// Trait for reading an original skeleton forest from some storage.
 /// The implementation may depend on the underlying storage layout.
 #[async_trait]
-pub trait ForestReader<I: InputContext> {
+pub trait ForestReader {
+    /// Input required to start reading the storage trie.
+    type InitialReadContext: InputContext + Send;
+
     async fn read<'a>(
         &mut self,
-        context: I,
+        roots: StateRoots,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>;
+
+    async fn read_roots(
+        &mut self,
+        initial_read_context: Self::InitialReadContext,
+    ) -> PatriciaStorageResult<StateRoots>;
 }
 
 /// Helper function containing layout-common read logic.
 pub(crate) async fn read_forest<'a, S, Layout>(
     storage: &mut S,
-    context: FactsDbInitialRead,
+    roots: StateRoots,
     storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     classes_updates: &'a LeafModifications<CompiledClassHash>,
     forest_sorted_indices: &'a ForestSortedIndices<'a>,
@@ -80,22 +95,16 @@ pub(crate) async fn read_forest<'a, S, Layout>(
 ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
 where
     S: Storage,
-    Layout: NodeLayoutFor<StarknetStorageValue>
-        + NodeLayoutFor<ContractState>
-        + NodeLayoutFor<CompiledClassHash>,
-    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
-        HasStaticPrefix<KeyContext = ContractAddress>,
-    <Layout as NodeLayoutFor<ContractState>>::DbLeaf: HasStaticPrefix<KeyContext = EmptyKeyContext>,
-    <Layout as NodeLayoutFor<CompiledClassHash>>::DbLeaf:
-        HasStaticPrefix<KeyContext = EmptyKeyContext>,
+    Layout: DbLayout,
 {
-    let (contracts_trie, original_contracts_trie_leaves) = create_contracts_trie::<Layout>(
-        storage,
-        context.0.contracts_trie_root_hash,
-        forest_sorted_indices.contracts_trie_sorted_indices,
-    )
-    .await?;
-    let storage_tries = create_storage_tries::<Layout>(
+    let (contracts_trie, original_contracts_trie_leaves) =
+        create_contracts_trie::<Layout::NodeLayout>(
+            storage,
+            roots.contracts_trie_root_hash,
+            forest_sorted_indices.contracts_trie_sorted_indices,
+        )
+        .await?;
+    let storage_tries = create_storage_tries::<Layout::NodeLayout>(
         storage,
         storage_updates,
         &original_contracts_trie_leaves,
@@ -103,10 +112,10 @@ where
         &forest_sorted_indices.storage_tries_sorted_indices,
     )
     .await?;
-    let classes_trie = create_classes_trie::<Layout>(
+    let classes_trie = create_classes_trie::<Layout::NodeLayout>(
         storage,
         classes_updates,
-        context.0.classes_trie_root_hash,
+        roots.classes_trie_root_hash,
         &config,
         forest_sorted_indices.classes_trie_sorted_indices,
     )
@@ -116,6 +125,28 @@ where
         OriginalSkeletonForest { classes_trie, contracts_trie, storage_tries },
         original_contracts_trie_leaves,
     ))
+}
+
+/// Helper function containing layout-common write logic.
+pub(crate) fn serialize_forest<Layout: DbLayout>(
+    filled_forest: &FilledForest,
+) -> SerializationResult<DbHashMap> {
+    let mut serialized_forest = DbHashMap::new();
+
+    // Storage tries.
+    for (contract_address, tree) in &filled_forest.storage_tries {
+        serialized_forest.extend(tree.serialize::<Layout::NodeLayout>(contract_address)?);
+    }
+
+    // Contracts trie.
+    serialized_forest
+        .extend(filled_forest.contracts_trie.serialize::<Layout::NodeLayout>(&EmptyKeyContext)?);
+
+    // Classes trie.
+    serialized_forest
+        .extend(filled_forest.classes_trie.serialize::<Layout::NodeLayout>(&EmptyKeyContext)?);
+
+    Ok(serialized_forest)
 }
 
 #[async_trait]
@@ -151,5 +182,41 @@ pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
 
 impl<T: ForestWriter + ForestMetadata> ForestWriterWithMetadata for T {}
 
-pub trait ForestStorage<I: InputContext>: ForestReader<I> + ForestWriterWithMetadata {}
-impl<I: InputContext, T: ForestReader<I> + ForestWriterWithMetadata> ForestStorage<I> for T {}
+pub trait StorageInitializer {
+    type Storage: Storage;
+    fn new(storage: Self::Storage) -> Self;
+}
+
+pub trait ForestStorage: ForestReader + ForestWriterWithMetadata + StorageInitializer {}
+
+impl<T: ForestReader + ForestWriterWithMetadata + StorageInitializer> ForestStorage for T {}
+
+/// Trait for initial read contexts that can be created without external input.
+pub trait EmptyInitialReadContext: InputContext {
+    fn create_empty() -> Self;
+}
+
+/// ForestReader with empty initial read context.
+pub trait ForestReaderWithEmptyContext:
+    ForestReader<InitialReadContext: EmptyInitialReadContext>
+{
+}
+
+impl<T> ForestReaderWithEmptyContext for T where
+    T: ForestReader<InitialReadContext: EmptyInitialReadContext>
+{
+}
+
+/// Marker trait for storage types that can initialize their read context without external input.
+///
+/// Types that require external context (e.g., `FactsDb` which needs roots provided externally as
+/// they are not part of the committer storage) should NOT implement this trait.
+pub trait ForestStorageWithEmptyReadContext:
+    ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
+{
+}
+
+impl<T> ForestStorageWithEmptyReadContext for T where
+    T: ForestReaderWithEmptyContext + ForestWriterWithMetadata + StorageInitializer
+{
+}

@@ -15,7 +15,6 @@ testing = ["mockall", "starknet_api/testing"]
 [dependencies]
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
-apollo_proc_macros.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }

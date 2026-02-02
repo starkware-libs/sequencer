@@ -5,7 +5,7 @@ use std::vec::Vec;
 
 use apollo_batcher_config::config::BatcherConfig;
 use apollo_class_manager_config::config::FsClassManagerConfig;
-use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::dumping::{
     generate_optional_struct_pointer,
     generate_struct_pointer,
@@ -39,6 +39,7 @@ use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_proof_manager_config::config::ProofManagerConfig;
 use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
+use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::StateSyncConfig;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
@@ -214,7 +215,7 @@ pub struct SequencerNodeConfig {
     #[validate(nested)]
     pub class_manager_config: Option<FsClassManagerConfig>,
     #[validate(nested)]
-    pub committer_config: Option<CommitterConfig>,
+    pub committer_config: Option<ApolloCommitterConfig>,
     #[validate(nested)]
     pub consensus_manager_config: Option<ConsensusManagerConfig>,
     #[validate(nested)]
@@ -291,7 +292,7 @@ impl Default for SequencerNodeConfig {
             base_layer_config: Some(EthereumBaseLayerConfig::default()),
             batcher_config: Some(BatcherConfig::default()),
             class_manager_config: Some(FsClassManagerConfig::default()),
-            committer_config: Some(CommitterConfig::default()),
+            committer_config: Some(ApolloCommitterConfig::default()),
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),
@@ -319,6 +320,8 @@ pub struct NodeDynamicConfig {
     pub http_server_dynamic_config: Option<HttpServerDynamicConfig>,
     #[validate(nested)]
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
+    #[validate(nested)]
+    pub staking_manager_dynamic_config: Option<StakingManagerDynamicConfig>,
 }
 
 impl SerializeConfig for NodeDynamicConfig {
@@ -328,6 +331,10 @@ impl SerializeConfig for NodeDynamicConfig {
             ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
             ser_optional_sub_config(&self.mempool_dynamic_config, "mempool_dynamic_config"),
+            ser_optional_sub_config(
+                &self.staking_manager_dynamic_config,
+                "staking_manager_dynamic_config",
+            ),
         ];
         sub_configs.into_iter().flatten().collect()
     }
@@ -359,6 +366,8 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             context_dynamic_config,
             http_server_dynamic_config,
             mempool_dynamic_config,
+            // TODO(Dafna): take the staking config from `consensus_manager_config` once available.
+            staking_manager_dynamic_config: Some(StakingManagerDynamicConfig::default()),
         }
     }
 }
@@ -437,6 +446,35 @@ impl SequencerNodeConfig {
             sierra_compiler_config
         );
         validate_component_config_is_set_iff_running_locally!(state_sync, state_sync_config);
+
+        // Validate proposer_idle_detection_delay < batcher_deadline.
+        // The batcher_deadline = proposal_timeout - build_proposal_margin.
+        // If idle_delay >= batcher_deadline, idle detection never triggers (hard deadline fires
+        // first).
+        if let (Some(batcher_config), Some(consensus_manager_config)) =
+            (&self.batcher_config, &self.consensus_manager_config)
+        {
+            let idle_delay =
+                batcher_config.block_builder_config.proposer_idle_detection_delay_millis;
+            let proposal_timeout = consensus_manager_config
+                .consensus_manager_config
+                .dynamic_config
+                .timeouts
+                .get_proposal_timeout(0); // base timeout (round 0)
+            let build_margin =
+                consensus_manager_config.context_config.static_config.build_proposal_margin_millis;
+            let batcher_deadline = proposal_timeout.saturating_sub(build_margin);
+
+            if idle_delay >= batcher_deadline {
+                return Err(ConfigError::ComponentConfigMismatch {
+                    component_config_mismatch: format!(
+                        "proposer_idle_detection_delay_millis ({:?}) must be less than \
+                         batcher_deadline ({:?}) = proposal_timeout ({:?}) - build_margin ({:?})",
+                        idle_delay, batcher_deadline, proposal_timeout, build_margin
+                    ),
+                });
+            }
+        }
 
         Ok(())
     }

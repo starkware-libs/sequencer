@@ -257,7 +257,7 @@ class TransactionSenderService:
 
                     revert_errors = _extract_revert_errors_by_tx_hash(block)
                     if revert_errors:
-                        shared.record_mainnet_revert_errors(revert_errors)
+                        shared.record_mainnet_revert_errors(block_number, revert_errors)
 
                     all_txs = block["transactions"]
                     valid_txs = TxSelector.filter_blocked(all_txs, CONFIG.tx_filter.blocked_senders)
@@ -309,8 +309,16 @@ class TransactionSenderService:
                             return
 
                         prepared = transformer.prepare_for_forwarding(item)
-                        if prepared is None:
+                        if prepared is None:  # L1_HANDLER
+                            while shared.is_pending_tx(item.tx["transaction_hash"]):
+                                await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
                             continue
+
+                        while (
+                            shared.get_pending_tx_count()
+                            >= CONFIG.tx_sender.max_pending_txs_before_pausing
+                        ):
+                            await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
 
                         await forwarder.forward(
                             prepared, source_block_number=item.source_block_number

@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde_json::Value;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FACT_LAYOUT_DB_KEY_SEPARATOR;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::{DBObject, EmptyDeserializationContext};
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
@@ -32,6 +33,8 @@ impl From<CommitterLeafPrefix> for DbKeyPrefix {
 }
 
 impl DBObject for StarknetStorageValue {
+    const DB_KEY_SEPARATOR: &[u8] = FACT_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Serializes the value into a 32-byte vector.
@@ -48,6 +51,8 @@ impl DBObject for StarknetStorageValue {
 }
 
 impl DBObject for CompiledClassHash {
+    const DB_KEY_SEPARATOR: &[u8] = FACT_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Creates a json string describing the leaf and casts it into a byte vector.
@@ -70,6 +75,8 @@ impl DBObject for CompiledClassHash {
 }
 
 impl DBObject for ContractState {
+    const DB_KEY_SEPARATOR: &[u8] = FACT_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Creates a json string describing the leaf and casts it into a byte vector.

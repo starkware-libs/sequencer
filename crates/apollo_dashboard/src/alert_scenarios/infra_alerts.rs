@@ -21,11 +21,7 @@ pub(crate) fn get_general_pod_state_not_ready() -> Alert {
         // Checks if a container in a pod is not ready (status_ready < 1).
         // Triggers when at least one container is unhealthy or not passing readiness probes.
         format!("kube_pod_container_status_ready{METRIC_LABEL_FILTER}"),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
@@ -52,11 +48,7 @@ pub(crate) fn get_general_pod_state_crashloopbackoff() -> Alert {
              (kube_pod_container_status_waiting_reason{metric_label_filter_with_reason}) or \
              absent(kube_pod_container_status_waiting_reason{metric_label_filter_with_reason}) * 0",
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
@@ -84,11 +76,11 @@ fn get_general_pod_memory_utilization(
              namespace) / max(container_spec_memory_limit_bytes{METRIC_LABEL_FILTER}) by \
              (container, pod, namespace) * 100"
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
             comparison_value,
-            logical_op: AlertLogicalOp::And,
-        }],
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         severity,
@@ -127,11 +119,7 @@ pub(crate) fn get_general_pod_high_cpu_utilization() -> Alert {
              (max(container_spec_cpu_quota{METRIC_LABEL_FILTER}/100000) by (container, pod, \
              namespace)) * 100",
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 90.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 90.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
@@ -158,11 +146,11 @@ fn get_general_pod_disk_utilization(
              (namespace,persistentvolumeclaim) \
              (kubelet_volume_stats_used_bytes{METRIC_LABEL_FILTER}))*100",
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
             comparison_value,
-            logical_op: AlertLogicalOp::And,
-        }],
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         severity,
@@ -186,4 +174,22 @@ pub(crate) fn get_general_pod_disk_utilization_vec() -> Vec<Alert> {
             AlertSeverity::Regular,
         ),
     ]
+}
+
+pub(crate) fn get_periodic_ping() -> Alert {
+    Alert::new(
+        "periodic_ping",
+        "Periodic Ping",
+        AlertGroup::General,
+        // Checks if the UTC time is 7:55 AM on Sunday.
+        "(day_of_week() == bool 0) * (hour() == bool 7) * (minute() == bool 55)",
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
+        // The alert will be evaluated every 30 seconds, which should suffice to catch the 1-minute
+        // long ping.
+        "30s",
+        30,
+        AlertSeverity::Regular,
+        ObserverApplicability::Applicable,
+        AlertEnvFiltering::All,
+    )
 }

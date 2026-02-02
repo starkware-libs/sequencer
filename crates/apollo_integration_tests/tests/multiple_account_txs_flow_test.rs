@@ -1,10 +1,11 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::end_to_end_flow_utils::{
+use apollo_integration_tests::utils::{
     end_to_end_flow,
     EndToEndFlowArgs,
-    TestScenario,
+    EndToEndTestScenario,
+    ACCOUNT_ID_0,
+    ACCOUNT_ID_1,
 };
-use apollo_integration_tests::utils::{ACCOUNT_ID_0, ACCOUNT_ID_1};
 use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -25,8 +26,8 @@ async fn multiple_account_txs_flow() {
     .await
 }
 
-fn create_test_scenarios() -> TestScenario {
-    TestScenario {
+fn create_test_scenarios() -> EndToEndTestScenario {
+    EndToEndTestScenario {
         create_rpc_txs_fn: create_multiple_account_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: test_multiple_account_txs,

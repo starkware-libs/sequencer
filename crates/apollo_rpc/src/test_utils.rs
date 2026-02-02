@@ -1,3 +1,4 @@
+use std::net::Ipv4Addr;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -34,7 +35,7 @@ pub fn get_test_rpc_config() -> RpcConfig {
             strk_fee_contract_address: contract_address!("0x1001"),
             default_initial_gas_cost: 10000000000,
         },
-        ip: "127.0.0.1".parse().unwrap(),
+        ip: Ipv4Addr::LOCALHOST.into(),
         port: 0,
         max_events_chunk_size: 10,
         max_events_keys: 10,
@@ -114,11 +115,11 @@ pub(crate) async fn raw_call<R: JsonRpcServerTrait, S: Serialize, T: for<'a> Des
         _ => format!(r#", "params":{params}"#),
     };
     let req = format!(r#"{{"jsonrpc":"2.0","id":"1","method":"{method}"{params_str}}}"#);
-    let (resp_wrapper, _) = module
+    let (resp_result, _) = module
         .raw_json_request(req.as_str(), 1)
         .await
         .unwrap_or_else(|_| panic!("request format, got: {req}"));
-    let json_resp: Value = serde_json::from_str(&resp_wrapper.result).unwrap();
+    let json_resp: Value = serde_json::from_str(resp_result.get()).unwrap();
     let result: Result<T, jsonrpsee::types::ErrorObject<'_>> =
         match json_resp.get("result") {
             Some(resp) => Ok(serde_json::from_value::<T>(resp.clone())

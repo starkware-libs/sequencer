@@ -12,14 +12,12 @@ testing = ["starknet_patricia/testing"]
 [dependencies]
 apollo_config.workspace = true
 async-trait.workspace = true
-csv.workspace = true
 derive_more = { workspace = true, features = ["as_ref", "from", "into"] }
 ethnum.workspace = true
 hex.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
-rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet-types-core = { workspace = true, features = ["hash", "papyrus-serialization"] }
@@ -32,6 +30,8 @@ tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 
 [dev-dependencies]
+rstest.workspace = true
+rstest_reuse.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 

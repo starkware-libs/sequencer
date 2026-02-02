@@ -30,6 +30,9 @@ enum Commands {
         /// downloaded from GCS for benchmarks that require them.
         #[arg(long)]
         input_dir: Option<String>,
+        /// Optional: Output JSON file in github-action-benchmark format.
+        #[arg(long)]
+        github_action_benchmark_output_file: Option<String>,
     },
     /// Run benchmarks, compare to previous run, and fail if regression exceeds limit.
     RunAndCompare {
@@ -71,14 +74,19 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        Commands::Run { package, out, input_dir } => {
+        Commands::Run { package, out, input_dir, github_action_benchmark_output_file } => {
             let benchmarks = find_benchmarks_by_package(&package);
 
             if benchmarks.is_empty() {
                 panic!("No benchmarks found for package: {}", package);
             }
 
-            bench_tools::runner::run_benchmarks(&benchmarks, input_dir.as_deref(), &out);
+            bench_tools::runner::run_benchmarks(
+                &benchmarks,
+                input_dir.as_deref(),
+                &out,
+                github_action_benchmark_output_file.as_deref(),
+            );
         }
         Commands::RunAndCompare {
             package,

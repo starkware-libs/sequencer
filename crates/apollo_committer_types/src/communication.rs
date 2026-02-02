@@ -1,16 +1,18 @@
 use std::sync::Arc;
 
-use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
+use apollo_infra::component_client::{LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_metrics::generate_permutation_labels;
-use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -55,15 +57,6 @@ pub enum CommitterRequest {
     RevertBlock(RevertBlockRequest),
 }
 
-impl CommitterRequest {
-    pub fn height(&self) -> BlockNumber {
-        match self {
-            CommitterRequest::CommitBlock(request) => request.height,
-            CommitterRequest::RevertBlock(request) => request.height,
-        }
-    }
-}
-
 impl_debug_for_infra_requests_and_responses!(CommitterRequest);
 impl_labeled_request!(CommitterRequest, CommitterRequestLabelValue);
 impl PrioritizedRequest for CommitterRequest {}
@@ -92,6 +85,8 @@ where
     ) -> CommitterClientResult<CommitBlockResponse> {
         let request = CommitterRequest::CommitBlock(input);
         handle_all_response_variants!(
+            self,
+            request,
             CommitterResponse,
             CommitBlock,
             CommitterClientError,
@@ -106,6 +101,8 @@ where
     ) -> CommitterClientResult<RevertBlockResponse> {
         let request = CommitterRequest::RevertBlock(input);
         handle_all_response_variants!(
+            self,
+            request,
             CommitterResponse,
             RevertBlock,
             CommitterClientError,

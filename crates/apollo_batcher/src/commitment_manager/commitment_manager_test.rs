@@ -17,7 +17,12 @@ use tokio::time::{sleep, timeout};
 use crate::batcher::MockBatcherStorageReader;
 use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
 use crate::commitment_manager::errors::CommitmentManagerError;
-use crate::test_utils::{test_state_diff, MockStateCommitter, INITIAL_HEIGHT};
+use crate::test_utils::{
+    test_state_diff,
+    MockStateCommitter,
+    INITIAL_HEIGHT,
+    LATEST_BLOCK_IN_STORAGE,
+};
 
 type MockCommitmentManager = CommitmentManager<MockStateCommitter>;
 
@@ -76,7 +81,7 @@ async fn create_mock_commitment_manager(
     .await
 }
 
-async fn await_results<T>(receiver: &mut Receiver<T>, expected_n_results: usize) -> Vec<T> {
+async fn wait_for_n_results<T>(receiver: &mut Receiver<T>, expected_n_results: usize) {
     let max_n_retries = 3;
     let mut n_retries = 0;
     while get_number_of_tasks_in_receiver(receiver) < expected_n_results {
@@ -89,6 +94,10 @@ async fn await_results<T>(receiver: &mut Receiver<T>, expected_n_results: usize)
             );
         }
     }
+}
+
+async fn await_results<T>(receiver: &mut Receiver<T>, expected_n_results: usize) -> Vec<T> {
+    wait_for_n_results(receiver, expected_n_results).await;
     let mut results = Vec::new();
     while let Ok(result) = receiver.try_recv() {
         results.push(result);
@@ -167,7 +176,7 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
         .await;
     assert_matches!(
         result,
-        Err(CommitmentManagerError::WrongTaskHeight { expected, actual, .. })
+        Err(CommitmentManagerError::WrongCommitmentTaskHeight { expected, actual, .. })
         if expected == INITIAL_HEIGHT && actual == incorrect_height
     );
 
@@ -212,8 +221,20 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
 
 #[rstest]
 #[tokio::test]
-#[should_panic(expected = "Failed to send commitment task to state committer because the channel \
-                           is full. Block: 4")]
+async fn test_add_revert_task_wrong_height(mut mock_dependencies: MockDependencies) {
+    add_initial_heights(&mut mock_dependencies);
+
+    let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
+
+    // Verify adding a revert task at the wrong height results in an error.
+    let err =
+        commitment_manager.add_revert_task(INITIAL_HEIGHT, test_state_diff()).await.unwrap_err();
+    assert_matches!(err, CommitmentManagerError::WrongRevertTaskHeight { expected, actual, .. } if expected == LATEST_BLOCK_IN_STORAGE && actual == INITIAL_HEIGHT);
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic(expected = "The channel is full. channel size: 1.")]
 async fn test_add_commitment_task_full(mut mock_dependencies: MockDependencies) {
     add_initial_heights(&mut mock_dependencies);
     let state_diff = test_state_diff();
@@ -280,4 +301,60 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
     let second_result = results.get(1).unwrap().clone().expect_commitment();
     assert_eq!(first_result.height, INITIAL_HEIGHT,);
     assert_eq!(second_result.height, INITIAL_HEIGHT.next().unwrap(),);
+}
+
+/// Adds two commitments and a revert task to the last commit and inserts the results into the
+/// channel. Returns the resulted height.
+async fn add_commitments_and_revert_tasks(
+    commitment_manager: &mut MockCommitmentManager,
+    mut height: BlockNumber,
+) -> BlockNumber {
+    for _ in 0..2 {
+        commitment_manager
+            .add_commitment_task(height, test_state_diff(), Some(StateDiffCommitment::default()))
+            .await
+            .unwrap();
+        height = height.next().unwrap();
+    }
+    height = height.prev().unwrap();
+    commitment_manager.add_revert_task(height, test_state_diff()).await.unwrap();
+
+    for _ in 0..3 {
+        commitment_manager.state_committer.pop_task_and_insert_result().await;
+    }
+    height
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_wait_for_revert(mut mock_dependencies: MockDependencies) {
+    add_initial_heights(&mut mock_dependencies);
+    mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
+        tasks_channel_size: 5,
+        results_channel_size: 5,
+        wait_for_tasks_channel: false,
+    };
+    let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
+
+    let height = add_commitments_and_revert_tasks(&mut commitment_manager, INITIAL_HEIGHT).await;
+    let (commitment_results, revert_result) = commitment_manager.wait_for_revert_result().await;
+    assert_eq!(commitment_results.len(), 2);
+    assert_eq!(revert_result.height, height);
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic(expected = "Got revert output")]
+async fn test_revert_result_at_getting_commitments(mut mock_dependencies: MockDependencies) {
+    add_initial_heights(&mut mock_dependencies);
+    mock_dependencies.batcher_config.commitment_manager_config = CommitmentManagerConfig {
+        tasks_channel_size: 5,
+        results_channel_size: 5,
+        wait_for_tasks_channel: false,
+    };
+    let mut commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
+
+    add_commitments_and_revert_tasks(&mut commitment_manager, INITIAL_HEIGHT).await;
+    wait_for_n_results(&mut commitment_manager.results_receiver, 3).await;
+    commitment_manager.get_commitment_results().await;
 }

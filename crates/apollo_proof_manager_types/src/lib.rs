@@ -3,9 +3,12 @@ use std::sync::Arc;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
-use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_infra::{
+    handle_all_response_variants,
+    impl_debug_for_infra_requests_and_responses,
+    impl_labeled_request,
+};
 use apollo_metrics::generate_permutation_labels;
-use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -99,6 +102,8 @@ where
     ) -> ProofManagerClientResult<()> {
         let request = ProofManagerRequest::SetProof(proof_facts, proof);
         handle_all_response_variants!(
+            self,
+            request,
             ProofManagerResponse,
             SetProof,
             ProofManagerClientError,
@@ -110,6 +115,8 @@ where
     async fn get_proof(&self, proof_facts: ProofFacts) -> ProofManagerClientResult<Option<Proof>> {
         let request = ProofManagerRequest::GetProof(proof_facts);
         handle_all_response_variants!(
+            self,
+            request,
             ProofManagerResponse,
             GetProof,
             ProofManagerClientError,
@@ -121,6 +128,8 @@ where
     async fn contains_proof(&self, proof_facts: ProofFacts) -> ProofManagerClientResult<bool> {
         let request = ProofManagerRequest::ContainsProof(proof_facts);
         handle_all_response_variants!(
+            self,
+            request,
             ProofManagerResponse,
             ContainsProof,
             ProofManagerClientError,

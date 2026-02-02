@@ -1,4 +1,7 @@
+use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use lazy_static::lazy_static;
@@ -11,16 +14,29 @@ use syn::{
     parse2,
     parse_macro_input,
     parse_str,
+    Error,
     Expr,
     ExprLit,
     Ident,
+    Item,
+    ItemConst,
+    ItemEnum,
+    ItemExternCrate,
     ItemFn,
+    ItemMod,
+    ItemStatic,
+    ItemStruct,
     ItemTrait,
+    ItemTraitAlias,
+    ItemType,
+    ItemUnion,
+    ItemUse,
     LitBool,
     LitStr,
     Meta,
     Token,
     TraitItem,
+    Visibility,
 };
 
 /// This macro is a wrapper around the "rpc" macro supplied by the jsonrpsee library that generates
@@ -277,126 +293,6 @@ fn create_modified_function(
     modified_function.to_token_stream().into()
 }
 
-struct HandleAllResponseVariantsMacroInput {
-    response_enum: Ident,
-    request_response_enum_var: Ident,
-    component_client_error: Ident,
-    component_error: Ident,
-    response_type: Ident,
-}
-
-impl Parse for HandleAllResponseVariantsMacroInput {
-    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
-        let response_enum: Ident = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let request_response_enum_var: Ident = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let component_client_error: Ident = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let component_error: Ident = input.parse()?;
-        input.parse::<Token![,]>()?;
-        let response_type: Ident = input.parse()?;
-
-        Ok(HandleAllResponseVariantsMacroInput {
-            response_enum,
-            request_response_enum_var,
-            component_client_error,
-            component_error,
-            response_type,
-        })
-    }
-}
-
-/// A macro for generating code that sends the request and handles the received response.
-/// Takes the following arguments:
-/// * response_enum -- the response enum type
-/// * request_response_enum_var -- the request/response enum variant corresponding to the invoked
-///   function
-/// * component_client_error -- the component client error type
-/// * component_error --  the component error type
-/// * response_type -- Boxed or Direct, a string literal indicating if the response content is boxed
-///   or not
-///
-/// For example, use of the Direct response_type:
-/// ```rust,ignore
-/// handle_all_response_variants!(MempoolResponse, GetTransactions, MempoolClientError, MempoolError, Direct)
-/// ```
-///
-/// Results in:
-/// ```rust,ignore
-/// let response = self.send(request).await;
-/// match response? {
-///     MempoolResponse::GetTransactions(Ok(resp)) => Ok(resp),
-///     MempoolResponse::GetTransactions(Err(resp)) => {
-///         Err(MempoolClientError::MempoolError(resp))
-///     }
-///     unexpected_response => Err(MempoolClientError::ClientError(
-///         ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
-///     )),
-/// }
-/// ```
-/// Use of the Boxed response_type:
-/// ```rust,ignore
-/// handle_all_response_variants!(MempoolResponse, GetTransactions, MempoolClientError, MempoolError, Boxed)
-/// ```
-///
-/// Results in:
-/// ```rust,ignore
-/// let response = self.send(request).await;
-/// match response? {
-///     MempoolResponse::GetTransactions(Ok(boxed_resp)) => {
-///         let resp = *boxed_resp;
-///         Ok(resp)
-///     }
-///     MempoolResponse::GetTransactions(Err(resp)) => {
-///         Err(MempoolClientError::MempoolError(resp))
-///     }
-///     unexpected_response => Err(MempoolClientError::ClientError(
-///         ClientError::UnexpectedResponse(format!("{unexpected_response:?}")),
-///     )),
-/// }
-/// ```
-#[proc_macro]
-pub fn handle_all_response_variants(input: TokenStream) -> TokenStream {
-    let HandleAllResponseVariantsMacroInput {
-        response_enum,
-        request_response_enum_var,
-        component_client_error,
-        component_error,
-        response_type,
-    } = parse_macro_input!(input as HandleAllResponseVariantsMacroInput);
-
-    let mut expanded = match response_type.to_string().as_str() {
-        "Boxed" => quote! {
-            {
-                // Dereference the Box to get the response value
-                let resp = *resp;
-                Ok(resp)
-            }
-        },
-        "Direct" => quote! {
-            Ok(resp),
-        },
-        _ => panic!("Expected 'Boxed' or 'Direct'"),
-    };
-
-    expanded = quote! {
-        {
-            let response = self.send(request).await;
-            match response? {
-                #response_enum::#request_response_enum_var(Ok(resp)) =>
-                    #expanded
-                #response_enum::#request_response_enum_var(Err(resp)) => {
-                    Err(#component_client_error::#component_error(resp))
-                }
-                unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
-            }
-        }
-    };
-
-    TokenStream::from(expanded)
-}
-
 fn get_uniq_identifier_for_call_site(identifier_prefix: &str) -> Ident {
     // Use call site span for uniqueness
     let span = proc_macro::Span::call_site();
@@ -543,4 +439,70 @@ pub fn log_every_n_ms(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+static NEXT: AtomicU16 = AtomicU16::new(0);
+static MAP: OnceLock<Mutex<HashMap<String, u16>>> = OnceLock::new();
+
+fn alloc_for(key: String) -> u16 {
+    let map = MAP.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut map = map.lock().unwrap();
+
+    if let Some(&id) = map.get(&key) {
+        return id;
+    }
+
+    let id = NEXT.fetch_add(1, Ordering::Relaxed);
+    if id == u16::MAX {
+        panic!("unique_u16 exhausted: > 65536 unique callsites in this crate");
+    }
+
+    map.insert(key, id);
+    id
+}
+
+#[proc_macro]
+pub fn unique_u16(_input: TokenStream) -> TokenStream {
+    // NOTE: Use proc_macro::Span (stable APIs on 1.92)
+    let span = proc_macro::Span::call_site();
+
+    // Prefer file() for a stable-ish key (local_file may be None under remapping / RA)
+    let file = span.file();
+    let line = span.line(); // 1-indexed
+    let col = span.column(); // 1-indexed
+
+    let key = format!("{file}:{line}:{col}");
+    let id = alloc_for(key);
+
+    // Emit a single u16-suffixed literal so it works in const context
+    let lit = proc_macro::Literal::u16_suffixed(id);
+    TokenStream::from(proc_macro::TokenTree::Literal(lit))
+}
+
+#[proc_macro_attribute]
+pub fn make_visibility(attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let visibility: Visibility = parse_macro_input!(attrs);
+    let mut input: Item = parse_macro_input!(input);
+
+    match input {
+        Item::Const(ItemConst { ref mut vis, .. })
+        | Item::Enum(ItemEnum { ref mut vis, .. })
+        | Item::ExternCrate(ItemExternCrate { ref mut vis, .. })
+        | Item::Fn(ItemFn { ref mut vis, .. })
+        | Item::Mod(ItemMod { ref mut vis, .. })
+        | Item::Static(ItemStatic { ref mut vis, .. })
+        | Item::Struct(ItemStruct { ref mut vis, .. })
+        | Item::Trait(ItemTrait { ref mut vis, .. })
+        | Item::TraitAlias(ItemTraitAlias { ref mut vis, .. })
+        | Item::Type(ItemType { ref mut vis, .. })
+        | Item::Union(ItemUnion { ref mut vis, .. })
+        | Item::Use(ItemUse { ref mut vis, .. }) => *vis = visibility,
+        _ => {
+            return Error::new_spanned(&input, "Cannot override the `#[visibility]` of this item")
+                .to_compile_error()
+                .into();
+        }
+    }
+
+    input.into_token_stream().into()
 }

@@ -4,6 +4,7 @@ use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_definitions::BLOCK_TIME_SEC;
+use crate::alert_placeholders::ComparisonValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -24,11 +25,7 @@ pub(crate) fn get_consensus_round_above_zero() -> Alert {
         "Consensus round above zero",
         AlertGroup::Consensus,
         format!("increase({}[1h])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -46,11 +43,11 @@ fn get_consensus_round_above_zero_multiple_times(
         "Consensus round above zero multiple times",
         AlertGroup::Consensus,
         format!("increase({}[10m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 180.0 / BLOCK_TIME_SEC,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(
+            AlertComparisonOp::GreaterThan,
+            180.0 / BLOCK_TIME_SEC,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -81,11 +78,7 @@ fn get_cende_write_blob_failure_alert(
         "Cende write blob failure",
         AlertGroup::Consensus,
         format!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 10.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -116,12 +109,12 @@ fn get_consensus_p2p_peer_down(
         "Consensus p2p peer down",
         AlertGroup::Consensus,
         format!("max_over_time({}[2m])", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
+        vec![AlertCondition::new(
+            AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators
-            comparison_value: 2.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+            2.0,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -146,11 +139,7 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
         "Cende write blob failure once",
         AlertGroup::Consensus,
         format!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
@@ -163,19 +152,20 @@ fn get_consensus_block_number_progress_is_slow(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
 ) -> Alert {
+    const ALERT_NAME: &str = "get_consensus_block_number_progress_is_slow";
     Alert::new(
-        "get_consensus_block_number_progress_is_slow",
+        ALERT_NAME,
         "Consensus block number progress is slow",
         AlertGroup::Consensus,
         format!(
             "sum(increase({}[2m])) or vector(0)",
             CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 60.0 / BLOCK_TIME_SEC,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(
+            AlertComparisonOp::LessThan,
+            ComparisonValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,

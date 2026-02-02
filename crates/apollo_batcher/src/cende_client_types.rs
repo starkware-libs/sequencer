@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
-use blockifier::execution::call_info::{CallExecution, OrderedEvent, OrderedL2ToL1Message};
 use blockifier::state::cached_state::{StateMaps, StorageView};
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
@@ -53,14 +52,11 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{
     Event,
     L1ToL2Payload,
-    L2ToL1Payload,
+    MessageToL1,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionVersion,
 };
-#[cfg(test)]
-#[path = "cende_client_types_test.rs"]
-mod cende_client_types_test;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct L1ToL2Nonce(pub StarkHash);
@@ -89,13 +85,6 @@ impl From<starknet_api::transaction::L1HandlerTransaction> for L1ToL2Message {
             nonce: L1ToL2Nonce(l1_handler_transaction.nonce.0),
         }
     }
-}
-
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
-pub struct L2ToL1Message {
-    pub from_address: ContractAddress,
-    pub to_address: EthAddress,
-    pub payload: L2ToL1Payload,
 }
 
 // Note: the serialization is different from the one in starknet_api.
@@ -186,7 +175,7 @@ pub struct StarknetClientTransactionReceipt {
     pub transaction_hash: TransactionHash,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub l1_to_l2_consumed_message: Option<L1ToL2Message>,
-    pub l2_to_l1_messages: Vec<L2ToL1Message>,
+    pub l2_to_l1_messages: Vec<MessageToL1>,
     pub events: Vec<Event>,
     #[serde(default)]
     pub execution_resources: ExecutionResources,
@@ -245,98 +234,12 @@ impl
     }
 }
 
-trait OrderedItem {
-    type UnorderedItem;
-
-    /// converts to a tuple of (order, non-ordered struct).
-    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem);
-
-    fn get_items_from_call_execution<'a>(
-        execution: &'a CallExecution,
-    ) -> impl Iterator<Item = &'a Self>
-    where
-        Self: 'a;
-
-    fn accumulated_sorted_items(
-        execution_info: &TransactionExecutionInfo,
-    ) -> Vec<Self::UnorderedItem>
-    where
-        Self: std::marker::Sized,
-    {
-        let main_call_info_iterator = execution_info.non_optional_call_infos();
-
-        // Collect all the structs from the call infos, along with their order.
-        let mut accumulated_sorted_structs = vec![];
-        for main_call_info in main_call_info_iterator {
-            let mut main_call_accumulated_sortable_structs = vec![];
-            for call_info in main_call_info.iter() {
-                let sortable_structs = Self::get_items_from_call_execution(&call_info.execution)
-                    .map(|ordered_struct| {
-                        ordered_struct.to_ordered_tuple(call_info.call.storage_address)
-                    });
-                main_call_accumulated_sortable_structs.extend(sortable_structs);
-            }
-            // Sort the structs by their order, per main call info.
-            main_call_accumulated_sortable_structs.sort_by_key(|(order, _)| *order);
-            accumulated_sorted_structs.extend(
-                main_call_accumulated_sortable_structs
-                    .into_iter()
-                    .map(|(_, unordered_struct)| unordered_struct),
-            );
-        }
-
-        accumulated_sorted_structs
-    }
-}
-
-impl OrderedItem for OrderedL2ToL1Message {
-    type UnorderedItem = L2ToL1Message;
-
-    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
-        (
-            self.order,
-            L2ToL1Message {
-                from_address,
-                to_address: EthAddress::try_from(self.message.to_address)
-                    .expect("Failed to convert L1Address to EthAddress"),
-                payload: self.message.payload.clone(),
-            },
-        )
-    }
-
-    fn get_items_from_call_execution<'a>(
-        execution: &'a CallExecution,
-    ) -> impl Iterator<Item = &'a Self>
-    where
-        Self: 'a,
-    {
-        execution.l2_to_l1_messages.iter()
-    }
-}
-
-impl OrderedItem for OrderedEvent {
-    type UnorderedItem = Event;
-
-    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
-        (self.order, Event { from_address, content: self.event.clone() })
-    }
-
-    fn get_items_from_call_execution<'a>(
-        execution: &'a CallExecution,
-    ) -> impl Iterator<Item = &'a Self>
-    where
-        Self: 'a,
-    {
-        execution.events.iter()
-    }
-}
-
-fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL1Message> {
-    OrderedL2ToL1Message::accumulated_sorted_items(execution_info)
+fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<MessageToL1> {
+    execution_info.accumulated_sorted_l2_to_l1_messages()
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
-    OrderedEvent::accumulated_sorted_items(execution_info)
+    execution_info.accumulated_sorted_events()
 }
 
 fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {

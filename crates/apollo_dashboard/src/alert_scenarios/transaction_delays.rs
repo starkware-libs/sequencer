@@ -28,12 +28,12 @@ fn get_mempool_p2p_peer_down(
         "Mempool p2p peer down",
         AlertGroup::Mempool,
         format!("max_over_time({}[2m])", MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
+        vec![AlertCondition::new(
+            AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators
-            comparison_value: 2.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+            2.0,
+            AlertLogicalOp::And,
+        )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -68,11 +68,7 @@ fn get_http_server_avg_add_tx_latency_alert(
         // The clamp_min is used to avoid division by zero, and the minimal value
         // is 1/300, which is the minimum value of a valid count rate over a 5-minute window.
         format!("rate({sum_metric}[5m]) / clamp_min(rate({count_metric}[5m]), 1/300)"),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 15.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 15.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -117,11 +113,7 @@ fn get_http_server_min_add_tx_latency_alert(
             "(sum(increase({count_metric}[{TIME_WINDOW}])) > 0) * \
              (sum(increase({bucket_metric}[{TIME_WINDOW}])) < 1)"
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -157,11 +149,7 @@ fn get_http_server_p95_add_tx_latency_alert(
             "histogram_quantile(0.95, sum(rate({}[5m])) by (le))",
             HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 2.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 2.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -204,11 +192,7 @@ fn get_high_empty_blocks_ratio_alert(
             "sum(increase({zero_bucket}[{}s])) / clamp_min(sum(increase({total_count}[{}s])), 1)",
             time_window_seconds, time_window_seconds
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: ratio,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, ratio, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,

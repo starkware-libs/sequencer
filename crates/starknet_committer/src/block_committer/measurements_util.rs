@@ -1,0 +1,165 @@
+use std::time::Instant;
+
+use tracing::error;
+
+#[derive(Debug)]
+pub struct MeasurementNotStartedError;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Action {
+    EndToEnd,
+    Read,
+    Compute,
+    Write,
+}
+
+#[derive(Default)]
+pub struct BlockTimers {
+    pub block_timer: Option<Instant>,
+    pub read_timer: Option<Instant>,
+    pub compute_timer: Option<Instant>,
+    pub writer_timer: Option<Instant>,
+}
+
+impl BlockTimers {
+    fn get_mut_timers(&mut self, action: &Action) -> &mut Option<Instant> {
+        match action {
+            Action::EndToEnd => &mut self.block_timer,
+            Action::Read => &mut self.read_timer,
+            Action::Compute => &mut self.compute_timer,
+            Action::Write => &mut self.writer_timer,
+        }
+    }
+
+    pub fn start_measurement(&mut self, action: Action) {
+        *self.get_mut_timers(&action) = Some(Instant::now());
+    }
+
+    /// Attempts to stop the measurement for the given action and returns the duration in
+    /// milliseconds.
+    pub fn attempt_to_stop_measurement(
+        &mut self,
+        action: &Action,
+    ) -> Result<u128, MeasurementNotStartedError> {
+        self.get_mut_timers(action).as_mut().map_or_else(
+            || {
+                error!("attempt_to_stop_measurement called before start_measurement.");
+                Err(MeasurementNotStartedError)
+            },
+            |instant_timer| Ok(instant_timer.elapsed().as_millis()),
+        )
+    }
+}
+
+pub trait MeasurementsTrait {
+    fn start_measurement(&mut self, action: Action);
+
+    /// Attempts to stop the measurement for the given action and returns the duration in
+    /// milliseconds.
+    fn attempt_to_stop_measurement(
+        &mut self,
+        action: Action,
+        entries_count: usize,
+    ) -> Result<u128, MeasurementNotStartedError>;
+
+    fn set_number_of_modifications(&mut self, block_modifications_counts: BlockModificationsCounts);
+}
+
+pub struct NoMeasurements;
+
+impl MeasurementsTrait for NoMeasurements {
+    fn start_measurement(&mut self, _action: Action) {}
+
+    fn attempt_to_stop_measurement(
+        &mut self,
+        _action: Action,
+        _entries_count: usize,
+    ) -> Result<u128, MeasurementNotStartedError> {
+        Err(MeasurementNotStartedError)
+    }
+
+    fn set_number_of_modifications(
+        &mut self,
+        _block_modifications_counts: BlockModificationsCounts,
+    ) {
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct BlockDurations {
+    pub block: u128,   // Duration of a block commit (milliseconds).
+    pub read: u128,    // Duration of a read phase (milliseconds).
+    pub compute: u128, // Duration of a computation phase (milliseconds).
+    pub write: u128,   // Duration of a write phase (milliseconds).
+}
+
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
+pub struct BlockModificationsCounts {
+    pub storage_tries: usize,
+    pub contracts_trie: usize,
+    pub classes_trie: usize,
+    pub emptied_storage_leaves: usize,
+}
+
+#[derive(Default, Clone)]
+pub struct BlockMeasurement {
+    pub n_writes: usize,
+    pub n_reads: usize,
+    pub durations: BlockDurations,
+    pub modifications_counts: BlockModificationsCounts,
+}
+
+impl BlockMeasurement {
+    pub fn update_after_action(
+        &mut self,
+        action: &Action,
+        entries_count: usize,
+        duration_in_millis: u128,
+    ) {
+        match action {
+            Action::Read => {
+                self.durations.read = duration_in_millis;
+                self.n_reads = entries_count;
+            }
+            Action::Compute => {
+                self.durations.compute = duration_in_millis;
+            }
+            Action::Write => {
+                self.durations.write = duration_in_millis;
+                self.n_writes = entries_count;
+            }
+            Action::EndToEnd => {
+                self.durations.block = duration_in_millis;
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct SingleBlockMeasurements {
+    pub block_timers: BlockTimers,
+    pub block_measurement: BlockMeasurement,
+}
+
+impl MeasurementsTrait for SingleBlockMeasurements {
+    fn start_measurement(&mut self, action: Action) {
+        self.block_timers.start_measurement(action);
+    }
+
+    fn attempt_to_stop_measurement(
+        &mut self,
+        action: Action,
+        entries_count: usize,
+    ) -> Result<u128, MeasurementNotStartedError> {
+        let duration_in_millis = self.block_timers.attempt_to_stop_measurement(&action)?;
+        self.block_measurement.update_after_action(&action, entries_count, duration_in_millis);
+        Ok(duration_in_millis)
+    }
+
+    fn set_number_of_modifications(
+        &mut self,
+        block_modifications_counts: BlockModificationsCounts,
+    ) {
+        self.block_measurement.modifications_counts = block_modifications_counts;
+    }
+}

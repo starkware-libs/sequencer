@@ -286,6 +286,8 @@ impl ConsensusManager {
                     Arc::clone(&self.class_manager_client),
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
+                // TODO(Asmaa): pass committee_provider
+                committee_provider: None,
                 clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),

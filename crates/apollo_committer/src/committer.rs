@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
+use std::path::PathBuf;
 
-use apollo_committer_config::config::CommitterConfig;
+use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
     CommitBlockRequest,
     CommitBlockResponse,
@@ -18,15 +19,20 @@ use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
-use starknet_committer::block_committer::input::{Input, InputContext};
-use starknet_committer::block_committer::timing_util::TimeMeasurement;
+use starknet_committer::block_committer::input::Input;
+use starknet_committer::block_committer::measurements_util::{
+    Action,
+    BlockMeasurement,
+    MeasurementsTrait,
+    SingleBlockMeasurements,
+};
 use starknet_committer::db::forest_trait::{
-    ForestMetadata,
+    EmptyInitialReadContext,
     ForestMetadataType,
     ForestReader,
-    ForestWriterWithMetadata,
+    ForestStorageWithEmptyReadContext,
 };
-use starknet_committer::db::mock_forest_storage::{MockForestStorage, MockIndexInitialRead};
+use starknet_committer::db::index_db::db::IndexDb;
 use starknet_committer::db::serde_db_utils::{
     deserialize_felt_no_packing,
     serialize_felt_no_packing,
@@ -34,32 +40,50 @@ use starknet_committer::db::serde_db_utils::{
 };
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::CachedStorage;
+use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::{debug, error, info, warn};
 
-use crate::metrics::register_metrics;
+use crate::metrics::{
+    register_metrics,
+    COMPUTE_DURATION_PER_BLOCK,
+    COMPUTE_DURATION_PER_BLOCK_HIST,
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
+    OFFSET,
+    READ_DB_ENTRIES_PER_BLOCK,
+    READ_DURATION_PER_BLOCK,
+    READ_DURATION_PER_BLOCK_HIST,
+    WRITE_DB_ENTRIES_PER_BLOCK,
+    WRITE_DURATION_PER_BLOCK,
+    WRITE_DURATION_PER_BLOCK_HIST,
+};
 
 #[cfg(test)]
 #[path = "committer_test.rs"]
 mod committer_test;
 
-pub type ApolloStorage = MapStorage;
-
-// TODO(Yoav): Move this to committer_test.rs and use index db reader.
+// TODO(Yoav): Move this to committer_test.rs.
 pub struct CommitBlockMock;
 
 #[async_trait]
 impl CommitBlockTrait for CommitBlockMock {
-    /// Sets the class trie root hash to the first class hash in the state diff.
-    async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
-        input: Input<I>,
+    /// Sets the class trie root hash to the first class hash in the state diff (sorted
+    /// deterministically).
+    async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Send>(
+        input: Input<Reader::InitialReadContext>,
         _trie_reader: &mut Reader,
-        _time_measurement: Option<&mut TimeMeasurement>,
+        _measurements: &mut M,
     ) -> BlockCommitmentResult<FilledForest> {
-        let root_class_hash = match input.state_diff.class_hash_to_compiled_class_hash.iter().next()
-        {
-            Some(class_hash) => HashOutput(class_hash.0.0),
+        // Sort class hashes deterministically to ensure all nodes get the same "first" class hash
+        let mut sorted_class_hashes: Vec<_> =
+            input.state_diff.class_hash_to_compiled_class_hash.keys().collect();
+        sorted_class_hashes.sort();
+
+        let root_class_hash = match sorted_class_hashes.first() {
+            Some(class_hash) => HashOutput(class_hash.0),
             None => HashOutput::ROOT_OF_EMPTY_TREE,
         };
         Ok(FilledForest {
@@ -73,41 +97,85 @@ impl CommitBlockTrait for CommitBlockMock {
     }
 }
 
-pub type ApolloCommitter = Committer<ApolloStorage, CommitBlockMock>;
+pub type ApolloCommitterDb = IndexDb<ApolloStorage>;
+
+pub struct BlockCommitter;
+impl CommitBlockTrait for BlockCommitter {}
+
+pub type ApolloCommitter = Committer<ApolloStorage, ApolloCommitterDb, BlockCommitter>;
 
 pub trait StorageConstructor: Storage {
-    fn create_storage() -> Self;
+    fn create_storage(db_path: PathBuf, storage_config: Self::Config) -> Self;
 }
 
 impl StorageConstructor for ApolloStorage {
-    fn create_storage() -> Self {
-        Self::default()
+    fn create_storage(db_path: PathBuf, storage_config: Self::Config) -> Self {
+        let rocksdb_storage =
+            RocksDbStorage::new(&db_path, storage_config.inner_storage_config.clone())
+                .inspect_err(|e| error!("Failed to open committer DB: {e}"))
+                .unwrap();
+        CachedStorage::new(rocksdb_storage, storage_config)
     }
 }
 
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
-pub struct Committer<S: StorageConstructor, CB: CommitBlockTrait> {
+pub struct Committer<S: Storage, ForestDB, BlockCommitter>
+where
+    ForestDB: ForestStorageWithEmptyReadContext,
+    BlockCommitter: CommitBlockTrait,
+{
     /// Storage for forest operations.
-    forest_storage: MockForestStorage<S>,
+    forest_storage: ForestDB,
     /// Committer config.
-    config: CommitterConfig,
+    config: CommitterConfig<S::Config>,
     /// The next block number to commit.
     offset: BlockNumber,
     // Allow define the generic type CB and not use it.
-    phantom: PhantomData<CB>,
+    phantom: PhantomData<BlockCommitter>,
 }
 
-impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
-    pub async fn new(config: CommitterConfig) -> Self {
-        let mut forest_storage = MockForestStorage { storage: S::create_storage() };
+impl<S, ForestDB, BlockCommitter> Committer<S, ForestDB, BlockCommitter>
+where
+    S: StorageConstructor,
+    ForestDB: ForestStorageWithEmptyReadContext<Storage = S>,
+    BlockCommitter: CommitBlockTrait,
+{
+    pub async fn new(config: CommitterConfig<S::Config>) -> Self {
+        let storage = S::create_storage(config.db_path.clone(), config.storage_config.clone());
+        let mut forest_storage = ForestDB::new(storage);
         let offset = Self::load_offset_or_panic(&mut forest_storage).await;
         info!("Initializing committer with offset: {offset}");
         Self { forest_storage, config, offset, phantom: PhantomData }
     }
 
+    fn update_offset(&mut self, offset: BlockNumber) {
+        self.offset = offset;
+        OFFSET.set_lossy(offset.0);
+    }
+
     /// Commits a block to the forest.
     /// In the happy flow, the given height equals to the committer offset.
     pub async fn commit_block(
+        &mut self,
+        CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
+    ) -> CommitterResult<CommitBlockResponse> {
+        let result = self
+            .commit_block_inner(CommitBlockRequest { state_diff, state_diff_commitment, height })
+            .await;
+        match &result {
+            Ok(_) => {
+                info!("Committed block number {height} with state diff {state_diff_commitment:?}");
+            }
+            Err(err) => {
+                error!("Failed to commit block number {height}: {err:?}");
+            }
+        };
+        result
+    }
+
+    /// Commits a block to the forest.
+    /// In the happy flow, the given height equals to the committer offset.
+    async fn commit_block_inner(
         &mut self,
         CommitBlockRequest { state_diff, state_diff_commitment, height }: CommitBlockRequest,
     ) -> CommitterResult<CommitBlockResponse> {
@@ -124,8 +192,22 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             });
         }
 
-        let state_diff_commitment =
-            state_diff_commitment.unwrap_or_else(|| calculate_state_diff_hash(&state_diff));
+        let state_diff_commitment = match state_diff_commitment {
+            Some(commitment) => {
+                if self.config.verify_state_diff_hash {
+                    let calculated_commitment = calculate_state_diff_hash(&state_diff);
+                    if commitment != calculated_commitment {
+                        return Err(CommitterError::StateDiffHashMismatch {
+                            provided_commitment: commitment,
+                            calculated_commitment,
+                            height,
+                        });
+                    }
+                }
+                commitment
+            }
+            None => calculate_state_diff_hash(&state_diff),
+        };
         if height < self.offset {
             // Request to commit an old height.
             // Might be ok if the caller didn't get the results properly.
@@ -144,13 +226,16 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
                 });
             }
             // Returns the precomputed global root.
-            let db_state_root = self.load_global_root(height).await?;
-            return Ok(CommitBlockResponse { state_root: db_state_root });
+            let db_global_root = self.load_global_root(height).await?;
+            return Ok(CommitBlockResponse { global_root: db_global_root });
         }
 
         // Happy flow. Commits the state diff and returns the computed global root.
         debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
-        let (filled_forest, global_root) = self.commit_state_diff(state_diff).await?;
+        let mut block_measurements = SingleBlockMeasurements::default();
+        block_measurements.start_measurement(Action::EndToEnd);
+        let (filled_forest, global_root) =
+            self.commit_state_diff(state_diff, &mut block_measurements).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
             (
@@ -170,16 +255,39 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             "For block number {height}, writing filled forest to storage with metadata: \
              {metadata:?}"
         );
-        self.forest_storage
+        block_measurements.start_measurement(Action::Write);
+        let n_write_entries = self
+            .forest_storage
             .write_with_metadata(&filled_forest, metadata)
             .await
             .map_err(|err| self.map_internal_error(err))?;
-        self.offset = next_offset;
-        Ok(CommitBlockResponse { state_root: global_root })
+        block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
+        block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+        update_metrics(&block_measurements.block_measurement);
+        self.update_offset(next_offset);
+        Ok(CommitBlockResponse { global_root })
     }
 
     /// Applies the given state diff to revert the changes of the given height.
     pub async fn revert_block(
+        &mut self,
+        RevertBlockRequest { reversed_state_diff, height }: RevertBlockRequest,
+    ) -> CommitterResult<RevertBlockResponse> {
+        let result =
+            self.revert_block_inner(RevertBlockRequest { reversed_state_diff, height }).await;
+        match &result {
+            Ok(_) => {
+                info!("Reverted block number {height}");
+            }
+            Err(err) => {
+                error!("Failed to revert block number {height}: {err:?}");
+            }
+        };
+        result
+    }
+
+    /// Applies the given state diff to revert the changes of the given height.
+    async fn revert_block_inner(
         &mut self,
         RevertBlockRequest { reversed_state_diff, height }: RevertBlockRequest,
     ) -> CommitterResult<RevertBlockResponse> {
@@ -221,8 +329,10 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         // Sanity.
         assert_eq!(height, last_committed_block);
         // Happy flow. Reverts the state diff and returns the computed global root.
+        let mut block_measurements = SingleBlockMeasurements::default();
+        block_measurements.start_measurement(Action::EndToEnd);
         let (filled_forest, revert_global_root) =
-            self.commit_state_diff(reversed_state_diff).await?;
+            self.commit_state_diff(reversed_state_diff, &mut block_measurements).await?;
 
         // The last committed block is offset-1. After the revert, the last committed block wll be
         // offset-2 (if exists).
@@ -251,11 +361,16 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             "For block number {height}, writing filled forest and updating the commitment offset \
              to {last_committed_block}"
         );
-        self.forest_storage
+        block_measurements.start_measurement(Action::Write);
+        let n_write_entries = self
+            .forest_storage
             .write_with_metadata(&filled_forest, metadata)
             .await
             .map_err(|err| self.map_internal_error(err))?;
-        self.offset = last_committed_block;
+        block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
+        block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
+        update_metrics(&block_measurements.block_measurement);
+        self.update_offset(last_committed_block);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
 
@@ -275,7 +390,7 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
         Ok(GlobalRoot(deserialize_felt_no_packing(&db_value)))
     }
 
-    async fn load_offset_or_panic(forest_storage: &mut MockForestStorage<S>) -> BlockNumber {
+    async fn load_offset_or_panic(forest_storage: &mut ForestDB) -> BlockNumber {
         let db_offset = forest_storage
             .read_metadata(ForestMetadataType::CommitmentOffset)
             .await
@@ -301,19 +416,20 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
             .ok_or(CommitterError::MissingMetadata(metadata))
     }
 
-    async fn commit_state_diff(
+    async fn commit_state_diff<M: MeasurementsTrait + Send>(
         &mut self,
         state_diff: ThinStateDiff,
+        measurements: &mut M,
     ) -> CommitterResult<(FilledForest, GlobalRoot)> {
         let input = Input {
             state_diff: state_diff.into(),
-            initial_read_context: MockIndexInitialRead {},
+            initial_read_context: ForestDB::InitialReadContext::create_empty(),
             config: self.config.reader_config.clone(),
         };
-        let time_measurement = None;
-        let filled_forest = CB::commit_block(input, &mut self.forest_storage, time_measurement)
-            .await
-            .map_err(|err| self.map_internal_error(err))?;
+        let filled_forest =
+            BlockCommitter::commit_block(input, &mut self.forest_storage, measurements)
+                .await
+                .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();
         Ok((filled_forest, global_root))
     }
@@ -329,6 +445,22 @@ impl<S: StorageConstructor, CB: CommitBlockTrait> Committer<S, CB> {
 impl ComponentStarter for ApolloCommitter {
     async fn start(&mut self) {
         default_component_start_fn::<Self>().await;
-        register_metrics();
+        register_metrics(self.offset);
     }
+}
+
+fn update_metrics(
+    BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
+) {
+    READ_DURATION_PER_BLOCK.set_lossy(durations.read);
+    READ_DURATION_PER_BLOCK_HIST.record_lossy(durations.read);
+    READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
+    COMPUTE_DURATION_PER_BLOCK.set_lossy(durations.compute);
+    COMPUTE_DURATION_PER_BLOCK_HIST.record_lossy(durations.compute);
+    WRITE_DURATION_PER_BLOCK.set_lossy(durations.write);
+    WRITE_DURATION_PER_BLOCK_HIST.record_lossy(durations.write);
+    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
+    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.storage_tries);
+    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.contracts_trie);
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.classes_trie);
 }

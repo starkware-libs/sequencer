@@ -19,7 +19,6 @@ use crate::consensus::{
     IntoFromProto,
     ProposalCommitment,
     ProposalFin,
-    ProposalInit,
     ProposalPart,
     StreamMessage,
     StreamMessageBody,
@@ -79,8 +78,11 @@ impl TryFrom<protobuf::Vote> for Vote {
             .transpose()?
             .map(ProposalCommitment);
         let voter = value.voter.ok_or(missing("voter"))?.try_into()?;
+        // Convert Hashes to RawSignature (default to empty if None)
+        let signature =
+            value.signature.map(|hashes| hashes.try_into()).transpose()?.unwrap_or_default();
 
-        Ok(Vote { vote_type, height, round, proposal_commitment, voter })
+        Ok(Vote { vote_type, height, round, proposal_commitment, voter, signature })
     }
 }
 
@@ -97,6 +99,7 @@ impl From<Vote> for protobuf::Vote {
             round: value.round,
             proposal_commitment: value.proposal_commitment.map(|commitment| commitment.0.into()),
             voter: Some(value.voter.into()),
+            signature: Some(value.signature.into()),
         }
     }
 }
@@ -185,34 +188,13 @@ where
     }
 }
 
-impl TryFrom<protobuf::ProposalInit> for ProposalInit {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::ProposalInit) -> Result<Self, Self::Error> {
-        let height = value.height;
-        let round = value.round;
-        let valid_round = value.valid_round;
-        let proposer = value.proposer.ok_or(missing("proposer"))?.try_into()?;
-        Ok(ProposalInit { height: BlockNumber(height), round, valid_round, proposer })
-    }
-}
-
-impl From<ProposalInit> for protobuf::ProposalInit {
-    fn from(value: ProposalInit) -> Self {
-        protobuf::ProposalInit {
-            height: value.height.0,
-            round: value.round,
-            valid_round: value.valid_round,
-            proposer: Some(value.proposer.into()),
-        }
-    }
-}
-
-auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
-
 impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::BlockInfo) -> Result<Self, Self::Error> {
-        let height = value.height;
+        let height = BlockNumber(value.height);
+        let round = value.round;
+        let valid_round = value.valid_round;
+        let proposer = value.proposer.ok_or(missing("proposer"))?.try_into()?;
         let timestamp = value.timestamp;
         let builder = value.builder.ok_or(missing("builder"))?.try_into()?;
         let l1_da_mode = enum_int_to_l1_data_availability_mode(value.l1_da_mode)?;
@@ -227,7 +209,10 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
         let l1_data_gas_price_wei =
             GasPrice(value.l1_data_gas_price_wei.ok_or(missing("l1_data_gas_price_wei"))?.into());
         Ok(ConsensusBlockInfo {
-            height: BlockNumber(height),
+            height,
+            round,
+            valid_round,
+            proposer,
             timestamp,
             builder,
             l1_da_mode,
@@ -244,6 +229,9 @@ impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
     fn from(value: ConsensusBlockInfo) -> Self {
         protobuf::BlockInfo {
             height: value.height.0,
+            round: value.round,
+            valid_round: value.valid_round,
+            proposer: Some(value.proposer.into()),
             timestamp: value.timestamp,
             builder: Some(value.builder.into()),
             l1_da_mode: l1_data_availability_mode_to_enum_int(value.l1_da_mode),
@@ -310,9 +298,8 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
         };
 
         match part {
-            Message::Init(init) => Ok(ProposalPart::Init(init.try_into()?)),
-            Message::Fin(fin) => Ok(ProposalPart::Fin(fin.try_into()?)),
             Message::BlockInfo(block_info) => Ok(ProposalPart::BlockInfo(block_info.try_into()?)),
+            Message::Fin(fin) => Ok(ProposalPart::Fin(fin.try_into()?)),
             Message::Transactions(content) => Ok(ProposalPart::Transactions(content.try_into()?)),
         }
     }
@@ -321,14 +308,11 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
 impl From<ProposalPart> for protobuf::ProposalPart {
     fn from(value: ProposalPart) -> Self {
         match value {
-            ProposalPart::Init(init) => protobuf::ProposalPart {
-                message: Some(protobuf::proposal_part::Message::Init(init.into())),
+            ProposalPart::BlockInfo(block_info) => protobuf::ProposalPart {
+                message: Some(protobuf::proposal_part::Message::BlockInfo(block_info.into())),
             },
             ProposalPart::Fin(fin) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Fin(fin.into())),
-            },
-            ProposalPart::BlockInfo(block_info) => protobuf::ProposalPart {
-                message: Some(protobuf::proposal_part::Message::BlockInfo(block_info.into())),
             },
             ProposalPart::Transactions(content) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Transactions(content.into())),

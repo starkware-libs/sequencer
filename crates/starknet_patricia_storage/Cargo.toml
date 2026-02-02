@@ -18,6 +18,7 @@ workspace = true
 
 [dependencies]
 aerospike = { workspace = true, optional = true, features = ["rt-tokio"] }
+apollo_config.workspace = true
 blake2 = { workspace = true, optional = true }
 digest = { workspace = true, optional = true }
 hex.workspace = true
@@ -30,6 +31,7 @@ serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
+validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 libmdbx.workspace = true

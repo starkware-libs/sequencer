@@ -16,6 +16,7 @@ lazy_static! {
 }
 
 /// Returns a `PeerId`` used to testing. Different indices will yield different `PeerId`s.
+// TODO(AndrewL): Move this to test_utils crate.
 pub fn get_peer_id(index: u8) -> PeerId {
     // Generate a PeerId based on the index
     let key = [index; 32];

@@ -35,11 +35,7 @@ fn build_idle_alert(
         alert_title,
         alert_group,
         format!("sum(increase({}[{}s])) or vector(0)", metric_name_with_filter, duration.as_secs()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.1,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 0.1, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
@@ -55,7 +51,7 @@ pub(crate) fn get_http_server_no_successful_transactions() -> Alert {
         AlertGroup::HttpServer,
         &ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
         Duration::from_secs(30 * SECS_IN_MIN),
-        AlertSeverity::Regular,
+        AlertSeverity::Informational,
     )
 }
 
@@ -93,11 +89,7 @@ fn get_gateway_low_successful_transaction_rate(
             "sum(increase({}[10m])) or vector(0)",
             GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
         ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 5.0,
-            logical_op: AlertLogicalOp::And,
-        }],
+        vec![AlertCondition::new(AlertComparisonOp::LessThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,

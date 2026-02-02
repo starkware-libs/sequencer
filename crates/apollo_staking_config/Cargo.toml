@@ -1,0 +1,17 @@
+[package]
+name = "apollo_staking_config"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Configuration types for the staking manager."
+
+[dependencies]
+apollo_config.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+validator.workspace = true
+
+[lints]
+workspace = true

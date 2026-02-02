@@ -8,7 +8,14 @@ from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Set
 
 from echonet.constants import IGNORED_REVERT_PATTERNS
-from echonet.echonet_types import BLOCK_STORE_TUNING, CONFIG, JsonObject, ResyncTriggerMap
+from echonet.echonet_types import (
+    BLOCK_STORE_TUNING,
+    CONFIG,
+    JsonObject,
+    ResyncTriggerMap,
+    RevertErrorInfo,
+    create_revert_error_info,
+)
 from echonet.l1_logic.l1_client import L1Client
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
@@ -59,8 +66,8 @@ class _TxErrorTracker:
     """Gateway + revert error tracking (live vs cumulative) for reporting."""
 
     gateway_errors_live: Dict[str, JsonObject]  # reset on resync
-    revert_errors_mainnet: Dict[str, str]  # tx_hash -> revert_error
-    revert_errors_echonet: Dict[str, str]  # tx_hash -> revert_error
+    revert_errors_mainnet: Dict[str, RevertErrorInfo]  # tx_hash -> {block_number, error}
+    revert_errors_echonet: Dict[str, RevertErrorInfo]  # tx_hash -> {block_number, error}
 
     @classmethod
     def empty(cls) -> "_TxErrorTracker":
@@ -79,10 +86,14 @@ class _TxErrorTracker:
             "block_number": block_number,
         }
 
-    def record_mainnet_revert_error(self, tx_hash: str, error: str) -> None:
-        self.revert_errors_mainnet[tx_hash] = error
+    def record_mainnet_revert_error(self, tx_hash: str, error: str, block_number: int) -> None:
+        self.revert_errors_mainnet[tx_hash] = create_revert_error_info(
+            block_number=block_number, error=error
+        )
 
-    def record_echonet_revert_error(self, tx_hash: str, error: str) -> None:
+    def record_echonet_revert_error(
+        self, tx_hash: str, error: str, source_block_number: int
+    ) -> None:
         def matches_ignored_revert_error(revert_error: str) -> bool:
             return any(pattern in revert_error.lower() for pattern in IGNORED_REVERT_PATTERNS)
 
@@ -96,7 +107,9 @@ class _TxErrorTracker:
         if tx_hash in self.revert_errors_mainnet:
             self.revert_errors_mainnet.pop(tx_hash, None)
         else:
-            self.revert_errors_echonet[tx_hash] = error
+            self.revert_errors_echonet[tx_hash] = create_revert_error_info(
+                block_number=source_block_number, error=error
+            )
 
     def clear_live(self) -> None:
         self.gateway_errors_live.clear()
@@ -328,6 +341,14 @@ class SharedContext:
         with self._lock:
             self._tx.record_committed(tx_hash, block_number)
 
+    def is_pending_tx(self, tx_hash: str) -> bool:
+        with self._lock:
+            return tx_hash in self._tx.currently_pending
+
+    def get_pending_tx_count(self) -> int:
+        with self._lock:
+            return len(self._tx.currently_pending)
+
     def get_sent_block_number(self, tx_hash: str) -> int:
         with self._lock:
             return self._tx.currently_pending[tx_hash]
@@ -348,18 +369,20 @@ class SharedContext:
         with self._lock:
             self._errors.record_gateway_error(tx_hash, status, response, block_number=block_number)
 
-    def record_mainnet_revert_error(self, tx_hash: str, error: str) -> None:
+    def record_mainnet_revert_error(self, tx_hash: str, error: str, block_number: int) -> None:
         with self._lock:
-            self._errors.record_mainnet_revert_error(tx_hash, error)
+            self._errors.record_mainnet_revert_error(tx_hash, error, block_number=block_number)
 
-    def record_mainnet_revert_errors(self, errors: Mapping[str, str]) -> None:
+    def record_mainnet_revert_errors(self, block_number: int, errors: Mapping[str, str]) -> None:
         with self._lock:
             for tx_hash, err in errors.items():
-                self._errors.record_mainnet_revert_error(tx_hash, err)
+                self._errors.record_mainnet_revert_error(tx_hash, err, block_number=block_number)
 
     def record_echonet_revert_error(self, tx_hash: str, error: str) -> None:
         with self._lock:
-            self._errors.record_echonet_revert_error(tx_hash, error)
+            self._errors.record_echonet_revert_error(
+                tx_hash, error, source_block_number=self._tx.currently_pending[tx_hash]
+            )
 
     # --- Resync causes ---
     def record_resync_cause(self, tx_hash: str, block_number: int, reason: str) -> bool:

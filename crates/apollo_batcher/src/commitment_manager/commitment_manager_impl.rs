@@ -3,9 +3,13 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{BatcherConfig, CommitmentManagerConfig};
-use apollo_committer_types::committer_types::{CommitBlockRequest, CommitBlockResponse};
-use apollo_committer_types::communication::{CommitterRequest, SharedCommitterClient};
-use starknet_api::block::{BlockHash, BlockNumber};
+use apollo_committer_types::committer_types::{
+    CommitBlockRequest,
+    CommitBlockResponse,
+    RevertBlockRequest,
+};
+use apollo_committer_types::communication::{CommitterRequestLabelValue, SharedCommitterClient};
+use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
     PartialBlockHashComponents,
@@ -24,6 +28,13 @@ use crate::commitment_manager::types::{
     CommitterTaskInput,
     CommitterTaskOutput,
     FinalBlockCommitment,
+    RevertTaskOutput,
+    TaskTimer,
+};
+use crate::metrics::{
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY_HIST,
+    COMMITMENT_MANAGER_NUM_COMMIT_RESULTS_HIST,
 };
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
@@ -37,6 +48,7 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) config: CommitmentManagerConfig,
     pub(crate) commitment_task_offset: BlockNumber,
     pub(crate) state_committer: S,
+    pub(crate) task_timer: TaskTimer,
 }
 
 impl<S: StateCommitterTrait> CommitmentManager<S> {
@@ -72,10 +84,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     }
 
     /// Adds a commitment task to the state committer. If the task height does not match the
-    /// task offset, an error is returned. If the tasks channel is full, the behavior depends on
-    /// the config: if `wait_for_tasks_channel` is true, it will wait until there is space in the
-    /// channel; otherwise, it will panic. Any other error when sending the task will also cause a
-    /// panic.
+    /// task offset, an error is returned.
     pub(crate) async fn add_commitment_task(
         &mut self,
         height: BlockNumber,
@@ -83,47 +92,48 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         state_diff_commitment: Option<StateDiffCommitment>,
     ) -> CommitmentManagerResult<()> {
         if height != self.commitment_task_offset {
-            return Err(CommitmentManagerError::WrongTaskHeight {
+            return Err(CommitmentManagerError::WrongCommitmentTaskHeight {
                 expected: self.commitment_task_offset,
                 actual: height,
                 state_diff_commitment,
             });
         }
-        let commitment_task_input =
-            CommitterTaskInput(CommitterRequest::CommitBlock(CommitBlockRequest {
-                height,
-                state_diff,
-                state_diff_commitment,
-            }));
-        let error_message = format!(
-            "Failed to send commitment task to state committer. Block: {height}, state diff \
-             commitment: {state_diff_commitment:?}",
-        );
+        let commitment_task_input = CommitterTaskInput::Commit(CommitBlockRequest {
+            height,
+            state_diff,
+            state_diff_commitment,
+        });
+        self.add_task(commitment_task_input).await?;
+        self.successfully_added_commitment_task(height, state_diff_commitment);
+        Ok(())
+    }
+
+    /// If the tasks channel is full, the behavior depends on the config: if
+    /// `wait_for_tasks_channel` is true, it will wait until there is space in the channel;
+    /// otherwise, it will panic. Any other error when sending the task will also cause a panic.
+    async fn add_task(&self, task_input: CommitterTaskInput) -> CommitmentManagerResult<()> {
+        let error_message = format!("Failed to send task to state committer: {task_input}",);
 
         if self.config.wait_for_tasks_channel {
-            info!(
-                "Waiting to send commitment task for block {height} and state diff \
-                 {state_diff_commitment:?} to state committer."
-            );
-            match self.tasks_sender.send(commitment_task_input).await {
-                Ok(_) => self.successfully_added_commitment_task(height, state_diff_commitment),
-                Err(err) => panic!("{error_message}. error: {err}"),
-            }
+            info!("Waiting to send task for {task_input} to state committer.");
+            self.tasks_sender
+                .send(task_input)
+                .await
+                .unwrap_or_else(|err| panic!("{error_message}. error: {err}"));
         } else {
-            match self.tasks_sender.try_send(commitment_task_input) {
-                Ok(_) => self.successfully_added_commitment_task(height, state_diff_commitment),
+            match self.tasks_sender.try_send(task_input) {
+                Ok(_) => (),
                 Err(TrySendError::Full(_)) => {
                     let channel_size = self.tasks_sender.max_capacity();
                     panic!(
-                        "Failed to send commitment task to state committer because the channel is \
-                         full. Block: {height}, state diff commitment: {state_diff_commitment:?}, \
-                         channel size: {channel_size}. Consider increasing the channel size or \
-                         enabling waiting in the config.",
+                        "{error_message}. The channel is full. channel size: {channel_size}. \
+                         Consider increasing the channel size or enabling waiting in the config.",
                     );
                 }
                 Err(err) => panic!("{error_message}. error: {err}"),
             }
         }
+        Ok(())
     }
 
     /// Fetches all ready commitment results from the state committer. Panics if any task is a
@@ -132,14 +142,45 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let mut results = Vec::new();
         loop {
             match self.results_receiver.try_recv() {
-                Ok(result) => results.push(result.expect_commitment()),
+                Ok(result) => {
+                    let task_duration = self
+                        .task_timer
+                        .stop_timer(CommitterRequestLabelValue::CommitBlock, result.height());
+                    if let Some(task_duration) = task_duration {
+                        // TODO(Rotem): add panels in the dashboard for the latency metrics.
+                        COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY_HIST.record_lossy(task_duration);
+                        COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.set_lossy(task_duration);
+                    }
+                    results.push(result.expect_commitment())
+                }
                 Err(TryRecvError::Empty) => break,
                 Err(err) => {
                     panic!("Failed to receive commitment result from state committer. error: {err}")
                 }
             }
         }
+        COMMITMENT_MANAGER_NUM_COMMIT_RESULTS_HIST.record_lossy(results.len());
         results
+    }
+
+    /// Fetches all ready commitment results from the state committer, until a revert result is
+    /// received.
+    pub(crate) async fn wait_for_revert_result(
+        &mut self,
+    ) -> (Vec<CommitmentTaskOutput>, RevertTaskOutput) {
+        let mut commitment_results = Vec::new();
+        loop {
+            // Sleep until a message is sent or the channel is closed.
+            match self.results_receiver.recv().await {
+                Some(CommitterTaskOutput::Commit(commitment_task_result)) => {
+                    commitment_results.push(commitment_task_result)
+                }
+                Some(CommitterTaskOutput::Revert(revert_task_result)) => {
+                    return (commitment_results, revert_task_result);
+                }
+                None => panic!("Channel closed while waiting for revert results."),
+            }
+        }
     }
 
     // Private methods.
@@ -148,13 +189,13 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         &mut self,
         height: BlockNumber,
         state_diff_commitment: Option<StateDiffCommitment>,
-    ) -> CommitmentManagerResult<()> {
+    ) {
+        self.task_timer.start_timer(CommitterRequestLabelValue::CommitBlock, height);
         info!(
             "Sent commitment task for block {height} and state diff {state_diff_commitment:?} to \
              state committer."
         );
         self.increase_commitment_task_offset();
-        Ok(())
     }
 
     /// Initializes the CommitmentManager. This includes starting the state committer task.
@@ -168,6 +209,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let (results_sender, results_receiver) = channel(config.results_channel_size);
 
         let state_committer = S::create(tasks_receiver, results_sender, committer_client);
+        let task_timer = TaskTimer::new();
 
         Self {
             tasks_sender,
@@ -175,12 +217,18 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             config: config.clone(),
             commitment_task_offset: global_root_height,
             state_committer,
+            task_timer,
         }
     }
 
     fn increase_commitment_task_offset(&mut self) {
         self.commitment_task_offset =
             self.commitment_task_offset.next().expect("Block number overflowed.");
+    }
+
+    pub(crate) fn decrease_commitment_task_offset(&mut self) {
+        self.commitment_task_offset =
+            self.commitment_task_offset.prev().expect("Can't revert before the genesis block.");
     }
 
     async fn read_commitment_input_and_add_task<R: BatcherStorageReader>(
@@ -236,8 +284,25 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     // Associated functions.
 
-    pub(crate) async fn revert_block(height: BlockNumber, reversed_state_diff: ThinStateDiff) {
-        unimplemented!()
+    pub(crate) async fn add_revert_task(
+        &mut self,
+        height: BlockNumber,
+        reversed_state_diff: ThinStateDiff,
+    ) -> CommitmentManagerResult<()> {
+        let expected_height =
+            self.commitment_task_offset.prev().expect("Can't revert before the genesis block.");
+        if height != expected_height {
+            return Err(CommitmentManagerError::WrongRevertTaskHeight {
+                expected: expected_height,
+                actual: height,
+            });
+        }
+        let revert_task_input =
+            CommitterTaskInput::Revert(RevertBlockRequest { height, reversed_state_diff });
+        self.add_task(revert_task_input).await?;
+        info!("Sent revert task for block {height}.");
+        self.decrease_commitment_task_offset();
+        Ok(())
     }
 
     /// Returns the final commitment output for a given commitment task output.
@@ -248,7 +313,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // TODO(Amos): Test blocks [0,10] in OS flow tests.
     pub(crate) fn final_commitment_output<R: BatcherStorageReader + ?Sized>(
         storage_reader: Arc<R>,
-        CommitmentTaskOutput { response: CommitBlockResponse { state_root: global_root }, height }: CommitmentTaskOutput,
+        CommitmentTaskOutput { response: CommitBlockResponse { global_root }, height }: CommitmentTaskOutput,
         should_finalize_block_hash: bool,
     ) -> CommitmentManagerResult<FinalBlockCommitment> {
         match should_finalize_block_hash {
@@ -258,17 +323,14 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
             true => {
                 info!("Finalizing commitment for block {height} with calculating block hash.");
-                let (mut parent_hash, partial_block_hash_components) =
+                let (parent_hash, partial_block_hash_components) =
                     storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
-                if height == BlockNumber::ZERO {
-                    parent_hash = Some(BlockHash::GENESIS_PARENT_HASH);
-                }
-                let parent_hash = parent_hash.ok_or(CommitmentManagerError::MissingBlockHash(
-                    height.prev().expect(
+                let parent_hash = parent_hash.ok_or_else(|| {
+                    CommitmentManagerError::MissingBlockHash(height.prev().expect(
                         "For the genesis block, the block hash is constant and should not be \
                          fetched from storage.",
-                    ),
-                ))?;
+                    ))
+                })?;
                 let partial_block_hash_components = partial_block_hash_components
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
                 let block_hash =

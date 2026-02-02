@@ -2,8 +2,10 @@ use std::cmp::min;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::LazyLock;
+use std::time::{Duration, SystemTime};
 
 use apollo_storage::db::DbConfig;
+use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::mmap_file::MmapFileConfig;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageScope};
@@ -15,7 +17,7 @@ use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
-use starknet_api::hash::{HashOutput, StateRoots};
+use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
     Input,
@@ -23,14 +25,14 @@ use starknet_committer::block_committer::input::{
     StarknetStorageKey,
     StateDiff,
 };
+use starknet_committer::block_committer::measurements_util::{Action, MeasurementsTrait};
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
-use starknet_committer::block_committer::timing_util::{Action, TimeMeasurement};
-use starknet_committer::db::facts_db::db::FactsDb;
-use starknet_committer::db::facts_db::types::FactsDbInitialRead;
-use starknet_committer::db::forest_trait::ForestWriter;
+use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
+use starknet_committer::db::index_db::db::{IndexDb, IndexDbReadContext};
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 use tracing::{error, info, warn};
 
 use crate::args::{
@@ -43,15 +45,16 @@ use crate::args::{
     StorageType,
     DEFAULT_DATA_PATH,
 };
+use crate::utils::BenchmarkMeasurements;
 
-pub type InputImpl = Input<FactsDbInitialRead>;
+pub type InputImpl = Input<IndexDbReadContext>;
 
 // This is based on the batcher's storage configuration on mainnet.
 static BATCHER_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| StorageConfig {
     db_config: DbConfig {
         path_prefix: PathBuf::from_str("/core-data/batcher").unwrap(),
         chain_id: ChainId::Mainnet,
-        enforce_file_exists: false,
+        enforce_file_exists: true,
         min_size: 1048576,
         max_size: 1099511627776,
         growth_step: 67108864,
@@ -63,6 +66,25 @@ static BATCHER_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| Storag
         max_object_size: 1073741824,
     },
     scope: StorageScope::StateOnly,
+});
+
+// This is based on the state sync's storage configuration on mainnet.
+static STATE_SYNC_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| StorageConfig {
+    db_config: DbConfig {
+        path_prefix: PathBuf::from_str("/core-data/state_sync").unwrap(),
+        chain_id: ChainId::Mainnet,
+        enforce_file_exists: true,
+        min_size: 1048576,
+        max_size: 1099511627776,
+        growth_step: 67108864,
+        max_readers: 8192,
+    },
+    mmap_file_config: MmapFileConfig {
+        max_size: 1099511627776,
+        growth_step: 2147483648,
+        max_object_size: 1073741824,
+    },
+    scope: StorageScope::FullArchive,
 });
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
@@ -121,7 +143,7 @@ impl BenchmarkFlavor {
                 (block_number / FLAVOR_PERIOD_PERIOD) * updates_per_period
                     + total_leaves_added_in_period
             }
-            Self::Mainnet => unimplemented!(),
+            Self::Mainnet | Self::MainnetWithSleeps => unimplemented!(),
         }
     }
 
@@ -173,7 +195,7 @@ impl BenchmarkFlavor {
                 };
                 leaf_preimages_to_storage_keys(total_leaves..(total_leaves + new_leaves))
             }
-            Self::Mainnet => unimplemented!(),
+            Self::Mainnet | Self::MainnetWithSleeps => unimplemented!(),
         }
     }
 
@@ -185,12 +207,12 @@ impl BenchmarkFlavor {
         n_updates_arg: usize,
         block_number: usize,
         rng: &mut SmallRng,
-        storage_reader: Option<&StorageReader>,
+        batcher_storage_reader: Option<&StorageReader>,
     ) -> StateDiff {
-        if self == &BenchmarkFlavor::Mainnet {
+        if self.is_mainnet_flavor() {
             let block_number = u64::try_from(block_number).unwrap();
             info!("Getting state diff for mainnet block number {block_number} from storage.");
-            let state_diff = storage_reader
+            let state_diff = batcher_storage_reader
                 .unwrap()
                 .begin_ro_txn()
                 .unwrap()
@@ -212,7 +234,14 @@ impl BenchmarkFlavor {
     fn n_iterations(&self, n_iterations: usize) -> usize {
         match self {
             Self::Constant | Self::Continuous | Self::Overlap | Self::PeriodicPeaks => n_iterations,
-            Self::Mainnet => min(n_iterations, MAINNET_BLOCK_NUMBER),
+            Self::Mainnet | Self::MainnetWithSleeps => min(n_iterations, MAINNET_BLOCK_NUMBER),
+        }
+    }
+
+    fn is_mainnet_flavor(&self) -> bool {
+        match self {
+            Self::Mainnet | Self::MainnetWithSleeps => true,
+            Self::Constant | Self::Continuous | Self::Overlap | Self::PeriodicPeaks => false,
         }
     }
 }
@@ -353,11 +382,10 @@ fn apply_interference<S: AsyncStorage>(
     match interference_type {
         InterferenceType::None => {}
         InterferenceType::Read1KEveryBlock => {
-            // TODO(Nimrod): Implement interference for mainnet-flavor.
-            if benchmark_flavor == BenchmarkFlavor::Mainnet {
+            // TODO(Nimrod): Implement interference for mainnet flavors.
+            if benchmark_flavor.is_mainnet_flavor() {
                 return;
             }
-
             let total_leaves =
                 benchmark_flavor.total_nonzero_leaves_up_to(n_updates_arg, block_number + 1);
             // Avoid creating an iterator over the entire range - select random leaves, with
@@ -394,25 +422,44 @@ pub async fn run_storage_benchmark<S: Storage>(
     checkpoint_interval: usize,
 ) {
     let mut interference_task_set = JoinSet::new();
-    let mut time_measurement = TimeMeasurement::new(checkpoint_interval, S::Stats::column_titles());
+    let mut measurements =
+        BenchmarkMeasurements::new(checkpoint_interval, S::Stats::column_titles());
     let mut contracts_trie_root_hash = match checkpoint_dir {
         Some(checkpoint_dir) => {
-            time_measurement.try_load_from_checkpoint(checkpoint_dir).unwrap_or_default()
+            measurements.try_load_from_checkpoint(checkpoint_dir).unwrap_or_default()
         }
         None => HashOutput::default(),
     };
 
-    let storage_reader: Option<StorageReader> = if flavor == BenchmarkFlavor::Mainnet {
+    let batcher_storage_reader: Option<StorageReader> = if flavor.is_mainnet_flavor() {
         Some(open_storage(BATCHER_STORAGE_CONFIG.clone()).unwrap().0)
     } else {
         None
     };
 
-    let curr_block_number = time_measurement.block_number;
+    let curr_block_number = measurements.block_number;
+    let state_sync_storage_reader_and_time_offset: Option<(StorageReader, u64)> =
+        if flavor == BenchmarkFlavor::MainnetWithSleeps {
+            let storage_reader = open_storage(STATE_SYNC_STORAGE_CONFIG.clone()).unwrap().0;
+            let first_block_timestamp = storage_reader
+                .begin_ro_txn()
+                .unwrap()
+                .get_block_header(BlockNumber(u64::try_from(curr_block_number).unwrap()))
+                .unwrap()
+                .unwrap()
+                .block_header_without_hash
+                .timestamp
+                .0;
+            let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+            let time_offset = now.checked_sub(first_block_timestamp).unwrap();
+            Some((storage_reader, time_offset))
+        } else {
+            None
+        };
+
     let n_iterations = flavor.n_iterations(n_iterations);
 
-    let mut classes_trie_root_hash = HashOutput::default();
-    let mut facts_db = FactsDb::new(storage);
+    let mut index_db = IndexDb::new(storage);
     for block_number in curr_block_number..n_iterations {
         info!("Committer storage benchmark iteration {}/{}", block_number + 1, n_iterations);
         // Seed is created from block number, to be independent of restarts using checkpoints.
@@ -422,39 +469,35 @@ pub async fn run_storage_benchmark<S: Storage>(
                 n_updates_arg,
                 block_number,
                 &mut rng,
-                storage_reader.as_ref(),
+                batcher_storage_reader.as_ref(),
             ),
-            initial_read_context: FactsDbInitialRead(StateRoots {
-                contracts_trie_root_hash,
-                classes_trie_root_hash,
-            }),
+            initial_read_context: IndexDbReadContext,
             config: ReaderConfig::default(),
         };
 
-        time_measurement.start_measurement(Action::EndToEnd);
-        let filled_forest =
-            CommitBlockImpl::commit_block(input, &mut facts_db, Some(&mut time_measurement))
-                .await
-                .expect("Failed to commit the given block.");
-        time_measurement.start_measurement(Action::Write);
+        measurements.start_measurement(Action::EndToEnd);
+        let filled_forest = CommitBlockImpl::commit_block(input, &mut index_db, &mut measurements)
+            .await
+            .expect("Failed to commit the given block.");
+        measurements.start_measurement(Action::Write);
         let n_new_facts =
-            facts_db.write(&filled_forest).await.expect("failed to serialize db values");
+            index_db.write(&filled_forest).await.expect("failed to serialize db values");
         info!("Written {n_new_facts} new facts to storage");
-        time_measurement.stop_measurement(None, Action::Write);
+        measurements.attempt_to_stop_measurement(Action::Write, n_new_facts).unwrap();
 
-        time_measurement.stop_measurement(Some(n_new_facts), Action::EndToEnd);
+        measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).unwrap();
 
         // Export to csv in the checkpoint interval and print the statistics of the storage.
         if (block_number + 1) % checkpoint_interval == 0 {
-            let storage_stats = facts_db.storage.get_stats();
-            facts_db.storage.reset_stats().unwrap();
-            time_measurement.to_csv(
+            let storage_stats = index_db.get_stats();
+            index_db.reset_stats().unwrap();
+            measurements.to_csv(
                 &format!("{}.csv", block_number + 1),
                 output_dir,
                 storage_stats.as_ref().map(|s| Some(s.column_values())).unwrap_or(None),
             );
             if let Some(checkpoint_dir) = checkpoint_dir {
-                time_measurement.save_checkpoint(
+                measurements.save_checkpoint(
                     checkpoint_dir,
                     block_number + 1,
                     &contracts_trie_root_hash,
@@ -467,11 +510,18 @@ pub async fn run_storage_benchmark<S: Storage>(
                     .unwrap_or_else(|e| format!("Failed to retrieve statistics: {e}"))
             );
         }
+
+        maybe_sleep_between_iterations(
+            flavor,
+            block_number,
+            &state_sync_storage_reader_and_time_offset,
+        )
+        .await;
+
         contracts_trie_root_hash = filled_forest.get_contract_root_hash();
-        classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
 
         // If the storage supports interference (is async), apply interference.
-        if let Some(async_storage) = facts_db.storage.get_async_self() {
+        if let Some(async_storage) = index_db.get_async_underlying_storage() {
             // First, try joining all completed interference tasks.
             // Log all failed tasks but do not panic - the benchmark is still running.
             while let Some(result) = interference_task_set.try_join_next() {
@@ -501,14 +551,14 @@ pub async fn run_storage_benchmark<S: Storage>(
 
     // Export to csv in the last iteration.
     if !n_iterations.is_multiple_of(checkpoint_interval) {
-        time_measurement.to_csv(
+        measurements.to_csv(
             &format!("{n_iterations}.csv"),
             output_dir,
-            facts_db.storage.get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
+            index_db.get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
         );
     }
 
-    time_measurement.pretty_print(50);
+    measurements.pretty_print(50);
 
     // Gather all interference tasks and wait for them to complete.
     // At this point it is safe (and preferable) to panic if any remaining task fails, as the
@@ -516,4 +566,43 @@ pub async fn run_storage_benchmark<S: Storage>(
     info!("Waiting for {} interference tasks to complete.", interference_task_set.len());
     interference_task_set.join_all().await;
     info!("All interference tasks completed.");
+}
+
+/// Determines the time to sleep between iterations in milliseconds based on block timestamps.
+/// See [BenchmarkFlavor::MainnetWithSleeps] for more details.
+fn time_to_sleep_between_iterations(
+    block_number: usize,
+    state_sync_storage_reader: &StorageReader,
+    time_offset: u64,
+) -> u64 {
+    let next_block_number = BlockNumber(u64::try_from(block_number).unwrap() + 1);
+    let next_block_timestamp = state_sync_storage_reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_header(next_block_number)
+        .unwrap()
+        .unwrap()
+        .block_header_without_hash
+        .timestamp
+        .0;
+    let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_millis();
+    (u128::from(next_block_timestamp + time_offset) * 1000_u128)
+        .saturating_sub(now)
+        .try_into()
+        .unwrap()
+}
+
+async fn maybe_sleep_between_iterations(
+    flavor: BenchmarkFlavor,
+    block_number: usize,
+    state_sync_storage_reader: &Option<(StorageReader, u64)>,
+) {
+    if flavor == BenchmarkFlavor::MainnetWithSleeps {
+        let (state_sync_storage_reader, time_offset) = state_sync_storage_reader.as_ref().unwrap();
+        let milliseconds_to_sleep =
+            time_to_sleep_between_iterations(block_number, state_sync_storage_reader, *time_offset);
+
+        info!("Sleeping for {milliseconds_to_sleep} milliseconds before next iteration.");
+        sleep(Duration::from_millis(milliseconds_to_sleep)).await;
+    }
 }

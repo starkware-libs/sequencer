@@ -167,7 +167,7 @@ impl Timeout {
 
     /// Compute the timeout for the given round: min(base + round * delta, max).
     fn get_timeout(&self, round: u32) -> Duration {
-        (self.base + round * self.delta).min(self.max)
+        (self.base + self.delta.saturating_mul(round)).min(self.max)
     }
 }
 

@@ -8,9 +8,8 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewayError;
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::http::StatusCode;
-use axum_08::response::{IntoResponse, Response};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use regex::Regex;
 use starknet_api::compression_utils::CompressionError;
 use thiserror::Error;

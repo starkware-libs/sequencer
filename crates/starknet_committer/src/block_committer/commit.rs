@@ -3,18 +3,24 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
+use starknet_types_core::felt::Felt;
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{
     contract_address_into_node_index,
     Input,
-    InputContext,
+    StarknetStorageValue,
     StateDiff,
 };
-use crate::block_committer::timing_util::{Action, TimeMeasurement};
+use crate::block_committer::measurements_util::{
+    Action,
+    BlockModificationsCounts,
+    MeasurementsTrait,
+};
 use crate::db::forest_trait::ForestReader;
 use crate::forest::filled_forest::FilledForest;
+use crate::forest::forest_errors::ForestError;
 use crate::forest::original_skeleton_forest::ForestSortedIndices;
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::TreeHashFunctionImpl;
@@ -26,13 +32,14 @@ pub type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 // TODO(Yoav): Remove this trait when the index layout is ready.
 #[async_trait]
 pub trait CommitBlockTrait: Send {
-    async fn commit_block<I: InputContext + Send, Reader: ForestReader<I> + Send>(
-        input: Input<I>,
+    async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Send>(
+        input: Input<Reader::InitialReadContext>,
         trie_reader: &mut Reader,
-        mut time_measurement: Option<&mut TimeMeasurement>,
+        measurements: &mut M,
     ) -> BlockCommitmentResult<FilledForest> {
         let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
             get_all_modified_indices(&input.state_diff);
+        let n_contracts_trie_modifications = contracts_trie_indices.len();
         let forest_sorted_indices = ForestSortedIndices {
             storage_tries_sorted_indices: storage_tries_indices
                 .iter_mut()
@@ -43,24 +50,29 @@ pub trait CommitBlockTrait: Send {
         };
         let actual_storage_updates = input.state_diff.actual_storage_updates();
         let actual_classes_updates = input.state_diff.actual_classes_updates();
+        // Record the number of modifications.
+        measure_number_of_modifications(
+            measurements,
+            &actual_storage_updates,
+            n_contracts_trie_modifications,
+            actual_classes_updates.len(),
+        );
         // Reads - fetch_nodes.
-        if let Some(ref mut tm) = time_measurement {
-            tm.start_measurement(Action::Read);
-        }
+        measurements.start_measurement(Action::Read);
+        let roots =
+            trie_reader.read_roots(input.initial_read_context).await.map_err(ForestError::from)?;
         let (mut original_forest, original_contracts_trie_leaves) = trie_reader
             .read(
-                input.initial_read_context,
+                roots,
                 &actual_storage_updates,
                 &actual_classes_updates,
                 &forest_sorted_indices,
                 input.config.clone(),
             )
             .await?;
-        if let Some(ref mut tm) = time_measurement {
-            let n_read_facts =
-                original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
-            tm.stop_measurement(Some(n_read_facts), Action::Read);
-        }
+        let n_read_entries =
+            original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
+        measurements.attempt_to_stop_measurement(Action::Read, n_read_entries).ok();
         info!("Original skeleton forest created successfully.");
 
         if input.config.warn_on_trivial_modifications() {
@@ -72,9 +84,7 @@ pub trait CommitBlockTrait: Send {
         }
 
         // Compute the new topology.
-        if let Some(ref mut tm) = time_measurement {
-            tm.start_measurement(Action::Compute);
-        }
+        measurements.start_measurement(Action::Compute);
         let updated_forest = UpdatedSkeletonForest::create(
             &mut original_forest,
             &input.state_diff.skeleton_classes_updates(),
@@ -95,9 +105,7 @@ pub trait CommitBlockTrait: Send {
             &input.state_diff.address_to_nonce,
         )
         .await?;
-        if let Some(ref mut tm) = time_measurement {
-            tm.stop_measurement(None, Action::Compute);
-        }
+        measurements.attempt_to_stop_measurement(Action::Compute, 0).ok();
         info!("Filled forest created successfully.");
 
         Ok(filled_forest)
@@ -165,4 +173,23 @@ pub(crate) fn get_all_modified_indices(
         })
         .collect();
     (storage_tries_indices, contracts_trie_indices, classes_trie_indices)
+}
+
+fn measure_number_of_modifications(
+    measurements: &mut impl MeasurementsTrait,
+    storage_modifications: &HashMap<ContractAddress, HashMap<NodeIndex, StarknetStorageValue>>,
+    n_contracts_trie_modifications: usize,
+    n_classes_trie_modifications: usize,
+) {
+    let storage_tries = storage_modifications.values().map(|value| value.len()).sum();
+    let emptied_storage_leaves = storage_modifications
+        .values()
+        .map(|storage_entry| storage_entry.values().filter(|value| value.0 == Felt::ZERO).count())
+        .sum::<usize>();
+    measurements.set_number_of_modifications(BlockModificationsCounts {
+        storage_tries,
+        contracts_trie: n_contracts_trie_modifications,
+        classes_trie: n_classes_trie_modifications,
+        emptied_storage_leaves,
+    });
 }

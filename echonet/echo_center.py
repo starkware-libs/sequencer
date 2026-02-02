@@ -570,10 +570,10 @@ class EchoCenterService:
 
     def _update_tx_tracking_and_reverts(self, blob: JsonObject, block_number: int) -> None:
         hashes = self._transformer.get_blob_tx_hashes(blob)
-        for h in hashes:
-            self.shared.record_committed_tx(h, block_number)
         for h, err in self._transformer.extract_revert_error_mappings(blob).items():
             self.shared.record_echonet_revert_error(h, err)
+        for h in hashes:
+            self.shared.record_committed_tx(h, block_number)
 
     def handle_write_blob(self) -> flask.Response:
         """

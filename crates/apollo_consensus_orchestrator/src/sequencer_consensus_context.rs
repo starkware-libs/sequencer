@@ -38,6 +38,7 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
+use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -89,7 +90,7 @@ use crate::validate_proposal::{
     ValidateProposalError,
 };
 
-type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
+type ValidationParams = (ConsensusBlockInfo, Duration, mpsc::Receiver<ProposalPart>);
 
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
@@ -179,6 +180,7 @@ pub struct SequencerConsensusContextDeps {
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    pub committee_provider: Option<Arc<dyn CommitteeProvider>>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
     // Used to initiate new outbound proposal streams.
@@ -509,6 +511,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let use_state_sync_block_timestamp =
             self.config.static_config.deployment_mode.use_state_sync_block_timestamp();
 
+        let round = proposal_init.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
             batcher_deadline,
@@ -520,6 +523,7 @@ impl ConsensusContext for SequencerConsensusContext {
             proposal_id,
             cende_write_success,
             l2_gas_price,
+            // TODO(Asmaa): Get it from the CommitteeProvider once we have it.
             builder_address: self.config.static_config.builder_address,
             cancel_token,
             previous_block_info: self.previous_block_info.clone(),
@@ -552,9 +556,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     }
                 }
             }
-            .instrument(
-                error_span!("consensus_build_proposal", %proposal_id, round=proposal_init.round),
-            ),
+            .instrument(error_span!("consensus_build_proposal", %proposal_id, round)),
         );
         assert!(self.active_proposal.is_none());
         self.active_proposal = Some((cancel_token_clone, handle));
@@ -565,13 +567,13 @@ impl ConsensusContext for SequencerConsensusContext {
     #[instrument(skip_all)]
     async fn validate_proposal(
         &mut self,
-        proposal_init: ProposalInit,
+        block_info: ConsensusBlockInfo,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<ProposalCommitment> {
-        assert_eq!(Some(proposal_init.height), self.current_height);
+        assert_eq!(Some(block_info.height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
-        match proposal_init.round.cmp(&self.current_round) {
+        match block_info.round.cmp(&self.current_round) {
             std::cmp::Ordering::Less => {
                 trace!("Dropping proposal from past round");
                 fin_receiver
@@ -579,17 +581,14 @@ impl ConsensusContext for SequencerConsensusContext {
             std::cmp::Ordering::Greater => {
                 trace!("Queueing proposal for future round.");
                 self.queued_proposals.insert(
-                    proposal_init.round,
-                    (
-                        (proposal_init.height, proposal_init.proposer, timeout, content_receiver),
-                        fin_sender,
-                    ),
+                    block_info.round,
+                    ((block_info, timeout, content_receiver), fin_sender),
                 );
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
                 let block_info_validation = BlockInfoValidation {
-                    height: proposal_init.height,
+                    height: block_info.height,
                     block_timestamp_window_seconds: self
                         .config
                         .static_config
@@ -604,8 +603,8 @@ impl ConsensusContext for SequencerConsensusContext {
                         .unwrap_or(self.l2_gas_price),
                 };
                 self.validate_current_round_proposal(
+                    block_info,
                     block_info_validation,
-                    proposal_init.proposer,
                     timeout,
                     self.config.static_config.validate_proposal_margin_millis,
                     content_receiver,
@@ -631,15 +630,9 @@ impl ConsensusContext for SequencerConsensusContext {
         let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
         tokio::spawn(
             async move {
-                let res = send_reproposal(
-                    id,
-                    init,
-                    block_info,
-                    txs,
-                    &mut stream_sender,
-                    transaction_converter,
-                )
-                .await;
+                let res =
+                    send_reproposal(id, block_info, txs, &mut stream_sender, transaction_converter)
+                        .await;
                 match res {
                     Ok(()) => {
                         info!(?id, ?init, "Reproposal succeeded.");
@@ -653,17 +646,27 @@ impl ConsensusContext for SequencerConsensusContext {
         );
     }
 
-    async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
-        self.validators.clone()
+    async fn validators(&self, _height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
+        Ok(self.validators.clone())
     }
 
-    fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId {
+    fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError> {
         let height: usize = height.0.try_into().expect("Cannot convert to usize");
         let round: usize = round.try_into().expect("Cannot convert to usize");
-        *self
+        Ok(*self
             .validators
             .get((height + round) % self.validators.len())
-            .expect("There should be at least one validator")
+            .expect("There should be at least one validator"))
+    }
+
+    fn virtual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> Result<ValidatorId, ConsensusError> {
+        // TODO(Asmaa): Update this when using the committee provider.
+        // For now, keep the virtual proposer selection identical to the real proposer selection.
+        self.proposer(height, round)
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
@@ -753,8 +756,13 @@ impl ConsensusContext for SequencerConsensusContext {
             );
             return false;
         }
+        // TODO(Asmaa): Consider storing only the necessary fields from the previous block
+        // (L1 gas prices, timestamp) instead of the full ConsensusBlockInfo.
         self.previous_block_info = Some(ConsensusBlockInfo {
             height,
+            round: 0,
+            valid_round: None,
+            proposer: sync_block.block_header_without_hash.sequencer.0,
             timestamp: timestamp.0,
             builder: sync_block.block_header_without_hash.sequencer.0,
             l1_da_mode: sync_block.block_header_without_hash.l1_da_mode,
@@ -792,7 +800,6 @@ impl ConsensusContext for SequencerConsensusContext {
         if self.current_height.map(|h| height > h).unwrap_or(true) {
             self.update_dynamic_config().await;
             self.current_height = Some(height);
-            assert_eq!(round, 0);
             self.current_round = round;
             self.queued_proposals.clear();
             // The Batcher must be told when we begin to work on a new height. The implicit model is
@@ -835,11 +842,11 @@ impl ConsensusContext for SequencerConsensusContext {
             }
         }
         // Validate the proposal for the current round if exists.
-        let Some(((height, validator, timeout, content), fin_sender)) = to_process else {
+        let Some(((block_info, timeout, content), fin_sender)) = to_process else {
             return Ok(());
         };
         let block_info_validation = BlockInfoValidation {
-            height,
+            height: block_info.height,
             block_timestamp_window_seconds: self
                 .config
                 .static_config
@@ -854,8 +861,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 .unwrap_or(self.l2_gas_price),
         };
         self.validate_current_round_proposal(
+            block_info,
             block_info_validation,
-            validator,
             timeout,
             self.config.static_config.validate_proposal_margin_millis,
             content,
@@ -869,8 +876,8 @@ impl ConsensusContext for SequencerConsensusContext {
 impl SequencerConsensusContext {
     async fn validate_current_round_proposal(
         &mut self,
+        block_info: ConsensusBlockInfo,
         block_info_validation: BlockInfoValidation,
-        proposer: ValidatorId,
         timeout: Duration,
         batcher_timeout_margin: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
@@ -878,13 +885,14 @@ impl SequencerConsensusContext {
     ) {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Start validating proposal");
+        info!(?timeout, %proposal_id, proposer=%block_info.proposer, round=self.current_round, "Start validating proposal");
 
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let gas_price_params = make_gas_price_params(&self.config.dynamic_config);
         let args = ProposalValidateArguments {
             deps: self.deps.clone(),
+            block_info,
             block_info_validation,
             proposal_id,
             timeout,
@@ -954,13 +962,11 @@ async fn validate_and_send(
 
 async fn send_reproposal(
     id: ProposalCommitment,
-    init: ProposalInit,
     block_info: ConsensusBlockInfo,
     txs: Vec<Vec<InternalConsensusTransaction>>,
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
-    stream_sender.send(ProposalPart::Init(init)).await?;
     stream_sender.send(ProposalPart::BlockInfo(block_info)).await?;
     let mut n_executed_txs: usize = 0;
     for batch in txs.iter() {

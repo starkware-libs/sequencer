@@ -70,7 +70,7 @@ use starknet_api::core::{
     StateDiffCommitment,
     TransactionCommitment,
 };
-use starknet_api::crypto::utils::Signature;
+use starknet_api::crypto::utils::{RawSignature, Signature};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::deprecated_contract_class::{
     ConstructorType,
@@ -1163,6 +1163,7 @@ default_impl_get_test_instance!(BigUint);
 // Use the explicit testing helpers when testing client-side proving.
 default_impl_get_test_instance!(starknet_api::transaction::fields::Proof);
 default_impl_get_test_instance!(starknet_api::transaction::fields::ProofFacts);
+default_impl_get_test_instance!(RawSignature);
 
 impl GetTestInstance for StructAbiEntry {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {

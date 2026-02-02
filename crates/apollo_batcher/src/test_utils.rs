@@ -3,8 +3,9 @@ use std::ops::Range;
 
 use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
-use apollo_committer_types::committer_types::CommitBlockResponse;
+use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
+use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
@@ -44,6 +45,7 @@ use crate::commitment_manager::types::{
     CommitmentTaskOutput,
     CommitterTaskInput,
     CommitterTaskOutput,
+    RevertTaskOutput,
 };
 use crate::pre_confirmed_block_writer::{
     MockPreconfirmedBlockWriterFactoryTrait,
@@ -241,7 +243,7 @@ pub(crate) struct MockDependencies {
 }
 
 pub(crate) struct MockClients {
-    pub(crate) committer_client: MockCommitterClient,
+    pub(crate) committer_client: MockCommitterClientWithOffset,
     pub(crate) mempool_client: MockMempoolClient,
     pub(crate) l1_provider_client: MockL1ProviderClient,
     pub(crate) block_builder_factory: MockBlockBuilderFactoryTrait,
@@ -272,8 +274,18 @@ impl Default for MockClients {
             (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
         });
 
+        let mut committer_client_inner = MockCommitterClient::new();
+        committer_client_inner
+            .expect_commit_block()
+            .returning(|_| Box::pin(async { Ok(CommitBlockResponse::default()) }));
+        committer_client_inner.expect_revert_block().returning(|_| {
+            Box::pin(async { Ok(RevertBlockResponse::RevertedTo(GlobalRoot::default())) })
+        });
+        let committer_client =
+            MockCommitterClientWithOffset::new(committer_client_inner, Some(INITIAL_HEIGHT));
+
         Self {
-            committer_client: MockCommitterClient::new(),
+            committer_client,
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
             block_builder_factory,
@@ -340,10 +352,20 @@ impl MockStateCommitter {
     ) {
         while mock_task_receiver.recv().await.is_some() {
             let task = tasks_receiver.try_recv().unwrap();
-            let result = CommitterTaskOutput::Commit(CommitmentTaskOutput {
-                response: CommitBlockResponse { state_root: GlobalRoot::default() },
-                height: task.0.height(),
-            });
+            let result = match task {
+                CommitterTaskInput::Commit(commit_request) => {
+                    CommitterTaskOutput::Commit(CommitmentTaskOutput {
+                        response: CommitBlockResponse { global_root: GlobalRoot::default() },
+                        height: commit_request.height,
+                    })
+                }
+                CommitterTaskInput::Revert(revert_request) => {
+                    CommitterTaskOutput::Revert(RevertTaskOutput {
+                        response: RevertBlockResponse::RevertedTo(GlobalRoot::default()),
+                        height: revert_request.height,
+                    })
+                }
+            };
             results_sender.try_send(result).unwrap();
         }
     }
