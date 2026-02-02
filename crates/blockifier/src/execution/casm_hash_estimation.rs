@@ -70,16 +70,18 @@ impl EstimatedExecutionResources {
     pub fn to_gas(
         &self,
         builtin_gas_cost: &BuiltinGasCosts,
-        blake_opcode_gas_cost: usize,
         versioned_constants: &VersionedConstants,
     ) -> GasAmount {
         let resources_gas =
             vm_resources_to_gas(self.resources_ref(), builtin_gas_cost, versioned_constants);
 
-        let blake_gas = self
-            .blake_count()
-            .checked_mul(blake_opcode_gas_cost)
-            .map(u64_from_usize)
+        // When using this function with sierra gas, it represents `stone` proving costs. However, a
+        // Blake opcode cannot be executed in `stone`, (i.e. this version is not supported
+        // by `stone`). For simplicity, the Blake `stwo` cost is used for the sierra gas
+        // estimation.
+        let blake_count = u64_from_usize(self.blake_count());
+        let blake_gas = blake_count
+            .checked_mul(builtin_gas_cost.blake)
             .map(GasAmount)
             .expect("Overflow computing Blake opcode gas.");
 
