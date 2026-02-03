@@ -33,6 +33,11 @@ define_metrics!(
             "count_classes_trie_modifications_per_block",
             "Number of classes trie modifications"
         },
+        MetricHistogram{
+            TOTAL_BLOCK_DURATION,
+            "total_block_duration",
+            "Duration of the block commit in seconds"
+        },
         MetricHistogram {
             READ_DURATION_PER_BLOCK,
             "read_duration_per_block",
@@ -67,6 +72,7 @@ pub fn register_metrics(offset: BlockNumber) {
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.register();
+    TOTAL_BLOCK_DURATION.register();
     READ_DURATION_PER_BLOCK.register();
     READ_DB_ENTRIES_PER_BLOCK.register();
     WRITE_DURATION_PER_BLOCK.register();
