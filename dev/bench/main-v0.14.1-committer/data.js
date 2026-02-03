@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770120399233,
+  "lastUpdate": 1770124607947,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1665,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1237.76033571,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "aec17db08e9b6e7cf51dd5c93aee766a8d1b00c1",
+          "message": "starknet_patricia_storage: remove dummy field from EmptyStorageConfig (#12218)",
+          "timestamp": "2026-02-03T12:55:56Z",
+          "tree_id": "8ca8dc5f993b9f67bb8d5ee9f8be875ea5c8742a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/aec17db08e9b6e7cf51dd5c93aee766a8d1b00c1"
+        },
+        "date": 1770124607610,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 897.6326981699999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1287.1884689600001,
             "unit": "ms"
           }
         ]
