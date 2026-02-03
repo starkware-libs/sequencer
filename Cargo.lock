@@ -2327,12 +2327,14 @@ dependencies = [
 name = "apollo_propeller"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_metrics",
  "apollo_protobuf",
  "asynchronous-codec",
  "futures",
  "libp2p",
+ "libp2p-swarm-test",
  "prost",
  "rand 0.8.5",
  "reed-solomon-simd",
@@ -7937,6 +7939,7 @@ dependencies = [
  "libp2p-metrics",
  "libp2p-noise",
  "libp2p-ping",
+ "libp2p-plaintext",
  "libp2p-quic",
  "libp2p-swarm",
  "libp2p-tcp",
