@@ -178,7 +178,7 @@ impl TransactionConverterTrait for TransactionConverter {
         match tx {
             ConsensusTransaction::RpcTransaction(tx) => {
                 let (internal_tx, verification_handle) =
-                    self.extract_proof_and_convert_rpc_tx_to_internal_rpc_tx(tx).await?;
+                    self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
                 Ok((InternalConsensusTransaction::RpcTransaction(internal_tx), verification_handle))
             }
             ConsensusTransaction::L1Handler(tx) => {
@@ -372,34 +372,6 @@ impl TransactionConverter {
         )?)
     }
 
-    async fn extract_proof_and_convert_rpc_tx_to_internal_rpc_tx(
-        &self,
-        tx: RpcTransaction,
-    ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)> {
-        // Extract proof and proof facts from v3 invoke transaction before conversion.
-        let proof_data = match &tx {
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
-                if !invoke_tx.proof_facts.is_empty() {
-                    Some((invoke_tx.proof_facts.clone(), invoke_tx.proof.clone()))
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-        let (internal_tx, verification_handle) = self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
-        if let Some((proof_facts, proof)) = proof_data {
-            let proof_manager_store_start = Instant::now();
-            self.proof_manager_client.set_proof(proof_facts, proof).await?;
-            let proof_manager_store_duration = proof_manager_store_start.elapsed();
-            let tx_hash = internal_tx.tx_hash;
-            info!(
-                "Proof manager store in the consensus took: {proof_manager_store_duration:?} for \
-                 tx hash: {tx_hash:?}"
-            );
-        }
-        Ok((internal_tx, verification_handle))
-    }
     fn spawn_proof_verification(
         &self,
         proof_facts: &ProofFacts,

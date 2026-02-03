@@ -88,6 +88,7 @@ pub(crate) const ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
 pub(crate) static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
     LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
 
+// TODO(Einat): Add client side proving transactions.
 pub(crate) static INTERNAL_TX_BATCH: LazyLock<Vec<InternalConsensusTransaction>> =
     LazyLock::new(|| {
         // TODO(shahak): Use MockTransactionConverter instead.

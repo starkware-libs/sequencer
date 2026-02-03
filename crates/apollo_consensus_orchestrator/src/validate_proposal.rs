@@ -3,7 +3,7 @@
 mod validate_proposal_test;
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use apollo_batcher_types::batcher_types::{
     ProposalId,
@@ -124,6 +124,7 @@ pub(crate) async fn validate_proposal(
     mut args: ProposalValidateArguments,
 ) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
+    let mut verification_handles = Vec::new();
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -173,6 +174,7 @@ pub(crate) async fn validate_proposal(
                     args.deps.batcher.as_ref(),
                     proposal_part.clone(),
                     &mut content,
+                    &mut verification_handles,
                     args.deps.transaction_converter.clone(),
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
@@ -345,6 +347,40 @@ async fn initiate_validation(
     Ok(())
 }
 
+/// Awaits a verification task and stores the proof if verification succeeds.
+async fn await_verification_and_store_proof(
+    handle: VerificationHandle,
+    transaction_converter: &Arc<dyn TransactionConverterTrait>,
+) -> Result<(), String> {
+    // Await the verification task.
+    let proof_facts_hash = handle.proof_facts.hash();
+    handle
+        .verification_task
+        .await
+        .map_err(|e| {
+            format!(
+                "Proof verification task panicked for proof facts hash: {proof_facts_hash:?}: {e}"
+            )
+        })?
+        .map_err(|e| {
+            format!("Proof verification failed for proof facts hash: {proof_facts_hash:?}: {e}")
+        })?;
+
+    // Store the proof after successful verification.
+    let proof_manager_client = transaction_converter.get_proof_manager_client();
+    let proof_manager_store_start = Instant::now();
+    proof_manager_client.set_proof(handle.proof_facts, handle.proof).await.map_err(|e| {
+        format!("Failed to store proof for proof facts hash: {proof_facts_hash:?}: {e}")
+    })?;
+    let proof_manager_store_duration = proof_manager_store_start.elapsed();
+    info!(
+        "Proof manager store in the consensus took: {proof_manager_store_duration:?} for proof \
+         facts hash: {proof_facts_hash:?}"
+    );
+
+    Ok(())
+}
+
 /// Handles receiving a proposal from another node without blocking consensus:
 /// 1. Receives the proposal part from the network.
 /// 2. Pass this to the batcher.
@@ -354,6 +390,7 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
+    verification_handles: &mut Vec<VerificationHandle>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
@@ -376,6 +413,15 @@ async fn handle_proposal_part(
             };
 
             *content = truncate_to_executed_txs(content, executed_txs_count);
+
+            // Await all verification handles and store proofs before proceeding.
+            for handle in verification_handles.drain(..) {
+                if let Err(e) =
+                    await_verification_and_store_proof(handle, &transaction_converter).await
+                {
+                    return HandledProposalPart::Failed(e);
+                }
+            }
 
             // Output this along with the ID from batcher, to compare them.
             let input = SendProposalContentInput {
@@ -437,24 +483,8 @@ async fn handle_proposal_part(
                 Vec<InternalConsensusTransaction>,
                 Vec<Option<VerificationHandle>>,
             ) = conversion_results.into_iter().unzip();
-            for handle in handles.into_iter().flatten() {
-                let proof_facts_hash = handle.proof_facts.hash();
-                match handle.verification_task.await {
-                    Err(e) => {
-                        return HandledProposalPart::Failed(format!(
-                            "Proof verification task panicked for proof facts hash: \
-                             {proof_facts_hash:?}: {e}"
-                        ));
-                    }
-                    Ok(Err(e)) => {
-                        return HandledProposalPart::Failed(format!(
-                            "Proof verification failed for proof facts hash: \
-                             {proof_facts_hash:?}: {e}"
-                        ));
-                    }
-                    Ok(Ok(())) => {}
-                }
-            }
+            verification_handles.extend(handles.into_iter().flatten());
+
             debug!(
                 "Converted transactions to internal representation. hashes={:?}",
                 txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>()
