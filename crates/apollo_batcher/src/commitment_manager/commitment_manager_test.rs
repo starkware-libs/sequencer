@@ -66,15 +66,7 @@ fn add_initial_heights(mock_dependencies: &mut MockDependencies) {
     mock_dependencies.storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 }
 
-fn get_dummy_parent_hash_and_partial_block_hash_components(
-    height: &BlockNumber,
-) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)> {
-    let partial_block_hash_components =
-        PartialBlockHashComponents { block_number: *height, ..Default::default() };
-    Ok((Some(BlockHash::default()), Some(partial_block_hash_components)))
-}
-
-fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
+fn get_number_of_tasks_in_sender<T>(sender: &Sender<T>) -> usize {
     sender.max_capacity() - sender.capacity()
 }
 
@@ -84,6 +76,14 @@ fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
 
 fn get_number_of_items_in_channel_from_receiver<T>(receiver: &Receiver<T>) -> usize {
     receiver.max_capacity() - receiver.capacity()
+}
+
+fn get_dummy_parent_hash_and_partial_block_hash_components(
+    height: &BlockNumber,
+) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)> {
+    let partial_block_hash_components =
+        PartialBlockHashComponents { block_number: *height, ..Default::default() };
+    Ok((Some(BlockHash::default()), Some(partial_block_hash_components)))
 }
 
 async fn create_commitment_manager(

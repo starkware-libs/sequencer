@@ -712,14 +712,6 @@ impl Batcher {
             StorageCommitmentBlockHash::ParentHash(block_header_without_hash.parent_hash)
         };
 
-        let optional_state_diff_commitment = match &storage_commitment_block_hash {
-            StorageCommitmentBlockHash::ParentHash(_) => None,
-            StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
-                ref header_commitments,
-                ..
-            }) => Some(header_commitments.state_diff_commitment),
-        };
-
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -729,26 +721,37 @@ impl Batcher {
             storage_commitment_block_hash,
         )
         .await?;
-
-        self.commitment_manager
-            .add_commitment_task(
-                height,
-                state_diff,
-                optional_state_diff_commitment,
-                &self.config.static_config.first_block_with_partial_block_hash,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
-
-        self.get_commitment_results_and_write_to_storage().await?;
+        // Intentionally skip commitment-manager work during state sync.
+        // We commit the state diffs and block-hash inputs to storage, and later (once sync is over)
+        // we catch up by enqueuing the missing commitment tasks before committing the next
+        // non-sync block.
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
             (account_transaction_hashes.len() + l1_transaction_hashes.len()).try_into().unwrap(),
         );
         Ok(())
+    }
+
+    /// If state sync skipped commitment-manager tasks, the commitment manager can lag behind the
+    /// batcher's height. Before committing a non-sync block (or reverting), we must catch it up so
+    /// the next task height matches its internal offset.
+    async fn ensure_commitment_manager_caught_up(&mut self, target_next_task_height: BlockNumber) {
+        let current_offset = self.commitment_manager.get_commitment_task_offset();
+        if current_offset < target_next_task_height {
+            info!(
+                "Commitment manager is behind (offset: {current_offset}, target: \
+                 {target_next_task_height}). Catching up."
+            );
+            self.commitment_manager
+                .add_missing_commitment_tasks(
+                    target_next_task_height,
+                    &self.config,
+                    self.storage_reader.clone(),
+                    &mut self.storage_writer,
+                )
+                .await;
+        }
     }
 
     #[instrument(skip(self), err)]
@@ -787,6 +790,11 @@ impl Batcher {
             partial_block_hash_components.header_commitments.state_diff_commitment;
         let block_header_commitments = partial_block_hash_components.header_commitments.clone();
         let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
+
+        // If state sync advanced the batcher height without running the commitment manager, catch
+        // up on the missing heights before adding the task for this height.
+        self.ensure_commitment_manager_caught_up(height).await;
+
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -1143,6 +1151,10 @@ impl Batcher {
             info!("Aborting all work on height {} due to a revert request.", height);
             self.abort_active_height().await;
         }
+
+        // If sync skipped commitments, catch up through `height` before reverting it (so the
+        // commitment manager offset matches the expected revert height).
+        self.ensure_commitment_manager_caught_up(height.unchecked_next()).await;
 
         // Wait for the revert commitment to be completed before reverting the storage.
         self.revert_commitment(height).await;

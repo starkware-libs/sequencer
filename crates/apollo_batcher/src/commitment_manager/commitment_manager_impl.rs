@@ -74,12 +74,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         let global_root_height = storage_reader
             .global_root_height()
             .expect("Failed to get global root height from storage.");
+        let block_height =
+            storage_reader.state_diff_height().expect("Failed to get block height from storage.");
+
         info!("Initializing commitment manager.");
-        CommitmentManager::initialize(
-            commitment_manager_config,
-            global_root_height,
-            committer_client,
-        )
+        CommitmentManager::initialize(commitment_manager_config, block_height, committer_client)
     }
 
     pub(crate) fn get_commitment_task_offset(&self) -> BlockNumber {
