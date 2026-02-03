@@ -191,8 +191,8 @@ where
         let tx_execution_infos =
             execution_data.execution_outputs.into_iter().map(|output| output.0.into()).collect();
 
-        // Merge initial_reads with proof_state.
-        execution_data.initial_reads.extend(&storage_proofs.proof_state);
+        // Merge initial_reads with contract_leaf_state.
+        execution_data.initial_reads.extend(&storage_proofs.contract_leaf_state);
 
         // Add class hash to compiled class hash mappings from the classes provider.
         execution_data

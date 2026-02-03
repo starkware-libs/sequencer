@@ -76,20 +76,20 @@ fn test_get_storage_proofs_from_rpc(
         "Expected non-empty contracts tree commitment facts"
     );
 
-    // Verify the queried contract is in proof_state.
+    // Verify the queried contract is in contract_leaf_state.
     assert!(
-        storage_proofs.proof_state.class_hashes.contains_key(&contract_address),
+        storage_proofs.contract_leaf_state.class_hashes.contains_key(&contract_address),
         "Expected contract address {:?} in class_hashes",
         contract_address
     );
     assert!(
-        storage_proofs.proof_state.nonces.contains_key(&contract_address),
+        storage_proofs.contract_leaf_state.nonces.contains_key(&contract_address),
         "Expected contract address {:?} in nonces",
         contract_address
     );
 
-    // Verify the queried storage is in the original execution_data (not proof_state, which only has
-    // nonces/hashes)
+    // Verify the queried storage is in the original execution_data (not contract_leaf_state,
+    // which only has nonces/hashes)
     assert!(
         execution_data.initial_reads.storage.contains_key(&(contract_address, storage_key)),
         "Expected storage key {:?} in contract's storage",
