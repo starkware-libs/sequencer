@@ -54,9 +54,9 @@ pub(crate) struct RpcStorageProofsQuery {
 /// Complete OS input data built from RPC proofs.
 #[allow(dead_code)]
 pub(crate) struct StorageProofs {
-    /// State information discovered in the Patricia proof (nonces, class hashes)
+    /// State values extracted from the Patricia proof's contract leaves (nonces, class hashes)
     /// that might not have been explicitly read during transaction execution.
-    /// This data is required by the OS to verify the contract state leaves.
+    /// Required by the OS to verify contract state leaves.
     pub(crate) proof_state: StateMaps,
     pub(crate) commitment_infos: StateCommitmentInfos,
 }
@@ -91,12 +91,12 @@ impl RpcStorageProofsProvider {
         let contract_addresses: Vec<ContractAddress> =
             initial_reads.get_contract_addresses().into_iter().collect();
 
-        // Storage keys grouped by contract address.
+        // Group storage keys by address, then map over all contract_addresses (which may include
+        // addresses with no storage reads) to build the output.
         let mut storage_by_address: HashMap<ContractAddress, Vec<Felt>> = HashMap::new();
         for (address, key) in initial_reads.storage.keys() {
             storage_by_address.entry(*address).or_default().push(*key.0.key());
         }
-
         let contract_storage_keys: Vec<ContractStorageKeys> = contract_addresses
             .iter()
             .map(|address| ContractStorageKeys {
