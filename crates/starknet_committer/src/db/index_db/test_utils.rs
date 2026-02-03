@@ -201,7 +201,7 @@ async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
                 panic_on_missing_node,
             )
             .await;
-            IndexFilledNode(FilledNode {
+            IndexFilledNode::new(FilledNode {
                 hash: subtree.root_hash,
                 data: NodeData::Binary(BinaryData {
                     left_data: EmptyNodeData,
@@ -222,7 +222,7 @@ async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
                 panic_on_missing_node,
             )
             .await;
-            IndexFilledNode(FilledNode {
+            IndexFilledNode::new(FilledNode {
                 hash: subtree.root_hash,
                 data: NodeData::Edge(EdgeData {
                     bottom_data: EmptyNodeData,
@@ -235,7 +235,7 @@ async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
                 leaves.push((subtree.root_index, leaf.clone()));
             }
 
-            IndexFilledNode(FilledNode {
+            IndexFilledNode::new(FilledNode {
                 hash: subtree.root_hash,
                 data: NodeData::Leaf(leaf.into()),
             })
