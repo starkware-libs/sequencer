@@ -10,7 +10,7 @@ use starknet_api::state::StorageKey;
 use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 
-use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofProvider};
+use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig, StorageProofProvider};
 use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
 use crate::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
 
@@ -56,8 +56,9 @@ fn test_get_storage_proofs_from_rpc(
         executed_class_hashes: HashSet::new(),
     };
 
+    let config = StorageProofConfig::default();
     let result = runtime.block_on(async {
-        rpc_provider.get_storage_proofs(BlockNumber(block_number), &execution_data).await
+        rpc_provider.get_storage_proofs(BlockNumber(block_number), &execution_data, &config).await
     });
     assert!(result.is_ok(), "Failed to get storage proofs: {:?}", result.err());
 
