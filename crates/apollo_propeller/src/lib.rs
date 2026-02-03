@@ -1,38 +1,39 @@
 pub mod behaviour;
-#[cfg(test)]
-mod behaviour_test;
 pub mod config;
 pub mod engine;
 pub mod handler;
 pub mod merkle;
-#[cfg(test)]
-mod merkle_test;
+pub mod message_processor;
 pub mod metrics;
 pub mod padding;
-#[cfg(test)]
-mod padding_test;
-pub mod protocol;
+mod protocol;
 // TODO(AndrewL): Consider renaming this to `erasure_coding` or `error_correction_code`.
-pub mod message_processor;
 pub mod reed_solomon;
-#[cfg(test)]
-mod reed_solomon_test;
 pub mod sharding;
-#[cfg(test)]
-mod sharding_test;
 pub mod signature;
-#[cfg(test)]
-mod signature_test;
 pub mod time_cache;
-#[cfg(test)]
-mod time_cache_test;
 // TODO(AndrewL): rename file
 pub mod tree;
-#[cfg(test)]
-mod tree_test;
 pub mod types;
 pub mod unit;
 pub mod unit_validator;
+
+#[cfg(test)]
+mod behaviour_test;
+#[cfg(test)]
+mod merkle_test;
+#[cfg(test)]
+mod padding_test;
+#[cfg(test)]
+mod reed_solomon_test;
+#[cfg(test)]
+mod sharding_test;
+#[cfg(test)]
+mod signature_test;
+#[cfg(test)]
+mod time_cache_test;
+#[cfg(test)]
+mod tree_test;
 #[cfg(test)]
 mod unit_validator_test;
 
@@ -42,7 +43,17 @@ pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use metrics::PropellerMetrics;
 pub use tree::{PropellerScheduleManager, Stake};
-pub use types::{Channel, Event, MessageRoot, ShardIndex, ShardValidationError};
+pub use types::{
+    Channel,
+    Event,
+    MessageRoot,
+    PeerSetError,
+    ReconstructionError,
+    ShardIndex,
+    ShardPublishError,
+    ShardValidationError,
+    TreeGenerationError,
+};
 pub use unit::PropellerUnit;
 pub use unit_validator::UnitValidator;
 
