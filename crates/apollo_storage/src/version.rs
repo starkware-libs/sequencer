@@ -60,19 +60,19 @@ where
 
 impl<Mode: TransactionKind> VersionStorageReader for StorageTxn<'_, Mode> {
     fn get_state_version(&self) -> StorageResult<Option<Version>> {
-        let version_table = self.open_table(&self.tables.storage_version)?;
+        let version_table = self.open_table(&self.tables().storage_version)?;
         Ok(version_table.get(self.txn(), &VERSION_STATE_KEY.to_string())?)
     }
 
     fn get_blocks_version(&self) -> StorageResult<Option<Version>> {
-        let version_table = self.open_table(&self.tables.storage_version)?;
+        let version_table = self.open_table(&self.tables().storage_version)?;
         Ok(version_table.get(self.txn(), &VERSION_BLOCKS_KEY.to_string())?)
     }
 }
 
 impl VersionStorageWriter for StorageTxn<'_, RW> {
     fn set_state_version(self, version: &Version) -> StorageResult<Self> {
-        let version_table = self.open_table(&self.tables.storage_version)?;
+        let version_table = self.open_table(&self.tables().storage_version)?;
         if let Some(current_storage_version) = self.get_state_version()? {
             if current_storage_version.major != version.major {
                 return Err(StorageError::StorageVersionInconsistency(
@@ -96,7 +96,7 @@ impl VersionStorageWriter for StorageTxn<'_, RW> {
     }
 
     fn set_blocks_version(self, version: &Version) -> StorageResult<Self> {
-        let version_table = self.open_table(&self.tables.storage_version)?;
+        let version_table = self.open_table(&self.tables().storage_version)?;
         if let Some(current_storage_version) = self.get_blocks_version()? {
             if current_storage_version.major != version.major {
                 return Err(StorageError::StorageVersionInconsistency(
@@ -120,7 +120,7 @@ impl VersionStorageWriter for StorageTxn<'_, RW> {
         Ok(self)
     }
     fn delete_blocks_version(self) -> StorageResult<Self> {
-        let version_table = self.open_table(&self.tables.storage_version)?;
+        let version_table = self.open_table(&self.tables().storage_version)?;
         version_table.delete(self.txn(), &VERSION_BLOCKS_KEY.to_string())?;
         Ok(self)
     }

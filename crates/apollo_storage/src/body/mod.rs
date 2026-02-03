@@ -180,12 +180,12 @@ where
 
 impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
     fn get_body_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::Body)?.unwrap_or_default())
     }
 
     fn get_event_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::Event)?.unwrap_or_default())
     }
 
@@ -218,7 +218,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         tx_hash: &TransactionHash,
     ) -> StorageResult<Option<TransactionIndex>> {
         let transaction_hash_to_idx_table =
-            self.open_table(&self.tables.transaction_hash_to_idx)?;
+            self.open_table(&self.tables().transaction_hash_to_idx)?;
         let idx = transaction_hash_to_idx_table.get(self.txn(), tx_hash)?;
         Ok(idx)
     }
@@ -237,7 +237,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         tx_index: &TransactionIndex,
     ) -> StorageResult<Option<TransactionMetadata>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
         let metadata = transaction_metadata_table.get(self.txn(), tx_index)?;
         Ok(metadata)
     }
@@ -246,7 +246,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<Transaction>>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
         self.get_transactions_in_block(block_number, transaction_metadata_table)
     }
 
@@ -254,7 +254,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<TransactionHash>>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
         self.get_transaction_hashes_in_block(block_number, transaction_metadata_table)
     }
 
@@ -262,7 +262,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
         self.get_transactions_and_hashes_in_block(block_number, transaction_metadata_table)
     }
 
@@ -270,7 +270,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<TransactionOutput>>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
         self.get_transaction_outputs_in_block(block_number, transaction_metadata_table)
     }
 
@@ -284,7 +284,7 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
             return Ok(None);
         }
 
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
         let mut cursor = transaction_metadata_table.cursor(self.txn())?;
         let Some(next_block_number) = block_number.next() else {
             return Ok(None);
@@ -393,15 +393,15 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
 impl BodyStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_body_latency_seconds", false)]
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self> {
-        let markers_table = self.open_table(&self.tables.markers)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
         update_marker(self.txn(), &markers_table, block_number)?;
 
         if self.scope != StorageScope::StateOnly {
-            let events_table = self.open_table(&self.tables.events)?;
+            let events_table = self.open_table(&self.tables().events)?;
             let transaction_hash_to_idx_table =
-                self.open_table(&self.tables.transaction_hash_to_idx)?;
-            let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-            let file_offset_table = self.txn().open_table(&self.tables.file_offsets)?;
+                self.open_table(&self.tables().transaction_hash_to_idx)?;
+            let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
+            let file_offset_table = self.txn().open_table(&self.tables().file_offsets)?;
 
             write_transactions(
                 &block_body,
@@ -422,7 +422,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
         self,
         block_number: BlockNumber,
     ) -> StorageResult<(Self, Option<RevertedBlockBody>)> {
-        let markers_table = self.open_table(&self.tables.markers)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
 
         // Assert that body marker equals the reverted block number + 1
         let current_header_marker = self.get_body_marker()?;
@@ -443,10 +443,10 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 break 'reverted_block_body None;
             }
 
-            let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+            let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
             let transaction_hash_to_idx_table =
-                self.open_table(&self.tables.transaction_hash_to_idx)?;
-            let events_table = self.open_table(&self.tables.events)?;
+                self.open_table(&self.tables().transaction_hash_to_idx)?;
+            let events_table = self.open_table(&self.tables().events)?;
 
             let transactions = self
                 .get_block_transactions(block_number)?

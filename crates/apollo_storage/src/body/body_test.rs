@@ -3,17 +3,27 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::TransactionOffsetInBlock;
+use tempfile::tempdir;
 use test_case::test_case;
 
 use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::db::table_types::Table;
 use crate::db::{DbError, KeyAlreadyExistsError};
-use crate::test_utils::{get_test_storage, get_test_storage_by_scope};
-use crate::{OffsetKind, StorageError, StorageScope, StorageWriter};
+use crate::test_utils::{get_test_config_with_path, get_test_storage, get_test_storage_by_scope};
+use crate::{BatchConfig, OffsetKind, StorageError, StorageScope, StorageWriter, open_storage};
 
 #[tokio::test]
 async fn append_body() {
-    let ((reader, mut writer), _temp_dir) = get_test_storage();
+    // Create storage with batching disabled for this test.
+    // This test intentionally triggers errors (duplicate keys, marker mismatches) that don't
+    // happen in production sync. With persistent transactions, partial writes from failed
+    // operations can get committed, which breaks the test's expectations.
+    let temp_dir = tempdir().expect("Failed to create temp directory");
+    let mut config =
+        get_test_config_with_path(Some(StorageScope::FullArchive), temp_dir.path().to_path_buf());
+    config.batch_config = BatchConfig { enabled: false, batch_size: 100 };
+    let (reader, mut writer) = open_storage(config).expect("Failed to open storage");
+
     let body = get_test_block(10, None, None, None).body;
     let txs = body.transactions;
     let tx_outputs = body.transaction_outputs;
@@ -395,9 +405,9 @@ fn update_offset_table() {
     writer.begin_rw_txn().unwrap().append_body(BlockNumber(0), body).unwrap().commit().unwrap();
 
     let txn = reader.begin_ro_txn().unwrap();
-    let file_offset_table = txn.txn().open_table(&txn.tables.file_offsets).unwrap();
+    let file_offset_table = txn.txn().open_table(&txn.tables().file_offsets).unwrap();
     let transaction_metadata_table =
-        txn.txn().open_table(&txn.tables.transaction_metadata).unwrap();
+        txn.txn().open_table(&txn.tables().transaction_metadata).unwrap();
     let last_tx_metadata = transaction_metadata_table
         .get(txn.txn(), &TransactionIndex(BlockNumber(0), TransactionOffsetInBlock(2)))
         .unwrap()

@@ -29,7 +29,7 @@ use std::path::PathBuf;
 use std::result;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
@@ -251,7 +251,7 @@ pub(crate) struct DbReader {
     env: Arc<Environment>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct DbWriter {
     env: Arc<Environment>,
 }
@@ -265,6 +265,7 @@ impl DbReader {
 type DbReadTransaction<'env> = DbTransaction<'env, RO>;
 
 impl DbWriter {
+    #[allow(dead_code)]
     pub(crate) fn begin_rw_txn(&mut self) -> DbResult<DbWriteTransaction<'_>> {
         Ok(DbWriteTransaction { txn: self.env.begin_rw_txn()? })
     }

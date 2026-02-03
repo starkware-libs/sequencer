@@ -161,7 +161,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         &self,
         class_hash: &ClassHash,
     ) -> StorageResult<Option<crate::LocationInFile>> {
-        let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
+        let declared_classes_table = self.open_table(&self.tables().declared_classes)?;
         Ok(declared_classes_table.get(self.txn(), class_hash)?)
     }
 
@@ -187,7 +187,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         class_hash: &ClassHash,
     ) -> StorageResult<Option<LocationInFile>> {
         let deprecated_declared_classes_table =
-            self.open_table(&self.tables.deprecated_declared_classes)?;
+            self.open_table(&self.tables().deprecated_declared_classes)?;
         let deprecated_contract_class_location =
             deprecated_declared_classes_table.get(self.txn(), class_hash)?;
         Ok(deprecated_contract_class_location.map(|value| value.location_in_file))
@@ -201,7 +201,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
     }
 
     fn get_class_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default())
     }
 }
@@ -214,11 +214,11 @@ impl ClassStorageWriter for StorageTxn<'_, RW> {
         classes: &[(ClassHash, &SierraContractClass)],
         deprecated_classes: &[(ClassHash, &DeprecatedContractClass)],
     ) -> StorageResult<Self> {
-        let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
+        let declared_classes_table = self.open_table(&self.tables().declared_classes)?;
         let deprecated_declared_classes_table =
-            self.open_table(&self.tables.deprecated_declared_classes)?;
-        let file_offset_table = self.txn().open_table(&self.tables.file_offsets)?;
-        let markers_table = self.open_table(&self.tables.markers)?;
+            self.open_table(&self.tables().deprecated_declared_classes)?;
+        let file_offset_table = self.txn().open_table(&self.tables().file_offsets)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
 
         let marker_block_number =
             markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default();
