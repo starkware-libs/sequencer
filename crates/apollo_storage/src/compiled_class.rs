@@ -118,7 +118,7 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
     }
 
     fn get_casm_location(&self, class_hash: &ClassHash) -> StorageResult<Option<LocationInFile>> {
-        let casm_table = self.open_table(&self.tables.casms)?;
+        let casm_table = self.open_table(&self.tables().casms)?;
         let casm_location = casm_table.get(self.txn(), class_hash)?;
         Ok(casm_location)
     }
@@ -132,12 +132,12 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
         class_hash: ClassHash,
         block_number: BlockNumber,
     ) -> StorageResult<Option<CompiledClassHash>> {
-        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
+        let compiled_class_hash_table = self.open_table(&self.tables().compiled_class_hash)?;
         Ok(compiled_class_hash_table.get(self.txn(), &(class_hash, block_number))?)
     }
 
     fn get_compiled_class_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::CompiledClass)?.unwrap_or_default())
     }
 }
@@ -145,10 +145,10 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
 impl CasmStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_casm_latency_seconds", false)]
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self> {
-        let casm_table = self.open_table(&self.tables.casms)?;
-        let markers_table = self.open_table(&self.tables.markers)?;
-        let state_diff_table = self.open_table(&self.tables.state_diffs)?;
-        let file_offset_table = self.txn().open_table(&self.tables.file_offsets)?;
+        let casm_table = self.open_table(&self.tables().casms)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
+        let state_diff_table = self.open_table(&self.tables().state_diffs)?;
+        let file_offset_table = self.txn().open_table(&self.tables().file_offsets)?;
 
         let location = self.file_handlers.append_casm(casm);
         casm_table.insert(self.txn(), class_hash, &location)?;

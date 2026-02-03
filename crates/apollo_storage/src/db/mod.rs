@@ -251,7 +251,7 @@ pub(crate) struct DbReader {
     env: Arc<Environment>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct DbWriter {
     env: Arc<Environment>,
 }
@@ -265,6 +265,7 @@ impl DbReader {
 type DbReadTransaction<'env> = DbTransaction<'env, RO>;
 
 impl DbWriter {
+    #[allow(dead_code)]
     pub(crate) fn begin_rw_txn(&mut self) -> DbResult<DbWriteTransaction<'_>> {
         Ok(DbWriteTransaction { txn: self.env.begin_rw_txn()? })
     }

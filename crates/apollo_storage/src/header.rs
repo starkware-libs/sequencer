@@ -191,7 +191,7 @@ where
 
 impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
     fn get_header_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::Header)?.unwrap_or_default())
     }
 
@@ -199,7 +199,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: &BlockNumber,
     ) -> StorageResult<Option<StorageBlockHeader>> {
-        let headers_table = self.open_table(&self.tables.headers)?;
+        let headers_table = self.open_table(&self.tables().headers)?;
         Ok(headers_table.get(self.txn(), block_number)?)
     }
 
@@ -240,7 +240,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_hash: &BlockHash,
     ) -> StorageResult<Option<BlockNumber>> {
-        let block_hash_to_number_table = self.open_table(&self.tables.block_hash_to_number)?;
+        let block_hash_to_number_table = self.open_table(&self.tables().block_hash_to_number)?;
         let block_number = block_hash_to_number_table.get(self.txn(), block_hash)?;
         Ok(block_number)
     }
@@ -254,7 +254,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
             return Ok(None);
         }
 
-        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
         let mut cursor = starknet_version_table.cursor(self.txn())?;
         let Some(next_block_number) = block_number.next() else {
             return Ok(None);
@@ -275,7 +275,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<StarknetVersion>> {
-        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
         let starknet_version = starknet_version_table.get(self.txn(), &block_number)?;
         Ok(starknet_version)
     }
@@ -284,7 +284,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<BlockSignature>> {
-        let block_signatures_table = self.open_table(&self.tables.block_signatures)?;
+        let block_signatures_table = self.open_table(&self.tables().block_signatures)?;
         let block_signature = block_signatures_table.get(self.txn(), &block_number)?;
         Ok(block_signature)
     }
@@ -296,9 +296,9 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         block_number: BlockNumber,
         block_header: &BlockHeader,
     ) -> StorageResult<Self> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        let headers_table = self.open_table(&self.tables.headers)?;
-        let block_hash_to_number_table = self.open_table(&self.tables.block_hash_to_number)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
+        let headers_table = self.open_table(&self.tables().headers)?;
+        let block_hash_to_number_table = self.open_table(&self.tables().block_hash_to_number)?;
 
         update_marker(self.txn(), &markers_table, block_number)?;
 
@@ -345,7 +345,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         block_number: &BlockNumber,
         starknet_version: &StarknetVersion,
     ) -> StorageResult<Self> {
-        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
         let mut cursor = starknet_version_table.cursor(self.txn())?;
         cursor.lower_bound(block_number)?;
         let res = cursor.prev()?;
@@ -362,11 +362,11 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         self,
         block_number: BlockNumber,
     ) -> StorageResult<(Self, Option<BlockHeader>, Option<BlockSignature>)> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        let headers_table = self.open_table(&self.tables.headers)?;
-        let block_hash_to_number_table = self.open_table(&self.tables.block_hash_to_number)?;
-        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
-        let block_signatures_table = self.open_table(&self.tables.block_signatures)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
+        let headers_table = self.open_table(&self.tables().headers)?;
+        let block_hash_to_number_table = self.open_table(&self.tables().block_hash_to_number)?;
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
+        let block_signatures_table = self.open_table(&self.tables().block_signatures)?;
 
         // Assert that header marker equals the reverted block number + 1
         let current_header_marker = self.get_header_marker()?;
@@ -455,7 +455,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
             });
         }
 
-        let block_signatures_table = self.open_table(&self.tables.block_signatures)?;
+        let block_signatures_table = self.open_table(&self.tables().block_signatures)?;
         block_signatures_table.insert(self.txn(), &block_number, block_signature)?;
         Ok(self)
     }
