@@ -62,7 +62,7 @@ use apollo_storage::{
     StorageWriter,
 };
 use async_trait::async_trait;
-use blockifier::blockifier::config::ContractClassManagerDynamicConfig;
+use blockifier::blockifier::config::SharedContractClassManagerDynamicConfig;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use futures::FutureExt;
@@ -188,6 +188,10 @@ pub struct Batcher {
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
     storage_reader_server_handle: Option<AbortHandle>,
+
+    /// Dynamic config for the contract class manager. The pointer is held here to allow for
+    /// dynamic updates.
+    shared_contract_class_manager_dynamic_config: SharedContractClassManagerDynamicConfig,
 }
 
 impl Batcher {
@@ -205,6 +209,7 @@ impl Batcher {
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
         storage_reader_server_handle: Option<AbortHandle>,
+        shared_contract_class_manager_dynamic_config: SharedContractClassManagerDynamicConfig,
     ) -> Self {
         Self {
             config,
@@ -228,11 +233,47 @@ impl Batcher {
             prev_proposal_commitment: None,
             commitment_manager,
             storage_reader_server_handle,
+            shared_contract_class_manager_dynamic_config,
         }
     }
 
     pub(crate) fn update_dynamic_config(&mut self, dynamic_config: BatcherDynamicConfig) {
         self.config.dynamic_config = dynamic_config;
+    }
+
+    // This function works on a best effort basis. If there is any problem obtaining the locks, it
+    // returns without updating any values.
+    fn update_shared_contract_class_manager_dynamic_config(&mut self) {
+        let dynamic_config = &self.config.dynamic_config.contract_class_manager_config;
+        let shared_config = &self.shared_contract_class_manager_dynamic_config;
+        match shared_config.read() {
+            Err(err) => {
+                error!(
+                    "Failed to read shared contract class dynamic config lock. Skipping update. \
+                     Error: {err}"
+                );
+                return;
+            }
+            Ok(lock) => {
+                if dynamic_config == &*lock {
+                    // No need to update the shared contract class manager dynamic config.
+                    return;
+                }
+            }
+        };
+
+        match shared_config.write() {
+            Err(err) => {
+                error!(
+                    "Failed to write shared contract class dynamic config lock. Skipping update. \
+                     Error: {err}"
+                );
+            }
+            Ok(mut lock) => {
+                // Write the updated value into the shared reference.
+                *lock = dynamic_config.clone();
+            }
+        };
     }
 
     #[instrument(skip(self), err)]
@@ -253,6 +294,7 @@ impl Batcher {
 
         info!("Starting to work on height {}.", input.height);
         self.active_height = Some(input.height);
+        self.update_shared_contract_class_manager_dynamic_config();
 
         Ok(())
     }
@@ -1266,6 +1308,7 @@ impl Batcher {
             })?
             .ok_or(BatcherError::BlockHashNotFound(block_number))
     }
+
     async fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
@@ -1332,6 +1375,8 @@ pub async fn create_batcher(
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     config_manager_client: SharedConfigManagerClient,
 ) -> Batcher {
+    let contract_class_manager_dynamic_config =
+        Arc::new(RwLock::new(config.dynamic_config.contract_class_manager_config.clone()));
     let storage_reader_server_config = ServerConfig {
         static_config: config.static_config.storage_reader_server_static_config.clone(),
         dynamic_config: config.dynamic_config.storage_reader_server_dynamic_config.clone(),
@@ -1358,9 +1403,7 @@ pub async fn create_batcher(
         storage_reader: storage_reader.clone(),
         contract_class_manager: ContractClassManager::start(
             config.static_config.contract_class_manager_config.clone(),
-            Arc::new(RwLock::new(ContractClassManagerDynamicConfig::from(
-                &config.static_config.contract_class_manager_config,
-            ))),
+            contract_class_manager_dynamic_config.clone(),
         ),
         class_manager_client: class_manager_client.clone(),
         worker_pool,
@@ -1393,6 +1436,7 @@ pub async fn create_batcher(
         pre_confirmed_block_writer_factory,
         commitment_manager,
         storage_reader_server_handle,
+        contract_class_manager_dynamic_config,
     )
 }
 
