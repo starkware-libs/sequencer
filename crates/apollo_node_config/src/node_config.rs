@@ -108,11 +108,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "batcher_config.dynamic_config.contract_class_manager_config.\
                 native_classes_whitelist",
-                "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.\
-                native_classes_whitelist",
                 "gateway_config.dynamic_config.contract_class_manager_config.\
-                native_classes_whitelist",
-                "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.\
                 native_classes_whitelist",
             ]),
         ),

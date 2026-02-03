@@ -227,7 +227,6 @@ fn test_process_compilation_request(
             run_cairo_native: true,
             channel_size: TEST_CHANNEL_SIZE,
             panic_on_compilation_failure,
-            ..CairoNativeRunConfig::default()
         },
         ContractClassManagerDynamicConfig::default(),
     );
@@ -271,7 +270,6 @@ fn test_native_classes_whitelist(
         wait_on_native_compilation: true,
         panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,
-        native_classes_whitelist: whitelist.clone(),
     };
     let dynamic_config = ContractClassManagerDynamicConfig { native_classes_whitelist: whitelist };
     let manager = NativeClassManager::create_for_testing(native_config, dynamic_config);

@@ -9,7 +9,6 @@ use blockifier::blockifier::config::{
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerStaticConfig,
-    NativeClassesWhitelist,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstantsOverrides};
@@ -19,7 +18,6 @@ use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::utils::u64_from_usize;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
-use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::{Builtin, GasAmount};
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -282,18 +280,12 @@ impl Default for PyCairoNativeRunConfig {
 
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
-        let native_classes_whitelist = match py_cairo_native_run_config.native_classes_whitelist {
-            Some(felts) => NativeClassesWhitelist::Limited(
-                felts.into_iter().map(|felt| ClassHash(felt.0)).collect(),
-            ),
-            None => NativeClassesWhitelist::All,
-        };
-
+        // TODO(Arni): `native_classes_whitelist` from `PyCairoNativeRunConfig` is intentionally
+        // dropped. This info should be passed via dynamic config if needed.
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
             channel_size: py_cairo_native_run_config.channel_size,
-            native_classes_whitelist,
             panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,
         }
     }
