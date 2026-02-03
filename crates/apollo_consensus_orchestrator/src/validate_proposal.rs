@@ -20,7 +20,7 @@ use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::StateSyncClient;
 use apollo_time::time::{Clock, ClockExt, DateTime};
-use apollo_transaction_converter::TransactionConverterTrait;
+use apollo_transaction_converter::{TransactionConverterTrait, VerificationHandle};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockNumber, GasPrice};
@@ -469,15 +469,15 @@ async fn handle_proposal_part(
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
-            let txs =
+            let conversion_results =
                 futures::future::join_all(txs.into_iter().map(|tx| {
                     transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
                 }))
                 .await
                 .into_iter()
                 .collect::<Result<Vec<_>, _>>();
-            let txs = match txs {
-                Ok(txs) => txs,
+            let conversion_results = match conversion_results {
+                Ok(results) => results,
                 Err(e) => {
                     return HandledProposalPart::Failed(format!(
                         "Failed to convert transactions. Stopping the build of the current \
@@ -485,6 +485,34 @@ async fn handle_proposal_part(
                     ));
                 }
             };
+
+            // Separate internal transactions from verification handles and collect verification
+            // handles that are not None.
+            let (txs, handles): (
+                Vec<InternalConsensusTransaction>,
+                Vec<Option<VerificationHandle>>,
+            ) = conversion_results.into_iter().unzip();
+            for handle in handles.into_iter().flatten() {
+                let proof_facts_hash = handle.proof_facts.hash();
+                let task = handle.verification_task.lock().await.take();
+                if let Some(task) = task {
+                    match task.await {
+                        Err(e) => {
+                            return HandledProposalPart::Failed(format!(
+                                "Proof verification task panicked for proof facts hash: \
+                                 {proof_facts_hash:?}: {e}"
+                            ));
+                        }
+                        Ok(Err(e)) => {
+                            return HandledProposalPart::Failed(format!(
+                                "Proof verification failed for proof facts hash: \
+                                 {proof_facts_hash:?}: {e}"
+                            ));
+                        }
+                        Ok(Ok(())) => {}
+                    }
+                }
+            }
             debug!(
                 "Converted transactions to internal representation. hashes={:?}",
                 txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>()
