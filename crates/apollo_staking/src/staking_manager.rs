@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -47,6 +47,8 @@ struct CommitteeData {
     committee_members: Arc<Committee>,
     cumulative_weights: Vec<u128>,
     total_weight: u128,
+    // Eligible proposers in canonical committee order (by weight descending).
+    eligible_proposers: Vec<ContractAddress>,
 }
 
 // Holds committee data for the highest known epochs, limited in size by `capacity``.
@@ -168,6 +170,9 @@ impl StakingManager {
             }
         }
 
+        // Update dynamic config to ensure we have the latest stakers config.
+        self.update_dynamic_config().await;
+
         // Otherwise, build the committee from state, and cache the result.
         let committee_data = Arc::new(self.fetch_and_build_committee_data(epoch).await?);
 
@@ -180,7 +185,7 @@ impl StakingManager {
 
     // Queries the state to fetch stakers for the given epoch and builds the full committee data.
     // This includes selecting the committee and preparing cumulative weights for proposer
-    // selection.
+    // selection, as well as calculating eligible proposers.
     async fn fetch_and_build_committee_data(
         &self,
         epoch: u64,
@@ -198,10 +203,13 @@ impl StakingManager {
             .collect();
         let total_weight = *cumulative_weights.last().unwrap_or(&0);
 
+        let eligible_proposers = self.calculate_eligible_proposers(&committee_members, epoch);
+
         Ok(CommitteeData {
             committee_members: Arc::new(committee_members),
             cumulative_weights,
             total_weight,
+            eligible_proposers,
         })
     }
 
@@ -278,13 +286,12 @@ impl StakingManager {
 
     // Filters the committee to only include stakers eligible to propose.
     // Eligibility is determined by the `can_propose` field in the corresponding ConfiguredStaker.
-    // Returns a vector of references to eligible stakers, preserving the committee's deterministic
-    // ordering.
-    fn filter_eligible_proposers<'a>(
+    // Returns a vector of addresses in the committee's canonical order (by weight descending).
+    fn calculate_eligible_proposers(
         &self,
-        committee: &'a Committee,
+        committee: &Committee,
         epoch: u64,
-    ) -> Vec<&'a Staker> {
+    ) -> Vec<ContractAddress> {
         // Find the stakers config for the given epoch
         let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned");
         let config_entry = find_config_for_epoch(&dynamic_config.stakers_config, epoch);
@@ -294,16 +301,18 @@ impl StakingManager {
             return Vec::new();
         };
 
-        // Filter committee members based on can_propose flag.
-        // TODO(Dafna): Consider using ordered set (e.g. BTreeSet) for the committee and the stakers
-        // config.
+        let eligible_stakers: HashSet<ContractAddress> = stakers
+            .iter()
+            .filter(|staker| staker.can_propose)
+            .map(|staker| staker.address)
+            .collect();
+
+        // Iterate over the committee to build the list of eligible proposers, keeping the order
+        // like in the committee.
         committee
             .iter()
-            .filter(|committee_member| {
-                stakers
-                    .iter()
-                    .any(|staker| staker.address == committee_member.address && staker.can_propose)
-            })
+            .filter(|staker| eligible_stakers.contains(&staker.address))
+            .map(|staker| staker.address)
             .collect()
     }
 
@@ -346,8 +355,6 @@ impl CommitteeProvider for StakingManager {
     // The height must be within the bounds of the current epoch, or the next epoch's min bounds
     // (see `MIN_EPOCH_LENGTH`).
     async fn get_committee(&self, height: BlockNumber) -> CommitteeProviderResult<Arc<Committee>> {
-        self.update_dynamic_config().await;
-
         let committee_data = self.committee_data_at_height(height).await?;
         Ok(committee_data.committee_members.clone())
     }
@@ -385,20 +392,19 @@ impl CommitteeProvider for StakingManager {
         height: BlockNumber,
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress> {
-        // Get the committee for the epoch this height belongs to.
+        // Get the committee data for the epoch this height belongs to.
         let committee_data = self.committee_data_at_height(height).await?;
-        let epoch = self.epoch_at_height(height).await?;
 
-        // Filter committee to only include eligible proposers.
-        let eligible_proposers =
-            self.filter_eligible_proposers(&committee_data.committee_members, epoch);
-        assert!(!eligible_proposers.is_empty(), "There should be at least one eligible proposer.");
+        assert!(
+            !committee_data.eligible_proposers.is_empty(),
+            "There should be at least one eligible proposer."
+        );
 
         let height_usize: usize = height.0.try_into().expect("Cannot convert height to usize");
         let round_usize: usize = round.try_into().expect("Cannot convert round to usize");
 
         // Use round-robin selection: (height + round) % eligible_count
-        let i = (height_usize + round_usize) % eligible_proposers.len();
-        Ok(eligible_proposers[i].address)
+        let i = (height_usize + round_usize) % committee_data.eligible_proposers.len();
+        Ok(committee_data.eligible_proposers[i])
     }
 }
