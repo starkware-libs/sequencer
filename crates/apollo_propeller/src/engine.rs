@@ -56,16 +56,12 @@ pub enum EngineOutput {
 }
 
 /// Data associated with a single channel.
-// TODO(AndrewL): remove this once we use all fields.
-#[allow(dead_code)]
 struct ChannelData {
     tree_manager: Arc<PropellerScheduleManager>,
     peer_public_keys: HashMap<PeerId, PublicKey>,
 }
 
 /// The Propeller engine (implements Stream for polling).
-// TODO(AndrewL): remove this once we use all fields.
-#[allow(dead_code)]
 pub struct Engine {
     config: Config,
     channels: HashMap<Channel, ChannelData>,
