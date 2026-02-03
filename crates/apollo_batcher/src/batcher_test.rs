@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -253,6 +253,8 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     mock_config_manager
         .expect_get_batcher_dynamic_config()
         .returning(|| Ok(BatcherDynamicConfig::default()));
+    let contract_class_manager_dynamic_config =
+        Arc::new(RwLock::new(config.dynamic_config.contract_class_manager_config.clone()));
 
     let mut batcher = Batcher::new(
         config,
@@ -267,6 +269,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         Box::new(clients.pre_confirmed_block_writer_factory),
         commitment_manager,
         None,
+        contract_class_manager_dynamic_config,
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;
