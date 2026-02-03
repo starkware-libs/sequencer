@@ -131,7 +131,7 @@ fn test_get_compiled_class_when_native_is_cached() {
     let test_class_hash = test_contract.get_class_hash();
     let contract_manager_config = ContractClassManagerStaticConfig::create_for_testing(true, true);
     let shared_contract_manager_dynamic_config =
-        Arc::new(RwLock::new(ContractClassManagerDynamicConfig::from(&contract_manager_config)));
+        Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default()));
 
     let state_reader = build_reader_and_declare_contract(
         test_contract.into(),

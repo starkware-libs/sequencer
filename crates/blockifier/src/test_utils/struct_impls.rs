@@ -241,12 +241,14 @@ impl CallExecution {
 }
 
 impl ContractClassManager {
-    pub fn create_for_testing(native_config: CairoNativeRunConfig) -> Self {
+    pub fn create_for_testing(
+        native_config: CairoNativeRunConfig,
+        dynamic_config: ContractClassManagerDynamicConfig,
+    ) -> Self {
         let static_config = ContractClassManagerStaticConfig {
             cairo_native_run_config: native_config,
             ..Default::default()
         };
-        let dynamic_config = ContractClassManagerDynamicConfig::from(&static_config);
         ContractClassManager::start(static_config, Arc::new(RwLock::new(dynamic_config)))
     }
 }

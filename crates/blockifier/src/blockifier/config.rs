@@ -164,19 +164,6 @@ impl SerializeConfig for ContractClassManagerDynamicConfig {
     }
 }
 
-// TODO(Arni): Delete this conversion once the field `native_classes_whitelist` is removed from the
-// `CairoNativeRunConfig`.
-impl From<&ContractClassManagerStaticConfig> for ContractClassManagerDynamicConfig {
-    fn from(static_config: &ContractClassManagerStaticConfig) -> Self {
-        Self {
-            native_classes_whitelist: static_config
-                .cairo_native_run_config
-                .native_classes_whitelist
-                .clone(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ContractClassManagerStaticConfig {
     pub cairo_native_run_config: CairoNativeRunConfig,

@@ -23,9 +23,8 @@ fn reexecute_block_for_testing(block_number: u64) {
         contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
         contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
     }
-    let shared_contract_manager_dynamic_config = Arc::new(RwLock::new(
-        ContractClassManagerDynamicConfig::from(&contract_class_manager_config),
-    ));
+    let shared_contract_manager_dynamic_config =
+        Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default()));
     let contract_class_manager = ContractClassManager::start(
         contract_class_manager_config,
         shared_contract_manager_dynamic_config,

@@ -115,9 +115,8 @@ impl PyBlockExecutor {
 
         let contract_class_manager_config =
             ContractClassManagerStaticConfig::from(contract_class_manager_config);
-        let shared_contract_manager_dynamic_config = Arc::new(RwLock::new(
-            ContractClassManagerDynamicConfig::from(&contract_class_manager_config),
-        ));
+        let shared_contract_manager_dynamic_config =
+            Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default()));
 
         Self {
             bouncer_config: bouncer_config.try_into().expect("Failed to parse bouncer config."),
@@ -391,9 +390,8 @@ impl PyBlockExecutor {
 
         let contract_class_manager_config =
             ContractClassManagerStaticConfig::from(contract_class_manager_config);
-        let shared_contract_manager_dynamic_config = Arc::new(RwLock::new(
-            ContractClassManagerDynamicConfig::from(&contract_class_manager_config),
-        ));
+        let shared_contract_manager_dynamic_config =
+            Arc::new(RwLock::new(ContractClassManagerDynamicConfig::default()));
 
         Self {
             bouncer_config: BouncerConfig {
