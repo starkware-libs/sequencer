@@ -2,7 +2,6 @@ from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.builtin_poseidon.poseidon import poseidon_hash_many
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.core.os.block_context import BlockContext, OsGlobalContext
 from starkware.starknet.core.os.block_hash import get_block_hashes
 from starkware.starknet.core.os.output import MessageToL1Header, OsOutput, OsOutputHeader
@@ -103,7 +102,6 @@ func process_os_output{
     assert n_blocks = 1;
     let os_output = os_outputs[0];
 
-    // Serialize the header using memcpy to enforce struct field order.
     let header = os_output.header;
 
     // Hash each message to L1 separately and write hashes to output.
