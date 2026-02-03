@@ -158,42 +158,23 @@ impl RpcStorageProofsProvider {
         Ok(storage_proof)
     }
 
-    /// Converts an RPC storage proof response to OS input format.
-    ///
-    /// # Validation
-    ///
-    /// This function validates that the RPC response arrays match the expected lengths from
-    /// the query, ensuring the RPC provider returned data in the correct order.
-    pub(crate) fn to_storage_proofs(
-        rpc_proof: &RpcStorageProof,
-        query: &RpcStorageProofsQuery,
-    ) -> Result<StorageProofs, ProofProviderError> {
-        // Validate that contract_leaves_data matches contract_addresses length.
-        let leaves_len = rpc_proof.contracts_proof.contract_leaves_data.len();
-        let addresses_len = query.contract_addresses.len();
-        if leaves_len != addresses_len {
-            return Err(ProofProviderError::InvalidProofResponse(format!(
-                "Contract leaves length mismatch: expected {addresses_len} leaves for requested \
-                 contracts, got {leaves_len}"
-            )));
-        }
-
-        let mut contract_leaf_state = StateMaps::default();
-        let commitment_infos = Self::build_commitment_infos(rpc_proof, query)?;
-
-        // Update contract_leaf_state with class hashes and nonces from the proof.
-        // We've validated the lengths match, so this zip is safe.
-        for (leaf, addr) in
-            rpc_proof.contracts_proof.contract_leaves_data.iter().zip(&query.contract_addresses)
-        {
-            contract_leaf_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
-            contract_leaf_state.nonces.insert(*addr, Nonce(leaf.nonce));
-        }
-
-        Ok(StorageProofs { contract_leaf_state, commitment_infos })
+    /// Creates commitment infos from RPC storage proof and state changes.
+    /// This function runs the committer to compute new state roots based on the execution data,
+    /// then generates commitment infos using the facts stored in the committer's storage.
+    pub(crate) async fn create_commitment_infos_with_state_changes(
+        _rpc_proof: &RpcStorageProof,
+        _query: &RpcStorageProofsQuery,
+        _execution_data: &VirtualBlockExecutionData,
+    ) -> Result<StateCommitmentInfos, ProofProviderError> {
+        unimplemented!("Will be implemented in the following PRs")
     }
 
-    fn build_commitment_infos(
+    /// Creates commitment infos from RPC storage proof without state changes.
+    ///
+    /// This function assumes that the new state roots equal the previous state roots.
+    /// It sets `updated_root` equal to `previous_root` for all commitment infos (contracts,
+    /// classes, and storage tries).
+    fn create_commitment_infos_without_state_changes(
         rpc_proof: &RpcStorageProof,
         query: &RpcStorageProofsQuery,
     ) -> Result<StateCommitmentInfos, ProofProviderError> {
@@ -320,12 +301,40 @@ impl StorageProofProvider for RpcStorageProofsProvider {
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
-        _config: &StorageProofConfig,
+        config: &StorageProofConfig,
     ) -> Result<StorageProofs, ProofProviderError> {
         let query = Self::prepare_query(execution_data);
 
         let rpc_proof = self.fetch_proofs(block_number, &query).await?;
 
-        Self::to_storage_proofs(&rpc_proof, &query)
+        // Validate that contract_leaves_data matches contract_addresses length.
+        let leaves_len = rpc_proof.contracts_proof.contract_leaves_data.len();
+        let addresses_len = query.contract_addresses.len();
+        if leaves_len != addresses_len {
+            return Err(ProofProviderError::InvalidProofResponse(format!(
+                "Contract leaves length mismatch: expected {addresses_len} leaves for requested \
+                 contracts, got {leaves_len}"
+            )));
+        }
+
+        // Update proof_state with class hashes and nonces from the proof.
+        // We've validated the lengths match, so this zip is safe.
+        let mut contract_leaf_state = StateMaps::default();
+        for (leaf, addr) in
+            rpc_proof.contracts_proof.contract_leaves_data.iter().zip(&query.contract_addresses)
+        {
+            contract_leaf_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
+            contract_leaf_state.nonces.insert(*addr, Nonce(leaf.nonce));
+        }
+
+        let commitment_infos = match config.include_state_changes {
+            true => {
+                Self::create_commitment_infos_with_state_changes(&rpc_proof, &query, execution_data)
+                    .await?
+            }
+            false => Self::create_commitment_infos_without_state_changes(&rpc_proof, &query)?,
+        };
+
+        Ok(StorageProofs { contract_leaf_state, commitment_infos })
     }
 }
