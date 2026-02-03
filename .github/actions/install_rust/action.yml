@@ -15,7 +15,6 @@ runs:
     - name: Mount Namespace cache volume
       uses: namespacelabs/nscloud-cache-action@v1
       with:
-        cache: rust
         path: /home/runner/.cargo
 
     - uses: moonrepo/setup-rust@v1
