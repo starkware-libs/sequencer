@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::num::NonZeroUsize;
+use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -74,7 +75,7 @@ impl Storage for MapStorage {
 /// Getter methods are not cached.
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
-    pub cache: LruCache<DbKey, Option<DbValue>>,
+    pub cache: Arc<LruCache<DbKey, Option<DbValue>>>,
     pub cache_on_write: bool,
     writes: u128,
     include_inner_stats: bool,
@@ -200,7 +201,7 @@ impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig<S::Config>) -> Self {
         Self {
             storage,
-            cache: LruCache::new(config.cache_size),
+            cache: Arc::new(LruCache::new(config.cache_size)),
             cache_on_write: config.cache_on_write,
             writes: 0,
             include_inner_stats: config.include_inner_stats,
@@ -209,7 +210,9 @@ impl<S: Storage> CachedStorage<S> {
 
     fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
         if self.cache_on_write || self.cache.contains(key) {
-            self.cache.put(key.clone(), Some(value.clone()));
+            Arc::get_mut(&mut self.cache)
+                .expect("Failed to get mutable reference to cache.")
+                .put(key.clone(), Some(value.clone()));
         }
     }
 
@@ -270,7 +273,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.cache.pop(key);
+        Arc::get_mut(&mut self.cache).expect("Failed to get mutable reference to cache.").pop(key);
         self.storage.delete(key).await
     }
 
