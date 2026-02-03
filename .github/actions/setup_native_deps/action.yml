@@ -13,4 +13,5 @@ runs:
       id: set-runtime-deps
       shell: bash
       run: |
+        echo "Running dependencies.sh"
         sudo ./scripts/dependencies.sh
