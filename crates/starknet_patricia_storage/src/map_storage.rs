@@ -72,7 +72,7 @@ impl Storage for MapStorage {
 }
 
 /// A storage wrapper that adds an LRU cache to an underlying storage.
-/// Only getter methods are cached.
+/// Getter methods are not cached.
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
@@ -229,13 +229,12 @@ impl<S: Storage> Storage for CachedStorage<S> {
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         self.reads.fetch_add(1, Ordering::Relaxed);
-        if let Some(cached_value) = self.cache.get(key) {
+        if let Some(cached_value) = self.cache.peek(key) {
             self.cached_reads.fetch_add(1, Ordering::Relaxed);
             return Ok(cached_value.clone());
         }
 
         let storage_value = self.storage.get(key).await?;
-        self.cache.put(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
 
@@ -252,7 +251,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
         let mut indices_to_fetch = Vec::new();
 
         for (index, key) in keys.iter().enumerate() {
-            if let Some(cached_value) = self.cache.get(key) {
+            if let Some(cached_value) = self.cache.peek(key) {
                 values[index] = cached_value.clone();
             } else {
                 keys_to_fetch.push(*key);
@@ -267,12 +266,9 @@ impl<S: Storage> Storage for CachedStorage<S> {
         self.cached_reads.fetch_add(cached_reads, Ordering::Relaxed);
 
         let fetched_values = self.storage.mget(keys_to_fetch.as_slice()).await?;
-        indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
-            |((index, key), value)| {
-                self.cache.put((*key).clone(), value.clone());
-                values[*index] = value;
-            },
-        );
+        indices_to_fetch.iter().zip(fetched_values).for_each(|(index, value)| {
+            values[*index] = value;
+        });
 
         Ok(values)
     }
