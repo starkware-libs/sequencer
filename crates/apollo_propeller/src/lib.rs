@@ -23,6 +23,8 @@ pub mod unit_validator;
 #[cfg(test)]
 mod merkle_test;
 #[cfg(test)]
+mod message_processor_test;
+#[cfg(test)]
 mod padding_test;
 #[cfg(test)]
 mod reed_solomon_test;
