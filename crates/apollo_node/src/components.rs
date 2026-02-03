@@ -87,6 +87,9 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
             let pre_confirmed_cende_client = Arc::new(PreconfirmedCendeClient::new(
                 batcher_config.static_config.pre_confirmed_cende_config.clone(),
             ));
@@ -97,6 +100,7 @@ pub async fn create_node_components(
                     mempool_client,
                     l1_provider_client,
                     class_manager_client,
+                    config_manager_client,
                     pre_confirmed_cende_client,
                 )
                 .await,

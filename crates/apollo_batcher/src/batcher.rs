@@ -28,6 +28,7 @@ use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
@@ -134,6 +135,7 @@ pub struct Batcher {
     pub storage_reader: Arc<dyn BatcherStorageReader>,
     pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub committer_client: SharedCommitterClient,
+    pub config_manager_client: SharedConfigManagerClient,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
@@ -189,6 +191,7 @@ impl Batcher {
         storage_reader: Arc<dyn BatcherStorageReader>,
         storage_writer: Box<dyn BatcherStorageWriter>,
         committer_client: SharedCommitterClient,
+        config_manager_client: SharedConfigManagerClient,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
@@ -202,6 +205,7 @@ impl Batcher {
             storage_reader,
             storage_writer,
             committer_client,
+            config_manager_client,
             l1_provider_client,
             mempool_client,
             transaction_converter,
@@ -219,6 +223,15 @@ impl Batcher {
             commitment_manager,
             storage_reader_server_handle,
         }
+    }
+
+    pub(crate) async fn update_dynamic_config(&mut self) {
+        let batcher_dynamic_config = self
+            .config_manager_client
+            .get_batcher_dynamic_config()
+            .await
+            .expect("Should be able to get batcher dynamic config");
+        self.config.dynamic_config = batcher_dynamic_config;
     }
 
     #[instrument(skip(self), err)]
@@ -483,8 +496,7 @@ impl Batcher {
     }
 
     /// Clear all the proposals from the previous height.
-    #[cfg_attr(any(test, feature = "testing"), apollo_proc_macros::make_visibility(pub))]
-    async fn abort_active_height(&mut self) {
+    pub(crate) async fn abort_active_height(&mut self) {
         self.abort_active_proposal().await;
         self.executed_proposals.lock().await.clear();
         self.propose_tx_streams.clear();
@@ -1315,6 +1327,7 @@ pub async fn create_batcher(
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
+    config_manager_client: SharedConfigManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
 ) -> Batcher {
     let (storage_reader, storage_writer, storage_reader_server) =
@@ -1363,6 +1376,7 @@ pub async fn create_batcher(
         storage_reader,
         storage_writer,
         committer_client,
+        config_manager_client,
         l1_provider_client,
         mempool_client,
         transaction_converter,

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use apollo_batcher_config::config::{
     BatcherConfig,
+    BatcherDynamicConfig,
     BatcherStaticConfig,
     FirstBlockWithPartialBlockHash,
 };
@@ -12,6 +13,7 @@ use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClie
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
@@ -242,6 +244,7 @@ pub(crate) struct MockDependencies {
 
 pub(crate) struct MockClients {
     pub(crate) committer_client: MockCommitterClientWithOffset,
+    pub(crate) config_manager_client: MockConfigManagerClient,
     pub(crate) mempool_client: MockMempoolClient,
     pub(crate) l1_provider_client: MockL1ProviderClient,
     pub(crate) block_builder_factory: MockBlockBuilderFactoryTrait,
@@ -283,8 +286,14 @@ impl Default for MockClients {
         let committer_client =
             MockCommitterClientWithOffset::new(committer_client_inner, Some(INITIAL_HEIGHT));
 
+        let mut config_manager_client = MockConfigManagerClient::new();
+        config_manager_client
+            .expect_get_batcher_dynamic_config()
+            .returning(|| Ok(BatcherDynamicConfig::default()));
+
         Self {
             committer_client,
+            config_manager_client,
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
             block_builder_factory,

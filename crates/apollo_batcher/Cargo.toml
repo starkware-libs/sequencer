@@ -16,6 +16,7 @@ workspace = true
 [dependencies]
 apollo_batcher_config.workspace = true
 apollo_batcher_types.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_committer_types.workspace = true
 apollo_infra.workspace = true
@@ -48,6 +49,7 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_committer_types = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }
