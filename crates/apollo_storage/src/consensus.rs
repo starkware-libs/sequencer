@@ -67,20 +67,20 @@ where
 
 impl<Mode: TransactionKind> ConsensusStorageReader for StorageTxn<'_, Mode> {
     fn get_last_voted_marker(&self) -> StorageResult<Option<LastVotedMarker>> {
-        let table = self.open_table(&self.tables.last_voted_marker)?;
+        let table = self.open_table(&self.tables().last_voted_marker)?;
         Ok(table.get(self.txn(), &())?)
     }
 }
 
 impl ConsensusStorageWriter for StorageTxn<'_, RW> {
     fn set_last_voted_marker(self, last_voted_marker: &LastVotedMarker) -> StorageResult<Self> {
-        let table = self.open_table(&self.tables.last_voted_marker)?;
+        let table = self.open_table(&self.tables().last_voted_marker)?;
         table.upsert(self.txn(), &(), last_voted_marker)?;
         Ok(self)
     }
 
     fn clear_last_voted_marker(self) -> StorageResult<Self> {
-        let table = self.open_table(&self.tables.last_voted_marker)?;
+        let table = self.open_table(&self.tables().last_voted_marker)?;
         table.delete(self.txn(), &())?;
         Ok(self)
     }

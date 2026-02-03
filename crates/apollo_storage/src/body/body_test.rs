@@ -395,9 +395,9 @@ fn update_offset_table() {
     writer.begin_rw_txn().unwrap().append_body(BlockNumber(0), body).unwrap().commit().unwrap();
 
     let txn = reader.begin_ro_txn().unwrap();
-    let file_offset_table = txn.txn().open_table(&txn.tables.file_offsets).unwrap();
+    let file_offset_table = txn.txn().open_table(&txn.tables().file_offsets).unwrap();
     let transaction_metadata_table =
-        txn.txn().open_table(&txn.tables.transaction_metadata).unwrap();
+        txn.txn().open_table(&txn.tables().transaction_metadata).unwrap();
     let last_tx_metadata = transaction_metadata_table
         .get(txn.txn(), &TransactionIndex(BlockNumber(0), TransactionOffsetInBlock(2)))
         .unwrap()
