@@ -196,10 +196,6 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
             .as_ref()
             .ok_or(VirtualBlockExecutorError::StateUnavailable)?
             .get_initial_reads()
-            .map(|mut initial_reads| {
-                initial_reads.declared_contracts.clear();
-                initial_reads
-            })
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
 
         let executed_class_hashes = transaction_executor

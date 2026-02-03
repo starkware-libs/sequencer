@@ -68,7 +68,7 @@ impl VirtualOsOutput {
     }
 }
 
-/// Computes the Poseidon hash of each message to L1 separately.
+/// Computes the hash of each message to L1 separately.
 /// Each message is serialized as: [from_address, to_address, payload_size, ...payload]
 /// Returns an array of hashes, one per message.
 pub fn compute_messages_to_l1_hashes(messages: &[MessageToL1]) -> Vec<StarkHash> {
