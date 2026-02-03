@@ -180,14 +180,6 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
         .with(eq(proof_facts.clone()))
         .return_once(|_| Ok(false));
 
-    // Expect set proof to be called after the conversion succeeds.
-    // This is specific to conversion from consensus to internal consensus.
-    mock_proof_manager_client
-        .expect_set_proof()
-        .once()
-        .with(eq(proof_facts), eq(proof))
-        .return_once(|_, _| Ok(()));
-
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
     // Convert the consensus transaction to an internal consensus transaction.

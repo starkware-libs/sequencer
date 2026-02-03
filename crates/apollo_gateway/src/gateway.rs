@@ -197,19 +197,23 @@ impl<
 
         if let Some((proof_facts, proof)) = proof_data {
             let tx_hash = internal_tx.tx_hash;
-            let proof_manager_client = self.transaction_converter.get_proof_manager_client();
-            let proof_manager_store_start = Instant::now();
             // Proof is verified during conversion to internal tx. It is stored here, after
             // validation, to avoid storing proofs for rejected transactions.
-            if let Err(e) = proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await
+            match self
+                .transaction_converter
+                .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
+                .await
             {
-                error!("Failed to set proof in proof manager: {}", e);
+                Ok(proof_manager_store_duration) => {
+                    info!(
+                        "Proof manager store in the gateway took: \
+                         {proof_manager_store_duration:?} for tx hash: {tx_hash:?}"
+                    );
+                }
+                Err(e) => {
+                    error!("Failed to set proof in proof manager: {}", e);
+                }
             }
-            let proof_manager_store_duration = proof_manager_store_start.elapsed();
-            info!(
-                "Proof manager store took: {proof_manager_store_duration:?} for tx hash: \
-                 {tx_hash:?}"
-            );
             let proof_archive_writer_start = Instant::now();
             let proof_archive_writer = self.proof_archive_writer.clone();
             tokio::spawn(async move {
