@@ -50,6 +50,7 @@ pub enum DropReason {
     Evicted,
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 pub(crate) fn metric_count_expired_txs(n_txs: usize) {
     MEMPOOL_TRANSACTIONS_DROPPED.increment(
         n_txs.try_into().expect("The number of expired_txs should fit u64"),
@@ -57,6 +58,7 @@ pub(crate) fn metric_count_expired_txs(n_txs: usize) {
     );
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 pub(crate) fn metric_count_rejected_txs(n_txs: usize) {
     MEMPOOL_TRANSACTIONS_DROPPED.increment(
         n_txs.try_into().expect("The number of rejected_txs should fit u64"),
@@ -64,6 +66,7 @@ pub(crate) fn metric_count_rejected_txs(n_txs: usize) {
     );
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 pub(crate) fn metric_count_evicted_txs(n_txs: usize) {
     MEMPOOL_TRANSACTIONS_DROPPED.increment(
         n_txs.try_into().expect("The number of evicted_txs should fit u64"),
@@ -71,11 +74,13 @@ pub(crate) fn metric_count_evicted_txs(n_txs: usize) {
     );
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 pub(crate) fn metric_count_committed_txs(committed_txs: usize) {
     MEMPOOL_TRANSACTIONS_COMMITTED
         .increment(committed_txs.try_into().expect("The number of committed_txs should fit u64"));
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 pub(crate) fn metric_set_get_txs_size(size: usize) {
     MEMPOOL_GET_TXS_SIZE.set_lossy(size);
 }
