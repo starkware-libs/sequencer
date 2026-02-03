@@ -15,7 +15,11 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerStaticConfig,
 };
 use apollo_storage::{StorageConfig, StorageScope};
-use blockifier::blockifier::config::{ContractClassManagerStaticConfig, WorkerPoolConfig};
+use blockifier::blockifier::config::{
+    ContractClassManagerDynamicConfig,
+    ContractClassManagerStaticConfig,
+    WorkerPoolConfig,
+};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
@@ -336,15 +340,22 @@ impl Default for BatcherStaticConfig {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct BatcherDynamicConfig {
+    pub contract_class_manager_config: ContractClassManagerDynamicConfig,
     pub storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
 }
 
 impl SerializeConfig for BatcherDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(
+        let mut dump = BTreeMap::from([]);
+        dump.append(&mut prepend_sub_config_name(
+            self.contract_class_manager_config.dump(),
+            "contract_class_manager_config",
+        ));
+        dump.append(&mut prepend_sub_config_name(
             self.storage_reader_server_dynamic_config.dump(),
             "storage_reader_server_dynamic_config",
-        )
+        ));
+        dump
     }
 }
 
