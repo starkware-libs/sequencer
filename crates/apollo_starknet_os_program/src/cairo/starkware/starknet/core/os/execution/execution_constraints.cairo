@@ -60,7 +60,6 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     // Not all block hashes are stored in the contract; Make sure the requested one is not trivial.
     assert_not_zero(os_output_header.base_block_hash);
 
-    // TODO(Meshi): add a better way to debug this failure.
     // validate that the proof facts block hash is the true hash of the proof facts block number.
     read_block_hash_from_storage(
         block_number=os_output_header.base_block_number,
