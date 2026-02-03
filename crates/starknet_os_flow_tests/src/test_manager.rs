@@ -89,8 +89,8 @@ use crate::utils::{
 /// are added to the initial state construction before the STRK fee token is deployed, the address
 /// must be updated.
 pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![[r#"
-        0x1a465ff487205d561821685efff4903cb07d69f014b1688a560f8c6380cd025
-    "#]];
+    0x687666789bd19af15e37d7231ebd954753697de62be963cac54587a25656c02
+"#]];
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress(
         PatriciaKey::try_from(Felt::from_hex_unchecked(
