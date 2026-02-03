@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use apollo_batcher::batcher::{create_batcher, Batcher};
+use apollo_batcher::batcher::create_batcher;
+use apollo_batcher::communication::BatcherCommunicationWrapper;
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
@@ -41,7 +42,7 @@ use tracing::info;
 use crate::clients::SequencerNodeClients;
 
 pub struct SequencerNodeComponents {
-    pub batcher: Option<Batcher>,
+    pub batcher: Option<BatcherCommunicationWrapper>,
     pub class_manager: Option<ClassManager>,
     pub committer: Option<ApolloCommitter>,
     pub config_manager: Option<ConfigManager>,
@@ -87,20 +88,22 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
             let pre_confirmed_cende_client = Arc::new(PreconfirmedCendeClient::new(
                 batcher_config.static_config.pre_confirmed_cende_config.clone(),
             ));
-            Some(
-                create_batcher(
-                    batcher_config.clone(),
-                    committer_client,
-                    mempool_client,
-                    l1_provider_client,
-                    class_manager_client,
-                    pre_confirmed_cende_client,
-                )
-                .await,
+            let batcher = create_batcher(
+                batcher_config.clone(),
+                committer_client,
+                mempool_client,
+                l1_provider_client,
+                class_manager_client,
+                pre_confirmed_cende_client,
             )
+            .await;
+            Some(BatcherCommunicationWrapper::new(batcher, config_manager_client))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
@@ -299,6 +302,7 @@ pub async fn create_node_components(
                         "L1 provider's dummy mode initialization requires the batcher to be set \
                          up in order to align to its height",
                     )
+                    .batcher()
                     .get_height()
                     .await
                     .unwrap()

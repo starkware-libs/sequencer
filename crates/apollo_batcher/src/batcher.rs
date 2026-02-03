@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherDynamicConfig,
+    FirstBlockWithPartialBlockHash,
+};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -1251,6 +1255,11 @@ impl Batcher {
             })?
             .ok_or(BatcherError::BlockHashNotFound(block_number))
     }
+
+    pub(crate) fn update_dynamic_config(&mut self, batcher_dynamic_config: BatcherDynamicConfig) {
+        self.config.dynamic_config = batcher_dynamic_config;
+    }
+
     async fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
