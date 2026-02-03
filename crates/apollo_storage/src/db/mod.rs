@@ -252,6 +252,7 @@ pub(crate) struct DbReader {
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub(crate) struct DbWriter {
     env: Arc<Environment>,
 }
