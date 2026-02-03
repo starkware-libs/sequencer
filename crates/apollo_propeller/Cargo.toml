@@ -29,6 +29,9 @@ tracing.workspace = true
 unsigned-varint.workspace = true
 
 [dev-dependencies]
+apollo_infra.workspace = true
+libp2p = { workspace = true, features = ["plaintext", "quic", "tcp", "tokio", "yamux"] }
+libp2p-swarm-test.workspace = true
 rstest.workspace = true
 tokio-test.workspace = true
 
