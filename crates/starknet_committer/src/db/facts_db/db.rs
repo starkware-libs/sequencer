@@ -79,9 +79,7 @@ impl DbLayout for FactsNodeLayout {
 }
 
 pub struct FactsDb<S: Storage> {
-    // TODO(Yoav): Define StorageStats trait and impl it here. Then, make the storage field
-    // private.
-    pub storage: S,
+    storage: S,
 }
 
 impl<S: Storage> StorageInitializer for FactsDb<S> {
