@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::fs::File;
-use std::sync::{Arc, LazyLock};
+use std::sync::{Arc, LazyLock, RwLock};
 
 use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
@@ -572,12 +572,16 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
+    let shared_contract_class_manager_dynamic_config = Arc::new(RwLock::new(
+        mock_dependencies.config.dynamic_config.contract_class_manager_config.clone(),
+    ));
     let gateway = Gateway {
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
+        shared_contract_class_manager_dynamic_config,
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
@@ -624,12 +628,16 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
 
     let tx_args = invoke_args();
     setup_transaction_converter_mock(&mut mock_dependencies.mock_transaction_converter, &tx_args);
+    let shared_contract_class_manager_dynamic_config = Arc::new(RwLock::new(
+        mock_dependencies.config.dynamic_config.contract_class_manager_config.clone(),
+    ));
     let gateway = Gateway {
         config: Arc::new(mock_dependencies.config),
         stateless_tx_validator: Arc::new(mock_dependencies.mock_stateless_transaction_validator),
         stateful_tx_validator_factory: Arc::new(mock_stateful_transaction_validator_factory),
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
+        shared_contract_class_manager_dynamic_config,
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;

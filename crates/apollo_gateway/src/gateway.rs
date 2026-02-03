@@ -25,7 +25,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
-use blockifier::blockifier::config::ContractClassManagerDynamicConfig;
+use blockifier::blockifier::config::SharedContractClassManagerDynamicConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
@@ -65,6 +65,11 @@ pub struct Gateway {
     pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
+
+    /// Dynamic config for the contract class manager. The pointer is held here to allow for
+    /// dynamic updates.
+    pub(crate) shared_contract_class_manager_dynamic_config:
+        SharedContractClassManagerDynamicConfig,
 }
 
 impl Gateway {
@@ -75,6 +80,9 @@ impl Gateway {
         transaction_converter: Arc<dyn TransactionConverterTrait>,
         stateless_tx_validator: Arc<dyn StatelessTransactionValidatorTrait>,
     ) -> Self {
+        let shared_contract_class_manager_dynamic_config =
+            Arc::new(RwLock::new(config.dynamic_config.contract_class_manager_config.clone()));
+
         Self {
             config: Arc::new(config.clone()),
             stateless_tx_validator,
@@ -84,13 +92,12 @@ impl Gateway {
                 state_reader_factory,
                 contract_class_manager: ContractClassManager::start(
                     config.static_config.contract_class_manager_config.clone(),
-                    Arc::new(RwLock::new(ContractClassManagerDynamicConfig::from(
-                        &config.static_config.contract_class_manager_config,
-                    ))),
+                    shared_contract_class_manager_dynamic_config.clone(),
                 ),
             }),
             mempool_client,
             transaction_converter,
+            shared_contract_class_manager_dynamic_config,
         }
     }
 
@@ -98,6 +105,12 @@ impl Gateway {
         let mut updated_config = (*self.config).clone();
         updated_config.dynamic_config = gateway_dynamic_config;
         self.config = Arc::new(updated_config);
+        *self
+            .shared_contract_class_manager_dynamic_config
+            .write()
+            // TODO(Arni): handle this error gracefully.
+            .expect("Failed to acquire write lock on contract class manager dynamic config") =
+            self.config.dynamic_config.contract_class_manager_config.clone();
     }
 
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
