@@ -17,6 +17,7 @@ pub mod transaction_queue_test_utils;
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
 #[derive(Debug, Default)]
+#[allow(dead_code)] // Unused in naive mempool implementation
 pub struct TransactionQueue {
     gas_price_threshold: GasPrice,
     // Transactions with gas price above gas price threshold (sorted by tip).
@@ -27,6 +28,7 @@ pub struct TransactionQueue {
     address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
@@ -169,6 +171,7 @@ impl TransactionQueue {
 }
 
 /// Encapsulates a transaction reference to assess its order (i.e., gas price).
+#[allow(dead_code)] // Unused in naive mempool implementation
 #[derive(Clone, Copy, Debug, derive_more::Deref, derive_more::From)]
 struct PendingTransaction(pub TransactionReference);
 
@@ -201,6 +204,7 @@ impl PartialOrd for PendingTransaction {
 
 /// This struct behaves similarly to `PendingTransaction`, encapsulating a transaction reference
 /// to assess its order (i.e., tip); see its documentation for more details.
+#[allow(dead_code)] // Unused in naive mempool implementation
 #[derive(Clone, Copy, Debug, derive_more::Deref, derive_more::From)]
 struct PriorityTransaction(pub TransactionReference);
 

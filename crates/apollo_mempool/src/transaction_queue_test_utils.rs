@@ -5,6 +5,7 @@ use starknet_api::block::GasPrice;
 use crate::mempool::TransactionReference;
 use crate::transaction_queue::{PendingTransaction, PriorityTransaction, TransactionQueue};
 
+#[allow(dead_code)] // Unused in naive mempool implementation
 impl TransactionQueue {
     pub fn new(
         priority_queue: Vec<TransactionReference>,
