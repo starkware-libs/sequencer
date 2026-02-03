@@ -21,6 +21,7 @@ testing = [
 [dependencies]
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_gateway_config.workspace = true
 apollo_gateway_types.workspace = true
 apollo_infra.workspace = true

@@ -6,7 +6,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_gateway_config::config::GatewayConfig;
+use apollo_gateway_config::config::{GatewayConfig, GatewayDynamicConfig};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -92,6 +92,12 @@ impl Gateway {
             mempool_client,
             transaction_converter,
         }
+    }
+
+    pub(crate) fn update_dynamic_config(&mut self, gateway_dynamic_config: GatewayDynamicConfig) {
+        let mut updated_config = (*self.config).clone();
+        updated_config.dynamic_config = gateway_dynamic_config;
+        self.config = Arc::new(updated_config);
     }
 
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]

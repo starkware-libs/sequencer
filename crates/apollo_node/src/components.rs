@@ -9,7 +9,8 @@ use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
 use apollo_consensus_manager::consensus_manager::{ConsensusManager, ConsensusManagerArgs};
-use apollo_gateway::gateway::{create_gateway, Gateway};
+use apollo_gateway::communication::GatewayCommunicationWrapper;
+use apollo_gateway::gateway::create_gateway;
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
@@ -47,7 +48,7 @@ pub struct SequencerNodeComponents {
     pub config_manager: Option<ConfigManager>,
     pub config_manager_runner: Option<ConfigManagerRunner>,
     pub consensus_manager: Option<ConsensusManager>,
-    pub gateway: Option<Gateway>,
+    pub gateway: Option<GatewayCommunicationWrapper>,
     pub http_server: Option<HttpServer>,
     pub l1_scraper: Option<L1Scraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
     pub l1_provider: Option<L1Provider>,
@@ -214,13 +215,17 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
-            Some(create_gateway(
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
+            let gateway = create_gateway(
                 gateway_config.clone(),
                 state_sync_client,
                 mempool_client,
                 class_manager_client,
                 tokio::runtime::Handle::current(),
-            ))
+            );
+            Some(GatewayCommunicationWrapper::new(gateway, config_manager_client))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
