@@ -9,6 +9,7 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
@@ -26,7 +27,7 @@ use url::Url;
 
 use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
-use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofProvider};
+use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig, StorageProofProvider};
 use crate::virtual_block_executor::{
     RpcVirtualBlockExecutor,
     VirtualBlockExecutionData,
@@ -105,14 +106,20 @@ impl From<VirtualOsBlockInput> for OsHints {
     }
 }
 
+// ================================================================================================
+// Runner
+// ================================================================================================
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct RunnerConfig {
+    /// Configuration for storage proof provider.
+    pub(crate) storage_proof_config: StorageProofConfig,
+}
+
 pub(crate) struct RunnerOutput {
     pub cairo_pie: CairoPie,
     pub l2_to_l1_messages: Vec<MessageToL1>,
 }
-
-// ================================================================================================
-// Runner
-// ================================================================================================
 
 /// Generic runner for executing transactions and generating OS input.
 ///
@@ -130,6 +137,7 @@ where
     pub(crate) classes_provider: C,
     pub(crate) storage_proofs_provider: S,
     pub(crate) virtual_block_executor: V,
+    pub(crate) config: RunnerConfig,
     pub(crate) contract_class_manager: ContractClassManager,
     pub(crate) block_id: BlockId,
 }
@@ -145,6 +153,7 @@ where
         classes_provider: C,
         storage_proofs_provider: S,
         virtual_block_executor: V,
+        config: RunnerConfig,
         contract_class_manager: ContractClassManager,
         block_id: BlockId,
     ) -> Self {
@@ -152,6 +161,7 @@ where
             classes_provider,
             storage_proofs_provider,
             virtual_block_executor,
+            config,
             contract_class_manager,
             block_id,
         }
@@ -165,6 +175,7 @@ where
         execution_data: VirtualBlockExecutionData,
         classes_provider: &C,
         storage_proofs_provider: &S,
+        storage_proof_config: &StorageProofConfig,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
         let mut execution_data = execution_data;
@@ -182,7 +193,11 @@ where
         // Fetch classes and storage proofs in parallel.
         let (classes, storage_proofs) = tokio::join!(
             classes_provider.get_classes(&execution_data.executed_class_hashes),
-            storage_proofs_provider.get_storage_proofs(block_number, &execution_data)
+            storage_proofs_provider.get_storage_proofs(
+                block_number,
+                &execution_data,
+                storage_proof_config
+            )
         );
         let classes = classes?;
         let storage_proofs = storage_proofs?;
@@ -191,8 +206,8 @@ where
         let tx_execution_infos =
             execution_data.execution_outputs.into_iter().map(|output| output.0.into()).collect();
 
-        // Merge initial_reads with proof_state.
-        execution_data.initial_reads.extend(&storage_proofs.proof_state);
+        // Merge initial_reads with contract_leaf_state.
+        execution_data.initial_reads.extend(&storage_proofs.contract_leaf_state);
 
         // Add class hash to compiled class hash mappings from the classes provider.
         execution_data
@@ -246,6 +261,7 @@ where
             classes_provider,
             storage_proofs_provider,
             virtual_block_executor,
+            config,
             contract_class_manager,
             block_id,
         } = self;
@@ -269,6 +285,7 @@ where
             execution_data,
             &classes_provider,
             &storage_proofs_provider,
+            &config.storage_proof_config,
             txs_for_hints,
         )
         .await?;
@@ -343,6 +360,8 @@ pub(crate) struct RpcRunnerFactory {
     chain_id: ChainId,
     /// Contract class manager for caching compiled classes.
     contract_class_manager: ContractClassManager,
+    /// Configuration for the runner.
+    runner_config: RunnerConfig,
 }
 
 impl RpcRunnerFactory {
@@ -351,8 +370,9 @@ impl RpcRunnerFactory {
         node_url: Url,
         chain_id: ChainId,
         contract_class_manager: ContractClassManager,
+        runner_config: RunnerConfig,
     ) -> Self {
-        Self { node_url, chain_id, contract_class_manager }
+        Self { node_url, chain_id, contract_class_manager, runner_config }
     }
 
     /// Creates a runner configured for the given block ID.
@@ -385,6 +405,7 @@ impl RpcRunnerFactory {
             state_reader_and_contract_manager,
             storage_proofs_provider,
             virtual_block_executor,
+            self.runner_config.clone(),
             self.contract_class_manager.clone(),
             block_id,
         )

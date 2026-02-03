@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
@@ -24,6 +25,22 @@ use starknet_rust_core::types::{
 use crate::errors::ProofProviderError;
 use crate::virtual_block_executor::VirtualBlockExecutionData;
 
+/// Configuration for storage proof provider behavior.
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct StorageProofConfig {
+    /// Whether to include state changes in the storage proofs.
+    ///
+    /// When `true`, the provider tracks state modifications and provides proofs for both the
+    /// pre-execution and post-execution state roots, enabling verification of state
+    /// transitions.
+    ///
+    /// When `false`, the provider only provides proofs for the initial state and assumes
+    /// no state changes occur. This mode is suitable for read-only operations or when
+    /// state verification is not required.
+    #[allow(dead_code)]
+    pub(crate) include_state_changes: bool,
+}
+
 /// Provides Patricia Merkle proofs for the initial state used in transaction execution.
 ///
 /// This trait abstracts the retrieval of storage proofs, which are essential for OS input
@@ -31,7 +48,7 @@ use crate::virtual_block_executor::VirtualBlockExecutionData;
 /// execution) are consistent with the global state commitment (Patricia root).
 ///
 /// The returned `StorageProofs` contains:
-/// - `proof_state`: The ambient state values (nonces, class hashes) discovered in the proof.
+/// - `contract_leaf_state`: Nonces and class hashes extracted from contract leaves.
 /// - `commitment_infos`: The Patricia Merkle proof nodes for contracts, classes, and storage tries.
 #[async_trait]
 #[allow(dead_code)]
@@ -40,6 +57,7 @@ pub(crate) trait StorageProofProvider {
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
+        config: &StorageProofConfig,
     ) -> Result<StorageProofs, ProofProviderError>;
 }
 
@@ -54,10 +72,9 @@ pub(crate) struct RpcStorageProofsQuery {
 /// Complete OS input data built from RPC proofs.
 #[allow(dead_code)]
 pub(crate) struct StorageProofs {
-    /// State information discovered in the Patricia proof (nonces, class hashes)
-    /// that might not have been explicitly read during transaction execution.
-    /// This data is required by the OS to verify the contract state leaves.
-    pub(crate) proof_state: StateMaps,
+    /// Nonces and class hashes extracted from contract leaves in the Patricia trie.
+    /// Required by the OS to verify contract state.
+    pub(crate) contract_leaf_state: StateMaps,
     pub(crate) commitment_infos: StateCommitmentInfos,
 }
 
@@ -161,19 +178,19 @@ impl RpcStorageProofsProvider {
             )));
         }
 
-        let mut proof_state = StateMaps::default();
+        let mut contract_leaf_state = StateMaps::default();
         let commitment_infos = Self::build_commitment_infos(rpc_proof, query)?;
 
-        // Update proof_state with class hashes and nonces from the proof.
+        // Update contract_leaf_state with class hashes and nonces from the proof.
         // We've validated the lengths match, so this zip is safe.
         for (leaf, addr) in
             rpc_proof.contracts_proof.contract_leaves_data.iter().zip(&query.contract_addresses)
         {
-            proof_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
-            proof_state.nonces.insert(*addr, Nonce(leaf.nonce));
+            contract_leaf_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
+            contract_leaf_state.nonces.insert(*addr, Nonce(leaf.nonce));
         }
 
-        Ok(StorageProofs { proof_state, commitment_infos })
+        Ok(StorageProofs { contract_leaf_state, commitment_infos })
     }
 
     fn build_commitment_infos(
@@ -303,6 +320,7 @@ impl StorageProofProvider for RpcStorageProofsProvider {
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
+        _config: &StorageProofConfig,
     ) -> Result<StorageProofs, ProofProviderError> {
         let query = Self::prepare_query(execution_data);
 
