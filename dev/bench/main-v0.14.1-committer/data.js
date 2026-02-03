@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770022351483,
+  "lastUpdate": 1770115943197,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1597,6 +1597,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1244.89634771,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "05cdefc9b171ab47938af072215184e11b46d66c",
+          "message": "starknet_committer: generic hash in index layout (#12223)",
+          "timestamp": "2026-02-03T10:27:26Z",
+          "tree_id": "05472f1389f2249b57668618ae97953b81f78dd2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/05cdefc9b171ab47938af072215184e11b46d66c"
+        },
+        "date": 1770115942877,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 817.49810253,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1261.31889908,
             "unit": "ms"
           }
         ]
