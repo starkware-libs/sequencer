@@ -31,7 +31,7 @@ use crate::virtual_block_executor::VirtualBlockExecutionData;
 /// execution) are consistent with the global state commitment (Patricia root).
 ///
 /// The returned `StorageProofs` contains:
-/// - `proof_state`: The ambient state values (nonces, class hashes) discovered in the proof.
+/// - `contract_leaf_state`: Nonces and class hashes extracted from contract leaves.
 /// - `commitment_infos`: The Patricia Merkle proof nodes for contracts, classes, and storage tries.
 #[async_trait]
 #[allow(dead_code)]
@@ -54,10 +54,9 @@ pub(crate) struct RpcStorageProofsQuery {
 /// Complete OS input data built from RPC proofs.
 #[allow(dead_code)]
 pub(crate) struct StorageProofs {
-    /// State information discovered in the Patricia proof (nonces, class hashes)
-    /// that might not have been explicitly read during transaction execution.
-    /// This data is required by the OS to verify the contract state leaves.
-    pub(crate) proof_state: StateMaps,
+    /// Nonces and class hashes extracted from contract leaves in the Patricia trie.
+    /// Required by the OS to verify contract state.
+    pub(crate) contract_leaf_state: StateMaps,
     pub(crate) commitment_infos: StateCommitmentInfos,
 }
 
@@ -161,19 +160,19 @@ impl RpcStorageProofsProvider {
             )));
         }
 
-        let mut proof_state = StateMaps::default();
+        let mut contract_leaf_state = StateMaps::default();
         let commitment_infos = Self::build_commitment_infos(rpc_proof, query)?;
 
-        // Update proof_state with class hashes and nonces from the proof.
+        // Update contract_leaf_state with class hashes and nonces from the proof.
         // We've validated the lengths match, so this zip is safe.
         for (leaf, addr) in
             rpc_proof.contracts_proof.contract_leaves_data.iter().zip(&query.contract_addresses)
         {
-            proof_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
-            proof_state.nonces.insert(*addr, Nonce(leaf.nonce));
+            contract_leaf_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
+            contract_leaf_state.nonces.insert(*addr, Nonce(leaf.nonce));
         }
 
-        Ok(StorageProofs { proof_state, commitment_infos })
+        Ok(StorageProofs { contract_leaf_state, commitment_infos })
     }
 
     fn build_commitment_infos(
