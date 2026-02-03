@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770124607947,
+  "lastUpdate": 1770125081222,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1699,6 +1699,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1287.1884689600001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d9406f415a7ba18407eade4a0db982a5c82c298f",
+          "message": "starknet_committer: make FactsDb storage field private (#12221)",
+          "timestamp": "2026-02-03T12:56:07Z",
+          "tree_id": "c970c5ee1d45403ac5da5d7a734796f273f85820",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d9406f415a7ba18407eade4a0db982a5c82c298f"
+        },
+        "date": 1770125080900,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 812.5014711599999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1255.1016317,
             "unit": "ms"
           }
         ]
