@@ -44,7 +44,7 @@ class BaseCommand(Enum):
 
         if self == BaseCommand.TEST:
             return [
-                ["cargo", "nextest", "run"] + package_args + ["--no-fail-fast", "--no-tests=pass"]
+                ["cargo", "nextest", "run"] + package_args + ["--no-fail-fast", "--no-tests=pass", "--target-dir=/tmp/target/"]
             ]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
