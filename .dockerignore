@@ -2,4 +2,5 @@
 /deployments
 /logs
 **/target/
+!target/third_party/
 .git
