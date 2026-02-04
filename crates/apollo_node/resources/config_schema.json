@@ -2999,385 +2999,385 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "state_sync_config.central_sync_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.class_cache_size": {
-    "description": "Size of class cache, must be a positive integer.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.concurrent_requests": {
-    "description": "Maximum number of concurrent requests to Starknet feeder-gateway for getting a type of data (for example, blocks).",
-    "privacy": "Public",
-    "value": 10
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.http_headers": {
-    "description": "'k1:v1 k2:v2 ...' headers for SN-client.",
-    "privacy": "Private",
-    "value": ""
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.max_classes_to_download": {
-    "description": "Maximum number of classes to download at a given time.",
-    "privacy": "Public",
-    "value": 20
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.max_state_updates_to_download": {
-    "description": "Maximum number of state updates to download at a given time.",
-    "privacy": "Public",
-    "value": 20
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.max_state_updates_to_store_in_memory": {
-    "description": "Maximum number of state updates to store in memory at a given time.",
-    "privacy": "Public",
-    "value": 20
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.retry_config.max_retries": {
-    "description": "Maximum number of retries before the node stops retrying.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.retry_config.retry_base_millis": {
-    "description": "Base waiting time after a failed request. After that, the time increases exponentially.",
-    "privacy": "Public",
-    "value": 30
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.retry_config.retry_max_delay_millis": {
-    "description": "Max waiting time after a failed request.",
-    "privacy": "Public",
-    "value": 30000
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.starknet_url": {
-    "description": "Starknet feeder-gateway URL. It should match chain_id.",
-    "pointer_target": "starknet_url",
-    "privacy": "Public"
-  },
-  "state_sync_config.central_sync_client_config.sync_config.base_layer_propagation_sleep_duration": {
-    "description": "Time in seconds to poll the base layer to get the latest proved block.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "state_sync_config.central_sync_client_config.sync_config.blocks_max_stream_size": {
-    "description": "Max amount of blocks to download in a stream.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.central_sync_client_config.sync_config.collect_pending_data": {
-    "description": "Whether to collect data on pending blocks.",
-    "privacy": "Public",
-    "value": false
-  },
-  "state_sync_config.central_sync_client_config.sync_config.latest_block_poll_interval_millis": {
-    "description": "Time in milliseconds between polling for the latest block while node is synchronized.",
-    "privacy": "Public",
-    "value": 500
-  },
-  "state_sync_config.central_sync_client_config.sync_config.recoverable_error_sleep_duration": {
-    "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "state_sync_config.central_sync_client_config.sync_config.state_updates_max_stream_size": {
-    "description": "Max amount of state updates to download in a stream.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.central_sync_client_config.sync_config.store_sierras_and_casms": {
-    "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
-    "privacy": "Public",
-    "value": false
-  },
-  "state_sync_config.central_sync_client_config.sync_config.verify_blocks": {
-    "description": "Whether to verify incoming blocks.",
-    "privacy": "Public",
-    "value": true
-  },
-  "state_sync_config.network_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "state_sync_config.network_config.advertised_multiaddr": {
-    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
-    "privacy": "Public",
-    "value": ""
-  },
-  "state_sync_config.network_config.advertised_multiaddr.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "state_sync_config.network_config.bootstrap_peer_multiaddr": {
-    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
-    "privacy": "Public",
-    "value": ""
-  },
-  "state_sync_config.network_config.bootstrap_peer_multiaddr.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "state_sync_config.network_config.broadcasted_message_metadata_buffer_size": {
-    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
-    "privacy": "Public",
-    "value": 100000
-  },
-  "state_sync_config.network_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
-    "description": "The base delay in milliseconds for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 2
-  },
-  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
-    "description": "The factor for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 5
-  },
-  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
-    "description": "The maximum delay in seconds for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 5
-  },
-  "state_sync_config.network_config.discovery_config.heartbeat_interval": {
-    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.network_config.idle_connection_timeout": {
-    "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
-    "privacy": "Public",
-    "value": 120
-  },
-  "state_sync_config.network_config.peer_manager_config.malicious_timeout_seconds": {
-    "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": {
-    "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.network_config.port": {
-    "description": "The port that the node listens on for incoming connections.",
-    "privacy": "Public",
-    "value": 12345
-  },
-  "state_sync_config.network_config.prune_dead_connections_ping_interval": {
-    "description": "The interval in seconds between each prune dead connections ping check.",
-    "privacy": "Public",
-    "value": 15
-  },
-  "state_sync_config.network_config.prune_dead_connections_ping_timeout": {
-    "description": "The timeout in seconds for a ping to be considered failed.",
-    "privacy": "Public",
-    "value": 20
-  },
-  "state_sync_config.network_config.reported_peer_ids_buffer_size": {
-    "description": "The size of the buffer that holds the reported peer ids.",
-    "privacy": "Public",
-    "value": 100000
-  },
-  "state_sync_config.network_config.secret_key": {
-    "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
-    "privacy": "Private",
-    "value": ""
-  },
-  "state_sync_config.network_config.session_timeout": {
-    "description": "Maximal time in seconds that each session can take before failing on timeout.",
-    "privacy": "Public",
-    "value": 120
-  },
-  "state_sync_config.p2p_sync_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "state_sync_config.p2p_sync_client_config.buffer_size": {
-    "description": "Size of the buffer for read from the storage and for incoming responses.",
-    "privacy": "Public",
-    "value": 100000
-  },
-  "state_sync_config.p2p_sync_client_config.num_block_classes_per_query": {
-    "description": "The maximum amount of block's classes to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.p2p_sync_client_config.num_block_state_diffs_per_query": {
-    "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.p2p_sync_client_config.num_block_transactions_per_query": {
-    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.p2p_sync_client_config.num_headers_per_query": {
-    "description": "The maximum amount of headers to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 10000
-  },
-  "state_sync_config.p2p_sync_client_config.wait_period_for_new_data": {
-    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
-    "privacy": "Public",
-    "value": 50
-  },
-  "state_sync_config.p2p_sync_client_config.wait_period_for_other_protocol": {
-    "description": "Time in millisseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
-    "privacy": "Public",
-    "value": 50
-  },
-  "state_sync_config.revert_config.revert_up_to_and_including": {
-    "description": "The component will revert blocks up to this block number (including).",
-    "pointer_target": "revert_config.revert_up_to_and_including",
-    "privacy": "Public"
-  },
-  "state_sync_config.revert_config.should_revert": {
-    "description": "If set true, the component would revert blocks and do nothing else.",
-    "pointer_target": "revert_config.should_revert",
-    "privacy": "Public"
-  },
-  "state_sync_config.rpc_config.apollo_gateway_retry_config.max_retries": {
-    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
-    "privacy": "Public",
-    "value": 5
-  },
-  "state_sync_config.rpc_config.apollo_gateway_retry_config.retry_base_millis": {
-    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
-    "privacy": "Public",
-    "value": 50
-  },
-  "state_sync_config.rpc_config.apollo_gateway_retry_config.retry_max_delay_millis": {
-    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.rpc_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "state_sync_config.rpc_config.collect_metrics": {
-    "description": "If true, collect metrics for the rpc.",
-    "privacy": "Public",
-    "value": false
-  },
-  "state_sync_config.rpc_config.execution_config.default_initial_gas_cost": {
-    "description": "The initial gas cost for a transaction",
-    "privacy": "Public",
-    "value": 10000000000
-  },
-  "state_sync_config.rpc_config.execution_config.eth_fee_contract_address": {
-    "description": "The eth fee token address to receive fees",
-    "pointer_target": "eth_fee_token_address",
-    "privacy": "Public"
-  },
-  "state_sync_config.rpc_config.execution_config.strk_fee_contract_address": {
-    "description": "The strk fee token address to receive fees",
-    "pointer_target": "strk_fee_token_address",
-    "privacy": "Public"
-  },
-  "state_sync_config.rpc_config.ip": {
-    "description": "The JSON RPC server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "state_sync_config.rpc_config.max_events_chunk_size": {
-    "description": "Maximum chunk size supported by the node in get_events requests.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.rpc_config.max_events_keys": {
-    "description": "Maximum number of keys supported by the node in get_events requests.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.rpc_config.port": {
-    "description": "The JSON RPC server port.",
-    "privacy": "Public",
-    "value": 8090
-  },
-  "state_sync_config.rpc_config.starknet_url": {
-    "description": "URL for communicating with Starknet in write_api methods.",
-    "pointer_target": "starknet_url",
-    "privacy": "Public"
-  },
-  "state_sync_config.storage_config.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "state_sync_config.storage_config.db_config.enforce_file_exists": {
-    "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
-    "privacy": "Public",
-    "value": false
-  },
-  "state_sync_config.storage_config.db_config.growth_step": {
-    "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
-    "privacy": "Public",
-    "value": 4294967296
-  },
-  "state_sync_config.storage_config.db_config.max_readers": {
-    "description": "The maximum number of readers used by the database.",
-    "privacy": "Public",
-    "value": 8192
-  },
-  "state_sync_config.storage_config.db_config.max_size": {
-    "description": "The maximum size of the node's storage in bytes.",
-    "privacy": "Public",
-    "value": 1099511627776
-  },
-  "state_sync_config.storage_config.db_config.min_size": {
-    "description": "The minimum size of the node's storage in bytes.",
-    "privacy": "Public",
-    "value": 1048576
-  },
-  "state_sync_config.storage_config.db_config.path_prefix": {
-    "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
-    "privacy": "Public",
-    "value": "/data/state_sync"
-  },
-  "state_sync_config.storage_config.mmap_file_config.growth_step": {
-    "description": "The growth step in bytes, must be greater than max_object_size.",
-    "privacy": "Public",
-    "value": 1073741824
-  },
-  "state_sync_config.storage_config.mmap_file_config.max_object_size": {
-    "description": "The maximum size of a single object in the file in bytes",
-    "privacy": "Public",
-    "value": 268435456
-  },
-  "state_sync_config.storage_config.mmap_file_config.max_size": {
-    "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
-    "privacy": "Public",
-    "value": 1099511627776
-  },
-  "state_sync_config.storage_config.scope": {
-    "description": "The categories of data saved in storage.",
-    "privacy": "Public",
-    "value": "FullArchive"
-  },
-  "state_sync_config.storage_reader_server_config.dynamic_config.enable": {
+  "state_sync_config.dynamic_config.storage_reader_server_config.dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
     "value": false
   },
-  "state_sync_config.storage_reader_server_config.static_config.ip": {
+  "state_sync_config.static_config.storage_reader_server_config.static_config.ip": {
     "description": "The IP address for the storage reader HTTP server.",
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "state_sync_config.storage_reader_server_config.static_config.port": {
+  "state_sync_config.static_config.storage_reader_server_config.static_config.port": {
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
     "value": 8091
+  },
+  "state_sync_config.static_config.central_sync_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.class_cache_size": {
+    "description": "Size of class cache, must be a positive integer.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.concurrent_requests": {
+    "description": "Maximum number of concurrent requests to Starknet feeder-gateway for getting a type of data (for example, blocks).",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.http_headers": {
+    "description": "'k1:v1 k2:v2 ...' headers for SN-client.",
+    "privacy": "Private",
+    "value": ""
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.max_classes_to_download": {
+    "description": "Maximum number of classes to download at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.max_state_updates_to_download": {
+    "description": "Maximum number of state updates to download at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.max_state_updates_to_store_in_memory": {
+    "description": "Maximum number of state updates to store in memory at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.retry_config.max_retries": {
+    "description": "Maximum number of retries before the node stops retrying.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.retry_config.retry_base_millis": {
+    "description": "Base waiting time after a failed request. After that, the time increases exponentially.",
+    "privacy": "Public",
+    "value": 30
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.retry_config.retry_max_delay_millis": {
+    "description": "Max waiting time after a failed request.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url": {
+    "description": "Starknet feeder-gateway URL. It should match chain_id.",
+    "pointer_target": "starknet_url",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.base_layer_propagation_sleep_duration": {
+    "description": "Time in seconds to poll the base layer to get the latest proved block.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.blocks_max_stream_size": {
+    "description": "Max amount of blocks to download in a stream.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.collect_pending_data": {
+    "description": "Whether to collect data on pending blocks.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.latest_block_poll_interval_millis": {
+    "description": "Time in milliseconds between polling for the latest block while node is synchronized.",
+    "privacy": "Public",
+    "value": 500
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.recoverable_error_sleep_duration": {
+    "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.state_updates_max_stream_size": {
+    "description": "Max amount of state updates to download in a stream.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms": {
+    "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.verify_blocks": {
+    "description": "Whether to verify incoming blocks.",
+    "privacy": "Public",
+    "value": true
+  },
+  "state_sync_config.static_config.network_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "state_sync_config.static_config.network_config.advertised_multiaddr": {
+    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
+    "privacy": "Public",
+    "value": ""
+  },
+  "state_sync_config.static_config.network_config.advertised_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr": {
+    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+    "privacy": "Public",
+    "value": ""
+  },
+  "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "state_sync_config.static_config.network_config.broadcasted_message_metadata_buffer_size": {
+    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
+    "privacy": "Public",
+    "value": 100000
+  },
+  "state_sync_config.static_config.network_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
+    "description": "The base delay in milliseconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
+    "description": "The factor for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
+    "description": "The maximum delay in seconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.static_config.network_config.discovery_config.heartbeat_interval": {
+    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.network_config.idle_connection_timeout": {
+    "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
+    "privacy": "Public",
+    "value": 120
+  },
+  "state_sync_config.static_config.network_config.peer_manager_config.malicious_timeout_seconds": {
+    "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "state_sync_config.static_config.network_config.peer_manager_config.unstable_timeout_millis": {
+    "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.network_config.port": {
+    "description": "The port that the node listens on for incoming connections.",
+    "privacy": "Public",
+    "value": 12345
+  },
+  "state_sync_config.static_config.network_config.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "state_sync_config.static_config.network_config.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.static_config.network_config.reported_peer_ids_buffer_size": {
+    "description": "The size of the buffer that holds the reported peer ids.",
+    "privacy": "Public",
+    "value": 100000
+  },
+  "state_sync_config.static_config.network_config.secret_key": {
+    "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
+    "privacy": "Private",
+    "value": ""
+  },
+  "state_sync_config.static_config.network_config.session_timeout": {
+    "description": "Maximal time in seconds that each session can take before failing on timeout.",
+    "privacy": "Public",
+    "value": 120
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.buffer_size": {
+    "description": "Size of the buffer for read from the storage and for incoming responses.",
+    "privacy": "Public",
+    "value": 100000
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.num_block_classes_per_query": {
+    "description": "The maximum amount of block's classes to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.num_block_state_diffs_per_query": {
+    "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.num_block_transactions_per_query": {
+    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.num_headers_per_query": {
+    "description": "The maximum amount of headers to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.wait_period_for_new_data": {
+    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
+    "privacy": "Public",
+    "value": 50
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.wait_period_for_other_protocol": {
+    "description": "Time in millisseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
+    "privacy": "Public",
+    "value": 50
+  },
+  "state_sync_config.static_config.revert_config.revert_up_to_and_including": {
+    "description": "The component will revert blocks up to this block number (including).",
+    "pointer_target": "revert_config.revert_up_to_and_including",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.revert_config.should_revert": {
+    "description": "If set true, the component would revert blocks and do nothing else.",
+    "pointer_target": "revert_config.should_revert",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.max_retries": {
+    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.retry_base_millis": {
+    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.retry_max_delay_millis": {
+    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.rpc_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.rpc_config.collect_metrics": {
+    "description": "If true, collect metrics for the rpc.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.static_config.rpc_config.execution_config.default_initial_gas_cost": {
+    "description": "The initial gas cost for a transaction",
+    "privacy": "Public",
+    "value": 10000000000
+  },
+  "state_sync_config.static_config.rpc_config.execution_config.eth_fee_contract_address": {
+    "description": "The eth fee token address to receive fees",
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.rpc_config.execution_config.strk_fee_contract_address": {
+    "description": "The strk fee token address to receive fees",
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.rpc_config.ip": {
+    "description": "The JSON RPC server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "state_sync_config.static_config.rpc_config.max_events_chunk_size": {
+    "description": "Maximum chunk size supported by the node in get_events requests.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.rpc_config.max_events_keys": {
+    "description": "Maximum number of keys supported by the node in get_events requests.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.rpc_config.port": {
+    "description": "The JSON RPC server port.",
+    "privacy": "Public",
+    "value": 8090
+  },
+  "state_sync_config.static_config.rpc_config.starknet_url": {
+    "description": "URL for communicating with Starknet in write_api methods.",
+    "pointer_target": "starknet_url",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.storage_config.db_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.storage_config.db_config.enforce_file_exists": {
+    "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.static_config.storage_config.db_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
+    "privacy": "Public",
+    "value": 4294967296
+  },
+  "state_sync_config.static_config.storage_config.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
+  },
+  "state_sync_config.static_config.storage_config.db_config.max_size": {
+    "description": "The maximum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "state_sync_config.static_config.storage_config.db_config.min_size": {
+    "description": "The minimum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1048576
+  },
+  "state_sync_config.static_config.storage_config.db_config.path_prefix": {
+    "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
+    "privacy": "Public",
+    "value": "/data/state_sync"
+  },
+  "state_sync_config.static_config.storage_config.mmap_file_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than max_object_size.",
+    "privacy": "Public",
+    "value": 1073741824
+  },
+  "state_sync_config.static_config.storage_config.mmap_file_config.max_object_size": {
+    "description": "The maximum size of a single object in the file in bytes",
+    "privacy": "Public",
+    "value": 268435456
+  },
+  "state_sync_config.static_config.storage_config.mmap_file_config.max_size": {
+    "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "state_sync_config.static_config.storage_config.scope": {
+    "description": "The categories of data saved in storage.",
+    "privacy": "Public",
+    "value": "FullArchive"
   },
   "strk_fee_token_address": {
     "description": "Address of the STRK fee token.",

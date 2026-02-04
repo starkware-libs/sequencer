@@ -51,12 +51,12 @@ config:
     consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none: true
     consensus_manager_config.network_config.bootstrap_peer_multiaddr: ""
     consensus_manager_config.network_config.port: 53080
-    state_sync_config.central_sync_client_config.#is_none: true
-    state_sync_config.network_config.#is_none: false
-    state_sync_config.network_config.port: 55010
-    state_sync_config.p2p_sync_client_config.#is_none: false
-    state_sync_config.rpc_config.port: 8090
-    state_sync_config.storage_reader_server_config.static_config.port: 55012
+    state_sync_config.static_config.central_sync_client_config.#is_none: true
+    state_sync_config.static_config.network_config.#is_none: false
+    state_sync_config.static_config.network_config.port: 55010
+    state_sync_config.static_config.p2p_sync_client_config.#is_none: false
+    state_sync_config.static_config.rpc_config.port: 8090
+    state_sync_config.static_config.storage_reader_server_config.static_config.port: 55012
 
 service:
   enabled: true

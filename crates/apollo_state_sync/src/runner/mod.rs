@@ -26,7 +26,11 @@ use apollo_starknet_client::reader::objects::pending_data::{
     PendingBlockOrDeprecated,
 };
 use apollo_starknet_client::reader::PendingData;
-use apollo_state_sync_config::config::{CentralSyncClientConfig, StateSyncConfig};
+use apollo_state_sync_config::config::{
+    CentralSyncClientConfig,
+    StateSyncConfig,
+    StateSyncStaticConfig,
+};
 use apollo_state_sync_metrics::metrics::{
     register_metrics,
     update_marker_metrics,
@@ -151,15 +155,16 @@ impl StateSyncRunner {
         new_block_receiver: Receiver<SyncBlock>,
         class_manager_client: SharedClassManagerClient,
     ) -> (Self, StorageReader) {
-        let StateSyncConfig {
+        let StateSyncConfig { static_config, dynamic_config } = config;
+        let StateSyncStaticConfig {
             storage_config,
             p2p_sync_client_config,
             central_sync_client_config,
             network_config,
             revert_config,
             rpc_config,
-            storage_reader_server_config,
-        } = config;
+        } = static_config;
+        let storage_reader_server_config = dynamic_config.storage_reader_server_config;
 
         let StateSyncResources {
             storage_reader,
