@@ -81,12 +81,12 @@ fn test_get_storage_proofs_from_rpc(
 
     // Verify the queried contract is in contract_leaf_state.
     assert!(
-        storage_proofs.contract_leaf_state.class_hashes.contains_key(&contract_address),
+        storage_proofs.extended_initial_reads.class_hashes.contains_key(&contract_address),
         "Expected contract address {:?} in class_hashes",
         contract_address
     );
     assert!(
-        storage_proofs.contract_leaf_state.nonces.contains_key(&contract_address),
+        storage_proofs.extended_initial_reads.nonces.contains_key(&contract_address),
         "Expected contract address {:?} in nonces",
         contract_address
     );

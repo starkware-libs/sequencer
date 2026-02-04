@@ -173,8 +173,6 @@ where
         storage_proof_config: &StorageProofConfig,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
-        let mut execution_data = execution_data;
-
         // Extract chain info from block context.
         let chain_info = execution_data.base_block_info.block_context.chain_info();
         let os_chain_info = OsChainInfo {
@@ -201,19 +199,16 @@ where
         let tx_execution_infos =
             execution_data.execution_outputs.into_iter().map(|output| output.0.into()).collect();
 
-        // Merge initial_reads with contract_leaf_state.
-        execution_data.initial_reads.extend(&storage_proofs.contract_leaf_state);
-
         // Add class hash to compiled class hash mappings from the classes provider.
-        execution_data
-            .initial_reads
+        let mut extended_initial_reads = storage_proofs.extended_initial_reads;
+        extended_initial_reads
             .compiled_class_hashes
             .extend(&classes.class_hash_to_compiled_class_hash);
 
         // Must clear declared_contracts: the OS calls `update_cache` with an empty class map
         // (it receives compiled classes separately in `compiled_classes`), which would fail
         // an assertion if declared_contracts is non-empty.
-        execution_data.initial_reads.declared_contracts.clear();
+        extended_initial_reads.declared_contracts.clear();
 
         // Assemble VirtualOsBlockInput.
         let virtual_os_block_input = VirtualOsBlockInput {
@@ -230,7 +225,7 @@ where
             transactions: txs,
             tx_execution_infos,
             block_info: execution_data.base_block_info.block_context.block_info().clone(),
-            initial_reads: execution_data.initial_reads,
+            initial_reads: extended_initial_reads,
             base_block_hash: execution_data.base_block_info.base_block_hash,
             base_block_header_commitments: execution_data
                 .base_block_info
