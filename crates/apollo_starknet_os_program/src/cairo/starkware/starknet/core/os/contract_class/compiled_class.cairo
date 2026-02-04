@@ -13,7 +13,6 @@ from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import 
     compiled_class_hash as blake_compiled_class_hash,
 )
 from starkware.starknet.core.os.contract_class.compiled_class_struct import (
-    CompiledClass,
     CompiledClassEntryPoint,
     CompiledClassFact,
 )
