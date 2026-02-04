@@ -223,10 +223,8 @@ impl<S: Storage> CachedStorage<S> {
     }
 
     pub fn flush_to_cache(&mut self, map: DbHashMap) {
-        let cache =
-            Arc::get_mut(&mut self.cache).expect("Failed to get mutable reference to cache.");
         map.into_iter().for_each(|(key, value)| {
-            cache.put(key, Some(value));
+            self.cache.put(key, Some(value));
         });
     }
 }
@@ -320,5 +318,9 @@ impl<S: Storage> Storage for CachedStorage<S> {
     fn get_async_self(&self) -> Option<impl AsyncStorage> {
         // Need a concrete Option type.
         None::<NullStorage>
+    }
+    fn flush_to_cache(&mut self, map: DbHashMap) -> PatriciaStorageResult<()> {
+        Self::flush_to_cache(self, map);
+        Ok(())
     }
 }
