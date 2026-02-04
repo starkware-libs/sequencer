@@ -533,7 +533,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .static_config
                 .retrospective_block_hash_retry_interval_millis,
-            use_state_sync_block_timestamp,
+            use_original_timetstamp: use_state_sync_block_timestamp,
         };
 
         let handle = tokio::spawn(

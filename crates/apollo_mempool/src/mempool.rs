@@ -268,6 +268,10 @@ impl Mempool {
         }
     }
 
+    pub fn get_timestamp(&self) -> u64 {
+        self.clock.unix_now()
+    }
+
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
