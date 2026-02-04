@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770138714315,
+  "lastUpdate": 1770195637881,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1801,6 +1801,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1351.5227614100002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2ace6a445ab09da90f0110c2574a927e88e990c7",
+          "message": "starknet_committer: add commit e2e tests (#11331)",
+          "timestamp": "2026-02-04T08:38:27Z",
+          "tree_id": "2a28bccbf372c229af1a2c4ad3555d462c16d093",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2ace6a445ab09da90f0110c2574a927e88e990c7"
+        },
+        "date": 1770195637580,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 742.95480818,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1173.6307531700002,
             "unit": "ms"
           }
         ]
