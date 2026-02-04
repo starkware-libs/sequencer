@@ -98,6 +98,7 @@ pub async fn create_node_components(
                     l1_provider_client,
                     class_manager_client,
                     pre_confirmed_cende_client,
+                    vec![], // No bootstrap transactions for production node
                 )
                 .await,
             )

@@ -41,6 +41,7 @@ use apollo_storage::global_root_marker::{
     GlobalRootMarkerStorageReader,
     GlobalRootMarkerStorageWriter,
 };
+use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageReader,
@@ -129,6 +130,20 @@ use crate::utils::{
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
+/// The state of the bootstrap process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BootstrapState {
+    /// Bootstrap mode is disabled or storage is not empty.
+    #[default]
+    Disabled,
+    /// Bootstrap mode is active - bootstrap transactions will be included in blocks.
+    Active,
+    /// All bootstrap transactions have been provided, waiting for balance check.
+    Monitoring,
+    /// Bootstrap has completed successfully.
+    Completed,
+}
+
 pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReader>,
@@ -180,6 +195,13 @@ pub struct Batcher {
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
     storage_reader_server_handle: Option<AbortHandle>,
+
+    /// The current state of the bootstrap process.
+    bootstrap_state: BootstrapState,
+
+    /// Bootstrap transactions to be included in blocks.
+    /// These are provided at batcher creation if bootstrap mode is enabled.
+    bootstrap_txs: Vec<InternalConsensusTransaction>,
 }
 
 impl Batcher {
@@ -196,6 +218,8 @@ impl Batcher {
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
         storage_reader_server_handle: Option<AbortHandle>,
+        bootstrap_state: BootstrapState,
+        bootstrap_txs: Vec<InternalConsensusTransaction>,
     ) -> Self {
         Self {
             config,
@@ -218,6 +242,8 @@ impl Batcher {
             prev_proposal_commitment: None,
             commitment_manager,
             storage_reader_server_handle,
+            bootstrap_state,
+            bootstrap_txs,
         }
     }
 
@@ -1302,6 +1328,16 @@ fn log_txs_execution_result(
     }
 }
 
+/// Creates a new batcher instance.
+///
+/// # Arguments
+/// * `config` - The batcher configuration
+/// * `committer_client` - Client for the committer service
+/// * `mempool_client` - Client for the mempool service
+/// * `l1_provider_client` - Client for the L1 provider service
+/// * `class_manager_client` - Client for the class manager service
+/// * `pre_confirmed_cende_client` - Client for the pre-confirmed cende service
+/// * `bootstrap_txs` - Bootstrap transactions to include in initial blocks (for bootstrap mode)
 pub async fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,
@@ -1309,6 +1345,7 @@ pub async fn create_batcher(
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
+    bootstrap_txs: Vec<InternalConsensusTransaction>,
 ) -> Batcher {
     let (storage_reader, storage_writer, storage_reader_server) =
         open_storage_with_metric_and_server(
@@ -1320,6 +1357,19 @@ pub async fn create_batcher(
 
     let storage_reader_server_handle =
         GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+
+    // Determine bootstrap state based on config, storage, and provided transactions.
+    let bootstrap_state = determine_bootstrap_state(
+        &config,
+        &storage_reader,
+        &bootstrap_txs,
+    );
+    if bootstrap_state == BootstrapState::Active {
+        info!(
+            "Bootstrap mode active: {} transactions will be included in initial blocks",
+            bootstrap_txs.len()
+        );
+    }
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
@@ -1362,7 +1412,43 @@ pub async fn create_batcher(
         pre_confirmed_block_writer_factory,
         commitment_manager,
         storage_reader_server_handle,
+        bootstrap_state,
+        bootstrap_txs,
     )
+}
+
+/// Determines whether bootstrap mode should be active.
+///
+/// Bootstrap mode is active when:
+/// 1. `enable_bootstrap_mode` is true in config
+/// 2. Storage is empty (state_diff_height == 0)
+/// 3. Bootstrap transactions are provided
+fn determine_bootstrap_state(
+    config: &BatcherConfig,
+    storage_reader: &StorageReader,
+    bootstrap_txs: &[InternalConsensusTransaction],
+) -> BootstrapState {
+    if !config.bootstrap_config.enable_bootstrap_mode {
+        return BootstrapState::Disabled;
+    }
+
+    if bootstrap_txs.is_empty() {
+        info!("Bootstrap mode enabled but no transactions provided");
+        return BootstrapState::Disabled;
+    }
+
+    // Check if storage is empty
+    let storage_height = storage_reader
+        .begin_ro_txn()
+        .and_then(|txn| txn.get_state_marker())
+        .unwrap_or(BlockNumber(1)); // Assume non-empty on error
+
+    if storage_height == BlockNumber(0) {
+        BootstrapState::Active
+    } else {
+        info!("Bootstrap mode enabled but storage is not empty (height={})", storage_height);
+        BootstrapState::Disabled
+    }
 }
 
 #[cfg_attr(test, automock)]
