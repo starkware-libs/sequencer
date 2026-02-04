@@ -41,7 +41,6 @@ use apollo_storage::global_root_marker::{
     GlobalRootMarkerStorageReader,
     GlobalRootMarkerStorageWriter,
 };
-use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::BATCHER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageReader,
@@ -324,19 +323,35 @@ impl Batcher {
                 BATCHER_L1_PROVIDER_ERRORS.increment(1);
             });
 
-        let start_phase = if self.proposals_counter.is_multiple_of(self.config.propose_l1_txs_every)
-        {
-            TxProviderPhase::L1
+        // Determine the transaction provider to use.
+        // In bootstrap mode, we inject bootstrap transactions first.
+        let tx_provider = if self.bootstrap_state == BootstrapState::Active {
+            debug!(
+                "Creating transaction provider with {} bootstrap transactions",
+                self.bootstrap_txs.len()
+            );
+            ProposeTransactionProvider::new_with_bootstrap(
+                self.mempool_client.clone(),
+                self.l1_provider_client.clone(),
+                self.config.max_l1_handler_txs_per_block_proposal,
+                propose_block_input.block_info.block_number,
+                self.bootstrap_txs.clone(),
+            )
         } else {
-            TxProviderPhase::Mempool
+            let start_phase = if self.proposals_counter.is_multiple_of(self.config.propose_l1_txs_every)
+            {
+                TxProviderPhase::L1
+            } else {
+                TxProviderPhase::Mempool
+            };
+            ProposeTransactionProvider::new(
+                self.mempool_client.clone(),
+                self.l1_provider_client.clone(),
+                self.config.max_l1_handler_txs_per_block_proposal,
+                propose_block_input.block_info.block_number,
+                start_phase,
+            )
         };
-        let tx_provider = ProposeTransactionProvider::new(
-            self.mempool_client.clone(),
-            self.l1_provider_client.clone(),
-            self.config.max_l1_handler_txs_per_block_proposal,
-            propose_block_input.block_info.block_number,
-            start_phase,
-        );
 
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
@@ -828,6 +843,9 @@ impl Batcher {
             .set_lossy(block_execution_artifacts.bouncer_weights.proving_gas.0);
         L2_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.l2_gas_used.0);
 
+        // Update bootstrap state after block commit.
+        self.update_bootstrap_state_after_block_commit();
+
         Ok(DecisionReachedResponse {
             state_diff,
             l2_gas_used: block_execution_artifacts.l2_gas_used,
@@ -1284,6 +1302,59 @@ impl Batcher {
                 BatcherError::InternalError
             })
     }
+
+    /// Update bootstrap state after a block is committed.
+    ///
+    /// State transitions:
+    /// - Active -> Monitoring: When we've committed at least one block with bootstrap txs
+    /// - Monitoring -> Completed: When ERC20 balances are sufficient
+    fn update_bootstrap_state_after_block_commit(&mut self) {
+        match self.bootstrap_state {
+            BootstrapState::Disabled | BootstrapState::Completed => {
+                // Nothing to do
+            }
+            BootstrapState::Active => {
+                // After first block with bootstrap txs is committed, transition to Monitoring.
+                // The bootstrap txs are provided once per proposal, so after any block is
+                // committed in Active state, we should start monitoring for completion.
+                info!("Bootstrap: transitioning from Active to Monitoring state");
+                self.bootstrap_state = BootstrapState::Monitoring;
+            }
+            BootstrapState::Monitoring => {
+                // Check if bootstrap is complete by verifying ERC20 balances.
+                if self.check_bootstrap_completion() {
+                    info!("Bootstrap: transitioning from Monitoring to Completed state");
+                    self.bootstrap_state = BootstrapState::Completed;
+                }
+            }
+        }
+    }
+
+    /// Check if bootstrap has completed by verifying ERC20 balances.
+    ///
+    /// Returns true if the funded account has sufficient balance in both ETH and STRK.
+    fn check_bootstrap_completion(&self) -> bool {
+        let config = &self.config.bootstrap_config;
+
+        // Check ETH balance
+        let eth_balance = self.storage_reader.get_erc20_balance_at_latest(
+            config.eth_fee_token_address,
+            config.funded_account_address,
+        );
+
+        // Check STRK balance
+        let strk_balance = self.storage_reader.get_erc20_balance_at_latest(
+            config.strk_fee_token_address,
+            config.funded_account_address,
+        );
+
+        debug!(
+            "Bootstrap: checking balances - ETH: {}, STRK: {}, required: {}",
+            eth_balance, strk_balance, config.required_balance
+        );
+
+        eth_balance >= config.required_balance && strk_balance >= config.required_balance
+    }
 }
 
 /// Logs the result of the transactions execution in the proposal.
@@ -1477,6 +1548,14 @@ pub trait BatcherStorageReader: Send + Sync {
         &self,
         height: BlockNumber,
     ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)>;
+
+    /// Get the ERC20 balance for a given account at the latest state.
+    /// Returns 0 if the balance cannot be read.
+    fn get_erc20_balance_at_latest(
+        &self,
+        token_address: ContractAddress,
+        account_address: ContractAddress,
+    ) -> u128;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1573,6 +1652,51 @@ impl BatcherStorageReader for StorageReader {
         };
         let partial_block_hash_components = txn.get_partial_block_hash_components(&height)?;
         Ok((parent_hash, partial_block_hash_components))
+    }
+
+    fn get_erc20_balance_at_latest(
+        &self,
+        token_address: ContractAddress,
+        account_address: ContractAddress,
+    ) -> u128 {
+        use starknet_api::abi::abi_utils::get_fee_token_var_address;
+
+        let txn = match self.begin_ro_txn() {
+            Ok(txn) => txn,
+            Err(_) => return 0,
+        };
+
+        let state_marker = match txn.get_state_marker() {
+            Ok(marker) => marker,
+            Err(_) => return 0,
+        };
+
+        if state_marker == BlockNumber(0) {
+            return 0; // No blocks committed yet
+        }
+
+        // State number is the block before the marker
+        let state_number = StateNumber::unchecked_right_after_block(BlockNumber(
+            state_marker.0.saturating_sub(1),
+        ));
+
+        let state_reader = match txn.get_state_reader() {
+            Ok(reader) => reader,
+            Err(_) => return 0,
+        };
+
+        let balance_key = get_fee_token_var_address(account_address);
+
+        match state_reader.get_storage_at(state_number, &token_address, &balance_key) {
+            Ok(balance) => {
+                // Convert Felt to u128 (takes lower 128 bits)
+                let bytes = balance.to_bytes_le();
+                let mut arr = [0u8; 16];
+                arr.copy_from_slice(&bytes[..16]);
+                u128::from_le_bytes(arr)
+            }
+            Err(_) => 0,
+        }
     }
 }
 
