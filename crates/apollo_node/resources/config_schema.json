@@ -2994,6 +2994,11 @@
     "privacy": "Public",
     "value": 81920
   },
+  "sierra_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 60
+  },
   "sierra_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
