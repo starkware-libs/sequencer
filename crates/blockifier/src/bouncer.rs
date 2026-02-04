@@ -15,12 +15,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorResult,
 };
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
-use crate::execution::call_info::{
-    BuiltinCounterMap,
-    ExecutionSummary,
-    ResourceCounterMap,
-    ResourceName,
-};
+use crate::execution::call_info::{resource_counter_map, ExecutionSummary, ResourceCounterMap};
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
@@ -684,13 +679,13 @@ fn memory_holes_to_gas(
 /// Calculates proving gas from builtin counters and Sierra gas.
 fn proving_gas_from_builtins_and_sierra_gas(
     sierra_gas: GasAmount,
-    builtin_counters: &BuiltinCounterMap,
+    resources_counters: &ResourceCounterMap,
     proving_builtin_gas_costs: &BuiltinGasCosts,
     sierra_builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtins_proving_gas = builtins_to_gas(builtin_counters, proving_builtin_gas_costs);
+    let builtins_proving_gas = resources_to_gas(resources_counters, proving_builtin_gas_costs);
     let steps_proving_gas =
-        sierra_gas_to_steps_gas(sierra_gas, builtin_counters, sierra_builtin_gas_costs);
+        sierra_gas_to_steps_gas(sierra_gas, resources_counters, sierra_builtin_gas_costs);
 
     steps_proving_gas.checked_add_panic_on_overflow(builtins_proving_gas)
 }
@@ -701,7 +696,8 @@ pub fn vm_resources_to_gas(
     builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_gas_cost = builtins_to_gas(&resources.prover_builtins(), builtin_gas_cost);
+    let builtins_gas_cost =
+        resources_to_gas(&resource_counter_map(resources.prover_builtins()), builtin_gas_cost);
     let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
     let n_memory_holes_gas_cost =
         memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
@@ -714,38 +710,38 @@ pub fn vm_resources_to_gas(
 /// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
 pub fn sierra_gas_to_steps_gas(
     sierra_gas: GasAmount,
-    builtin_counters: &BuiltinCounterMap,
+    resources_counters: &ResourceCounterMap,
     sierra_builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtins_gas_cost = builtins_to_gas(builtin_counters, sierra_builtin_gas_costs);
+    let resources_gas_cost = resources_to_gas(resources_counters, sierra_builtin_gas_costs);
 
-    sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
+    sierra_gas.checked_sub(resources_gas_cost).unwrap_or_else(|| {
         log::debug!(
-            "Sierra gas underflow: builtins gas exceeds total. Sierra gas: {sierra_gas:?}, \
-             Builtins gas: {builtins_gas_cost:?}, Builtins: {builtin_counters:?}"
+            "Sierra gas underflow: resources gas exceeds total. Sierra gas: {sierra_gas:?}, \
+             Resources gas: {resources_gas_cost:?}, Resources: {resources_counters:?}"
         );
         GasAmount::ZERO
     })
 }
 
-pub fn builtins_to_gas(
-    builtin_counters: &BuiltinCounterMap,
+pub fn resources_to_gas(
+    resources_counters: &ResourceCounterMap,
     builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtin_gas = builtin_counters.iter().fold(0u64, |accumulated_gas, (name, &count)| {
-        let builtin_weight = builtin_gas_costs.get_builtin_gas_cost(name).unwrap();
-        builtin_weight
+    let resources_gas = resources_counters.iter().fold(0u64, |accumulated_gas, (&name, &count)| {
+        let resource_weight = builtin_gas_costs.get_builtin_gas_cost(name).unwrap();
+        resource_weight
             .checked_mul(u64_from_usize(count))
             .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
             .unwrap_or_else(|| {
                 panic!(
-                    "Overflow while converting builtin counters to gas.\nBuiltin: {name}, Weight: \
-                     {builtin_weight}, Count: {count}, Accumulated gas: {accumulated_gas}"
+                    "Overflow while converting resources counters to gas.\nResource: {name:?}, \
+                     Weight: {resource_weight}, Count: {count}, Accumulated gas: {accumulated_gas}"
                 )
             })
     });
 
-    GasAmount(builtin_gas)
+    GasAmount(resources_gas)
 }
 
 fn add_casm_hash_computation_gas_cost(
@@ -790,7 +786,7 @@ fn compute_sierra_gas(
 }
 
 fn compute_proving_gas(
-    builtin_counters: &BuiltinCounterMap,
+    resources_counters: &ResourceCounterMap,
     vm_resources_sierra_gas: GasAmount,
     versioned_constants: &VersionedConstants,
     proving_builtin_gas_costs: &BuiltinGasCosts,
@@ -800,7 +796,7 @@ fn compute_proving_gas(
 ) -> (GasAmount, CasmHashComputationData) {
     let vm_resources_proving_gas = proving_gas_from_builtins_and_sierra_gas(
         vm_resources_sierra_gas,
-        builtin_counters,
+        resources_counters,
         proving_builtin_gas_costs,
         sierra_builtin_gas_costs,
     );
@@ -880,23 +876,11 @@ pub fn get_tx_weights<S: StateReader>(
 
     // Proving gas computation.
     // Exclude tx_vm_resources to prevent double-counting in tx_builtin_counters.
-    let mut vm_resources_builtins_for_proving_gas_computation =
-        (&patrticia_update_resources + &tx_resources.computation.os_vm_resources).prover_builtins();
-    // Use tx_builtin_counters to count the Sierra gas executed entry points as well.
-    add_maps(
-        &mut vm_resources_builtins_for_proving_gas_computation,
-        &tx_builtin_counters
-            .iter()
-            .map(|(resource_name, count)| match resource_name {
-                ResourceName::Builtin(builtin_name) => (*builtin_name, *count),
-                ResourceName::Opcode(_) => panic!(
-                    "Opcodes are not yet counted as part of the builtin counters. To get blake \
-                     count see
-            EstimatedExecutionResources::blake_count(). "
-                ),
-            })
-            .collect(),
+    let mut vm_resources_builtins_for_proving_gas_computation = resource_counter_map(
+        (&patrticia_update_resources + &tx_resources.computation.os_vm_resources).prover_builtins(),
     );
+    // Use tx_builtin_counters to count the Sierra gas executed entry points as well.
+    add_maps(&mut vm_resources_builtins_for_proving_gas_computation, tx_builtin_counters);
 
     let (total_proving_gas, casm_hash_computation_data_proving_gas) = compute_proving_gas(
         &vm_resources_builtins_for_proving_gas_computation,
