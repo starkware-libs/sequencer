@@ -209,8 +209,11 @@ where
         let tx_execution_infos =
             execution_data.execution_outputs.into_iter().map(|output| output.0.into()).collect();
 
-        // Add class hash to compiled class hash mappings from the classes provider.
+        // The extended_initial_reads from storage proofs already has class_hashes, nonces,
+        // and storage values. We just need to add compiled class hashes from the classes provider.
         let mut extended_initial_reads = storage_proofs.extended_initial_reads;
+
+        // Add class hash to compiled class hash mappings from the classes provider.
         extended_initial_reads
             .compiled_class_hashes
             .extend(&classes.class_hash_to_compiled_class_hash);
