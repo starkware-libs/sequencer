@@ -801,6 +801,9 @@ impl ConsensusContext for SequencerConsensusContext {
             return false;
         }
 
+        // Clean up proposals for the synced height and below, similar to decision_reached.
+        self.valid_proposals.lock().unwrap().remove_proposals_below_or_at_height(&height);
+
         true
     }
 
@@ -814,6 +817,13 @@ impl ConsensusContext for SequencerConsensusContext {
             self.current_height = Some(height);
             self.current_round = round;
             self.queued_proposals.clear();
+            // Clean up proposals from previous heights.
+            if let Some(prev_height) = height.prev() {
+                self.valid_proposals
+                    .lock()
+                    .unwrap()
+                    .remove_proposals_below_or_at_height(&prev_height);
+            }
             // The Batcher must be told when we begin to work on a new height. The implicit model is
             // that consensus works on a given height until it is done (either a decision is reached
             // or sync causes us to move on) and then moves on to a different height, never to
