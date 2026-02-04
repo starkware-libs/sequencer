@@ -219,6 +219,14 @@ impl<S: Storage> CachedStorage<S> {
     pub fn total_writes(&self) -> u128 {
         self.writes
     }
+
+    pub fn flush_to_cache(&mut self, map: DbHashMap) {
+        let cache =
+            Arc::get_mut(&mut self.cache).expect("Failed to get mutable reference to cache.");
+        map.into_iter().for_each(|(key, value)| {
+            cache.put(key, Some(value));
+        });
+    }
 }
 
 impl<S: Storage> Storage for CachedStorage<S> {
