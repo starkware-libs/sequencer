@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_protobuf::consensus::Round;
+use apollo_consensus::types::Round;
 use apollo_staking_config::config::{
     get_config_for_epoch,
     ConfiguredStaker,
@@ -23,8 +23,6 @@ use crate::committee_provider::{
     CommitteeProvider,
     CommitteeProviderError,
     CommitteeProviderResult,
-    EpochCommittee,
-    ProposerLookup,
     Staker,
 };
 use crate::staking_contract::StakingContract;
@@ -410,23 +408,5 @@ impl CommitteeProvider for StakingManager {
         // Use round-robin selection: (height + round) % eligible_count
         let i = (height_usize + round_usize) % committee_data.eligible_proposers.len();
         Ok(committee_data.eligible_proposers[i])
-    }
-}
-
-impl ProposerLookup for EpochCommittee {
-    fn actual_proposer(
-        &self,
-        _height: BlockNumber,
-        _round: Round,
-    ) -> CommitteeProviderResult<ContractAddress> {
-        todo!()
-    }
-
-    fn virtual_proposer(
-        &self,
-        _height: BlockNumber,
-        _round: Round,
-    ) -> CommitteeProviderResult<ContractAddress> {
-        todo!()
     }
 }
