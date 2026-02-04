@@ -33,7 +33,6 @@ use crate::execution::call_info::{
     BuiltinCounterMap,
     CallInfo,
     ExecutionSummary,
-    IntoBuiltinCounterMap,
     OrderedEvent,
     OrderedItem,
     OrderedL2ToL1Message,
@@ -268,9 +267,7 @@ impl TransactionExecutionInfo {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
     }
 
-    // TODO(Yonatank): Currently opcodes are not included in the CallInfo summary. In the future,
-    // this function should return ResourceCounterMap instead of BuiltinCounterMap.
-    pub fn summarize_builtins(&self) -> BuiltinCounterMap {
+    pub fn summarize_builtins(&self) -> ResourceCounterMap {
         let mut builtin_counters = ResourceCounterMap::new();
         // Remove fee transfer builtins to avoid double-counting in `get_tx_weights`
         // in bouncer.rs (already included in os_vm_resources).
@@ -279,7 +276,7 @@ impl TransactionExecutionInfo {
                 add_maps(&mut builtin_counters, &call_info.builtin_counters);
             }
         }
-        builtin_counters.into_builtin_counter_map()
+        builtin_counters
     }
 
     /// Information needed to compute the block hash of the block that the transaction is part of.
