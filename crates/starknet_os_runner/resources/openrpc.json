@@ -1,0 +1,154 @@
+{
+  "openrpc": "1.0.0",
+  "info": {
+    "title": "Starknet OS Runner RPC API",
+    "version": "0.10.0",
+    "description": "JSON-RPC API for the Starknet OS Runner proving service"
+  },
+  "methods": [
+    {
+      "name": "starknet_specVersion",
+      "summary": "Returns the spec version",
+      "description": "Returns the Starknet RPC specification version supported by this server. Serves as a lightweight health check.",
+      "params": [],
+      "result": {
+        "name": "specVersion",
+        "description": "The Starknet RPC specification version",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "name": "starknet_proveTransaction",
+      "summary": "Proves a transaction",
+      "description": "Proves a transaction on top of the specified block. The transaction must be an Invoke transaction.",
+      "params": [
+        {
+          "name": "block_id",
+          "description": "The block to execute the transaction on",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/BlockId"
+          }
+        },
+        {
+          "name": "transaction",
+          "description": "The transaction to prove (must be an Invoke transaction)",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/RpcTransaction"
+          }
+        }
+      ],
+      "result": {
+        "name": "proveTransactionResult",
+        "description": "The proof, proof facts, and L2-to-L1 messages",
+        "schema": {
+          "$ref": "#/components/schemas/ProveTransactionResult"
+        }
+      }
+    },
+    {
+      "name": "rpc_discover",
+      "summary": "Returns the OpenRPC schema",
+      "description": "Returns the OpenRPC service discovery document describing this API.",
+      "params": [],
+      "result": {
+        "name": "openrpcDocument",
+        "description": "The OpenRPC document",
+        "schema": {
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "components": {
+    "schemas": {
+      "BlockId": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "block_hash": {
+                "type": "string",
+                "description": "The hash of the block"
+              }
+            },
+            "required": ["block_hash"]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "block_number": {
+                "type": "integer",
+                "description": "The number of the block"
+              }
+            },
+            "required": ["block_number"]
+          },
+          {
+            "type": "string",
+            "enum": ["latest", "pending"],
+            "description": "Block tag (latest or pending)"
+          }
+        ],
+        "description": "Block identifier"
+      },
+      "RpcTransaction": {
+        "type": "object",
+        "description": "An RPC transaction. Only Invoke V3 transactions are supported."
+      },
+      "ProveTransactionResult": {
+        "type": "object",
+        "properties": {
+          "proof": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "The generated proof (array of u32 values)"
+          },
+          "proof_facts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The proof facts (array of field elements as hex strings)"
+          },
+          "l2_to_l1_messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageToL1"
+            },
+            "description": "Messages sent from L2 to L1 during execution"
+          }
+        },
+        "required": ["proof", "proof_facts", "l2_to_l1_messages"],
+        "description": "Result of a successful prove transaction operation"
+      },
+      "MessageToL1": {
+        "type": "object",
+        "properties": {
+          "from_address": {
+            "type": "string",
+            "description": "The L2 contract address that sent the message (hex string)"
+          },
+          "to_address": {
+            "type": "string",
+            "description": "The L1 Ethereum address to receive the message (hex string)"
+          },
+          "payload": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The message payload (array of field elements as hex strings)"
+          }
+        },
+        "required": ["from_address", "to_address", "payload"],
+        "description": "A message sent from L2 to L1"
+      }
+    }
+  }
+}

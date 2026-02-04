@@ -7,7 +7,7 @@ use clap::Parser;
 use jsonrpsee::server::ServerBuilder;
 use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
 use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
-use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
+use starknet_os_runner::server::rpc_trait::{DiscoveryRpcServer, ProvingRpcServer};
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
@@ -32,7 +32,13 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context(format!("Failed to bind JSON-RPC server to {addr}"))?;
 
-    let handle = server.start(rpc_impl.into_rpc());
+    // Merge both RPC modules (proving and discovery) into a single module.
+    let mut rpc_module = ProvingRpcServer::into_rpc(rpc_impl.clone());
+    rpc_module
+        .merge(DiscoveryRpcServer::into_rpc(rpc_impl))
+        .context("Failed to merge RPC modules")?;
+
+    let handle = server.start(rpc_module);
     info!(local_address = %addr, "JSON-RPC proving server is running.");
 
     handle.stopped().await;

@@ -35,3 +35,16 @@ pub trait ProvingRpc {
         transaction: RpcTransaction,
     ) -> RpcResult<ProveTransactionResult>;
 }
+
+/// JSON-RPC trait for service discovery.
+///
+/// Namespace: `rpc` (methods will be prefixed with `rpc_`).
+#[rpc(server, namespace = "rpc")]
+pub trait DiscoveryRpc {
+    /// Returns the OpenRPC service discovery document.
+    ///
+    /// This method allows clients to retrieve the API schema, including available methods,
+    /// their parameters, and return types.
+    #[method(name = "discover")]
+    async fn discover(&self) -> RpcResult<serde_json::Value>;
+}
