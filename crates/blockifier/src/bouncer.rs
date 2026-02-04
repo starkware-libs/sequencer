@@ -15,7 +15,12 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorResult,
 };
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
-use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
+use crate::execution::call_info::{
+    BuiltinCounterMap,
+    CairoPrimitiveCounterMap,
+    CairoPrimitiveName,
+    ExecutionSummary,
+};
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
@@ -559,7 +564,7 @@ impl Bouncer {
         state_reader: &S,
         tx_state_changes_keys: &StateChangesKeys,
         tx_execution_summary: &ExecutionSummary,
-        tx_builtin_counters: &BuiltinCounterMap,
+        tx_builtin_counters: &CairoPrimitiveCounterMap,
         tx_resources: &TransactionResources,
         versioned_constants: &VersionedConstants,
     ) -> TransactionExecutorResult<()> {
@@ -819,7 +824,7 @@ pub fn get_tx_weights<S: StateReader>(
     tx_resources: &TransactionResources,
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
-    tx_builtin_counters: &BuiltinCounterMap,
+    tx_builtin_counters: &CairoPrimitiveCounterMap,
     bouncer_config: &BouncerConfig,
 ) -> TransactionExecutionResult<TxWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
@@ -877,8 +882,26 @@ pub fn get_tx_weights<S: StateReader>(
     // Exclude tx_vm_resources to prevent double-counting in tx_builtin_counters.
     let mut vm_resources_builtins_for_proving_gas_computation =
         (&patrticia_update_resources + &tx_resources.computation.os_vm_resources).prover_builtins();
+
+    // Convert `tx_builtin_counters` into the format expected by `add_maps`.
+    // TODO(AvivG): Support opcode counters in gas computations.
+    let tx_builtins: BuiltinCounterMap = tx_builtin_counters
+            .iter()
+            .map(|(cairo_primitive_name, count)| match cairo_primitive_name {
+                CairoPrimitiveName::Builtin(builtin_name) => (*builtin_name, *count),
+                CairoPrimitiveName::Opcode(_) => panic!(
+                    "Opcode counters are not expected here: CallInfo does not yet receive \
+                    opcode data from the VM / native."
+                )
+            })
+            .collect();
+
     // Use tx_builtin_counters to count the Sierra gas executed entry points as well.
-    add_maps(&mut vm_resources_builtins_for_proving_gas_computation, tx_builtin_counters);
+    add_maps(
+        &mut vm_resources_builtins_for_proving_gas_computation,
+        &tx_builtins
+    );
+
 
     let (total_proving_gas, casm_hash_computation_data_proving_gas) = compute_proving_gas(
         &vm_resources_builtins_for_proving_gas_computation,
@@ -961,7 +984,7 @@ pub fn get_patricia_update_resources(
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
     tx_execution_summary: &ExecutionSummary,
-    tx_builtin_counters: &BuiltinCounterMap,
+    tx_builtin_counters: &CairoPrimitiveCounterMap,
     tx_resources: &TransactionResources,
     tx_state_changes_keys: &StateChangesKeys,
     bouncer_config: &BouncerConfig,
