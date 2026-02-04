@@ -260,7 +260,7 @@ where
             .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(&block_measurements.block_measurement);
+        update_metrics(height, &block_measurements.block_measurement);
         self.update_offset(next_offset);
         Ok(CommitBlockResponse { global_root })
     }
@@ -366,7 +366,7 @@ where
             .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(&block_measurements.block_measurement);
+        update_metrics(height, &block_measurements.block_measurement);
         self.update_offset(last_committed_block);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
@@ -447,14 +447,24 @@ impl ComponentStarter for ApolloCommitter {
 }
 
 fn update_metrics(
+    height: BlockNumber,
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
     READ_DURATION_PER_BLOCK.record_lossy(durations.read);
+    info!("Read duration of block {height}: {} ms", durations.read * 1000.0);
     COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
+    info!("Compute duration of block {height}: {} ms", durations.compute * 1000.0);
     WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
+    info!("Write duration of block {height}: {} ms", durations.write * 1000.0);
     READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
     WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
+    info!("Storage tries modifications in block {height}: {}", modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.contracts_trie);
+    info!(
+        "Contracts trie modifications in block {height}: {}",
+        modifications_counts.contracts_trie
+    );
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.classes_trie);
+    info!("Classes trie modifications in block {height}: {}", modifications_counts.classes_trie);
 }
