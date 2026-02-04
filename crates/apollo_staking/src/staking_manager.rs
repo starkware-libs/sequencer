@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, Mutex, RwLock};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_consensus::types::Round;
+use apollo_protobuf::consensus::Round;
 use apollo_staking_config::config::{
     get_config_for_epoch,
     ConfiguredStaker,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_consensus::types::Round;
+use apollo_protobuf::consensus::Round;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
@@ -65,6 +65,43 @@ pub trait CommitteeProvider: Send + Sync {
     ///    field in StakerConfig).
     /// 2. Uses deterministic round-robin selection: `(height + round) % eligible_count`.
     async fn get_actual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> CommitteeProviderResult<ContractAddress>;
+}
+
+/// Trait for managing committee operations including fetching and selecting committee members
+/// and proposers for consensus.
+/// The committee is a subset of nodes (proposer and validators) that are selected to participate in
+/// the consensus at a given epoch, responsible for proposing blocks and voting on them.
+#[async_trait]
+// TODO(Asmaa): Rename to CommitteeProvider once we remove the other trait.
+pub trait CommitteeProviderTrait: Send + Sync {
+    /// Loads and caches committee data for the given height. Must be called at the start of each
+    /// height before using the sync getters.
+    async fn update_committee(&self, height: BlockNumber) -> CommitteeProviderResult<()>;
+
+    /// Returns a list of the committee members at the epoch of the given height.
+    // TODO(Dafna): Consider including the total weight in the returned `Committee` type.
+    fn get_committee(&self, height: BlockNumber) -> CommitteeProviderResult<Arc<Committee>>;
+
+    /// Returns the address of the actual proposer for the specified height and round.
+    ///
+    /// 1. Filters the committee to only include stakers eligible to propose (based on `can_propose`
+    ///    field in StakerConfig).
+    /// 2. Uses deterministic round-robin selection: `(height + round) % eligible_count`.
+    fn get_actual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> CommitteeProviderResult<ContractAddress>;
+
+    /// Returns the address of the virtual proposer for the specified height and round.
+    ///
+    /// The proposer is deterministically selected for a given height and round, from the committee
+    /// corresponding to the epoch associated with that height.
+    fn get_virtual_proposer(
         &self,
         height: BlockNumber,
         round: Round,
