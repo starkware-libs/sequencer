@@ -641,10 +641,10 @@ impl Batcher {
 
         let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
 
-        let storage_commitment_block_hash = if block_header_without_hash
-            .starknet_version
-            .has_partial_block_hash_components()
-        {
+        let has_partial_block_hash_components =
+            block_header_without_hash.starknet_version.has_partial_block_hash_components();
+
+        let storage_commitment_block_hash = if has_partial_block_hash_components {
             self.maybe_handle_first_block_with_partial_block_hash(
                 block_header_without_hash.parent_hash,
                 block_number,
@@ -703,6 +703,21 @@ impl Batcher {
             storage_commitment_block_hash,
         )
         .await?;
+
+        self.commitment_manager
+            .synced_global_roots
+            .insert(block_number, block_header_without_hash.state_root);
+
+        // For blocks with partial block hash components, we'll want to compare the computed block
+        // hash to the received block hash.
+        if has_partial_block_hash_components {
+            self.commitment_manager.synced_block_hashes.insert(
+                block_number
+                    .prev()
+                    .expect("Genesis block should not have partial block hash components."),
+                block_header_without_hash.parent_hash,
+            );
+        }
 
         self.commitment_manager
             .add_commitment_task(
