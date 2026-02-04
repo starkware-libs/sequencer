@@ -54,6 +54,7 @@ use crate::metrics::{
     OFFSET,
     READ_DB_ENTRIES_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
+    TOTAL_BLOCK_DURATION,
     WRITE_DB_ENTRIES_PER_BLOCK,
     WRITE_DURATION_PER_BLOCK,
 };
@@ -450,12 +451,17 @@ fn update_metrics(
     height: BlockNumber,
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
+    TOTAL_BLOCK_DURATION.record_lossy(durations.block);
     READ_DURATION_PER_BLOCK.record_lossy(durations.read);
-    info!("Read duration of block {height}: {} ms", durations.read * 1000.0);
     COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
-    info!("Compute duration of block {height}: {} ms", durations.compute * 1000.0);
     WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
-    info!("Write duration of block {height}: {} ms", durations.write * 1000.0);
+    info!(
+        "Total/read/compute/write duration of block {height}: {:.0}/{:.0}/{:.0}/{:.0} ms",
+        durations.block * 1000.0,
+        durations.read * 1000.0,
+        durations.compute * 1000.0,
+        durations.write * 1000.0
+    );
     READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
     WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
