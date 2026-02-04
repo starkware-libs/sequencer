@@ -272,12 +272,17 @@ impl AddAssign<&ChargedResources> for ChargedResources {
     }
 }
 
-#[derive(Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
     Blake,
 }
 
-#[derive(Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+// Serialize as an untagged enum to avoid a type prefix, for backward compatibility with
+// how `CallInfo` was serialized when only builtins (no opcodes) were included (prior to v0.14.2).
+#[serde(untagged)]
 pub enum ResourceName {
     Builtin(BuiltinName),
     Opcode(OpcodeName),
@@ -298,6 +303,16 @@ impl From<OpcodeName> for ResourceName {
 pub type ResourceCounterMap = BTreeMap<ResourceName, usize>;
 
 pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
+
+pub trait IntoCounterMap<T> {
+    fn into_counter_map(self) -> T;
+}
+
+impl IntoCounterMap<ResourceCounterMap> for BuiltinCounterMap {
+    fn into_counter_map(self) -> ResourceCounterMap {
+        self.into_iter().map(|(name, count)| (name.into(), count)).collect()
+    }
+}
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
