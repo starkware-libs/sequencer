@@ -273,13 +273,13 @@ impl AddAssign<&ChargedResources> for ChargedResources {
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
     Blake,
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 // Serialize as untagged enum to avoid the type prefix. This is for consistency with the way
 // CallInfo has been serialized before the introduction of the ResourceName enum.
 #[serde(untagged)]
@@ -311,23 +311,6 @@ pub trait IntoResourceCounterMap {
 impl IntoResourceCounterMap for BuiltinCounterMap {
     fn into_resource_counter_map(self) -> ResourceCounterMap {
         self.into_iter().map(|(name, count)| (name.into(), count)).collect()
-    }
-}
-
-// TODO(YonatanK): Remove this trait once compute_proving_gas_uses ResourceCounterMap instead of
-// BuiltinCounterMap.
-pub trait IntoBuiltinCounterMap {
-    fn into_builtin_counter_map(self) -> BuiltinCounterMap;
-}
-
-impl IntoBuiltinCounterMap for ResourceCounterMap {
-    fn into_builtin_counter_map(self) -> BuiltinCounterMap {
-        self.into_iter()
-            .map(|(resource_name, count)| match resource_name {
-                ResourceName::Builtin(builtin_name) => (builtin_name, count),
-                ResourceName::Opcode(_) => panic!("This counter map shouldn't contain opcodes."),
-            })
-            .collect()
     }
 }
 

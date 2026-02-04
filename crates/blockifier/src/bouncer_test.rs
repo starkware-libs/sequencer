@@ -16,10 +16,10 @@ use starknet_api::{class_hash, contract_address, felt, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
-    builtins_to_gas,
     get_patricia_update_resources,
     get_tx_weights,
     map_class_hash_to_casm_hash_computation_resources,
+    resources_to_gas,
     verify_tx_weights_within_max_capacity,
     Bouncer,
     BouncerWeights,
@@ -278,12 +278,13 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
 
     let range_check_count = 2;
     let max_capacity_builtin_counters =
-        BTreeMap::from([(BuiltinName::range_check, range_check_count)]);
+        BTreeMap::from([(BuiltinName::range_check, range_check_count)]).into_resource_counter_map();
     let builtin_counters = match scenario {
         "proving_gas_block_full" => max_capacity_builtin_counters.clone(),
         // Use a minimal or empty map.
         "ok" | "sierra_gas_block_full" => {
             BTreeMap::from([(BuiltinName::range_check, range_check_count - 1)])
+                .into_resource_counter_map()
         }
         _ => panic!("Unexpected scenario: {scenario}"),
     };
@@ -296,7 +297,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     };
 
     let proving_gas_max_capacity =
-        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
+        resources_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
 
     let block_max_capacity = BouncerWeights {
         l1_gas: 20,
@@ -334,7 +335,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         &transactional_state,
         &tx_state_changes_keys,
         &execution_summary,
-        &builtin_counters.into_resource_counter_map(),
+        &builtin_counters,
         &tx_resources,
         &block_context.versioned_constants,
     );
@@ -670,19 +671,19 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     // Compute expected gas delta from builtin delta (absolute difference between Stwo and Stone).
     let (total_stwo_gas, total_stone_gas) = tx_builtin_counters
         .iter()
-        .map(|(name, count)| {
+        .map(|(&name, count)| {
             let stwo_gas = block_context
                 .bouncer_config
                 .builtin_weights
                 .gas_costs
-                .get_builtin_gas_cost(name)
+                .get_builtin_gas_cost(name.into())
                 .unwrap_or_else(|_| panic!("Builtin name {:?} is not supported in the bouncer weights.", name));
             let stone_gas = block_context
                 .versioned_constants
                 .os_constants
                 .gas_costs
                 .builtins
-                .get_builtin_gas_cost(name)
+                .get_builtin_gas_cost(name.into())
                 .unwrap();
 
             let stwo_total = stwo_gas.checked_mul(u64_from_usize(*count)).expect("overflow");
