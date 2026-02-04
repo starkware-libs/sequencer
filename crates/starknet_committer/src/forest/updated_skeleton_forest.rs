@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
@@ -96,4 +98,35 @@ impl UpdatedSkeletonForest {
             SkeletonLeaf::NonZero
         }
     }
+
+    pub(crate) fn siblings(&self) -> Siblings {
+        Siblings {
+            classes_trie: Self::filter_siblings(&self.classes_trie),
+            contracts_trie: Self::filter_siblings(&self.contracts_trie),
+            storage_tries: self
+                .storage_tries
+                .iter()
+                .map(|(address, trie)| (*address, Self::filter_siblings(trie)))
+                .collect(),
+        }
+    }
+
+    fn filter_siblings(skeleton_tree: &UpdatedSkeletonTreeImpl) -> HashMap<NodeIndex, HashOutput> {
+        skeleton_tree
+            .get_nodes()
+            .filter_map(|(index, node)| match node {
+                UpdatedSkeletonNode::UnmodifiedSubTree(hash) => Some((index, hash)),
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+pub(crate) struct Siblings {
+    #[allow(dead_code)]
+    pub(crate) classes_trie: HashMap<NodeIndex, HashOutput>,
+    #[allow(dead_code)]
+    pub(crate) contracts_trie: HashMap<NodeIndex, HashOutput>,
+    #[allow(dead_code)]
+    pub(crate) storage_tries: HashMap<ContractAddress, HashMap<NodeIndex, HashOutput>>,
 }

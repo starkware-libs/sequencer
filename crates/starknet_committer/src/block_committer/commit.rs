@@ -95,6 +95,9 @@ pub trait CommitBlockTrait: Send {
         )?;
         info!("Updated skeleton forest created successfully.");
 
+        // Flush siblings to cache.
+        let _siblings = updated_forest.siblings();
+
         // Compute the new hashes.
         let filled_forest = FilledForest::create::<TreeHashFunctionImpl>(
             updated_forest,
