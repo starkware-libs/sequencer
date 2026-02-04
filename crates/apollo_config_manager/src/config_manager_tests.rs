@@ -1,3 +1,4 @@
+use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_config::ValidatorId;
@@ -52,5 +53,23 @@ async fn config_manager_update_config() {
         consensus_dynamic_config, new_consensus_dynamic_config,
         "Consensus dynamic config mismatch: {consensus_dynamic_config:#?} != {:#?}",
         new_consensus_dynamic_config
+    );
+}
+
+#[tokio::test]
+async fn config_manager_get_batcher_dynamic_config() {
+    let config = ConfigManagerConfig::default();
+    let batcher_dynamic_config = BatcherDynamicConfig::default();
+    let node_dynamic_config = NodeDynamicConfig {
+        batcher_dynamic_config: Some(batcher_dynamic_config.clone()),
+        ..Default::default()
+    };
+    let config_manager = ConfigManager::new(config, node_dynamic_config);
+
+    let retrieved =
+        config_manager.get_batcher_dynamic_config().expect("Failed to get batcher dynamic config");
+    assert_eq!(
+        retrieved, batcher_dynamic_config,
+        "Batcher dynamic config mismatch: {retrieved:#?} != {batcher_dynamic_config:#?}",
     );
 }
