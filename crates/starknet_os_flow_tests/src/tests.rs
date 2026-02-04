@@ -501,6 +501,7 @@ async fn test_os_logic(
     )
     .await;
     let chain_id = &test_builder.chain_id();
+    let current_block_number = test_builder.first_block_number();
     let n_expected_txs = 32;
     let mut expected_storage_updates = HashMap::new();
 
@@ -592,9 +593,12 @@ async fn test_os_logic(
         &[**contract_addresses[0]],
     );
     let config_hash = test_builder.compute_virtual_os_config_hash();
+    // We use the most recent block number that the OS is allowed to look up, to verify that both
+    // the blockifier and the OS enforce the same boundary.
     let proof_facts = ProofFacts::custom_proof_facts_for_testing(
         get_valid_virtual_os_program_hash(),
         config_hash,
+        Some(current_block_number.0 - STORED_BLOCK_HASH_BUFFER),
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! {
         calldata,
@@ -1150,7 +1154,9 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     let proof_facts = ProofFacts::custom_proof_facts_for_testing(
         get_valid_virtual_os_program_hash(),
         config_hash,
+        None,
     );
+
     let only_query = false;
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,

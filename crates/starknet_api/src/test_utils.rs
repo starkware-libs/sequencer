@@ -394,13 +394,17 @@ impl ProofFacts {
     /// Returns a ProofFacts instance for testing with dummy program hash.
     /// For tests requiring validation, use a custom program hash.
     pub fn snos_proof_facts_for_testing() -> Self {
-        Self::custom_proof_facts_for_testing(VIRTUAL_OS_PROGRAM_HASH, *TEST_OS_CONFIG_HASH)
+        Self::custom_proof_facts_for_testing(VIRTUAL_OS_PROGRAM_HASH, *TEST_OS_CONFIG_HASH, None)
     }
 
     /// Returns a ProofFacts instance for testing with custom fields.
-    pub fn custom_proof_facts_for_testing(program_hash: Felt, config_hash: Felt) -> Self {
+    pub fn custom_proof_facts_for_testing(
+        program_hash: Felt,
+        config_hash: Felt,
+        block_number: Option<u64>,
+    ) -> Self {
         let block_hash_history_start = CURRENT_BLOCK_NUMBER - BLOCK_HASH_HISTORY_RANGE;
-        let block_number_u64 = block_hash_history_start + 2;
+        let block_number_u64 = block_number.unwrap_or(block_hash_history_start + 2);
         let block_number = felt!(block_number_u64);
         let block_hash = test_block_hash(block_number_u64).0;
         assert!(

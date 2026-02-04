@@ -2284,7 +2284,11 @@ fn proof_facts_with_zero_block_hash() -> ProofFacts {
 
 /// Returns invalid proof_facts with an invalid program hash.
 fn proof_facts_with_invalid_program_hash() -> ProofFacts {
-    ProofFacts::custom_proof_facts_for_testing(Felt::from(0x12345678_u64), *TEST_OS_CONFIG_HASH)
+    ProofFacts::custom_proof_facts_for_testing(
+        Felt::from(0x12345678_u64),
+        *TEST_OS_CONFIG_HASH,
+        None,
+    )
 }
 
 /// Returns invalid proof_facts with a mismatched config hash.
@@ -2292,6 +2296,7 @@ fn proof_facts_with_invalid_config_hash() -> ProofFacts {
     ProofFacts::custom_proof_facts_for_testing(
         get_valid_virtual_os_program_hash(),
         Felt::from(0x12345678_u64),
+        None,
     )
 }
 
