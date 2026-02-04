@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770217528425,
+  "lastUpdate": 1770228059125,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -101,6 +101,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1436.3065138099998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "yonatan.k@starkware.co",
+            "name": "Yonatan-Starkware",
+            "username": "Yonatan-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c82dc7c9b6117e6f8281ff44a9a1751800972f12",
+          "message": "blockifier: use ReasourceCounterMap in CallInfo (#12254)",
+          "timestamp": "2026-02-04T17:37:04Z",
+          "tree_id": "c6c9e090654d857af1febde00aa2924cf8b4d539",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c82dc7c9b6117e6f8281ff44a9a1751800972f12"
+        },
+        "date": 1770228058747,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 888.54065577,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1320.5806696900001,
             "unit": "ms"
           }
         ]
