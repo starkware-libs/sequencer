@@ -940,6 +940,7 @@ pub struct BuiltinGasCosts {
     pub add_mod: u64,
     pub mul_mod: u64,
     pub ecdsa: u64,
+    // Blake opcode gas cost.
     pub blake: u64,
 }
 

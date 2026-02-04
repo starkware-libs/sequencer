@@ -70,16 +70,14 @@ impl EstimatedExecutionResources {
     pub fn to_gas(
         &self,
         builtin_gas_cost: &BuiltinGasCosts,
-        blake_opcode_gas_cost: usize,
         versioned_constants: &VersionedConstants,
     ) -> GasAmount {
         let resources_gas =
             vm_resources_to_gas(self.resources_ref(), builtin_gas_cost, versioned_constants);
 
-        let blake_gas = self
-            .blake_count()
-            .checked_mul(blake_opcode_gas_cost)
-            .map(u64_from_usize)
+        let blake_count = u64_from_usize(self.blake_count());
+        let blake_gas = blake_count
+            .checked_mul(builtin_gas_cost.blake)
             .map(GasAmount)
             .expect("Overflow computing Blake opcode gas.");
 
