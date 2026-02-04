@@ -75,6 +75,7 @@ impl EstimatedExecutionResources {
         let resources_gas =
             vm_resources_to_gas(self.resources_ref(), builtin_gas_cost, versioned_constants);
 
+        // Blake is computed separately since it is not currently included in the vm resources.
         let blake_count = u64_from_usize(self.blake_count());
         let blake_gas = blake_count
             .checked_mul(builtin_gas_cost.blake)
