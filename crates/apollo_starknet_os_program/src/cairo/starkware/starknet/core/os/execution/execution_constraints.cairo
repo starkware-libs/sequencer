@@ -3,9 +3,11 @@
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_le, assert_nn_le, assert_not_zero
+from starkware.cairo.common.math_cmp import is_le
 from starkware.starknet.core.os.constants import (
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN,
+    MAX_PROVING_BLOCKS_BEHIND,
     STORED_BLOCK_HASH_BUFFER,
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
@@ -41,6 +43,8 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
         return ();
     }
 
+    alloc_locals;
+
     assert_le(ProofHeader.SIZE + VirtualOsOutputHeader.SIZE, proof_facts_size);
 
     // Validate the proof header.
@@ -66,6 +70,18 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     assert_nn_le(
         os_output_header.base_block_number, current_block_number - STORED_BLOCK_HASH_BUFFER
     );
+
+    // Validate that the proof facts block number is not too old.
+    // Clamp to 0 if current_block_number < CLIENT_SIDE_PROVING_MAX_BLOCK_AGE to avoid underflow.
+    let is_old_enough = is_le(MAX_PROVING_BLOCKS_BEHIND, current_block_number);
+    local min_allowed_block_number;
+    if (is_old_enough != 0) {
+        assert min_allowed_block_number = current_block_number - MAX_PROVING_BLOCKS_BEHIND;
+    } else {
+        assert min_allowed_block_number = 0;
+    }
+    assert_le(min_allowed_block_number, os_output_header.base_block_number);
+
     // Not all block hashes are stored in the contract; Make sure the requested one is not trivial.
     assert_not_zero(os_output_header.base_block_hash);
 
