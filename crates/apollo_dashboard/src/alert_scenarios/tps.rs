@@ -5,9 +5,11 @@ use apollo_gateway::metrics::{
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_SUCCESS;
+use apollo_infra_utils::template::Template;
 use apollo_mempool::metrics::MEMPOOL_TRANSACTIONS_RECEIVED;
 use apollo_metrics::metrics::MetricQueryName;
 
+use crate::alert_placeholders::{format_sampling_window, ExpressionOrExpressionWithPlaceholder};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -27,14 +29,20 @@ fn build_idle_alert(
     alert_title: &str,
     alert_group: AlertGroup,
     metric_name_with_filter: &str,
-    duration: Duration,
+    // TODO(Tsabary): remove the `_duration` argument.
+    _duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
+    let expr_template_string =
+        format!("sum(increase({}[{{}}s])) or vector(0)", metric_name_with_filter);
     Alert::new(
         alert_name,
         alert_title,
         alert_group,
-        format!("sum(increase({}[{}s])) or vector(0)", metric_name_with_filter, duration.as_secs()),
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![format_sampling_window(alert_name)],
+        ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 0.1, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
