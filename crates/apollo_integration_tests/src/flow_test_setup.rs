@@ -449,7 +449,8 @@ impl FlowSequencerSetup {
             ..Default::default()
         };
 
-        // Always enable bootstrap txs for bootstrap mode
+        // Enable bootstrap txs to disable validation in gateway/mempool.
+        // Bootstrap transactions sent via gateway need validation disabled.
         let allow_bootstrap_txs = true;
 
         // Derive the configuration for the sequencer node.

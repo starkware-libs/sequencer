@@ -37,15 +37,18 @@
 //!
 //! ## For Full End-to-End Bootstrap Testing
 //!
-//! To test bootstrap with running nodes:
+//! Use `FlowTestSetup::new_for_bootstrap()` which:
+//! 1. Creates empty storage with `StorageTestSetup::new_empty_for_bootstrap(chain_id)`
+//! 2. Configures node with `BootstrapAddresses::create_chain_info_for_bootstrap()`
+//! 3. Generates bootstrap transactions and passes them to the batcher
+//! 4. Configures `BootstrapConfig` with deterministic addresses
 //!
-//! 1. Create storage with `StorageTestSetup::new_empty_for_bootstrap(chain_id)`
-//! 2. Configure node with `BootstrapAddresses::create_chain_info_for_bootstrap()`
-//! 3. Set `allow_bootstrap_txs: true` in test configuration
-//! 4. Start the node with the empty storage
-//! 5. Send bootstrap transactions via gateway (using `generate_bootstrap_transactions()`)
-//! 6. Wait for block commits
-//! 7. Verify completion with `check_completion()` or by checking ERC20 balances
+//! The batcher will:
+//! 1. Start in Active bootstrap state (if storage is empty and txs provided)
+//! 2. Include bootstrap transactions in initial block proposals
+//! 3. Transition to Monitoring state after first block commit
+//! 4. Check ERC20 balances after each block commit
+//! 5. Transition to Completed state when balances are sufficient
 
 use std::sync::LazyLock;
 

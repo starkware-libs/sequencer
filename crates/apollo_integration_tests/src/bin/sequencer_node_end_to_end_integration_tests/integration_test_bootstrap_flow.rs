@@ -145,8 +145,9 @@ async fn main() {
     info!("  5. Bootstrap manager state machine");
     info!("");
     info!("For full end-to-end testing with running nodes:");
-    info!("  - Use StorageTestSetup::new_empty_for_bootstrap() for storage");
-    info!("  - Use BootstrapAddresses::create_chain_info_for_bootstrap() for config");
-    info!("  - Enable allow_bootstrap_txs in EndToEndFlowArgs");
-    info!("  - Send transactions via gateway");
+    info!("  - Use FlowTestSetup::new_for_bootstrap() which:");
+    info!("    - Creates empty storage");
+    info!("    - Generates and injects bootstrap transactions into batcher");
+    info!("    - Configures BootstrapConfig with deterministic addresses");
+    info!("  - Bootstrap transactions are processed automatically by the batcher");
 }
