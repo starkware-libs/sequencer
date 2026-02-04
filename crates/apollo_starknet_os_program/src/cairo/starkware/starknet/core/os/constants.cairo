@@ -64,6 +64,12 @@ const RESERVED_CONTRACT_ADDRESS = 0x3;
 // The block number -> block hash mapping is written for the current block number minus this number.
 const STORED_BLOCK_HASH_BUFFER = 10;
 
+// Allowed virtual OS program hashes for client-side proving.
+const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0 = (
+    0x059ec5a6173b3d7c9b79f0469efd3e32e5ce1caf83d996146900cf2324448a80
+);
+const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN = 1;
+
 // Gas constants.
 
 const STEP_GAS_COST = 100;
@@ -77,6 +83,7 @@ const POSEIDON_GAS_COST = 491;
 const ADD_MOD_GAS_COST = 230;
 const MUL_MOD_GAS_COST = 604;
 const ECDSA_GAS_COST = 10561;
+const BLAKE_GAS_COST = 3334;
 const MEMORY_HOLE_GAS_COST = 10;
 
 const DEFAULT_INITIAL_GAS_COST = 10000000000;

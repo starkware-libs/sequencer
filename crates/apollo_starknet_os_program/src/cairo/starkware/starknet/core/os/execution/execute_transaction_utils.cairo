@@ -11,10 +11,9 @@ from starkware.starknet.core.os.constants import (
     VALIDATE_ENTRY_POINT_SELECTOR,
     VALIDATED,
 )
-from starkware.starknet.core.os.execution.deprecated_execute_entry_point import (
-    non_reverting_select_execute_entry_point_func,
-)
+from starkware.starknet.core.os.execution.entry_point_utils import select_execute_entry_point_func
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
+from starkware.starknet.core.os.execution.revert import init_revert_log
 from starkware.starknet.core.os.output import OsCarriedOutputs
 from starkware.starknet.core.os.state.commitment import StateEntry
 
@@ -68,12 +67,7 @@ func check_and_increment_nonce{contract_state_changes: DictAccess*}(tx_info: TxI
     }
 
     tempvar state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-            ids.tx_info.account_contract_address
-        ]
-    %}
+    %{ SetStateEntryToAccountContractAddress %}
 
     tempvar current_nonce = state_entry.nonce;
     with_attr error_message("Unexpected nonce.") {
@@ -156,15 +150,7 @@ func run_validate{
         block_context=block_context, execution_context=validate_execution_context
     );
     if (is_deprecated == 0) {
-        %{
-            # Fetch the result, up to 100 elements.
-            result = memory.get_range(ids.retdata, min(100, ids.retdata_size))
-
-            if result != [ids.VALIDATED]:
-                print("Invalid return value from __validate__:")
-                print(f"  Size: {ids.retdata_size}")
-                print(f"  Result (at most 100 elements): {result}")
-        %}
+        %{ CheckRetdataForDebug %}
         assert retdata_size = 1;
         assert retdata[0] = VALIDATED;
     }
@@ -177,7 +163,10 @@ func run_validate{
 // Arguments:
 // max_gas - expected to be the maximal validate or execute gas constant.
 func cap_remaining_gas{range_check_ptr, remaining_gas: felt}(max_gas: felt) {
-    if (nondet %{ ids.remaining_gas > ids.max_gas %} != FALSE) {
+    alloc_locals;
+    local remaining_gas_gt_max;
+    %{ RemainingGasGtMax %}
+    if (remaining_gas_gt_max != FALSE) {
         assert_nn_le(max_gas, remaining_gas - 1);
         tempvar remaining_gas = max_gas;
     } else {
@@ -185,4 +174,24 @@ func cap_remaining_gas{range_check_ptr, remaining_gas: felt}(max_gas: felt) {
         tempvar remaining_gas = remaining_gas;
     }
     return ();
+}
+
+// Same as `select_execute_entry_point_func`, but does not support reverts and does
+// not have an implicit 'revert_log' argument.
+func non_reverting_select_execute_entry_point_func{
+    range_check_ptr,
+    remaining_gas: felt,
+    builtin_ptrs: BuiltinPointers*,
+    contract_state_changes: DictAccess*,
+    contract_class_changes: DictAccess*,
+    outputs: OsCarriedOutputs*,
+}(block_context: BlockContext*, execution_context: ExecutionContext*) -> (
+    retdata_size: felt, retdata: felt*, is_deprecated: felt
+) {
+    let revert_log = init_revert_log();
+    let (is_reverted, retdata_size, retdata, is_deprecated) = select_execute_entry_point_func{
+        revert_log=revert_log
+    }(block_context=block_context, execution_context=execution_context);
+    assert is_reverted = 0;
+    return (retdata_size, retdata, is_deprecated);
 }

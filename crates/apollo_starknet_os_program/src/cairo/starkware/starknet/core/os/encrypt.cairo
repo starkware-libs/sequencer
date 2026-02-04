@@ -1,17 +1,16 @@
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import EcOpBuiltin
-from starkware.cairo.common.ec import ec_mul, recover_y, StarkCurve
+from starkware.cairo.common.ec import StarkCurve, ec_mul, recover_y
 from starkware.cairo.common.ec_point import EcPoint
-from starkware.cairo.common.math import assert_le_felt, assert_not_zero, assert_le
+from starkware.cairo.common.math import assert_le, assert_le_felt, assert_not_zero
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.core.os.naive_blake import (
-    calc_blake_hash_single,
-    naive_encode_felt252_to_u32s,
-    felt_from_le_u32s,
-    create_initial_state_for_blake2s,
     blake_with_opcode_for_single_16_length_word,
+    calc_blake_hash_single,
+    create_initial_state_for_blake2s,
+    felt_from_le_u32s,
+    naive_encode_felt252_to_u32s,
 )
-from starkware.cairo.common.cairo_blake2s.blake2s import blake_with_opcode
-from starkware.cairo.common.alloc import alloc
 
 // Encryption for StarkNet committee members — Overview
 //
@@ -51,16 +50,10 @@ func encrypt_state_diff{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     // Generate random symmetric key and random starknet private keys.
     local symmetric_key: felt;
     local sn_private_keys: felt*;
-    %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_end, ids.n_keys) %}
+    %{ GenerateKeysUsingSha256Hash %}
 
     local encrypted_start: felt*;
-    %{
-        if use_kzg_da:
-            ids.encrypted_start = segments.add()
-        else:
-            # Assign a temporary segment, to be relocated into the output segment.
-            ids.encrypted_start = segments.add_temp_segment()
-    %}
+    %{ SetEncryptedStart %}
 
     let output_pointer = encrypted_start;
     assert output_pointer[0] = n_keys;
@@ -203,6 +196,14 @@ func encrypt_inner{range_check_ptr, output_pointer: felt*}(
     blake_with_opcode_for_single_16_length_word(
         data=blake_input, out=blake_segment, initial_state=initial_state
     );
+    // Compute ciphertext_i = blake(k,i) % PRIME + plain_i.
+    // As we are mapping the u256 to PRIME, and PRIME doesn't divide 2^256,
+    // there will be a small section with lower probability.
+    // This is negligible for 2 reasons:
+    // 1. Section size: As PRIME is close to a power of 2,
+    //    the probability of falling in this section is very low (order of 2^(-50)).
+    // 2. Probability difference: As 2^256/PRIME is approximately 32, the difference
+    //    between the probabilities of the two sections is relatively small.
     let hash = felt_from_le_u32s(u32s=blake_segment);
     let blake_segment = &blake_segment[8];
 

@@ -3,7 +3,6 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.find_element import find_element, search_sorted_optimistic
-from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.registers import get_ap
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import (
@@ -14,7 +13,6 @@ from starkware.starknet.core.os.builtins import (
 )
 from starkware.starknet.core.os.constants import (
     DEFAULT_ENTRY_POINT_SELECTOR,
-    DEFAULT_INITIAL_GAS_COST,
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
     ENTRY_POINT_TYPE_L1_HANDLER,
@@ -26,11 +24,8 @@ from starkware.starknet.core.os.contract_class.deprecated_compiled_class import 
     DeprecatedCompiledClassFact,
     DeprecatedContractEntryPoint,
 )
-from starkware.starknet.core.os.execution.execute_entry_point import (
-    ExecutionContext,
-    execute_entry_point,
-)
-from starkware.starknet.core.os.execution.revert import RevertLogEntry, init_revert_log
+from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
+from starkware.starknet.core.os.execution.revert import RevertLogEntry
 from starkware.starknet.core.os.output import OsCarriedOutputs
 
 // Returns the entry point's offset in the program based on 'compiled_class' and
@@ -96,7 +91,7 @@ func call_execute_deprecated_syscalls{
     syscall_size,
     syscall_ptr: felt*,
 ) {
-    jmp abs block_context.execute_deprecated_syscalls_ptr;
+    jmp abs block_context.os_global_context.execute_deprecated_syscalls_ptr;
 }
 
 // Executes an entry point in a contract.
@@ -120,10 +115,11 @@ func deprecated_execute_entry_point{
 
     // The key must be at offset 0.
     static_assert DeprecatedCompiledClassFact.hash == 0;
+    let compiled_class_facts_bundle = block_context.os_global_context.compiled_class_facts_bundle;
     let (compiled_class_fact: DeprecatedCompiledClassFact*) = find_element(
-        array_ptr=block_context.deprecated_compiled_class_facts,
+        array_ptr=compiled_class_facts_bundle.deprecated_compiled_class_facts,
         elm_size=DeprecatedCompiledClassFact.SIZE,
-        n_elms=block_context.n_deprecated_compiled_class_facts,
+        n_elms=compiled_class_facts_bundle.n_deprecated_compiled_class_facts,
         key=execution_context.class_hash,
     );
     local compiled_class: DeprecatedCompiledClass* = compiled_class_fact.compiled_class;
@@ -133,14 +129,14 @@ func deprecated_execute_entry_point{
     );
 
     if (success == 0) {
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         let (retdata: felt*) = alloc();
         assert retdata[0] = ERROR_ENTRY_POINT_NOT_FOUND;
         return (is_reverted=1, retdata_size=1, retdata=retdata);
     }
 
     if (entry_point_offset == NOP_ENTRY_POINT_OFFSET) {
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         // Assert that there is no call data in the case of NOP entry point.
         assert execution_context.calldata_size = 0;
         return (is_reverted=0, retdata_size=0, retdata=cast(0, felt*));
@@ -155,7 +151,7 @@ func deprecated_execute_entry_point{
     assert [os_context] = cast(syscall_ptr, felt);
 
     let n_builtins = BuiltinEncodings.SIZE;
-    local builtin_params: BuiltinParams* = block_context.builtin_params;
+    local builtin_params: BuiltinParams* = block_context.os_global_context.builtin_params;
     select_builtins(
         n_builtins=n_builtins,
         all_encodings=builtin_params.builtin_encodings,
@@ -171,10 +167,10 @@ func deprecated_execute_entry_point{
     tempvar calldata_size = execution_context.calldata_size;
     tempvar calldata = execution_context.calldata;
 
-    %{ vm_enter_scope({'syscall_handler': deprecated_syscall_handler}) %}
+    %{ EnterScopeDeprecatedSyscallHandler %}
     call abs contract_entry_point;
     %{ vm_exit_scope() %}
-    %{ execution_helper.exit_call() %}
+    %{ ExitCall %}
 
     // Retrieve returned_builtin_ptrs_subset.
     // Note that returned_builtin_ptrs_subset cannot be set in a hint because doing so will allow a
@@ -206,90 +202,4 @@ func deprecated_execute_entry_point{
     );
 
     return (is_reverted=0, retdata_size=retdata_size, retdata=retdata);
-}
-
-// Selects execute_entry_point function according to the Cairo version of the entry point.
-func select_execute_entry_point_func{
-    range_check_ptr,
-    remaining_gas: felt,
-    builtin_ptrs: BuiltinPointers*,
-    contract_state_changes: DictAccess*,
-    contract_class_changes: DictAccess*,
-    revert_log: RevertLogEntry*,
-    outputs: OsCarriedOutputs*,
-}(block_context: BlockContext*, execution_context: ExecutionContext*) -> (
-    is_reverted: felt, retdata_size: felt, retdata: felt*, is_deprecated: felt
-) {
-    alloc_locals;
-    // TODO(Yoni): SIERRA_GAS_MODE - move back inside `execute_entry_point` functions.
-    %{
-        execution_helper.enter_call(
-            cairo_execution_info=ids.execution_context.execution_info,
-            deprecated_tx_info=ids.execution_context.deprecated_tx_info,
-        )
-    %}
-
-    %{ is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0 %}
-    // Note that the class_hash is validated in both the `if` and `else` cases, so a malicious
-    // prover won't be able to produce a proof if guesses the wrong case.
-    if (nondet %{ is_deprecated %} != FALSE) {
-        let (is_reverted, retdata_size, retdata: felt*) = deprecated_execute_entry_point(
-            block_context=block_context, execution_context=execution_context
-        );
-        return (
-            is_reverted=is_reverted, retdata_size=retdata_size, retdata=retdata, is_deprecated=1
-        );
-    }
-
-    // TODO(Yoni): SIERRA_GAS_MODE - remove once all Cairo 1 contracts run with Sierra gas mode.
-    local caller_remaining_gas = remaining_gas;
-    local is_sierra_gas_mode;
-    %{ ids.is_sierra_gas_mode = execution_helper.call_info.tracked_resource.is_sierra_gas() %}
-    if (is_sierra_gas_mode != FALSE) {
-        tempvar inner_remaining_gas = remaining_gas;
-    } else {
-        // Run with high enough gas to avoid out-of-gas.
-        tempvar inner_remaining_gas = DEFAULT_INITIAL_GAS_COST;
-    }
-    %{
-        if execution_helper.debug_mode:
-            expected_initial_gas = execution_helper.call_info.call.initial_gas
-            call_initial_gas = ids.inner_remaining_gas
-            assert expected_initial_gas == call_initial_gas, (
-                f"Expected remaining_gas {expected_initial_gas}. Got: {call_initial_gas}.\n"
-                f"{execution_helper.call_info=}"
-            )
-    %}
-
-    let (is_reverted, retdata_size, retdata) = execute_entry_point{
-        remaining_gas=inner_remaining_gas
-    }(block_context=block_context, execution_context=execution_context);
-
-    if (is_sierra_gas_mode != FALSE) {
-        tempvar remaining_gas = inner_remaining_gas;
-    } else {
-        // Do not count Sierra gas for the caller in this case.
-        tempvar remaining_gas = caller_remaining_gas;
-    }
-    return (is_reverted=is_reverted, retdata_size=retdata_size, retdata=retdata, is_deprecated=0);
-}
-
-// Same as `select_execute_entry_point_func`, but does not support reverts and does
-// not have an implicit 'revert_log' argument.
-func non_reverting_select_execute_entry_point_func{
-    range_check_ptr,
-    remaining_gas: felt,
-    builtin_ptrs: BuiltinPointers*,
-    contract_state_changes: DictAccess*,
-    contract_class_changes: DictAccess*,
-    outputs: OsCarriedOutputs*,
-}(block_context: BlockContext*, execution_context: ExecutionContext*) -> (
-    retdata_size: felt, retdata: felt*, is_deprecated: felt
-) {
-    let revert_log = init_revert_log();
-    let (is_reverted, retdata_size, retdata, is_deprecated) = select_execute_entry_point_func{
-        revert_log=revert_log
-    }(block_context=block_context, execution_context=execution_context);
-    assert is_reverted = 0;
-    return (retdata_size, retdata, is_deprecated);
 }
