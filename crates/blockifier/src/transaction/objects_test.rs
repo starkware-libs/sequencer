@@ -310,7 +310,8 @@ fn test_summarize(
         (BuiltinName::pedersen, validate_pedersen + execute_pedersen),
         (BuiltinName::poseidon, validate_poseidon + execute_poseidon),
         (BuiltinName::bitwise, validate_bitwise + execute_bitwise),
-    ]);
+    ])
+    .into_resource_counter_map();
 
     // Call the summarize method.
     let actual_summary = tx_execution_info.summarize(VersionedConstants::latest_constants());
