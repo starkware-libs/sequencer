@@ -63,6 +63,7 @@
     "min_sierra_version_for_sierra_gas": "100.0.0",
     "os_constants": {
         "allowed_virtual_os_program_hashes": [],
+        "client_side_proving_max_block_age": 0,
         "builtin_gas_costs": {
             "add_mod": 0,
             "bitwise": 594,
