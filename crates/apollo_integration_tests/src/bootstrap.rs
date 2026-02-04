@@ -10,12 +10,27 @@
 
 use std::sync::LazyLock;
 
+use apollo_storage::header::HeaderStorageReader;
+use apollo_storage::state::StateStorageReader;
+use apollo_storage::StorageReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::block::BlockNumber;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::DeclareTransaction;
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::rpc_transaction::{
+    InternalRpcDeclareTransactionV3,
+    InternalRpcDeployAccountTransaction,
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction,
+    RpcDeployAccountTransaction,
+    RpcTransaction,
+};
+use starknet_api::state::StateNumber;
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
@@ -26,6 +41,7 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionHash;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
@@ -242,7 +258,7 @@ impl BootstrapAddresses {
 }
 
 // =============================================================================
-// Bootstrap State and Execution (Stub Implementation)
+// Bootstrap State and Execution
 // =============================================================================
 
 /// The current state of the bootstrap process.
@@ -259,14 +275,129 @@ pub enum BootstrapState {
     Completed,
 }
 
-/// Manages the bootstrap process lifecycle.
+/// Checks if the storage is empty (no blocks have been committed).
 ///
-/// This is a stub implementation that tracks state but does not yet inject
-/// transactions into the batcher. The actual implementation will need to:
-/// 1. Detect empty storage at startup
-/// 2. Inject bootstrap transactions into batcher
-/// 3. Monitor for completion (ERC20 balance checks)
-/// 4. Transition to normal operation
+/// Returns true if header_marker is 0, meaning no blocks exist yet.
+pub fn is_storage_empty(storage_reader: &StorageReader) -> bool {
+    match storage_reader.begin_ro_txn() {
+        Ok(txn) => match txn.get_header_marker() {
+            Ok(marker) => marker == BlockNumber(0),
+            Err(_) => false,
+        },
+        Err(_) => false,
+    }
+}
+
+/// Reads the ERC20 balance for a given account from storage.
+///
+/// Returns the balance as a u128, or 0 if the balance cannot be read.
+pub fn get_erc20_balance(
+    storage_reader: &StorageReader,
+    token_address: ContractAddress,
+    account_address: ContractAddress,
+) -> u128 {
+    let txn = match storage_reader.begin_ro_txn() {
+        Ok(txn) => txn,
+        Err(_) => return 0,
+    };
+
+    // Get the latest state number
+    let header_marker = match txn.get_header_marker() {
+        Ok(marker) => marker,
+        Err(_) => return 0,
+    };
+
+    if header_marker == BlockNumber(0) {
+        return 0; // No blocks committed yet
+    }
+
+    // State number is the block before header_marker
+    let state_number = StateNumber::unchecked_right_after_block(BlockNumber(
+        header_marker.0.saturating_sub(1),
+    ));
+
+    // Get the storage key for the balance
+    let balance_key = get_fee_token_var_address(account_address);
+
+    // Read the balance from storage
+    let state_reader = txn.get_state_reader();
+    match state_reader {
+        Ok(reader) => match reader.get_storage_at(state_number, &token_address, &balance_key) {
+            Ok(balance) => {
+                // Convert Felt to u128 (takes lower 128 bits)
+                let bytes = balance.to_bytes_le();
+                let mut arr = [0u8; 16];
+                arr.copy_from_slice(&bytes[..16]);
+                u128::from_le_bytes(arr)
+            }
+            Err(_) => 0,
+        },
+        Err(_) => 0,
+    }
+}
+
+/// Convert an RPC transaction to an InternalConsensusTransaction.
+///
+/// This creates the internal format needed for batcher/consensus.
+pub fn rpc_tx_to_internal_consensus_tx(
+    rpc_tx: RpcTransaction,
+    tx_hash: TransactionHash,
+) -> InternalConsensusTransaction {
+    let internal_tx = match rpc_tx {
+        RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
+            InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
+                signature: tx.signature,
+                sender_address: tx.sender_address,
+                resource_bounds: tx.resource_bounds,
+                tip: tx.tip,
+                nonce: tx.nonce,
+                compiled_class_hash: tx.compiled_class_hash,
+                paymaster_data: tx.paymaster_data,
+                account_deployment_data: tx.account_deployment_data,
+                nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                fee_data_availability_mode: tx.fee_data_availability_mode,
+                class_hash: tx.contract_class.calculate_class_hash(),
+            })
+        }
+        RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
+            // Calculate the contract address for the deploy account transaction
+            let contract_address = calculate_contract_address(
+                tx.contract_address_salt,
+                tx.class_hash,
+                &tx.constructor_calldata,
+                ContractAddress::default(),
+            )
+            .expect("Failed to calculate contract address for deploy account");
+
+            InternalRpcTransactionWithoutTxHash::DeployAccount(InternalRpcDeployAccountTransaction {
+                tx: RpcDeployAccountTransaction::V3(tx),
+                contract_address,
+            })
+        }
+        RpcTransaction::Invoke(invoke_tx) => {
+            InternalRpcTransactionWithoutTxHash::Invoke(invoke_tx)
+        }
+    };
+
+    InternalConsensusTransaction::RpcTransaction(InternalRpcTransaction { tx: internal_tx, tx_hash })
+}
+
+/// Generate bootstrap transactions as InternalConsensusTransaction format.
+///
+/// This is the format needed for injection into the batcher.
+pub fn generate_bootstrap_internal_transactions() -> Vec<InternalConsensusTransaction> {
+    generate_bootstrap_transactions()
+        .into_iter()
+        .enumerate()
+        .map(|(i, rpc_tx)| {
+            // Use a deterministic tx_hash based on index
+            let tx_hash = TransactionHash(Felt::from(i as u64));
+            rpc_tx_to_internal_consensus_tx(rpc_tx, tx_hash)
+        })
+        .collect()
+}
+
+/// Manages the bootstrap process lifecycle.
 #[derive(Debug)]
 pub struct BootstrapManager {
     state: BootstrapState,
@@ -290,63 +421,78 @@ impl BootstrapManager {
     }
 
     /// Check if storage is empty and bootstrap mode should be enabled.
-    ///
-    /// STUB: This currently always returns false.
-    /// TODO: Implement by checking if header_marker == 0 in storage.
-    pub fn should_enable_bootstrap(&self, _enable_bootstrap_mode: bool) -> bool {
-        // TODO: Check if storage is empty (header_marker == 0)
-        // For now, return false (disabled)
-        false
+    pub fn should_enable_bootstrap(
+        &self,
+        enable_bootstrap_mode: bool,
+        storage_reader: &StorageReader,
+    ) -> bool {
+        enable_bootstrap_mode && is_storage_empty(storage_reader)
     }
 
     /// Transition to pending state if bootstrap should be enabled.
-    ///
-    /// STUB: Does nothing currently.
-    pub fn maybe_enter_pending(&mut self, enable_bootstrap_mode: bool) {
-        if enable_bootstrap_mode && self.should_enable_bootstrap(enable_bootstrap_mode) {
+    pub fn maybe_enter_pending(
+        &mut self,
+        enable_bootstrap_mode: bool,
+        storage_reader: &StorageReader,
+    ) {
+        if self.should_enable_bootstrap(enable_bootstrap_mode, storage_reader) {
             self.state = BootstrapState::Pending;
         }
     }
 
-    /// Start the bootstrap process by injecting transactions.
+    /// Get the bootstrap transactions to inject.
     ///
-    /// STUB: This currently just transitions state.
-    /// TODO: Inject bootstrap transactions into batcher with validation disabled.
+    /// Returns the transactions in internal format, ready for batcher injection.
+    pub fn get_bootstrap_transactions(&self) -> Vec<InternalConsensusTransaction> {
+        generate_bootstrap_internal_transactions()
+    }
+
+    /// Start the bootstrap process.
+    ///
+    /// This transitions the state to InProgress. The caller is responsible for
+    /// actually injecting the transactions (call get_bootstrap_transactions()).
     pub fn start_bootstrap(&mut self) {
         if self.state == BootstrapState::Pending {
             self.state = BootstrapState::InProgress;
-            // TODO: Actually inject transactions into batcher
-            // let txs = generate_bootstrap_transactions();
-            // batcher.inject_bootstrap_transactions(txs);
         }
     }
 
     /// Check if bootstrap is complete by verifying ERC20 balances.
     ///
-    /// STUB: This currently always returns false.
-    /// TODO: Implement by checking ERC20 balances in storage.
-    pub fn check_completion(&mut self, _required_balance: u128) -> bool {
+    /// Returns true if both ETH and STRK balances are >= required_balance.
+    pub fn check_completion(
+        &mut self,
+        required_balance: u128,
+        storage_reader: &StorageReader,
+    ) -> bool {
         if self.state != BootstrapState::InProgress {
             return false;
         }
 
-        // TODO: Check ERC20 balances in storage:
-        // let eth_balance = storage.get_storage_at(
-        //     state_number,
-        //     &self.addresses.eth_fee_token_address,
-        //     &get_fee_token_var_address(self.addresses.funded_account_address)
-        // );
-        // let strk_balance = storage.get_storage_at(
-        //     state_number,
-        //     &self.addresses.strk_fee_token_address,
-        //     &get_fee_token_var_address(self.addresses.funded_account_address)
-        // );
-        // if eth_balance >= required_balance && strk_balance >= required_balance {
-        //     self.state = BootstrapState::Completed;
-        //     return true;
-        // }
+        let eth_balance = get_erc20_balance(
+            storage_reader,
+            self.addresses.eth_fee_token_address,
+            self.addresses.funded_account_address,
+        );
+
+        let strk_balance = get_erc20_balance(
+            storage_reader,
+            self.addresses.strk_fee_token_address,
+            self.addresses.funded_account_address,
+        );
+
+        if eth_balance >= required_balance && strk_balance >= required_balance {
+            self.state = BootstrapState::Completed;
+            return true;
+        }
 
         false
+    }
+
+    /// Force set the state (for testing).
+    #[cfg(test)]
+    pub fn set_state(&mut self, state: BootstrapState) {
+        self.state = state;
     }
 
     /// Check if bootstrap is in progress.
@@ -393,6 +539,16 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_internal_transactions() {
+        let txs = generate_bootstrap_internal_transactions();
+        assert_eq!(txs.len(), 5, "Should generate 5 internal bootstrap transactions");
+        // Verify all transactions are RPC transactions (not L1Handler)
+        for tx in &txs {
+            assert!(matches!(tx, InternalConsensusTransaction::RpcTransaction(_)));
+        }
+    }
+
+    #[test]
     fn test_bootstrap_manager_initial_state() {
         let manager = BootstrapManager::new();
         assert_eq!(manager.state(), BootstrapState::Disabled);
@@ -407,22 +563,21 @@ mod tests {
         // Initially disabled
         assert_eq!(manager.state(), BootstrapState::Disabled);
 
-        // Should not enable because storage check stub returns false
-        manager.maybe_enter_pending(true);
-        assert_eq!(manager.state(), BootstrapState::Disabled);
-
         // Can't start bootstrap when not pending
         manager.start_bootstrap();
         assert_eq!(manager.state(), BootstrapState::Disabled);
 
-        // Force state to Pending for testing
-        manager.state = BootstrapState::Pending;
+        // Force state to Pending for testing (using test helper)
+        manager.set_state(BootstrapState::Pending);
+        assert_eq!(manager.state(), BootstrapState::Pending);
+
+        // Start bootstrap
         manager.start_bootstrap();
         assert_eq!(manager.state(), BootstrapState::InProgress);
         assert!(manager.is_in_progress());
 
-        // Check completion stub returns false
-        assert!(!manager.check_completion(1000));
-        assert_eq!(manager.state(), BootstrapState::InProgress);
+        // Get bootstrap transactions
+        let txs = manager.get_bootstrap_transactions();
+        assert_eq!(txs.len(), 5);
     }
 }
