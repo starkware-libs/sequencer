@@ -13,6 +13,7 @@ use std::sync::LazyLock;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
+use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -253,6 +254,22 @@ impl BootstrapAddresses {
             funded_account_address: *BOOTSTRAP_FUNDED_ACCOUNT_ADDRESS,
             eth_fee_token_address: *BOOTSTRAP_ETH_FEE_TOKEN_ADDRESS,
             strk_fee_token_address: *BOOTSTRAP_STRK_FEE_TOKEN_ADDRESS,
+        }
+    }
+
+    /// Create a ChainInfo configured with bootstrap fee token addresses.
+    ///
+    /// This is used when starting a node in bootstrap mode - the fee tokens
+    /// will be deployed to these deterministic addresses during bootstrap.
+    pub fn create_chain_info_for_bootstrap() -> ChainInfo {
+        let addresses = Self::get();
+        ChainInfo {
+            chain_id: starknet_api::core::ChainId::IntegrationSepolia,
+            fee_token_addresses: FeeTokenAddresses {
+                eth_fee_token_address: addresses.eth_fee_token_address,
+                strk_fee_token_address: addresses.strk_fee_token_address,
+            },
+            is_l3: false,
         }
     }
 }
