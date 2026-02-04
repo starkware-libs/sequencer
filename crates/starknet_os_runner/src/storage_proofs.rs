@@ -82,9 +82,10 @@ pub(crate) struct RpcStorageProofsQuery {
 /// Complete OS input data built from RPC proofs.
 #[allow(dead_code)]
 pub(crate) struct StorageProofs {
-    /// Nonces and class hashes extracted from contract leaves in the Patricia trie.
+    /// Extended initial reads with class hashes and nonces from the proof.
     /// Required by the OS to verify contract state.
-    pub(crate) contract_leaf_state: StateMaps,
+    pub(crate) extended_initial_reads: StateMaps,
+    /// Commitment infos for the extended initial reads.
     pub(crate) commitment_infos: StateCommitmentInfos,
 }
 
@@ -174,18 +175,18 @@ impl RpcStorageProofsProvider {
     pub(crate) async fn create_commitment_infos_with_state_changes(
         rpc_proof: &RpcStorageProof,
         query: &RpcStorageProofsQuery,
-        execution_data: &VirtualBlockExecutionData,
+        extended_initial_reads: &StateMaps,
+        state_diff: &StateMaps,
     ) -> Result<StateCommitmentInfos, ProofProviderError> {
         // Build FactsDb from RPC proofs and execution initial reads.
         let mut facts_db =
-            create_facts_db_from_storage_proof(rpc_proof, query, &execution_data.initial_reads)?;
+            create_facts_db_from_storage_proof(rpc_proof, query, extended_initial_reads)?;
 
         // Get initial state roots from RPC proof.
         let contracts_trie_root_hash = HashOutput(rpc_proof.global_roots.contracts_tree_root);
         let classes_trie_root_hash = HashOutput(rpc_proof.global_roots.classes_tree_root);
         // Convert the blockifier state maps to committer state diff.
-        let committer_state_diff =
-            state_maps_to_committer_state_diff(execution_data.initial_reads.clone());
+        let committer_state_diff = state_maps_to_committer_state_diff(state_diff.clone());
 
         // Commit state diff using the committer.
         let new_roots = commit_state_diff(
@@ -201,8 +202,8 @@ impl RpcStorageProofsProvider {
         // Consume the new facts from the committer storage.
         let mut map_storage: MapStorage = facts_db.consume_storage();
 
-        // Get initial reads keys.
-        let initial_reads_keys = execution_data.initial_reads.keys();
+        // Get extended initial reads keys.
+        let initial_reads_keys = extended_initial_reads.keys();
 
         let commitment_infos = create_commitment_infos(
             &previous_state_roots,
@@ -363,24 +364,32 @@ impl StorageProofProvider for RpcStorageProofsProvider {
             )));
         }
 
-        // Update proof_state with class hashes and nonces from the proof.
+        // Update initial reads with class hashes and nonces from the proof.
         // We've validated the lengths match, so this zip is safe.
-        let mut contract_leaf_state = StateMaps::default();
+        let mut extended_initial_reads = StateMaps::default();
         for (leaf, addr) in
             rpc_proof.contracts_proof.contract_leaves_data.iter().zip(&query.contract_addresses)
         {
-            contract_leaf_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
-            contract_leaf_state.nonces.insert(*addr, Nonce(leaf.nonce));
+            extended_initial_reads.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
+            extended_initial_reads.nonces.insert(*addr, Nonce(leaf.nonce));
         }
+
+        // Include storage values from execution.
+        extended_initial_reads.storage.extend(&execution_data.initial_reads.storage);
 
         let commitment_infos = match config.include_state_changes {
             true => {
-                Self::create_commitment_infos_with_state_changes(&rpc_proof, &query, execution_data)
-                    .await?
+                Self::create_commitment_infos_with_state_changes(
+                    &rpc_proof,
+                    &query,
+                    &extended_initial_reads,
+                    &execution_data.state_diff,
+                )
+                .await?
             }
             false => Self::create_commitment_infos_without_state_changes(&rpc_proof, &query)?,
         };
 
-        Ok(StorageProofs { contract_leaf_state, commitment_infos })
+        Ok(StorageProofs { extended_initial_reads, commitment_infos })
     }
 }
