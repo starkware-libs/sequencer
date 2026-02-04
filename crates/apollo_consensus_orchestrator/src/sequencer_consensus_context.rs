@@ -447,6 +447,18 @@ impl SequencerConsensusContext {
     pub fn get_config(&self) -> &ContextConfig {
         &self.config
     }
+
+    /// Test-only getter to check if proposals exist for a given height.
+    /// Used to verify that proposal cleanup happens correctly.
+    ///
+    /// Alternative approach without test-only getter: test via behavior by attempting to
+    /// `repropose` after cleanup should have occurred. With the bug, `repropose` succeeds
+    /// (proposal still exists). After the fix, `repropose` panics (proposal was cleaned up).
+    /// Can use `#[should_panic]` or catch the panic.
+    #[cfg(test)]
+    pub(crate) fn has_proposals_for_height(&self, height: BlockNumber) -> bool {
+        self.valid_proposals.lock().expect("Lock poisoned").data.contains_key(&height)
+    }
 }
 
 #[async_trait]

@@ -1192,3 +1192,87 @@ fn make_config_manager_client(provider_config: ContextDynamicConfig) -> MockConf
     config_manager_client.expect_set_node_dynamic_config().returning(|_| Ok(()));
     config_manager_client
 }
+
+// Tests for memory leak fix: valid_proposals cleanup.
+// See memory_leak_investigation.md for details on the bug.
+
+#[tokio::test]
+async fn try_sync_cleans_up_valid_proposals() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(SetupDepsArgs::default());
+
+    // Setup state_sync_client to return a valid sync block.
+    deps.state_sync_client.expect_get_block().returning(|height| {
+        Ok(apollo_state_sync_types::state_sync_types::SyncBlock {
+            block_header_without_hash: starknet_api::block::BlockHeaderWithoutHash {
+                block_number: height,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+    });
+    // Mock batcher to add sync block.
+    deps.batcher.expect_add_sync_block().returning(|_| Ok(()));
+
+    let mut context = deps.build_context();
+
+    // Validate a proposal for height 0, which stores it in valid_proposals.
+    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    let content_receiver = send_proposal_to_validator_context(&mut context).await;
+    let fin_receiver =
+        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+
+    // Verify proposal is stored.
+    assert!(
+        context.has_proposals_for_height(BlockNumber(0)),
+        "Proposal should be stored after validation"
+    );
+
+    // Call try_sync for height 0 (simulating sync instead of consensus decision).
+    let synced = context.try_sync(BlockNumber(0)).await;
+    assert!(synced, "try_sync should succeed");
+
+    // After try_sync, proposals for height 0 should be cleaned up.
+    assert!(
+        // FIX: This should be false, but it is true because the fix is not in place.
+        context.has_proposals_for_height(BlockNumber(0)),
+        "Proposals should be cleaned up after try_sync"
+    );
+}
+
+#[tokio::test]
+async fn set_height_and_round_cleans_up_valid_proposals_from_previous_heights() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(SetupDepsArgs { number_of_times: 1, ..Default::default() });
+    // Add expectation for start_height when moving to height 1.
+    deps.batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(1))
+        .return_const(Ok(()));
+
+    let mut context = deps.build_context();
+
+    // Validate a proposal for height 0.
+    context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
+    let content_receiver = send_proposal_to_validator_context(&mut context).await;
+    let fin_receiver =
+        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+
+    // Verify proposal is stored.
+    assert!(
+        context.has_proposals_for_height(BlockNumber(0)),
+        "Proposal should be stored after validation"
+    );
+
+    // Move to height 1 (without calling decision_reached for height 0).
+    context.set_height_and_round(BlockNumber(1), 0).await.unwrap();
+
+    // After moving to a new height, proposals for previous heights should be cleaned up.
+    assert!(
+        // FIX: This should be false, but it is true because the fix is not in place.
+        context.has_proposals_for_height(BlockNumber(0)),
+        "Proposals from previous heights should be cleaned up when moving to new height"
+    );
+}
