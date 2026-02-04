@@ -594,6 +594,7 @@ async fn test_os_logic(
     let proof_facts = ProofFacts::custom_proof_facts_for_testing(
         get_valid_virtual_os_program_hash(),
         config_hash,
+        None,
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! {
         calldata,
@@ -1149,7 +1150,9 @@ async fn test_new_class_execution_info(#[values(true, false)] use_kzg_da: bool) 
     let proof_facts = ProofFacts::custom_proof_facts_for_testing(
         get_valid_virtual_os_program_hash(),
         config_hash,
+        Some(current_block_number.0 - STORED_BLOCK_HASH_BUFFER),
     );
+
     let only_query = false;
     let expected_execution_info = ExpectedExecutionInfo::new(
         only_query,

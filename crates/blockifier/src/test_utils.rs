@@ -88,9 +88,15 @@ pub fn get_valid_virtual_os_program_hash() -> Felt {
 
 /// Creates valid proof facts for tests that validate the proof facts.
 pub fn create_valid_proof_facts_for_testing() -> ProofFacts {
+    create_valid_proof_facts_with_block_number(None)
+}
+
+/// Creates valid proof facts for tests with a custom block number.
+pub fn create_valid_proof_facts_with_block_number(block_number: Option<u64>) -> ProofFacts {
     ProofFacts::custom_proof_facts_for_testing(
         get_valid_virtual_os_program_hash(),
         *TEST_OS_CONFIG_HASH,
+        block_number,
     )
 }
 
