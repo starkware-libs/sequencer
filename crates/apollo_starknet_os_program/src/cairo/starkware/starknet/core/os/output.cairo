@@ -7,11 +7,10 @@ from starkware.cairo.common.segments import relocate_segment
 from starkware.cairo.common.serialize import serialize_word
 from starkware.starknet.core.os.data_availability.commitment import (
     OsKzgCommitmentInfo,
-    Uint256,
-    Uint384,
     compute_os_kzg_commitment_info,
 )
 from starkware.starknet.core.os.data_availability.compression import compress
+from starkware.starknet.core.os.encrypt import encrypt_state_diff
 from starkware.starknet.core.os.state.aliases import (
     replace_aliases_and_serialize_full_contract_state_diff,
 )
@@ -22,7 +21,6 @@ from starkware.starknet.core.os.state.output import (
     serialize_full_contract_state_diff,
 )
 from starkware.starknet.core.os.state.state import SquashedOsStateUpdate
-from starkware.starknet.core.os.encrypt import encrypt, encrypt_state_diff
 
 // Represents the output of the OS.
 struct OsOutput {
@@ -78,7 +76,7 @@ struct OsCarriedOutputs {
 }
 
 func serialize_os_output{
-    range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*
+    output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
 }(os_output: OsOutput*, replace_keys_with_aliases: felt, n_public_keys: felt, public_keys: felt*) {
     alloc_locals;
 
@@ -89,15 +87,7 @@ func serialize_os_output{
     // Compute the data availability segment.
     local state_updates_start: felt*;
     let state_updates_ptr = state_updates_start;
-    %{
-        # `use_kzg_da` is used in a hint in `process_data_availability`.
-        use_kzg_da = ids.use_kzg_da
-        if use_kzg_da or ids.compress_state_updates:
-            ids.state_updates_start = segments.add()
-        else:
-            # Assign a temporary segment, to be relocated into the output segment.
-            ids.state_updates_start = segments.add_temp_segment()
-    %}
+    %{ SetStateUpdatesStart %}
     local squashed_os_state_update: SquashedOsStateUpdate* = os_output.squashed_os_state_update;
     with state_updates_ptr {
         // Output the contract state diff.
@@ -247,13 +237,7 @@ func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
 
     // Compress the state updates.
     local compressed_start: felt*;
-    %{
-        if use_kzg_da or ids.n_keys > 0:
-            ids.compressed_start = segments.add()
-        else:
-            # Assign a temporary segment, to be relocated into the output segment.
-            ids.compressed_start = segments.add_temp_segment()
-    %}
+    %{ SetCompressedStart %}
     let compressed_dst = compressed_start;
     with compressed_dst {
         compress(data_start=state_updates_start, data_end=state_updates_end);
@@ -280,40 +264,7 @@ func serialize_data_availability{output_ptr: felt*}(da_start: felt*, da_end: fel
     relocate_segment(src_ptr=da_start, dest_ptr=output_ptr);
     let output_ptr = da_end;
 
-    %{
-        from starkware.python.math_utils import div_ceil
-
-        if __serialize_data_availability_create_pages__:
-            onchain_data_start = ids.da_start
-            onchain_data_size = ids.output_ptr - onchain_data_start
-
-            # TODO(Yoni,20/07/2023): Take from input.
-            max_page_size = 3800
-            n_pages = div_ceil(onchain_data_size, max_page_size)
-            for i in range(n_pages):
-                start_offset = i * max_page_size
-                output_builtin.add_page(
-                    page_id=1 + i,
-                    page_start=onchain_data_start + start_offset,
-                    page_size=min(onchain_data_size - start_offset, max_page_size),
-                )
-            # Set the tree structure to a root with two children:
-            # * A leaf which represents the main part
-            # * An inner node for the onchain data part (which contains n_pages children).
-            #
-            # This is encoded using the following sequence:
-            output_builtin.add_attribute('gps_fact_topology', [
-                # Push 1 + n_pages pages (all of the pages).
-                1 + n_pages,
-                # Create a parent node for the last n_pages.
-                n_pages,
-                # Don't push additional pages.
-                0,
-                # Take the first page (the main part) and the node that was created (onchain data)
-                # and use them to construct the root of the fact tree.
-                2,
-            ])
-    %}
+    %{ SetProofFactTopology %}
 
     return ();
 }

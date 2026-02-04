@@ -52,6 +52,9 @@ const RESERVED_CONTRACT_ADDRESS = {RESERVED_CONTRACT_ADDRESS};
 // The block number -> block hash mapping is written for the current block number minus this number.
 const STORED_BLOCK_HASH_BUFFER = {STORED_BLOCK_HASH_BUFFER};
 
+// Allowed virtual OS program hashes for client-side proving.
+{ALLOWED_VIRTUAL_OS_PROGRAM_HASHES}
+
 // Gas constants.
 
 const STEP_GAS_COST = {STEP_GAS_COST};
@@ -65,6 +68,7 @@ const POSEIDON_GAS_COST = {POSEIDON_GAS_COST};
 const ADD_MOD_GAS_COST = {ADD_MOD_GAS_COST};
 const MUL_MOD_GAS_COST = {MUL_MOD_GAS_COST};
 const ECDSA_GAS_COST = {ECDSA_GAS_COST};
+const BLAKE_GAS_COST = {BLAKE_GAS_COST};
 const MEMORY_HOLE_GAS_COST = {MEMORY_HOLE_GAS_COST};
 
 const DEFAULT_INITIAL_GAS_COST = {DEFAULT_INITIAL_GAS_COST};

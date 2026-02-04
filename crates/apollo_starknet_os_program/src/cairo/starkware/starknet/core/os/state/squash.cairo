@@ -49,17 +49,7 @@ func squash_state_changes_inner{range_check_ptr}(
     local new_state: StateEntry* = cast(state_changes.new_value, StateEntry*);
     local squashed_storage_ptr: DictAccess*;
     local squashed_prev_state: StateEntry*;
-    %{
-        if state_update_pointers is None:
-            ids.squashed_prev_state = segments.add()
-            ids.squashed_storage_ptr = segments.add()
-        else:
-            ids.squashed_prev_state, ids.squashed_storage_ptr = (
-                state_update_pointers.get_contract_state_entry_and_storage_ptr(
-                    contract_address=ids.state_changes.key
-                )
-            )
-    %}
+    %{ LoadStoragePtrAndPrevState %}
 
     let (local squashed_storage_ptr_end) = squash_dict(
         dict_accesses=prev_state.storage_ptr,
@@ -75,15 +65,7 @@ func squash_state_changes_inner{range_check_ptr}(
         class_hash=new_state.class_hash, storage_ptr=squashed_storage_ptr_end, nonce=new_state.nonce
     );
 
-    %{
-        if state_update_pointers is not None:
-            state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
-                ids.state_changes.key
-            ] = (
-                ids.squashed_new_state.address_,
-                ids.squashed_storage_ptr_end.address_,
-            )
-    %}
+    %{ UpdateContractAddrToStoragePtr %}
 
     // TODO(Meshi): Use the previous contract's pointer instead of creating a new one.
     assert squashed_state_changes[0] = DictAccess(
@@ -106,22 +88,14 @@ func squash_class_changes{range_check_ptr}(
     alloc_locals;
 
     local squashed_dict: DictAccess*;
-    %{
-        if state_update_pointers is None:
-            ids.squashed_dict = segments.add()
-        else:
-            ids.squashed_dict = state_update_pointers.class_tree_ptr
-    %}
+    %{ GuessClassesPtr %}
     let (local squashed_dict_end) = squash_dict(
         dict_accesses=class_changes_start,
         dict_accesses_end=class_changes_end,
         squashed_dict=squashed_dict,
     );
 
-    %{
-        if state_update_pointers is not None:
-            state_update_pointers.class_tree_ptr = ids.squashed_dict_end.address_
-    %}
+    %{ UpdateClassesPtr %}
 
     return (
         n_class_updates=(squashed_dict_end - squashed_dict) / DictAccess.SIZE,

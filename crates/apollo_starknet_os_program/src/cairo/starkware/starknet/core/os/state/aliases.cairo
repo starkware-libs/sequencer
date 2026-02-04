@@ -4,7 +4,6 @@ from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.find_element import find_element, search_sorted_lower
 from starkware.cairo.common.math import assert_le_felt, assert_nn_le
 from starkware.cairo.common.memcpy import memcpy
-from starkware.cairo.common.squash_dict import squash_dict
 from starkware.starknet.core.os.constants import ALIAS_CONTRACT_ADDRESS
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.state.output import (
@@ -39,7 +38,10 @@ func maybe_allocate_alias_for_key{
     aliases_storage_updates: DictAccess*, next_available_alias: felt, range_check_ptr
 }(key: felt) {
     // No need to allocate an alias for keys < MIN_VALUE_FOR_ALIAS_ALLOC.
-    if (nondet %{ ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC %} != FALSE) {
+    alloc_locals;
+    local key_lt_min_alias_alloc_value;
+    %{ KeyLtMinAliasAllocValue %}
+    if (key_lt_min_alias_alloc_value != FALSE) {
         assert_nn_le(a=key, b=MIN_VALUE_FOR_ALIAS_ALLOC - 1);
         return ();
     }
@@ -57,15 +59,16 @@ func maybe_allocate_alias_for_big_key{
 }(key: felt) {
     alloc_locals;
     // Sanity check.
-    %{ assert ids.key >= ids.MIN_VALUE_FOR_ALIAS_ALLOC, f"Key {ids.key} is too small." %}
+    %{ AssertKeyBigEnoughForAlias %}
 
     // Guess the existing alias for the key (0 is it was not assigned yet). The guess is verified
     // by the storage write below.
-    local prev_value: felt = nondet %{ aliases.read(key=ids.key) %};
+    local prev_value;
+    %{ ReadAliasFromKey %}
     if (prev_value == 0) {
         // Allocate a new alias.
         tempvar new_value = next_available_alias;
-        %{ aliases.write(key=ids.key, value=ids.next_available_alias) %}
+        %{ WriteNextAliasFromKey %}
         tempvar next_available_alias = next_available_alias + 1;
     } else {
         tempvar new_value = prev_value;
@@ -81,7 +84,9 @@ func maybe_allocate_alias_for_big_key{
 // Returns the next available alias.
 // Initializes the stateful compression feature if needed.
 func get_next_available_alias{aliases_storage_updates: DictAccess*, range_check_ptr}() -> felt {
-    tempvar next_available_alias = nondet %{ aliases.read(key=ids.ALIAS_COUNTER_STORAGE_KEY) %};
+    alloc_locals;
+    local next_available_alias;
+    %{ ReadAliasCounter %}
     assert aliases_storage_updates[0] = DictAccess(
         key=ALIAS_COUNTER_STORAGE_KEY,
         prev_value=next_available_alias,
@@ -91,7 +96,7 @@ func get_next_available_alias{aliases_storage_updates: DictAccess*, range_check_
 
     // First time an alias is created.
     if (next_available_alias == 0) {
-        %{ aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.INITIAL_AVAILABLE_ALIAS) %}
+        %{ InitializeAliasCounter %}
         assert aliases_storage_updates[0] = DictAccess(
             key=ALIAS_COUNTER_STORAGE_KEY, prev_value=0, new_value=INITIAL_AVAILABLE_ALIAS
         );
@@ -174,7 +179,7 @@ func allocate_aliases{aliases_storage_updates: DictAccess*, range_check_ptr}(
     }
 
     // Update the counter.
-    %{ aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.next_available_alias) %}
+    %{ UpdateAliasCounter %}
     assert aliases_storage_updates[0] = DictAccess(
         key=ALIAS_COUNTER_STORAGE_KEY,
         prev_value=prev_available_alias,
@@ -187,7 +192,10 @@ func allocate_aliases{aliases_storage_updates: DictAccess*, range_check_ptr}(
 // Returns whether the contract at the given address should be skipped when assigning/replacing
 // aliases.
 func should_skip_contract{range_check_ptr}(contract_address: felt) -> felt {
-    if (nondet %{ ids.contract_address <= ids.MAX_NON_COMPRESSED_CONTRACT_ADDRESS %} != FALSE) {
+    alloc_locals;
+    local contract_address_le_max_for_compression;
+    %{ ContractAddressLeMaxForCompression %}
+    if (contract_address_le_max_for_compression != FALSE) {
         // Don't give any aliases for contracts <= MAX_NON_COMPRESSED_CONTRACT_ADDRESS.
         assert_nn_le(a=contract_address, b=MAX_NON_COMPRESSED_CONTRACT_ADDRESS);
         return TRUE;
@@ -375,7 +383,10 @@ func replace_storage_diff_big_keys{range_check_ptr, res: felt*}(
 
 // Returns the alias of the given key.
 func get_alias{range_check_ptr}(aliases: Aliases, key: felt) -> felt {
-    if (nondet %{ ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC %} != FALSE) {
+    alloc_locals;
+    local key_lt_min_alias_alloc_value;
+    %{ KeyLtMinAliasAllocValue %}
+    if (key_lt_min_alias_alloc_value != FALSE) {
         // The alias is the key itself.
         assert_nn_le(a=key, b=MIN_VALUE_FOR_ALIAS_ALLOC - 1);
         return key;
@@ -390,7 +401,7 @@ func get_alias{range_check_ptr}(aliases: Aliases, key: felt) -> felt {
 // Assumes the given key is at least MIN_VALUE_FOR_ALIAS_ALLOC.
 func get_alias_of_big_key{range_check_ptr}(aliases: Aliases, key: felt) -> felt {
     // Sanity check.
-    %{ assert ids.key >= ids.MIN_VALUE_FOR_ALIAS_ALLOC, f"Key {ids.key} is too small." %}
+    %{ AssertKeyBigEnoughForAlias %}
     static_assert DictAccess.key == 0;
     let (entry: DictAccess*) = find_element(
         array_ptr=aliases.ptr, elm_size=DictAccess.SIZE, n_elms=aliases.len, key=key

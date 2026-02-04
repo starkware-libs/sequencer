@@ -1,16 +1,5 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_blake2s.blake2s import encode_felt252_data_and_calc_blake_hash
-from starkware.cairo.common.math import assert_lt_felt
-from starkware.cairo.common.registers import get_fp_and_pc
-from starkware.starknet.core.os.constants import (
-    ADD_MOD_GAS_COST,
-    BITWISE_BUILTIN_GAS_COST,
-    ECOP_GAS_COST,
-    MUL_MOD_GAS_COST,
-    PEDERSEN_GAS_COST,
-    POSEIDON_GAS_COST,
-)
 from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     COMPILED_CLASS_VERSION,
     CompiledClass,
@@ -108,12 +97,7 @@ func bytecode_hash_node{range_check_ptr}(
 
     local is_leaf;
 
-    %{
-        from starkware.starknet.core.os.contract_class.compiled_class_hash_objects import (
-            BytecodeLeaf,
-        )
-        ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0
-    %}
+    %{ IsLeaf %}
 
     // Guess if the bytecode is a leaf or an internal node in the tree.
     if (is_leaf != FALSE) {
@@ -122,7 +106,7 @@ func bytecode_hash_node{range_check_ptr}(
         return hash;
     }
 
-    %{ bytecode_segments = iter(bytecode_segment_structure.segments) %}
+    %{ AssignBytecodeSegments %}
 
     // Initialize Blake2s hash state for internal node.
     let hash_state: HashState = hash_init();
@@ -144,7 +128,7 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
     data_ptr: felt*, data_length: felt, full_contract: felt
 ) {
     if (data_length == 0) {
-        %{ assert next(bytecode_segments, None) is None %}
+        %{ AssertEndOfBytecodeSegments %}
         return ();
     }
 
@@ -153,23 +137,7 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
     local load_segment;
     local segment_length;
 
-    %{
-        current_segment_info = next(bytecode_segments)
-
-        should_load = ids.full_contract or is_segment_used_callback(
-            ids.data_ptr, current_segment_info.segment_length
-        )
-        ids.load_segment = 1 if should_load else 0
-
-        is_leaf_and_loaded = should_load and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
-        ids.is_leaf_and_loaded = 1 if is_leaf_and_loaded else 0
-
-        ids.segment_length = current_segment_info.segment_length
-        vm_enter_scope(new_scope_locals={
-            "bytecode_segment_structure": current_segment_info.inner_structure,
-            "is_segment_used_callback": is_segment_used_callback
-        })
-    %}
+    %{ IterCurrentSegmentInfo %}
 
     if (is_leaf_and_loaded != FALSE) {
         // Repeat the code of bytecode_hash_node() for performance reasons, instead of calling it.
@@ -192,17 +160,15 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
             // to this segment (-1 is an invalid opcode).
             // The hash in this case is guessed and the actual bytecode is unconstrained (except for
             // the first felt).
-            %{
-                # Sanity check.
-                assert not is_accessed(ids.data_ptr), "The segment is skipped but was accessed."
-                del memory.data[ids.data_ptr]
-            %}
+            %{ DeleteMemoryData %}
 
             assert data_ptr[0] = -1;
 
             assert [range_check_ptr] = segment_length;
             tempvar range_check_ptr = range_check_ptr + 1;
-            tempvar current_segment_hash = nondet %{ bytecode_segment_structure.hash_blake() %};
+            let current_segment_hash = [ap];
+            %{ SetApToSegmentHashBlake %}
+            ap += 1;
         }
     }
 

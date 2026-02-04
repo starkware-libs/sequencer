@@ -4,25 +4,13 @@ from starkware.cairo.common.builtin_keccak.keccak import (
     KECCAK_FULL_RATE_IN_WORDS,
     keccak_padded_input,
 )
-from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, KeccakBuiltin
-from starkware.cairo.common.cairo_secp.bigint import (
-    bigint_to_uint256,
-    nondet_bigint3,
-    uint256_to_bigint,
-)
-from starkware.cairo.common.cairo_secp.bigint3 import BigInt3, UnreducedBigInt3
+from starkware.cairo.common.cairo_secp.bigint import bigint_to_uint256, uint256_to_bigint
+from starkware.cairo.common.cairo_secp.bigint3 import BigInt3
 from starkware.cairo.common.cairo_secp.constants import SECP_PRIME_HIGH as SECP256K1_PRIME_HIGH
 from starkware.cairo.common.cairo_secp.constants import SECP_PRIME_LOW as SECP256K1_PRIME_LOW
 from starkware.cairo.common.cairo_secp.ec import ec_add as secp256k1_ec_add
 from starkware.cairo.common.cairo_secp.ec import ec_mul_by_uint256 as secp256k1_ec_mul_by_uint256
 from starkware.cairo.common.cairo_secp.ec_point import EcPoint as SecpPoint
-from starkware.cairo.common.cairo_secp.field import (
-    reduce,
-    unreduced_mul,
-    unreduced_sqr,
-    validate_reduced_field_element,
-    verify_zero,
-)
 from starkware.cairo.common.cairo_secp.signature import (
     try_get_point_from_x as secp256k1_try_get_point_from_x,
 )
@@ -33,7 +21,6 @@ from starkware.cairo.common.math import (
     assert_lt,
     assert_nn,
     assert_nn_le,
-    assert_not_zero,
     unsigned_div_rem,
 )
 from starkware.cairo.common.memcpy import memcpy
@@ -49,35 +36,10 @@ from starkware.cairo.common.sha256_state import Sha256Input, Sha256ProcessBlock,
 from starkware.cairo.common.uint256 import Uint256, assert_uint256_lt, uint256_lt
 from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import (
-    CALL_CONTRACT_SELECTOR,
-    DEPLOY_SELECTOR,
-    EMIT_EVENT_SELECTOR,
-    GET_BLOCK_HASH_SELECTOR,
-    GET_CLASS_HASH_AT_SELECTOR,
-    GET_EXECUTION_INFO_SELECTOR,
-    KECCAK_SELECTOR,
-    LIBRARY_CALL_SELECTOR,
-    META_TX_V0_SELECTOR,
-    REPLACE_CLASS_SELECTOR,
-    SECP256K1_ADD_SELECTOR,
-    SECP256K1_GET_POINT_FROM_X_SELECTOR,
-    SECP256K1_GET_XY_SELECTOR,
-    SECP256K1_MUL_SELECTOR,
-    SECP256K1_NEW_SELECTOR,
-    SECP256R1_ADD_SELECTOR,
-    SECP256R1_GET_POINT_FROM_X_SELECTOR,
-    SECP256R1_GET_XY_SELECTOR,
-    SECP256R1_MUL_SELECTOR,
-    SECP256R1_NEW_SELECTOR,
-    SEND_MESSAGE_TO_L1_SELECTOR,
-    SHA256_PROCESS_BLOCK_SELECTOR,
-    STORAGE_READ_SELECTOR,
-    STORAGE_WRITE_SELECTOR,
     CallContractRequest,
     CallContractResponse,
     DeployRequest,
     DeployResponse,
-    EmitEventRequest,
     ExecutionInfo,
     FailureReason,
     GetBlockHashRequest,
@@ -130,7 +92,6 @@ from starkware.starknet.core.os.constants import (
     CONSTRUCTOR_ENTRY_POINT_SELECTOR,
     DEPLOY_CALLDATA_FACTOR_GAS_COST,
     DEPLOY_GAS_COST,
-    EMIT_EVENT_GAS_COST,
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
     ERROR_BLOCK_NUMBER_OUT_OF_RANGE,
@@ -150,12 +111,10 @@ from starkware.starknet.core.os.constants import (
     REPLACE_CLASS_GAS_COST,
     SECP256K1_ADD_GAS_COST,
     SECP256K1_GET_POINT_FROM_X_GAS_COST,
-    SECP256K1_GET_XY_GAS_COST,
     SECP256K1_MUL_GAS_COST,
     SECP256K1_NEW_GAS_COST,
     SECP256R1_ADD_GAS_COST,
     SECP256R1_GET_POINT_FROM_X_GAS_COST,
-    SECP256R1_GET_XY_GAS_COST,
     SECP256R1_MUL_GAS_COST,
     SECP256R1_NEW_GAS_COST,
     SEND_MESSAGE_TO_L1_GAS_COST,
@@ -173,10 +132,8 @@ from starkware.starknet.core.os.execution.account_backward_compatibility import 
     is_v1_bound_account_cairo1,
     should_exclude_l1_data_gas,
 )
-from starkware.starknet.core.os.execution.entry_point_utils import (
-    select_execute_entry_point_func,
-)
 from starkware.starknet.core.os.execution.deploy_contract import deploy_contract
+from starkware.starknet.core.os.execution.entry_point_utils import select_execute_entry_point_func
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
 from starkware.starknet.core.os.execution.execute_transaction_utils import fill_deprecated_tx_info
 from starkware.starknet.core.os.execution.revert import (
@@ -194,6 +151,7 @@ from starkware.starknet.core.os.transaction_hash.transaction_hash import (
     compute_meta_tx_v0_hash,
     update_pedersen_in_builtin_ptrs,
 )
+
 // Returns a failure response with a single felt.
 @known_ap_change
 func write_failure_response{syscall_ptr: felt*}(remaining_gas: felt, failure_felt: felt) {
@@ -406,8 +364,11 @@ func execute_meta_tx_v0{
         fee_data_availability_mode=0,
         account_deployment_data_start=cast(0, felt*),
         account_deployment_data_end=cast(0, felt*),
+        proof_facts_start=cast(0, felt*),
+        proof_facts_end=cast(0, felt*),
     );
 
+    let (deprecated_tx_info_ptr: DeprecatedTxInfo*) = alloc();
     tempvar execution_context: ExecutionContext* = new ExecutionContext(
         entry_point_type=ENTRY_POINT_TYPE_EXTERNAL,
         class_hash=state_entry.class_hash,
@@ -420,7 +381,7 @@ func execute_meta_tx_v0{
             contract_address=contract_address,
             selector=selector,
         ),
-        deprecated_tx_info=cast(nondet %{ segments.add() %}, DeprecatedTxInfo*),
+        deprecated_tx_info=deprecated_tx_info_ptr,
     );
     fill_deprecated_tx_info(tx_info=new_tx_info, dst=execution_context.deprecated_tx_info);
 
@@ -482,16 +443,7 @@ func contract_call_helper{
     // Advance syscall pointer to the next syscall.
     let syscall_ptr = syscall_ptr + CallContractResponse.SIZE;
 
-    %{
-        # Check that the actual return value matches the expected one.
-        expected = memory.get_range(
-            addr=ids.response.retdata_start,
-            size=ids.response.retdata_end - ids.response.retdata_start,
-        )
-        actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-
-        assert expected == actual, f'Return value mismatch; expected={expected}, actual={actual}.'
-    %}
+    %{ CheckNewCallContractResponse %}
 
     // Write the response.
     relocate_segment(src_ptr=response.retdata_start, dest_ptr=retdata);
@@ -596,15 +548,7 @@ func execute_deploy{
     // Advance syscall pointer to the next syscall.
     let syscall_ptr = syscall_ptr + DeployResponse.SIZE;
 
-    %{
-        # Check that the actual return value matches the expected one.
-        expected = memory.get_range(
-            addr=ids.response.constructor_retdata_start,
-            size=ids.response.constructor_retdata_end - ids.response.constructor_retdata_start,
-        )
-        actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-        assert expected == actual, f'Return value mismatch; expected={expected}, actual={actual}.'
-    %}
+    %{ CheckNewDeployResponse %}
 
     // Write the response.
     relocate_segment(src_ptr=response.constructor_retdata_start, dest_ptr=retdata);
@@ -670,21 +614,13 @@ func execute_storage_read{range_check_ptr, syscall_ptr: felt*, contract_state_ch
     let syscall_ptr = syscall_ptr + StorageReadResponse.SIZE;
 
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ GetContractAddressStateEntry %}
 
     // Update the contract's storage.
     static_assert StorageReadRequest.SIZE == 2;
     assert request.reserved = 0;
     tempvar value = response.value;
-    %{
-        # Make sure the value is cached (by reading it), to be used later on for the
-        # commitment computation.
-        value = execution_helper.storage_by_address[ids.contract_address].read(key=ids.request.key)
-        assert ids.value == value, "Inconsistent storage value."
-    %}
+    %{ CacheContractStorageRequestKey %}
     tempvar storage_ptr = state_entry.storage_ptr;
     assert [storage_ptr] = DictAccess(key=request.key, prev_value=value, new_value=value);
     let storage_ptr = storage_ptr + DictAccess.SIZE;
@@ -725,14 +661,7 @@ func execute_storage_write{
 
     local prev_value: felt;
     local state_entry: StateEntry*;
-    %{
-        storage = execution_helper.storage_by_address[ids.contract_address]
-        ids.prev_value = storage.read(key=ids.request.key)
-        storage.write(key=ids.request.key, value=ids.request.value)
-
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ WriteSyscallResult %}
 
     // Update the contract's storage.
     static_assert StorageWriteRequest.SIZE == 3;
@@ -750,6 +679,36 @@ func execute_storage_write{
     // Update the state.
     dict_update{dict_ptr=contract_state_changes}(
         key=contract_address,
+        prev_value=cast(state_entry, felt),
+        new_value=cast(
+            new StateEntry(
+                class_hash=state_entry.class_hash, storage_ptr=storage_ptr, nonce=state_entry.nonce
+            ),
+            felt,
+        ),
+    );
+
+    return ();
+}
+
+func read_block_hash_from_storage{contract_state_changes: DictAccess*}(
+    block_number: felt, expected_block_hash: felt
+) {
+    // Fetch the block hash contract state.
+    tempvar state_entry: StateEntry*;
+    // Fetch a state_entry in this hint. Validate it in the update that comes next.
+    %{ GetBlockHashMapping %}
+
+    // Read from storage.
+    tempvar storage_ptr = state_entry.storage_ptr;
+    assert [storage_ptr] = DictAccess(
+        key=block_number, prev_value=expected_block_hash, new_value=expected_block_hash
+    );
+    let storage_ptr = storage_ptr + DictAccess.SIZE;
+
+    // Update the state.
+    dict_update{dict_ptr=contract_state_changes}(
+        key=BLOCK_HASH_CONTRACT_ADDRESS,
         prev_value=cast(state_entry, felt),
         new_value=cast(
             new StateEntry(
@@ -785,10 +744,9 @@ func execute_get_block_hash{
 
     // A block number is a u64. STORED_BLOCK_HASH_BUFFER is 10.
     // The following computations will not overflow.
-    if (nondet %{
-            ids.request_block_number > \
-                       ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER
-        %} != FALSE) {
+    local is_block_number_in_block_hash_buffer;
+    %{ IsBlockNumberInBlockHashBuffer %}
+    if (is_block_number_in_block_hash_buffer != FALSE) {
         assert_lt(current_block_number, request_block_number + STORED_BLOCK_HASH_BUFFER);
         write_failure_response(
             remaining_gas=remaining_gas, failure_felt=ERROR_BLOCK_NUMBER_OUT_OF_RANGE
@@ -807,33 +765,9 @@ func execute_get_block_hash{
     // Advance syscall pointer to the next syscall.
     let syscall_ptr = syscall_ptr + GetBlockHashResponse.SIZE;
 
-    // Fetch the block hash contract state.
-    local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint. Validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-            ids.BLOCK_HASH_CONTRACT_ADDRESS]
-    %}
+    let block_hash = response.block_hash;
 
-    // Read from storage.
-    tempvar block_hash = response.block_hash;
-    tempvar storage_ptr = state_entry.storage_ptr;
-    assert [storage_ptr] = DictAccess(
-        key=request_block_number, prev_value=block_hash, new_value=block_hash
-    );
-    let storage_ptr = storage_ptr + DictAccess.SIZE;
-
-    // Update the state.
-    dict_update{dict_ptr=contract_state_changes}(
-        key=BLOCK_HASH_CONTRACT_ADDRESS,
-        prev_value=cast(state_entry, felt),
-        new_value=cast(
-            new StateEntry(
-                class_hash=state_entry.class_hash, storage_ptr=storage_ptr, nonce=state_entry.nonce
-            ),
-            felt,
-        ),
-    );
+    read_block_hash_from_storage(block_number=request_block_number, expected_block_hash=block_hash);
 
     return ();
 }
@@ -885,6 +819,8 @@ func execute_get_execution_info{range_check_ptr, syscall_ptr: felt*}(
             fee_data_availability_mode=tx_info.fee_data_availability_mode,
             account_deployment_data_start=tx_info.account_deployment_data_start,
             account_deployment_data_end=tx_info.account_deployment_data_end,
+            proof_facts_start=tx_info.proof_facts_start,
+            proof_facts_end=tx_info.proof_facts_end,
         );
 
         static_assert GetExecutionInfoResponse.SIZE == 1;
@@ -923,6 +859,8 @@ func execute_get_execution_info{range_check_ptr, syscall_ptr: felt*}(
             fee_data_availability_mode=tx_info.fee_data_availability_mode,
             account_deployment_data_start=tx_info.account_deployment_data_start,
             account_deployment_data_end=tx_info.account_deployment_data_end,
+            proof_facts_start=tx_info.proof_facts_start,
+            proof_facts_end=tx_info.proof_facts_end,
         );
 
         static_assert GetExecutionInfoResponse.SIZE == 1;
@@ -963,11 +901,7 @@ func execute_replace_class{
 
     // TODO(Yoni, 1/1/2026): Check that there is a declared contract class with the given hash.
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update at the end
-        # of this function.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ GetContractAddressStateEntry %}
 
     tempvar new_state_entry = new StateEntry(
         class_hash=class_hash, storage_ptr=state_entry.storage_ptr, nonce=state_entry.nonce
@@ -1083,13 +1017,7 @@ func execute_sha256_process_block{
     // slot in the sha256 segment (`actual_out_state`) and assert that the two pointers are equal.
     // Also copy [state_ptr] into [actual_out_state], since finalize_sha256 reads from
     // [actual_out_state] and the relocation happens in the opposite direction.
-    %{
-        state_ptr = ids.response.state_ptr.address_
-        actual_out_state = ids.actual_out_state.address_
-        for i in range(8):
-            memory[actual_out_state + i] = memory[state_ptr + i]
-        memory.add_relocation_rule(src_ptr=state_ptr, dest_ptr=actual_out_state)
-    %}
+    %{ RelocateSha256Segment %}
 
     assert [response] = Sha256ProcessBlockResponse(state_ptr=actual_out_state);
     let syscall_ptr = syscall_ptr + Sha256ProcessBlockResponse.SIZE;
@@ -1232,10 +1160,8 @@ func execute_secp256k1_new{range_check_ptr, syscall_ptr: felt*}() {
     let (x) = uint256_to_bigint(request.x);
 
     let not_on_curve = response.not_on_curve;
-    tempvar result_ptr = cast(
-        nondet %{ ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add() %},
-        SecpPoint*,
-    );
+    local result_ptr: SecpPoint*;
+    %{ ReadEcPointFromAddress %}
 
     // Note that there are no constraints on response.ec_point in the failure case.
 
@@ -1293,10 +1219,8 @@ func execute_secp256r1_new{range_check_ptr, syscall_ptr: felt*}() {
     let (x) = uint256_to_bigint(request.x);
 
     let not_on_curve = response.not_on_curve;
-    tempvar result_ptr = cast(
-        nondet %{ ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add() %},
-        SecpPoint*,
-    );
+    local result_ptr: SecpPoint*;
+    %{ ReadEcPointFromAddress %}
 
     // Note that there are no constraints on response.ec_point in the failure case.
 
@@ -1483,6 +1407,7 @@ func reduce_syscall_gas_and_write_response_header{range_check_ptr, syscall_ptr: 
 func reduce_syscall_base_gas{range_check_ptr, syscall_ptr: felt*}(
     specific_base_gas_cost: felt, request_struct_size: felt
 ) -> (success: felt, remaining_gas: felt) {
+    alloc_locals;
     let request_header = cast(syscall_ptr, RequestHeader*);
     // Advance syscall pointer to the response header.
     let syscall_ptr = syscall_ptr + RequestHeader.SIZE + request_struct_size;
@@ -1490,7 +1415,9 @@ func reduce_syscall_base_gas{range_check_ptr, syscall_ptr: felt*}(
     // Refund the pre-charged base gas.
     let required_gas = specific_base_gas_cost - SYSCALL_BASE_GAS_COST;
     tempvar initial_gas = request_header.gas;
-    if (nondet %{ ids.initial_gas >= ids.required_gas %} != FALSE) {
+    local initial_ge_required_gas;
+    %{ InitialGeRequiredGas %}
+    if (initial_ge_required_gas != FALSE) {
         tempvar remaining_gas = initial_gas - required_gas;
         assert_nn(remaining_gas);
         return (success=1, remaining_gas=remaining_gas);
