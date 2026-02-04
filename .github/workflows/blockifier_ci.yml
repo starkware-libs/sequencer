@@ -1,17 +1,6 @@
 name: Blockifier-CI
 
-# TODO(Dori, 15/8/2024): Split this job, so the feature-less build doesn't run on every push to main
-# branches.
 on:
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-    # TODO(Dori, 1/9/2024): Decide when exactly native-blockifier artifacts will be built. Until
-    #   then, keep the 'paths' key empty and build on every push to a release branch / tag.
-
   pull_request:
     types:
       - opened
@@ -19,12 +8,9 @@ on:
       - synchronize
       - edited
     paths:
-      # Other than code-related changes, all changes related to the native-blockifier build-and-push
-      # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
       - ".github/actions/bootstrap/action.yml"
       - ".github/workflows/blockifier_ci.yml"
       - ".github/workflows/upload_artifacts_workflow.yml"
-      - "build_native_in_docker.sh"
       - "Cargo.lock"
       - "Cargo.toml"
       - "crates/blockifier/**"
