@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_batcher::batcher::{create_batcher, Batcher};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
@@ -69,6 +70,7 @@ pub async fn create_node_components(
     clients: &SequencerNodeClients,
     prometheus_handle: Option<PrometheusHandle>,
     cli_args: Vec<String>,
+    bootstrap_txs: Vec<InternalConsensusTransaction>,
 ) -> SequencerNodeComponents {
     info!("Creating node components.");
     let batcher = match config.components.batcher.execution_mode {
@@ -98,7 +100,7 @@ pub async fn create_node_components(
                     l1_provider_client,
                     class_manager_client,
                     pre_confirmed_cende_client,
-                    vec![], // No bootstrap transactions for production node
+                    bootstrap_txs,
                 )
                 .await,
             )

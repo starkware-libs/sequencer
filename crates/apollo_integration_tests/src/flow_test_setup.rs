@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use apollo_batcher_config::bootstrap_config::BootstrapConfig;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_config::secrets::Sensitive;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
@@ -55,7 +56,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
 use url::Url;
 
-use crate::bootstrap::BootstrapAddresses;
+use crate::bootstrap::{generate_bootstrap_internal_transactions, BootstrapAddresses};
 use crate::state_reader::{StorageTestHandles, StorageTestSetup};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -385,7 +386,8 @@ impl FlowSequencerSetup {
 
         debug!("Sequencer config: {:#?}", node_config);
         let prometheus_handle = metrics_recorder(MetricsConfig::disabled());
-        let (clients, servers) = create_node_modules(&node_config, prometheus_handle, vec![]).await;
+        let (clients, servers) =
+            create_node_modules(&node_config, prometheus_handle, vec![], vec![]).await;
 
         let MonitoringEndpointConfig { ip, port, .. } =
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
@@ -472,9 +474,25 @@ impl FlowSequencerSetup {
         node_config.l1_gas_price_provider_config.as_mut().unwrap().number_of_blocks_for_mean =
             num_l1_txs;
 
+        // Configure bootstrap mode with the deterministic addresses
+        let bootstrap_addresses = BootstrapAddresses::get();
+        if let Some(ref mut batcher_config) = node_config.batcher_config {
+            batcher_config.bootstrap_config = BootstrapConfig {
+                enable_bootstrap_mode: true,
+                funded_account_address: bootstrap_addresses.funded_account_address,
+                required_balance: 1_000_000_000_000_000_000_000_000_000, // 10^27
+                eth_fee_token_address: bootstrap_addresses.eth_fee_token_address,
+                strk_fee_token_address: bootstrap_addresses.strk_fee_token_address,
+            };
+        }
+
+        // Generate bootstrap transactions
+        let bootstrap_txs = generate_bootstrap_internal_transactions();
+
         debug!("Sequencer config for bootstrap: {:#?}", node_config);
         let prometheus_handle = metrics_recorder(MetricsConfig::disabled());
-        let (clients, servers) = create_node_modules(&node_config, prometheus_handle, vec![]).await;
+        let (clients, servers) =
+            create_node_modules(&node_config, prometheus_handle, vec![], bootstrap_txs).await;
 
         let MonitoringEndpointConfig { ip, port, .. } =
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();

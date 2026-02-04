@@ -2138,6 +2138,7 @@ dependencies = [
  "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
+ "starknet_api",
  "tikv-jemallocator",
  "tokio",
  "tokio-util",
