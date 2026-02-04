@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770195637881,
+  "lastUpdate": 1770202413070,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1835,6 +1835,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1173.6307531700002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dcc94ff61dd17b90dfb8ab85c8a005c2b49ab2a7",
+          "message": "apollo_dashboard: add committer dashboard (#12051)",
+          "timestamp": "2026-02-04T10:35:26Z",
+          "tree_id": "6a354c6c75f69a46658c9e5ec81eb72ea4a89c37",
+          "url": "https://github.com/starkware-libs/sequencer/commit/dcc94ff61dd17b90dfb8ab85c8a005c2b49ab2a7"
+        },
+        "date": 1770202412767,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 756.0158566599999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1194.96899439,
             "unit": "ms"
           }
         ]
