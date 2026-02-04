@@ -40,6 +40,7 @@ use crate::metrics::{
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
     COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
+    GLOBAL_ROOT_HEIGHT,
 };
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
@@ -291,6 +292,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
             // Write the block hash and global root to storage.
             storage_writer.set_global_root_and_block_hash(height, global_root, block_hash)?;
+            GLOBAL_ROOT_HEIGHT.increment(1);
         }
 
         Ok(())
