@@ -86,6 +86,7 @@ fn generate_constants_file() -> String {
         // Miscellaneous constants.
         NOP_ENTRY_POINT_OFFSET = os_constants.nop_entry_point_offset,
         STORED_BLOCK_HASH_BUFFER = os_constants.stored_block_hash_buffer,
+        MAX_PROVING_BLOCKS_BEHIND = os_constants.max_proving_blocks_behind,
         L1_HANDLER_VERSION = os_constants.l1_handler_version,
         L1_HANDLER_L2_GAS_MAX_AMOUNT = os_constants.l1_handler_max_amount_bounds.l2_gas.0,
         SIERRA_ARRAY_LEN_BOUND = os_constants.sierra_array_len_bound,

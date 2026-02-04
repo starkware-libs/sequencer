@@ -51,8 +51,11 @@ const ALIAS_CONTRACT_ADDRESS = {ALIAS_CONTRACT_ADDRESS};
 const RESERVED_CONTRACT_ADDRESS = {RESERVED_CONTRACT_ADDRESS};
 // The block number -> block hash mapping is written for the current block number minus this number.
 const STORED_BLOCK_HASH_BUFFER = {STORED_BLOCK_HASH_BUFFER};
+// Maximum allowed gap between a proved fact's block number and the latest block number.
+const MAX_PROVING_BLOCKS_BEHIND = {MAX_PROVING_BLOCKS_BEHIND};
 
-// Allowed virtual OS program hashes for client-side proving.
+// Client-side proving.
+// Allowed virtual OS program hashes.
 {ALLOWED_VIRTUAL_OS_PROGRAM_HASHES}
 
 // Gas constants.
