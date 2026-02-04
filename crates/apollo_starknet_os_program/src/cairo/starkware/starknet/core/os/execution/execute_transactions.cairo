@@ -76,18 +76,10 @@ func execute_transactions{
     let sha256_ptr_start = builtin_ptrs.non_selectable.sha256;
 
     // Execute transactions.
-    local n_txs = nondet %{ len(block_input.transactions) %};
-    %{
-        vm_enter_scope({
-            '__deprecated_class_hashes': __deprecated_class_hashes,
-            'transactions': iter(block_input.transactions),
-            'component_hashes': block_input.declared_class_hash_to_component_hashes,
-            'execution_helper': execution_helper,
-            'deprecated_syscall_handler': deprecated_syscall_handler,
-            'syscall_handler': syscall_handler,
-             '__dict_manager': __dict_manager,
-        })
-    %}
+    local n_txs;
+    %{ OsInputTransactions %}
+    %{ EnterScopeExecuteTransactionsInner %}
+
     execute_transactions_inner{
         builtin_ptrs=builtin_ptrs,
         contract_state_changes=contract_state_changes,
@@ -109,14 +101,7 @@ func execute_transactions{
     let txs_range_check_ptr = selectable_builtins.range_check;
 
     // Fill holes in the rc96 segment.
-    %{
-        rc96_ptr = ids.range_check96_ptr
-        segment_size = rc96_ptr.offset
-        base = rc96_ptr - segment_size
-
-        for i in range(segment_size):
-            memory.setdefault(base + i, 0)
-    %}
+    %{ FillHolesInRc96Segment %}
 
     // Finalize the sha256 segment.
     finalize_sha256(
@@ -125,4 +110,3 @@ func execute_transactions{
 
     return ();
 }
-

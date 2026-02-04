@@ -1,13 +1,9 @@
-from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import KeccakBuiltin
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.find_element import find_element
-from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.math import assert_not_equal
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.segments import relocate_segment
-from starkware.starknet.common.constants import ORIGIN_ADDRESS
 from starkware.starknet.common.new_syscalls import ExecutionInfo
 from starkware.starknet.common.syscalls import (
     CALL_CONTRACT_SELECTOR,
@@ -55,29 +51,22 @@ from starkware.starknet.common.syscalls import (
     TxInfo,
 )
 from starkware.starknet.core.os.block_context import BlockContext
-from starkware.starknet.core.os.builtins import (
-    BuiltinPointers,
-    NonSelectableBuiltins,
-    SelectableBuiltins,
-)
+from starkware.starknet.core.os.builtins import BuiltinPointers, SelectableBuiltins
 from starkware.starknet.core.os.constants import (
-    ALIAS_CONTRACT_ADDRESS,
-    BLOCK_HASH_CONTRACT_ADDRESS,
     CONSTRUCTOR_ENTRY_POINT_SELECTOR,
     DEFAULT_INITIAL_GAS_COST,
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
     ENTRY_POINT_TYPE_L1_HANDLER,
-    RESERVED_CONTRACT_ADDRESS,
+    EXECUTE_ENTRY_POINT_SELECTOR,
 )
 from starkware.starknet.core.os.contract_address.contract_address import get_contract_address
 from starkware.starknet.core.os.execution.account_backward_compatibility import (
     check_tip_for_v1_bound_accounts,
     is_v1_bound_account_cairo0,
 )
-from starkware.starknet.core.os.execution.deprecated_execute_entry_point import (
-    select_execute_entry_point_func,
-)
+from starkware.starknet.core.os.execution.deploy_contract import deploy_contract
+from starkware.starknet.core.os.execution.entry_point_utils import select_execute_entry_point_func
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
 from starkware.starknet.core.os.execution.revert import (
     CHANGE_CLASS_ENTRY,
@@ -89,7 +78,7 @@ from starkware.starknet.core.os.output import (
     OsCarriedOutputs,
     os_carried_outputs_new,
 )
-from starkware.starknet.core.os.state.commitment import UNINITIALIZED_CLASS_HASH, StateEntry
+from starkware.starknet.core.os.state.commitment import StateEntry
 
 // Calls execute_entry_point and generates the corresponding CallContractResponse.
 func contract_call_helper{
@@ -113,15 +102,7 @@ func contract_call_helper{
             block_context=block_context, execution_context=execution_context
         );
     }
-    %{
-        # Check that the actual return value matches the expected one.
-        expected = memory.get_range(
-            addr=ids.call_response.retdata, size=ids.call_response.retdata_size
-        )
-        actual = memory.get_range(addr=ids.retdata, size=ids.retdata_size)
-
-        assert expected == actual, f'Return value mismatch expected={expected}, actual={actual}.'
-    %}
+    %{ CheckSyscallResponse %}
     relocate_segment(src_ptr=call_response.retdata, dest_ptr=retdata);
 
     // The deprecated call syscalls do not support reverts.
@@ -330,11 +311,7 @@ func execute_replace_class{contract_state_changes: DictAccess*, revert_log: Reve
     let class_hash = syscall_ptr.class_hash;
 
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update at the end
-        # of this function.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ GetContractAddressStateEntry %}
 
     tempvar new_state_entry = new StateEntry(
         class_hash=class_hash, storage_ptr=state_entry.storage_ptr, nonce=state_entry.nonce
@@ -357,22 +334,10 @@ func execute_storage_read{contract_state_changes: DictAccess*}(
 ) {
     alloc_locals;
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-            ids.contract_address
-        ]
-    %}
+    %{ GetContractAddressStateEntry %}
 
     tempvar value = syscall_ptr.response.value;
-    %{
-        # Make sure the value is cached (by reading it), to be used later on for the
-        # commitment computation.
-        value = execution_helper.storage_by_address[ids.contract_address].read(
-            key=ids.syscall_ptr.request.address
-        )
-        assert ids.value == value, "Inconsistent storage value."
-    %}
+    %{ CacheContractStorageSyscallRequestAddress %}
 
     // Update the contract's storage.
     tempvar storage_ptr = state_entry.storage_ptr;
@@ -403,14 +368,7 @@ func execute_storage_write{contract_state_changes: DictAccess*, revert_log: Reve
     alloc_locals;
     local prev_value: felt;
     local state_entry: StateEntry*;
-    %{
-        storage = execution_helper.storage_by_address[ids.contract_address]
-        ids.prev_value = storage.read(key=ids.syscall_ptr.address)
-        storage.write(key=ids.syscall_ptr.address, value=ids.syscall_ptr.value)
-
-        # Fetch a state_entry in this hint and validate it in the update that comes next.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ WriteSyscallResultDeprecated %}
 
     // Update the contract's storage.
     tempvar storage_ptr = state_entry.storage_ptr;
@@ -465,29 +423,13 @@ func execute_deprecated_syscalls{
     }
 
     local selector = [syscall_ptr];
-    %{
-        execution_helper.os_logger.enter_syscall(
-            n_steps=current_step,
-            builtin_ptrs=ids.builtin_ptrs,
-            deprecated=True,
-            selector=ids.selector,
-            range_check_ptr=ids.range_check_ptr,
-        )
-
-        # Prepare a short callable to save code duplication.
-        exit_syscall = lambda: execution_helper.os_logger.exit_syscall(
-            n_steps=current_step,
-            builtin_ptrs=ids.builtin_ptrs,
-            range_check_ptr=ids.range_check_ptr,
-            selector=ids.selector,
-        )
-    %}
+    %{ OsLoggerEnterSyscallPrepareExitSyscall %}
     if (selector == STORAGE_READ_SELECTOR) {
         execute_storage_read(
             contract_address=execution_context.execution_info.contract_address,
             syscall_ptr=cast(syscall_ptr, StorageRead*),
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -501,7 +443,7 @@ func execute_deprecated_syscalls{
             contract_address=execution_context.execution_info.contract_address,
             syscall_ptr=cast(syscall_ptr, StorageWrite*),
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -513,7 +455,7 @@ func execute_deprecated_syscalls{
     if (selector == EMIT_EVENT_SELECTOR) {
         // Skip as long as the block hash is not calculated by the OS.
         // TODO(Yoni, 1/4/2022): calculate event hash in the OS.
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -530,6 +472,8 @@ func execute_deprecated_syscalls{
         // entries before this point belong to the caller.
         assert [revert_log] = RevertLogEntry(selector=CHANGE_CONTRACT_ENTRY, value=caller_address);
         let revert_log = &revert_log[1];
+        // It is forbidded to call the `__execute__` function.
+        assert_not_equal(call_contract_syscall.request.selector, EXECUTE_ENTRY_POINT_SELECTOR);
         execute_contract_call_syscall(
             block_context=block_context,
             contract_address=callee_address,
@@ -541,7 +485,7 @@ func execute_deprecated_syscalls{
         // Entries before this point belong to the callee.
         assert [revert_log] = RevertLogEntry(selector=CHANGE_CONTRACT_ENTRY, value=callee_address);
         let revert_log = &revert_log[1];
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -557,7 +501,7 @@ func execute_deprecated_syscalls{
             entry_point_type=ENTRY_POINT_TYPE_EXTERNAL,
             syscall_ptr=cast(syscall_ptr, LibraryCall*),
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -573,7 +517,7 @@ func execute_deprecated_syscalls{
             entry_point_type=ENTRY_POINT_TYPE_L1_HANDLER,
             syscall_ptr=cast(syscall_ptr, LibraryCall*),
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -586,7 +530,7 @@ func execute_deprecated_syscalls{
         execute_get_tx_info_syscall(
             execution_context=execution_context, syscall_ptr=cast(syscall_ptr, GetTxInfo*)
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -599,7 +543,7 @@ func execute_deprecated_syscalls{
         assert [cast(syscall_ptr, GetCallerAddress*)].response = GetCallerAddressResponse(
             caller_address=execution_context.execution_info.caller_address
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -612,7 +556,7 @@ func execute_deprecated_syscalls{
         assert [cast(syscall_ptr, GetSequencerAddress*)].response = GetSequencerAddressResponse(
             sequencer_address=execution_context.execution_info.block_info.sequencer_address
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -625,7 +569,7 @@ func execute_deprecated_syscalls{
         assert [cast(syscall_ptr, GetContractAddress*)].response = GetContractAddressResponse(
             contract_address=execution_context.execution_info.contract_address
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -638,7 +582,7 @@ func execute_deprecated_syscalls{
         assert [cast(syscall_ptr, GetBlockTimestamp*)].response = GetBlockTimestampResponse(
             block_timestamp=execution_context.execution_info.block_info.block_timestamp
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -651,7 +595,7 @@ func execute_deprecated_syscalls{
         assert [cast(syscall_ptr, GetBlockNumber*)].response = GetBlockNumberResponse(
             block_number=execution_context.execution_info.block_info.block_number
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -665,7 +609,7 @@ func execute_deprecated_syscalls{
         assert [cast(syscall_ptr, GetTxSignature*)].response = GetTxSignatureResponse(
             signature_len=deprecated_tx_info.signature_len, signature=deprecated_tx_info.signature
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -680,7 +624,7 @@ func execute_deprecated_syscalls{
             caller_execution_context=execution_context,
             syscall_ptr=cast(syscall_ptr, Deploy*),
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -700,7 +644,7 @@ func execute_deprecated_syscalls{
             caller_execution_context=execution_context,
             syscall_ptr=cast(syscall_ptr, CallContract*),
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -720,7 +664,7 @@ func execute_deprecated_syscalls{
             caller_execution_context=execution_context,
             syscall_ptr=cast(syscall_ptr, CallContract*),
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -734,7 +678,7 @@ func execute_deprecated_syscalls{
             contract_address=execution_context.execution_info.contract_address,
             syscall_ptr=cast(syscall_ptr, ReplaceClass*),
         );
-        %{ exit_syscall() %}
+        %{ OsLoggerExitSyscall %}
         return execute_deprecated_syscalls(
             block_context=block_context,
             execution_context=execution_context,
@@ -763,7 +707,7 @@ func execute_deprecated_syscalls{
         outputs.messages_to_l1.payload_size,
         messages_to_l2=outputs.messages_to_l2,
     );
-    %{ exit_syscall() %}
+    %{ OsLoggerExitSyscall %}
     return execute_deprecated_syscalls(
         block_context=block_context,
         execution_context=execution_context,
@@ -771,4 +715,3 @@ func execute_deprecated_syscalls{
         syscall_ptr=syscall_ptr + SendMessageToL1SysCall.SIZE,
     );
 }
-

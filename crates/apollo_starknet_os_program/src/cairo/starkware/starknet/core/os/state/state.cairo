@@ -1,4 +1,5 @@
 from starkware.cairo.common.alloc import alloc
+from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import HashBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
 from starkware.cairo.common.find_element import search_sorted
@@ -8,7 +9,6 @@ from starkware.cairo.common.squash_dict import squash_dict
 from starkware.starknet.core.os.constants import ALIAS_CONTRACT_ADDRESS
 from starkware.starknet.core.os.state.aliases import allocate_aliases
 from starkware.starknet.core.os.state.commitment import (
-    MERKLE_HEIGHT,
     CommitmentUpdate,
     StateEntry,
     calculate_global_state_root,
@@ -42,8 +42,11 @@ struct SquashedOsStateUpdate {
 
 // Performs the commitment tree updates required for (validating and) updating the global state.
 // Returns a CommitmentUpdate struct.
+//
+// `should_allocate_aliases` flag indicates whether to allocate aliases before squashing the
+// contract state changes.
 func state_update{poseidon_ptr: PoseidonBuiltin*, hash_ptr: HashBuiltin*, range_check_ptr}(
-    os_state_update: OsStateUpdate
+    os_state_update: OsStateUpdate, should_allocate_aliases: felt
 ) -> (squashed_os_state_update: SquashedOsStateUpdate*, state_update_output: CommitmentUpdate*) {
     alloc_locals;
 
@@ -51,16 +54,17 @@ func state_update{poseidon_ptr: PoseidonBuiltin*, hash_ptr: HashBuiltin*, range_
     let (local patricia_update_constants: PatriciaUpdateConstants*) = patricia_update_constants_new(
         );
 
-    // Allocate aliases and squash the final contract state tree.
+    // (Maybe) allocate aliases and squash the final contract state tree.
     let (
         n_contract_state_changes, squashed_contract_state_changes_start
-    ) = allocate_aliases_and_squash_state_changes(
+    ) = squash_state_changes_and_maybe_allocate_aliases(
         contract_state_changes_start=os_state_update.contract_state_changes_start,
         contract_state_changes_end=os_state_update.contract_state_changes_end,
+        should_allocate_aliases=should_allocate_aliases,
     );
 
     // State is finalized.
-    %{ commitment_info_by_address=execution_helper.compute_storage_commitments() %}
+    %{ ComputeCommitmentsOnFinalizedStateWithAliases %}
 
     // Compute the contract state commitment.
     let contract_state_tree_update_output = compute_contract_state_commitment(
@@ -109,9 +113,12 @@ func state_update{poseidon_ptr: PoseidonBuiltin*, hash_ptr: HashBuiltin*, range_
     );
 }
 
-// Allocates aliases and squashes the contract state changes (after alias allocation).
-func allocate_aliases_and_squash_state_changes{range_check_ptr}(
-    contract_state_changes_start: DictAccess*, contract_state_changes_end: DictAccess*
+// Squashes and returns the contract state changes after (maybe) allocating aliases,
+// depending on the value of `should_allocate_aliases` flag.
+func squash_state_changes_and_maybe_allocate_aliases{range_check_ptr}(
+    contract_state_changes_start: DictAccess*,
+    contract_state_changes_end: DictAccess*,
+    should_allocate_aliases: felt,
 ) -> (n_contract_state_changes: felt, squashed_contract_state_changes_start: DictAccess*) {
     alloc_locals;
 
@@ -120,6 +127,14 @@ func allocate_aliases_and_squash_state_changes{range_check_ptr}(
         contract_state_changes_start=contract_state_changes_start,
         contract_state_changes_end=contract_state_changes_end,
     );
+
+    if (should_allocate_aliases == FALSE) {
+        // Skip alias allocation.
+        return (
+            n_contract_state_changes=n_contract_state_changes,
+            squashed_contract_state_changes_start=squashed_contract_state_dict,
+        );
+    }
 
     // Allocate aliases.
     let aliases_storage_updates: DictAccess* = alloc();
@@ -146,17 +161,7 @@ func allocate_aliases_and_squash_state_changes{range_check_ptr}(
     // squash it separately instead of running `squash_state_changes` again.
     local squashed_aliases_storage_start: DictAccess*;
     local prev_aliases_state_entry: StateEntry*;
-    %{
-        if state_update_pointers is None:
-            ids.prev_aliases_state_entry = segments.add()
-            ids.squashed_aliases_storage_start = segments.add()
-        else:
-            ids.prev_aliases_state_entry, ids.squashed_aliases_storage_start = (
-                state_update_pointers.get_contract_state_entry_and_storage_ptr(
-                    ids.ALIAS_CONTRACT_ADDRESS
-                )
-            )
-    %}
+    %{ GuessAliasesContractStoragePtr %}
     let (squashed_aliases_storage_end) = squash_dict(
         dict_accesses=aliases_storage_updates_start,
         dict_accesses_end=aliases_storage_updates,
@@ -171,15 +176,7 @@ func allocate_aliases_and_squash_state_changes{range_check_ptr}(
     tempvar new_aliases_state_entry = new StateEntry(
         class_hash=0, storage_ptr=squashed_aliases_storage_end, nonce=0
     );
-    %{
-        if state_update_pointers is not None:
-            state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
-                    ids.ALIAS_CONTRACT_ADDRESS
-                ] = (
-                    ids.new_aliases_state_entry.address_,
-                    ids.squashed_aliases_storage_end.address_,
-                )
-    %}
+    %{ UpdateAliasesContractToStoragePtr %}
     let squashed_contract_state_dict_end = (
         &squashed_contract_state_dict[n_contract_state_changes]
     );
@@ -192,26 +189,14 @@ func allocate_aliases_and_squash_state_changes{range_check_ptr}(
 
     // Squash again just the outer contract dict (to sort the entries).
     local final_squashed_contract_state_changes_start: DictAccess*;
-    %{
-        if state_update_pointers is None:
-            ids.final_squashed_contract_state_changes_start = segments.add()
-        else:
-            ids.final_squashed_contract_state_changes_start = (
-                state_update_pointers.state_tree_ptr
-            )
-    %}
+    %{ GuessStatePtr %}
 
     let (final_squashed_contract_state_changes_end) = squash_dict(
         dict_accesses=squashed_contract_state_dict,
         dict_accesses_end=squashed_contract_state_dict_end,
         squashed_dict=final_squashed_contract_state_changes_start,
     );
-    %{
-        if state_update_pointers is not None:
-            state_update_pointers.state_tree_ptr = (
-                ids.final_squashed_contract_state_changes_end.address_
-            )
-    %}
+    %{ UpdateStatePtr %}
     let final_n_contract_state_changes = (
         final_squashed_contract_state_changes_end - final_squashed_contract_state_changes_start
     ) / DictAccess.SIZE;

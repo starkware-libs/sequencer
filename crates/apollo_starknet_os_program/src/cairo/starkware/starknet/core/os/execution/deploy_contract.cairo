@@ -1,5 +1,3 @@
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict import dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_not_zero
@@ -10,7 +8,6 @@ from starkware.starknet.core.os.constants import (
     ALIAS_CONTRACT_ADDRESS,
     BLOCK_HASH_CONTRACT_ADDRESS,
     RESERVED_CONTRACT_ADDRESS,
-    UNINITIALIZED_CLASS_HASH,
 )
 from starkware.starknet.core.os.execution.entry_point_utils import select_execute_entry_point_func
 from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
@@ -20,7 +17,7 @@ from starkware.starknet.core.os.execution.revert import (
     RevertLogEntry,
 )
 from starkware.starknet.core.os.output import OsCarriedOutputs
-from starkware.starknet.core.os.state.commitment import StateEntry
+from starkware.starknet.core.os.state.commitment import UNINITIALIZED_CLASS_HASH, StateEntry
 
 // Deploys a contract and invokes its constructor.
 // Returns the constructor's return data.
@@ -28,7 +25,7 @@ from starkware.starknet.core.os.state.commitment import StateEntry
 // Arguments:
 // block_context - A global context that is fixed throughout the block.
 // constructor_execution_context - The ExecutionContext of the constructor.
-// TODO(Yoni, 1/1/2026): move to another file and handle failures.
+// TODO(Yoni, 1/1/2027): handle failures.
 func deploy_contract{
     range_check_ptr,
     remaining_gas: felt,
@@ -52,11 +49,7 @@ func deploy_contract{
     );
 
     local state_entry: StateEntry*;
-    %{
-        # Fetch a state_entry in this hint and validate it in the update at the end
-        # of this function.
-        ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]
-    %}
+    %{ GetContractAddressStateEntry %}
     assert state_entry.class_hash = UNINITIALIZED_CLASS_HASH;
     assert state_entry.nonce = 0;
 

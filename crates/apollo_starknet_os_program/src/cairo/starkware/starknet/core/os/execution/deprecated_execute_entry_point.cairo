@@ -3,7 +3,6 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.find_element import find_element, search_sorted_optimistic
-from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.registers import get_ap
 from starkware.starknet.core.os.block_context import BlockContext
 from starkware.starknet.core.os.builtins import (
@@ -14,7 +13,6 @@ from starkware.starknet.core.os.builtins import (
 )
 from starkware.starknet.core.os.constants import (
     DEFAULT_ENTRY_POINT_SELECTOR,
-    DEFAULT_INITIAL_GAS_COST,
     ENTRY_POINT_TYPE_CONSTRUCTOR,
     ENTRY_POINT_TYPE_EXTERNAL,
     ENTRY_POINT_TYPE_L1_HANDLER,
@@ -26,11 +24,8 @@ from starkware.starknet.core.os.contract_class.deprecated_compiled_class import 
     DeprecatedCompiledClassFact,
     DeprecatedContractEntryPoint,
 )
-from starkware.starknet.core.os.execution.execute_entry_point import (
-    ExecutionContext,
-    execute_entry_point,
-)
-from starkware.starknet.core.os.execution.revert import RevertLogEntry, init_revert_log
+from starkware.starknet.core.os.execution.execute_entry_point import ExecutionContext
+from starkware.starknet.core.os.execution.revert import RevertLogEntry
 from starkware.starknet.core.os.output import OsCarriedOutputs
 
 // Returns the entry point's offset in the program based on 'compiled_class' and
@@ -96,7 +91,7 @@ func call_execute_deprecated_syscalls{
     syscall_size,
     syscall_ptr: felt*,
 ) {
-    jmp abs block_context.execute_deprecated_syscalls_ptr;
+    jmp abs block_context.os_global_context.execute_deprecated_syscalls_ptr;
 }
 
 // Executes an entry point in a contract.
@@ -120,10 +115,11 @@ func deprecated_execute_entry_point{
 
     // The key must be at offset 0.
     static_assert DeprecatedCompiledClassFact.hash == 0;
+    let compiled_class_facts_bundle = block_context.os_global_context.compiled_class_facts_bundle;
     let (compiled_class_fact: DeprecatedCompiledClassFact*) = find_element(
-        array_ptr=block_context.deprecated_compiled_class_facts,
+        array_ptr=compiled_class_facts_bundle.deprecated_compiled_class_facts,
         elm_size=DeprecatedCompiledClassFact.SIZE,
-        n_elms=block_context.n_deprecated_compiled_class_facts,
+        n_elms=compiled_class_facts_bundle.n_deprecated_compiled_class_facts,
         key=execution_context.class_hash,
     );
     local compiled_class: DeprecatedCompiledClass* = compiled_class_fact.compiled_class;
@@ -133,14 +129,14 @@ func deprecated_execute_entry_point{
     );
 
     if (success == 0) {
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         let (retdata: felt*) = alloc();
         assert retdata[0] = ERROR_ENTRY_POINT_NOT_FOUND;
         return (is_reverted=1, retdata_size=1, retdata=retdata);
     }
 
     if (entry_point_offset == NOP_ENTRY_POINT_OFFSET) {
-        %{ execution_helper.exit_call() %}
+        %{ ExitCall %}
         // Assert that there is no call data in the case of NOP entry point.
         assert execution_context.calldata_size = 0;
         return (is_reverted=0, retdata_size=0, retdata=cast(0, felt*));
@@ -155,7 +151,7 @@ func deprecated_execute_entry_point{
     assert [os_context] = cast(syscall_ptr, felt);
 
     let n_builtins = BuiltinEncodings.SIZE;
-    local builtin_params: BuiltinParams* = block_context.builtin_params;
+    local builtin_params: BuiltinParams* = block_context.os_global_context.builtin_params;
     select_builtins(
         n_builtins=n_builtins,
         all_encodings=builtin_params.builtin_encodings,
@@ -171,10 +167,10 @@ func deprecated_execute_entry_point{
     tempvar calldata_size = execution_context.calldata_size;
     tempvar calldata = execution_context.calldata;
 
-    %{ vm_enter_scope({'syscall_handler': deprecated_syscall_handler}) %}
+    %{ EnterScopeDeprecatedSyscallHandler %}
     call abs contract_entry_point;
     %{ vm_exit_scope() %}
-    %{ execution_helper.exit_call() %}
+    %{ ExitCall %}
 
     // Retrieve returned_builtin_ptrs_subset.
     // Note that returned_builtin_ptrs_subset cannot be set in a hint because doing so will allow a
@@ -207,4 +203,3 @@ func deprecated_execute_entry_point{
 
     return (is_reverted=0, retdata_size=retdata_size, retdata=retdata);
 }
-
