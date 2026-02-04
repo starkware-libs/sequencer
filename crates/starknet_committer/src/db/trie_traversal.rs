@@ -27,7 +27,7 @@ use starknet_patricia::patricia_merkle_tree::traversal::{
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{DbKey, Storage};
+use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
 use tracing::warn;
 
 use crate::block_committer::input::{
@@ -47,6 +47,7 @@ macro_rules! log_trivial_modification {
     };
 }
 
+#[allow(clippy::too_many_arguments)]
 /// Fetches the Patricia witnesses, required to build the original skeleton tree from storage.
 ///
 /// Given a list of subtrees, traverses towards their leaves and fetches all non-empty,
@@ -62,6 +63,7 @@ pub(crate) async fn fetch_nodes<'a, L, Layout>(
     leaf_modifications: &LeafModifications<L>,
     config: &impl OriginalSkeletonTreeConfig,
     mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
+    mut siblings_map: Option<&mut DbHashMap>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<()>
 where
@@ -75,11 +77,19 @@ where
     while !current_subtrees.is_empty() {
         let filled_roots =
             get_roots_from_storage::<L, Layout>(&current_subtrees, storage, key_context).await?;
-        for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.into_iter()) {
+        for (db_object, subtree) in filled_roots.into_iter().zip(current_subtrees.into_iter()) {
             if subtree.is_unmodified() {
-                handle_unmodified_subtree(skeleton_tree, &mut next_subtrees, filled_root, subtree);
+                handle_unmodified_subtree::<L, Layout>(
+                    skeleton_tree,
+                    &mut next_subtrees,
+                    db_object,
+                    subtree,
+                    siblings_map.as_deref_mut(),
+                    key_context,
+                );
                 continue;
             }
+            let filled_root: FilledNode<L, Layout::NodeData> = db_object.into();
             let root_index = subtree.get_root_index();
             match filled_root.data {
                 // Binary node.
@@ -159,17 +169,28 @@ where
 /// Adds the subtree root to the skeleton tree. If the root is an edge node, and
 /// `should_traverse_unmodified_child` is `Skip`, then the corresponding bottom node is also
 /// added to the skeleton. Otherwise, the bottom subtree is added to the next subtrees.
-fn handle_unmodified_subtree<'a, L: Leaf, SubTree: SubTreeTrait<'a>>(
+fn handle_unmodified_subtree<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
-    next_subtrees: &mut Vec<SubTree>,
-    filled_root: FilledNode<L, SubTree::NodeData>,
-    subtree: SubTree,
+    next_subtrees: &mut Vec<Layout::SubTree>,
+    db_object: Layout::NodeDbObject,
+    subtree: Layout::SubTree,
+    mut siblings_map: Option<&mut DbHashMap>,
+    key_context: &<L as HasStaticPrefix>::KeyContext,
 ) where
-    SubTree::NodeData: Clone,
+    Layout::NodeData: Clone,
 {
     // Sanity check.
     assert!(subtree.is_unmodified(), "Called `handle_unmodified_subtree` for a modified subtree.");
 
+    if let Some(ref mut map) = siblings_map {
+        let db_key = subtree.get_root_db_key::<L>(key_context);
+        let db_val = db_object
+            .serialize()
+            .expect("Serialization of a just-deserialized node should not fail");
+        map.insert(db_key, db_val);
+    }
+
+    let filled_root: FilledNode<L, Layout::NodeData> = db_object.into();
     let root_index = subtree.get_root_index();
 
     match filled_root.data {
@@ -178,7 +199,7 @@ fn handle_unmodified_subtree<'a, L: Leaf, SubTree: SubTreeTrait<'a>>(
             // `OriginalSkeletonNode::Edge` node in the skeleton in case we need to manipulate it
             // later (e.g. unify the edge node with an ancestor edge node).
             skeleton_tree.nodes.insert(root_index, OriginalSkeletonNode::Edge(path_to_bottom));
-            match SubTree::should_traverse_unmodified_child(bottom_data.clone()) {
+            match Layout::SubTree::should_traverse_unmodified_child(bottom_data.clone()) {
                 UnmodifiedChildTraversal::Traverse => {
                     let (bottom_subtree, _) =
                         subtree.get_bottom_subtree(&path_to_bottom, bottom_data);
@@ -244,17 +265,16 @@ pub async fn get_roots_from_storage<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     subtrees: &[Layout::SubTree],
     storage: &impl Storage,
     key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>> {
+) -> TraversalResult<Vec<Layout::NodeDbObject>> {
     let mut subtrees_roots = vec![];
     let db_keys: Vec<DbKey> =
         subtrees.iter().map(|subtree| subtree.get_root_db_key::<L>(key_context)).collect();
 
     let db_vals = storage.mget(&db_keys.iter().collect::<Vec<&DbKey>>()).await?;
-    for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.iter()).zip(db_keys) {
+    for ((subtree, optional_val), db_key) in subtrees.iter().zip(db_vals.into_iter()).zip(db_keys) {
         let Some(val) = optional_val else { Err(StorageError::MissingKey(db_key))? };
-        let filled_node =
-            Layout::NodeDbObject::deserialize(val, &subtree.get_root_context())?.into();
-        subtrees_roots.push(filled_node);
+        let node = Layout::NodeDbObject::deserialize(&val, &subtree.get_root_context())?;
+        subtrees_roots.push(node);
     }
     Ok(subtrees_roots)
 }
@@ -279,6 +299,7 @@ pub(crate) fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 /// Creates an original skeleton tree by fetching Patricia nodes from storage.
 ///
 /// Traverses the trie from the root towards the modified leaves, collecting all nodes needed
@@ -300,6 +321,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
     config: &impl OriginalSkeletonTreeConfig,
     leaf_modifications: &LeafModifications<L>,
     previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
+    siblings_map: Option<&mut DbHashMap>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> OriginalSkeletonTreeResult<OriginalSkeletonTreeImpl<'a>> {
     if sorted_leaf_indices.is_empty() {
@@ -332,6 +354,7 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
         leaf_modifications,
         config,
         previous_leaves,
+        siblings_map,
         key_context,
     )
     .await?;
@@ -393,6 +416,7 @@ where
         &config,
         &HashMap::new(),
         Some(&mut leaves),
+        None,
         &EmptyKeyContext,
     )
     .await?;
@@ -429,6 +453,7 @@ where
             .iter()
             .map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value)))
             .collect(),
+        None,
         None,
         &EmptyKeyContext,
     )
@@ -541,6 +566,7 @@ where
         &trie_config,
         &leaf_modifications,
         previous_leaves,
+        None,
         &address,
     )
     .await?)
