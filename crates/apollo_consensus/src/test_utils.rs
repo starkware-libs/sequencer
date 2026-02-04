@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_protobuf::consensus::{
@@ -10,17 +11,27 @@ use apollo_protobuf::consensus::{
     VoteType,
 };
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_staking::committee_provider::{CommitteeProviderResult, EpochCommittee, ProposerLookup};
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ContractAddress;
 use starknet_api::crypto::utils::RawSignature;
 use starknet_types_core::felt::Felt;
 
 use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait};
 use crate::types::{ConsensusContext, ConsensusError, Round, ValidatorId};
+
+mock! {
+    pub TestProposerLookup {}
+    impl ProposerLookup for TestProposerLookup {
+        fn actual_proposer(&self, round: Round) -> CommitteeProviderResult<ContractAddress>;
+        fn virtual_proposer(&self, round: Round) -> CommitteeProviderResult<ContractAddress>;
+    }
+}
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -100,6 +111,11 @@ mock! {
         fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
 
         fn virtual_proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
+
+        async fn get_committee_and_proposer_lookup(
+            &self,
+            height: BlockNumber,
+            ) -> Result<Arc<EpochCommittee>, ConsensusError>;
 
         async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 

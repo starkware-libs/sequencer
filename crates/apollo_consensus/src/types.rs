@@ -1,5 +1,6 @@
 //! Types for interfacing between consensus and the node.
 use std::fmt::Debug;
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_batcher_types::communication::BatcherClientError;
@@ -12,6 +13,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote};
 pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_staking::committee_provider::EpochCommittee;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use starknet_api::block::BlockNumber;
@@ -127,6 +129,12 @@ pub trait ConsensusContext {
         height: BlockNumber,
         round: Round,
     ) -> Result<ValidatorId, ConsensusError>;
+
+    /// Returns the epoch committee for the given height.
+    async fn get_committee_and_proposer_lookup(
+        &self,
+        height: BlockNumber,
+    ) -> Result<Arc<EpochCommittee>, ConsensusError>;
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 

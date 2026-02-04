@@ -23,6 +23,7 @@ use crate::committee_provider::{
     CommitteeProvider,
     CommitteeProviderError,
     CommitteeProviderResult,
+    ProposerLookup,
     Staker,
 };
 use crate::staking_contract::StakingContract;
@@ -406,5 +407,27 @@ impl CommitteeProvider for StakingManager {
         // Use round-robin selection: (height + round) % eligible_count
         let i = (height_usize + round_usize) % committee_data.eligible_proposers.len();
         Ok(committee_data.eligible_proposers[i])
+    }
+}
+
+pub struct EpochCommittee {
+    _committee: Vec<Staker>,
+}
+
+impl ProposerLookup for EpochCommittee {
+    fn actual_proposer(
+        &self,
+        _height: BlockNumber,
+        _round: Round,
+    ) -> CommitteeProviderResult<ContractAddress> {
+        todo!()
+    }
+
+    fn virtual_proposer(
+        &self,
+        _height: BlockNumber,
+        _round: Round,
+    ) -> CommitteeProviderResult<ContractAddress> {
+        todo!()
     }
 }

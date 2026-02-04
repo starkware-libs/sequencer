@@ -39,6 +39,31 @@ pub enum CommitteeProviderError {
 
 pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;
 
+<<<<<<< HEAD
+=======
+/// Sync lookup for actual and virtual proposer by round.
+pub trait ProposerLookup: Send + Sync {
+    fn actual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> CommitteeProviderResult<ContractAddress>;
+    fn virtual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> CommitteeProviderResult<ContractAddress>;
+}
+
+#[async_trait]
+pub trait CommitteeAndProposerProvider: Send + Sync {
+    async fn get_committee(
+        &self,
+        height: BlockNumber,
+    ) -> CommitteeProviderResult<Arc<dyn ProposerLookup>>;
+}
+
+>>>>>>> cbfb7207e5 (apollo_consensus_orchestrator: add get_committee_and_proposer_lookup fn)
 /// Trait for managing committee operations including fetching and selecting committee members
 /// and proposers for consensus.
 /// The committee is a subset of nodes (proposer and validators) that are selected to participate in

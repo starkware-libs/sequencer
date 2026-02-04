@@ -42,7 +42,7 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-use apollo_staking::committee_provider::CommitteeProvider;
+use apollo_staking::committee_provider::{CommitteeProvider, EpochCommittee};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -667,6 +667,14 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(Asmaa): Update this when using the committee provider.
         // For now, keep the virtual proposer selection identical to the real proposer selection.
         self.proposer(height, round)
+    }
+
+    async fn get_committee_and_proposer_lookup(
+        &self,
+        _height: BlockNumber,
+    ) -> Result<Arc<EpochCommittee>, ConsensusError> {
+        // TODO(Asmaa): Implement this when using the committee and proposer provider.
+        todo!();
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
