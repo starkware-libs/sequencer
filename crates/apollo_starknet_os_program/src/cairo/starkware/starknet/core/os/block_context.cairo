@@ -6,7 +6,7 @@ from starkware.starknet.core.os.constants import (
     VALIDATE_BLOCK_NUMBER_ROUNDING,
     VALIDATE_TIMESTAMP_ROUNDING,
 )
-from starkware.starknet.core.os.contract_class.compiled_class import CompiledClassFact
+from starkware.starknet.core.os.contract_class.compiled_class_struct import CompiledClassFact
 from starkware.starknet.core.os.contract_class.deprecated_compiled_class import (
     DeprecatedCompiledClassFact,
 )
