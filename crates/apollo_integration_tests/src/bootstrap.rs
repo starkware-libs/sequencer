@@ -7,6 +7,45 @@
 //! - Fund the account with initial balances
 //!
 //! All addresses are deterministically calculated, so they can be known before deployment.
+//!
+//! # Usage
+//!
+//! ## Infrastructure Components
+//!
+//! 1. **Deterministic Addresses** - `BootstrapAddresses::get()`:
+//!    - `funded_account_address`: The account that will receive initial token balances
+//!    - `eth_fee_token_address`: ETH fee token contract address
+//!    - `strk_fee_token_address`: STRK fee token contract address
+//!
+//! 2. **ChainInfo Configuration** - `BootstrapAddresses::create_chain_info_for_bootstrap()`:
+//!    Creates a `ChainInfo` with fee tokens pointing to bootstrap addresses.
+//!
+//! 3. **Empty Storage** - `StorageTestSetup::new_empty_for_bootstrap()`:
+//!    Creates storage without pre-populated accounts (in `state_reader.rs`).
+//!
+//! 4. **Empty Storage Detection** - `is_storage_empty()`:
+//!    Returns true if storage has no committed blocks (header_marker == 0).
+//!
+//! 5. **Bootstrap Transactions** - `generate_bootstrap_transactions()`:
+//!    Returns 5 RPC transactions that initialize the system.
+//!
+//! 6. **Internal Transactions** - `generate_bootstrap_internal_transactions()`:
+//!    Returns transactions in `InternalConsensusTransaction` format for batcher injection.
+//!
+//! 7. **State Machine** - `BootstrapManager`:
+//!    Manages bootstrap state transitions (Disabled -> Pending -> InProgress -> Completed).
+//!
+//! ## For Full End-to-End Bootstrap Testing
+//!
+//! To test bootstrap with running nodes:
+//!
+//! 1. Create storage with `StorageTestSetup::new_empty_for_bootstrap(chain_id)`
+//! 2. Configure node with `BootstrapAddresses::create_chain_info_for_bootstrap()`
+//! 3. Set `allow_bootstrap_txs: true` in test configuration
+//! 4. Start the node with the empty storage
+//! 5. Send bootstrap transactions via gateway (using `generate_bootstrap_transactions()`)
+//! 6. Wait for block commits
+//! 7. Verify completion with `check_completion()` or by checking ERC20 balances
 
 use std::sync::LazyLock;
 
