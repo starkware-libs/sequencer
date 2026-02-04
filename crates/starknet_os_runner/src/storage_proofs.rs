@@ -200,13 +200,22 @@ impl RpcStorageProofsProvider {
         // Get extended initial reads keys.
         let initial_reads_keys = extended_initial_reads.keys();
 
-        let commitment_infos = create_commitment_infos(
+        // TODO(Aviv): Try to undertand if we can create classes trie commitment info
+        // without the compiled class hashes.
+        let mut commitment_infos = create_commitment_infos(
             &previous_state_roots,
             &new_roots,
             &mut map_storage,
             &initial_reads_keys,
         )
         .await;
+
+        // The created commitment infos doesn't have the compiled class hashes,
+        // as a result it doesn't have the classes trie commitment info.
+        // We complement it with the RPC proof facts.
+        let classes_rpc_facts =
+            flatten_preimages(&Self::rpc_nodes_to_preimage_map(&rpc_proof.classes_proof));
+        commitment_infos.classes_trie_commitment_info.commitment_facts.extend(classes_rpc_facts);
 
         Ok(commitment_infos)
     }
