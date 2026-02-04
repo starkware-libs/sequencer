@@ -29,7 +29,7 @@ from starkware.starknet.core.os.constants import (
     ERROR_OUT_OF_GAS,
     SIERRA_ARRAY_LEN_BOUND,
 )
-from starkware.starknet.core.os.contract_class.compiled_class import (
+from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     CompiledClass,
     CompiledClassEntryPoint,
     CompiledClassFact,
