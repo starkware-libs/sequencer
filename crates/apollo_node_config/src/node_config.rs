@@ -46,6 +46,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use crate::bootstrap_config::BootstrapConfig;
 use crate::component_config::ComponentConfig;
 use crate::component_execution_config::ExpectedComponentConfig;
 use crate::monitoring::MonitoringConfig;
@@ -201,6 +202,8 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 pub struct SequencerNodeConfig {
     // Infra related configs.
     #[validate(nested)]
+    pub bootstrap_config: BootstrapConfig,
+    #[validate(nested)]
     pub components: ComponentConfig,
     #[validate(nested)]
     pub config_manager_config: Option<ConfigManagerConfig>,
@@ -245,6 +248,7 @@ impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
             // Infra related configs.
+            prepend_sub_config_name(self.bootstrap_config.dump(), "bootstrap_config"),
             prepend_sub_config_name(self.components.dump(), "components"),
             ser_optional_sub_config(&self.config_manager_config, "config_manager_config"),
             prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
@@ -281,6 +285,7 @@ impl Default for SequencerNodeConfig {
     fn default() -> Self {
         Self {
             // Infra related configs.
+            bootstrap_config: BootstrapConfig::default(),
             components: ComponentConfig::default(),
             config_manager_config: Some(ConfigManagerConfig::default()),
             monitoring_config: MonitoringConfig::default(),

@@ -2180,6 +2180,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starknet_api",
  "tracing",
  "validator",
 ]

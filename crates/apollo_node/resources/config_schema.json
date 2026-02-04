@@ -409,6 +409,21 @@
     "privacy": "Public",
     "value": 8091
   },
+  "bootstrap_config.enable_bootstrap_mode": {
+    "description": "When true, the node will automatically enter bootstrap mode if storage is empty.",
+    "privacy": "Public",
+    "value": false
+  },
+  "bootstrap_config.funded_account_address": {
+    "description": "The address of the account that will be funded during bootstrap. Bootstrap mode will exit when this account has sufficient balance.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "bootstrap_config.required_balance": {
+    "description": "The minimum balance (in both ETH and STRK) required to exit bootstrap mode.",
+    "privacy": "Public",
+    "value": 0
+  },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "privacy": "TemporaryValue",
