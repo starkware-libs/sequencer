@@ -314,6 +314,11 @@ impl<S: Storage> Storage for CachedStorage<S> {
             include_inner_stats: self.include_inner_stats,
         })
     }
+
+    fn flush_to_cache(&mut self, map: DbHashMap) -> PatriciaStorageResult<()> {
+        Self::flush_to_cache(self, map);
+        Ok(())
+    }
 }
 
 impl<S: AsyncStorage> Clone for CachedStorage<S> {
