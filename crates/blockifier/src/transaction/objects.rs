@@ -31,13 +31,13 @@ use crate::abi::constants as abi_constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{
     BuiltinCounterMap,
+    CairoPrimitiveCounterMap,
+    CairoPrimitiveName,
     CallInfo,
     ExecutionSummary,
     OrderedEvent,
     OrderedItem,
     OrderedL2ToL1Message,
-    ResourceCounterMap,
-    ResourceName,
 };
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
@@ -268,9 +268,9 @@ impl TransactionExecutionInfo {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
     }
 
-    // TODO(Yonatank): Return `ResourceCounterMap` instead of `BuiltinCounterMap`.
+    // TODO(Yonatank): Return `CairoPrimitiveCounterMap` instead of `BuiltinCounterMap`.
     pub fn summarize_builtins(&self) -> BuiltinCounterMap {
-        let mut builtin_counters = ResourceCounterMap::new();
+        let mut builtin_counters = CairoPrimitiveCounterMap::new();
         // Remove fee transfer builtins to avoid double-counting in `get_tx_weights`
         // in bouncer.rs (already included in os_vm_resources).
         for call_info_iter in self.non_optional_call_infos_without_fee_transfer() {

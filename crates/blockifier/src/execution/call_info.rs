@@ -283,31 +283,31 @@ pub enum OpcodeName {
 // Serialize as an untagged enum to avoid a type prefix, for backward compatibility with
 // how `CallInfo` was serialized when only builtins (no opcodes) were included (prior to v0.14.2).
 #[serde(untagged)]
-pub enum ResourceName {
+pub enum CairoPrimitiveName {
     Builtin(BuiltinName),
     Opcode(OpcodeName),
 }
 
-impl From<BuiltinName> for ResourceName {
+impl From<BuiltinName> for CairoPrimitiveName {
     fn from(builtin_name: BuiltinName) -> Self {
-        ResourceName::Builtin(builtin_name)
+        CairoPrimitiveName::Builtin(builtin_name)
     }
 }
 
-impl From<OpcodeName> for ResourceName {
+impl From<OpcodeName> for CairoPrimitiveName {
     fn from(opcode_name: OpcodeName) -> Self {
-        ResourceName::Opcode(opcode_name)
+        CairoPrimitiveName::Opcode(opcode_name)
     }
 }
 
-pub type ResourceCounterMap = BTreeMap<ResourceName, usize>;
+pub type CairoPrimitiveCounterMap = BTreeMap<CairoPrimitiveName, usize>;
 
 pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
 
-pub fn resource_counter_map<T: Into<ResourceName>>(
-    resources: impl IntoIterator<Item = (T, usize)>,
-) -> ResourceCounterMap {
-    resources.into_iter().map(|(name, count)| (name.into(), count)).collect()
+pub fn cairo_primitive_counter_map<T: Into<CairoPrimitiveName>>(
+    cairo_primitives: impl IntoIterator<Item = (T, usize)>,
+) -> CairoPrimitiveCounterMap {
+    cairo_primitives.into_iter().map(|(name, count)| (name.into(), count)).collect()
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
@@ -337,9 +337,9 @@ pub struct CallInfo {
 
     // Additional information gathered during execution.
     pub storage_access_tracker: StorageAccessTracker,
-    // Tracks how many times each resource (builtin or opcode) was called during execution
+    // Tracks how many times each cairo primitive (builtin or opcode) was called during execution
     // (excluding inner calls). Used by the bouncer to decide when to close a block.
-    pub builtin_counters: ResourceCounterMap,
+    pub builtin_counters: CairoPrimitiveCounterMap,
     // Tracks how many times each syscall was called during execution (excluding inner calls).
     pub syscalls_usage: SyscallUsageMap,
 }
