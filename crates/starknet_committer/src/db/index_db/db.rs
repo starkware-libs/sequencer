@@ -183,7 +183,7 @@ impl<S: Storage> ForestReader for IndexDb<S> {
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         read_forest::<S, IndexNodeLayout>(
-            &self.storage,
+            &mut self.storage,
             roots,
             storage_updates,
             classes_updates,

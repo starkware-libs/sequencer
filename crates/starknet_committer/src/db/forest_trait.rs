@@ -87,7 +87,7 @@ pub trait ForestReader {
 
 /// Helper function containing layout-common read logic.
 pub(crate) async fn read_forest<'a, S, Layout>(
-    storage: &S,
+    storage: &mut S,
     roots: StateRoots,
     storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     classes_updates: &'a LeafModifications<CompiledClassHash>,
@@ -98,14 +98,14 @@ where
     S: Storage,
     Layout: DbLayout,
 {
-    let (contracts_trie, original_contracts_trie_leaves) =
+    let (contracts_trie, original_contracts_trie_leaves, contracts_trie_siblings) =
         create_contracts_trie::<Layout::NodeLayout>(
             storage,
             roots.contracts_trie_root_hash,
             forest_sorted_indices.contracts_trie_sorted_indices,
         )
         .await?;
-    let (storage_tries, _storage_tries_siblings) = create_storage_tries::<Layout::NodeLayout>(
+    let (storage_tries, storage_tries_siblings) = create_storage_tries::<Layout::NodeLayout>(
         storage,
         storage_updates,
         &original_contracts_trie_leaves,
@@ -113,7 +113,7 @@ where
         &forest_sorted_indices.storage_tries_sorted_indices,
     )
     .await?;
-    let classes_trie = create_classes_trie::<Layout::NodeLayout>(
+    let (classes_trie, classes_trie_siblings) = create_classes_trie::<Layout::NodeLayout>(
         storage,
         classes_updates,
         roots.classes_trie_root_hash,
@@ -121,6 +121,15 @@ where
         forest_sorted_indices.classes_trie_sorted_indices,
     )
     .await?;
+
+    // After all siblings are collected - flush them to storage.
+    let all_siblings = contracts_trie_siblings
+        .into_iter()
+        .chain(storage_tries_siblings.into_iter())
+        .chain(classes_trie_siblings.into_iter())
+        .collect();
+
+    storage.flush_to_cache(all_siblings)?;
 
     Ok((
         OriginalSkeletonForest { classes_trie, contracts_trie, storage_tries },
