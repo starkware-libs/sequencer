@@ -21,6 +21,8 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use url::Url;
 use validator::{Validate, ValidationError};
 
+use crate::bootstrap_config::BootstrapConfig;
+
 pub const DEFAULT_TASKS_CHANNEL_SIZE: usize = 1000;
 pub const DEFAULT_RESULTS_CHANNEL_SIZE: usize = 1000;
 
@@ -239,6 +241,8 @@ pub struct BatcherConfig {
     // TODO(Amos): Move to commitment manager config.
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
     pub storage_reader_server_config: ServerConfig,
+    /// Configuration for bootstrap mode (starting with empty storage).
+    pub bootstrap_config: BootstrapConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -300,6 +304,10 @@ impl SerializeConfig for BatcherConfig {
             &self.first_block_with_partial_block_hash,
             "first_block_with_partial_block_hash",
         ));
+        dump.append(&mut prepend_sub_config_name(
+            self.bootstrap_config.dump(),
+            "bootstrap_config",
+        ));
         dump
     }
 }
@@ -328,6 +336,7 @@ impl Default for BatcherConfig {
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             first_block_with_partial_block_hash: None,
             storage_reader_server_config: ServerConfig::default(),
+            bootstrap_config: BootstrapConfig::default(),
         }
     }
 }
