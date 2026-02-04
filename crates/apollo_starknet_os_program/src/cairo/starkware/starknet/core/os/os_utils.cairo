@@ -14,7 +14,7 @@ from starkware.starknet.core.os.constants import (
 from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
     compiled_class_hash as blake_compiled_class_hash,
 )
-from starkware.starknet.core.os.contract_class.compiled_class import CompiledClassFact
+from starkware.starknet.core.os.contract_class.compiled_class_struct import CompiledClassFact
 from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
     compiled_class_hash as poseidon_compiled_class_hash,
 )
