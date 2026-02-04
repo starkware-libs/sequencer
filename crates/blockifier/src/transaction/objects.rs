@@ -32,7 +32,6 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{
     BuiltinCounterMap,
     CairoPrimitiveCounterMap,
-    CairoPrimitiveName,
     CallInfo,
     ExecutionSummary,
     OrderedEvent,
@@ -268,8 +267,7 @@ impl TransactionExecutionInfo {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
     }
 
-    // TODO(Yonatank): Return `CairoPrimitiveCounterMap` instead of `BuiltinCounterMap`.
-    pub fn summarize_builtins(&self) -> BuiltinCounterMap {
+    pub fn summarize_builtins(&self) -> CairoPrimitiveCounterMap {
         let mut builtin_counters = CairoPrimitiveCounterMap::new();
         // Remove fee transfer builtins to avoid double-counting in `get_tx_weights`
         // in bouncer.rs (already included in os_vm_resources).
@@ -279,14 +277,6 @@ impl TransactionExecutionInfo {
             }
         }
         builtin_counters
-            .into_iter()
-            .map(|(resource_name, count)| match resource_name {
-                CairoPrimitiveName::Builtin(builtin_name) => (builtin_name, count),
-                CairoPrimitiveName::Opcode(_) => {
-                    panic!("Summary for opcodes is not yet supported.")
-                }
-            })
-            .collect()
     }
 
     /// Information needed to compute the block hash of the block that the transaction is part of.
