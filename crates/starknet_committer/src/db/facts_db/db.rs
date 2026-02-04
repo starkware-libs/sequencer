@@ -79,7 +79,7 @@ impl DbLayout for FactsNodeLayout {
 }
 
 pub struct FactsDb<S: Storage> {
-    storage: S,
+    pub storage: S,
 }
 
 impl<S: Storage> StorageInitializer for FactsDb<S> {
@@ -111,7 +111,7 @@ impl<S: Storage> ForestReader for FactsDb<S> {
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         read_forest::<S, FactsNodeLayout>(
-            &self.storage,
+            &mut self.storage,
             roots,
             storage_updates,
             classes_updates,

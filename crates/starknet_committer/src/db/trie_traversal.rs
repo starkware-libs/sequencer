@@ -396,13 +396,14 @@ pub async fn create_contracts_trie<'a, Layout: NodeLayoutFor<ContractState>>(
     storage: &impl Storage,
     contracts_trie_root_hash: HashOutput,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)>
+) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<ContractState>>::DbLeaf: HasStaticPrefix<KeyContext = EmptyKeyContext>,
 {
     let config = OriginalSkeletonTrieConfig::new_for_contracts_trie();
 
     let mut leaves = HashMap::new();
+    let mut siblings_map = DbHashMap::new();
     let skeleton_tree = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
         storage,
         contracts_trie_root_hash,
@@ -410,7 +411,7 @@ where
         &config,
         &HashMap::new(),
         Some(&mut leaves),
-        None,
+        Some(&mut siblings_map),
         &EmptyKeyContext,
     )
     .await?;
@@ -418,7 +419,7 @@ where
     let leaves: HashMap<NodeIndex, ContractState> =
         leaves.into_iter().map(|(idx, leaf)| (idx, leaf.into())).collect();
 
-    Ok((skeleton_tree, leaves))
+    Ok((skeleton_tree, leaves, siblings_map))
 }
 
 pub async fn create_classes_trie<'a, Layout: NodeLayoutFor<CompiledClassHash>>(
@@ -427,7 +428,7 @@ pub async fn create_classes_trie<'a, Layout: NodeLayoutFor<CompiledClassHash>>(
     classes_trie_root_hash: HashOutput,
     config: &ReaderConfig,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-) -> ForestResult<OriginalSkeletonTreeImpl<'a>>
+) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<CompiledClassHash>>::DbLeaf:
         HasStaticPrefix<KeyContext = EmptyKeyContext>,
@@ -435,23 +436,27 @@ where
     let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
         config.warn_on_trivial_modifications(),
     );
+    let mut siblings_map = DbHashMap::new();
 
-    Ok(create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
-        storage,
-        classes_trie_root_hash,
-        contracts_trie_sorted_indices,
-        &config,
-        // TODO(Ariel): Change `actual_classes_updates` to be an iterator over borrowed data so
-        // that the conversion below is costless.
-        &actual_classes_updates
-            .iter()
-            .map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value)))
-            .collect(),
-        None,
-        None,
-        &EmptyKeyContext,
-    )
-    .await?)
+    Ok((
+        create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+            storage,
+            classes_trie_root_hash,
+            contracts_trie_sorted_indices,
+            &config,
+            // TODO(Ariel): Change `actual_classes_updates` to be an iterator over borrowed data so
+            // that the conversion below is costless.
+            &actual_classes_updates
+                .iter()
+                .map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value)))
+                .collect(),
+            None,
+            Some(&mut siblings_map),
+            &EmptyKeyContext,
+        )
+        .await?,
+        siblings_map,
+    ))
 }
 
 async fn create_storage_tries_sequentially<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
