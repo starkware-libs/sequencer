@@ -3004,11 +3004,6 @@
     "privacy": "Public",
     "value": 5368709120
   },
-  "sierra_compiler_config.max_memory_usage.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "starknet_url": {
     "description": "URL for communicating with Starknet.",
     "privacy": "TemporaryValue",

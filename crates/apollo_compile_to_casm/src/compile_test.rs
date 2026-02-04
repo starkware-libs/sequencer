@@ -26,7 +26,7 @@ use crate::{RawClass, SierraCompiler};
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
-    max_memory_usage: None,
+    max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
     max_cpu_time: DEFAULT_MAX_CPU_TIME,
     audited_libfuncs_only: false,
 };
@@ -78,7 +78,7 @@ fn test_max_bytecode_size() {
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length,
-        max_memory_usage: None,
+        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
         audited_libfuncs_only: false,
     });
@@ -90,7 +90,7 @@ fn test_max_bytecode_size() {
     // Negative flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length - 1,
-        max_memory_usage: None,
+        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
         audited_libfuncs_only: false,
     });
@@ -153,7 +153,7 @@ fn test_max_memory_usage() {
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
-        max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
+        max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
         audited_libfuncs_only: false,
     });
@@ -163,7 +163,7 @@ fn test_max_memory_usage() {
     // Negative flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
-        max_memory_usage: Some(8 * 1024 * 1024),
+        max_memory_usage: 8 * 1024 * 1024,
         max_cpu_time: DEFAULT_MAX_CPU_TIME,
         audited_libfuncs_only: false,
     });
