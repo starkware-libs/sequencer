@@ -12,6 +12,8 @@ pub mod virtual_snos_prover;
 #[cfg(test)]
 mod classes_provider_test;
 #[cfg(test)]
+mod runner_test;
+#[cfg(test)]
 mod storage_proofs_test;
 #[cfg(test)]
 pub mod test_utils;
