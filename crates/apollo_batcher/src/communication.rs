@@ -42,6 +42,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::RevertBlock(input) => {
                 BatcherResponse::RevertBlock(self.revert_block(input).await)
             }
+            BatcherRequest::GetTimestamp => {
+                BatcherResponse::GetTimestamp(self.get_ts().await)
+            }
         }
     }
 }

@@ -154,6 +154,11 @@ impl TransactionQueueTrait for FeeTransactionQueue {
     fn pending_queue_len(&self) -> usize {
         self.pending_queue.len()
     }
+
+    #[cfg(test)]
+    fn pending_txs(&self) -> Vec<TransactionReference> {
+        self.pending_queue.iter().rev().map(|tx| tx.0).collect()
+    }
 }
 
 impl FeeTransactionQueue {

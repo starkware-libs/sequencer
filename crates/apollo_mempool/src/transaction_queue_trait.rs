@@ -27,7 +27,6 @@ pub trait TransactionQueueTrait: Send + Sync {
     fn remove_by_address(&mut self, address: ContractAddress) -> bool;
 
     fn remove_by_hash(&mut self, tx_hash: TransactionHash) -> bool;
-
     fn remove_txs(&mut self, txs: &[TransactionReference]) -> Vec<TransactionReference>;
 
     // Default implementation returns None (for queues that don't track nonces per address).
@@ -45,7 +44,6 @@ pub trait TransactionQueueTrait: Send + Sync {
     fn queue_snapshot(&self) -> TransactionQueueSnapshot;
 
     fn rewind_txs(&mut self, rewind_data: RewindData) -> HashSet<TransactionHash>;
-
     // Default implementation returns 0 (for queues that don't distinguish priority/pending).
     fn priority_queue_len(&self) -> usize {
         0
@@ -54,5 +52,11 @@ pub trait TransactionQueueTrait: Send + Sync {
     // Default implementation returns 0 (for queues that don't distinguish priority/pending).
     fn pending_queue_len(&self) -> usize {
         0
+    }
+
+    // Default implementation returns empty vec.
+    #[cfg(test)]
+    fn pending_txs(&self) -> Vec<TransactionReference> {
+        Vec::new()
     }
 }

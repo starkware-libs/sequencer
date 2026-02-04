@@ -8,7 +8,7 @@ use apollo_committer_types::communication::MockCommitterClient;
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::StateDiffCommitment;
+use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::time::{sleep, timeout};
 
@@ -54,6 +54,10 @@ fn add_initial_heights(mock_dependencies: &mut MockDependencies) {
 }
 
 fn get_number_of_tasks_in_sender<T>(sender: &Sender<T>) -> usize {
+    sender.max_capacity() - sender.capacity()
+}
+
+fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
     sender.max_capacity() - sender.capacity()
 }
 
@@ -188,7 +192,7 @@ async fn test_create_commitment_manager_with_missing_tasks(
         .expect_global_root_height()
         .returning(move || Ok(global_root_height));
 
-    let commitment_manager = create_mock_commitment_manager(mock_dependencies).await;
+    let commitment_manager = create_commitment_manager(mock_dependencies).await;
 
     assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT,);
     assert_eq!(get_number_of_tasks_in_sender(&commitment_manager.tasks_sender), 0,);
