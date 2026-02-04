@@ -15,7 +15,7 @@ use apollo_mempool_types::mempool_types::{
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
 use rand::{thread_rng, Rng};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -266,6 +266,10 @@ impl Mempool {
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
         }
+    }
+
+    pub fn get_timestamp(&self) -> UnixTimestamp {
+        self.clock.unix_now()
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their

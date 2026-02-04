@@ -508,8 +508,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.static_config.build_proposal_time_ratio_for_retrospective_block_hash,
             );
 
-        let use_state_sync_block_timestamp =
-            self.config.static_config.deployment_mode.use_state_sync_block_timestamp();
+        let use_original_timestamp =
+            self.config.static_config.deployment_mode.use_original_timestamp();
 
         let round = build_param.round;
         let args = ProposalBuildArguments {
@@ -533,7 +533,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .config
                 .static_config
                 .retrospective_block_hash_retry_interval_millis,
-            use_state_sync_block_timestamp,
+            use_original_timestamp,
         };
 
         let handle = tokio::spawn(

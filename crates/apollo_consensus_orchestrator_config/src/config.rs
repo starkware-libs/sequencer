@@ -31,7 +31,7 @@ pub enum DeploymentMode {
 }
 
 impl DeploymentMode {
-    pub fn use_state_sync_block_timestamp(&self) -> bool {
+    pub fn use_original_timestamp(&self) -> bool {
         matches!(self, DeploymentMode::Echonet)
     }
 }
