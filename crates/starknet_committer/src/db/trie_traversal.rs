@@ -361,7 +361,7 @@ pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+) -> ForestResult<(HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
@@ -457,14 +457,15 @@ async fn create_storage_tries_sequentially<'a, Layout: NodeLayoutFor<StarknetSto
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+) -> ForestResult<(HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
+    let mut all_siblings = DbHashMap::new();
     let mut storage_tries = HashMap::new();
     for (address, updates) in actual_storage_updates {
-        let (address, original_skeleton) = create_storage_trie::<Layout>(
+        let (address, original_skeleton, siblings) = create_storage_trie::<Layout>(
             storage,
             *address,
             updates,
@@ -475,8 +476,9 @@ where
         .await?;
 
         storage_tries.insert(address, original_skeleton);
+        all_siblings.extend(siblings);
     }
-    Ok(storage_tries)
+    Ok((storage_tries, all_siblings))
 }
 
 async fn create_storage_tries_concurrently<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
@@ -485,11 +487,12 @@ async fn create_storage_tries_concurrently<'a, Layout: NodeLayoutFor<StarknetSto
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+) -> ForestResult<(HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
+    let mut all_siblings = DbHashMap::new();
     let mut futures = FuturesUnordered::new();
     let mut storage_tries = HashMap::new();
 
@@ -510,11 +513,12 @@ where
 
     // Collect all results as they complete.
     while let Some(result) = futures.next().await {
-        let (address, original_skeleton) = result?;
+        let (address, original_skeleton, siblings) = result?;
         storage_tries.insert(address, original_skeleton);
+        all_siblings.extend(siblings);
     }
 
-    Ok(storage_tries)
+    Ok((storage_tries, all_siblings))
 }
 
 /// Helper function to create a storage trie for a single contract.
@@ -525,11 +529,12 @@ async fn create_storage_trie<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
     warn_on_trivial_modifications: bool,
-) -> ForestResult<(ContractAddress, OriginalSkeletonTreeImpl<'a>)>
+) -> ForestResult<(ContractAddress, OriginalSkeletonTreeImpl<'a>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
+    let mut siblings_map = DbHashMap::new();
     // Extract data needed for this contract.
     let sorted_leaf_indices = *storage_tries_sorted_indices
         .get(&address)
@@ -556,10 +561,10 @@ where
         &trie_config,
         &leaf_modifications,
         previous_leaves,
-        None,
+        Some(&mut siblings_map),
         &address,
     )
     .await?;
 
-    Ok((address, original_skeleton))
+    Ok((address, original_skeleton, siblings_map))
 }
