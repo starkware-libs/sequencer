@@ -78,6 +78,10 @@ fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
     sender.max_capacity() - sender.capacity()
 }
 
+fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
+    sender.max_capacity() - sender.capacity()
+}
+
 fn get_number_of_items_in_channel_from_receiver<T>(receiver: &Receiver<T>) -> usize {
     receiver.max_capacity() - receiver.capacity()
 }

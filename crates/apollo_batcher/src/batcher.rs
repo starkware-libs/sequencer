@@ -589,6 +589,14 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
+    pub async fn get_ts(&self) -> BatcherResult<u64> {
+        self.mempool_client.get_ts().await.map_err(|err| {
+            error!("Failed to get timestamp from mempool: {err}");
+            BatcherError::InternalError
+        })
+    }
+
+    #[instrument(skip(self), err)]
     pub async fn get_proposal_content(
         &mut self,
         get_proposal_content_input: GetProposalContentInput,
