@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherDynamicConfig,
+    FirstBlockWithPartialBlockHash,
+};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -28,6 +32,7 @@ use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
@@ -137,6 +142,7 @@ pub struct Batcher {
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
+    pub config_manager_client: SharedConfigManagerClient,
 
     /// Used to create block builders.
     /// Using the factory pattern to allow for easier testing.
@@ -192,6 +198,7 @@ impl Batcher {
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
+        config_manager_client: SharedConfigManagerClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
@@ -205,6 +212,7 @@ impl Batcher {
             l1_provider_client,
             mempool_client,
             transaction_converter,
+            config_manager_client,
             block_builder_factory,
             pre_confirmed_block_writer_factory,
             active_height: None,
@@ -219,6 +227,10 @@ impl Batcher {
             commitment_manager,
             storage_reader_server_handle,
         }
+    }
+
+    pub(crate) fn update_dynamic_config(&mut self, dynamic_config: BatcherDynamicConfig) {
+        self.config.dynamic_config = dynamic_config;
     }
 
     #[instrument(skip(self), err)]
@@ -1316,6 +1328,7 @@ pub async fn create_batcher(
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
+    config_manager_client: SharedConfigManagerClient,
 ) -> Batcher {
     let (storage_reader, storage_writer, storage_reader_server) =
         open_storage_with_metric_and_server(
@@ -1366,6 +1379,7 @@ pub async fn create_batcher(
         l1_provider_client,
         mempool_client,
         transaction_converter,
+        config_manager_client,
         block_builder_factory,
         pre_confirmed_block_writer_factory,
         commitment_manager,
