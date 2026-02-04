@@ -4,6 +4,7 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_sierra_compilation_config::config::{
     SierraCompilationConfig,
     DEFAULT_MAX_BYTECODE_SIZE,
+    DEFAULT_MAX_CPU_TIME,
     DEFAULT_MAX_MEMORY_USAGE,
 };
 use assert_matches::assert_matches;
@@ -26,6 +27,7 @@ use crate::{RawClass, SierraCompiler};
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
     max_memory_usage: None,
+    max_cpu_time: DEFAULT_MAX_CPU_TIME,
     audited_libfuncs_only: false,
 };
 
@@ -77,6 +79,7 @@ fn test_max_bytecode_size() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length,
         max_memory_usage: None,
+        max_cpu_time: DEFAULT_MAX_CPU_TIME,
         audited_libfuncs_only: false,
     });
     let casm_contract_class = compiler
@@ -88,6 +91,7 @@ fn test_max_bytecode_size() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length - 1,
         max_memory_usage: None,
+        max_cpu_time: DEFAULT_MAX_CPU_TIME,
         audited_libfuncs_only: false,
     });
     let result = compiler.compile(contract_class);
@@ -150,6 +154,7 @@ fn test_max_memory_usage() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
+        max_cpu_time: DEFAULT_MAX_CPU_TIME,
         audited_libfuncs_only: false,
     });
     let executable_class = compiler.compile(contract_class.clone()).unwrap();
@@ -159,6 +164,7 @@ fn test_max_memory_usage() {
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
         max_memory_usage: Some(8 * 1024 * 1024),
+        max_cpu_time: DEFAULT_MAX_CPU_TIME,
         audited_libfuncs_only: false,
     });
     let compilation_result = compiler.compile(contract_class);
