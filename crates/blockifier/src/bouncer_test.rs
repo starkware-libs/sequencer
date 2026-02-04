@@ -29,7 +29,7 @@ use crate::bouncer::{
     TxWeights,
 };
 use crate::context::BlockContext;
-use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
+use crate::execution::call_info::{ExecutionSummary, IntoResourceCounterMap, ResourceCounterMap};
 use crate::fee::resources::{ComputationResources, TransactionResources};
 use crate::state::cached_state::{CachedState, StateChangesKeys, StateMaps, TransactionalState};
 use crate::state::state_api::StateReader;
@@ -334,7 +334,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         &transactional_state,
         &tx_state_changes_keys,
         &execution_summary,
-        &builtin_counters,
+        &builtin_counters.into_resource_counter_map(),
         &tx_resources,
         &block_context.versioned_constants,
     );
@@ -358,7 +358,7 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
     // Use gas amount > block_max_capacity's.
     let exceeding_gas = GasAmount(30);
     let execution_summary = ExecutionSummary::default();
-    let builtin_counters = BuiltinCounterMap::default();
+    let builtin_counters = ResourceCounterMap::default();
     let tx_resources = TransactionResources {
         computation: ComputationResources { sierra_gas: exceeding_gas, ..Default::default() },
         ..Default::default()
@@ -432,7 +432,7 @@ fn test_bouncer_try_update_n_txs(
         &first_transactional_state,
         &first_tx_state_changes_keys,
         &first_tx_execution_summary,
-        &BuiltinCounterMap::default(),
+        &ResourceCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );
@@ -466,7 +466,7 @@ fn test_bouncer_try_update_n_txs(
         &second_transactional_state,
         &second_tx_state_changes_keys,
         &ExecutionSummary::default(),
-        &BuiltinCounterMap::default(),
+        &ResourceCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );
@@ -498,7 +498,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         &TransactionResources::default(),
         &StateMaps::default().keys(),
         &block_context.versioned_constants,
-        &BuiltinCounterMap::default(),
+        &ResourceCounterMap::default(),
         &BouncerConfig::default(),
     );
 
@@ -658,7 +658,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         &tx_resources,
         &StateMaps::default().keys(), // state changes keys
         &block_context.versioned_constants,
-        &tx_builtin_counters,
+        &tx_builtin_counters.clone().into_resource_counter_map(),
         &block_context.bouncer_config,
     )
     .unwrap();
@@ -846,7 +846,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &TransactionResources::default(),
         &StateMaps::default().keys(),
         &vc_migration_disabled,
-        &BuiltinCounterMap::default(),
+        &ResourceCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
     )
     .unwrap();
@@ -862,7 +862,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &TransactionResources::default(),
         &StateMaps::default().keys(),
         &bc_migration_enabled.versioned_constants,
-        &BuiltinCounterMap::default(),
+        &ResourceCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
     )
     .unwrap();
