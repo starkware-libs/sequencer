@@ -982,10 +982,14 @@ pub struct PropellerUnit {
     /// TODO(AndrewL): consider re-naming channel
     /// TODO(AndrewL): make it uint64 instead of uint32.
     /// Logical channel identifier for multiplexing different message streams.
-    ///
-    /// TODO(AndrewL): CRITICAL: protect against replay attacks (maybe using a timestamp)
     #[prost(uint32, tag = "7")]
     pub channel: u32,
+    /// Unix timestamp in milliseconds when the message was created.
+    /// Used for replay attack protection: messages older than a configured TTL are rejected,
+    /// and duplicate (channel, publisher, merkle_root, timestamp) tuples are dropped.
+    /// TODO(guyn): still need to implement the caching and TTL mechanism
+    #[prost(uint64, tag = "8")]
+    pub timestamp_ms: u64,
 }
 /// A batch of PropellerUnits for efficient transmission.
 #[allow(clippy::derive_partial_eq_without_eq)]

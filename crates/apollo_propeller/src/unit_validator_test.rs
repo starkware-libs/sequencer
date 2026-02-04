@@ -84,6 +84,8 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
     } else {
         correct_signature
     };
+    // Use a fixed timestamp for test reproducibility
+    const TEST_TIMESTAMP_MS: u64 = 1000000000000;
     PropellerUnit::new(
         env.channel,
         env.publisher,
@@ -92,6 +94,7 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         index,
         SHARD_DATA.to_vec(),
         env.merkle_tree.prove(index.0.try_into().unwrap()).unwrap(),
+        TEST_TIMESTAMP_MS,
     )
 }
 

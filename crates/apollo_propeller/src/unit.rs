@@ -28,8 +28,11 @@ pub struct PropellerUnit {
     index: ShardIndex,
     shard: Vec<u8>,
     proof: MerkleProof,
+    /// Unix timestamp in milliseconds when the message was created.
+    timestamp_ms: u64,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl PropellerUnit {
     pub fn new(
         channel: Channel,
@@ -39,8 +42,9 @@ impl PropellerUnit {
         index: ShardIndex,
         shard: Vec<u8>,
         proof: MerkleProof,
+        timestamp_ms: u64,
     ) -> Self {
-        Self { channel, root, publisher, signature, index, shard, proof }
+        Self { channel, root, publisher, signature, index, shard, proof, timestamp_ms }
     }
 
     pub fn channel(&self) -> Channel {
@@ -73,6 +77,10 @@ impl PropellerUnit {
 
     pub fn root(&self) -> MessageRoot {
         self.root
+    }
+
+    pub fn timestamp_ms(&self) -> u64 {
+        self.timestamp_ms
     }
 
     pub fn validate_shard_proof(&self, num_shards: usize) -> Result<(), ShardValidationError> {
@@ -125,6 +133,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
             index: ShardIndex(index),
             shard: msg.shard,
             proof: merkle_proof.try_into()?,
+            timestamp_ms: msg.timestamp_ms,
         })
     }
 }
@@ -139,6 +148,7 @@ impl From<PropellerUnit> for ProtoPropellerUnit {
             publisher: Some(ProtoPeerId { id: msg.publisher.to_bytes() }),
             signature: msg.signature,
             channel: msg.channel.0,
+            timestamp_ms: msg.timestamp_ms,
         }
     }
 }
