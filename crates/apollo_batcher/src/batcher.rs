@@ -70,7 +70,7 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -599,6 +599,14 @@ impl Batcher {
     pub async fn get_height(&self) -> BatcherResult<GetHeightResponse> {
         let height = self.get_height_from_storage()?;
         Ok(GetHeightResponse { height })
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_timestamp(&self) -> BatcherResult<UnixTimestamp> {
+        self.mempool_client.get_timestamp().await.map_err(|err| {
+            error!("Failed to get timestamp from mempool: {err}");
+            BatcherError::InternalError
+        })
     }
 
     #[instrument(skip(self), err)]
