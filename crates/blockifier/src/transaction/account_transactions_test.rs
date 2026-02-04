@@ -2313,6 +2313,11 @@ fn proof_facts_with_invalid_config_hash() -> ProofFacts {
     CURRENT_BLOCK_NUMBER,
     Some("OS config hash mismatch")
 )]
+#[case::block_number_too_old(
+    create_valid_proof_facts_for_testing(),
+    CURRENT_BLOCK_NUMBER,
+    Some("is too old")
+)]
 fn test_validate_proof_facts(
     default_all_resource_bounds: ValidResourceBounds,
     #[case] proof_facts: ProofFacts,
@@ -2320,6 +2325,15 @@ fn test_validate_proof_facts(
     #[case] expected_error: Option<&str>,
 ) {
     let mut block_context = BlockContext::create_for_account_testing();
+
+    let mut current_block_number = current_block_number;
+    if let Some("is too old") = expected_error {
+        let snos_proof_facts: SnosProofFacts = proof_facts.clone().try_into().unwrap();
+        let max_block_age =
+            block_context.versioned_constants.os_constants.client_side_proving_max_block_age;
+        current_block_number = snos_proof_facts.block_number.0 + max_block_age + 1;
+    }
+
     block_context.block_info.block_number = BlockNumber(current_block_number);
 
     let chain_info = &block_context.chain_info;

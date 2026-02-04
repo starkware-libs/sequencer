@@ -6,6 +6,7 @@ from starkware.cairo.common.math import assert_le, assert_not_zero
 from starkware.starknet.core.os.constants import (
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN,
+    CLIENT_SIDE_PROVING_MAX_BLOCK_AGE,
     STORED_BLOCK_HASH_BUFFER,
 )
 from starkware.starknet.core.os.execution.syscall_impls import read_block_hash_from_storage
@@ -57,6 +58,12 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     // (the first check is to avoid underflow in the second one).
     assert_le(STORED_BLOCK_HASH_BUFFER, current_block_number);
     assert_le(os_output_header.base_block_number, current_block_number - STORED_BLOCK_HASH_BUFFER);
+
+    // validate that the proof facts block number is not too old
+    assert_le(
+        current_block_number - CLIENT_SIDE_PROVING_MAX_BLOCK_AGE, os_output_header.base_block_number
+    );
+
     // Not all block hashes are stored in the contract; Make sure the requested one is not trivial.
     assert_not_zero(os_output_header.base_block_hash);
 
