@@ -123,7 +123,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
@@ -133,13 +133,7 @@ use db::db_stats::{DbTableStats, DbWholeStats};
 use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use db::table_types::{CommonPrefix, NoValue, Table, TableType};
 use mmap_file::{
-    open_file,
-    FileHandler,
-    LocationInFile,
-    MMapFileError,
-    MmapFileConfig,
-    Reader,
-    Writer,
+    FileHandler, LocationInFile, MMapFileError, MmapFileConfig, Reader, Writer, open_file,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -158,28 +152,15 @@ use crate::body::TransactionIndex;
 use crate::consensus::LastVotedMarker;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
-    open_env,
-    DbConfig,
-    DbError,
-    DbReader,
-    DbTransaction,
-    DbWriter,
-    OwnedDbWriteTransaction,
-    TableHandle,
-    TableIdentifier,
-    TransactionKind,
-    RO,
-    RW,
+    DbConfig, DbError, DbReader, DbTransaction, DbWriter, OwnedDbWriteTransaction, RO, RW,
+    TableHandle, TableIdentifier, TransactionKind, open_env,
 };
 use crate::header::StorageBlockHeader;
-use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
+use crate::metrics::{STORAGE_COMMIT_LATENCY, register_metrics};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::storage_reader_server::{
-    create_storage_reader_server,
-    ServerConfig,
-    StorageReaderServer,
-    StorageReaderServerHandler,
+    ServerConfig, StorageReaderServer, StorageReaderServerHandler, create_storage_reader_server,
 };
 use crate::version::{VersionStorageReader, VersionStorageWriter};
 
@@ -375,6 +356,7 @@ fn set_version_if_needed(
             }
         }
     }
+    // Commit the transaction to persist any version updates.
     wtxn.commit()?;
     Ok(writer)
 }
@@ -715,6 +697,22 @@ impl StorageTxn<'_, RW> {
             TxnHolder::Borrowed(_) => {
                 // Batching mode: don't commit the database transaction immediately.
                 // Instead, increment the counter and potentially commit if batch size is reached.
+                //
+                // NOTE: Empty Commits Are Allowed
+                // ===============================
+                // We increment the counter for ALL commits, including empty transactions that
+                // didn't perform any writes. We are aware that this can happen and accept it
+                // as a trade-off for simpler implementation.
+                //
+                // This means the actual batch size (number of transactions with real writes)
+                // may be less than the configured batch_size due to empty commits incrementing
+                // the counter. Empty commits can occur in scenarios such as:
+                // - Version checks that find no update needed
+                // - Read-only operations that still call commit() for consistency
+                // - Conditional writes where the condition evaluates to false
+                //
+                // The simpler logic (always increment) avoids the complexity of maintaining
+                // a "dirty flag" and calling mark_dirty() throughout the codebase.
                 if let Some(state_arc) = self.batching_state {
                     let mut state = state_arc.lock().unwrap();
                     state.commit_counter += 1;
@@ -731,8 +729,8 @@ impl StorageTxn<'_, RW> {
                             txn.commit()?;
                         } else {
                             // This should never happen - if we're in batching mode with a borrowed
-                            // transaction, there must be an active
-                            // transaction. If we reach here, it's a bug.
+                            // transaction, there must be an active transaction. If we reach here,
+                            // it's a bug.
                             return Err(StorageError::DBInconsistency {
                                 msg: "Batch commit triggered but no active transaction exists"
                                     .to_string(),

@@ -5,7 +5,7 @@ mod version_test;
 use serde::{Deserialize, Serialize};
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
+use crate::db::{RW, TransactionKind};
 use crate::{StorageError, StorageResult, StorageTxn};
 
 const VERSION_STATE_KEY: &str = "storage_version_state";

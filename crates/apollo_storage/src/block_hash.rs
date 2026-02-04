@@ -5,7 +5,7 @@
 use starknet_api::block::{BlockHash, BlockNumber};
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
+use crate::db::{RW, TransactionKind};
 use crate::{StorageResult, StorageTxn};
 
 /// Interface for reading block hashes.

@@ -39,7 +39,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
+use crate::db::{RW, TransactionKind};
 use crate::{StorageResult, StorageTxn};
 
 /// Information about the last vote sent out by consensus.

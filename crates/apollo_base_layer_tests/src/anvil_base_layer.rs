@@ -67,13 +67,14 @@ impl AnvilBaseLayer {
         }
 
         let error_message = format!(
-"\n{}\n{}\n",
-"Anvil binary not found!".bold().red(),
-"Install instructions (for local development):\n
+            "\n{}\n{}\n",
+            "Anvil binary not found!".bold().red(),
+            "Install instructions (for local development):\n
 Execute from within a directory that's included in PATH, like ~/.local/bin:\n
 curl -L \
  https://github.com/foundry-rs/foundry/releases/download/v1.5.1/foundry_v1.5.1_linux_amd64.tar.gz \
- | tar -xz --wildcards 'anvil'".yellow()
+ | tar -xz --wildcards 'anvil'"
+                .yellow()
         );
 
         // We don't further inspect the output as it is irrelevant to the spawn check.
