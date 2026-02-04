@@ -17,16 +17,30 @@ pub struct ConfiguredStaker {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub struct StakersConfig {
+pub struct CommitteeConfig {
     pub start_epoch: u64,
+    pub committee_size: usize,
     pub stakers: Vec<ConfiguredStaker>,
 }
 
-/// Finds the applicable StakersConfig for a given epoch.
-/// Returns the config with the highest start_epoch that is <= the given epoch.
-/// Returns None if no config applies to the given epoch.
-pub fn find_config_for_epoch(configs: &[StakersConfig], epoch: u64) -> Option<&StakersConfig> {
-    configs.iter().filter(|entry| epoch >= entry.start_epoch).max_by_key(|entry| entry.start_epoch)
+/// Gets the applicable CommitteeConfig for a given epoch.
+/// Returns the override config if it exists and the epoch >= override.start_epoch,
+/// otherwise returns the default config.
+pub fn get_config_for_epoch<'a>(
+    default_config: &'a CommitteeConfig,
+    override_config: &'a Option<CommitteeConfig>,
+    epoch: u64,
+) -> &'a CommitteeConfig {
+    match override_config {
+        Some(override_cfg) if epoch >= override_cfg.start_epoch => override_cfg,
+        _ => {
+            assert!(
+                epoch >= default_config.start_epoch,
+                "No committee config found for epoch {epoch}."
+            );
+            default_config
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -46,20 +60,27 @@ impl SerializeConfig for StakingManagerConfig {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct StakingManagerDynamicConfig {
-    // The desired number of committee members to select from the available stakers.
-    // If there are fewer stakers than `committee_size`, a smaller committee will be selected.
-    // TODO(Dafna): Add an epoch, from which this config should be applied.
-    pub committee_size: usize,
+    // Defines the default committee configuration (size and stakers) that applies to all epochs.
+    // Used by `MockStakingContract` and `StakingManager` to determine committee composition
+    // and eligible proposers.
+    pub default_committee: CommitteeConfig,
 
-    // Defines the set of stakers per epoch.
-    // Used by `MockStakingContract` and `StakingManager` to determine eligible proposers.
-    // Each entry applies from its start_epoch until overridden by a later entry.
-    pub stakers_config: Vec<StakersConfig>,
+    // Optional override configuration that takes precedence over default_committee
+    // for epochs >= override_committee.start_epoch.
+    // This allows changing both committee size and composition at a specific epoch.
+    pub override_committee: Option<CommitteeConfig>,
 }
 
 impl Default for StakingManagerDynamicConfig {
     fn default() -> Self {
-        Self { committee_size: 100, stakers_config: Vec::new() }
+        Self {
+            default_committee: CommitteeConfig {
+                start_epoch: 0,
+                committee_size: 100,
+                stakers: Vec::new(),
+            },
+            override_committee: None,
+        }
     }
 }
 
@@ -67,15 +88,15 @@ impl SerializeConfig for StakingManagerDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "committee_size",
-                &self.committee_size,
-                "The desired number of committee members to select from the available stakers",
+                "default_committee",
+                &self.default_committee,
+                "Defines the default committee configuration (size and stakers) for all epochs.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "stakers_config",
-                &self.stakers_config,
-                "Defines the set of stakers per epoch.",
+                "override_committee",
+                &self.override_committee,
+                "Optional override configuration that takes precedence over default_committee.",
                 ParamPrivacyInput::Public,
             ),
         ])

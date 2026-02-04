@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::Round;
 use apollo_staking_config::config::{
-    find_config_for_epoch,
-    StakersConfig,
+    get_config_for_epoch,
+    ConfiguredStaker,
     StakingManagerConfig,
     StakingManagerDynamicConfig,
     StakingManagerStaticConfig,
@@ -170,9 +170,6 @@ impl StakingManager {
             }
         }
 
-        // Update dynamic config to ensure we have the latest stakers config.
-        self.update_dynamic_config().await;
-
         // Otherwise, build the committee from state, and cache the result.
         let committee_data = Arc::new(self.fetch_and_build_committee_data(epoch).await?);
 
@@ -191,7 +188,21 @@ impl StakingManager {
         epoch: u64,
     ) -> CommitteeProviderResult<CommitteeData> {
         let contract_stakers = self.staking_contract.get_stakers(epoch).await?;
-        let committee_members = self.select_committee(contract_stakers);
+
+        // Update dynamic config to ensure we have the latest stakers config.
+        self.update_dynamic_config().await;
+
+        // Get the active committee config for this epoch (includes size and stakers).
+        let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned");
+        let config = get_config_for_epoch(
+            &dynamic_config.default_committee,
+            &dynamic_config.override_committee,
+            epoch,
+        )
+        .clone();
+        drop(dynamic_config); // Release the lock early
+
+        let committee_members = self.select_committee(contract_stakers, config.committee_size);
 
         // Prepare the data needed for proposer selection.
         let cumulative_weights: Vec<u128> = committee_members
@@ -203,7 +214,8 @@ impl StakingManager {
             .collect();
         let total_weight = *cumulative_weights.last().unwrap_or(&0);
 
-        let eligible_proposers = self.calculate_eligible_proposers(&committee_members, epoch);
+        let eligible_proposers =
+            self.calculate_eligible_proposers(&committee_members, &config.stakers);
 
         Ok(CommitteeData {
             committee_members: Arc::new(committee_members),
@@ -214,14 +226,13 @@ impl StakingManager {
     }
 
     // Selects the committee from the provided stakers and ensures a canonical ordering.
-    fn select_committee(&self, mut stakers: StakerSet) -> Committee {
+    fn select_committee(&self, mut stakers: StakerSet, committee_size: usize) -> Committee {
         // Ensure a consistent and deterministic committee ordering.
         // This is important for proposer selection logic to be deterministic and consistent across
         // all nodes.
         stakers.sort_by_key(|staker| (staker.weight, staker.address));
 
         // Take the top `committee_size` stakers by weight.
-        let committee_size = self.dynamic_config.read().expect("RwLock poisoned").committee_size;
         stakers.into_iter().rev().take(committee_size).collect()
     }
 
@@ -290,18 +301,9 @@ impl StakingManager {
     fn calculate_eligible_proposers(
         &self,
         committee: &Committee,
-        epoch: u64,
+        config_stakers: &[ConfiguredStaker],
     ) -> Vec<ContractAddress> {
-        // Find the stakers config for the given epoch
-        let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned");
-        let config_entry = find_config_for_epoch(&dynamic_config.stakers_config, epoch);
-
-        let Some(StakersConfig { stakers, .. }) = config_entry else {
-            warn!("No stakers config found for epoch {epoch}, returning empty list.");
-            return Vec::new();
-        };
-
-        let eligible_stakers: HashSet<ContractAddress> = stakers
+        let eligible_stakers: HashSet<ContractAddress> = config_stakers
             .iter()
             .filter(|staker| staker.can_propose)
             .map(|staker| staker.address)
