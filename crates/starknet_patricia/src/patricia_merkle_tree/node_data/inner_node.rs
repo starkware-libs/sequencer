@@ -274,6 +274,15 @@ impl From<&MerkleNode> for Preimage {
     }
 }
 
+impl<L: Leaf> From<&MerkleNode> for NodeData<L, HashOutput> {
+    fn from(node: &MerkleNode) -> Self {
+        match Preimage::from(node) {
+            Preimage::Binary(data) => NodeData::Binary(data),
+            Preimage::Edge(data) => NodeData::Edge(data),
+        }
+    }
+}
+
 impl TryFrom<&Vec<Felt>> for Preimage {
     type Error = PreimageError;
 
