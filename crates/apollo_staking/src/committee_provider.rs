@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_consensus::types::Round;
+use apollo_protobuf::consensus::Round;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
@@ -38,6 +38,64 @@ pub enum CommitteeProviderError {
 }
 
 pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;
+
+/// Sync lookup for actual and virtual proposer by round.
+pub trait ProposerLookup: Send + Sync {
+    fn actual_proposer(&self, round: Round) -> CommitteeProviderResult<ContractAddress>;
+    fn virtual_proposer(&self, round: Round) -> CommitteeProviderResult<ContractAddress>;
+}
+
+impl ProposerLookup for Arc<dyn ProposerLookup> {
+    fn actual_proposer(&self, round: Round) -> CommitteeProviderResult<ContractAddress> {
+        self.as_ref().actual_proposer(round)
+    }
+
+    fn virtual_proposer(&self, round: Round) -> CommitteeProviderResult<ContractAddress> {
+        self.as_ref().virtual_proposer(round)
+    }
+}
+
+pub struct EpochCommittee {
+    committee: Vec<Staker>,
+    proposer_lookup: Arc<dyn ProposerLookup>,
+}
+
+impl EpochCommittee {
+    pub fn new(committee: Vec<Staker>, proposer_lookup: Arc<dyn ProposerLookup>) -> Self {
+        Self { committee, proposer_lookup }
+    }
+
+    pub fn committee(&self) -> &[Staker] {
+        &self.committee
+    }
+
+    pub fn validators(&self) -> Vec<ContractAddress> {
+        self.committee.iter().map(|staker| staker.address).collect()
+    }
+
+    pub fn proposer_lookup(&self) -> &Arc<dyn ProposerLookup> {
+        &self.proposer_lookup
+    }
+}
+
+impl ProposerLookup for EpochCommittee {
+    fn actual_proposer(&self, round: Round) -> CommitteeProviderResult<ContractAddress> {
+        self.proposer_lookup.actual_proposer(round)
+    }
+
+    fn virtual_proposer(&self, round: Round) -> CommitteeProviderResult<ContractAddress> {
+        self.proposer_lookup.virtual_proposer(round)
+    }
+}
+
+/// Provider that returns an epoch committee (stakers + proposer lookup) for a given height.
+#[async_trait]
+pub trait CommitteeAndProposerProvider: Send + Sync {
+    async fn get_committee(
+        &self,
+        height: BlockNumber,
+    ) -> CommitteeProviderResult<Arc<EpochCommittee>>;
+}
 
 /// Trait for managing committee operations including fetching and selecting committee members
 /// and proposers for consensus.
