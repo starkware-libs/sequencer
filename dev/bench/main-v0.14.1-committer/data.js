@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770214399573,
+  "lastUpdate": 1770222057498,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1903,6 +1903,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1425.91083124,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163830216+asmaastarkware@users.noreply.github.com",
+            "name": "asmaa-starkware",
+            "username": "asmaastarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ccd065674d668a249b703bae023acb294d14eb4b",
+          "message": "Revert \"apollo_staking: add ProposerLookup trait, and EpochCommittee (#12291)\" (#12295)\n\nThis reverts commit e6d705364175f5d69c30ae6b6e5f4e888fd37dd9.",
+          "timestamp": "2026-02-04T15:59:18Z",
+          "tree_id": "9d6168b7a76bdd96fe5a425e0ebd78b4e0c78973",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ccd065674d668a249b703bae023acb294d14eb4b"
+        },
+        "date": 1770222057053,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 840.20555089,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1398.485825,
             "unit": "ms"
           }
         ]
