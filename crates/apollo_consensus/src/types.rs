@@ -178,6 +178,8 @@ impl From<BroadcastTopicChannels<Vote>> for BroadcastVoteChannel {
 pub enum ConsensusError {
     #[error(transparent)]
     BatcherError(#[from] BatcherClientError),
+    #[error("committee provider: {0}")]
+    CommitteeProviderError(String),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]

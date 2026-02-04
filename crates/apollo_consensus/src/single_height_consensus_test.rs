@@ -40,6 +40,7 @@ fn proposer() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        None,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -109,6 +110,7 @@ fn validator(repeat_proposal: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        None,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -182,6 +184,7 @@ fn vote_twice(same_vote: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        None,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -246,6 +249,7 @@ fn rebroadcast_votes() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        None,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -338,6 +342,7 @@ fn repropose() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        None,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -405,6 +410,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        None,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -455,6 +461,7 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        None,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));

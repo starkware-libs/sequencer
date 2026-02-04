@@ -184,6 +184,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        None,
     );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
@@ -253,6 +254,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
         quorum_type: QuorumType::Byzantine,
         config_manager_client: None,
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        consensus_committee_provider: None,
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -320,6 +322,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        None,
     );
     let manager_handle = tokio::spawn(async move {
         let decision = manager
@@ -383,6 +386,7 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        None,
     );
     let res = manager
         .run_height(
@@ -478,6 +482,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        None,
     );
     let mut subscriber_channels = subscriber_channels.into();
 
@@ -612,6 +617,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        None,
     );
     let mut subscriber_channels = subscriber_channels.into();
 
@@ -727,6 +733,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
         quorum_type: QuorumType::Byzantine,
         config_manager_client: Some(Arc::new(mock_client)),
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        consensus_committee_provider: None,
     };
 
     // Spawn consensus and wait for a decision at height 2.
@@ -771,6 +778,7 @@ async fn manager_successfully_syncs_when_higher_than_last_voted_height(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
+        None,
     );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
@@ -841,6 +849,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
+        None,
     );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
@@ -893,6 +902,7 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
+        None,
     );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
@@ -1013,6 +1023,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
+        None,
     );
     let mut subscriber_channels = subscriber_channels.into();
 
@@ -1093,6 +1104,7 @@ async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: Conse
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        None,
     );
     let res = manager
         .run_height(
@@ -1150,6 +1162,7 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        None,
     );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager

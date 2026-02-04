@@ -77,7 +77,14 @@ impl TestWrapper {
         // Ensure deterministic order.
         peer_voters.sort();
         Self {
-            state_machine: StateMachine::new(HEIGHT, id, total_weight, is_observer, quorum_type),
+            state_machine: StateMachine::new(
+                HEIGHT,
+                id,
+                total_weight,
+                is_observer,
+                quorum_type,
+                None,
+            ),
             leader_election: LeaderElection::new(Box::new(proposer), Box::new(virtual_proposer)),
             requests: VecDeque::new(),
             peer_voters,

@@ -214,6 +214,7 @@ impl DiscreteEventSimulation {
             validators.clone(),
             QuorumType::Byzantine,
             TimeoutsConfig::default(),
+            None,
         );
 
         let quorum_threshold = (2 * total_nodes / 3) + 1;

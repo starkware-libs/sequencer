@@ -302,14 +302,14 @@ impl ConsensusManager {
         } else {
             QuorumType::Byzantine
         };
-        // TODO(Asmaa): refactor to pass entire consensus_manager_config instead of extracting
-        // each field, and handle non-config params.
         apollo_consensus::RunConsensusArguments {
             consensus_config: self.config.consensus_manager_config.clone(),
             start_active_height: observer_height,
             quorum_type,
             config_manager_client: Some(Arc::clone(&self.config_manager_client)),
             last_voted_height_storage: self.voted_height_storage.clone(),
+            // TODO(Asmaa): pass committee provider.
+            consensus_committee_provider: None,
         }
     }
 

@@ -13,6 +13,9 @@ mod single_height_consensus_test;
 mod simulation_test;
 
 use std::collections::{HashSet, VecDeque};
+use std::sync::Arc;
+
+use apollo_staking::committee_provider::CommitteeProviderTrait;
 
 use crate::state_machine::VoteStatus;
 const REBROADCAST_LOG_PERIOD_MS: u64 = 10_000;
@@ -59,6 +62,9 @@ pub(crate) struct SingleHeightConsensus {
     state_machine: StateMachine,
     // Tracks rounds for which we started validating a proposal to avoid duplicate validations.
     pending_validation_rounds: HashSet<Round>,
+    /// Optional committee provider; unused for now, for future proposer/virtual_proposer use.
+    #[allow(dead_code)]
+    consensus_committee_provider: Option<Arc<dyn CommitteeProviderTrait>>,
 }
 
 impl SingleHeightConsensus {
@@ -69,12 +75,26 @@ impl SingleHeightConsensus {
         validators: Vec<ValidatorId>,
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
+        consensus_committee_provider: Option<Arc<dyn CommitteeProviderTrait>>,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine = StateMachine::new(height, id, n_validators, is_observer, quorum_type);
-        Self { validators, timeouts, state_machine, pending_validation_rounds: HashSet::new() }
+        let state_machine = StateMachine::new(
+            height,
+            id,
+            n_validators,
+            is_observer,
+            quorum_type,
+            consensus_committee_provider.clone(),
+        );
+        Self {
+            validators,
+            timeouts,
+            state_machine,
+            pending_validation_rounds: HashSet::new(),
+            consensus_committee_provider,
+        }
     }
 
     pub(crate) fn current_round(&self) -> Round {

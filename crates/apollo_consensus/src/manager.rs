@@ -23,6 +23,7 @@ use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_staking::committee_provider::CommitteeProviderTrait;
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
 use futures::channel::mpsc;
 use futures::future::BoxFuture;
@@ -69,6 +70,10 @@ pub struct RunConsensusArguments {
     /// Storage used to persist last voted consensus height.
     // See MultiHeightManager foran explanation of why we have Arc<Mutex>>.
     pub last_voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    // TODO(Asmaa): This should be required, not optional.
+    /// Optional committee provider. When set, validators and proposer/virtual_proposer are taken
+    /// from it at each height; otherwise they are taken from the context.
+    pub consensus_committee_provider: Option<Arc<dyn CommitteeProviderTrait>>,
 }
 
 impl std::fmt::Debug for RunConsensusArguments {
@@ -121,6 +126,7 @@ where
         run_consensus_args.consensus_config.clone(),
         run_consensus_args.quorum_type,
         run_consensus_args.last_voted_height_storage.clone(),
+        run_consensus_args.consensus_committee_provider.clone(),
     );
     loop {
         if let Some(client) = &run_consensus_args.config_manager_client {
@@ -146,7 +152,12 @@ where
                 let round = decision.precommits[0].round;
                 // virtual_proposer should never fail here, we already checked it in the state
                 // machine.
-                let proposer = context.virtual_proposer(current_height, round)?;
+                let proposer = match &run_consensus_args.consensus_committee_provider {
+                    Some(provider) => provider
+                        .get_virtual_proposer(current_height, round)
+                        .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))?,
+                    None => context.virtual_proposer(current_height, round)?,
+                };
 
                 if proposer == run_consensus_args.consensus_config.dynamic_config.validator_id {
                     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.increment(1);
@@ -354,6 +365,8 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
     // rust limitations.
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    // TODO(Asmaa): This should be required, not optional.
+    consensus_committee_provider: Option<Arc<dyn CommitteeProviderTrait>>,
     // Proposal content streams keyed by (height, round)
     current_height_proposals_streams:
         BTreeMap<(BlockNumber, Round), mpsc::Receiver<ContextT::ProposalPart>>,
@@ -366,6 +379,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         consensus_config: ConsensusConfig,
         quorum_type: QuorumType,
         voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+        consensus_committee_provider: Option<Arc<dyn CommitteeProviderTrait>>,
     ) -> Self {
         let last_voted_height_at_initialization = voted_height_storage
             .lock()
@@ -378,6 +392,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             quorum_type,
             last_voted_height_at_initialization,
             voted_height_storage,
+            consensus_committee_provider,
             current_height_proposals_streams: BTreeMap::new(),
             cache: ConsensusCache::new(future_msg_limit),
         }
@@ -428,7 +443,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             },
 
             Err(err) => match err {
-                e @ ConsensusError::BatcherError(_) => {
+                e @ ConsensusError::BatcherError(_)
+                | e @ ConsensusError::CommitteeProviderError(_) => {
                     error!(
                         "Error while running consensus for height {height}, fallback to sync: {e}"
                     );
@@ -540,7 +556,19 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         (SingleHeightConsensus, FuturesUnordered<BoxFuture<'static, StateMachineEvent>>),
         ConsensusError,
     > {
-        let validators = context.validators(height).await?;
+        let validators = if let Some(provider) = &self.consensus_committee_provider {
+            provider
+                .update_committee(height)
+                .await
+                .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))?;
+            let committee = provider
+                .get_committee(height)
+                .map_err(|e| ConsensusError::CommitteeProviderError(e.to_string()))?;
+            committee.iter().map(|s| s.address).collect()
+        } else {
+            context.validators(height).await?
+        };
+
         let is_observer = !validators.contains(&self.consensus_config.dynamic_config.validator_id);
         info!(
             "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
@@ -554,6 +582,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             validators,
             self.quorum_type,
             self.consensus_config.dynamic_config.timeouts.clone(),
+            self.consensus_committee_provider.clone(),
         );
         let shc_events = FuturesUnordered::new();
 
@@ -720,8 +749,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         };
 
         // Check that the proposer matches the virtual_proposer for this height.
-        let Some(proposer) = context.virtual_proposer(block_info.height, block_info.round).ok()
-        else {
+        let proposer = match &self.consensus_committee_provider {
+            Some(provider) => {
+                provider.get_virtual_proposer(block_info.height, block_info.round).ok()
+            }
+            None => context.virtual_proposer(block_info.height, block_info.round).ok(),
+        };
+        let Some(proposer) = proposer else {
             warn!(
                 "VIRTUAL_PROPOSER_LOOKUP_FAILED: Failed to determine virtual proposer for height \
                  {height} round {}. Dropping proposal.",

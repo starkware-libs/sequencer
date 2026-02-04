@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use std::sync::Arc;
 
 use apollo_protobuf::consensus::Round;
@@ -77,7 +78,7 @@ pub trait CommitteeProvider: Send + Sync {
 /// the consensus at a given epoch, responsible for proposing blocks and voting on them.
 #[async_trait]
 // TODO(Asmaa): Rename to CommitteeProvider once we remove the other trait.
-pub trait CommitteeProviderTrait: Send + Sync {
+pub trait CommitteeProviderTrait: Debug + Send + Sync {
     /// Loads and caches committee data for the given height. Must be called at the start of each
     /// height before using the sync getters.
     async fn update_committee(&self, height: BlockNumber) -> CommitteeProviderResult<()>;
