@@ -243,6 +243,7 @@ fn update_builtin_counters_for_summary_test(
     &mut TestExecutionSummary::new(20, 2, 3, class_hash!("0x2"), "0x2", "0x2", true),
     &mut TestExecutionSummary::new(30, 3, 4, class_hash!("0x3"), "0x3", "0x3", true)
 )]
+// TODO(Avivg): Test  summary with opcodes as well.
 fn test_summarize(
     #[case] validate_params: &mut TestExecutionSummary,
     #[case] execute_params: &mut TestExecutionSummary,
@@ -306,7 +307,7 @@ fn test_summarize(
     };
 
     // Omit the fee transfer builtin counters as done in `summarize_builtins`.
-    let expected_builtins = BuiltinCounterMap::from_iter([
+    let expected_builtins = resource_counter_map([
         (BuiltinName::pedersen, validate_pedersen + execute_pedersen),
         (BuiltinName::poseidon, validate_poseidon + execute_poseidon),
         (BuiltinName::bitwise, validate_bitwise + execute_bitwise),

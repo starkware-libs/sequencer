@@ -268,8 +268,7 @@ impl TransactionExecutionInfo {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
     }
 
-    // TODO(Yonatank): Return `ResourceCounterMap` instead of `BuiltinCounterMap`.
-    pub fn summarize_builtins(&self) -> BuiltinCounterMap {
+    pub fn summarize_builtins(&self) -> ResourceCounterMap {
         let mut builtin_counters = ResourceCounterMap::new();
         // Remove fee transfer builtins to avoid double-counting in `get_tx_weights`
         // in bouncer.rs (already included in os_vm_resources).
@@ -279,12 +278,6 @@ impl TransactionExecutionInfo {
             }
         }
         builtin_counters
-            .into_iter()
-            .map(|(resource_name, count)| match resource_name {
-                ResourceName::Builtin(builtin_name) => (builtin_name, count),
-                ResourceName::Opcode(_) => panic!("Summary for opcodes is not yet supported."),
-            })
-            .collect()
     }
 
     /// Information needed to compute the block hash of the block that the transaction is part of.
