@@ -24,6 +24,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
+use crate::execution::call_info::{OpcodeName, ResourceName};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsageMap};
@@ -945,22 +946,27 @@ pub struct BuiltinGasCosts {
 }
 
 impl BuiltinGasCosts {
-    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
-        let gas_cost = match *builtin {
-            BuiltinName::range_check => self.range_check,
-            BuiltinName::pedersen => self.pedersen,
-            BuiltinName::bitwise => self.bitwise,
-            BuiltinName::ec_op => self.ecop,
-            BuiltinName::keccak => self.keccak,
-            BuiltinName::poseidon => self.poseidon,
-            BuiltinName::range_check96 => self.range_check96,
-            BuiltinName::add_mod => self.add_mod,
-            BuiltinName::mul_mod => self.mul_mod,
-            BuiltinName::ecdsa => self.ecdsa,
-            BuiltinName::segment_arena => return Err(GasCostsError::VirtualBuiltin),
-            BuiltinName::output => {
-                return Err(GasCostsError::UnsupportedBuiltinInCairo1 { builtin: *builtin });
+    pub fn get_builtin_gas_cost(&self, builtin: ResourceName) -> Result<u64, GasCostsError> {
+        let gas_cost = match builtin {
+            ResourceName::Builtin(BuiltinName::range_check) => self.range_check,
+            ResourceName::Builtin(BuiltinName::pedersen) => self.pedersen,
+            ResourceName::Builtin(BuiltinName::bitwise) => self.bitwise,
+            ResourceName::Builtin(BuiltinName::ec_op) => self.ecop,
+            ResourceName::Builtin(BuiltinName::keccak) => self.keccak,
+            ResourceName::Builtin(BuiltinName::poseidon) => self.poseidon,
+            ResourceName::Builtin(BuiltinName::range_check96) => self.range_check96,
+            ResourceName::Builtin(BuiltinName::add_mod) => self.add_mod,
+            ResourceName::Builtin(BuiltinName::mul_mod) => self.mul_mod,
+            ResourceName::Builtin(BuiltinName::ecdsa) => self.ecdsa,
+            ResourceName::Builtin(BuiltinName::segment_arena) => {
+                return Err(GasCostsError::VirtualBuiltin);
             }
+            ResourceName::Builtin(BuiltinName::output) => {
+                return Err(GasCostsError::UnsupportedBuiltinInCairo1 {
+                    builtin: BuiltinName::output,
+                });
+            }
+            ResourceName::Opcode(OpcodeName::Blake) => self.blake,
         };
 
         Ok(gas_cost)

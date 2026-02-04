@@ -273,15 +273,15 @@ impl AddAssign<&ChargedResources> for ChargedResources {
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
     Blake,
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
-// Serialize as an untagged enum to avoid a type prefix, for backward compatibility with
-// how `CallInfo` was serialized when only builtins (no opcodes) were included (prior to v0.14.2).
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+// Serialize as untagged enum to avoid the type prefix. This is for consistency with the way
+// CallInfo has been serialized before the introduction of the ResourceName enum.
 #[serde(untagged)]
 pub enum ResourceName {
     Builtin(BuiltinName),

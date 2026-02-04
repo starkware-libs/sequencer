@@ -78,9 +78,9 @@ pub fn get_gas_cost_from_vm_resources(
     let total_builtin_gas_cost: u64 = execution_resources
         .builtin_instance_counter
         .iter()
-        .map(|(builtin, amount)| {
+        .map(|(&builtin, amount)| {
             let builtin_cost = builtin_costs
-                .get_builtin_gas_cost(builtin)
+                .get_builtin_gas_cost(builtin.into())
                 .unwrap_or_else(|err| panic!("Failed to get gas cost: {err}"));
             builtin_cost * u64_from_usize(*amount)
         })
