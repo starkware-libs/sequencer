@@ -69,9 +69,13 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
     while !current_subtrees.is_empty() {
-        let filled_roots =
-            get_roots_from_storage::<L, FactsNodeLayout>(&current_subtrees, storage, key_context)
-                .await?;
+        let filled_roots = get_roots_from_storage::<L, FactsNodeLayout>(
+            &current_subtrees,
+            storage,
+            key_context,
+            None,
+        )
+        .await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
             match filled_root.data {
                 // Binary node.
