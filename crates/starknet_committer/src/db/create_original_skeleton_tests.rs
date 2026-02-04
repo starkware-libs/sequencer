@@ -188,6 +188,7 @@ pub(crate) async fn test_create_original_skeleton<L, Layout>(
         &config,
         &leaf_modifications,
         None,
+        None,
         &EmptyKeyContext,
     )
     .await
