@@ -13,7 +13,7 @@ use starknet_api::hash::StarkHash;
 
 use super::call_info::StorageAccessTracker;
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
-use crate::execution::call_info::{resource_counter_map, CallExecution, CallInfo};
+use crate::execution::call_info::{cairo_primitive_counter_map, CallExecution, CallInfo};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
@@ -288,7 +288,9 @@ pub fn finalize_execution(
             accessed_storage_keys: syscall_handler.accessed_keys,
             ..Default::default()
         },
-        builtin_counters: resource_counter_map(vm_resources_without_inner_calls.prover_builtins()),
+        builtin_counters: cairo_primitive_counter_map(
+            vm_resources_without_inner_calls.prover_builtins(),
+        ),
         syscalls_usage: syscall_handler.syscalls_usage,
     })
 }
