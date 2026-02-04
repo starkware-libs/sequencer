@@ -15,6 +15,7 @@ use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_metrics::generate_permutation_labels;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
+use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use strum::{EnumVariantNames, VariantNames};
@@ -50,6 +51,10 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
 
+    async fn get_state_sync_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<Option<StateSyncDynamicConfig>>;
+
     async fn set_node_dynamic_config(
         &self,
         config: NodeDynamicConfig,
@@ -69,6 +74,7 @@ pub enum ConfigManagerRequest {
     GetMempoolDynamicConfig,
     GetBatcherDynamicConfig,
     GetStakingManagerDynamicConfig,
+    GetStateSyncDynamicConfig,
     SetNodeDynamicConfig(Box<NodeDynamicConfig>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
@@ -90,6 +96,7 @@ pub enum ConfigManagerResponse {
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
     GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
     GetStakingManagerDynamicConfig(ConfigManagerResult<StakingManagerDynamicConfig>),
+    GetStateSyncDynamicConfig(ConfigManagerResult<Option<StateSyncDynamicConfig>>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -185,6 +192,21 @@ where
             request,
             ConfigManagerResponse,
             GetStakingManagerDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_state_sync_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<Option<StateSyncDynamicConfig>> {
+        let request = ConfigManagerRequest::GetStateSyncDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetStateSyncDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct

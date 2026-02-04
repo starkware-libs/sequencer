@@ -39,7 +39,7 @@ use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_reverts::RevertConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
-use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -320,6 +320,8 @@ pub struct NodeDynamicConfig {
     pub mempool_dynamic_config: Option<MempoolDynamicConfig>,
     #[validate(nested)]
     pub staking_manager_dynamic_config: Option<StakingManagerDynamicConfig>,
+    #[validate(nested)]
+    pub state_sync_dynamic_config: Option<StateSyncDynamicConfig>,
 }
 
 impl SerializeConfig for NodeDynamicConfig {
@@ -334,6 +336,7 @@ impl SerializeConfig for NodeDynamicConfig {
                 &self.staking_manager_dynamic_config,
                 "staking_manager_dynamic_config",
             ),
+            ser_optional_sub_config(&self.state_sync_dynamic_config, "state_sync_dynamic_config"),
         ];
         sub_configs.into_iter().flatten().collect()
     }
@@ -364,6 +367,8 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
+        let state_sync_dynamic_config =
+            sequencer_node_config.state_sync_config.as_ref().map(|c| c.dynamic_config.clone());
         Self {
             batcher_dynamic_config,
             consensus_dynamic_config,
@@ -372,6 +377,7 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             mempool_dynamic_config,
             // TODO(Dafna): take the staking config from `consensus_manager_config` once available.
             staking_manager_dynamic_config: Some(StakingManagerDynamicConfig::default()),
+            state_sync_dynamic_config,
         }
     }
 }
