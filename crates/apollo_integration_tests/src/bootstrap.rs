@@ -241,6 +241,131 @@ impl BootstrapAddresses {
     }
 }
 
+// =============================================================================
+// Bootstrap State and Execution (Stub Implementation)
+// =============================================================================
+
+/// The current state of the bootstrap process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BootstrapState {
+    /// Bootstrap mode is not enabled or storage is not empty.
+    #[default]
+    Disabled,
+    /// Bootstrap mode is enabled and storage is empty - waiting to start.
+    Pending,
+    /// Bootstrap transactions are being executed.
+    InProgress,
+    /// Bootstrap has completed successfully.
+    Completed,
+}
+
+/// Manages the bootstrap process lifecycle.
+///
+/// This is a stub implementation that tracks state but does not yet inject
+/// transactions into the batcher. The actual implementation will need to:
+/// 1. Detect empty storage at startup
+/// 2. Inject bootstrap transactions into batcher
+/// 3. Monitor for completion (ERC20 balance checks)
+/// 4. Transition to normal operation
+#[derive(Debug)]
+pub struct BootstrapManager {
+    state: BootstrapState,
+    addresses: BootstrapAddresses,
+}
+
+impl BootstrapManager {
+    /// Create a new bootstrap manager.
+    pub fn new() -> Self {
+        Self { state: BootstrapState::default(), addresses: BootstrapAddresses::get() }
+    }
+
+    /// Get the current bootstrap state.
+    pub fn state(&self) -> BootstrapState {
+        self.state
+    }
+
+    /// Get the bootstrap addresses.
+    pub fn addresses(&self) -> &BootstrapAddresses {
+        &self.addresses
+    }
+
+    /// Check if storage is empty and bootstrap mode should be enabled.
+    ///
+    /// STUB: This currently always returns false.
+    /// TODO: Implement by checking if header_marker == 0 in storage.
+    pub fn should_enable_bootstrap(&self, _enable_bootstrap_mode: bool) -> bool {
+        // TODO: Check if storage is empty (header_marker == 0)
+        // For now, return false (disabled)
+        false
+    }
+
+    /// Transition to pending state if bootstrap should be enabled.
+    ///
+    /// STUB: Does nothing currently.
+    pub fn maybe_enter_pending(&mut self, enable_bootstrap_mode: bool) {
+        if enable_bootstrap_mode && self.should_enable_bootstrap(enable_bootstrap_mode) {
+            self.state = BootstrapState::Pending;
+        }
+    }
+
+    /// Start the bootstrap process by injecting transactions.
+    ///
+    /// STUB: This currently just transitions state.
+    /// TODO: Inject bootstrap transactions into batcher with validation disabled.
+    pub fn start_bootstrap(&mut self) {
+        if self.state == BootstrapState::Pending {
+            self.state = BootstrapState::InProgress;
+            // TODO: Actually inject transactions into batcher
+            // let txs = generate_bootstrap_transactions();
+            // batcher.inject_bootstrap_transactions(txs);
+        }
+    }
+
+    /// Check if bootstrap is complete by verifying ERC20 balances.
+    ///
+    /// STUB: This currently always returns false.
+    /// TODO: Implement by checking ERC20 balances in storage.
+    pub fn check_completion(&mut self, _required_balance: u128) -> bool {
+        if self.state != BootstrapState::InProgress {
+            return false;
+        }
+
+        // TODO: Check ERC20 balances in storage:
+        // let eth_balance = storage.get_storage_at(
+        //     state_number,
+        //     &self.addresses.eth_fee_token_address,
+        //     &get_fee_token_var_address(self.addresses.funded_account_address)
+        // );
+        // let strk_balance = storage.get_storage_at(
+        //     state_number,
+        //     &self.addresses.strk_fee_token_address,
+        //     &get_fee_token_var_address(self.addresses.funded_account_address)
+        // );
+        // if eth_balance >= required_balance && strk_balance >= required_balance {
+        //     self.state = BootstrapState::Completed;
+        //     return true;
+        // }
+
+        false
+    }
+
+    /// Check if bootstrap is in progress.
+    pub fn is_in_progress(&self) -> bool {
+        self.state == BootstrapState::InProgress
+    }
+
+    /// Check if bootstrap has completed.
+    pub fn is_completed(&self) -> bool {
+        self.state == BootstrapState::Completed
+    }
+}
+
+impl Default for BootstrapManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,5 +390,39 @@ mod tests {
     fn test_generate_bootstrap_transactions() {
         let txs = generate_bootstrap_transactions();
         assert_eq!(txs.len(), 5, "Should generate 5 bootstrap transactions");
+    }
+
+    #[test]
+    fn test_bootstrap_manager_initial_state() {
+        let manager = BootstrapManager::new();
+        assert_eq!(manager.state(), BootstrapState::Disabled);
+        assert!(!manager.is_in_progress());
+        assert!(!manager.is_completed());
+    }
+
+    #[test]
+    fn test_bootstrap_state_transitions() {
+        let mut manager = BootstrapManager::new();
+
+        // Initially disabled
+        assert_eq!(manager.state(), BootstrapState::Disabled);
+
+        // Should not enable because storage check stub returns false
+        manager.maybe_enter_pending(true);
+        assert_eq!(manager.state(), BootstrapState::Disabled);
+
+        // Can't start bootstrap when not pending
+        manager.start_bootstrap();
+        assert_eq!(manager.state(), BootstrapState::Disabled);
+
+        // Force state to Pending for testing
+        manager.state = BootstrapState::Pending;
+        manager.start_bootstrap();
+        assert_eq!(manager.state(), BootstrapState::InProgress);
+        assert!(manager.is_in_progress());
+
+        // Check completion stub returns false
+        assert!(!manager.check_completion(1000));
+        assert_eq!(manager.state(), BootstrapState::InProgress);
     }
 }
