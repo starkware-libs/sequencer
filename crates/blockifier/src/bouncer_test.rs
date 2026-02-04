@@ -16,10 +16,10 @@ use starknet_api::{class_hash, contract_address, felt, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
+    cairo_primitives_to_gas,
     get_patricia_update_resources,
     get_tx_weights,
     map_class_hash_to_casm_hash_computation_resources,
-    resources_to_gas,
     verify_tx_weights_within_max_capacity,
     Bouncer,
     BouncerWeights,
@@ -29,7 +29,11 @@ use crate::bouncer::{
     TxWeights,
 };
 use crate::context::BlockContext;
-use crate::execution::call_info::{resource_counter_map, ExecutionSummary, ResourceCounterMap};
+use crate::execution::call_info::{
+    cairo_primitive_counter_map,
+    CairoPrimitiveCounterMap,
+    ExecutionSummary,
+};
 use crate::fee::resources::{ComputationResources, TransactionResources};
 use crate::state::cached_state::{CachedState, StateChangesKeys, StateMaps, TransactionalState};
 use crate::state::state_api::StateReader;
@@ -277,12 +281,14 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     let builtin_weights = BuiltinWeights::default();
 
     let range_check_count = 2;
-    let max_capacity_builtin_counters =
-        resource_counter_map(BTreeMap::from([(BuiltinName::range_check, range_check_count)]));
+    let max_capacity_builtin_counters = cairo_primitive_counter_map(BTreeMap::from([(
+        BuiltinName::range_check,
+        range_check_count,
+    )]));
     let builtin_counters = match scenario {
         "proving_gas_block_full" => max_capacity_builtin_counters.clone(),
         // Use a minimal or empty map.
-        "ok" | "sierra_gas_block_full" => resource_counter_map(BTreeMap::from([(
+        "ok" | "sierra_gas_block_full" => cairo_primitive_counter_map(BTreeMap::from([(
             BuiltinName::range_check,
             range_check_count - 1,
         )])),
@@ -297,7 +303,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     };
 
     let proving_gas_max_capacity =
-        resources_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
+        cairo_primitives_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
 
     let block_max_capacity = BouncerWeights {
         l1_gas: 20,
@@ -359,7 +365,7 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
     // Use gas amount > block_max_capacity's.
     let exceeding_gas = GasAmount(30);
     let execution_summary = ExecutionSummary::default();
-    let builtin_counters = ResourceCounterMap::default();
+    let builtin_counters = CairoPrimitiveCounterMap::default();
     let tx_resources = TransactionResources {
         computation: ComputationResources { sierra_gas: exceeding_gas, ..Default::default() },
         ..Default::default()
@@ -433,7 +439,7 @@ fn test_bouncer_try_update_n_txs(
         &first_transactional_state,
         &first_tx_state_changes_keys,
         &first_tx_execution_summary,
-        &ResourceCounterMap::default(),
+        &CairoPrimitiveCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );
@@ -467,7 +473,7 @@ fn test_bouncer_try_update_n_txs(
         &second_transactional_state,
         &second_tx_state_changes_keys,
         &ExecutionSummary::default(),
-        &ResourceCounterMap::default(),
+        &CairoPrimitiveCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );
@@ -499,7 +505,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         &TransactionResources::default(),
         &StateMaps::default().keys(),
         &block_context.versioned_constants,
-        &ResourceCounterMap::default(),
+        &CairoPrimitiveCounterMap::default(),
         &BouncerConfig::default(),
     );
 
@@ -659,7 +665,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         &tx_resources,
         &StateMaps::default().keys(), // state changes keys
         &block_context.versioned_constants,
-        &resource_counter_map(tx_builtin_counters.iter().map(|(k, v)| (*k, *v))),
+        &cairo_primitive_counter_map(tx_builtin_counters.iter().map(|(k, v)| (*k, *v))),
         &block_context.bouncer_config,
     )
     .unwrap();
@@ -847,7 +853,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &TransactionResources::default(),
         &StateMaps::default().keys(),
         &vc_migration_disabled,
-        &ResourceCounterMap::default(),
+        &CairoPrimitiveCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
     )
     .unwrap();
@@ -863,7 +869,7 @@ fn get_tx_weights_applies_migration_gas_delta(
         &TransactionResources::default(),
         &StateMaps::default().keys(),
         &bc_migration_enabled.versioned_constants,
-        &ResourceCounterMap::default(),
+        &CairoPrimitiveCounterMap::default(),
         &bc_migration_enabled.bouncer_config,
     )
     .unwrap();

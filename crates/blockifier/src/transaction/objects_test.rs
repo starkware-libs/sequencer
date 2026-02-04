@@ -12,7 +12,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{
-    resource_counter_map,
+    cairo_primitive_counter_map,
     BuiltinCounterMap,
     CallExecution,
     CallInfo,
@@ -102,7 +102,7 @@ impl TestExecutionSummary {
                 accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
                 ..Default::default()
             },
-            builtin_counters: resource_counter_map(self.builtin_counters.clone()),
+            builtin_counters: cairo_primitive_counter_map(self.builtin_counters.clone()),
             inner_calls: vec![inner_call_info(&self.inner_builtin_counters, self.cairo_native)],
             ..Default::default()
         }
@@ -119,7 +119,7 @@ fn shared_call_info() -> CallInfo {
 fn inner_call_info(builtin_counters: &BuiltinCounterMap, cairo_native: bool) -> CallInfo {
     CallInfo {
         call: CallEntryPoint { class_hash: Some(class_hash!("0x1")), ..Default::default() },
-        builtin_counters: resource_counter_map(builtin_counters.clone()),
+        builtin_counters: cairo_primitive_counter_map(builtin_counters.clone()),
         execution: CallExecution { cairo_native, ..Default::default() },
         ..Default::default()
     }
@@ -307,7 +307,7 @@ fn test_summarize(
     };
 
     // Omit the fee transfer builtin counters as done in `summarize_builtins`.
-    let expected_builtins = resource_counter_map([
+    let expected_builtins = cairo_primitive_counter_map([
         (BuiltinName::pedersen, validate_pedersen + execute_pedersen),
         (BuiltinName::poseidon, validate_poseidon + execute_poseidon),
         (BuiltinName::bitwise, validate_bitwise + execute_bitwise),
