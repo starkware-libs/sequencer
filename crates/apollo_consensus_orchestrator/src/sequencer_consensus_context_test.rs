@@ -1235,8 +1235,7 @@ async fn try_sync_cleans_up_valid_proposals() {
 
     // After try_sync, proposals for height 0 should be cleaned up.
     assert!(
-        // FIX: This should be false, but it is true because the fix is not in place.
-        context.has_proposals_for_height(BlockNumber(0)),
+        !context.has_proposals_for_height(BlockNumber(0)),
         "Proposals should be cleaned up after try_sync"
     );
 }
@@ -1271,8 +1270,7 @@ async fn set_height_and_round_cleans_up_valid_proposals_from_previous_heights() 
 
     // After moving to a new height, proposals for previous heights should be cleaned up.
     assert!(
-        // FIX: This should be false, but it is true because the fix is not in place.
-        context.has_proposals_for_height(BlockNumber(0)),
+        !context.has_proposals_for_height(BlockNumber(0)),
         "Proposals from previous heights should be cleaned up when moving to new height"
     );
 }
