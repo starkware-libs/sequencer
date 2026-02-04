@@ -215,7 +215,7 @@ where
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         read_forest::<S, IndexNodeLayout<H>>(
-            &self.storage,
+            &mut self.storage,
             roots,
             storage_updates,
             classes_updates,
