@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_consensus::types::Round;
+use apollo_protobuf::consensus::Round;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
@@ -38,6 +38,33 @@ pub enum CommitteeProviderError {
 }
 
 pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;
+
+/// Sync lookup for actual and virtual proposer by round.
+pub trait ProposerLookup: Send + Sync {
+    fn actual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> CommitteeProviderResult<ContractAddress>;
+    fn virtual_proposer(
+        &self,
+        height: BlockNumber,
+        round: Round,
+    ) -> CommitteeProviderResult<ContractAddress>;
+}
+
+pub struct EpochCommittee {
+    _committee: Vec<Staker>,
+}
+
+/// Provider that returns an epoch committee (stakers + proposer lookup) for a given height.
+#[async_trait]
+pub trait CommitteeAndProposerProvider: Send + Sync {
+    async fn get_committee(
+        &self,
+        height: BlockNumber,
+    ) -> CommitteeProviderResult<Arc<EpochCommittee>>;
+}
 
 /// Trait for managing committee operations including fetching and selecting committee members
 /// and proposers for consensus.
