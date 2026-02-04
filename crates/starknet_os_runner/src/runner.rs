@@ -215,6 +215,11 @@ where
             .compiled_class_hashes
             .extend(&classes.class_hash_to_compiled_class_hash);
 
+        // Must clear declared_contracts: the OS calls `update_cache` with an empty class map
+        // (it receives compiled classes separately in `compiled_classes`), which would fail
+        // an assertion if declared_contracts is non-empty.
+        execution_data.initial_reads.declared_contracts.clear();
+
         // Assemble VirtualOsBlockInput.
         let virtual_os_block_input = VirtualOsBlockInput {
             contract_state_commitment_info: storage_proofs
