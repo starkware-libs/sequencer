@@ -1345,6 +1345,17 @@ pub async fn create_batcher(
     });
     let storage_reader = Arc::new(storage_reader);
     let mut storage_writer = Box::new(storage_writer);
+
+    // TEMP recovery hook (Ron / echonet): force the global root marker back to genesis.
+    // This is intentionally unconditional for a one-off image run.
+    // IMPORTANT: revert this change after the env is fixed.
+    storage_writer
+        .begin_rw_txn()
+        .expect("Failed to start RW txn for global root marker reset.")
+        .set_global_root_marker(BlockNumber(0))
+        .expect("Failed to reset global root marker to 0.")
+        .commit()
+        .expect("Failed to commit global root marker reset.");
     let transaction_converter = TransactionConverter::new(
         class_manager_client,
         config.static_config.storage.db_config.chain_id.clone(),
@@ -1372,6 +1383,8 @@ pub async fn create_batcher(
         storage_reader_server_handle,
     )
 }
+
+
 
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageReader: Send + Sync {

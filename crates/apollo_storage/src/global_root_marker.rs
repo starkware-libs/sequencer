@@ -26,6 +26,13 @@ where
         self,
         expected_marker: BlockNumber,
     ) -> StorageResult<Self>;
+
+    /// Sets the global root marker to the given value.
+    ///
+    /// This is an administrative / recovery operation and should be used with care.
+    /// In normal operation, the marker should only advance monotonically via
+    /// [`GlobalRootMarkerStorageWriter::checked_increment_global_root_marker`].
+    fn set_global_root_marker(self, marker: BlockNumber) -> StorageResult<Self>;
 }
 
 impl<Mode: TransactionKind> GlobalRootMarkerStorageReader for StorageTxn<'_, Mode> {
@@ -53,6 +60,12 @@ impl GlobalRootMarkerStorageWriter for StorageTxn<'_, RW> {
             &MarkerKind::GlobalRoot,
             &current_marker.unchecked_next(),
         )?;
+        Ok(self)
+    }
+
+    fn set_global_root_marker(self, marker: BlockNumber) -> StorageResult<Self> {
+        let markers_table = self.open_table(&self.tables.markers)?;
+        markers_table.upsert(&self.txn, &MarkerKind::GlobalRoot, &marker)?;
         Ok(self)
     }
 }
