@@ -34,6 +34,7 @@ pub async fn get_leaves<'a, L: Leaf>(
         &config,
         &leaf_modifications,
         Some(&mut previous_leaves),
+        None,
         key_context,
     )
     .await?;
