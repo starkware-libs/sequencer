@@ -18,14 +18,11 @@ from starkware.cairo.common.hash_state_poseidon import (
 from starkware.cairo.common.hash_state_poseidon import (
     hash_update_with_nested_hash as poseidon_hash_update_with_nested_hash,
 )
-from starkware.cairo.common.math import assert_nn, assert_nn_le, assert_not_zero
+from starkware.cairo.common.math import assert_nn, assert_nn_le
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.new_syscalls import ResourceBounds
 from starkware.starknet.core.os.builtins import BuiltinPointers, SelectableBuiltins
 from starkware.starknet.core.os.constants import (
-    CONSTRUCTOR_ENTRY_POINT_SELECTOR,
-    DEPLOY_HASH_PREFIX,
-    EXECUTE_ENTRY_POINT_SELECTOR,
     INVOKE_HASH_PREFIX,
     L1_DATA_GAS,
     L1_DATA_GAS_INDEX,
@@ -188,6 +185,8 @@ func compute_invoke_transaction_hash{range_check_ptr, poseidon_ptr: PoseidonBuil
     execution_context: ExecutionContext*,
     account_deployment_data_size: felt,
     account_deployment_data: felt*,
+    proof_facts_size: felt,
+    proof_facts: felt*,
 ) -> felt {
     alloc_locals;
 
@@ -206,8 +205,13 @@ func compute_invoke_transaction_hash{range_check_ptr, poseidon_ptr: PoseidonBuil
         poseidon_hash_update_with_nested_hash(
             data_ptr=execution_context.calldata, data_length=execution_context.calldata_size
         );
+        // For backward compatibility, we don't hash proof facts if they are empty.
+        if (proof_facts_size != 0) {
+            poseidon_hash_update_with_nested_hash(
+                data_ptr=proof_facts, data_length=proof_facts_size
+            );
+        }
     }
-
     let transaction_hash = poseidon_hash_finalize(hash_state=hash_state);
     return transaction_hash;
 }
