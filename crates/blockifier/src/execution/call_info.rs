@@ -272,12 +272,18 @@ impl AddAssign<&ChargedResources> for ChargedResources {
     }
 }
 
-#[derive(Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
     Blake,
 }
 
-#[derive(Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+//  Serialize as untagged enum to avoid the type prefix. For example, the instance
+// Builtin(BuiltinName::range_check) will be serialized as "range_check" instead of
+// "Builtin::range_check".
+#[serde(untagged)]
 pub enum ResourceName {
     Builtin(BuiltinName),
     Opcode(OpcodeName),
@@ -298,6 +304,31 @@ impl From<OpcodeName> for ResourceName {
 pub type ResourceCounterMap = BTreeMap<ResourceName, usize>;
 
 pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
+
+pub trait IntoResourceCounterMap {
+    fn into_resource_counter_map(self) -> ResourceCounterMap;
+}
+
+impl IntoResourceCounterMap for BuiltinCounterMap {
+    fn into_resource_counter_map(self) -> ResourceCounterMap {
+        self.into_iter().map(|(name, count)| (name.into(), count)).collect()
+    }
+}
+
+pub trait IntoBuiltinCounterMap {
+    fn into_builtin_counter_map(self) -> BuiltinCounterMap;
+}
+
+impl IntoBuiltinCounterMap for ResourceCounterMap {
+    fn into_builtin_counter_map(self) -> BuiltinCounterMap {
+        self.into_iter()
+            .filter_map(|(resource_name, count)| match resource_name {
+                ResourceName::Builtin(builtin_name) => Some((builtin_name, count)),
+                ResourceName::Opcode(_) => None,
+            })
+            .collect()
+    }
+}
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
