@@ -69,6 +69,7 @@
         "allowed_virtual_os_program_hashes": [
             "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450"
         ],
+        "max_proving_blocks_behind": 300000,
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",
         "entry_point_initial_budget": {
