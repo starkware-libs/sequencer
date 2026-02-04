@@ -12080,6 +12080,7 @@ name = "starknet_committer"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config",
+ "async-recursion",
  "async-trait",
  "derive_more 2.1.1",
  "ethnum",

@@ -3540,7 +3540,7 @@
           "extra_params": {
             "unit": "percentunit",
             "thresholds": {
-              "mode": "percentage",
+              "mode": "absolute",
               "steps": [
                 {
                   "color": "green",
@@ -3571,7 +3571,7 @@
           "extra_params": {
             "unit": "percentunit",
             "thresholds": {
-              "mode": "percentage",
+              "mode": "absolute",
               "steps": [
                 {
                   "color": "green",
@@ -3602,7 +3602,7 @@
           "extra_params": {
             "unit": "percentunit",
             "thresholds": {
-              "mode": "percentage",
+              "mode": "absolute",
               "steps": [
                 {
                   "color": "green",
@@ -3633,7 +3633,7 @@
           "extra_params": {
             "unit": "percentunit",
             "thresholds": {
-              "mode": "percentage",
+              "mode": "absolute",
               "steps": [
                 {
                   "color": "green",
@@ -3664,7 +3664,7 @@
           "extra_params": {
             "unit": "percentunit",
             "thresholds": {
-              "mode": "percentage",
+              "mode": "absolute",
               "steps": [
                 {
                   "color": "green",
@@ -3695,7 +3695,7 @@
           "extra_params": {
             "unit": "percentunit",
             "thresholds": {
-              "mode": "percentage",
+              "mode": "absolute",
               "steps": [
                 {
                   "color": "green",

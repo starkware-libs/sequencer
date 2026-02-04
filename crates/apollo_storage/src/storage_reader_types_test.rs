@@ -9,7 +9,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
@@ -35,6 +35,7 @@ use crate::storage_reader_types::{
     StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
+use crate::version::VersionStorageReader;
 use crate::{MarkerKind, OffsetKind, StorageReader};
 
 const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
@@ -54,6 +55,7 @@ struct TestServerSetup {
     tx_index: TransactionIndex,
     executable_class_hash_v2: CompiledClassHash,
     last_voted_marker: LastVotedMarker,
+    block_signature: BlockSignature,
 }
 
 impl TestServerSetup {
@@ -112,6 +114,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
     // Create a test block with transactions
     let block = get_test_block(3, Some(1), None, None);
     let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(0));
+    let block_signature = BlockSignature::default();
 
     writer
         .begin_rw_txn()
@@ -127,6 +130,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .append_casm(&casm_class_hash, &expected_casm)
         .unwrap()
         .append_header(block_number, &block.header)
+        .unwrap()
+        .append_block_signature(block_number, &block_signature)
         .unwrap()
         .append_body(block_number, block.body)
         .unwrap()
@@ -159,6 +164,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         tx_index,
         executable_class_hash_v2,
         last_voted_marker,
+        block_signature,
     }
 }
 
@@ -461,4 +467,134 @@ async fn file_offsets_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::FileOffsets(expected_offset));
+}
+
+#[tokio::test]
+async fn starknet_version_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_version = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_starknet_version_by_key(TEST_BLOCK_NUMBER)
+        .unwrap()
+        .expect("Starknet version should exist");
+
+    let request = StorageReaderRequest::StarknetVersion(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::StarknetVersion(expected_version));
+}
+
+#[tokio::test]
+async fn state_storage_version_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_version = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_state_version()
+        .unwrap()
+        .expect("State storage version should exist");
+
+    let request = StorageReaderRequest::StateStorageVersion;
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::StateStorageVersion(expected_version));
+}
+
+#[tokio::test]
+async fn blocks_storage_version_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_version = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_blocks_version()
+        .unwrap()
+        .expect("Blocks storage version should exist");
+
+    let request = StorageReaderRequest::BlocksStorageVersion;
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::BlocksStorageVersion(expected_version));
+}
+
+#[tokio::test]
+async fn deprecated_declared_class_block_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let request = StorageReaderRequest::DeprecatedDeclaredClassesBlock(setup.deprecated_class_hash);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::DeprecatedDeclaredClassesBlock(TEST_BLOCK_NUMBER));
+}
+
+#[tokio::test]
+async fn headers_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_header = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_storage_block_header(&TEST_BLOCK_NUMBER)
+        .unwrap()
+        .expect("Block header should exist");
+
+    let request = StorageReaderRequest::Headers(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::Headers(expected_header));
+}
+
+#[tokio::test]
+async fn block_hash_to_number_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let header = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_storage_block_header(&TEST_BLOCK_NUMBER)
+        .unwrap()
+        .expect("Block header should exist");
+
+    let request = StorageReaderRequest::BlockHashToNumber(header.block_hash);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::BlockHashToNumber(TEST_BLOCK_NUMBER));
+}
+
+#[tokio::test]
+async fn block_signatures_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let request = StorageReaderRequest::BlockSignatures(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::BlockSignatures(setup.block_signature));
+}
+
+#[tokio::test]
+async fn events_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let tx_output = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_transaction_output(setup.tx_index)
+        .unwrap()
+        .expect("Transaction output should exist");
+    let event_address =
+        tx_output.events().first().expect("Transaction should have events").from_address;
+
+    let request = StorageReaderRequest::Events(event_address, setup.tx_index);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::Events);
 }

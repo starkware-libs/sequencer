@@ -87,11 +87,7 @@ use crate::commitment_manager::commitment_manager_impl::{
     ApolloCommitmentManager,
     CommitmentManager,
 };
-use crate::commitment_manager::types::{
-    CommitmentTaskOutput,
-    FinalBlockCommitment,
-    RevertTaskOutput,
-};
+use crate::commitment_manager::types::RevertTaskOutput;
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
@@ -710,8 +706,7 @@ impl Batcher {
             .await
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
-        // Write ready commitments to storage.
-        self.get_and_write_commitment_results_to_storage().await?;
+        self.get_commitment_results_and_write_to_storage().await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -775,8 +770,7 @@ impl Batcher {
             .await
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
 
-        // Write ready commitments to storage.
-        self.get_and_write_commitment_results_to_storage().await?;
+        self.get_commitment_results_and_write_to_storage().await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1161,77 +1155,6 @@ impl Batcher {
         }
     }
 
-    /// Writes the ready commitment results to storage.
-    async fn get_and_write_commitment_results_to_storage(&mut self) -> BatcherResult<()> {
-        let commitment_results = self.commitment_manager.get_commitment_results().await;
-        self.write_commitment_results_to_storage(commitment_results).await?;
-        Ok(())
-    }
-
-    /// Writes the given commitment results to storage.
-    async fn write_commitment_results_to_storage(
-        &mut self,
-        commitment_results: Vec<CommitmentTaskOutput>,
-    ) -> BatcherResult<()> {
-        for commitment_task_output in commitment_results.into_iter() {
-            let height = commitment_task_output.height;
-            info!("Writing commitment results to storage for height {}.", height);
-
-            // Decide whether to finalize the block hash based on the config.
-            let should_finalize_block_hash =
-                match self.config.first_block_with_partial_block_hash.as_ref() {
-                    Some(FirstBlockWithPartialBlockHash { block_number, .. }) => {
-                        height >= *block_number
-                    }
-                    None => true,
-                };
-
-            // Get the final commitment.
-            let FinalBlockCommitment { height, block_hash, global_root } =
-                ApolloCommitmentManager::final_commitment_output(
-                    self.storage_reader.clone(),
-                    commitment_task_output,
-                    should_finalize_block_hash,
-                )
-                .map_err(|err| {
-                    error!("Failed to get the final commitment output for height {height}: {err}");
-                    BatcherError::InternalError
-                })?;
-
-            // Verify the first new block hash matches the configured block hash.
-            if let Some(FirstBlockWithPartialBlockHash {
-                block_number,
-                block_hash: expected_block_hash,
-                ..
-            }) = self.config.first_block_with_partial_block_hash.as_ref()
-            {
-                if height == *block_number {
-                    assert_eq!(
-                        *expected_block_hash,
-                        block_hash.expect(
-                            "The block hash of the first new block should be finalized and \
-                             therefore set."
-                        ),
-                        "The calculated block hash of the first new block ({block_hash:?}) does \
-                         not match the configured block hash ({expected_block_hash:?})"
-                    );
-                }
-            }
-
-            // Write the block hash and global root to storage.
-            self.storage_writer
-                .set_global_root_and_block_hash(height, global_root, block_hash)
-                .map_err(|err| {
-                    error!(
-                        "Failed to set global root and block hash in storage for {height}: {err}"
-                    );
-                    BatcherError::InternalError
-                })?;
-        }
-
-        Ok(())
-    }
-
     /// Reverts the commitment for the given height.
     /// Adds a revert task to the commitment manager channel and waits for the result.
     /// Writes commitment results to storage and handles the revert task result.
@@ -1246,7 +1169,13 @@ impl Batcher {
             .expect("Failed to add revert task to commitment manager.");
         let (commitment_results, revert_task_result) =
             self.commitment_manager.wait_for_revert_result().await;
-        self.write_commitment_results_to_storage(commitment_results)
+        self.commitment_manager
+            .write_commitment_results_to_storage(
+                commitment_results,
+                &self.config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
             .await
             .expect("Failed to write commitment results to storage.");
 
@@ -1296,6 +1225,19 @@ impl Batcher {
                 BatcherError::InternalError
             })?
             .ok_or(BatcherError::BlockHashNotFound(block_number))
+    }
+    async fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
+        self.commitment_manager
+            .get_commitment_results_and_write_to_storage(
+                &self.config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
+            .await
+            .map_err(|err| {
+                error!("Failed to get commitment results and write to storage: {err}");
+                BatcherError::InternalError
+            })
     }
 }
 
