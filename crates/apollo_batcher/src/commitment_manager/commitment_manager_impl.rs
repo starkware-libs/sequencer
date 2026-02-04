@@ -38,8 +38,7 @@ use crate::commitment_manager::types::{
 };
 use crate::metrics::{
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
-    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY_HIST,
-    COMMITMENT_MANAGER_NUM_COMMIT_RESULTS_HIST,
+    COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
 };
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
@@ -210,9 +209,8 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                         .task_timer
                         .stop_timer(CommitterRequestLabelValue::CommitBlock, result.height());
                     if let Some(task_duration) = task_duration {
-                        // TODO(Rotem): add panels in the dashboard for the latency metrics.
-                        COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY_HIST.record_lossy(task_duration);
-                        COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.set_lossy(task_duration);
+                        // TODO(Rotem): add panels in the dashboard for the latency metric.
+                        COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.record_lossy(task_duration);
                     }
                     results.push(result.expect_commitment())
                 }
@@ -222,7 +220,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 }
             }
         }
-        COMMITMENT_MANAGER_NUM_COMMIT_RESULTS_HIST.record_lossy(results.len());
+        COMMITMENT_MANAGER_NUM_COMMIT_RESULTS.record_lossy(results.len());
         results
     }
 
