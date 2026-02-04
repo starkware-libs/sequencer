@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770202481839,
+  "lastUpdate": 1770217528425,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -67,6 +67,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1156.51500328,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "02d8a6e4c47684acaf2e36daff8577d259f376f7",
+          "message": "starknet_os_runner: convert rpc proof to fact storage (#12143)",
+          "timestamp": "2026-02-04T14:22:07Z",
+          "tree_id": "13f9bd54a3695f712220bee5c9634a823e82b765",
+          "url": "https://github.com/starkware-libs/sequencer/commit/02d8a6e4c47684acaf2e36daff8577d259f376f7"
+        },
+        "date": 1770217528089,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 880.00450085,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1436.3065138099998,
             "unit": "ms"
           }
         ]
