@@ -63,8 +63,10 @@ const ALIAS_CONTRACT_ADDRESS = 0x2;
 const RESERVED_CONTRACT_ADDRESS = 0x3;
 // The block number -> block hash mapping is written for the current block number minus this number.
 const STORED_BLOCK_HASH_BUFFER = 10;
+// Maximum allowed gap between a proved fact's block number and the latest block number.
+const MAX_PROVING_BLOCKS_BEHIND = 300000;
 
-// Allowed virtual OS program hashes for client-side proving.
+// Client-side proving: Allowed virtual OS program hashes.
 const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0 = (
     0x009743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450
 );

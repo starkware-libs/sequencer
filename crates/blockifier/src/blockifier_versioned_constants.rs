@@ -99,8 +99,11 @@ pub struct RawVersionedConstants {
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawOsConstants {
-    // Allowed virtual OS program hashes for client-side proving.
+    // Client-side proving: Allowed virtual OS program hashes.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
+    // Client-side proving: maximum allowed gap between a proved fact's block number and the
+    // latest block number.
+    pub max_proving_blocks_behind: u64,
 
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
@@ -1131,8 +1134,11 @@ impl GasCosts {
 pub struct OsConstants {
     pub gas_costs: GasCosts,
 
-    // Allowed virtual OS program hashes for client-side proving.
+    // Client-side proving: Allowed virtual OS program hashes.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
+    // Client-side proving: maximum allowed gap between a proved fact's block number and the
+    // latest block number.
+    pub max_proving_blocks_behind: u64,
 
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
@@ -1217,6 +1223,7 @@ impl OsConstants {
             allowed_virtual_os_program_hashes: raw_constants
                 .allowed_virtual_os_program_hashes
                 .clone(),
+            max_proving_blocks_behind: raw_constants.max_proving_blocks_behind,
             constructor_entry_point_selector: raw_constants.constructor_entry_point_selector,
             default_entry_point_selector: raw_constants.default_entry_point_selector,
             execute_entry_point_selector: raw_constants.execute_entry_point_selector,
