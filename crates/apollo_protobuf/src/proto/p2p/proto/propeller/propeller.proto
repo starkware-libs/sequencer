@@ -32,7 +32,11 @@ message PropellerUnit {
     // TODO(AndrewL): make it uint64 instead of uint32.
     // Logical channel identifier for multiplexing different message streams.
     uint32 channel = 7;
-    // TODO(AndrewL): CRITICAL: protect against replay attacks (maybe using a timestamp)
+    // Unix timestamp in milliseconds when the message was created.
+    // Used for replay attack protection: messages older than a configured TTL are rejected,
+    // and duplicate (channel, publisher, merkle_root, timestamp) tuples are dropped.
+    // TODO(guyn): still need to implement the caching and TTL mechanism
+    uint64 timestamp_ms = 8;
 }
 
 // A batch of PropellerUnits for efficient transmission.
