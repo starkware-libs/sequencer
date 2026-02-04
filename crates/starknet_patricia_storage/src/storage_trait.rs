@@ -155,6 +155,11 @@ pub trait Storage: Send + Sync {
 
     /// If the storage is async, returns an instance of the async storage.
     fn get_async_self(&self) -> Option<impl AsyncStorage>;
+
+    /// If uses a cache, flushes the given map into the cache.
+    fn flush_to_cache(&mut self, _map: DbHashMap) -> PatriciaStorageResult<()> {
+        Ok(())
+    }
 }
 
 /// A trait wrapper for [Storage] that supports concurrency.

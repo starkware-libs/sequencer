@@ -313,4 +313,11 @@ impl<S: Storage> Storage for CachedStorage<S> {
         // Need a concrete Option type.
         None::<NullStorage>
     }
+
+    fn flush_to_cache(&mut self, map: DbHashMap) -> PatriciaStorageResult<()> {
+        map.into_iter().for_each(|(key, value)| {
+            self.cache.put(key, Some(value));
+        });
+        Ok(())
+    }
 }
