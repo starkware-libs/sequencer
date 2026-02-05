@@ -17,10 +17,12 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use papyrus_common::state::DeclaredClassHashEntry;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
+use tracing::{debug, warn};
 use tokio::runtime::Handle;
 
 use crate::execution_utils::{
@@ -210,24 +212,100 @@ impl BlockifierStateReader for ExecutionStateReader {
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        _compiled_class: &RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
-        let maybe_hash =
-            if let Some((class_manager_client, run_time_handle)) = &self.class_manager_handle {
-                // First, try getting from class manager if available.
-                run_time_handle
-                    .block_on(class_manager_client.get_executable_class_hash_v2(class_hash))
-                    .map_err(|e| StateError::StateReadError(e.to_string()))?
-            } else {
-                // Fall back to reading from storage.
-                self.storage_reader
-                    .begin_ro_txn()
-                    .map_err(storage_err_to_state_err)?
-                    .get_executable_class_hash_v2(&class_hash)
-                    .map_err(storage_err_to_state_err)?
-            };
+        let compiled_class_variant = runnable_compiled_class_variant(compiled_class);
+        let used_class_manager = self.class_manager_handle.is_some();
 
-        maybe_hash.ok_or(StateError::MissingCompiledClassHashV2(class_hash))
+        let maybe_hash = if let Some((class_manager_client, run_time_handle)) =
+            &self.class_manager_handle
+        {
+            // First, try getting from class manager if available.
+            run_time_handle
+                .block_on(class_manager_client.get_executable_class_hash_v2(class_hash))
+                .map_err(|e| StateError::StateReadError(e.to_string()))?
+        } else {
+            // Fall back to reading from storage.
+            self.storage_reader
+                .begin_ro_txn()
+                .map_err(storage_err_to_state_err)?
+                .get_executable_class_hash_v2(&class_hash)
+                .map_err(storage_err_to_state_err)?
+        };
+
+        if let Some(hash) = maybe_hash {
+            return Ok(hash);
+        }
+
+        // Cross-check the underlying stateless table directly when class manager is enabled.
+        // This helps distinguish between "class manager missing the mapping" vs "storage missing it".
+        let storage_marker = if used_class_manager {
+            match self.storage_reader.begin_ro_txn() {
+                Ok(txn) => match txn.get_executable_class_hash_v2(&class_hash) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        debug!(
+                            %class_hash,
+                            ?self.state_number,
+                            error = %err,
+                            "Failed reading executable class hash v2 from storage directly."
+                        );
+                        None
+                    }
+                },
+                Err(err) => {
+                    debug!(
+                        %class_hash,
+                        ?self.state_number,
+                        error = %err,
+                        "Failed opening storage txn for executable class hash v2 cross-check."
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        debug!(
+            %class_hash,
+            ?self.state_number,
+            used_class_manager,
+            compiled_class_variant,
+            storage_marker_present = storage_marker.is_some(),
+            "Executable class hash v2 missing; falling back to compute from compiled class."
+        );
+
+        // Fallback: compute compiled class hash v2 from the compiled class.
+        //
+        // This mapping is stored in a stateless table maintained by the class manager; in some
+        // deployments the class (CASM+Sierra) may exist but the marker entry is missing.
+        // Computing here avoids rejecting otherwise-executable transactions.
+        match compiled_class {
+            RunnableCompiledClass::V1(class) => Ok(class.hash(&HashVersion::V2)),
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(class) => Ok(class.hash(&HashVersion::V2)),
+            _ => {
+                warn!(
+                    %class_hash,
+                    ?self.state_number,
+                    used_class_manager,
+                    compiled_class_variant,
+                    storage_marker_present = storage_marker.is_some(),
+                    "Missing executable class hash v2 and cannot compute it; compiled class is not Cairo 1."
+                );
+                Err(StateError::MissingCompiledClassHashV2(class_hash))
+            }
+        }
+    }
+}
+
+fn runnable_compiled_class_variant(class: &RunnableCompiledClass) -> &'static str {
+    match class {
+        RunnableCompiledClass::V0(_) => "v0",
+        RunnableCompiledClass::V1(_) => "v1",
+        #[cfg(feature = "cairo_native")]
+        RunnableCompiledClass::V1Native(_) => "v1_native",
     }
 }
 

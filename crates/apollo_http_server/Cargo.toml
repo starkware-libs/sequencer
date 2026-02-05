@@ -7,6 +7,7 @@ repository.workspace = true
 description = "HTTP server for exposing node APIs."
 
 [features]
+cairo_native = ["blockifier_reexecution/cairo_native"]
 testing = [
   "apollo_config_manager_types/testing",
   "apollo_gateway_types/testing",

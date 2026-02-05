@@ -11,10 +11,12 @@ use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::ServerConfig;
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::StorageConfig;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
 use tokio::task::AbortHandle;
-use tracing::instrument;
+use tracing::{debug, instrument, warn};
 
 use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
 
@@ -334,7 +336,88 @@ impl FsClassStorage {
     }
 
     fn contains_class(&self, class_id: ClassId) -> FsClassStorageResult<bool> {
-        Ok(self.get_executable_class_hash_v2(class_id)?.is_some())
+        let marker = self.get_executable_class_hash_v2(class_id)?;
+        if let Some(marker) = marker {
+            debug!(
+                ?class_id,
+                executable_class_hash_v2 = %format_args!("{:#064x}", marker.0),
+                "Found executable class marker (compiled_class_hash_v2)."
+            );
+            return Ok(true);
+        }
+
+        // This storage relies on the compiled-class-hash-v2 marker as the primary existence signal.
+        // If the marker is missing we will treat the class as non-existent, even if the files are
+        // present on disk.
+        //
+        // Log file existence to help debug partial writes / mismatched backends.
+        let sierra_path = self.get_sierra_path(class_id);
+        let executable_path = self.get_executable_path(class_id);
+        let deprecated_path = self.get_deprecated_executable_path(class_id);
+        let sierra_exists = sierra_path.exists();
+        let executable_exists = executable_path.exists();
+        let deprecated_exists = deprecated_path.exists();
+
+        let expected_marker = if executable_exists {
+            match RawExecutableClass::from_file(executable_path.clone()) {
+                Ok(Some(raw)) => {
+                    let value = raw.into_value();
+                    match serde_json::from_value::<ContractClass>(value) {
+                        Ok(ContractClass::V1((casm, _))) => Some(casm.hash(&HashVersion::V2)),
+                        Ok(ContractClass::V0(_)) => None,
+                        Err(err) => {
+                            debug!(
+                                ?class_id,
+                                error = %err,
+                                "Failed to deserialize CASM file to compute expected marker."
+                            );
+                            None
+                        }
+                    }
+                }
+                Ok(None) => None,
+                Err(err) => {
+                    debug!(
+                        ?class_id,
+                        error = %err,
+                        "Failed to read CASM file to compute expected marker."
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        if sierra_exists || executable_exists {
+            warn!(
+                ?class_id,
+                persistent_root = %self.persistent_root.display(),
+                sierra_path = %sierra_path.display(),
+                executable_path = %executable_path.display(),
+                sierra_exists,
+                executable_exists,
+                deprecated_exists,
+                expected_executable_class_hash_v2 = expected_marker
+                    .as_ref()
+                    .map(|h| format!("{:#064x}", h.0)),
+                "Executable class marker (compiled_class_hash_v2) is missing but class files exist on disk."
+            );
+        } else {
+            debug!(
+                ?class_id,
+                persistent_root = %self.persistent_root.display(),
+                sierra_exists,
+                executable_exists,
+                deprecated_exists,
+                expected_executable_class_hash_v2 = expected_marker
+                    .as_ref()
+                    .map(|h| format!("{:#064x}", h.0)),
+                "Executable class marker (compiled_class_hash_v2) is missing."
+            );
+        }
+
+        Ok(false)
     }
 
     // TODO(Elin): make this more robust; checking file existence is not enough, since by reading
@@ -499,6 +582,13 @@ impl ClassStorage for FsClassStorage {
     #[instrument(skip(self), level = "debug", err)]
     fn get_sierra(&self, class_id: ClassId) -> Result<Option<RawClass>, Self::Error> {
         if !self.contains_class(class_id)? {
+            let sierra_path = self.get_sierra_path(class_id);
+            debug!(
+                ?class_id,
+                sierra_path = %sierra_path.display(),
+                sierra_exists = sierra_path.exists(),
+                "FsClassStorage.get_sierra returning None (class marker missing)."
+            );
             return Ok(None);
         }
 
@@ -511,12 +601,29 @@ impl ClassStorage for FsClassStorage {
 
     #[instrument(skip(self), level = "debug", err)]
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
-        let path = if self.contains_class(class_id)? {
+        let contains_class = self.contains_class(class_id)?;
+        let deprecated_exists = self.contains_deprecated_class(class_id);
+        let path = if contains_class {
             self.get_executable_path(class_id)
-        } else if self.contains_deprecated_class(class_id) {
+        } else if deprecated_exists {
             self.get_deprecated_executable_path(class_id)
         } else {
             // Class does not exist in storage.
+            let sierra_path = self.get_sierra_path(class_id);
+            let executable_path = self.get_executable_path(class_id);
+            let deprecated_path = self.get_deprecated_executable_path(class_id);
+            debug!(
+                ?class_id,
+                contains_class,
+                deprecated_exists,
+                sierra_path = %sierra_path.display(),
+                executable_path = %executable_path.display(),
+                deprecated_path = %deprecated_path.display(),
+                sierra_exists = sierra_path.exists(),
+                executable_exists = executable_path.exists(),
+                deprecated_file_exists = deprecated_path.exists(),
+                "FsClassStorage.get_executable returning None (no marker / no deprecated file)."
+            );
             return Ok(None);
         };
 

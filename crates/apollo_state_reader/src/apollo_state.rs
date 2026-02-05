@@ -16,12 +16,14 @@ use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
+use tracing::{debug, warn};
 
 #[cfg(test)]
 #[path = "apollo_state_test.rs"]
@@ -84,6 +86,12 @@ impl ClassReader {
             .runtime
             .block_on(self.reader.get_executable_class_hash_v2(class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
+        if compiled_class_hash_v2.is_none() {
+            debug!(
+                %class_hash,
+                "Class manager returned no executable class hash v2 for class."
+            );
+        }
         Ok(compiled_class_hash_v2)
     }
 }
@@ -189,6 +197,13 @@ impl ApolloReader {
                 self.reader()?
                     .get_executable_class_hash_v2(&class_hash)
                     .map_err(|err| StateError::StateReadError(err.to_string()))?;
+            if compiled_class_hash_v2.is_none() {
+                debug!(
+                    %class_hash,
+                    latest_block = %self.latest_block,
+                    "Storage returned no executable class hash v2 for class (stateless table)."
+                );
+            }
             return Ok(compiled_class_hash_v2);
         };
 
@@ -256,10 +271,85 @@ impl StateReader for ApolloReader {
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        _compiled_class: &RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
-        self.read_compiled_class_hash_v2(class_hash)?
-            .ok_or(StateError::MissingCompiledClassHashV2(class_hash))
+        let state_number = StateNumber(self.latest_block);
+        let compiled_class_variant = runnable_compiled_class_variant(compiled_class);
+        let has_class_reader = self.class_reader.is_some();
+
+        if let Some(hash) = self.read_compiled_class_hash_v2(class_hash)? {
+            return Ok(hash);
+        }
+
+        // Cross-check the underlying stateless table directly when class manager is enabled.
+        // This helps distinguish between "class manager is missing the mapping" vs "storage is
+        // missing the mapping".
+        let storage_marker = if has_class_reader {
+            match self.reader() {
+                Ok(txn) => match txn.get_executable_class_hash_v2(&class_hash) {
+                    Ok(v) => v,
+                    Err(err) => {
+                        debug!(
+                            %class_hash,
+                            ?state_number,
+                            error = %err,
+                            "Failed reading executable class hash v2 from storage directly."
+                        );
+                        None
+                    }
+                },
+                Err(err) => {
+                    debug!(
+                        %class_hash,
+                        ?state_number,
+                        error = %err,
+                        "Failed opening storage txn for executable class hash v2 cross-check."
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        debug!(
+            %class_hash,
+            ?state_number,
+            has_class_reader,
+            compiled_class_variant,
+            storage_marker_present = storage_marker.is_some(),
+            "Executable class hash v2 missing; falling back to compute from compiled class."
+        );
+
+        // Fallback: compute compiled class hash v2 from the compiled class itself.
+        // See blockifier::state::utils::get_compiled_class_hash_v2 for the canonical computation.
+        match compiled_class {
+            RunnableCompiledClass::V1(class) => Ok(class.hash(&HashVersion::V2)),
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(class) => Ok(class.hash(&HashVersion::V2)),
+            _ => {
+                let is_declared = self.is_declared(class_hash).ok();
+                warn!(
+                    %class_hash,
+                    ?state_number,
+                    has_class_reader,
+                    compiled_class_variant,
+                    is_declared,
+                    storage_marker_present = storage_marker.is_some(),
+                    "Missing executable class hash v2 and cannot compute it; compiled class is not Cairo 1."
+                );
+                Err(StateError::MissingCompiledClassHashV2(class_hash))
+            }
+        }
+    }
+}
+
+fn runnable_compiled_class_variant(class: &RunnableCompiledClass) -> &'static str {
+    match class {
+        RunnableCompiledClass::V0(_) => "v0",
+        RunnableCompiledClass::V1(_) => "v1",
+        #[cfg(feature = "cairo_native")]
+        RunnableCompiledClass::V1Native(_) => "v1_native",
     }
 }
 

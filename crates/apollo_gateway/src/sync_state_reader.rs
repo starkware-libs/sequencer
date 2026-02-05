@@ -28,7 +28,7 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
-use tracing::{error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::gateway_fixed_block_state_reader::{
     GatewayFixedBlockStateReader,
@@ -84,14 +84,50 @@ impl SyncStateReader {
             return Err(StateError::UndeclaredClassHash(class_hash));
         }
 
-        let contract_class = self
+        debug!(
+            ?class_hash,
+            ?self.block_number,
+            "Class declared in state-sync; fetching executable class from class manager."
+        );
+
+        let contract_class_opt = self
             .runtime
             .block_on(self.class_manager_client.get_executable(class_hash))
-            .map_err(|e| StateError::StateReadError(e.to_string()))?
-            .expect(
-                "Class with hash {class_hash:?} doesn't appear in class manager even though it \
-                 was declared",
+            .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        let Some(contract_class) = contract_class_opt else {
+            // Class exists in state, but class manager returned no executable class.
+            // Log additional signals to help diagnose whether the class manager is missing *only*
+            // the marker mapping / a particular artifact, or is pointing at a different backend.
+            let sierra_opt = self
+                .runtime
+                .block_on(self.class_manager_client.get_sierra(class_hash))
+                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+            let executable_hash_v2_opt = self
+                .runtime
+                .block_on(self.class_manager_client.get_executable_class_hash_v2(class_hash))
+                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+            let sierra_present = sierra_opt.is_some();
+            let executable_class_hash_v2_present = executable_hash_v2_opt.is_some();
+            warn!(
+                ?class_hash,
+                ?self.block_number,
+                sierra_present,
+                executable_class_hash_v2_present,
+                "Class declared but missing in class manager (executable artifact missing). \
+                 sierra_present={sierra_present} \
+                 executable_class_hash_v2_present={executable_class_hash_v2_present}"
             );
+
+            // Previously this was an `expect(...)` which panicked and crashed the node.
+            // Returning a typed error keeps the node alive and surfaces the actual class hash.
+            return Err(StateError::StateReadError(format!(
+                "Class declared but missing in class manager. class_hash={class_hash:?} \
+                 block_number={:?}",
+                self.block_number
+            )));
+        };
 
         Ok(contract_class)
     }
