@@ -372,6 +372,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             .expect("Lock should never be poisoned")
             .get_prev_voted_height()
             .expect("Failed to get previous voted height from storage");
+        // TEMP HOTFIX (manual override): allow block building to start when the persisted
+        // "last voted height" equals the current height at boot.
+        //
+        // Requested override: 6099201 -> 6099200.
+        let last_voted_height_at_initialization = last_voted_height_at_initialization
+            .map(|h| if h.0 == 6_099_201 { BlockNumber(6_099_200) } else { h });
         let future_msg_limit = consensus_config.dynamic_config.future_msg_limit;
         Self {
             consensus_config,

@@ -30,7 +30,6 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
@@ -92,7 +91,6 @@ use crate::commitment_manager::commitment_manager_impl::{
     ApolloCommitmentManager,
     CommitmentManager,
 };
-use crate::commitment_manager::types::RevertTaskOutput;
 use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
@@ -181,6 +179,11 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
+    /// Commitment manager is intentionally disabled.
+    ///
+    /// We still keep the instance around (it is created during `create_batcher`) to avoid a broad
+    /// refactor, but we do not enqueue tasks or wait for results.
+    #[allow(dead_code)]
     commitment_manager: ApolloCommitmentManager,
 
     // Kept alive to maintain the server running.
@@ -712,14 +715,6 @@ impl Batcher {
             StorageCommitmentBlockHash::ParentHash(block_header_without_hash.parent_hash)
         };
 
-        let optional_state_diff_commitment = match &storage_commitment_block_hash {
-            StorageCommitmentBlockHash::ParentHash(_) => None,
-            StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
-                ref header_commitments,
-                ..
-            }) => Some(header_commitments.state_diff_commitment),
-        };
-
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -729,20 +724,6 @@ impl Batcher {
             storage_commitment_block_hash,
         )
         .await?;
-
-        self.commitment_manager
-            .add_commitment_task(
-                height,
-                state_diff,
-                optional_state_diff_commitment,
-                &self.config.static_config.first_block_with_partial_block_hash,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
-
-        self.get_commitment_results_and_write_to_storage().await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -783,8 +764,6 @@ impl Batcher {
         .expect("Number of reverted transactions should fit in u64");
         let partial_block_hash_components =
             block_execution_artifacts.partial_block_hash_components();
-        let state_diff_commitment =
-            partial_block_hash_components.header_commitments.state_diff_commitment;
         let block_header_commitments = partial_block_hash_components.header_commitments.clone();
         let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
         self.commit_proposal_and_block(
@@ -796,20 +775,6 @@ impl Batcher {
             StorageCommitmentBlockHash::Partial(partial_block_hash_components),
         )
         .await?;
-
-        self.commitment_manager
-            .add_commitment_task(
-                height,
-                state_diff.clone(), // TODO(Nimrod): Remove the clone here.
-                Some(state_diff_commitment),
-                &self.config.static_config.first_block_with_partial_block_hash,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
-
-        self.get_commitment_results_and_write_to_storage().await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1144,9 +1109,6 @@ impl Batcher {
             self.abort_active_height().await;
         }
 
-        // Wait for the revert commitment to be completed before reverting the storage.
-        self.revert_commitment(height).await;
-
         self.storage_writer.revert_block(height);
         BUILDING_HEIGHT.decrement(1);
         GLOBAL_ROOT_HEIGHT.decrement(1);
@@ -1195,73 +1157,7 @@ impl Batcher {
         }
     }
 
-    /// Reverts the commitment for the given height.
-    /// Adds a revert task to the commitment manager channel and waits for the result.
-    /// Writes commitment results to storage and handles the revert task result.
-    async fn revert_commitment(&mut self, height: BlockNumber) {
-        let reversed_state_diff = self
-            .storage_reader
-            .reversed_state_diff(height)
-            .expect("Failed to get reversed state diff from storage.");
-        self.commitment_manager
-            .add_revert_task(
-                height,
-                reversed_state_diff,
-                &self.config.static_config.first_block_with_partial_block_hash,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .expect("Failed to add revert task to commitment manager.");
-        let (commitment_results, revert_task_result) =
-            self.commitment_manager.wait_for_revert_result().await;
-        self.commitment_manager
-            .write_commitment_results_to_storage(
-                commitment_results,
-                &self.config.static_config.first_block_with_partial_block_hash,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .expect("Failed to write commitment results to storage.");
-
-        info!("Revert task result: {revert_task_result:?}");
-        self.validate_revert_task_result(revert_task_result, height).await;
-        info!("Reverted commitment for height {height}.");
-    }
-
-    async fn validate_revert_task_result(
-        &self,
-        revert_task_output: RevertTaskOutput,
-        request_height_to_revert: BlockNumber,
-    ) {
-        assert_eq!(
-            revert_task_output.height, request_height_to_revert,
-            "The task output height does not match the request height."
-        );
-
-        match revert_task_output.response {
-            RevertBlockResponse::RevertedTo(global_root)
-            | RevertBlockResponse::AlreadyReverted(global_root) => {
-                // Verify the global root matches the stored global root.
-                let new_latest_height = revert_task_output
-                    .height
-                    .prev()
-                    .expect("Can't revert before the genesis block.");
-                let stored_global_root = self
-                    .storage_reader
-                    .global_root(new_latest_height)
-                    .expect("Failed to get global root from storage.")
-                    .expect("Global root is not set for height {new_latest_height}.");
-                assert_eq!(
-                    global_root, stored_global_root,
-                    "The given global root does not match the stored global root for height \
-                     {new_latest_height}."
-                );
-            }
-            RevertBlockResponse::Uncommitted => {}
-        }
-    }
+    // Commitment-manager revert flow is intentionally disabled (see `commitment_manager` docs).
 
     pub fn get_block_hash(&self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
         self.storage_reader
@@ -1272,19 +1168,7 @@ impl Batcher {
             })?
             .ok_or(BatcherError::BlockHashNotFound(block_number))
     }
-    async fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
-        self.commitment_manager
-            .get_commitment_results_and_write_to_storage(
-                &self.config.static_config.first_block_with_partial_block_hash,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .map_err(|err| {
-                error!("Failed to get commitment results and write to storage: {err}");
-                BatcherError::InternalError
-            })
-    }
+    // Commitment-manager results writing is intentionally disabled.
 }
 
 /// Logs the result of the transactions execution in the proposal.
@@ -1605,15 +1489,6 @@ impl ComponentStarter for Batcher {
             .storage_reader
             .global_root_height()
             .expect("Failed to get global roots height from storage during batcher creation.");
-
-        self.commitment_manager
-            .add_missing_commitment_tasks(
-                storage_height,
-                &self.config,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await;
 
         register_metrics(storage_height, global_root_height);
     }

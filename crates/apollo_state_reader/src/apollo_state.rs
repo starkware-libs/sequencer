@@ -16,6 +16,7 @@ use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -256,10 +257,18 @@ impl StateReader for ApolloReader {
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        _compiled_class: &RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
-        self.read_compiled_class_hash_v2(class_hash)?
-            .ok_or(StateError::MissingCompiledClassHashV2(class_hash))
+        if let Some(hash) = self.read_compiled_class_hash_v2(class_hash)? {
+            return Ok(hash);
+        }
+
+        // Fallback: compute compiled class hash v2 from the compiled class itself.
+        // See blockifier::state::utils::get_compiled_class_hash_v2 for the canonical computation.
+        match compiled_class {
+            RunnableCompiledClass::V1(class) => Ok(class.hash(&HashVersion::V2)),
+            _ => Err(StateError::MissingCompiledClassHashV2(class_hash)),
+        }
     }
 }
 

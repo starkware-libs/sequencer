@@ -160,7 +160,10 @@ where
             return Ok(Some(class));
         }
 
-        let Some(class) = self.storage.get_deprecated_class(class_id)? else {
+        // Fall back to the storage's `get_executable()` implementation. For filesystem-backed
+        // storage this can still succeed even when the compiled-class-hash marker is missing, as
+        // long as the class files exist on disk.
+        let Some(class) = self.storage.get_executable(class_id)? else {
             return Ok(None);
         };
         self.deprecated_classes.set(class_id, class.clone());
@@ -334,7 +337,14 @@ impl FsClassStorage {
     }
 
     fn contains_class(&self, class_id: ClassId) -> FsClassStorageResult<bool> {
-        Ok(self.get_executable_class_hash_v2(class_id)?.is_some())
+        // The RocksDB marker is the primary existence signal, but we can end up with on-disk files
+        // being present while the marker is missing (e.g. crash between writing files and
+        // committing the marker).
+        if self.get_executable_class_hash_v2(class_id)?.is_some() {
+            return Ok(true);
+        }
+
+        Ok(self.get_sierra_path(class_id).exists() || self.get_executable_path(class_id).exists())
     }
 
     // TODO(Elin): make this more robust; checking file existence is not enough, since by reading
@@ -498,11 +508,10 @@ impl ClassStorage for FsClassStorage {
 
     #[instrument(skip(self), level = "debug", err)]
     fn get_sierra(&self, class_id: ClassId) -> Result<Option<RawClass>, Self::Error> {
-        if !self.contains_class(class_id)? {
+        let path = self.get_sierra_path(class_id);
+        if !path.exists() {
             return Ok(None);
         }
-
-        let path = self.get_sierra_path(class_id);
         let class =
             RawClass::from_file(path)?.ok_or(FsClassStorageError::ClassNotFound { class_id })?;
 
@@ -511,12 +520,16 @@ impl ClassStorage for FsClassStorage {
 
     #[instrument(skip(self), level = "debug", err)]
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
-        let path = if self.contains_class(class_id)? {
-            self.get_executable_path(class_id)
-        } else if self.contains_deprecated_class(class_id) {
-            self.get_deprecated_executable_path(class_id)
+        // Prefer checking actual file presence to decide which artifact to read.
+        // This avoids depending solely on the compiled-class-hash marker DB.
+        let executable_path = self.get_executable_path(class_id);
+        let deprecated_path = self.get_deprecated_executable_path(class_id);
+
+        let path = if executable_path.exists() {
+            executable_path
+        } else if deprecated_path.exists() {
+            deprecated_path
         } else {
-            // Class does not exist in storage.
             return Ok(None);
         };
 

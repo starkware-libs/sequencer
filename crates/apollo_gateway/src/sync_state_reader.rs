@@ -88,10 +88,15 @@ impl SyncStateReader {
             .runtime
             .block_on(self.class_manager_client.get_executable(class_hash))
             .map_err(|e| StateError::StateReadError(e.to_string()))?
-            .expect(
-                "Class with hash {class_hash:?} doesn't appear in class manager even though it \
-                 was declared",
-            );
+            .ok_or_else(|| {
+                // Previously this was an `expect(...)` which panicked and crashed the node.
+                // Returning a typed error keeps the node alive and surfaces the actual class hash.
+                StateError::StateReadError(format!(
+                    "Class declared but missing in class manager. class_hash={class_hash:?} \
+                     block_number={:?}",
+                    self.block_number
+                ))
+            })?;
 
         Ok(contract_class)
     }

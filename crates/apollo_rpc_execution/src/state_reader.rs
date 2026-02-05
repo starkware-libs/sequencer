@@ -17,6 +17,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use papyrus_common::state::DeclaredClassHashEntry;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
@@ -210,7 +211,7 @@ impl BlockifierStateReader for ExecutionStateReader {
     fn get_compiled_class_hash_v2(
         &self,
         class_hash: ClassHash,
-        _compiled_class: &RunnableCompiledClass,
+        compiled_class: &RunnableCompiledClass,
     ) -> StateResult<CompiledClassHash> {
         let maybe_hash =
             if let Some((class_manager_client, run_time_handle)) = &self.class_manager_handle {
@@ -227,7 +228,19 @@ impl BlockifierStateReader for ExecutionStateReader {
                     .map_err(storage_err_to_state_err)?
             };
 
-        maybe_hash.ok_or(StateError::MissingCompiledClassHashV2(class_hash))
+        if let Some(hash) = maybe_hash {
+            return Ok(hash);
+        }
+
+        // Fallback: compute compiled class hash v2 from the compiled class.
+        //
+        // This mapping is stored in a stateless table maintained by the class manager; in some
+        // deployments the class (CASM+Sierra) may exist but the marker entry is missing.
+        // Computing here avoids rejecting otherwise-executable transactions.
+        match compiled_class {
+            RunnableCompiledClass::V1(class) => Ok(class.hash(&HashVersion::V2)),
+            _ => Err(StateError::MissingCompiledClassHashV2(class_hash)),
+        }
     }
 }
 
