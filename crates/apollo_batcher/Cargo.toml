@@ -7,7 +7,7 @@ repository.workspace = true
 description = "Block building and transaction batching component for the Starknet sequencer."
 
 [features]
-cairo_native = ["blockifier/cairo_native"]
+cairo_native = ["apollo_state_reader/cairo_native", "blockifier/cairo_native"]
 testing = []
 
 [lints]

@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "Transaction and entry point execution functionality for a Papyrus node."
 
 [features]
+cairo_native = ["blockifier/cairo_native"]
 testing = ["apollo_test_utils", "rand", "rand_chacha"]
 
 [dependencies]

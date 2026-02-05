@@ -7,7 +7,10 @@ license.workspace = true
 description = "Main Starknet sequencer node orchestrating all components."
 
 [features]
-cairo_native = ["apollo_batcher/cairo_native"]
+cairo_native = [
+    "apollo_batcher/cairo_native",
+    "apollo_http_server/cairo_native",
+]
 testing = ["tokio-util"]
 
 [lints]
