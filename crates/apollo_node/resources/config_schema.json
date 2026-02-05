@@ -39,20 +39,10 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "batcher_config.dynamic_config.storage_reader_server_config.enable": {
+  "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
     "value": false
-  },
-  "batcher_config.dynamic_config.storage_reader_server_config.ip": {
-    "description": "The IP address for the storage reader HTTP server.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "batcher_config.dynamic_config.storage_reader_server_config.port": {
-    "description": "The port for the storage reader HTTP server.",
-    "privacy": "Public",
-    "value": 8091
   },
   "batcher_config.static_config.block_builder_config.bouncer_config.blake_weight": {
     "description": "blake opcode gas weight.",
@@ -408,6 +398,16 @@
     "description": "The categories of data saved in storage.",
     "privacy": "Public",
     "value": "StateOnly"
+  },
+  "batcher_config.static_config.storage_reader_server_static_config.ip": {
+    "description": "The IP address for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "batcher_config.static_config.storage_reader_server_static_config.port": {
+    "description": "The port for the storage reader HTTP server.",
+    "privacy": "Public",
+    "value": 8091
   },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -3379,17 +3379,17 @@
     "privacy": "Public",
     "value": "FullArchive"
   },
-  "state_sync_config.storage_reader_server_config.enable": {
+  "state_sync_config.storage_reader_server_config.dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
     "value": false
   },
-  "state_sync_config.storage_reader_server_config.ip": {
+  "state_sync_config.storage_reader_server_config.static_config.ip": {
     "description": "The IP address for the storage reader HTTP server.",
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "state_sync_config.storage_reader_server_config.port": {
+  "state_sync_config.storage_reader_server_config.static_config.port": {
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
     "value": 8091

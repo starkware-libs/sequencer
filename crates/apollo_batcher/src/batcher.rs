@@ -52,6 +52,7 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
+use apollo_storage::storage_reader_server::ServerConfig;
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
@@ -1330,11 +1331,15 @@ pub async fn create_batcher(
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     config_manager_client: SharedConfigManagerClient,
 ) -> Batcher {
+    let storage_reader_server_config = ServerConfig {
+        static_config: config.static_config.storage_reader_server_static_config.clone(),
+        dynamic_config: config.dynamic_config.storage_reader_server_dynamic_config.clone(),
+    };
     let (storage_reader, storage_writer, storage_reader_server) =
         open_storage_with_metric_and_server(
             config.static_config.storage.clone(),
             &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-            config.dynamic_config.storage_reader_server_config.clone(),
+            storage_reader_server_config,
         )
         .expect("Failed to open batcher's storage");
 
