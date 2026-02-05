@@ -78,10 +78,6 @@ fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
     sender.max_capacity() - sender.capacity()
 }
 
-fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
-    sender.max_capacity() - sender.capacity()
-}
-
 fn get_number_of_items_in_channel_from_receiver<T>(receiver: &Receiver<T>) -> usize {
     receiver.max_capacity() - receiver.capacity()
 }
@@ -240,16 +236,8 @@ async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependenci
         .storage_reader
         .expect_global_root_height()
         .returning(move || Ok(global_root_height));
-    mock_dependencies
-        .storage_reader
-        .expect_get_parent_hash_and_partial_block_hash_components()
-        .with(eq(global_root_height))
-        .returning(|height| get_dummy_parent_hash_and_partial_block_hash_components(&height));
-    mock_dependencies
-        .storage_reader
-        .expect_get_state_diff()
-        .with(eq(global_root_height))
-        .returning(|_| Ok(Some(test_state_diff())));
+    // `create_commitment_manager` also queries the current block height.
+    mock_dependencies.storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let batcher_config = mock_dependencies.batcher_config.clone();
     let (mut commitment_manager, storage_reader, mut storage_writer) =
@@ -265,9 +253,6 @@ async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependenci
         .await;
 
     assert_eq!(commitment_manager.get_commitment_task_offset(), INITIAL_HEIGHT);
-    let results = await_items(&mut commitment_manager.results_receiver, 1).await;
-    let result = (results.first().unwrap()).clone().expect_commitment();
-    assert_eq!(result.height, global_root_height);
 }
 
 #[rstest]

@@ -11,10 +11,12 @@ use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::ServerConfig;
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::StorageConfig;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
 use tokio::task::AbortHandle;
-use tracing::instrument;
+use tracing::{debug, instrument, warn};
 
 use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
 
@@ -258,6 +260,13 @@ impl ClassHashStorage {
         storage_config: StorageConfig,
         storage_reader_server_config: ServerConfig,
     ) -> ClassHashStorageResult<Self> {
+        debug!(
+            path_prefix = %storage_config.db_config.path_prefix.display(),
+            chain_id = %storage_config.db_config.chain_id,
+            enforce_file_exists = storage_config.db_config.enforce_file_exists,
+            scope = ?storage_config.scope,
+            "Initializing class-hash storage (stateless_compiled_class_hash_v2 table)."
+        );
         let (reader, writer, storage_reader_server) =
             apollo_storage::open_storage_with_metric_and_server(
                 storage_config,
@@ -285,7 +294,7 @@ impl ClassHashStorage {
 
     #[instrument(skip(self), level = "debug", ret, err)]
     fn set_executable_class_hash_v2(
-        &mut self,
+        &self,
         class_id: ClassId,
         executable_class_hash_v2: ExecutableClassHash,
     ) -> ClassHashStorageResult<()> {
@@ -330,11 +339,181 @@ impl FsClassStorage {
         let class_hash_storage =
             ClassHashStorage::new(config.class_hash_storage_config, ServerConfig::default())?;
         std::fs::create_dir_all(&config.persistent_root)?;
-        Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
+        let storage = Self { persistent_root: config.persistent_root, class_hash_storage };
+        storage.spawn_marker_backfill_thread();
+        Ok(storage)
+    }
+
+    fn spawn_marker_backfill_thread(&self) {
+        let persistent_root = self.persistent_root.clone();
+        let class_hash_storage = self.class_hash_storage.clone();
+        std::thread::spawn(move || {
+            // If this log does not appear, FsClassStorage is not being used.
+            warn!(
+                persistent_root = %persistent_root.display(),
+                "TEMP HOTFIX: starting startup marker backfill for stateless_compiled_class_hash_v2."
+            );
+            // Best-effort startup backfill:
+            // rebuild `stateless_compiled_class_hash_v2` from on-disk CASM files.
+            //
+            // This is a hotfix for the scenario where class files exist but the marker DB is empty.
+            let mut stack = vec![persistent_root.clone()];
+            let mut scanned = 0usize;
+            let mut backfilled = 0usize;
+
+            while let Some(dir) = stack.pop() {
+                let Ok(read_dir) = std::fs::read_dir(&dir) else { continue };
+                for entry in read_dir.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        stack.push(path);
+                        continue;
+                    }
+
+                    if path.file_name().and_then(|s| s.to_str()) != Some("casm") {
+                        continue;
+                    }
+
+                    scanned += 1;
+                    let Some(class_dir) = path.parent() else { continue };
+                    let Some(class_id_hex) = class_dir.file_name().and_then(|s| s.to_str()) else {
+                        continue;
+                    };
+                    // Our on-disk layout stores the full 32-byte hex (no 0x prefix) as directory name.
+                    let Ok(felt) =
+                        format!("0x{class_id_hex}").parse::<starknet_api::hash::StarkHash>()
+                    else {
+                        continue;
+                    };
+                    let class_id: ClassId = starknet_api::core::ClassHash(felt);
+
+                    let marker_already_exists = class_hash_storage
+                        .get_executable_class_hash_v2(class_id)
+                        .ok()
+                        .flatten()
+                        .is_some();
+                    if marker_already_exists {
+                        continue;
+                    }
+
+                    let computed = match RawExecutableClass::from_file(path.clone()) {
+                        Ok(Some(raw)) => {
+                            let value = raw.into_value();
+                            match serde_json::from_value::<ContractClass>(value) {
+                                Ok(ContractClass::V1((casm, _))) => Some(casm.hash(&HashVersion::V2)),
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    };
+
+                    let Some(hash) = computed else { continue };
+                    match class_hash_storage.set_executable_class_hash_v2(class_id, hash) {
+                        Ok(()) => backfilled += 1,
+                        Err(err) => {
+                            warn!(
+                                ?class_id,
+                                casm_path = %path.display(),
+                                computed_executable_class_hash_v2 = %format_args!("{:#064x}", hash.0),
+                                error = %err,
+                                "Startup marker backfill: failed to persist executable-class marker."
+                            );
+                        }
+                    }
+                }
+            }
+
+            debug!(
+                persistent_root = %persistent_root.display(),
+                scanned,
+                backfilled,
+                "Startup marker backfill finished."
+            );
+        });
     }
 
     fn contains_class(&self, class_id: ClassId) -> FsClassStorageResult<bool> {
-        Ok(self.get_executable_class_hash_v2(class_id)?.is_some())
+        let marker = self.get_executable_class_hash_v2(class_id)?;
+        if let Some(marker) = marker {
+            debug!(
+                ?class_id,
+                executable_class_hash_v2 = %format_args!("{:#064x}", marker.0),
+                "Found executable class marker (compiled_class_hash_v2)."
+            );
+            return Ok(true);
+        }
+
+        // TEMP HOTFIX:
+        // If the marker is missing, fall back to file existence so class manager keeps working.
+        // Also log the expected marker (computed from CASM) to help fix storage.
+        let sierra_path = self.get_sierra_path(class_id);
+        let executable_path = self.get_executable_path(class_id);
+        let deprecated_path = self.get_deprecated_executable_path(class_id);
+        let sierra_exists = sierra_path.exists();
+        let executable_exists = executable_path.exists();
+        let deprecated_exists = deprecated_path.exists();
+
+        let expected_marker = if executable_exists {
+            match RawExecutableClass::from_file(executable_path.clone()) {
+                Ok(Some(raw)) => {
+                    let value = raw.into_value();
+                    match serde_json::from_value::<ContractClass>(value) {
+                        Ok(ContractClass::V1((casm, _))) => Some(casm.hash(&HashVersion::V2)),
+                        Ok(ContractClass::V0(_)) => None,
+                        Err(err) => {
+                            debug!(
+                                ?class_id,
+                                error = %err,
+                                "Failed to deserialize CASM file to compute expected marker."
+                            );
+                            None
+                        }
+                    }
+                }
+                Ok(None) => None,
+                Err(err) => {
+                    debug!(
+                        ?class_id,
+                        error = %err,
+                        "Failed to read CASM file to compute expected marker."
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let expected_marker_hex = expected_marker.as_ref().map(|h| format!("{:#064x}", h.0));
+
+        if sierra_exists || executable_exists {
+            warn!(
+                ?class_id,
+                persistent_root = %self.persistent_root.display(),
+                sierra_path = %sierra_path.display(),
+                executable_path = %executable_path.display(),
+                sierra_exists,
+                executable_exists,
+                deprecated_exists,
+                expected_executable_class_hash_v2 = expected_marker_hex,
+                "Executable class marker (compiled_class_hash_v2) is missing but class files exist on disk. \
+                 expected_executable_class_hash_v2={}",
+                expected_marker_hex.as_deref().unwrap_or("<unavailable>")
+            );
+            return Ok(true);
+        } else {
+            debug!(
+                ?class_id,
+                persistent_root = %self.persistent_root.display(),
+                sierra_exists,
+                executable_exists,
+                deprecated_exists,
+                expected_executable_class_hash_v2 = expected_marker_hex,
+                "Executable class marker (compiled_class_hash_v2) is missing. expected_executable_class_hash_v2={}",
+                expected_marker_hex.as_deref().unwrap_or("<unavailable>")
+            );
+        }
+
+        Ok(false)
     }
 
     // TODO(Elin): make this more robust; checking file existence is not enough, since by reading
@@ -409,9 +588,7 @@ impl FsClassStorage {
         class_id: ClassId,
         executable_class_hash_v2: ExecutableClassHash,
     ) -> FsClassStorageResult<()> {
-        Ok(self
-            .class_hash_storage
-            .set_executable_class_hash_v2(class_id, executable_class_hash_v2)?)
+        Ok(self.class_hash_storage.set_executable_class_hash_v2(class_id, executable_class_hash_v2)?)
     }
 
     #[allow(dead_code)]
@@ -499,6 +676,13 @@ impl ClassStorage for FsClassStorage {
     #[instrument(skip(self), level = "debug", err)]
     fn get_sierra(&self, class_id: ClassId) -> Result<Option<RawClass>, Self::Error> {
         if !self.contains_class(class_id)? {
+            let sierra_path = self.get_sierra_path(class_id);
+            debug!(
+                ?class_id,
+                sierra_path = %sierra_path.display(),
+                sierra_exists = sierra_path.exists(),
+                "FsClassStorage.get_sierra returning None (class marker missing)."
+            );
             return Ok(None);
         }
 
@@ -511,12 +695,15 @@ impl ClassStorage for FsClassStorage {
 
     #[instrument(skip(self), level = "debug", err)]
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error> {
-        let path = if self.contains_class(class_id)? {
-            self.get_executable_path(class_id)
-        } else if self.contains_deprecated_class(class_id) {
-            self.get_deprecated_executable_path(class_id)
+        // TEMP HOTFIX: prefer actual file presence, do not depend on marker DB.
+        let executable_path = self.get_executable_path(class_id);
+        let deprecated_path = self.get_deprecated_executable_path(class_id);
+
+        let path = if executable_path.exists() {
+            executable_path
+        } else if deprecated_path.exists() {
+            deprecated_path
         } else {
-            // Class does not exist in storage.
             return Ok(None);
         };
 
@@ -530,7 +717,48 @@ impl ClassStorage for FsClassStorage {
         &self,
         class_id: ClassId,
     ) -> Result<Option<ExecutableClassHash>, Self::Error> {
-        Ok(self.class_hash_storage.get_executable_class_hash_v2(class_id)?)
+        let marker = self.class_hash_storage.get_executable_class_hash_v2(class_id)?;
+        if marker.is_some() {
+            return Ok(marker);
+        }
+
+        // TEMP HOTFIX: compute and backfill marker from on-disk CASM when missing.
+        let executable_path = self.get_executable_path(class_id);
+        if !executable_path.exists() {
+            return Ok(None);
+        }
+
+        let computed = match RawExecutableClass::from_file(executable_path.clone()) {
+            Ok(Some(raw)) => {
+                let value = raw.into_value();
+                match serde_json::from_value::<ContractClass>(value) {
+                    Ok(ContractClass::V1((casm, _))) => Some(casm.hash(&HashVersion::V2)),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+
+        if let Some(hash) = computed {
+            if let Err(err) = self.class_hash_storage.set_executable_class_hash_v2(class_id, hash) {
+                warn!(
+                    ?class_id,
+                    executable_path = %executable_path.display(),
+                    computed_executable_class_hash_v2 = %format_args!("{:#064x}", hash.0),
+                    error = %err,
+                    "TEMP HOTFIX: computed executable-class marker but failed to persist it."
+                );
+            } else {
+                warn!(
+                    ?class_id,
+                    executable_path = %executable_path.display(),
+                    computed_executable_class_hash_v2 = %format_args!("{:#064x}", hash.0),
+                    "TEMP HOTFIX: backfilled missing executable-class marker (compiled_class_hash_v2) from on-disk CASM."
+                );
+            }
+        }
+
+        Ok(computed)
     }
 
     #[instrument(skip(self, class), level = "debug", ret, err)]
