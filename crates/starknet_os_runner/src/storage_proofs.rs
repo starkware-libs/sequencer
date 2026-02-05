@@ -5,14 +5,19 @@ use blockifier::state::cached_state::StateMaps;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::hash::HashOutput;
-use starknet_os::commitment_infos::{CommitmentInfo, StateCommitmentInfos};
+use starknet_api::hash::{HashOutput, StateRoots};
+use starknet_os::commitment_infos::{
+    create_commitment_infos,
+    CommitmentInfo,
+    StateCommitmentInfos,
+};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     flatten_preimages,
     Preimage,
     PreimageMap,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_rust::providers::jsonrpc::HttpTransport;
 use starknet_rust::providers::{JsonRpcClient, Provider};
 use starknet_rust_core::types::{
@@ -174,6 +179,7 @@ impl RpcStorageProofsProvider {
         // Build FactsDb from RPC proofs and execution initial reads.
         let mut facts_db =
             create_facts_db_from_storage_proof(rpc_proof, query, &execution_data.initial_reads)?;
+
         // Get initial state roots from RPC proof.
         let contracts_trie_root_hash = HashOutput(rpc_proof.global_roots.contracts_tree_root);
         let classes_trie_root_hash = HashOutput(rpc_proof.global_roots.classes_tree_root);
@@ -181,19 +187,32 @@ impl RpcStorageProofsProvider {
         let committer_state_diff =
             state_maps_to_committer_state_diff(execution_data.initial_reads.clone());
 
-        let _new_roots = commit_state_diff(
+        // Commit state diff using the committer.
+        let new_roots = commit_state_diff(
             &mut facts_db,
             contracts_trie_root_hash,
             classes_trie_root_hash,
             committer_state_diff,
         )
         .await?;
-        // TODO(Aviv): Use create_commitment_infos from starknet_os_flow_tests (to be moved to
-        // committer crate) to properly generate commitment infos with the new facts from
-        // the committer.
-        unimplemented!(
-            "Proper commitment info generation with committer facts will be implemented in next PR"
-        );
+
+        let previous_state_roots = StateRoots { contracts_trie_root_hash, classes_trie_root_hash };
+
+        // Consume the new facts from the committer storage.
+        let mut map_storage: MapStorage = facts_db.consume_storage();
+
+        // Get initial reads keys.
+        let initial_reads_keys = execution_data.initial_reads.keys();
+
+        let commitment_infos = create_commitment_infos(
+            &previous_state_roots,
+            &new_roots,
+            &mut map_storage,
+            &initial_reads_keys,
+        )
+        .await;
+
+        Ok(commitment_infos)
     }
 
     /// Creates commitment infos from RPC storage proof without state changes.
