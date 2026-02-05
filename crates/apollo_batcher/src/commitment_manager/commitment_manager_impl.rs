@@ -62,24 +62,31 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // Public methods.
 
     /// Creates and initializes the commitment manager.
-    pub(crate) async fn create_commitment_manager<
-        R: BatcherStorageReader + ?Sized,
-        W: BatcherStorageWriter + ?Sized,
-    >(
+    pub(crate) async fn create_commitment_manager<R: BatcherStorageReader>(
+        batcher_config: &BatcherConfig,
         commitment_manager_config: &CommitmentManagerConfig,
-        storage_reader: Arc<R>,
-        storage_writer: &mut Box<W>,
+        storage_reader: &R,
         committer_client: SharedCommitterClient,
     ) -> Self {
         let global_root_height = storage_reader
             .global_root_height()
             .expect("Failed to get global root height from storage.");
+        let block_height =
+            storage_reader.state_diff_height().expect("Failed to get block height from storage.");
+
         info!("Initializing commitment manager.");
-        CommitmentManager::initialize(
+        info!(
+            "Startup commitment backfill is disabled. Initializing commitment_task_offset to \
+             current block height {block_height} (instead of global_root_height \
+             {global_root_height})."
+        );
+        let commitment_manager = CommitmentManager::initialize(
             commitment_manager_config,
-            global_root_height,
+            block_height,
             committer_client,
-        )
+        );
+        let _ = (batcher_config, storage_reader);
+        commitment_manager
     }
 
     pub(crate) fn get_commitment_task_offset(&self) -> BlockNumber {
