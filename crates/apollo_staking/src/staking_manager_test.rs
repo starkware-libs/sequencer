@@ -19,7 +19,12 @@ use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 
-use crate::committee_provider::{Committee, CommitteeProvider, CommitteeProviderError, Staker};
+use crate::committee_provider::{
+    CommitteeError,
+    CommitteeProvider,
+    CommitteeProviderError,
+    Staker,
+};
 use crate::staking_contract::MockStakingContract;
 use crate::staking_manager::{Epoch, StakingManager, MIN_EPOCH_LENGTH};
 use crate::utils::MockBlockRandomGenerator;
@@ -116,7 +121,7 @@ async fn get_committee_success(
     default_config: StakingManagerConfig,
     mut contract: MockStakingContract,
     #[case] stakers: Vec<Staker>,
-    #[case] expected_committee: Committee,
+    #[case] expected_committee: Vec<Staker>,
 ) {
     set_current_epoch(&mut contract, EPOCH_1);
     set_previous_epoch(&mut contract, Some(EPOCH_0));
@@ -125,14 +130,14 @@ async fn get_committee_success(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig { dynamic_config: default_with_committee_size(3), ..default_config },
         None,
     );
 
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
 
-    assert_eq!(*committee, expected_committee);
+    assert_eq!(*committee.members(), expected_committee);
 }
 
 #[rstest]
@@ -152,22 +157,22 @@ async fn get_committee_cache(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         config,
         None,
     );
 
     // Case 1: Get committee for epoch 1. Cache miss – STAKER_1 fetched from contract.
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
-    assert_eq!(*committee, vec![STAKER_1]);
+    assert_eq!(*committee.members(), vec![STAKER_1]);
 
     // Case 2: Query epoch 1 again. Cache hit – STAKER_1 returned from cache.
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
-    assert_eq!(*committee, vec![STAKER_1]);
+    assert_eq!(*committee.members(), vec![STAKER_1]);
 
     // Case 3: Get committee for epoch 2. Cache miss – new state is fetched from the contract.
     let committee = committee_manager.get_committee(E2_H1).await.unwrap();
-    assert_eq!(*committee, vec![STAKER_2]);
+    assert_eq!(*committee.members(), vec![STAKER_2]);
 }
 
 #[rstest]
@@ -185,19 +190,19 @@ async fn get_committee_for_next_epoch(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig { dynamic_config: default_with_committee_size(3), ..default_config },
         None,
     );
 
     // 1. Valid Query: E2_H1 falls within the next epoch's min bounds.
-    let committee = (*committee_manager.get_committee(E2_H1).await.unwrap()).clone();
+    let committee = committee_manager.get_committee(E2_H1).await.unwrap().members().clone();
     assert_eq!(committee.into_iter().collect::<HashSet<_>>(), HashSet::from([STAKER_1, STAKER_2]));
 
     // 2. Invalid Query: E2_H2 exceeds the min bounds of the next epoch.
     // Since the next epoch's length is not known at this point, we cannot know if this height
     // belongs to Epoch 2 or a future Epoch > 2.
-    let err = committee_manager.get_committee(E2_H2).await.unwrap_err();
+    let err = committee_manager.get_committee(E2_H2).await.err().unwrap();
     assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
 }
 
@@ -225,16 +230,16 @@ async fn get_committee_applies_dynamic_config_changes(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         default_config,
         Some(Arc::new(config_manager_client)),
     );
 
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
-    assert_eq!(committee.len(), 2);
+    assert_eq!(committee.members().len(), 2);
 
     let committee = committee_manager.get_committee(E2_H1).await.unwrap();
-    assert_eq!(committee.len(), 1);
+    assert_eq!(committee.members().len(), 1);
 }
 
 #[rstest]
@@ -277,12 +282,13 @@ async fn get_proposer_success(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(state_sync_client),
-        Box::new(random_generator),
+        Arc::new(random_generator),
         default_config,
         None,
     );
 
-    let proposer = committee_manager.get_proposer(E1_H1, 0).await.unwrap();
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let proposer = committee.get_proposer(E1_H1, 0).unwrap();
 
     assert_eq!(proposer, expected_proposer.address);
 }
@@ -309,17 +315,18 @@ async fn get_proposer_for_next_epoch(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(state_sync_client),
-        Box::new(random_generator),
+        Arc::new(random_generator),
         default_config,
         None,
     );
 
     // Query a height in Epoch 2, that is within the min bounds of the next epoch.
-    let proposer = committee_manager.get_proposer(E2_H1, 0).await.unwrap();
+    let committee = committee_manager.get_committee(E2_H1).await.unwrap();
+    let proposer = committee.get_proposer(E2_H1, 0).unwrap();
     assert_eq!(proposer, STAKER_4.address);
 
     // Query a height in Epoch 2, that is outside the min bounds of the next epoch.
-    let err = committee_manager.get_proposer(E2_H2, 0).await.unwrap_err();
+    let err = committee_manager.get_committee(E2_H2).await.err().unwrap();
     assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
 }
 
@@ -358,17 +365,19 @@ async fn get_proposer_epoch_cache_updates(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(state_sync_client),
-        Box::new(random_generator),
+        Arc::new(random_generator),
         default_config,
         None,
     );
 
     // Query a height in Epoch 1, should return STAKER_1.
-    let proposer = committee_manager.get_proposer(E1_H1, 0).await.unwrap();
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let proposer = committee.get_proposer(E1_H1, 0).unwrap();
     assert_eq!(proposer, STAKER_1.address);
 
     // Query a height in Epoch 3, should return STAKER_3.
-    let proposer = committee_manager.get_proposer(E3_H1, 0).await.unwrap();
+    let committee = committee_manager.get_committee(E3_H1).await.unwrap();
+    let proposer = committee.get_proposer(E3_H1, 0).unwrap();
     assert_eq!(proposer, STAKER_3.address);
 }
 
@@ -393,13 +402,13 @@ async fn get_proposer_empty_committee(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(state_sync_client),
-        Box::new(random_generator),
+        Arc::new(random_generator),
         StakingManagerConfig { dynamic_config: default_with_committee_size(0), ..default_config },
         None,
     );
 
-    let err = committee_manager.get_proposer(E1_H1, 0).await.unwrap_err();
-    assert_matches!(err, CommitteeProviderError::EmptyCommittee);
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    assert_matches!(committee.get_proposer(E1_H1, 0).unwrap_err(), CommitteeError::EmptyCommittee);
 }
 
 #[rstest]
@@ -427,12 +436,13 @@ async fn get_proposer_random_value_exceeds_total_weight(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(state_sync_client),
-        Box::new(random_generator),
+        Arc::new(random_generator),
         default_config,
         None,
     );
 
-    let _ = committee_manager.get_proposer(E1_H1, 0).await;
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let _ = committee.get_proposer(E1_H1, 0);
 }
 
 // Helper function to create ConfiguredStaker for testing
@@ -477,7 +487,7 @@ async fn get_actual_proposer_all_eligible(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig {
                 default_committee,
@@ -488,7 +498,8 @@ async fn get_actual_proposer_all_eligible(
         None,
     );
 
-    let proposer = committee_manager.get_actual_proposer(height, round).await.unwrap();
+    let committee = committee_manager.get_committee(height).await.unwrap();
+    let proposer = committee.get_actual_proposer(height, round);
     assert_eq!(proposer, expected_proposer.address);
 }
 
@@ -531,7 +542,7 @@ async fn get_actual_proposer_some_eligible(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig {
                 default_committee,
@@ -542,7 +553,8 @@ async fn get_actual_proposer_some_eligible(
         None,
     );
 
-    let proposer = committee_manager.get_actual_proposer(height, round).await.unwrap();
+    let committee = committee_manager.get_committee(height).await.unwrap();
+    let proposer = committee.get_actual_proposer(height, round);
     assert_eq!(proposer, expected_proposer.address);
 }
 
@@ -566,7 +578,7 @@ async fn get_actual_proposer_no_eligible_panics(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig {
                 default_committee,
@@ -578,7 +590,8 @@ async fn get_actual_proposer_no_eligible_panics(
     );
 
     // Should panic.
-    let _ = committee_manager.get_actual_proposer(E1_H1, 0).await;
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let _ = committee.get_actual_proposer(E1_H1, 0);
 }
 
 #[rstest]
@@ -616,7 +629,7 @@ async fn test_get_actual_proposer_epoch_changes(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig { default_committee, override_committee },
             ..default_config
@@ -625,15 +638,19 @@ async fn test_get_actual_proposer_epoch_changes(
     );
 
     // In epoch 1, should always get STAKER_1
-    let proposer = committee_manager.get_actual_proposer(E1_H1, 0).await.unwrap();
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let proposer = committee.get_actual_proposer(E1_H1, 0);
     assert_eq!(proposer, STAKER_1.address);
-    let proposer = committee_manager.get_actual_proposer(E1_H2, 5).await.unwrap();
+    let committee = committee_manager.get_committee(E1_H2).await.unwrap();
+    let proposer = committee.get_actual_proposer(E1_H2, 5);
     assert_eq!(proposer, STAKER_1.address);
 
     // In epoch 2, should always get STAKER_3
-    let proposer = committee_manager.get_actual_proposer(E2_H1, 0).await.unwrap();
+    let committee = committee_manager.get_committee(E2_H1).await.unwrap();
+    let proposer = committee.get_actual_proposer(E2_H1, 0);
     assert_eq!(proposer, STAKER_3.address);
-    let proposer = committee_manager.get_actual_proposer(E2_H1.unchecked_next(), 5).await.unwrap();
+    let committee = committee_manager.get_committee(E2_H1.unchecked_next()).await.unwrap();
+    let proposer = committee.get_actual_proposer(E2_H1.unchecked_next(), 5);
     assert_eq!(proposer, STAKER_3.address);
 }
 
@@ -650,11 +667,11 @@ async fn get_actual_proposer_invalid_height(
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Box::new(MockBlockRandomGenerator::new()),
+        Arc::new(MockBlockRandomGenerator::new()),
         default_config,
         None,
     );
 
-    let err = committee_manager.get_actual_proposer(E2_H2, 0).await.unwrap_err();
+    let err = committee_manager.get_committee(E2_H2).await.err().unwrap();
     assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
 }

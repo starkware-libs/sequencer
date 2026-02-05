@@ -11,8 +11,6 @@ use thiserror::Error;
 
 use crate::staking_contract::StakingContractError;
 
-pub type Committee = Vec<Staker>;
-
 #[cfg_attr(test, derive(Clone))]
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Staker {
@@ -41,34 +39,42 @@ pub enum CommitteeProviderError {
 
 pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;
 
-/// Trait for managing committee operations including fetching and selecting committee members
-/// and proposers for consensus.
+#[derive(Debug, Error)]
+pub enum CommitteeError {
+    #[error("Committee is empty.")]
+    EmptyCommittee,
+}
+
+pub type CommitteeResult<T> = Result<T, CommitteeError>;
+
+/// Trait for committee operations including proposer selection.
+/// This trait is implemented by committee instances and provides synchronous methods
+/// for determining proposers based on height and round.
+pub trait CommitteeTrait {
+    /// Returns a reference to the committee members.
+    fn members(&self) -> &Vec<Staker>;
+
+    /// Returns the address of the proposer for the specified height and round.
+    ///
+    /// The proposer is deterministically selected for a given height and round using
+    /// weighted random selection based on staker weights.
+    fn get_proposer(&self, height: BlockNumber, round: Round) -> CommitteeResult<ContractAddress>;
+
+    /// Returns the address of the actual proposer for the specified height and round.
+    ///
+    /// Uses deterministic round-robin selection from eligible proposers:
+    /// `(height + round) % eligible_count`.
+    fn get_actual_proposer(&self, height: BlockNumber, round: Round) -> ContractAddress;
+}
+
+/// Trait for managing committee operations including fetching committee instances.
 /// The committee is a subset of nodes (proposer and validators) that are selected to participate in
 /// the consensus at a given epoch, responsible for proposing blocks and voting on them.
 #[async_trait]
 pub trait CommitteeProvider: Send + Sync {
-    /// Returns a list of the committee members at the epoch of the given height.
-    // TODO(Dafna): Consider including the total weight in the returned `Committee` type.
-    async fn get_committee(&self, height: BlockNumber) -> CommitteeProviderResult<Arc<Committee>>;
-
-    /// Returns the address of the proposer for the specified height and round.
-    ///
-    /// The proposer is deterministically selected for a given height and round, from the committee
-    /// corresponding to the epoch associated with that height.
-    async fn get_proposer(
+    /// Returns a committee instance for the epoch of the given height.
+    async fn get_committee(
         &self,
         height: BlockNumber,
-        round: Round,
-    ) -> CommitteeProviderResult<ContractAddress>;
-
-    /// Returns the address of the actual proposer for the specified height and round.
-    ///
-    /// 1. Filters the committee to only include stakers eligible to propose (based on `can_propose`
-    ///    field in StakerConfig).
-    /// 2. Uses deterministic round-robin selection: `(height + round) % eligible_count`.
-    async fn get_actual_proposer(
-        &self,
-        height: BlockNumber,
-        round: Round,
-    ) -> CommitteeProviderResult<ContractAddress>;
+    ) -> CommitteeProviderResult<Arc<dyn CommitteeTrait>>;
 }
