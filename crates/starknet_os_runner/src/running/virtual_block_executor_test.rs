@@ -9,13 +9,13 @@ use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
 
-use crate::test_utils::{
+use crate::running::test_utils::{
     rpc_virtual_block_executor,
     SENDER_ADDRESS,
     STRK_TOKEN_ADDRESS,
     TEST_BLOCK_NUMBER,
 };
-use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecutor};
+use crate::running::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecutor};
 
 /// Constructs an Invoke transaction that calls `balanceOf` on the STRK token contract.
 ///
