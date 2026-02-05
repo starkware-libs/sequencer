@@ -17,6 +17,7 @@ use crate::blockifier::config::{
     CairoNativeRunConfig,
     ContractClassManagerConfig,
     NativeClassesWhitelist,
+    NativeExecutionMode,
 };
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -63,60 +64,65 @@ impl NativeClassManager {
     /// Creates a new contract class manager and spawns a thread that listens for compilation
     /// requests and processes them (a.k.a. the compilation worker).
     /// Returns the contract class manager.
-    /// NOTE: the compilation worker is not spawned if one of the following conditions is met:
-    /// 1. The feature `cairo_native` is not enabled.
-    /// 2. `config.run_cairo_native` is `false`.
-    /// 3. `config.wait_on_native_compilation` is `true`.
+    /// NOTE: the compilation worker is only spawned in `Async` mode. In `Disabled` mode, no
+    /// compilation occurs. In `Sync` mode, compilation happens synchronously without a worker.
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let class_cache = RawClassCache::new(config.contract_cache_size);
         let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
-        let cairo_native_run_config = config.cairo_native_run_config;
-        if !cairo_native_run_config.run_cairo_native {
-            // Native compilation is disabled - no need to start the compilation worker.
-            return NativeClassManager {
-                cairo_native_run_config,
-                class_cache,
-                compiled_class_hash_v2_cache,
-                sender: None,
-                compiler: None,
-            };
-        }
+        let cairo_native_run_config = config.cairo_native_run_config.clone();
 
-        let compiler_config = config.native_compiler_config.clone();
-        let compiler = Arc::new(SierraToNativeCompiler::new(compiler_config));
-        if cairo_native_run_config.wait_on_native_compilation {
-            // Compilation requests are processed synchronously. No need to start the worker.
-            return NativeClassManager {
-                cairo_native_run_config,
-                class_cache,
-                compiled_class_hash_v2_cache,
-                sender: None,
-                compiler: Some(compiler),
-            };
-        }
-
-        let (sender, receiver) = sync_channel(cairo_native_run_config.channel_size);
-
-        std::thread::spawn({
-            let class_cache = class_cache.clone();
-            move || {
-                run_compilation_worker(
+        match cairo_native_run_config.execution_mode_from_bools() {
+            NativeExecutionMode::Disabled => {
+                // Native compilation is disabled - no need to start the compilation worker.
+                NativeClassManager {
+                    cairo_native_run_config,
                     class_cache,
-                    receiver,
-                    compiler,
-                    cairo_native_run_config.panic_on_compilation_failure,
-                )
+                    compiled_class_hash_v2_cache,
+                    sender: None,
+                    compiler: None,
+                }
             }
-        });
+            NativeExecutionMode::Sync => {
+                // Compilation requests are processed synchronously. No need to start the worker.
+                let compiler_config = config.native_compiler_config.clone();
+                let compiler = Arc::new(SierraToNativeCompiler::new(compiler_config));
+                NativeClassManager {
+                    cairo_native_run_config,
+                    class_cache,
+                    compiled_class_hash_v2_cache,
+                    sender: None,
+                    compiler: Some(compiler),
+                }
+            }
+            NativeExecutionMode::Async => {
+                // Spawn a background compilation worker thread.
+                let compiler_config = config.native_compiler_config.clone();
+                let compiler = Arc::new(SierraToNativeCompiler::new(compiler_config));
+                let (sender, receiver) = sync_channel(cairo_native_run_config.channel_size);
 
-        // TODO(AVIV): Add private constructor with default values.
-        NativeClassManager {
-            cairo_native_run_config,
-            class_cache,
-            compiled_class_hash_v2_cache,
-            sender: Some(sender),
-            compiler: None,
+                std::thread::spawn({
+                    let class_cache = class_cache.clone();
+                    let panic_on_compilation_failure =
+                        cairo_native_run_config.panic_on_compilation_failure;
+                    move || {
+                        run_compilation_worker(
+                            class_cache,
+                            receiver,
+                            compiler,
+                            panic_on_compilation_failure,
+                        )
+                    }
+                });
+
+                NativeClassManager {
+                    cairo_native_run_config,
+                    class_cache,
+                    compiled_class_hash_v2_cache,
+                    sender: Some(sender),
+                    compiler: None,
+                }
+            }
         }
     }
 
@@ -216,11 +222,11 @@ impl NativeClassManager {
     }
 
     fn run_cairo_native(&self) -> bool {
-        self.cairo_native_run_config.run_cairo_native
+        self.cairo_native_run_config.execution_mode_from_bools() != NativeExecutionMode::Disabled
     }
 
     fn wait_on_native_compilation(&self) -> bool {
-        self.cairo_native_run_config.wait_on_native_compilation
+        self.cairo_native_run_config.execution_mode_from_bools() == NativeExecutionMode::Sync
     }
 
     /// Determines if a contract should run with cairo native based on the whitelist.
