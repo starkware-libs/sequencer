@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770222057498,
+  "lastUpdate": 1770281393792,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1937,6 +1937,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1398.485825,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "93648739+nadin-Starkware@users.noreply.github.com",
+            "name": "Nadin Jbara",
+            "username": "nadin-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f580233db9538e2c1bbdf0d2b76e9645edf838f3",
+          "message": "apollo_config_manager: Add batcher dynamic config to config manager (#12281)",
+          "timestamp": "2026-02-05T08:25:17Z",
+          "tree_id": "d19766ee12f57ff109bc6305a35ac74d701d1307",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f580233db9538e2c1bbdf0d2b76e9645edf838f3"
+        },
+        "date": 1770281393488,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 950.14278463,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1355.9708716199998,
             "unit": "ms"
           }
         ]
