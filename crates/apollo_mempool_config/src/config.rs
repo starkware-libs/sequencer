@@ -5,6 +5,7 @@ use apollo_config::converters::deserialize_seconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use url::Url;
 use validator::Validate;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
@@ -79,6 +80,8 @@ pub struct MempoolStaticConfig {
     pub capacity_in_bytes: u64,
     // Type of transaction queue to use: priority based on fee or FIFO.
     pub queue_type: QueueType,
+    // The URL of the echonet recorder (used for FIFO queue timestamp fetching).
+    pub recorder_url: Url,
 }
 
 impl Default for MempoolStaticConfig {
@@ -91,6 +94,9 @@ impl Default for MempoolStaticConfig {
             committed_nonce_retention_block_count: 100,
             capacity_in_bytes: 1 << 30, // 1GB.
             queue_type: QueueType::Fee,
+            recorder_url: "https://recorder_url"
+                .parse::<Url>()
+                .expect("recorder_url must be a valid Recorder URL"),
         }
     }
 }
@@ -141,6 +147,12 @@ impl SerializeConfig for MempoolStaticConfig {
                 "queue_type",
                 &format!("{:?}", self.queue_type).to_lowercase(),
                 "Type of transaction queue to use: priority based on fee or FIFO.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "recorder_url",
+                &self.recorder_url.to_string(),
+                "The URL of the echonet recorder (used for FIFO queue timestamp fetching).",
                 ParamPrivacyInput::Public,
             ),
         ])
