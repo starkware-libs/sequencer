@@ -3,6 +3,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_config::ValidatorId;
 use apollo_node_config::node_config::NodeDynamicConfig;
+use apollo_state_sync_config::config::StateSyncDynamicConfig;
 
 use crate::config_manager::ConfigManager;
 
@@ -71,5 +72,24 @@ async fn config_manager_get_batcher_dynamic_config() {
     assert_eq!(
         retrieved, batcher_dynamic_config,
         "Batcher dynamic config mismatch: {retrieved:#?} != {batcher_dynamic_config:#?}",
+    );
+}
+
+#[tokio::test]
+async fn config_manager_get_state_sync_dynamic_config() {
+    let config = ConfigManagerConfig::default();
+    let state_sync_dynamic_config = StateSyncDynamicConfig::default();
+    let node_dynamic_config = NodeDynamicConfig {
+        state_sync_dynamic_config: Some(state_sync_dynamic_config.clone()),
+        ..Default::default()
+    };
+    let config_manager = ConfigManager::new(config, node_dynamic_config);
+
+    let retrieved = config_manager
+        .get_state_sync_dynamic_config()
+        .expect("Failed to get state sync dynamic config");
+    assert_eq!(
+        retrieved, state_sync_dynamic_config,
+        "State sync dynamic config mismatch: {retrieved:#?} != {state_sync_dynamic_config:#?}",
     );
 }
