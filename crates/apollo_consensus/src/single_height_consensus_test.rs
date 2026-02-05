@@ -30,6 +30,8 @@ lazy_static! {
 const HEIGHT_0: BlockNumber = BlockNumber(0);
 const ROUND_0: Round = 0;
 const ROUND_1: Round = 1;
+/// When true, require the virtual proposer to have voted in favor before reaching a decision.
+const REQUIRE_VIRTUAL_PROPOSER_VOTE: bool = true;
 
 #[test]
 fn proposer() {
@@ -40,6 +42,7 @@ fn proposer() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -109,6 +112,7 @@ fn validator(repeat_proposal: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -182,6 +186,7 @@ fn vote_twice(same_vote: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -246,6 +251,7 @@ fn rebroadcast_votes() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -338,6 +344,7 @@ fn repropose() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -405,6 +412,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -455,6 +463,7 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
