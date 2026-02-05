@@ -195,7 +195,6 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             match self.results_receiver.try_recv() {
                 Ok(result) => {
                     let commitment_task_output = result.expect_commitment();
-                    // TODO(Rotem): add panels in the dashboard for the latency metrics.
                     self.update_task_duration_metric(
                         CommitterRequestLabelValue::CommitBlock,
                         commitment_task_output.height,
