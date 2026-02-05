@@ -5,10 +5,20 @@ use apollo_committer::metrics::{
     TOTAL_BLOCK_DURATION,
     WRITE_DURATION_PER_BLOCK,
 };
+use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::{Panel, PanelType, Row, Unit};
 
 const BLOCK_DURATIONS_LOG_QUERY: &str = "Total/read/compute/write duration of block";
+
+fn get_offset_panel() -> Panel {
+    Panel::new(
+        "Offset",
+        "The next block number to commit",
+        OFFSET.get_name_with_filter().to_string(),
+        PanelType::Stat,
+    )
+}
 
 fn get_total_block_duration_panel() -> Panel {
     Panel::from_hist(&TOTAL_BLOCK_DURATION, "Total Block Duration", "Total block duration")
@@ -46,7 +56,7 @@ pub(crate) fn get_committer_row() -> Row {
     Row::new(
         "Committer",
         vec![
-            Panel::from_gauge(&OFFSET, PanelType::TimeSeries),
+            get_offset_panel(),
             get_total_block_duration_panel(),
             get_read_duration_per_block_panel(),
             get_compute_duration_per_block_panel(),
