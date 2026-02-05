@@ -80,9 +80,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "l1_scraper_config.chain_id",
                 "l1_gas_price_scraper_config.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
-                "state_sync_config.storage_config.db_config.chain_id",
-                "state_sync_config.network_config.chain_id",
-                "state_sync_config.rpc_config.chain_id",
+                "state_sync_config.static_config.storage_config.db_config.chain_id",
+                "state_sync_config.static_config.network_config.chain_id",
+                "state_sync_config.static_config.rpc_config.chain_id",
             ]),
         ),
         (
@@ -95,7 +95,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.\
                  eth_fee_token_address",
                 "gateway_config.static_config.chain_info.fee_token_addresses.eth_fee_token_address",
-                "state_sync_config.rpc_config.execution_config.eth_fee_contract_address",
+                "state_sync_config.static_config.rpc_config.execution_config.eth_fee_contract_address",
             ]),
         ),
         (
@@ -119,8 +119,8 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "URL for communicating with Starknet.",
             ),
             set_pointing_param_paths(&[
-                "state_sync_config.central_sync_client_config.central_source_config.starknet_url",
-                "state_sync_config.rpc_config.starknet_url",
+                "state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url",
+                "state_sync_config.static_config.rpc_config.starknet_url",
             ]),
         ),
         (
@@ -133,7 +133,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.\
                  strk_fee_token_address",
                 "gateway_config.static_config.chain_info.fee_token_addresses.strk_fee_token_address",
-                "state_sync_config.rpc_config.execution_config.strk_fee_contract_address",
+                "state_sync_config.static_config.rpc_config.execution_config.strk_fee_contract_address",
             ]),
         ),
         (
@@ -185,7 +185,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         "revert_config".to_owned(),
         &RevertConfig::default(),
         set_pointing_param_paths(&[
-            "state_sync_config.revert_config",
+            "state_sync_config.static_config.revert_config",
             "consensus_manager_config.revert_config",
         ]),
     );
