@@ -500,7 +500,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Total/read/compute/write duration of block\""
+            "log_query": "\"durations in ms (total/read/compute/write):\""
           }
         },
         {
@@ -513,7 +513,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Total/read/compute/write duration of block\""
+            "log_query": "\"durations in ms (total/read/compute/write):\""
           }
         },
         {
@@ -526,7 +526,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Total/read/compute/write duration of block\""
+            "log_query": "\"durations in ms (total/read/compute/write):\""
           }
         },
         {
@@ -539,7 +539,7 @@
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Total/read/compute/write duration of block\""
+            "log_query": "\"durations in ms (total/read/compute/write):\""
           }
         }
       ],
