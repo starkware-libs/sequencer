@@ -259,11 +259,6 @@
     "privacy": "Public",
     "value": 600
   },
-  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
     "privacy": "Public",
@@ -278,11 +273,6 @@
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
     "value": 16106127360
-  },
-  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
   },
   "batcher_config.static_config.contract_class_manager_config.native_compiler_config.optimization_level": {
     "description": "The level of optimization to apply during compilation.",
@@ -2449,11 +2439,6 @@
     "privacy": "Public",
     "value": 600
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
     "privacy": "Public",
@@ -2468,11 +2453,6 @@
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
     "value": 16106127360
-  },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
   },
   "gateway_config.contract_class_manager_config.native_compiler_config.optimization_level": {
     "description": "The level of optimization to apply during compilation.",
