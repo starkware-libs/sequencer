@@ -21,15 +21,15 @@ use crate::block_committer::input::{
 };
 use crate::block_committer::measurements_util::NoMeasurements;
 use crate::block_committer::state_diff_generator::generate_random_state_diff;
-use crate::db::facts_db::db::FactsDb;
 use crate::db::facts_db::types::FactsDbInitialRead;
+use crate::db::facts_db::FactsDb;
 use crate::db::forest_trait::{
     EmptyInitialReadContext,
     ForestReader,
     ForestWriter,
     StorageInitializer,
 };
-use crate::db::index_db::db::{IndexDb, IndexDbReadContext};
+use crate::db::index_db::{IndexDb, IndexDbReadContext};
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
 static FIRST_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
