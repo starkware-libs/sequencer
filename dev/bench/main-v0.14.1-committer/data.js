@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770293124957,
+  "lastUpdate": 1770302839036,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2039,6 +2039,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1224.11235873,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "97a0b4454e1cb76959faf385fb7994cba23f86ab",
+          "message": "starknet_committer,starknet_patricia: move node_serde to facts db (#11644)",
+          "timestamp": "2026-02-05T14:24:24Z",
+          "tree_id": "84ddfdd4f563b56588433066bd2111fa35c2d713",
+          "url": "https://github.com/starkware-libs/sequencer/commit/97a0b4454e1cb76959faf385fb7994cba23f86ab"
+        },
+        "date": 1770302838705,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 887.2403140800001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1338.68537746,
             "unit": "ms"
           }
         ]
