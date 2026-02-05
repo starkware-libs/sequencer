@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 
@@ -30,6 +30,7 @@ use mockall::Sequence;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
+use tokio::sync::Mutex;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::storage::MockHeightVotedStorageTrait;
@@ -184,7 +185,8 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -320,7 +322,8 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    )
+    .await;
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -383,7 +386,8 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    )
+    .await;
     let res = manager
         .run_height(
             &mut context,
@@ -478,7 +482,8 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
 
     // Run height 0 - should drop height 2 messages, cache height 1 messages, and reach consensus.
@@ -612,7 +617,8 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
 
     // Spawn tasks to send messages when rounds advance.
@@ -771,7 +777,8 @@ async fn manager_successfully_syncs_when_higher_than_last_voted_height(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
-    );
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -841,7 +848,8 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
-    );
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -893,7 +901,8 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
-    );
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -949,15 +958,14 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     // Set up broadcast expectation for prevote - must happen after storage write
     // Use a channel to signal when prevote is broadcast so we can send other votes
     let (prevote_tx, prevote_rx) = oneshot::channel();
-    let prevote_tx_shared = Arc::new(Mutex::new(Some(prevote_tx)));
-    let prevote_tx_for_callback = prevote_tx_shared.clone();
+    let mut prevote_tx = Some(prevote_tx);
     context
         .expect_broadcast()
         .times(1)
         .withf(move |msg: &Vote| msg == &prevote(Some(block_id.0), HEIGHT, ROUND_0, *VALIDATOR_ID))
         .in_sequence(&mut storage_before_broadcast_sequence)
         .returning(move |_| {
-            if let Some(tx) = prevote_tx_for_callback.lock().unwrap().take() {
+            if let Some(tx) = prevote_tx.take() {
                 let _ = tx.send(());
             }
             Ok(())
@@ -974,8 +982,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     // Set up broadcast expectation for precommit - must happen after storage write
     // Use a channel to signal when precommit is broadcast
     let (precommit_tx, precommit_rx) = oneshot::channel();
-    let precommit_tx_shared = Arc::new(Mutex::new(Some(precommit_tx)));
-    let precommit_tx_for_callback = precommit_tx_shared.clone();
+    let mut precommit_tx_shared = Some(precommit_tx);
     context
         .expect_broadcast()
         .times(1)
@@ -984,7 +991,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         })
         .in_sequence(&mut storage_before_broadcast_sequence)
         .returning(move |_| {
-            if let Some(tx) = precommit_tx_for_callback.lock().unwrap().take() {
+            if let Some(tx) = precommit_tx_shared.take() {
                 let _ = tx.send(());
             }
             Ok(())
@@ -1013,7 +1020,8 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
-    );
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
 
     // Spawn a task to send votes after validator votes
@@ -1093,7 +1101,8 @@ async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: Conse
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    )
+    .await;
     let res = manager
         .run_height(
             &mut context,
@@ -1150,7 +1159,8 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
