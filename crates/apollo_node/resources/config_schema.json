@@ -2574,6 +2574,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "mempool_config.static_config.recorder_url": {
+    "description": "The URL of the echonet recorder (used for FIFO queue timestamp fetching).",
+    "pointer_target": "recorder_url",
+    "privacy": "Public"
+  },
   "mempool_config.static_config.validate_resource_bounds": {
     "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",
     "pointer_target": "validate_resource_bounds",
