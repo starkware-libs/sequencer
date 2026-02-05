@@ -46,6 +46,7 @@ url.workspace = true
 apollo_starknet_os_program.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+expect-test.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 

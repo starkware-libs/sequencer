@@ -18,4 +18,6 @@ mod storage_proofs_test;
 #[cfg(test)]
 pub mod test_utils;
 #[cfg(test)]
+mod test_utils_test;
+#[cfg(test)]
 mod virtual_block_executor_test;

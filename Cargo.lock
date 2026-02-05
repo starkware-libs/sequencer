@@ -12256,6 +12256,7 @@ dependencies = [
  "cairo-lang-utils",
  "cairo-vm",
  "clap",
+ "expect-test",
  "futures",
  "indexmap 2.12.0",
  "jsonrpsee",
