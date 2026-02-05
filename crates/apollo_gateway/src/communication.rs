@@ -32,6 +32,16 @@ impl ComponentRequestHandler<GatewayRequest, GatewayResponse> for Gateway {
                         }),
                 )
             }
+            GatewayRequest::UpdateTimestamps(mappings) => {
+                GatewayResponse::UpdateTimestamps(
+                    self.update_timestamps(mappings)
+                        .await
+                        .map_err(|source| GatewayError::DeprecatedGatewayError {
+                            source,
+                            p2p_message_metadata: None,
+                        }),
+                )
+            }
         }
     }
 }
