@@ -24,7 +24,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::fifo_transaction_queue::FifoTransactionQueue;
@@ -268,7 +268,7 @@ impl Mempool {
         // In Echonet mode, use FIFO queue; otherwise use fee-based priority queue.
         let tx_queue: Box<dyn TransactionQueueTrait> = if config.static_config.is_echonet() {
             // Echonet mode uses FIFO queue
-            Box::new(FifoTransactionQueue::default())
+            Box::new(FifoTransactionQueue::new())
         } else {
             Box::new(FeeTransactionQueue::default())
         };
@@ -285,8 +285,31 @@ impl Mempool {
         }
     }
 
-    pub fn get_ts(&self) -> u64 {
-        self.clock.unix_now()
+    /// Returns the timestamp for block creation.
+    ///
+    /// For Fee queue: Returns current unix timestamp
+    /// For FIFO queue: Returns the timestamp of the FIRST transaction in the queue
+    ///                 (fetched from echonet API during add_tx)
+    ///                 This timestamp is then used to filter which transactions to include
+    ///                 in the block (only those with matching timestamp)
+    pub fn get_ts(&mut self) -> u64 {
+        if self.config.static_config.is_echonet() {
+            // Echonet mode: use FIFO queue timestamp
+            if let Some(timestamp) = self.tx_queue.get_first_tx_timestamp() {
+                // Store this timestamp - get_txs() will only return txs with this exact timestamp
+                info!("Mempool get_ts (FIFO): timestamp={}, setting as threshold", timestamp);
+                self.tx_queue.set_last_returned_timestamp(timestamp);
+                timestamp
+            } else {
+                // Queue is empty, return 0
+                info!("Mempool get_ts (FIFO): queue empty, returning 0");
+                0
+            }
+        } else {
+            let timestamp = self.clock.unix_now();
+            debug!("Mempool get_ts (Fee): timestamp={}", timestamp);
+            timestamp
+        }
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
@@ -311,6 +334,12 @@ impl Mempool {
         let mut account_nonce_updates = AddressToNonce::new();
         while n_remaining_txs > 0 && self.tx_queue.has_ready_txs() {
             let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
+            
+            // Break if no transactions were returned (e.g., different timestamp in FIFO mode)
+            if chunk.is_empty() {
+                break;
+            }
+            
             let (valid_txs, expired_txs_updates) = self.prune_expired_nonqueued_txs(chunk);
             account_nonce_updates.extend(expired_txs_updates);
 
@@ -558,7 +587,16 @@ impl Mempool {
 
         if self.config.static_config.is_echonet() {
             // Echonet mode: FIFO queue - insert all transactions
+            debug!(
+                "Mempool add_tx_inner (FIFO): inserting tx_hash={} into queue (will fetch \
+                 timestamp)",
+                tx_reference.tx_hash
+            );
             self.insert_to_tx_queue(tx_reference);
+            info!(
+                "Mempool add_tx_inner (FIFO): successfully added tx_hash={}",
+                tx_reference.tx_hash
+            );
         } else if tx_reference.nonce == account_nonce {
             // Remove queued transactions the account might have. This includes old nonce
             // transactions that have become obsolete; those with an equal nonce should
@@ -700,6 +738,17 @@ impl Mempool {
     pub fn update_gas_price(&mut self, threshold: GasPrice) {
         self.tx_queue.update_gas_price_threshold(threshold);
         self.update_state_metrics();
+    }
+
+    /// Updates timestamp mappings for transactions (Echonet mode only).
+    /// This is called by echonet to push timestamp information to the mempool.
+    pub fn update_timestamps(&mut self, mappings: HashMap<TransactionHash, u64>) {
+        if self.config.static_config.is_echonet() {
+            info!("Mempool update_timestamps: received {} timestamp mappings", mappings.len());
+            self.tx_queue.update_timestamps(mappings);
+        } else {
+            warn!("Mempool update_timestamps: called in non-echonet mode, ignoring");
+        }
     }
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {

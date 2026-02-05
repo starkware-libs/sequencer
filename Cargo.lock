@@ -1502,6 +1502,7 @@ dependencies = [
  "apollo_http_server_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_mempool_types",
  "apollo_metrics",
  "apollo_proc_macros",
  "assert_matches",
@@ -1828,12 +1829,14 @@ dependencies = [
  "pretty_assertions",
  "rand 0.8.5",
  "rstest",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -1843,6 +1846,7 @@ dependencies = [
  "apollo_config",
  "apollo_deployment_mode",
  "serde",
+ "url",
  "validator",
 ]
 

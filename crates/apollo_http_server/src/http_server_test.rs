@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr};
+
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
@@ -12,6 +15,7 @@ use apollo_gateway_types::gateway_types::{
     InvokeGatewayOutput,
 };
 use apollo_infra::component_client::ClientError;
+use apollo_infra_utils::test_utils::AvailablePorts;
 use axum::body::{Bytes, HttpBody};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -317,4 +321,96 @@ async fn sanitizing_error_message() {
         "Escaped message not found. This is the returned error message: {}",
         starknet_error.message
     );
+}
+
+#[tokio::test]
+async fn test_update_timestamps_success() {
+    use crate::test_utils::{create_http_server_config, http_client_server_setup};
+    
+    let mut mock_gateway_client = MockGatewayClient::new();
+    
+    // Set up expectation for update_timestamps call
+    mock_gateway_client
+        .expect_update_timestamps()
+        .withf(|mappings: &HashMap<TransactionHash, u64>| {
+            mappings.len() == 2
+                && mappings.get(&tx_hash!(1_u64)) == Some(&1234567890)
+                && mappings.get(&tx_hash!(2_u64)) == Some(&1234567891)
+        })
+        .times(1)
+        .returning(|_| Ok(()));
+
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports = AvailablePorts::new(
+        apollo_infra_utils::test_utils::TestIdentifier::HttpServerUnitTests.into(),
+        17
+    );
+    let port = available_ports.get_next_port();
+    let http_server_config = create_http_server_config(std::net::SocketAddr::new(ip, port));
+    
+    let _http_test_client = http_client_server_setup(mock_gateway_client, http_server_config.clone()).await;
+
+    // Create timestamp mappings
+    let mut mappings = HashMap::new();
+    mappings.insert(tx_hash!(1_u64), 1234567890);
+    mappings.insert(tx_hash!(2_u64), 1234567891);
+
+    // Send request
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("http://{}:{}/gateway/update_timestamps", ip, port))
+        .json(&mappings)
+        .send()
+        .await
+        .unwrap();
+
+    // Assert success
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+}
+
+#[tokio::test]
+async fn test_update_timestamps_gateway_error() {
+    use crate::test_utils::{create_http_server_config, http_client_server_setup};
+    
+    let mut mock_gateway_client = MockGatewayClient::new();
+    
+    // Set up expectation for update_timestamps call to return error
+    mock_gateway_client
+        .expect_update_timestamps()
+        .times(1)
+        .returning(|_| {
+            Err(GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
+                source: StarknetError {
+                    code: StarknetErrorCode::UnknownErrorCode("INTERNAL_ERROR".to_string()),
+                    message: "Failed to update timestamps".to_string(),
+                },
+                p2p_message_metadata: None,
+            }))
+        });
+
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports = AvailablePorts::new(
+        apollo_infra_utils::test_utils::TestIdentifier::HttpServerUnitTests.into(),
+        18
+    );
+    let port = available_ports.get_next_port();
+    let http_server_config = create_http_server_config(std::net::SocketAddr::new(ip, port));
+    
+    let _http_test_client = http_client_server_setup(mock_gateway_client, http_server_config.clone()).await;
+
+    // Create timestamp mappings
+    let mut mappings = HashMap::new();
+    mappings.insert(tx_hash!(1_u64), 1234567890);
+
+    // Send request
+    let client = reqwest::Client::new();
+    let response = client
+        .post(format!("http://{}:{}/gateway/update_timestamps", ip, port))
+        .json(&mappings)
+        .send()
+        .await
+        .unwrap();
+
+    // Assert error status
+    assert!(response.status().is_client_error() || response.status().is_server_error());
 }
