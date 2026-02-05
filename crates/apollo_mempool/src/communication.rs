@@ -139,7 +139,7 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn get_ts(&self) -> MempoolResult<u64> {
+    fn get_ts(&mut self) -> MempoolResult<u64> {
         Ok(self.mempool.get_ts())
     }
 }
