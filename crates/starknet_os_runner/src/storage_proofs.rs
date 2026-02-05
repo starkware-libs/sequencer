@@ -36,7 +36,7 @@ use crate::errors::ProofProviderError;
 use crate::virtual_block_executor::VirtualBlockExecutionData;
 
 /// Configuration for storage proof provider behavior.
-#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct StorageProofConfig {
     /// Whether to include state changes in the storage proofs.
     ///
@@ -49,6 +49,12 @@ pub struct StorageProofConfig {
     /// state verification is not required.
     #[allow(dead_code)]
     pub(crate) include_state_changes: bool,
+}
+
+impl Default for StorageProofConfig {
+    fn default() -> Self {
+        Self { include_state_changes: true }
+    }
 }
 
 /// Provides Patricia Merkle proofs for the initial state used in transaction execution.
