@@ -10,7 +10,10 @@ use apollo_config::dumping::{
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::db::DbConfig;
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerStaticConfig,
+};
 use apollo_storage::{StorageConfig, StorageScope};
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
@@ -237,6 +240,7 @@ pub struct BatcherStaticConfig {
     pub propose_l1_txs_every: u64,
     // TODO(Amos): Move to commitment manager config.
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
+    pub storage_reader_server_static_config: StorageReaderServerStaticConfig,
 }
 
 impl SerializeConfig for BatcherStaticConfig {
@@ -294,6 +298,10 @@ impl SerializeConfig for BatcherStaticConfig {
             &self.first_block_with_partial_block_hash,
             "first_block_with_partial_block_hash",
         ));
+        dump.append(&mut prepend_sub_config_name(
+            self.storage_reader_server_static_config.dump(),
+            "storage_reader_server_static_config",
+        ));
         dump
     }
 }
@@ -321,20 +329,21 @@ impl Default for BatcherStaticConfig {
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             first_block_with_partial_block_hash: None,
+            storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
         }
     }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct BatcherDynamicConfig {
-    pub storage_reader_server_config: ServerConfig,
+    pub storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
 }
 
 impl SerializeConfig for BatcherDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         prepend_sub_config_name(
-            self.storage_reader_server_config.dump(),
-            "storage_reader_server_config",
+            self.storage_reader_server_dynamic_config.dump(),
+            "storage_reader_server_dynamic_config",
         )
     }
 }
