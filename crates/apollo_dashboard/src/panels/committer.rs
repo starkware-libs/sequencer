@@ -10,7 +10,7 @@ use apollo_metrics::metrics::MetricQueryName;
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
 
-const BLOCK_DURATIONS_LOG_QUERY: &str = "Total/read/compute/write duration of block";
+const BLOCK_DURATIONS_LOG_QUERY: &str = "\"Block\" AND \"durations in ms\"";
 
 fn get_offset_panel() -> Panel {
     Panel::new(
