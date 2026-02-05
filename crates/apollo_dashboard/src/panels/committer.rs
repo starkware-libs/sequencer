@@ -6,7 +6,8 @@ use apollo_committer::metrics::{
     WRITE_DURATION_PER_BLOCK,
 };
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 
 const BLOCK_DURATIONS_LOG_QUERY: &str = "Total/read/compute/write duration of block";
 

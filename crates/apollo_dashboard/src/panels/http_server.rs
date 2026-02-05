@@ -8,7 +8,8 @@ use apollo_http_server::metrics::{
 };
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
+use crate::dashboard::{get_time_since_last_increase_expr, Row};
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{increase, DEFAULT_DURATION};
 
 fn get_panel_total_transactions_received() -> Panel {

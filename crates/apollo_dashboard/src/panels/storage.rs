@@ -6,7 +6,8 @@ use apollo_storage::metrics::{
     SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
 };
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 
 fn get_storage_append_thin_state_diff_latency() -> Panel {
     Panel::from_hist(

@@ -11,7 +11,7 @@ use crate::alerts::{
     AlertSeverity,
     ObserverApplicability,
 };
-use crate::dashboard::{Panel, PanelType, ThresholdMode, ThresholdStep, Thresholds, Unit};
+use crate::panel::{Panel, PanelType, ThresholdMode, ThresholdStep, Thresholds, Unit};
 
 #[test]
 fn serialize_alert() {

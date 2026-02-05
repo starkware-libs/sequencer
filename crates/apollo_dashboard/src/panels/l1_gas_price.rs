@@ -13,7 +13,8 @@ use apollo_l1_gas_price::metrics::{
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
+use crate::dashboard::{get_time_since_last_increase_expr, Row};
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{increase, DEFAULT_DURATION};
 
 fn get_panel_eth_to_strk_error_count() -> Panel {
