@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::error::Error;
+use std::fmt::Write;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
@@ -22,7 +23,9 @@ use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitB
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
     Action,
+    BlockDurations,
     BlockMeasurement,
+    BlockModificationsCounts,
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
@@ -60,7 +63,6 @@ use crate::metrics::{
     WRITE_DB_ENTRIES_PER_BLOCK,
     WRITE_DURATION_PER_BLOCK,
 };
-
 #[cfg(test)]
 #[path = "committer_test.rs"]
 mod committer_test;
@@ -458,29 +460,56 @@ fn update_metrics(
     READ_DURATION_PER_BLOCK.record_lossy(durations.read);
     COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
     WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
-    info!(
-        "Total/read/compute/write duration of block {height}: {:.0}/{:.0}/{:.0}/{:.0} ms",
-        durations.block * 1000.0,
-        durations.read * 1000.0,
-        durations.compute * 1000.0,
-        durations.write * 1000.0
-    );
     READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
     WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
-    info!("Storage tries modifications in block {height}: {}", modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.contracts_trie);
-    info!(
-        "Contracts trie modifications in block {height}: {}",
-        modifications_counts.contracts_trie
-    );
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.classes_trie);
-    info!("Classes trie modifications in block {height}: {}", modifications_counts.classes_trie);
     COUNT_EMPTIED_LEAVES_PER_BLOCK.record_lossy(modifications_counts.emptied_storage_leaves);
-    if modifications_counts.storage_tries > 0 {
-        let empty_leaves_percentage = modifications_counts.emptied_storage_leaves as f64
+
+    let emptied_leaves_percentage = if modifications_counts.storage_tries > 0 {
+        let percentage = modifications_counts.emptied_storage_leaves as f64
             / modifications_counts.storage_tries as f64;
-        EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.record_lossy(empty_leaves_percentage);
-        info!("Emptied leaves percentage in block {height}: {empty_leaves_percentage:.2}%");
+        EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.record_lossy(percentage);
+        Some(percentage)
+    } else {
+        None
+    };
+
+    log_block_measurements(height, durations, modifications_counts, emptied_leaves_percentage);
+}
+
+fn log_block_measurements(
+    height: BlockNumber,
+    durations: &BlockDurations,
+    modifications_counts: &BlockModificationsCounts,
+    emptied_leaves_percentage: Option<f64>,
+) {
+    let mut log_msg = String::with_capacity(256);
+
+    // Durations.
+    let _ = write!(
+        &mut log_msg,
+        "Block {height} stats: durations in ms (total/read/compute/write): {:.0}/{:.0}/{:.0}/{:.0}",
+        durations.block * 1000.0,
+        durations.read * 1000.0,
+        durations.compute * 1000.0,
+        durations.write * 1000.0,
+    );
+
+    // Modifications count.
+    let _ = write!(
+        &mut log_msg,
+        ", modifications count \
+         (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}",
+        modifications_counts.storage_tries,
+        modifications_counts.contracts_trie,
+        modifications_counts.classes_trie,
+        modifications_counts.emptied_storage_leaves,
+    );
+    if let Some(emptied_leaves_percentage) = emptied_leaves_percentage {
+        let _ = write!(&mut log_msg, " ({emptied_leaves_percentage:.2}%)");
     }
+
+    info!("{}", log_msg);
 }
