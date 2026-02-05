@@ -14,9 +14,9 @@ use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
-use crate::runner::{RpcRunnerFactory, RunnerConfig};
-use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig};
-use crate::virtual_block_executor::RpcVirtualBlockExecutor;
+use crate::running::runner::{RpcRunnerFactory, RunnerConfig};
+use crate::running::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig};
+use crate::running::virtual_block_executor::RpcVirtualBlockExecutor;
 
 // ================================================================================================
 // Constants

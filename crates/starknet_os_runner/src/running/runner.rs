@@ -20,10 +20,14 @@ use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOs
 use starknet_os::runner::run_virtual_os;
 use url::Url;
 
-use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
-use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig, StorageProofProvider};
-use crate::virtual_block_executor::{
+use crate::running::classes_provider::ClassesProvider;
+use crate::running::storage_proofs::{
+    RpcStorageProofsProvider,
+    StorageProofConfig,
+    StorageProofProvider,
+};
+use crate::running::virtual_block_executor::{
     RpcVirtualBlockExecutor,
     VirtualBlockExecutionData,
     VirtualBlockExecutor,

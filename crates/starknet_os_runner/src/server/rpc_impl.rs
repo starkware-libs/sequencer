@@ -6,9 +6,9 @@ use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::ErrorObjectOwned;
 use starknet_api::rpc_transaction::RpcTransaction;
 
+use crate::proving::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 use crate::server::config::ServiceConfig;
 use crate::server::rpc_trait::ProvingRpcServer;
-use crate::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 
 /// Starknet RPC specification version.
 const SPEC_VERSION: &str = "0.10.0";

@@ -19,8 +19,8 @@ use starknet_api::transaction::MessageToL1;
 use tokio::net::TcpListener;
 use tracing::{info, instrument};
 
+use crate::proving::virtual_snos_prover::{RpcVirtualSnosProver, VirtualSnosProverError};
 use crate::server::config::ServiceConfig;
-use crate::virtual_snos_prover::{RpcVirtualSnosProver, VirtualSnosProverError};
 
 /// Request body for the prove_transaction endpoint.
 #[derive(Debug, Deserialize)]

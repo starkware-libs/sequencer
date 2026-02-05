@@ -7,7 +7,7 @@ use jsonrpsee::core::RpcResult;
 use jsonrpsee::proc_macros::rpc;
 use starknet_api::rpc_transaction::RpcTransaction;
 
-use crate::virtual_snos_prover::ProveTransactionResult;
+use crate::proving::virtual_snos_prover::ProveTransactionResult;
 
 /// JSON-RPC trait for the proving service.
 ///

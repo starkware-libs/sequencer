@@ -7,7 +7,7 @@ use starknet_rust_core::types::BlockId;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
-use crate::test_utils::{
+use crate::running::test_utils::{
     get_sepolia_rpc_url,
     PRIVACY_POOL_CONTRACT_ADDRESS,
     PRIVACY_POOL_CONTRACT_NONCE,

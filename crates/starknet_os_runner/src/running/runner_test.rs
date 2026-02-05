@@ -23,8 +23,8 @@ use starknet_api::transaction::{InvokeTransactionV3, Transaction};
 use starknet_api::{calldata, contract_address, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::runner::VirtualSnosRunner;
-use crate::test_utils::{
+use crate::running::runner::VirtualSnosRunner;
+use crate::running::test_utils::{
     default_resource_bounds_for_client_side_tx,
     fetch_sepolia_block_number,
     sepolia_runner_factory,
@@ -72,7 +72,6 @@ async fn test_run_os_with_balance_of_transaction() {
         .calculate_transaction_hash(&ChainId::Sepolia)
         .unwrap();
 
-    // Create a custom factory with the specified run_committer setting.
     let factory = sepolia_runner_factory();
     let block_id = fetch_sepolia_block_number().await;
 
@@ -100,7 +99,6 @@ async fn test_run_os_with_privacy_transaction() {
     // Sender is the privacy pool contract.
     let sender_address = ContractAddress::try_from(PRIVACY_POOL_CONTRACT_ADDRESS).unwrap();
 
-    // Signature for the specific transaction (any change in the tx changes the signature).
     let signature_r = felt!("0x20e2eb40a80ecb91fc20f8d67f5aeb597ca30a593785eddef26046352b639bd");
     let signature_s = felt!("0x6953e08cc5d88f01923afe940e009ad0d278319410fc52b0e050f379573b2a5");
 
@@ -175,7 +173,6 @@ async fn test_run_os_with_privacy_transaction() {
     let factory = sepolia_runner_factory();
     let block_id = fetch_sepolia_block_number().await;
 
-    // Verify execution succeeds.
     factory
         .run_virtual_os(block_id, vec![(invoke_tx, tx_hash)])
         .await
@@ -201,16 +198,13 @@ async fn test_run_os_with_transfer_transaction() {
     let account = ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap();
     let recipient = contract_address!("0x123");
 
-    // Transfer amount: 1 wei (u256 = low + high * 2^128).
     let amount_low = felt!("1");
     let amount_high = felt!("0");
 
-    // Calldata matches dummy account's __execute__(contract_address, selector, calldata).
-    // transfer(recipient, amount) where amount is u256 (low, high).
     let calldata = calldata![
         *strk_token.0.key(),
         selector_from_name("transfer").0,
-        felt!("3"), // calldata length: recipient + amount_low + amount_high
+        felt!("3"),
         *recipient.0.key(),
         amount_low,
         amount_high
@@ -231,7 +225,6 @@ async fn test_run_os_with_transfer_transaction() {
     let factory = sepolia_runner_factory();
     let block_id = fetch_sepolia_block_number().await;
 
-    // Verify execution succeeds.
     factory
         .run_virtual_os(block_id, vec![(invoke_tx, tx_hash)])
         .await
