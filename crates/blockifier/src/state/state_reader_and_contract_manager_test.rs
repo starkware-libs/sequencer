@@ -64,7 +64,7 @@ fn test_get_compiled_class_without_native_in_cache(
     #[cfg(not(feature = "cairo_native"))]
     assert!(execution_mode == NativeExecutionMode::Disabled);
 
-    let run_cairo_native = execution_mode != NativeExecutionMode::Disabled;
+    let _run_cairo_native = execution_mode != NativeExecutionMode::Disabled;
     let wait_on_native_compilation = execution_mode == NativeExecutionMode::Sync;
 
     let test_contract = FeatureContract::TestContract(cairo_version);

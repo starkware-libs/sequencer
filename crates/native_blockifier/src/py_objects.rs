@@ -10,6 +10,7 @@ use blockifier::blockifier::config::{
     ConcurrencyConfig,
     ContractClassManagerConfig,
     NativeClassesWhitelist,
+    NativeExecutionMode,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstantsOverrides};
@@ -262,6 +263,8 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
 pub struct PyCairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
+    /// Execution mode: "Disabled", "Async", or "Sync".
+    pub execution_mode: String,
     pub channel_size: usize,
     // Determines which contracts are allowd to run Cairo Native. `None` → All.
     pub native_classes_whitelist: Option<Vec<PyFelt>>,
@@ -273,10 +276,20 @@ impl Default for PyCairoNativeRunConfig {
         Self {
             run_cairo_native: false,
             wait_on_native_compilation: false,
+            execution_mode: "Disabled".to_string(),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: None,
             panic_on_compilation_failure: false,
         }
+    }
+}
+
+fn parse_execution_mode(mode: &str) -> NativeExecutionMode {
+    match mode {
+        "Disabled" => NativeExecutionMode::Disabled,
+        "Async" => NativeExecutionMode::Async,
+        "Sync" => NativeExecutionMode::Sync,
+        _ => panic!("Invalid execution_mode: {mode}. Expected 'Disabled', 'Async', or 'Sync'."),
     }
 }
 
@@ -292,6 +305,7 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
+            execution_mode: parse_execution_mode(&py_cairo_native_run_config.execution_mode),
             channel_size: py_cairo_native_run_config.channel_size,
             native_classes_whitelist,
             panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,
