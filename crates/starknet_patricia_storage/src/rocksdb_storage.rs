@@ -87,8 +87,8 @@ impl RocksDbOptions {
         opts.set_allow_mmap_reads(config.use_mmap_reads);
 
         let mut block = BlockBasedOptions::default();
-        let cache = Cache::new_lru_cache(config.cache_size);
-        block.set_block_cache(&cache);
+        // let cache = Cache::new_lru_cache(config.cache_size);
+        // block.set_block_cache(&cache);
 
         // With a single level, filter blocks become too large to sit in cache.
         block.set_index_type(BlockBasedIndexType::TwoLevelIndexSearch);
