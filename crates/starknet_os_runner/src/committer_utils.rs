@@ -4,14 +4,19 @@ use std::hash::BuildHasher;
 use blockifier::state::cached_state::{StateMaps, StorageDiff, StorageView};
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, Nonce};
-use starknet_api::hash::HashOutput;
+use starknet_api::hash::{HashOutput, StateRoots};
+use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
+    Input,
+    ReaderConfig,
     StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::block_committer::measurements_util::NoMeasurements;
 use starknet_committer::db::facts_db::db::FactsDb;
-use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_committer::db::facts_db::types::FactsDbInitialRead;
+use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
@@ -235,4 +240,27 @@ fn add_dummy_nodes_for_orphan_hashes(
     }
 
     Ok(())
+}
+
+/// Commits the state diff, populates the DB with the new facts and returns the new state roots.
+pub async fn commit_state_diff(
+    facts_db: &mut FactsDb<MapStorage>,
+    contracts_trie_root_hash: HashOutput,
+    classes_trie_root_hash: HashOutput,
+    state_diff: StateDiff,
+) -> Result<StateRoots, ProofProviderError> {
+    let config = ReaderConfig::default();
+    let initial_read_context =
+        FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
+    let input = Input { state_diff, initial_read_context, config };
+
+    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, &mut NoMeasurements)
+        .await
+        .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;
+    facts_db.write(&filled_forest).await?;
+
+    Ok(StateRoots {
+        contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
+        classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
+    })
 }
