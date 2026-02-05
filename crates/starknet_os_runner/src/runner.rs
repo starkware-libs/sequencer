@@ -285,6 +285,8 @@ where
                     .map_err(|e| RunnerError::TransactionHashError(e.to_string()))?;
                 // Record tx_hash on the parent span (`prove_transaction`) so all
                 // subsequent logs carry it as a prefix.
+                println!("tx_hash: {}", tx_hash);
+                println!("chain_id: {}", chain_id);
                 Span::current().record("tx_hash", display(&tx_hash));
                 info!(transaction = ?tx, "Starting transaction proving");
                 Ok((tx, tx_hash))

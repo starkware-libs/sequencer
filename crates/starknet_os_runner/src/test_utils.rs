@@ -4,6 +4,7 @@ use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
+use expect_test::{expect, Expect};
 use rstest::fixture;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::ChainId;
@@ -44,6 +45,15 @@ pub const STRK_TOKEN_ADDRESS_SEPOLIA: Felt =
 /// This account uses the `account_with_dummy_validate` contract which always returns VALIDATED.
 pub const DUMMY_ACCOUNT_ADDRESS: Felt =
     Felt::from_hex_unchecked("0x0786ed7d8dcbf1489241d65a4dd55f18b984c078558ce12def69802526fa918e");
+
+/// Privacy pool contract address on Sepolia.
+pub const PRIVACY_POOL_CONTRACT_ADDRESS: Felt =
+    Felt::from_hex_unchecked("0x712391ff6487c9232582442ea7eb4a10cad4892c3bcde3516e2a3955bf4f0da");
+
+/// Expected nonce of the privacy pool contract on Sepolia.
+/// If this changes, `test_privacy_pool_contract_nonce_unchanged` will fail with
+/// the new value so you can update this constant.
+pub(crate) static PRIVACY_POOL_CONTRACT_NONCE: Expect = expect!["0x7"];
 
 // ================================================================================================
 // RPC URL Helpers
