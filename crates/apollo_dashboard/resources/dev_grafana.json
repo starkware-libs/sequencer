@@ -517,6 +517,18 @@
           }
         },
         {
+          "title": "Average Read Rate (entries/sec)",
+          "description": "Average read rate over a block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(average_read_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(average_read_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"Block\" AND \"rates\""
+          }
+        },
+        {
           "title": "Compute Duration Per Block",
           "description": "Compute duration per block",
           "type": "timeseries",
@@ -530,6 +542,18 @@
           }
         },
         {
+          "title": "Average Compute Rate (entries/sec)",
+          "description": "Average compute rate over a block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(average_compute_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(average_compute_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"Block\" AND \"rates\""
+          }
+        },
+        {
           "title": "Write Duration Per Block",
           "description": "Write duration per block",
           "type": "timeseries",
@@ -540,6 +564,18 @@
           "extra_params": {
             "unit": "s",
             "log_query": "\"Block\" AND \"durations in ms\""
+          }
+        },
+        {
+          "title": "Average Write Rate (entries/sec)",
+          "description": "Average write rate over a block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(average_write_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(average_write_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "log_query": "\"Block\" AND \"rates\""
           }
         }
       ],
