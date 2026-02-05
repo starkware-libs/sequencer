@@ -19,7 +19,7 @@ use url::Url;
 use crate::config::ProverConfig;
 use crate::errors::{ProvingError, RunnerError};
 use crate::proving::prover::prove;
-use crate::runner::{RpcRunnerFactory, VirtualSnosRunner};
+use crate::running::runner::{RpcRunnerFactory, VirtualSnosRunner};
 
 /// Error type for the virtual SNOS prover.
 #[derive(Debug, thiserror::Error)]
@@ -59,10 +59,13 @@ pub struct ProveTransactionResult {
 pub struct VirtualSnosProverOutput {
     /// The proving result (proof, proof facts, and messages).
     pub result: ProveTransactionResult,
+    #[allow(dead_code)]
     /// Duration of OS execution.
     pub os_duration: Duration,
+    #[allow(dead_code)]
     /// Duration of proving.
     pub prove_duration: Duration,
+    #[allow(dead_code)]
     /// Total duration from start to finish.
     pub total_duration: Duration,
 }
