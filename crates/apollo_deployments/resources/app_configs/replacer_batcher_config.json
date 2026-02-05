@@ -1,7 +1,7 @@
 {
-  "batcher_config.dynamic_config.storage_reader_server_config.enable": false,
-  "batcher_config.dynamic_config.storage_reader_server_config.ip": "0.0.0.0",
-  "batcher_config.dynamic_config.storage_reader_server_config.port": "$$$_BATCHER_CONFIG-DYNAMIC_CONFIG-STORAGE_READER_SERVER_CONFIG-PORT_$$$",
+  "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": false,
+  "batcher_config.static_config.storage_reader_server_static_config.ip": "0.0.0.0",
+  "batcher_config.static_config.storage_reader_server_static_config.port": "$$$_BATCHER_CONFIG-STATIC_CONFIG-STORAGE_READER_SERVER_STATIC_CONFIG-PORT_$$$",
   "batcher_config.static_config.block_builder_config.bouncer_config.blake_weight": 3334,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 4400000,
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,

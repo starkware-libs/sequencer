@@ -14,7 +14,7 @@ config:
     batcher_config.static_config.first_block_with_partial_block_hash.block_hash: "0x0"
     batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash: "0x0"
     batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time: 600
-    batcher_config.dynamic_config.storage_reader_server_config.port: 55011
+    batcher_config.static_config.storage_reader_server_static_config.port: 55011
     class_manager_config.class_manager_config.max_compiled_contract_class_object_size: 4089446
     components.batcher.port: 55000
     components.batcher.url: sequencer-core-service
@@ -56,7 +56,7 @@ config:
     state_sync_config.network_config.port: 55010
     state_sync_config.p2p_sync_client_config.#is_none: false
     state_sync_config.rpc_config.port: 8090
-    state_sync_config.storage_reader_server_config.port: 55012
+    state_sync_config.storage_reader_server_config.static_config.port: 55012
 
 service:
   enabled: true
