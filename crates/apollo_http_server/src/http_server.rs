@@ -1,4 +1,5 @@
 use std::clone::Clone;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::string::String;
 
@@ -27,6 +28,7 @@ use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::ValidResourceBounds;
+use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, warn};
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
@@ -89,6 +91,9 @@ impl HttpServer {
                 let max_sierra_program_size = self.config.max_sierra_program_size;
                 move |app_state: State<AppState>, headers: HeaderMap, tx: String| add_tx(app_state, headers, tx, max_sierra_program_size)
             }))
+            .with_state(self.app_state.clone())
+            // Echonet timestamp update endpoint
+            .route("/gateway/update_timestamps", post(update_timestamps))
             .with_state(self.app_state.clone())
             // TODO(shahak): Remove this once we fix the centralized simulator to not use is_alive
             // and is_ready.
@@ -255,6 +260,26 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
             increment_failure_metrics(err);
         }
     }
+}
+
+#[instrument(skip(app_state))]
+async fn update_timestamps(
+    State(app_state): State<AppState>,
+    Json(mappings): Json<HashMap<TransactionHash, u64>>,
+) -> HttpServerResult<Json<()>> {
+    info!("HTTP Server: received update_timestamps request with {} mappings", mappings.len());
+    
+    let result = tokio::spawn(async move {
+        app_state.gateway_client.update_timestamps(mappings).await.map_err(|e| {
+            warn!("Error while updating timestamps: {}", e);
+            HttpServerError::from(Box::new(e))
+        })
+    })
+    .await
+    .expect("Should be able to get update_timestamps result");
+
+    result?;
+    Ok(Json(()))
 }
 
 pub fn create_http_server(

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
@@ -17,6 +18,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::transaction::TransactionHash;
 use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
@@ -54,6 +56,11 @@ pub trait MempoolClient: Send + Sync {
     ) -> MempoolClientResult<bool>;
     async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()>;
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
+    async fn get_ts(&self) -> MempoolClientResult<u64>;
+    async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, u64>,
+    ) -> MempoolClientResult<()>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -71,6 +78,8 @@ pub enum MempoolRequest {
     // TODO(yair): Rename to `StartBlock` and add cleanup of staged txs.
     UpdateGasPrice(GasPrice),
     GetMempoolSnapshot(),
+    GetTimestamp,
+    UpdateTimestamps(HashMap<TransactionHash, u64>),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolRequest);
 impl_labeled_request!(MempoolRequest, MempoolRequestLabelValue);
@@ -84,7 +93,9 @@ impl PrioritizedRequest for MempoolRequest {
             | MempoolRequest::ValidateTransaction(_)
             | MempoolRequest::AccountTxInPoolOrRecentBlock(_)
             | MempoolRequest::UpdateGasPrice(_)
-            | MempoolRequest::GetMempoolSnapshot() => RequestPriority::Normal,
+            | MempoolRequest::GetMempoolSnapshot()
+            | MempoolRequest::GetTimestamp
+            | MempoolRequest::UpdateTimestamps(_) => RequestPriority::Normal,
         }
     }
 }
@@ -98,6 +109,8 @@ pub enum MempoolResponse {
     AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
     UpdateGasPrice(MempoolResult<()>),
     GetMempoolSnapshot(MempoolResult<MempoolSnapshot>),
+    GetTimestamp(MempoolResult<u64>),
+    UpdateTimestamps(MempoolResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolResponse);
 
@@ -188,6 +201,31 @@ where
         handle_all_response_variants!(
             MempoolResponse,
             GetMempoolSnapshot,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
+    }
+
+    async fn get_ts(&self) -> MempoolClientResult<u64> {
+        let request = MempoolRequest::GetTimestamp;
+        handle_all_response_variants!(
+            MempoolResponse,
+            GetTimestamp,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
+    }
+
+    async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, u64>,
+    ) -> MempoolClientResult<()> {
+        let request = MempoolRequest::UpdateTimestamps(mappings);
+        handle_all_response_variants!(
+            MempoolResponse,
+            UpdateTimestamps,
             MempoolClientError,
             MempoolError,
             Direct

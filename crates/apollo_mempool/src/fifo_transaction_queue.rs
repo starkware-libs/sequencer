@@ -4,35 +4,104 @@ use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
+use tracing::{debug, info};
 
 use crate::mempool::TransactionReference;
 use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
 
 /// FIFO transaction queue implementation.
 /// Stores transactions in insertion order and returns them in FIFO order.
-#[derive(Debug, Default)]
 pub struct FifoTransactionQueue {
     queue: VecDeque<TransactionHash>,
     hash_to_tx: HashMap<TransactionHash, TransactionReference>,
+    hash_to_timestamp: HashMap<TransactionHash, u64>,
+    last_returned_timestamp: Option<u64>,
+}
+
+impl FifoTransactionQueue {
+    pub fn new() -> Self {
+        Self {
+            queue: VecDeque::new(),
+            hash_to_tx: HashMap::new(),
+            hash_to_timestamp: HashMap::new(),
+            last_returned_timestamp: None,
+        }
+    }
 }
 
 impl TransactionQueueTrait for FifoTransactionQueue {
     fn insert(&mut self, tx_reference: TransactionReference, _validate_resource_bounds: bool) {
         let tx_hash = tx_reference.tx_hash;
+
+        debug!("FIFO insert: tx_hash={}, queue_len_before={}", tx_hash, self.queue.len());
+
+        // Add transaction to queue in FIFO order
         self.queue.push_back(tx_hash);
         self.hash_to_tx.insert(tx_hash, tx_reference);
+
+        // Check if timestamp exists in mapping, otherwise use 0 as fallback
+        if let Some(&timestamp) = self.hash_to_timestamp.get(&tx_hash) {
+            info!(
+                "FIFO insert: tx_hash={}, timestamp={} (stored), queue_len={}",
+                tx_hash,
+                timestamp,
+                self.queue.len()
+            );
+        } else {
+            self.hash_to_timestamp.insert(tx_hash, 0);
+            info!(
+                "FIFO insert: tx_hash={}, timestamp=0 (fallback), queue_len={}",
+                tx_hash,
+                self.queue.len()
+            );
+        }
     }
 
     fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
-        let take_count = n_txs.min(self.queue.len());
-        let tx_hashes: Vec<TransactionHash> = self.queue.drain(..take_count).collect();
+        // If get_ts() hasn't been called, return empty vec
+        let Some(timestamp_threshold) = self.last_returned_timestamp else {
+            debug!("FIFO pop_ready_chunk: get_ts() not called yet, returning empty");
+            return Vec::new();
+        };
 
+        debug!(
+            "FIFO pop_ready_chunk: n_txs={}, timestamp_threshold={}, queue_len={}",
+            n_txs,
+            timestamp_threshold,
+            self.queue.len()
+        );
+
+        // Collect transactions that match the timestamp threshold
         let mut result = Vec::new();
-        for tx_hash in &tx_hashes {
-            if let Some(tx_ref) = self.hash_to_tx.remove(tx_hash) {
-                result.push(tx_ref);
+
+        for &tx_hash in &self.queue {
+            if result.len() >= n_txs {
+                break;
+            }
+
+            if let Some(&tx_timestamp) = self.hash_to_timestamp.get(&tx_hash) {
+                if tx_timestamp == timestamp_threshold {
+                    if let Some(tx_ref) = self.hash_to_tx.remove(&tx_hash) {
+                        result.push(tx_ref);
+                        // Keep timestamp in map for potential rewind
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
             }
         }
+
+        self.queue.drain(..result.len());
+
+        info!(
+            "FIFO pop_ready_chunk: returned {} txs with timestamp={}, remaining_queue_len={}",
+            result.len(),
+            timestamp_threshold,
+            self.queue.len()
+        );
+
         result
     }
 
@@ -143,6 +212,22 @@ impl TransactionQueueTrait for FifoTransactionQueue {
 
             if !is_committed && !already_rewound.contains(&tx_ref.tx_hash) {
                 // Rewind: re-insert at front (preserve FIFO order)
+                debug!("FIFO rewind: re-inserting tx_hash={} at front of queue", tx_ref.tx_hash);
+                
+                // Check if timestamp exists in mapping, otherwise use 0 as fallback
+                if let Some(&timestamp) = self.hash_to_timestamp.get(&tx_ref.tx_hash) {
+                    debug!(
+                        "FIFO rewind: tx_hash={}, timestamp={} (stored)",
+                        tx_ref.tx_hash, timestamp
+                    );
+                } else {
+                    self.hash_to_timestamp.insert(tx_ref.tx_hash, 0);
+                    debug!(
+                        "FIFO rewind: tx_hash={}, timestamp=0 (fallback)",
+                        tx_ref.tx_hash
+                    );
+                }
+                
                 self.queue.push_front(tx_ref.tx_hash);
                 self.hash_to_tx.insert(tx_ref.tx_hash, *tx_ref);
                 rewound_hashes.insert(tx_ref.tx_hash);
@@ -161,6 +246,25 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     fn pending_queue_len(&self) -> usize {
         0
     }
+
+    fn get_first_tx_timestamp(&self) -> Option<u64> {
+        self.queue.front().and_then(|hash| self.hash_to_timestamp.get(hash)).copied()
+    }
+
+    fn set_last_returned_timestamp(&mut self, timestamp: u64) {
+        self.last_returned_timestamp = Some(timestamp);
+    }
+
+    fn update_timestamps(&mut self, mappings: HashMap<TransactionHash, u64>) {
+        let count = mappings.len();
+        info!("FIFO update_timestamps: received {} timestamp mappings", count);
+        
+        if count < 10 {
+            debug!("FIFO update_timestamps: mappings={:?}", mappings);
+        }
+        
+        self.hash_to_timestamp.extend(mappings);
+    }
 }
 
 impl FifoTransactionQueue {
@@ -168,6 +272,7 @@ impl FifoTransactionQueue {
     /// Returns true if the transaction was found and removed, false otherwise.
     fn remove_by_hash(&mut self, tx_hash: TransactionHash) -> bool {
         if self.hash_to_tx.remove(&tx_hash).is_some() {
+            self.hash_to_timestamp.remove(&tx_hash);
             if let Some(pos) = self.queue.iter().position(|&hash| hash == tx_hash) {
                 self.queue.remove(pos);
             }

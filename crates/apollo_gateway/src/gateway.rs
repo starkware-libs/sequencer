@@ -1,4 +1,5 @@
 use std::clone::Clone;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::{
@@ -34,7 +35,8 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::TransactionSignature;
-use tracing::{debug, warn};
+use starknet_api::transaction::TransactionHash;
+use tracing::{debug, info, warn};
 
 use crate::errors::{
     mempool_client_result_to_deprecated_gw_result,
@@ -217,6 +219,24 @@ impl Gateway {
             })?;
 
         Ok((internal_tx, executable_tx))
+    }
+
+    pub async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, u64>,
+    ) -> GatewayResult<()> {
+        info!("Gateway update_timestamps: received {} timestamp mappings", mappings.len());
+        self.mempool_client
+            .update_timestamps(mappings)
+            .await
+            .map_err(|e| {
+                warn!("Gateway update_timestamps: failed to forward to mempool: {:?}", e);
+                StarknetError {
+                    code: StarknetErrorCode::UnknownErrorCode("INTERNAL_ERROR".to_string()),
+                    message: format!("Failed to update timestamps: {}", e),
+                }
+            })?;
+        Ok(())
     }
 }
 
