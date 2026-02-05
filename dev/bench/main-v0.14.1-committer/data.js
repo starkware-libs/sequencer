@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770285929148,
+  "lastUpdate": 1770293124957,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2005,6 +2005,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1333.57413024,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0cf19788bcaf5ce9e8862e0809405798c114c9be",
+          "message": "starknet_committer: reorganize db modules (#11640)",
+          "timestamp": "2026-02-05T11:44:54Z",
+          "tree_id": "ec3206cd7fc9d3b4a55a950d924561783f3fd223",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0cf19788bcaf5ce9e8862e0809405798c114c9be"
+        },
+        "date": 1770293124674,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 787.29715385,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1224.11235873,
             "unit": "ms"
           }
         ]
