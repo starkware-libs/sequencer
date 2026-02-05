@@ -9,6 +9,7 @@ use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStar
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
+use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use async_trait::async_trait;
 use tracing::info;
 
@@ -60,6 +61,12 @@ impl ConfigManager {
         Ok(self.latest_node_dynamic_config.batcher_dynamic_config.as_ref().unwrap().clone())
     }
 
+    pub(crate) fn get_state_sync_dynamic_config(
+        &self,
+    ) -> ConfigManagerResult<StateSyncDynamicConfig> {
+        Ok(self.latest_node_dynamic_config.state_sync_dynamic_config.as_ref().unwrap().clone())
+    }
+
     pub(crate) fn get_staking_manager_dynamic_config(
         &self,
     ) -> ConfigManagerResult<StakingManagerDynamicConfig> {
@@ -91,6 +98,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             }
             ConfigManagerRequest::GetBatcherDynamicConfig => {
                 ConfigManagerResponse::GetBatcherDynamicConfig(self.get_batcher_dynamic_config())
+            }
+            ConfigManagerRequest::GetStateSyncDynamicConfig => {
+                ConfigManagerResponse::GetStateSyncDynamicConfig(
+                    self.get_state_sync_dynamic_config(),
+                )
             }
             ConfigManagerRequest::GetStakingManagerDynamicConfig => {
                 ConfigManagerResponse::GetStakingManagerDynamicConfig(
