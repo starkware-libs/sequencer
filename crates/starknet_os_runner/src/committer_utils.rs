@@ -1,11 +1,15 @@
 use std::collections::HashSet;
 use std::hash::BuildHasher;
 
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{StateMaps, StorageDiff, StorageView};
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
-use starknet_committer::block_committer::input::StarknetStorageValue;
+use starknet_committer::block_committer::input::{
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
+};
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
@@ -26,6 +30,33 @@ use starknet_rust_core::types::{Felt, MerkleNode, StorageProof as RpcStorageProo
 
 use crate::errors::ProofProviderError;
 use crate::storage_proofs::RpcStorageProofsQuery;
+
+/// Converts blockifier's StateMaps to committer's StateDiff format.
+pub fn state_maps_to_committer_state_diff(state_maps: StateMaps) -> StateDiff {
+    StateDiff {
+        address_to_class_hash: state_maps.class_hashes,
+        address_to_nonce: state_maps.nonces,
+        class_hash_to_compiled_class_hash: state_maps
+            .compiled_class_hashes
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (class_hash, CompiledClassHash(compiled_class_hash.0))
+            })
+            .collect(),
+        storage_updates: StorageDiff::from(StorageView(state_maps.storage))
+            .into_iter()
+            .map(|(address, updates)| {
+                (
+                    address,
+                    updates
+                        .into_iter()
+                        .map(|(key, value)| (StarknetStorageKey(key), StarknetStorageValue(value)))
+                        .collect(),
+                )
+            })
+            .collect(),
+    }
+}
 
 /// Builds a FactsDb from RPC storage proofs and execution initial reads.
 ///
