@@ -16,6 +16,20 @@ use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 #[path = "config_test.rs"]
 pub mod config_test;
 
+/// Specifies how Cairo Native execution should be handled.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub enum NativeExecutionMode {
+    /// Native execution is disabled; use Cairo VM only.
+    #[default]
+    Disabled,
+    /// Native execution is enabled with asynchronous compilation.
+    /// Classes are compiled in the background; execution uses VM until native is ready.
+    Async,
+    /// Native execution is enabled with synchronous compilation.
+    /// Blocks until native compilation completes before execution.
+    Sync,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
