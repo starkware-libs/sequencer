@@ -1907,15 +1907,19 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "mockall",
+ "mockito",
  "pretty_assertions",
  "rand 0.8.5",
+ "reqwest 0.12.24",
  "rstest",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -1924,6 +1928,7 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config",
  "serde",
+ "url",
  "validator",
 ]
 

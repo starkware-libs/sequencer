@@ -536,8 +536,11 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
 #[tokio::test]
 async fn consecutive_heights_success() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // batcher start
-    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
+    // Calls order:
+    // - commitment manager creation
+    // - batcher start
+    // - first start_height
+    storage_reader.expect_state_diff_height().times(3).returning(|| Ok(INITIAL_HEIGHT));
     storage_reader
         .expect_state_diff_height()
         .times(1)
@@ -1328,7 +1331,8 @@ async fn revert_block() {
 
     assert_eq!(*(committer_offset.lock().await), INITIAL_HEIGHT);
     batcher.revert_block(revert_input).await.unwrap();
-    assert_eq!(*committer_offset.lock().await, LATEST_BLOCK_IN_STORAGE);
+    // Commitment-manager is disabled, so the committer offset is unchanged.
+    assert_eq!(*committer_offset.lock().await, INITIAL_HEIGHT);
 
     let metrics = recorder.handle().render();
     assert_eq!(BUILDING_HEIGHT.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0 - 1));
