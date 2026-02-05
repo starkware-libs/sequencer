@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770228059125,
+  "lastUpdate": 1770297473487,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -135,6 +135,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1320.5806696900001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b8a96177b6c4672973f9e2b8b6660bab90a94d1d",
+          "message": "starknet_os_runner: add committer state diff to execution data (#12145)",
+          "timestamp": "2026-02-05T12:50:29Z",
+          "tree_id": "c241ffb59cc7892bbb4666100ee7f83cc6dc0fc4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b8a96177b6c4672973f9e2b8b6660bab90a94d1d"
+        },
+        "date": 1770297473135,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 782.2121153300001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1243.7053835499999,
             "unit": "ms"
           }
         ]
