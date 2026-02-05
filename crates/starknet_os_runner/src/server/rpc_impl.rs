@@ -10,10 +10,10 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use tokio::sync::Semaphore;
 use tracing::warn;
 
+use crate::proving::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 use crate::server::config::ServiceConfig;
 use crate::server::error::service_busy;
 use crate::server::rpc_trait::ProvingRpcServer;
-use crate::virtual_snos_prover::{ProveTransactionResult, RpcVirtualSnosProver};
 
 /// Starknet RPC specification version.
 const SPEC_VERSION: &str = "0.10.0";

@@ -19,7 +19,7 @@ use url::Url;
 use crate::config::ProverConfig;
 use crate::errors::{ProvingError, RunnerError};
 use crate::proving::prover::prove;
-use crate::runner::{RpcRunnerFactory, VirtualSnosRunner};
+use crate::running::runner::{RpcRunnerFactory, VirtualSnosRunner};
 
 /// Error type for the virtual SNOS prover.
 #[derive(Debug, thiserror::Error)]
