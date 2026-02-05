@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -16,7 +16,7 @@ pub struct SierraCompilationConfig {
     /// CASM bytecode size limit (in felts).
     pub max_bytecode_size: usize,
     /// Compilation process’s virtual memory (address space) byte limit.
-    pub max_memory_usage: Option<u64>,
+    pub max_memory_usage: u64,
     /// Compilation process's CPU time limit (in seconds).
     pub max_cpu_time: u64,
     /// If true, compile with audited libfuncs only; if false, allow all libfuncs.
@@ -27,7 +27,7 @@ impl Default for SierraCompilationConfig {
     fn default() -> Self {
         Self {
             max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
-            max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
+            max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
             audited_libfuncs_only: DEFAULT_AUDITED_LIBFUNCS_ONLY,
         }
@@ -36,7 +36,7 @@ impl Default for SierraCompilationConfig {
 
 impl SerializeConfig for SierraCompilationConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([
+        BTreeMap::from([
             ser_param(
                 "max_bytecode_size",
                 &self.max_bytecode_size,
@@ -55,14 +55,12 @@ impl SerializeConfig for SierraCompilationConfig {
                 "If true, restrict to audited libfuncs. Otherwise allow all.",
                 ParamPrivacyInput::Public,
             ),
-        ]);
-        dump.extend(ser_optional_param(
-            &self.max_memory_usage,
-            DEFAULT_MAX_MEMORY_USAGE,
-            "max_memory_usage",
-            "Limitation of compilation process's virtual memory (bytes).",
-            ParamPrivacyInput::Public,
-        ));
-        dump
+            ser_param(
+                "max_memory_usage",
+                &self.max_memory_usage,
+                "Limitation of compilation process's virtual memory (bytes).",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
