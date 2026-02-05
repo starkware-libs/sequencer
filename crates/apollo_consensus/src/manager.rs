@@ -10,7 +10,7 @@
 mod manager_test;
 
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus_config::config::{
@@ -29,6 +29,7 @@ use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::BlockNumber;
+use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::metrics::{
@@ -121,7 +122,8 @@ where
         run_consensus_args.consensus_config.clone(),
         run_consensus_args.quorum_type,
         run_consensus_args.last_voted_height_storage.clone(),
-    );
+    )
+    .await;
     loop {
         if let Some(client) = &run_consensus_args.config_manager_client {
             match client.get_consensus_dynamic_config().await {
@@ -362,14 +364,14 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Create a new consensus manager.
-    pub(crate) fn new(
+    pub(crate) async fn new(
         consensus_config: ConsensusConfig,
         quorum_type: QuorumType,
         voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
     ) -> Self {
         let last_voted_height_at_initialization = voted_height_storage
             .lock()
-            .expect("Lock should never be poisoned")
+            .await
             .get_prev_voted_height()
             .expect("Failed to get previous voted height from storage");
         let future_msg_limit = consensus_config.dynamic_config.future_msg_limit;
@@ -951,10 +953,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 trace!("Writing voted height {} to storage", height);
                 self.voted_height_storage
                     .lock()
-                    .expect(
-                        "Lock should never be poisoned because there should never be concurrent \
-                         access.",
-                    )
+                    .await
                     .set_prev_voted_height(height)
                     .expect("Failed to write voted height {self.height} to storage");
                 info!("Broadcasting {vote:?}");

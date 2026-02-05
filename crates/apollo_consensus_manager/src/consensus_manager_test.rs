@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use apollo_batcher_types::communication::MockBatcherClient;
@@ -15,6 +15,7 @@ use apollo_state_sync_types::communication::MockStateSyncClient;
 use mockall::predicate::eq;
 use mockall::Sequence;
 use starknet_api::block::BlockNumber;
+use tokio::sync::Mutex;
 use tokio::time::{timeout, Duration};
 
 use crate::consensus_manager::{ConsensusManager, ConsensusManagerArgs};

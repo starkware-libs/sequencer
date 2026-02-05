@@ -3,7 +3,7 @@
 mod consensus_manager_test;
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
@@ -45,6 +45,7 @@ use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
+use tokio::sync::Mutex;
 use tracing::{info, info_span, Instrument};
 
 use crate::metrics::{
@@ -324,18 +325,17 @@ impl ConsensusManager {
             .height;
 
         // This function will panic if the revert fails.
-        let revert_blocks_fn = move |height| async move {
-            self.batcher_client
-                .revert_block(RevertBlockInput { height })
-                .await
-                .expect("Failed to revert block at height {height} in the batcher");
+        let revert_blocks_fn =
+            move |height| async move {
+                self.batcher_client
+                    .revert_block(RevertBlockInput { height })
+                    .await
+                    .expect("Failed to revert block at height {height} in the batcher");
 
-            self.voted_height_storage
-                .lock()
-                .expect("Failed to lock voted height storage. Should never happen.")
-                .revert_height(height)
-                .expect("Failed to revert height in the consensus manager's voted height storage");
-        };
+                self.voted_height_storage.lock().await.revert_height(height).expect(
+                    "Failed to revert height in the consensus manager's voted height storage",
+                );
+            };
 
         const BATCHER_REVERT_COMPONENT_DATA: RevertComponentData = RevertComponentData {
             name: "Batcher",
