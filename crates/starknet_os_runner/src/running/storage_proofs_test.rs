@@ -10,9 +10,13 @@ use starknet_api::state::StorageKey;
 use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 
-use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig, StorageProofProvider};
-use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
-use crate::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
+use crate::running::storage_proofs::{
+    RpcStorageProofsProvider,
+    StorageProofConfig,
+    StorageProofProvider,
+};
+use crate::running::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
+use crate::running::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
 
 /// Fixture: Creates initial reads with the STRK contract and storage slot 0.
 #[rstest::fixture]
