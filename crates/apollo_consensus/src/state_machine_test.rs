@@ -77,7 +77,14 @@ impl TestWrapper {
         // Ensure deterministic order.
         peer_voters.sort();
         Self {
-            state_machine: StateMachine::new(HEIGHT, id, total_weight, is_observer, quorum_type),
+            state_machine: StateMachine::new(
+                HEIGHT,
+                id,
+                total_weight,
+                is_observer,
+                quorum_type,
+                true,
+            ),
             leader_election: LeaderElection::new(Box::new(proposer), Box::new(virtual_proposer)),
             requests: VecDeque::new(),
             peer_voters,
@@ -775,9 +782,9 @@ fn observer_does_not_record_self_votes() {
 }
 
 #[test]
-fn quorums_require_virtual_leader_in_favor_for_value() {
-    // Virtual leader (VALIDATOR_ID_3) must be one of the voters in favor for precommit quorum for a
-    // value to reach decision.
+fn quorums_require_virtual_proposer_in_favor_for_value() {
+    // Virtual proposer (VALIDATOR_ID_3) must be one of the voters in favor for precommit quorum for
+    // a value to reach decision.
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
@@ -799,12 +806,12 @@ fn quorums_require_virtual_leader_in_favor_for_value() {
     );
     assert!(wrapper.next_request().is_none());
 
-    // Reach prevote quorum without the virtual leader's prevote (self + 2 peers).
+    // Reach prevote quorum without the virtual proposer's prevote (self + 2 peers).
     wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *PROPOSER_ID); // peer 1
     assert!(wrapper.next_request().is_none());
     wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2); // peer 2
 
-    // With prevote quorum, we can precommit even without virtual leader's prevote.
+    // With prevote quorum, we can precommit even without virtual proposer's prevote.
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
     assert_eq!(
         wrapper.next_request().unwrap(),
@@ -812,7 +819,7 @@ fn quorums_require_virtual_leader_in_favor_for_value() {
     );
     assert!(wrapper.next_request().is_none());
 
-    // Reach precommit quorum without the virtual leader's precommit (self + 2 peers).
+    // Reach precommit quorum without the virtual proposer's precommit (self + 2 peers).
     wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *PROPOSER_ID); // peer 1
     assert!(wrapper.next_request().is_none());
     wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2); // peer 2
@@ -821,8 +828,8 @@ fn quorums_require_virtual_leader_in_favor_for_value() {
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
     assert!(wrapper.next_request().is_none());
 
-    // Now the virtual leader precommits for the value -> we can decide.
-    wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_3); // peer 3 (virtual leader)
+    // Now the virtual proposer precommits for the value -> we can decide.
+    wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_3); // peer 3 (virtual proposer)
     assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 

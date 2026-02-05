@@ -214,6 +214,7 @@ impl DiscreteEventSimulation {
             validators.clone(),
             QuorumType::Byzantine,
             TimeoutsConfig::default(),
+            true,
         );
 
         let quorum_threshold = (2 * total_nodes / 3) + 1;
@@ -635,7 +636,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
                 .iter()
                 .count();
             let total_precommits = peer_precommits + self_vote;
-            // Match the state machine's `virtual_leader_in_favor` gating for decision.
+            // Match the state machine's `virtual_proposer_in_favor` gating for decision.
             // In this simulation the virtual leader function is the same as the leader function.
             let virtual_proposer = {
                 let idx = get_leader_index(sim.seed, sim.total_nodes, *r);

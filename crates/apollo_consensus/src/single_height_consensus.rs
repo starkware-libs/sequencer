@@ -62,6 +62,7 @@ pub(crate) struct SingleHeightConsensus {
 }
 
 impl SingleHeightConsensus {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         height: BlockNumber,
         is_observer: bool,
@@ -69,11 +70,19 @@ impl SingleHeightConsensus {
         validators: Vec<ValidatorId>,
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
+        require_virtual_proposer_vote: bool,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine = StateMachine::new(height, id, n_validators, is_observer, quorum_type);
+        let state_machine = StateMachine::new(
+            height,
+            id,
+            n_validators,
+            is_observer,
+            quorum_type,
+            require_virtual_proposer_vote,
+        );
         Self { validators, timeouts, state_machine, pending_validation_rounds: HashSet::new() }
     }
 

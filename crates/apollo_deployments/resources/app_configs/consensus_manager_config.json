@@ -7,6 +7,7 @@
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_limit": 20,
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_height_round_limit": 5,
   "consensus_manager_config.consensus_manager_config.dynamic_config.future_msg_limit.future_round_limit": 20,
+  "consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote": "",
   "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": 1.0,
   "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.base": 1.0,
   "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.precommit.delta": 0.5,
