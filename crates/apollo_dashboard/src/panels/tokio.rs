@@ -10,8 +10,9 @@ use apollo_infra::tokio_metrics::{
 };
 use apollo_metrics::metrics::{MetricDetails, MetricQueryName};
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
 use crate::infra_panels::POD_LEGEND;
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::increase;
 
 fn get_panel_tokio_total_busy_duration_micros() -> Panel {

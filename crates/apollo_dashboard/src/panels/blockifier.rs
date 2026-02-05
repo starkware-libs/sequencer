@@ -16,7 +16,8 @@ use blockifier::metrics::{
     TOTAL_CALLS,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType};
 
 const DENOMINATOR_DIVISOR_FOR_READABILITY: f64 = 1_000_000_000.0;
 

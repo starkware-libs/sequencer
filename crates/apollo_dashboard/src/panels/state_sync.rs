@@ -7,7 +7,8 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_HEADER_LATENCY_SEC,
 };
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::DEFAULT_DURATION;
 
 fn get_panel_central_sync_central_block_marker() -> Panel {
