@@ -154,8 +154,6 @@ fn test_set_and_compile(
 fn test_send_compilation_request_channel_disconnected() {
     // We use the channel to send native compilation requests.
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: false,
         execution_mode: NativeExecutionMode::Async,
         channel_size: TEST_CHANNEL_SIZE,
         ..CairoNativeRunConfig::default()
@@ -179,8 +177,6 @@ fn test_send_compilation_request_channel_disconnected() {
 #[test]
 fn test_send_compilation_request_channel_full() {
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: false,
         execution_mode: NativeExecutionMode::Async,
         channel_size: 0,
         ..CairoNativeRunConfig::default()
@@ -211,8 +207,6 @@ fn test_process_compilation_request(
     #[case] panic_on_compilation_failure: bool,
 ) {
     let manager = NativeClassManager::create_for_testing_with_config(CairoNativeRunConfig {
-        wait_on_native_compilation: true,
-        run_cairo_native: true,
         execution_mode: NativeExecutionMode::Sync,
         channel_size: TEST_CHANNEL_SIZE,
         panic_on_compilation_failure,
@@ -254,8 +248,6 @@ fn test_native_classes_whitelist(
     #[case] allow_run_native: bool,
 ) {
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: true,
         execution_mode: NativeExecutionMode::Sync,
         panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,

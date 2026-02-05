@@ -261,8 +261,6 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
 
 #[derive(Clone, Debug, FromPyObject)]
 pub struct PyCairoNativeRunConfig {
-    pub run_cairo_native: bool,
-    pub wait_on_native_compilation: bool,
     /// Execution mode: "Disabled", "Async", or "Sync".
     pub execution_mode: String,
     pub channel_size: usize,
@@ -274,8 +272,6 @@ pub struct PyCairoNativeRunConfig {
 impl Default for PyCairoNativeRunConfig {
     fn default() -> Self {
         Self {
-            run_cairo_native: false,
-            wait_on_native_compilation: false,
             execution_mode: "Disabled".to_string(),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: None,
@@ -303,8 +299,6 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
         };
 
         CairoNativeRunConfig {
-            run_cairo_native: py_cairo_native_run_config.run_cairo_native,
-            wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
             execution_mode: parse_execution_mode(&py_cairo_native_run_config.execution_mode),
             channel_size: py_cairo_native_run_config.channel_size,
             native_classes_whitelist,

@@ -239,16 +239,6 @@
     "privacy": "Public",
     "value": false
   },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
-    "description": "Enables Cairo native execution.",
-    "privacy": "Public",
-    "value": false
-  },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
-    "description": "Block Sequencer main program while compiling sierra, for testing.",
-    "privacy": "Public",
-    "value": false
-  },
   "batcher_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",
@@ -2416,16 +2406,6 @@
   },
   "gateway_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
-    "privacy": "Public",
-    "value": false
-  },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
-    "description": "Enables Cairo native execution.",
-    "privacy": "Public",
-    "value": false
-  },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
-    "description": "Block Sequencer main program while compiling sierra, for testing.",
     "privacy": "Public",
     "value": false
   },

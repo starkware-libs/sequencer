@@ -170,17 +170,8 @@ impl Default for ContractClassManagerConfig {
 impl ContractClassManagerConfig {
     #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
     pub fn create_for_testing(mode: NativeExecutionMode) -> Self {
-        let (run_cairo_native, wait_on_native_compilation) = match mode {
-            NativeExecutionMode::Disabled => (false, false),
-            NativeExecutionMode::Async => (true, false),
-            NativeExecutionMode::Sync => (true, true),
-        };
-        let cairo_native_run_config = CairoNativeRunConfig {
-            run_cairo_native,
-            wait_on_native_compilation,
-            execution_mode: mode,
-            ..Default::default()
-        };
+        let cairo_native_run_config =
+            CairoNativeRunConfig { execution_mode: mode, ..Default::default() };
         let native_compiler_config = SierraCompilationConfig::create_for_testing();
         Self { cairo_native_run_config, native_compiler_config, ..Default::default() }
     }
@@ -252,8 +243,6 @@ impl Serialize for NativeClassesWhitelist {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
-    pub run_cairo_native: bool,
-    pub wait_on_native_compilation: bool,
     pub execution_mode: NativeExecutionMode,
     pub channel_size: usize,
     pub native_classes_whitelist: NativeClassesWhitelist,
@@ -263,11 +252,6 @@ pub struct CairoNativeRunConfig {
 impl Default for CairoNativeRunConfig {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "cairo_native")]
-            run_cairo_native: true,
-            #[cfg(not(feature = "cairo_native"))]
-            run_cairo_native: false,
-            wait_on_native_compilation: false,
             #[cfg(feature = "cairo_native")]
             execution_mode: NativeExecutionMode::Async,
             #[cfg(not(feature = "cairo_native"))]
@@ -279,35 +263,9 @@ impl Default for CairoNativeRunConfig {
     }
 }
 
-impl CairoNativeRunConfig {
-    /// Computes the execution mode from the legacy boolean fields.
-    /// This method is for backward compatibility during the transition period.
-    pub fn execution_mode_from_bools(&self) -> NativeExecutionMode {
-        if !self.run_cairo_native {
-            NativeExecutionMode::Disabled
-        } else if self.wait_on_native_compilation {
-            NativeExecutionMode::Sync
-        } else {
-            NativeExecutionMode::Async
-        }
-    }
-}
-
 impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
-            ser_param(
-                "run_cairo_native",
-                &self.run_cairo_native,
-                "Enables Cairo native execution.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "wait_on_native_compilation",
-                &self.wait_on_native_compilation,
-                "Block Sequencer main program while compiling sierra, for testing.",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "execution_mode",
                 &self.execution_mode,

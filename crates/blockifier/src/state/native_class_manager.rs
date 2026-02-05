@@ -72,7 +72,7 @@ impl NativeClassManager {
         let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
         let cairo_native_run_config = config.cairo_native_run_config.clone();
 
-        match cairo_native_run_config.execution_mode_from_bools() {
+        match cairo_native_run_config.execution_mode {
             NativeExecutionMode::Disabled => {
                 // Native compilation is disabled - no need to start the compilation worker.
                 NativeClassManager {
@@ -132,8 +132,6 @@ impl NativeClassManager {
 
         let cached_class = match cached_class {
             CompiledClasses::V1(_, _) => {
-                // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
-                // `run_cairo_native` is false.
                 assert!(
                     !self.wait_on_native_compilation(),
                     "Manager did not wait on native compilation."
@@ -159,7 +157,6 @@ impl NativeClassManager {
         match compiled_class {
             CompiledClasses::V0(_) => self.class_cache.set(class_hash, compiled_class),
             CompiledClasses::V1(compiled_class_v1, sierra_contract_class) => {
-                // TODO(Yoni): instead of these two flag, use an enum.
                 if self.wait_on_native_compilation() {
                     assert!(self.run_cairo_native(), "Native compilation is disabled.");
                     let compiler = self.compiler.as_ref().expect("Compiler not available.");
@@ -222,11 +219,11 @@ impl NativeClassManager {
     }
 
     fn run_cairo_native(&self) -> bool {
-        self.cairo_native_run_config.execution_mode_from_bools() != NativeExecutionMode::Disabled
+        self.cairo_native_run_config.execution_mode != NativeExecutionMode::Disabled
     }
 
     fn wait_on_native_compilation(&self) -> bool {
-        self.cairo_native_run_config.execution_mode_from_bools() == NativeExecutionMode::Sync
+        self.cairo_native_run_config.execution_mode == NativeExecutionMode::Sync
     }
 
     /// Determines if a contract should run with cairo native based on the whitelist.

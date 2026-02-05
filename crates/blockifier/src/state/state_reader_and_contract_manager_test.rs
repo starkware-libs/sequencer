@@ -255,7 +255,7 @@ fn test_get_compiled_class_caching_scenarios(
 ) {
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig {
         cairo_native_run_config: CairoNativeRunConfig {
-            wait_on_native_compilation: false,
+            execution_mode: NativeExecutionMode::Disabled,
             ..Default::default()
         },
         ..Default::default()
