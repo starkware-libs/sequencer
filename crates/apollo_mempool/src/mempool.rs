@@ -266,7 +266,9 @@ impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         let tx_queue: Box<dyn TransactionQueueTrait> = match config.static_config.queue_type {
             QueueType::Fee => Box::new(FeeTransactionQueue::default()),
-            QueueType::Fifo => Box::new(FifoTransactionQueue::default()),
+            QueueType::Fifo => {
+                Box::new(FifoTransactionQueue::new(config.static_config.recorder_url.clone()))
+            }
         };
 
         Mempool {
@@ -281,8 +283,33 @@ impl Mempool {
         }
     }
 
-    pub fn get_ts(&self) -> u64 {
-        self.clock.unix_now()
+    /// Returns the timestamp for block creation.
+    /// 
+    /// For Fee queue: Returns current unix timestamp
+    /// For FIFO queue: Returns the timestamp of the FIRST transaction in the queue
+    ///                 (fetched from echonet API during add_tx)
+    ///                 This timestamp is then used to filter which transactions to include
+    ///                 in the block (only those with matching timestamp)
+    pub fn get_ts(&mut self) -> u64 {
+        match self.config.static_config.queue_type {
+            QueueType::Fee => {
+                let ts = self.clock.unix_now();
+                debug!("Mempool get_ts (Fee): timestamp={}", ts);
+                ts
+            }
+            QueueType::Fifo => {
+                if let Some(timestamp) = self.tx_queue.get_first_tx_timestamp() {
+                    // Store this timestamp - get_txs() will only return txs with this exact timestamp
+                    info!("Mempool get_ts (FIFO): timestamp={}, setting as threshold", timestamp);
+                    self.tx_queue.set_last_returned_timestamp(timestamp);
+                    timestamp
+                } else {
+                    // Queue is empty, return 0
+                    info!("Mempool get_ts (FIFO): queue empty, returning 0");
+                    0
+                }
+            }
+        }
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
@@ -426,6 +453,15 @@ impl Mempool {
     }
 
     /// Adds a new transaction to the mempool.
+    /// 
+    /// IMPORTANT FOR FIFO QUEUE:
+    /// This function will BLOCK while fetching the transaction timestamp from echonet API.
+    /// The flow is: add_tx() -> insert() -> fetch_tx_timestamp() [BLOCKING HTTP CALL]
+    /// 
+    /// This is acceptable because:
+    /// - In production, echonet service responds quickly
+    /// - In tests, mockito server responds immediately
+    /// - We need the timestamp before proceeding with the transaction
     #[instrument(
         level = "debug",
         skip(self, args),
@@ -577,7 +613,15 @@ impl Mempool {
                 }
             }
             QueueType::Fifo => {
+                debug!(
+                    "Mempool add_tx_inner (FIFO): inserting tx_hash={} into queue (will fetch timestamp)",
+                    tx_reference.tx_hash
+                );
                 self.insert_to_tx_queue(tx_reference);
+                info!(
+                    "Mempool add_tx_inner (FIFO): successfully added tx_hash={}",
+                    tx_reference.tx_hash
+                );
             }
         }
     }
