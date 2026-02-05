@@ -1,9 +1,4 @@
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::{
-    FactNodeDeserializationContext,
-    PatriciaPrefix,
-    FACT_LAYOUT_DB_KEY_SEPARATOR,
-};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, UnmodifiedChildTraversal};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -11,6 +6,11 @@ use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix};
 
 use crate::block_committer::input::InputContext;
+use crate::db::facts_db::node_serde::{
+    FactNodeDeserializationContext,
+    PatriciaPrefix,
+    FACT_LAYOUT_DB_KEY_SEPARATOR,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct FactsSubTree<'a> {

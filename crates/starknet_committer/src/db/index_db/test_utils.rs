@@ -1,8 +1,7 @@
 use async_recursion::async_recursion;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -18,8 +17,10 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, DbValue, Storage};
 
 use crate::block_committer::input::try_node_index_into_contract_address;
 use crate::db::db_layout::DbLayout;
+use crate::db::facts_db::db::FactsNodeLayout;
+use crate::db::facts_db::node_serde::FactNodeDeserializationContext;
 use crate::db::facts_db::types::FactsSubTree;
-use crate::db::facts_db::FactsNodeLayout;
+use crate::db::facts_db::FactDbFilledNode;
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
     IndexLayoutContractState,
@@ -180,7 +181,7 @@ async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
     .unwrap();
 
     let index_filled_node: IndexFilledNodeWithHasher<IndexLeaf, MockTreeHashFunction> =
-        match facts_filled_node.data {
+        match facts_filled_node.0.data {
             NodeData::Binary(binary_data) => {
                 let (left_subtree, right_subtree) =
                     subtree.get_children_subtrees(binary_data.left_data, binary_data.right_data);
