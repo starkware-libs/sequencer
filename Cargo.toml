@@ -394,3 +394,6 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 
 [workspace.lints.clippy]
 as_conversions = "warn"
+
+[profile.release]
+debug = true
