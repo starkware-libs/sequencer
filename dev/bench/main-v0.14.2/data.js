@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770297473487,
+  "lastUpdate": 1770305571121,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -169,6 +169,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1243.7053835499999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d7b2eec61cc1af7e06ad49aaf8f8a90a062a32ba",
+          "message": "starknet_os: move commitment infos utils to starknet os crate (#12147)",
+          "timestamp": "2026-02-05T15:08:16Z",
+          "tree_id": "569011e6eda25588428a472425e998cd157d2d75",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d7b2eec61cc1af7e06ad49aaf8f8a90a062a32ba"
+        },
+        "date": 1770305570767,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 921.4446167799999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1359.0565163699998,
             "unit": "ms"
           }
         ]
