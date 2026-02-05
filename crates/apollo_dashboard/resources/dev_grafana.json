@@ -448,7 +448,7 @@
         {
           "title": "Offset",
           "description": "The next block number to commit",
-          "type": "timeseries",
+          "type": "stat",
           "exprs": [
             "offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
