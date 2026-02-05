@@ -55,7 +55,7 @@ impl StateSync {
         new_block_sender: Sender<SyncBlock>,
         config: StateSyncConfig,
     ) -> Self {
-        let starknet_client = config.central_sync_client_config.map(|config| {
+        let starknet_client = config.static_config.central_sync_client_config.map(|config| {
             let config = config.central_source_config;
             let starknet_client: Arc<dyn StarknetReader + Send + Sync> = Arc::new(
                 StarknetFeederGatewayClient::new(
