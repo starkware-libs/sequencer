@@ -43,6 +43,9 @@ use crate::metrics::{
     GLOBAL_ROOT_HEIGHT,
 };
 
+// TODO(Amos): Add this to config.
+const TASK_SEND_RETRY_DELAY: Duration = Duration::from_millis(100);
+
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
 pub(crate) type ApolloCommitmentManager = CommitmentManager<StateCommitter>;
 
@@ -123,20 +126,6 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         Ok(())
     }
 
-    async fn try_add_task(
-        &mut self,
-        task_input: CommitterTaskInput,
-    ) -> Result<(), TrySendError<CommitterTaskInput>> {
-        let error_message = format!("Failed to send task {task_input} to state committer.");
-        let task_height = task_input.height();
-        let task_type = task_input.task_type();
-        match self.tasks_sender.try_send(task_input) {
-            Ok(_) => Ok(()),
-            Err(TrySendError::Full(err)) => Err(TrySendError::Full(err))?,
-            Err(err) => panic!("{error_message}. error: {err}"),
-        }
-    }
-
     /// Adds a task to the tasks channel. If the tasks channel is full, the behavior depends on the
     /// config: if `panic_if_task_channel_full` is true, it will panic; otherwise, it will retry
     /// after reading results from the tasks channel. Any other error when sending the task will
@@ -146,16 +135,19 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         W: BatcherStorageWriter + ?Sized,
     >(
         &mut self,
-        task_input: CommitterTaskInput,
+        mut task_input: CommitterTaskInput,
         first_block_with_partial_block_hash: &Option<FirstBlockWithPartialBlockHash>,
         storage_reader: Arc<R>,
         storage_writer: &mut Box<W>,
     ) -> CommitmentManagerResult<()> {
         loop {
-            let result = self.try_add_task(task_input.clone()).await;
+            let err_msg = format!("Failed to send task {task_input} to state committer. error: ");
+            let result = self.tasks_sender.try_send(task_input);
             match result {
                 Ok(_) => return Ok(()),
-                Err(TrySendError::Full(err)) => {
+                Err(TrySendError::Full(t_input)) => {
+                    // Use returned value to avoid cloning the task input.
+                    task_input = t_input;
                     let channel_size = self.tasks_sender.max_capacity();
                     let channel_is_full_msg = format!(
                         "The commitment manager tasks channel is full. channel size: \
@@ -177,12 +169,10 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                             storage_writer,
                         )
                         .await?;
-                        sleep(Duration::from_millis(100)).await;
+                        sleep(TASK_SEND_RETRY_DELAY).await;
                     }
                 }
-                Err(err) => {
-                    panic!("Failed to send task {task_input} to state committer. error: {err}")
-                }
+                Err(err) => panic!("{err_msg}{err}"),
             }
         }
     }

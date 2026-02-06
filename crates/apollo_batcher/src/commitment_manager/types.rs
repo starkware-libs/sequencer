@@ -16,7 +16,8 @@ use starknet_api::core::GlobalRoot;
 use tracing::warn;
 
 /// Input for commitment tasks.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
+#[cfg_attr(test, derive(Clone))]
 pub(crate) enum CommitterTaskInput {
     Commit(CommitBlockRequest),
     Revert(RevertBlockRequest),
