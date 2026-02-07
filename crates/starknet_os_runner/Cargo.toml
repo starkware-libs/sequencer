@@ -47,6 +47,7 @@ apollo_starknet_os_program.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+mockito.workspace = true
 reqwest.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
