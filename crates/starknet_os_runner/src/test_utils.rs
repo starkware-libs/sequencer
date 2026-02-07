@@ -63,6 +63,11 @@ pub fn get_sepolia_rpc_url() -> String {
     env::var("SEPOLIA_NODE_URL").unwrap_or_else(|_| "http://localhost:9546/rpc/v0_10".to_string())
 }
 
+/// Gets the Privacy node RPC URL (defaults to local node, can be overridden via PRIVACY_NODE_URL).
+pub fn get_privacy_rpc_url() -> String {
+    env::var("PRIVACY_NODE_URL").unwrap_or_else(|_| "http://localhost:9547/rpc/v0_10".to_string())
+}
+
 // ================================================================================================
 // Mainnet Fixtures
 // ================================================================================================
@@ -127,6 +132,81 @@ pub async fn fetch_sepolia_block_number() -> BlockId {
 // ================================================================================================
 // Transaction Helpers
 // ================================================================================================
+
+/// Creates the privacy test invoke transaction.
+///
+/// This transaction is for testing on the privacy-starknet-pathfinder node.
+pub fn privacy_invoke_tx() -> (InvokeTransaction, TransactionHash) {
+    use starknet_api::data_availability::DataAvailabilityMode;
+    use starknet_api::transaction::fields::{ProofFacts, Tip, TransactionSignature};
+    use starknet_api::transaction::InvokeTransactionV3;
+
+    let sender_address = ContractAddress::try_from(Felt::from_hex_unchecked(
+        "0x7bfcd6bd5b220a1d46921d92924ddec46bb7e49d05354c76a8714b41269b2f8",
+    ))
+    .unwrap();
+
+    let signature = TransactionSignature(std::sync::Arc::new(vec![
+        Felt::from_hex_unchecked(
+            "0x2696e74dfd65f95a434f9bb5b19bc21add3161bbe272bbb37e6d114426eef76",
+        ),
+        Felt::from_hex_unchecked(
+            "0x1cdaa27fd6b624cb78aca8169cdb49c2ffb470fc4e797b7f462a09ff81577c7",
+        ),
+    ]));
+
+    let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(10_000_000),
+            max_price_per_unit: GasPrice(0),
+        },
+        l1_data_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
+    });
+
+    let calldata = starknet_api::transaction::fields::Calldata(std::sync::Arc::new(vec![
+        Felt::from_hex_unchecked(
+            "0x7bfcd6bd5b220a1d46921d92924ddec46bb7e49d05354c76a8714b41269b2f8",
+        ),
+        Felt::from_hex_unchecked(
+            "0x9874a02fe5bbda5d097a608675f2a5a71e2ea38b4438c51e90d8084a1e88e1",
+        ),
+        Felt::from_hex_unchecked("0x1"),
+        Felt::from_hex_unchecked("0x0"),
+        Felt::from_hex_unchecked("0x123456789"),
+    ]));
+
+    let invoke_v3 = InvokeTransactionV3 {
+        resource_bounds,
+        tip: Tip(0),
+        signature,
+        nonce: starknet_api::core::Nonce(Felt::ONE),
+        sender_address,
+        calldata,
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+        paymaster_data: starknet_api::transaction::fields::PaymasterData(vec![]),
+        account_deployment_data: starknet_api::transaction::fields::AccountDeploymentData(vec![]),
+        proof_facts: ProofFacts(std::sync::Arc::new(vec![])),
+    };
+
+    let invoke_tx = InvokeTransaction::V3(invoke_v3);
+    // Use Sepolia chain ID for hash calculation since the privacy network
+    // infrastructure expects Sepolia-compatible configuration.
+    let tx_hash = Transaction::Invoke(invoke_tx.clone())
+        .calculate_transaction_hash(&ChainId::Sepolia)
+        .unwrap();
+
+    (invoke_tx, tx_hash)
+}
+
+/// Fetches the latest block number from the privacy node (async).
+pub async fn fetch_privacy_block_number() -> BlockId {
+    let rpc_url = Url::parse(&get_privacy_rpc_url()).expect("Invalid Privacy RPC URL");
+    let provider = RpcStorageProofsProvider::new(rpc_url);
+    let block_number = provider.0.block_number().await.expect("Failed to fetch block number");
+    BlockId::Number(BlockNumber(block_number))
+}
 
 /// Creates an invoke transaction that calls `balanceOf` on the STRK token.
 ///

@@ -13,18 +13,14 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::block_committer::measurements_util::NoMeasurements;
 use starknet_committer::db::facts_db::db::FactsDb;
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
-use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
+use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::{
-    PatriciaPrefix,
-    FACT_LAYOUT_DB_KEY_SEPARATOR,
-};
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, NodeData};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
@@ -110,7 +106,7 @@ fn insert_inner_nodes<S: std::hash::BuildHasher>(
             FactDbFilledNode::<StarknetStorageValue> { hash: HashOutput(*hash), data: node_data };
         let value = filled_node.serialize()?;
         let node_prefix: DbKeyPrefix = PatriciaPrefix::InnerNode.into();
-        let key = create_db_key(node_prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &hash.to_bytes_be());
+        let key = create_db_key(node_prefix, &hash.to_bytes_be());
         db_map.insert(key, value);
     }
 
@@ -203,8 +199,7 @@ fn add_dummy_node_for_orphan_child(
 ) {
     if !has_preimage.contains(child_hash) {
         let node_prefix: DbKeyPrefix = PatriciaPrefix::InnerNode.into();
-        let key =
-            create_db_key(node_prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &child_hash.to_bytes_be());
+        let key = create_db_key(node_prefix, &child_hash.to_bytes_be());
         db_map.entry(key).or_insert_with(|| dummy_value.clone());
     }
 }
@@ -254,7 +249,7 @@ pub(crate) async fn commit_state_diff(
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
 
-    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, &mut NoMeasurements)
+    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, None)
         .await
         .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;
     _ = facts_db.write(&filled_forest).await;
