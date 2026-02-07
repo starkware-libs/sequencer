@@ -332,13 +332,8 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     send(&mut sender, precommit(None, HEIGHT_1, ROUND_0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     expect_validate_proposal(&mut context, Felt::ONE, 2);
-    context.expect_validators().returning(move |_| {
-        Ok(vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3])
-    });
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_try_sync().returning(|_| false);
 
     let (timeout_send, timeout_receive) = oneshot::channel();
@@ -732,8 +727,7 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     let _vote_sender = mock_network.broadcasted_messages_sender;
     let (_proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    // Context with expectations: H1 we are the validator, learn height via sync; at H2 we are the
-    // proposer.
+    // Context: H1 we sync (try_sync returns true); at H2 we run consensus as the proposer.
     let mut context = MockTestContext::new();
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_validators().returning(move |h: BlockNumber| {
