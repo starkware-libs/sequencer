@@ -437,7 +437,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             },
 
             Err(err) => match err {
-                e @ ConsensusError::BatcherError(_) => {
+                e @ ConsensusError::BatcherError(_) | e @ ConsensusError::CommitteeError(_) => {
                     error!(
                         "Error while running consensus for height {height}, fallback to sync: {e}"
                     );
@@ -549,6 +549,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         (SingleHeightConsensus, FuturesUnordered<BoxFuture<'static, StateMachineEvent>>),
         ConsensusError,
     > {
+        let committee = self
+            .committee_provider
+            .get_committee(height)
+            .await
+            .map_err(|e| ConsensusError::CommitteeError(e.to_string()))?;
+
         let validators = context.validators(height).await?;
         let is_observer = !validators.contains(&self.consensus_config.dynamic_config.validator_id);
         info!(
@@ -563,6 +569,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             validators,
             self.quorum_type,
             self.consensus_config.dynamic_config.timeouts.clone(),
+            committee,
             self.consensus_config.dynamic_config.require_virtual_proposer_vote,
         );
         let shc_events = FuturesUnordered::new();
