@@ -24,14 +24,7 @@ use test_case::test_case;
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::test_utils::mock_committee_virtual_equal_to_actual;
-use crate::types::{
-    ConsensusError,
-    Decision,
-    LeaderElection,
-    ProposalCommitment,
-    Round,
-    ValidatorId,
-};
+use crate::types::{Decision, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 const HEIGHT_0: BlockNumber = BlockNumber(0);
@@ -489,30 +482,9 @@ impl DiscreteEventSimulation {
     fn run(&mut self, deadline_ticks: u64) -> Option<Decision> {
         // Pre-generate all rounds events
         self.pre_generate_all_rounds();
-
-        let validators = self.validators.clone();
-        let seed = self.seed;
-        let total_nodes = self.total_nodes;
         // Create two separate closures with the same logic (for proposer and virtual_proposer)
-        let proposer_fn = {
-            let validators = validators.clone();
-            move |r: Round| -> Result<ValidatorId, ConsensusError> {
-                let idx = get_leader_index(seed, total_nodes, r);
-                Ok(validators[idx])
-            }
-        };
-        let virtual_proposer_fn = {
-            let validators = validators.clone();
-            move |r: Round| -> Result<ValidatorId, ConsensusError> {
-                let idx = get_leader_index(seed, total_nodes, r);
-                Ok(validators[idx])
-            }
-        };
-        let leader_election =
-            LeaderElection::new(Box::new(proposer_fn), Box::new(virtual_proposer_fn));
-
         // Start the single height consensus
-        let requests = self.shc.start(&leader_election);
+        let requests = self.shc.start();
         if let Some(decision) = self.handle_requests(requests) {
             return Some(decision);
         }
@@ -530,28 +502,24 @@ impl DiscreteEventSimulation {
             let requests = match timed_event.event {
                 InputEvent::Vote(v) => {
                     self.track_precommit(&v);
-                    self.shc.handle_vote(&leader_election, v)
+                    self.shc.handle_vote(v)
                 }
-                InputEvent::Proposal(p) => self.shc.handle_proposal(&leader_election, p),
+                InputEvent::Proposal(p) => self.shc.handle_proposal(p),
                 InputEvent::Internal(StateMachineEvent::FinishedValidation(
                     commitment,
                     round,
                     _,
                 )) => {
                     self.track_finished_proposal(round, commitment);
-                    self.shc.handle_event(
-                        &leader_election,
-                        StateMachineEvent::FinishedValidation(commitment, round, None),
-                    )
+                    self.shc.handle_event(StateMachineEvent::FinishedValidation(
+                        commitment, round, None,
+                    ))
                 }
                 InputEvent::Internal(StateMachineEvent::FinishedBuilding(commitment, round)) => {
                     self.track_finished_proposal(round, commitment);
-                    self.shc.handle_event(
-                        &leader_election,
-                        StateMachineEvent::FinishedBuilding(commitment, round),
-                    )
+                    self.shc.handle_event(StateMachineEvent::FinishedBuilding(commitment, round))
                 }
-                InputEvent::Internal(e) => self.shc.handle_event(&leader_election, e),
+                InputEvent::Internal(e) => self.shc.handle_event(e),
             };
 
             if let Some(decision) = self.handle_requests(requests) {
