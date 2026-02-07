@@ -73,8 +73,9 @@ clone_or_update_proving_utils() {
         git checkout "${PROVING_UTILS_REV}"
     else
         info "Cloning proving-utils to ${target_dir}..."
-        rm -rf "${target_dir}"
-        mkdir -p "$(dirname "${target_dir}")"
+        # Clear contents instead of removing the directory — it may be a cache mount point.
+        rm -rf "${target_dir:?}"/* "${target_dir}"/.[!.]* 2>/dev/null || true
+        mkdir -p "${target_dir}"
         git clone "${PROVING_UTILS_REPO}" "${target_dir}"
         cd "${target_dir}"
         git checkout "${PROVING_UTILS_REV}"
