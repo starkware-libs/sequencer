@@ -1,0 +1,52 @@
+name: Starknet-OS-Runner-CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+    paths:
+      - ".github/workflows/starknet_os_runner_ci.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/blockifier/**"
+      - "crates/blockifier_reexecution/**"
+      - "crates/starknet_os_runner/**"
+      - "crates/starknet_os/**"
+      - "crates/starknet_committer/**"
+      - "crates/starknet_patricia/**"
+      - "scripts/dependencies.sh"
+      - "scripts/install_build_tools.sh"
+      - "scripts/sequencer-ci.Dockerfile"
+
+env:
+  RUSTFLAGS: "-D warnings"
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  starknet_os_runner:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      # Download the starknet_os_runner test fixtures.
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.SA_STARKNET_OS_RUNNER_ARTIFACTS }}
+      - uses: "google-github-actions/setup-gcloud@v2"
+      - run: echo "OS_RUNNER_FILES_PREFIX=$(cat ./crates/starknet_os_runner/resources/offline_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp -r gs://starknet-os-runner-artifacts/$OS_RUNNER_FILES_PREFIX/fixtures/* ./crates/starknet_os_runner/resources/fixtures/
+      # Run starknet_os_runner tests (including ignored ones that now use offline fixtures).
+      - run: cargo test --release -p starknet_os_runner -- --include-ignored
