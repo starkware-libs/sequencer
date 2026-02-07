@@ -45,6 +45,9 @@ url.workspace = true
 [dev-dependencies]
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+expect-test.workspace = true
+mockito.workspace = true
+reqwest.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 
