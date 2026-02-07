@@ -111,6 +111,18 @@ pub fn sepolia_runner_factory() -> RpcRunnerFactory {
     RpcRunnerFactory::new(rpc_url, ChainId::Sepolia, contract_class_manager, runner_config)
 }
 
+/// Fetches the latest block number from Sepolia (async).
+pub async fn fetch_sepolia_block_number() -> BlockId {
+    fetch_block_number_from(&get_sepolia_rpc_url()).await
+}
+
+/// Fetches the latest block number from the given RPC URL.
+pub async fn fetch_block_number_from(rpc_url: &str) -> BlockId {
+    let rpc_url = Url::parse(rpc_url).expect("Invalid RPC URL");
+    let provider = RpcStorageProofsProvider::new(rpc_url);
+    let block_number = provider.0.block_number().await.expect("Failed to fetch block number");
+    BlockId::Number(BlockNumber(block_number))
+}
 // ================================================================================================
 // Transaction Helpers
 // ================================================================================================
