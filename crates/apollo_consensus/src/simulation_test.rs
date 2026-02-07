@@ -23,6 +23,7 @@ use test_case::test_case;
 
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
+use crate::test_utils::test_committee;
 use crate::types::{
     ConsensusError,
     Decision,
@@ -207,6 +208,24 @@ impl DiscreteEventSimulation {
         let validators: Vec<ValidatorId> =
             (0..total_nodes).map(|i| ValidatorId::from(u64::try_from(i).unwrap())).collect();
 
+        let committee = test_committee(
+            validators.clone(),
+            Box::new({
+                let validators = validators.clone();
+                move |round| {
+                    let idx = get_leader_index(seed, total_nodes, round);
+                    Ok(validators[idx])
+                }
+            }),
+            Box::new({
+                let validators = validators.clone();
+                move |round| {
+                    let idx = get_leader_index(seed, total_nodes, round);
+                    Ok(validators[idx])
+                }
+            }),
+        );
+
         let shc = SingleHeightConsensus::new(
             HEIGHT_0,
             false,
@@ -215,6 +234,7 @@ impl DiscreteEventSimulation {
             QuorumType::Byzantine,
             TimeoutsConfig::default(),
             true,
+            committee,
         );
 
         let quorum_threshold = (2 * total_nodes / 3) + 1;

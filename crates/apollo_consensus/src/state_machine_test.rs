@@ -9,6 +9,7 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
+use crate::test_utils::test_committee;
 use crate::types::{ConsensusError, LeaderElection, ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
@@ -70,12 +71,11 @@ impl TestWrapper {
         is_observer: bool,
         quorum_type: QuorumType,
     ) -> Self {
-        let mut peer_voters = vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3]
-            .into_iter()
-            .filter(|v| *v != id)
-            .collect::<Vec<_>>();
+        let validators = vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
+        let mut peer_voters = validators.iter().filter(|v| **v != id).copied().collect::<Vec<_>>();
         // Ensure deterministic order.
         peer_voters.sort();
+        let committee = test_committee(validators, Box::new(proposer), Box::new(virtual_proposer));
         Self {
             state_machine: StateMachine::new(
                 HEIGHT,
@@ -84,6 +84,7 @@ impl TestWrapper {
                 is_observer,
                 quorum_type,
                 true,
+                committee,
             ),
             leader_election: LeaderElection::new(Box::new(proposer), Box::new(virtual_proposer)),
             requests: VecDeque::new(),

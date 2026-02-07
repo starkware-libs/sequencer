@@ -8,7 +8,7 @@ use test_case::test_case;
 
 use super::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
-use crate::test_utils::{block_info, precommit, prevote, TestBlock};
+use crate::test_utils::{block_info, precommit, prevote, test_committee, TestBlock};
 use crate::types::{ConsensusError, LeaderElection, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
@@ -35,6 +35,8 @@ const REQUIRE_VIRTUAL_PROPOSER_VOTE: bool = true;
 
 #[test]
 fn proposer() {
+    let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
+
     let mut shc = SingleHeightConsensus::new(
         HEIGHT_0,
         false,
@@ -43,8 +45,8 @@ fn proposer() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
+        test_committee(VALIDATORS.to_vec(), Box::new(leader_fn), Box::new(leader_fn)),
     );
-    let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
     // Start should request to build proposal.
     let start_ret = shc.start(&leader_election);
@@ -113,7 +115,13 @@ fn validator(repeat_proposal: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
+        test_committee(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+        ),
     );
+    // TODO(Asmaa): Remove this once the SHC and SM use the committee.
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
 
@@ -187,6 +195,11 @@ fn vote_twice(same_vote: bool) {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
+        test_committee(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+        ),
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -252,6 +265,11 @@ fn rebroadcast_votes() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
+        test_committee(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+        ),
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -345,6 +363,11 @@ fn repropose() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
+        test_committee(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+        ),
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -413,6 +436,11 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
+        test_committee(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+        ),
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
@@ -464,6 +492,11 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
+        test_committee(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+        ),
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
