@@ -24,28 +24,6 @@ use starknet_api::core::ContractAddress;
 // TODO(matan): Determine the actual type of NodeId.
 pub type ValidatorId = ContractAddress;
 
-/// Function type for leader selection.
-pub(crate) type LeaderFn<'a> = Box<dyn Fn(Round) -> Result<ValidatorId, ConsensusError> + 'a>;
-
-/// Wrapper struct for leader functions used in consensus.
-pub(crate) struct LeaderElection<'a> {
-    proposer: LeaderFn<'a>,
-    virtual_proposer: LeaderFn<'a>,
-}
-
-impl<'a> LeaderElection<'a> {
-    pub(crate) fn new(proposer: LeaderFn<'a>, virtual_proposer: LeaderFn<'a>) -> Self {
-        Self { proposer, virtual_proposer }
-    }
-
-    pub(crate) fn proposer(&self, round: Round) -> Result<ValidatorId, ConsensusError> {
-        (self.proposer)(round)
-    }
-    pub(crate) fn virtual_proposer(&self, round: Round) -> Result<ValidatorId, ConsensusError> {
-        (self.virtual_proposer)(round)
-    }
-}
-
 /// Interface for consensus to call out to the node.
 ///
 /// Function calls should be assumed to not be cancel safe.
