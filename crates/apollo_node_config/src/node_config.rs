@@ -364,14 +364,19 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .mempool_config
             .as_ref()
             .map(|mempool_config| mempool_config.dynamic_config.clone());
+        let staking_manager_dynamic_config = sequencer_node_config
+            .consensus_manager_config
+            .as_ref()
+            .map(|consensus_manager_config| {
+                consensus_manager_config.staking_manager_config.dynamic_config.clone()
+            });
         Self {
             batcher_dynamic_config,
             consensus_dynamic_config,
             context_dynamic_config,
             http_server_dynamic_config,
             mempool_dynamic_config,
-            // TODO(Dafna): take the staking config from `consensus_manager_config` once available.
-            staking_manager_dynamic_config: Some(StakingManagerDynamicConfig::default()),
+            staking_manager_dynamic_config,
         }
     }
 }

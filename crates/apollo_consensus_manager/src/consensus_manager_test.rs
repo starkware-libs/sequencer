@@ -18,7 +18,7 @@ use starknet_api::block::BlockNumber;
 use tokio::sync::Mutex;
 use tokio::time::{timeout, Duration};
 
-use crate::consensus_manager::{ConsensusManager, ConsensusManagerArgs};
+use crate::consensus_manager::{create_committee_provider, ConsensusManager, ConsensusManagerArgs};
 
 #[tokio::test]
 async fn revert_batcher_blocks() {
@@ -60,15 +60,20 @@ async fn revert_batcher_blocks() {
         ..Default::default()
     };
 
+    let state_sync = Arc::new(MockStateSyncClient::new());
+    let config_manager = Arc::new(MockConfigManagerClient::new());
+    let committee_provider =
+        create_committee_provider(&manager_config, state_sync.clone(), config_manager.clone());
     let consensus_manager = ConsensusManager::new_with_storage(
         ConsensusManagerArgs {
             config: manager_config,
             batcher_client: Arc::new(mock_batcher_client),
-            state_sync_client: Arc::new(MockStateSyncClient::new()),
+            state_sync_client: state_sync,
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-            config_manager_client: Arc::new(MockConfigManagerClient::new()),
+            config_manager_client: config_manager,
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+            committee_provider,
         },
         Arc::new(Mutex::new(mock_voted_height_storage)),
     );
@@ -83,23 +88,29 @@ async fn no_reverts_without_config() {
     mock_batcher.expect_revert_block().times(0).returning(|_| Ok(()));
     mock_batcher.expect_get_height().returning(|| Ok(GetHeightResponse { height: BlockNumber(0) }));
 
-    let consensus_manager = ConsensusManager::new(ConsensusManagerArgs {
-        config: ConsensusManagerConfig {
-            consensus_manager_config: ConsensusConfig {
-                static_config: ConsensusStaticConfig {
-                    storage_config: get_new_storage_config(),
-                    ..Default::default()
-                },
+    let config = ConsensusManagerConfig {
+        consensus_manager_config: ConsensusConfig {
+            static_config: ConsensusStaticConfig {
+                storage_config: get_new_storage_config(),
                 ..Default::default()
             },
             ..Default::default()
         },
+        ..Default::default()
+    };
+    let state_sync = Arc::new(MockStateSyncClient::new());
+    let config_manager = Arc::new(MockConfigManagerClient::new());
+    let committee_provider =
+        create_committee_provider(&config, state_sync.clone(), config_manager.clone());
+    let consensus_manager = ConsensusManager::new(ConsensusManagerArgs {
+        config,
         batcher_client: Arc::new(mock_batcher),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
+        state_sync_client: state_sync,
         class_manager_client: Arc::new(MockClassManagerClient::new()),
         signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-        config_manager_client: Arc::new(MockConfigManagerClient::new()),
+        config_manager_client: config_manager,
         l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+        committee_provider,
     });
 
     // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).
