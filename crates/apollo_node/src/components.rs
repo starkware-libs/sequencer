@@ -8,7 +8,11 @@ use apollo_committer::committer::ApolloCommitter;
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_config_manager::config_manager::ConfigManager;
 use apollo_config_manager::config_manager_runner::ConfigManagerRunner;
-use apollo_consensus_manager::consensus_manager::{ConsensusManager, ConsensusManagerArgs};
+use apollo_consensus_manager::consensus_manager::{
+    create_committee_provider,
+    ConsensusManager,
+    ConsensusManagerArgs,
+};
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
@@ -188,6 +192,11 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
+            let committee_provider = create_committee_provider(
+                consensus_manager_config,
+                state_sync_client.clone(),
+                config_manager_client.clone(),
+            );
             Some(ConsensusManager::new(ConsensusManagerArgs {
                 config: consensus_manager_config.clone(),
                 batcher_client,
@@ -196,6 +205,7 @@ pub async fn create_node_components(
                 signature_manager_client,
                 config_manager_client,
                 l1_gas_price_provider: l1_gas_price_client,
+                committee_provider,
             }))
         }
         ActiveComponentExecutionMode::Disabled => None,

@@ -23,6 +23,7 @@ use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
 use futures::channel::mpsc;
 use futures::future::BoxFuture;
@@ -70,6 +71,8 @@ pub struct RunConsensusArguments {
     /// Storage used to persist last voted consensus height.
     // See MultiHeightManager foran explanation of why we have Arc<Mutex>>.
     pub last_voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    /// Provider for committee (validators, proposer).
+    pub committee_provider: Arc<dyn CommitteeProvider>,
 }
 
 impl std::fmt::Debug for RunConsensusArguments {
@@ -122,6 +125,7 @@ where
         run_consensus_args.consensus_config.clone(),
         run_consensus_args.quorum_type,
         run_consensus_args.last_voted_height_storage.clone(),
+        run_consensus_args.committee_provider.clone(),
     )
     .await;
     loop {
@@ -347,7 +351,6 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
 
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
-#[derive(Debug)]
 struct MultiHeightManager<ContextT: ConsensusContext> {
     consensus_config: ConsensusConfig,
     quorum_type: QuorumType,
@@ -356,6 +359,8 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
     // rust limitations.
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    #[allow(dead_code)]
+    committee_provider: Arc<dyn CommitteeProvider>,
     // Proposal content streams keyed by (height, round)
     current_height_proposals_streams:
         BTreeMap<(BlockNumber, Round), mpsc::Receiver<ContextT::ProposalPart>>,
@@ -368,6 +373,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         consensus_config: ConsensusConfig,
         quorum_type: QuorumType,
         voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+        committee_provider: Arc<dyn CommitteeProvider>,
     ) -> Self {
         let last_voted_height_at_initialization = voted_height_storage
             .lock()
@@ -380,6 +386,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             quorum_type,
             last_voted_height_at_initialization,
             voted_height_storage,
+            committee_provider,
             current_height_proposals_streams: BTreeMap::new(),
             cache: ConsensusCache::new(future_msg_limit),
         }

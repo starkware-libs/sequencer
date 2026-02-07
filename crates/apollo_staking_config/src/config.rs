@@ -1,6 +1,11 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;
@@ -155,7 +160,7 @@ pub fn get_config_for_epoch<'a>(
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerConfig {
     pub dynamic_config: StakingManagerDynamicConfig,
     pub static_config: StakingManagerStaticConfig,
@@ -200,26 +205,32 @@ impl Default for StakingManagerDynamicConfig {
 
 impl SerializeConfig for StakingManagerDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "default_committee",
-                &self.default_committee,
-                "Defines the default committee configuration (size and stakers) for all epochs.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "override_committee",
-                &self.override_committee,
-                "Optional override configuration that takes precedence over default_committee.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        let mut config = BTreeMap::from_iter([ser_param(
+            "default_committee",
+            &self.default_committee,
+            "Defines the default committee configuration (size and stakers) for all epochs.",
+            ParamPrivacyInput::Public,
+        )]);
+        config.extend(ser_optional_param(
+            &self.override_committee,
+            self.default_committee.clone(),
+            "override_committee",
+            "Optional override configuration that takes precedence over default_committee.",
+            ParamPrivacyInput::Public,
+        ));
+        config
     }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerStaticConfig {
     pub max_cached_epochs: usize,
+}
+
+impl Default for StakingManagerStaticConfig {
+    fn default() -> Self {
+        Self { max_cached_epochs: 10 }
+    }
 }
 
 impl SerializeConfig for StakingManagerStaticConfig {
