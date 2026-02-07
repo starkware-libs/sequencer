@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use axum::body::Bytes;
@@ -189,4 +189,105 @@ pub fn record_path(test_name: &str) -> PathBuf {
 /// Returns true if a record file exists for the given test.
 pub fn records_exist(test_name: &str) -> bool {
     record_path(test_name).exists()
+}
+
+// ================================================================================================
+// Recording Proxy
+// ================================================================================================
+
+/// Shared state for the recording proxy server.
+pub(crate) struct RecordingProxyState {
+    /// URL of the real RPC node to forward requests to.
+    pub(crate) target_url: String,
+    /// HTTP client for forwarding requests.
+    pub(crate) client: reqwest::Client,
+    /// Collected interactions (guarded by a mutex for concurrent handler access).
+    pub(crate) interactions: Mutex<Vec<RpcInteraction>>,
+}
+
+/// Handle for a running recording proxy.
+///
+/// The proxy forwards all POST requests to the real RPC node while recording
+/// each request/response pair. When dropped or explicitly collected, the recorded
+/// interactions can be saved to a file.
+pub struct RecordingProxy {
+    /// The local URL of the proxy (e.g., `http://127.0.0.1:PORT`).
+    pub(crate) url: String,
+    /// Shared state containing recorded interactions.
+    pub(crate) state: Arc<RecordingProxyState>,
+    /// Dropping this sender signals the proxy server to shut down gracefully.
+    pub(crate) _server_shutdown: tokio::sync::oneshot::Sender<()>,
+}
+
+impl RecordingProxy {
+    /// Starts a recording proxy that forwards requests to `target_url`.
+    ///
+    /// Returns a `RecordingProxy` handle. Use `proxy.url` as the RPC URL in tests.
+    /// After the test completes, call `proxy.into_records()` to retrieve the recorded data.
+    pub(crate) async fn new(target_url: &str) -> Self {
+        let state = Arc::new(RecordingProxyState {
+            target_url: target_url.to_string(),
+            client: reqwest::Client::new(),
+            interactions: Mutex::new(Vec::new()),
+        });
+
+        let app = Router::new().route("/", post(RecordingProxy::handler)).with_state(state.clone());
+
+        let listener = TcpListener::bind(SERVER_BIND_ADDRESS).await.unwrap();
+        let addr: SocketAddr = listener.local_addr().unwrap();
+
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+        tokio::spawn(async move {
+            axum::serve(listener, app)
+                .with_graceful_shutdown(async {
+                    shutdown_rx.await.ok();
+                })
+                .await
+                .unwrap();
+        });
+
+        RecordingProxy { url: format!("http://{addr}"), state, _server_shutdown: shutdown_tx }
+    }
+
+    /// Consumes the proxy and returns the collected records with normalized params.
+    pub(crate) fn into_records(self) -> RpcRecords {
+        let interactions = self.state.interactions.lock().unwrap().clone();
+        RpcRecords { interactions }
+    }
+
+    /// Axum handler that forwards POST requests to the real RPC node and records the interaction.
+    async fn handler(
+        State(state): State<Arc<RecordingProxyState>>,
+        body: Bytes,
+    ) -> impl IntoResponse {
+        let request: Value =
+            serde_json::from_slice(&body).expect("Recording proxy: invalid JSON in request body");
+
+        let method =
+            request.get("method").and_then(|m| m.as_str()).unwrap_or("unknown").to_string();
+        // Normalize params when recording so that replay matching is deterministic.
+        let sorted_params = normalize_json(&request.get("params").cloned().unwrap_or(Value::Null));
+
+        // Forward to the real RPC node.
+        let response = state
+            .client
+            .post(&state.target_url)
+            .header("content-type", "application/json")
+            .body(body.to_vec())
+            .send()
+            .await
+            .expect("Recording proxy: failed to forward request");
+
+        let status = axum::http::StatusCode::from_u16(response.status().as_u16())
+            .unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+        let response_body: Value =
+            response.json().await.expect("Recording proxy: failed to parse response as JSON");
+
+        // Record the interaction with normalized params.
+        let interaction = RpcInteraction { method, sorted_params, response: response_body.clone() };
+        state.interactions.lock().unwrap().push(interaction);
+
+        (status, axum::Json(response_body))
+    }
 }
