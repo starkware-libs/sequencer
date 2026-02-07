@@ -19,7 +19,7 @@
 set -euo pipefail
 
 PROVING_UTILS_REPO="https://github.com/starkware-libs/proving-utils"
-PROVING_UTILS_REV_DEFAULT="e16f9d0"
+PROVING_UTILS_REV_DEFAULT="3ae985d"
 PROVING_UTILS_REV="${PROVING_UTILS_REV:-${PROVING_UTILS_REV_DEFAULT}}"
 
 COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -73,8 +73,9 @@ clone_or_update_proving_utils() {
         git checkout "${PROVING_UTILS_REV}"
     else
         info "Cloning proving-utils to ${target_dir}..."
-        rm -rf "${target_dir}"
-        mkdir -p "$(dirname "${target_dir}")"
+        # Clear contents instead of removing the directory — it may be a cache mount point.
+        rm -rf "${target_dir:?}"/* "${target_dir}"/.[!.]* 2>/dev/null || true
+        mkdir -p "${target_dir}"
         git clone "${PROVING_UTILS_REPO}" "${target_dir}"
         cd "${target_dir}"
         git checkout "${PROVING_UTILS_REV}"
