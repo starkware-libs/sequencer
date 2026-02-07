@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_consensus::types::Round;
+use apollo_protobuf::consensus::Round;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
@@ -52,7 +52,8 @@ pub type CommitteeResult<T> = Result<T, CommitteeError>;
 /// Trait for committee operations including proposer selection.
 /// This trait is implemented by committee instances and provides synchronous methods
 /// for determining proposers based on height and round.
-pub trait CommitteeTrait {
+#[cfg_attr(feature = "testing", mockall::automock)]
+pub trait CommitteeTrait: Send + Sync {
     /// Returns a reference to the committee members.
     fn members(&self) -> &StakerSet;
 
@@ -73,6 +74,7 @@ pub trait CommitteeTrait {
 /// The committee is a subset of nodes (proposer and validators) that are selected to participate in
 /// the consensus at a given epoch, responsible for proposing blocks and voting on them.
 #[async_trait]
+#[cfg_attr(feature = "testing", mockall::automock)]
 pub trait CommitteeProvider: Send + Sync {
     /// Returns a committee instance for the epoch of the given height.
     async fn get_committee(

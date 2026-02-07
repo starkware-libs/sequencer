@@ -6,6 +6,7 @@ use apollo_consensus_config::config::{ConsensusConfig, StreamHandlerConfig};
 use apollo_consensus_orchestrator_config::config::{CendeConfig, ContextConfig};
 use apollo_network::NetworkConfig;
 use apollo_reverts::RevertConfig;
+use apollo_staking_config::config::StakingManagerConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -19,6 +20,7 @@ pub struct ConsensusManagerConfig {
     pub network_config: NetworkConfig,
     pub cende_config: CendeConfig,
     pub revert_config: RevertConfig,
+    pub staking_manager_config: StakingManagerConfig,
     pub votes_topic: String,
     pub proposals_topic: String,
     pub broadcast_buffer_size: usize,
@@ -67,6 +69,10 @@ impl SerializeConfig for ConsensusManagerConfig {
         config.extend(prepend_sub_config_name(self.cende_config.dump(), "cende_config"));
         config.extend(prepend_sub_config_name(self.network_config.dump(), "network_config"));
         config.extend(prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
+        config.extend(prepend_sub_config_name(
+            self.staking_manager_config.dump(),
+            "staking_manager_config",
+        ));
         config
     }
 }
@@ -80,6 +86,7 @@ impl Default for ConsensusManagerConfig {
             cende_config: CendeConfig::default(),
             network_config: NetworkConfig::default(),
             revert_config: RevertConfig::default(),
+            staking_manager_config: StakingManagerConfig::default(),
             votes_topic: "consensus_votes".to_string(),
             proposals_topic: "consensus_proposals".to_string(),
             broadcast_buffer_size: 10000,

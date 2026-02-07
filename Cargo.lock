@@ -1280,6 +1280,7 @@ dependencies = [
  "apollo_network",
  "apollo_network_types",
  "apollo_protobuf",
+ "apollo_staking",
  "apollo_storage",
  "apollo_test_utils",
  "apollo_time",
@@ -1336,6 +1337,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_reverts",
  "apollo_signature_manager_types",
+ "apollo_staking",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_time",
@@ -1358,6 +1360,7 @@ dependencies = [
  "apollo_consensus_orchestrator_config",
  "apollo_network",
  "apollo_reverts",
+ "apollo_staking_config",
  "serde",
  "validator",
 ]
@@ -1720,6 +1723,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_rpc",
  "apollo_sierra_compilation_config",
+ "apollo_staking_config",
  "apollo_state_sync_config",
  "apollo_state_sync_metrics",
  "apollo_storage",
@@ -2468,7 +2472,7 @@ name = "apollo_staking"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config_manager_types",
- "apollo_consensus",
+ "apollo_protobuf",
  "apollo_staking_config",
  "apollo_state_sync_types",
  "assert_matches",
