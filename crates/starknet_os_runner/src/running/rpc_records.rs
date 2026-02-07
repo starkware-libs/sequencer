@@ -14,21 +14,35 @@
 //!
 //! - **Live mode** (default): Tests use a real RPC node directly (existing behavior).
 
+use std::collections::HashMap;
 use std::fs;
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use axum::body::Bytes;
+use axum::extract::State;
+use axum::response::IntoResponse;
+use axum::routing::post;
+use axum::Router;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use tokio::net::TcpListener;
+
+/// Address for servers to bind to (port 0 = OS-assigned random port).
+const SERVER_BIND_ADDRESS: &str = "127.0.0.1:0";
 
 /// A recorded JSON-RPC request-response pair.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RpcInteraction {
     /// The JSON-RPC method name (e.g., "starknet_getStorageAt").
     pub method: String,
-    /// The JSON-RPC parameters.
-    pub params: serde_json::Value,
+    /// The JSON-RPC parameters (sorted: arrays sorted for deterministic matching).
+    #[serde(rename = "params")]
+    pub sorted_params: Value,
     /// The full JSON-RPC response body.
-    pub response: serde_json::Value,
+    pub response: Value,
 }
 
 /// Collection of recorded RPC interactions for a test.
@@ -52,37 +66,110 @@ impl RpcRecords {
         let dir = path.parent().expect("Invalid record path");
         fs::create_dir_all(dir)
             .unwrap_or_else(|e| panic!("Failed to create directory {dir:?}: {e}"));
-        let content =
-            serde_json::to_string_pretty(self).expect("Failed to serialize RPC records");
+        let content = serde_json::to_string_pretty(self).expect("Failed to serialize RPC records");
         fs::write(path, content)
             .unwrap_or_else(|e| panic!("Failed to write records to {path:?}: {e}"));
     }
 }
 
-/// Creates a mockito server pre-configured with all recorded RPC interactions.
+// ================================================================================================
+// JSON normalization
+// ================================================================================================
+
+/// Recursively sorts arrays in a JSON value for deterministic comparison.
 ///
-/// The server matches JSON-RPC requests by their `method` and `params` fields,
-/// returning the recorded response for each matching request.
-/// The `id` and `jsonrpc` version fields are ignored during matching so that
-/// the mock works with both `RpcStateReader` and `JsonRpcClient` regardless
-/// of their internal request formatting.
-pub async fn setup_mock_rpc_server(records: &RpcRecords) -> mockito::ServerGuard {
-    let mut server = mockito::Server::new_async().await;
-    for interaction in &records.interactions {
-        let request_matcher = serde_json::json!({
-            "method": interaction.method,
-            "params": interaction.params,
-        });
-        server
-            .mock("POST", "/")
-            .match_body(mockito::Matcher::PartialJson(request_matcher))
-            .with_status(200)
-            .with_header("content-type", "application/json")
-            .with_body(serde_json::to_string(&interaction.response).unwrap())
-            .create_async()
-            .await;
+/// Rust collections (`HashSet`, `HashMap`) iterate in non-deterministic order,
+/// so RPC params containing arrays (e.g., `class_hashes` in `starknet_getStorageProof`)
+/// may differ between runs. Normalizing before save and before lookup ensures matching.
+pub fn normalize_json(value: &Value) -> Value {
+    match value {
+        Value::Array(arr) => {
+            let mut items: Vec<Value> = arr.iter().map(normalize_json).collect();
+            items.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            Value::Array(items)
+        }
+        Value::Object(obj) => {
+            Value::Object(obj.iter().map(|(k, v)| (k.clone(), normalize_json(v))).collect())
+        }
+        other => other.clone(),
     }
-    server
+}
+
+/// Builds a lookup key from method name and normalized params.
+fn make_lookup_key(method: &str, params: &Value) -> String {
+    format!("{}:{}", method, normalize_json(params))
+}
+
+// ================================================================================================
+// Mock RPC Server (for replay mode)
+// ================================================================================================
+
+/// A mock RPC server that replays pre-recorded interactions.
+pub struct MockRpcServer {
+    url: String,
+    /// Dropping this signals the mock server to shut down.
+    _server_shutdown: tokio::sync::oneshot::Sender<()>,
+}
+
+impl MockRpcServer {
+    pub fn url(&self) -> String {
+        self.url.clone()
+    }
+}
+
+/// Creates a mock RPC server that replays pre-recorded interactions.
+///
+/// Matches requests by `method` + normalized `params` (arrays sorted).
+pub async fn setup_mock_rpc_server(records: &RpcRecords) -> MockRpcServer {
+    let mut lookup: HashMap<String, Value> = HashMap::new();
+    for interaction in &records.interactions {
+        let key = make_lookup_key(&interaction.method, &interaction.sorted_params);
+        lookup.insert(key, interaction.response.clone());
+    }
+
+    // Every request will be handled by the mock_rpc_handler with the lookup map.
+    let state = Arc::new(lookup);
+    let app = Router::new().route("/", post(mock_rpc_handler)).with_state(state);
+
+    let listener = TcpListener::bind(SERVER_BIND_ADDRESS).await.unwrap();
+    // We need to get the local address to construct the URL for the mock server.
+    // We previously used port 0 to get a random port, so now we figure out the port.
+    let addr: SocketAddr = listener.local_addr().unwrap();
+
+    // Create a channel to signal the mock server to shut down.
+    // The server will shut down when the MockRpcServer is dropped.
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    tokio::spawn(async move {
+        axum::serve(listener, app)
+            .with_graceful_shutdown(async {
+                shutdown_rx.await.ok();
+            })
+            .await
+            .unwrap();
+    });
+
+    MockRpcServer { url: format!("http://{addr}"), _server_shutdown: shutdown_tx }
+}
+
+/// Handles a JSON-RPC request by looking up the response in the lookup map.
+async fn mock_rpc_handler(
+    State(lookup): State<Arc<HashMap<String, Value>>>,
+    body: Bytes,
+) -> impl IntoResponse {
+    let request: Value =
+        serde_json::from_slice(&body).expect("Mock RPC server: invalid JSON in request body");
+    let method = request["method"].as_str().unwrap_or("unknown");
+    let params = request.get("params").cloned().unwrap_or(Value::Null);
+    let key = make_lookup_key(method, &params);
+
+    match lookup.get(&key) {
+        Some(response) => axum::Json(response.clone()).into_response(),
+        None => {
+            eprintln!("Mock RPC server: no match for {key}");
+            (axum::http::StatusCode::NOT_FOUND, "No matching recorded interaction").into_response()
+        }
+    }
 }
 
 // ================================================================================================

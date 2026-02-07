@@ -1,10 +1,6 @@
 //! Tests for the RPC records infrastructure.
 
-use crate::running::rpc_records::{
-    setup_mock_rpc_server,
-    RpcInteraction,
-    RpcRecords,
-};
+use crate::running::rpc_records::{setup_mock_rpc_server, RpcInteraction, RpcRecords};
 
 #[test]
 fn test_rpc_records_round_trip_serialization() {
@@ -12,7 +8,7 @@ fn test_rpc_records_round_trip_serialization() {
         interactions: vec![
             RpcInteraction {
                 method: "starknet_getStorageAt".to_string(),
-                params: serde_json::json!({
+                sorted_params: serde_json::json!({
                     "block_id": {"block_number": 100},
                     "contract_address": "0x1",
                     "key": "0x2"
@@ -25,7 +21,7 @@ fn test_rpc_records_round_trip_serialization() {
             },
             RpcInteraction {
                 method: "starknet_blockNumber".to_string(),
-                params: serde_json::json!([]),
+                sorted_params: serde_json::json!([]),
                 response: serde_json::json!({
                     "jsonrpc": "2.0",
                     "id": 1,
@@ -40,7 +36,7 @@ fn test_rpc_records_round_trip_serialization() {
 
     assert_eq!(records.interactions.len(), deserialized.interactions.len());
     assert_eq!(records.interactions[0].method, deserialized.interactions[0].method);
-    assert_eq!(records.interactions[0].params, deserialized.interactions[0].params);
+    assert_eq!(records.interactions[0].sorted_params, deserialized.interactions[0].sorted_params);
     assert_eq!(records.interactions[0].response, deserialized.interactions[0].response);
 }
 
@@ -49,7 +45,7 @@ fn test_rpc_records_save_and_load() {
     let records = RpcRecords {
         interactions: vec![RpcInteraction {
             method: "starknet_getNonce".to_string(),
-            params: serde_json::json!({"block_id": "latest", "contract_address": "0x1"}),
+            sorted_params: serde_json::json!({"block_id": "latest", "contract_address": "0x1"}),
             response: serde_json::json!({"jsonrpc": "2.0", "id": 0, "result": "0x0"}),
         }],
     };
@@ -69,7 +65,7 @@ async fn test_mock_server_matches_rpc_request() {
     let records = RpcRecords {
         interactions: vec![RpcInteraction {
             method: "starknet_blockNumber".to_string(),
-            params: serde_json::json!([]),
+            sorted_params: serde_json::json!([]),
             response: serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": 0,

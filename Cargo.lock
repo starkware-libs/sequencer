@@ -12247,8 +12247,10 @@ version = "0.18.0-dev.0"
 dependencies = [
  "anyhow",
  "apollo_infra_utils",
+ "apollo_starknet_os_program",
  "apollo_transaction_converter",
  "async-trait",
+ "axum",
  "blockifier",
  "blockifier_reexecution",
  "blockifier_test_utils",
