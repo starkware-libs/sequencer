@@ -8,7 +8,13 @@ use test_case::test_case;
 
 use super::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
-use crate::test_utils::{block_info, precommit, prevote, TestBlock};
+use crate::test_utils::{
+    block_info,
+    mock_committee_virtual_equal_to_actual,
+    precommit,
+    prevote,
+    TestBlock,
+};
 use crate::types::{ConsensusError, LeaderElection, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
@@ -42,6 +48,10 @@ fn proposer() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
@@ -112,8 +122,13 @@ fn validator(repeat_proposal: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
+    // TODO(Asmaa): Remove this once the SHC and SM use the committee.
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
     let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
 
@@ -186,6 +201,10 @@ fn vote_twice(same_vote: bool) {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
@@ -251,6 +270,10 @@ fn rebroadcast_votes() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
@@ -344,6 +367,10 @@ fn repropose() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
@@ -412,6 +439,10 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
@@ -463,6 +494,10 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         VALIDATORS.to_vec(),
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };

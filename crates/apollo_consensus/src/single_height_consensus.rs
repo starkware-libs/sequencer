@@ -13,6 +13,9 @@ mod single_height_consensus_test;
 mod simulation_test;
 
 use std::collections::{HashSet, VecDeque};
+use std::sync::Arc;
+
+use apollo_staking::committee_provider::CommitteeTrait;
 
 use crate::state_machine::VoteStatus;
 const REBROADCAST_LOG_PERIOD_MS: u64 = 10_000;
@@ -57,6 +60,8 @@ pub(crate) struct SingleHeightConsensus {
     validators: Vec<ValidatorId>,
     timeouts: TimeoutsConfig,
     state_machine: StateMachine,
+    #[allow(dead_code)]
+    committee: Arc<dyn CommitteeTrait>,
     // Tracks rounds for which we started validating a proposal to avoid duplicate validations.
     pending_validation_rounds: HashSet<Round>,
 }
@@ -70,6 +75,7 @@ impl SingleHeightConsensus {
         validators: Vec<ValidatorId>,
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
+        committee: Arc<dyn CommitteeTrait>,
         require_virtual_proposer_vote: bool,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
@@ -81,9 +87,16 @@ impl SingleHeightConsensus {
             n_validators,
             is_observer,
             quorum_type,
+            committee.clone(),
             require_virtual_proposer_vote,
         );
-        Self { validators, timeouts, state_machine, pending_validation_rounds: HashSet::new() }
+        Self {
+            validators,
+            timeouts,
+            state_machine,
+            committee,
+            pending_validation_rounds: HashSet::new(),
+        }
     }
 
     pub(crate) fn current_round(&self) -> Round {
