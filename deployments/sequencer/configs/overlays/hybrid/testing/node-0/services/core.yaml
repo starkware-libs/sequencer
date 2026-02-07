@@ -51,6 +51,7 @@ config:
     consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none: true
     consensus_manager_config.network_config.bootstrap_peer_multiaddr: ""
     consensus_manager_config.network_config.port: 53080
+    consensus_manager_config.staking_manager_config.dynamic_config.default_committee: "0,100:0x64,1,0x1,true"
     state_sync_config.central_sync_client_config.#is_none: true
     state_sync_config.network_config.#is_none: false
     state_sync_config.network_config.port: 55010
@@ -62,38 +63,38 @@ service:
   enabled: true
   type: ClusterIP
   ports:
-  - name: batcher
-    port: 55000
-    targetPort: 55000
-    protocol: TCP
-  - name: class-manager
-    port: 55001
-    targetPort: 55001
-    protocol: TCP
-  - name: consensus-p2p
-    port: 53080
-    targetPort: 53080
-    protocol: TCP
-  - name: signature-manager
-    port: 55008
-    targetPort: 55008
-    protocol: TCP
-  - name: state-sync-network
-    port: 55010
-    targetPort: 55010
-    protocol: TCP
-  - name: state-sync-rpc
-    port: 55009
-    targetPort: 55009
-    protocol: TCP
-  - name: batcher-storage-reader
-    port: 55011
-    targetPort: 55011
-    protocol: TCP
-  - name: state-sync-storage-reader
-    port: 55012
-    targetPort: 55012
-    protocol: TCP
+    - name: batcher
+      port: 55000
+      targetPort: 55000
+      protocol: TCP
+    - name: class-manager
+      port: 55001
+      targetPort: 55001
+      protocol: TCP
+    - name: consensus-p2p
+      port: 53080
+      targetPort: 53080
+      protocol: TCP
+    - name: signature-manager
+      port: 55008
+      targetPort: 55008
+      protocol: TCP
+    - name: state-sync-network
+      port: 55010
+      targetPort: 55010
+      protocol: TCP
+    - name: state-sync-rpc
+      port: 55009
+      targetPort: 55009
+      protocol: TCP
+    - name: batcher-storage-reader
+      port: 55011
+      targetPort: 55011
+      protocol: TCP
+    - name: state-sync-storage-reader
+      port: 55012
+      targetPort: 55012
+      protocol: TCP
 
 statefulSet:
   enabled: true
@@ -102,7 +103,7 @@ persistentVolume:
   enabled: true
   volumeMode: Filesystem
   accessModes:
-  - ReadWriteOnce
+    - ReadWriteOnce
   mountPath: /data
   size: 2Gi
   storageClass: ""

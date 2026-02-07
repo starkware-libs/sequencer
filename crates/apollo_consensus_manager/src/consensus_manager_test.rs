@@ -60,17 +60,25 @@ async fn revert_batcher_blocks() {
         ..Default::default()
     };
 
+    let state_sync = Arc::new(MockStateSyncClient::new());
+    let config_manager = Arc::new(MockConfigManagerClient::new());
+    let committee_provider = ConsensusManager::create_committee_provider(
+        &manager_config,
+        state_sync.clone(),
+        config_manager.clone(),
+    );
     let consensus_manager = ConsensusManager::new_with_storage(
         ConsensusManagerArgs {
             config: manager_config,
             batcher_client: Arc::new(mock_batcher_client),
-            state_sync_client: Arc::new(MockStateSyncClient::new()),
+            state_sync_client: state_sync,
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-            config_manager_client: Arc::new(MockConfigManagerClient::new()),
+            config_manager_client: config_manager,
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
         },
         Arc::new(Mutex::new(mock_voted_height_storage)),
+        committee_provider,
     );
 
     // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).

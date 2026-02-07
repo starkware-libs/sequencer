@@ -40,6 +40,10 @@ use apollo_network::network_manager::{
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
+use apollo_staking::committee_provider::CommitteeProvider;
+use apollo_staking::mock_staking_contract::MockStakingContract;
+use apollo_staking::staking_manager::StakingManager;
+use apollo_staking::utils::BlockPseudorandomGenerator;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
@@ -87,6 +91,7 @@ pub struct ConsensusManager {
     pub config_manager_client: SharedConfigManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+    committee_provider: Arc<dyn CommitteeProvider>,
 }
 
 pub struct ConsensusManagerArgs {
@@ -103,12 +108,41 @@ impl ConsensusManager {
     pub fn new(args: ConsensusManagerArgs) -> Self {
         let storage_config =
             args.config.consensus_manager_config.static_config.storage_config.clone();
-        Self::new_with_storage(args, Arc::new(Mutex::new(get_voted_height_storage(storage_config))))
+        let voted_height_storage = Arc::new(Mutex::new(get_voted_height_storage(storage_config)));
+        let committee_provider = Self::create_committee_provider(
+            &args.config,
+            args.state_sync_client.clone(),
+            args.config_manager_client.clone(),
+        );
+        Self::new_with_storage(args, voted_height_storage, committee_provider)
+    }
+
+    pub fn create_committee_provider(
+        config: &ConsensusManagerConfig,
+        state_sync_client: SharedStateSyncClient,
+        config_manager_client: SharedConfigManagerClient,
+    ) -> Arc<dyn CommitteeProvider> {
+        let staking_manager_config = config.staking_manager_config.clone();
+        let mock_staking_contract = Arc::new(MockStakingContract::new(
+            state_sync_client.clone(),
+            staking_manager_config.dynamic_config.default_committee.clone(),
+            staking_manager_config.dynamic_config.override_committee.clone(),
+            Some(config_manager_client.clone()),
+        ));
+        let staking_manager = StakingManager::new(
+            mock_staking_contract,
+            state_sync_client,
+            Arc::new(BlockPseudorandomGenerator),
+            staking_manager_config,
+            Some(config_manager_client),
+        );
+        Arc::new(staking_manager)
     }
 
     fn new_with_storage(
         args: ConsensusManagerArgs,
         voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
+        committee_provider: Arc<dyn CommitteeProvider>,
     ) -> Self {
         Self {
             config: args.config,
@@ -119,6 +153,7 @@ impl ConsensusManager {
             config_manager_client: args.config_manager_client,
             l1_gas_price_provider: args.l1_gas_price_provider,
             voted_height_storage,
+            committee_provider,
         }
     }
 
@@ -311,6 +346,7 @@ impl ConsensusManager {
             quorum_type,
             config_manager_client: Some(Arc::clone(&self.config_manager_client)),
             last_voted_height_storage: self.voted_height_storage.clone(),
+            committee_provider: Arc::clone(&self.committee_provider),
         }
     }
 
