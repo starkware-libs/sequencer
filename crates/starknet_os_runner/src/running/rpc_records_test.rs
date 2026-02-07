@@ -1,10 +1,6 @@
 //! Tests for the RPC records infrastructure.
 
-use crate::running::rpc_records::{
-    setup_mock_rpc_server,
-    RpcInteraction,
-    RpcRecords,
-};
+use crate::running::rpc_records::{setup_mock_rpc_server, RpcInteraction, RpcRecords};
 
 #[test]
 fn test_rpc_records_round_trip_serialization() {
