@@ -167,7 +167,7 @@ async fn mock_rpc_handler(
     match lookup.get(&key) {
         Some(response) => axum::Json(response.clone()).into_response(),
         None => {
-            eprintln!("Mock RPC server: no match for {key}");
+            eprintln!("Mock RPC server: no match for method={method}");
             (axum::http::StatusCode::NOT_FOUND, "No matching recorded interaction").into_response()
         }
     }
@@ -190,6 +190,48 @@ pub fn record_path(test_name: &str) -> PathBuf {
 /// Returns true if a record file exists for the given test.
 pub fn records_exist(test_name: &str) -> bool {
     record_path(test_name).exists()
+}
+
+/// Environment variable name to enable recording mode.
+pub const RECORD_RPC_RECORDS_ENV: &str = "RECORD_RPC_RECORDS";
+
+/// Returns the RPC URL for a test, managing recording/replay lifecycle.
+///
+/// - `RECORD_RPC_RECORDS=1` → starts a recording proxy, returns `(proxy_url, Some(proxy))`. Caller
+///   must call `proxy.into_records().save(...)` after the test.
+/// - Record file exists → starts mock server, returns `(mock_url, None)`.
+/// - Otherwise → returns live RPC URL from `SEPOLIA_NODE_URL`.
+pub async fn setup_test_rpc(
+    test_name: &str,
+) -> (String, Option<RecordingProxy>, Option<MockRpcServer>) {
+    let should_record = std::env::var(RECORD_RPC_RECORDS_ENV).is_ok();
+
+    if should_record {
+        let real_url =
+            std::env::var("SEPOLIA_NODE_URL").expect("SEPOLIA_NODE_URL required for recording");
+        let proxy = RecordingProxy::start(&real_url).await;
+        let url = proxy.url.clone();
+        (url, Some(proxy), None)
+    } else if records_exist(test_name) {
+        let records = RpcRecords::load(&record_path(test_name));
+        let server = setup_mock_rpc_server(&records).await;
+        let url = server.url();
+        (url, None, Some(server))
+    } else {
+        let url = std::env::var("SEPOLIA_NODE_URL")
+            .unwrap_or_else(|_| "http://localhost:9546/rpc/v0_10".to_string());
+        (url, None, None)
+    }
+}
+
+/// Finalizes recording: if a proxy was used, saves the recorded interactions.
+pub fn finalize_recording(proxy: Option<RecordingProxy>, test_name: &str) {
+    if let Some(proxy) = proxy {
+        let records = proxy.into_records();
+        let path = record_path(test_name);
+        println!("Saved {} recorded interactions to {path:?}", records.interactions.len());
+        records.save(&path);
+    }
 }
 
 // ================================================================================================
