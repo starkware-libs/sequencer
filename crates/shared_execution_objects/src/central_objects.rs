@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use blockifier::abi::constants as abi_constants;
 use blockifier::execution::call_info::{CallInfo, CallInfoIter};
 use blockifier::fee::receipt::TransactionReceipt;
-use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use serde::Serialize;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::GasVector;

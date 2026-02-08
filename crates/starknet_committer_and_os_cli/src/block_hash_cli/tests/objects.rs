@@ -4,6 +4,7 @@ use blockifier::execution::call_info::{
     resource_counter_map,
     CallExecution,
     CallInfo,
+    ExtendedExecutionResources,
     MessageToL1 as BlockifierMessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -225,8 +226,12 @@ fn create_transaction_resources() -> TransactionResources {
     TransactionResources {
         starknet_resources: StarknetResources::default(),
         computation: ComputationResources {
-            tx_vm_resources: create_execution_resources(2000, 5, 20, 10),
-            os_vm_resources: create_execution_resources(500, 1, 5, 2),
+            tx_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                create_execution_resources(2000, 5, 20, 10),
+            ),
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                create_execution_resources(500, 1, 5, 2),
+            ),
             n_reverted_steps: 0,
             sierra_gas: GasAmount(1000),
             reverted_sierra_gas: GasAmount(0),

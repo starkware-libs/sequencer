@@ -865,7 +865,7 @@ pub fn get_tx_weights<S: StateReader>(
     // Sierra gas computation.
     let (total_sierra_gas, casm_hash_computation_data_sierra_gas, vm_resources_sierra_gas) =
         compute_sierra_gas(
-            &vm_resources,
+            &vm_resources.vm_resources,
             sierra_builtin_gas_costs,
             versioned_constants,
             tx_resources,
