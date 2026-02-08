@@ -115,3 +115,7 @@ path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_cen
 [[bin]]
 name = "integration_test_bootstrap_flow"
 path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_bootstrap_flow.rs"
+
+[[bin]]
+name = "integration_test_bootstrap_empty_storage_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_bootstrap_empty_storage_flow.rs"
