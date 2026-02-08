@@ -235,6 +235,15 @@ impl ConsensusManager {
             latency_metrics: Some(LatencyMetrics { ping_latency_seconds: CONSENSUS_PING_LATENCY }),
         });
 
+<<<<<<< HEAD
+=======
+        // TODO(noam.s): add the committee manager to propeller once it's implemented.
+        let (_committee_manager, _handles) =
+            apollo_network::committee_manager::behaviour::CommitteeManagerBehaviour::new(
+                self.config.num_active_committee_epochs,
+            );
+
+>>>>>>> abb136a80d (apollo_consensus_manager: make num_active_committee_epochs configurable)
         // TODO(noam.s): fix dummy public key.
         NetworkManager::new(
             self.config.network_config.clone(),
