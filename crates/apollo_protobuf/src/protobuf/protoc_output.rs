@@ -474,6 +474,16 @@ pub struct TransactionBatch {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CommitmentParts {
+    #[prost(message, optional, tag = "1")]
+    pub next_l2_gas_price_fri: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "2")]
+    pub concatenated_counts: ::core::option::Option<Felt252>,
+    #[prost(message, optional, tag = "3")]
+    pub parent_commitment: ::core::option::Option<Hash>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProposalFin {
     /// Identifies a Starknet block based on the content streamed in the proposal.
     #[prost(message, optional, tag = "1")]
@@ -481,6 +491,8 @@ pub struct ProposalFin {
     /// Number of executed transactions in the proposal.
     #[prost(uint64, tag = "2")]
     pub executed_transaction_count: u64,
+    #[prost(message, optional, tag = "3")]
+    pub commitment_parts: ::core::option::Option<CommitmentParts>,
 }
 /// Network format:
 /// 1. First message is BlockInfo (includes all block metadata)
