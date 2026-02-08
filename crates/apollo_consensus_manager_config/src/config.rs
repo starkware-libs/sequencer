@@ -27,6 +27,9 @@ pub struct ConsensusManagerConfig {
     pub broadcast_buffer_size: usize,
     // Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use with caution!
     pub assume_no_malicious_validators: bool,
+    /// Maximum number of committee epochs tracked simultaneously by the CommitteeStore.
+    /// When this limit is exceeded, the oldest epoch is evicted.
+    pub num_active_committee_epochs: usize,
 }
 
 impl SerializeConfig for ConsensusManagerConfig {
@@ -55,6 +58,13 @@ impl SerializeConfig for ConsensusManagerConfig {
                 &self.assume_no_malicious_validators,
                 "Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use \
                  with caution!",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "num_active_committee_epochs",
+                &self.num_active_committee_epochs,
+                "Maximum number of committee epochs tracked simultaneously. When exceeded, the \
+                 oldest epoch is evicted.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -92,6 +102,7 @@ impl Default for ConsensusManagerConfig {
             proposals_topic: "consensus_proposals".to_string(),
             broadcast_buffer_size: 10000,
             assume_no_malicious_validators: false,
+            num_active_committee_epochs: 2,
         }
     }
 }
