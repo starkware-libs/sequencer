@@ -8,6 +8,7 @@ use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_signature_manager::signature_manager::{verify_identity, SignatureVerificationError};
 use apollo_signature_manager_types::{SharedSignatureManagerClient, SignatureManagerClientError};
 use async_trait::async_trait;
+use futures::SinkExt;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use rand::rngs::OsRng;
@@ -24,6 +25,7 @@ use crate::authentication::negotiator::{
     Negotiator,
     NegotiatorOutput,
 };
+use crate::committee_manager::behaviour::AddPeerSender;
 
 pub type StarkAuthNegotiatorResult<T> = Result<T, StarkAuthNegotiatorError>;
 
@@ -33,8 +35,7 @@ pub trait ChallengeGenerator: Send + Sync {
     async fn generate(&self) -> Vec<u8>;
 }
 
-#[allow(dead_code)]
-struct OsRngChallengeGenerator;
+pub struct OsRngChallengeGenerator;
 
 #[async_trait]
 #[allow(clippy::as_conversions)]
@@ -93,6 +94,7 @@ pub struct StarkAuthNegotiator {
     my_public_key: PublicKey,
     signer: SharedSignatureManagerClient,
     challenge_generator: SharedChallengeGenerator,
+    add_peer_sender: AddPeerSender,
 }
 
 impl StarkAuthNegotiator {
@@ -101,8 +103,9 @@ impl StarkAuthNegotiator {
         my_public_key: PublicKey,
         signer: SharedSignatureManagerClient,
         challenge_generator: SharedChallengeGenerator,
+        add_peer_sender: AddPeerSender,
     ) -> Self {
-        Self { my_staker_address, my_public_key, signer, challenge_generator }
+        Self { my_staker_address, my_public_key, signer, challenge_generator, add_peer_sender }
     }
 }
 
@@ -127,7 +130,7 @@ impl StarkAuthNegotiator {
         )?;
 
         let ChallengeAndIdentity {
-            staker_address: _other_staker_address,
+            staker_address: other_staker_address,
             public_key: other_public_key,
             challenge: other_challenge,
         } = ChallengeAndIdentity::try_from(other_challenge_and_identity)?;
@@ -144,7 +147,18 @@ impl StarkAuthNegotiator {
             RawSignature(SignedChallengeAndIdentity::try_from(other_signature)?.signature);
 
         // 3. Verify other's signature.
-        match verify_identity(other_peer_id, other_challenge, other_signature, other_public_key)? {
+        if !verify_identity(other_peer_id, other_challenge, other_signature, other_public_key)? {
+            return Err(StarkAuthNegotiatorError::VerificationFailure);
+        }
+
+        // 4. Ask CommitteeManager to map this staker to the peer (check + add).
+        let (response_tx, response_rx) = futures::channel::oneshot::channel();
+        self.add_peer_sender
+            .send((other_staker_address, other_peer_id, response_tx))
+            .await
+            .map_err(|_| StarkAuthNegotiatorError::VerificationFailure)?;
+
+        match response_rx.await.map_err(|_| StarkAuthNegotiatorError::VerificationFailure)? {
             true => Ok(NegotiatorOutput::Success),
             false => Err(StarkAuthNegotiatorError::VerificationFailure),
         }

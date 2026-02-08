@@ -21,6 +21,10 @@ use apollo_consensus_orchestrator::sequencer_consensus_context::{
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
+use apollo_network::authentication::stark_authentication::{
+    OsRngChallengeGenerator,
+    StarkAuthNegotiator,
+};
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::metrics::{
     BroadcastNetworkMetrics,
@@ -46,6 +50,8 @@ use apollo_transaction_converter::TransactionConverter;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ContractAddress;
+use starknet_api::crypto::utils::PublicKey;
 use tracing::{info, info_span, Instrument};
 
 use crate::metrics::{
@@ -221,7 +227,26 @@ impl ConsensusManager {
             latency_metrics: Some(LatencyMetrics { ping_latency_seconds: CONSENSUS_PING_LATENCY }),
         });
 
-        NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics)
+        // TODO(noam.s): make num_active_epochs configurable via ConsensusManagerConfig.
+        // TODO(noam.s): add the committee manager to propeller once it's implemented.
+        let (_committee_manager, handles) =
+            apollo_network::committee_manager::behaviour::CommitteeManagerBehaviour::new(2);
+
+        // TODO(noam.s): fix dummy staker address and public key.
+        let stark_auth_negotiator = StarkAuthNegotiator::new(
+            ContractAddress::default(),
+            PublicKey::default(),
+            self.signature_manager_client.clone(),
+            Arc::new(OsRngChallengeGenerator),
+            handles.add_peer_sender,
+        );
+
+        NetworkManager::new_with_custom_handshake(
+            self.config.network_config.clone(),
+            Some(stark_auth_negotiator),
+            None,
+            network_manager_metrics,
+        )
     }
 
     fn create_stream_handler(
