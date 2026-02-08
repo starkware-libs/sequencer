@@ -6,8 +6,8 @@
 use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{MarkerKind, StorageError, StorageResult, StorageTxn};
+
+use crate::{MarkerKind, StorageError, StorageResult, StorageTransaction, StorageTxnRW};
 
 /// Interface for reading global root markers.
 pub trait GlobalRootMarkerStorageReader {
@@ -28,14 +28,14 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> GlobalRootMarkerStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> GlobalRootMarkerStorageReader for T {
     fn get_global_root_marker(&self) -> StorageResult<BlockNumber> {
         let table = self.open_table(&self.tables().markers)?;
         Ok(table.get(self.txn(), &MarkerKind::GlobalRoot)?.unwrap_or_default())
     }
 }
 
-impl GlobalRootMarkerStorageWriter for StorageTxn<'_, RW> {
+impl GlobalRootMarkerStorageWriter for StorageTxnRW<'_> {
     fn checked_increment_global_root_marker(
         self,
         expected_marker: BlockNumber,

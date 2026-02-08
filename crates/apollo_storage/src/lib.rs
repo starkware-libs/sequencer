@@ -121,7 +121,7 @@ pub mod storage_reader_server_test_utils;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::fs;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -260,14 +260,14 @@ fn open_storage_internal(
         1
     };
 
-    let shared_state = SharedState::new(db_writer, tables, batch_size);
+    let shared_state = SharedState::new(db_writer, tables.clone(), batch_size);
 
     let reader = StorageReader {
         db_reader,
         scope: storage_config.scope,
         file_readers,
+        tables,
         open_readers_metric,
-        shared_state: shared_state.clone(),
     };
     let writer = StorageWriter::new(file_writers, storage_config.scope, shared_state);
 
@@ -473,9 +473,9 @@ pub enum StorageScope {
 pub struct StorageReader {
     db_reader: DbReader,
     file_readers: FileHandlers<RO>,
+    tables: Arc<Tables>,
     scope: StorageScope,
     open_readers_metric: Option<&'static MetricGauge>,
-    shared_state: SharedStorageState,
 }
 
 /// Configuration for transaction batching.
@@ -531,31 +531,16 @@ impl StorageReader {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading data from the storage.
     ///
-    /// RO transactions borrow from the same persistent transaction as RW transactions,
-    /// allowing them to see uncommitted writes.
+    /// RO transactions get a fresh read-only transaction from the database, providing a
+    /// consistent snapshot of committed data.
     pub fn begin_ro_txn(&self) -> StorageResult<StorageTxn<'_, RO>> {
-        // Ensure persistent transaction exists - create if needed.
-        self.shared_state.lock().unwrap().ensure_active_txn()?;
-
-        // Get a reference to the persistent transaction by casting the RW transaction to RO.
-        // Safety: The transaction lifetime is extended to match StorageReader's lifetime.
-        // This is safe because StorageReader owns Arc<Mutex<SharedState>>, ensuring
-        // the transaction remains valid for the entire lifetime of StorageReader.
-        #[allow(clippy::as_conversions)]
-        let txn_ref: &DbTransaction<'_, RO> = unsafe {
-            let state_ref = self.shared_state.lock().unwrap();
-            let txn_ptr: *const DbTransaction<'_, RW> = &state_ref.active_txn.as_ref().unwrap().txn;
-            // Cast RW transaction to RO transaction for reading.
-            &*(txn_ptr as *const DbTransaction<'_, RO>)
-        };
-
-        Ok(StorageTxn::new(
-            txn_ref,
-            self.file_readers.clone(),
-            self.scope,
-            MetricsHandler::new(self.open_readers_metric),
-            self.shared_state.clone(),
-        ))
+        Ok(StorageTxn {
+            txn: self.db_reader.begin_ro_txn()?,
+            file_handlers: self.file_readers.clone(),
+            tables: self.tables.clone(),
+            scope: self.scope,
+            _metric_updater: MetricsHandler::new(self.open_readers_metric),
+        })
     }
 
     /// Returns metadata about the tables in the storage.
@@ -632,33 +617,21 @@ impl StorageWriter {
         Self { file_writers, scope, shared_state }
     }
 
-    /// Returns a [`StorageTxn`] for reading and modifying data in the storage.
+    /// Returns a [`StorageTxnRW`] for reading and modifying data in the storage.
     ///
     /// This may return a reference to an ongoing persistent transaction rather than
     /// a fresh snapshot. Multiple calls to `begin_rw_txn()` will share the same
     /// underlying transaction until the batch commits (when counter reaches batch_size).
     /// When batch_size=1, this behaves like non-batching mode (commits on every transaction).
-    pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxn<'_, RW>> {
-        // Ensure persistent transaction exists - create if needed.
-        self.shared_state.lock().unwrap().ensure_active_txn()?;
-
-        // Get a reference to the persistent transaction.
-        // Safety: The transaction lifetime is extended to match StorageWriter's lifetime.
-        // This is safe because StorageWriter owns Arc<Mutex<SharedState>>, ensuring
-        // the transaction remains valid for the entire lifetime of StorageWriter.
-        let txn_ref: &DbTransaction<'_, RW> = unsafe {
-            let state_ref = self.shared_state.lock().unwrap();
-            let txn_ptr: *const DbTransaction<'_, RW> = &state_ref.active_txn.as_ref().unwrap().txn;
-            &*txn_ptr
-        };
-
-        Ok(StorageTxn::new(
-            txn_ref,
-            self.file_writers.clone(),
-            self.scope,
-            MetricsHandler::new(None),
-            self.shared_state.clone(),
-        ))
+    pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxnRW<'_>> {
+        let mut guard = self.shared_state.lock().unwrap();
+        guard.ensure_active_txn()?;
+        Ok(StorageTxnRW {
+            guard,
+            file_handlers: self.file_writers.clone(),
+            scope: self.scope,
+            _metric_updater: MetricsHandler::new(None),
+        })
     }
 }
 
@@ -686,100 +659,64 @@ impl Drop for MetricsHandler {
     }
 }
 
+/// Common interface for all storage transactions (RO and RW).
+/// This allows reader traits to be implemented once generically, eliminating duplication.
+pub trait StorageTransaction {
+    /// The transaction mode (RO or RW).
+    type Mode: TransactionKind;
+
+    /// Returns a reference to the underlying database transaction.
+    fn txn(&self) -> &DbTransaction<'_, Self::Mode>;
+
+    /// Returns a reference to the table definitions.
+    fn tables(&self) -> &Arc<Tables>;
+
+    /// Opens a table for reading or writing.
+    fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
+        &self,
+        table_id: &TableIdentifier<K, V, T>,
+    ) -> StorageResult<TableHandle<'_, K, V, T>>;
+
+    /// Returns a reference to the file handlers.
+    fn file_handlers(&self) -> &FileHandlers<Self::Mode>;
+
+    /// Returns the storage scope.
+    fn scope(&self) -> StorageScope;
+}
+
 /// A struct for interacting with the storage.
 /// The actually functionality is implemented on the transaction in multiple traits.
 pub struct StorageTxn<'env, Mode: TransactionKind + 'static> {
-    txn: &'env DbTransaction<'env, Mode>,
+    txn: DbTransaction<'env, Mode>,
     file_handlers: FileHandlers<Mode>,
+    tables: Arc<Tables>,
     scope: StorageScope,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,
-    /// Shared state containing db_writer, tables, and batching information.
-    /// Both RW and RO transactions share the same persistent transaction.
-    shared_state: SharedStorageState,
 }
 
-impl StorageTxn<'_, RW> {
-    /// Commits the changes made in the transaction to the storage.
-    #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
-    pub fn commit(self) -> StorageResult<()> {
-        // Always flush files so readers can access the data immediately.
-        // This prevents race conditions where a reader finds an offset in MDBX
-        // but the actual data hasn't been flushed to the file yet.
-        self.file_handlers.flush();
-
-        let mut state = self.shared_state.lock().unwrap();
-        state.commit_counter += 1;
-
-        if state.commit_counter >= state.batch_size {
-            // Batch size reached - commit the MDBX transaction and reset counter.
-            // The batching optimization applies to MDBX commits, not file flushes.
-            let txn_to_commit = state.active_txn.take();
-            state.commit_counter = 0;
-
-            if let Some(txn) = txn_to_commit {
-                txn.commit()?;
-            } else {
-                // This should never happen - there must be an active transaction.
-                return Err(StorageError::DBInconsistency {
-                    msg: "Batch commit triggered but no active transaction exists".to_string(),
-                });
-            }
-        }
-        Ok(())
-    }
+/// RW-specific transaction that holds a MutexGuard for safe access to the persistent transaction.
+/// The MutexGuard is held for the entire lifetime of StorageTxnRW, ensuring safe access
+/// to the transaction.
+pub struct StorageTxnRW<'a> {
+    guard: MutexGuard<'a, SharedState>,
+    file_handlers: FileHandlers<RW>,
+    scope: StorageScope,
+    _metric_updater: MetricsHandler,
 }
 
-impl<Mode: TransactionKind + 'static> Drop for StorageTxn<'_, Mode> {
-    /// Safety mechanism for RW transactions dropped without commit.
-    ///
-    /// Two scenarios:
-    /// 1. Forgotten commit with pending writes (commit_counter > 0)- panic.
-    /// 2. Failed operation (commit_counter = 0)- abort transaction to discard partial writes.
-    fn drop(&mut self) {
-        // Only handle RW transactions.
-        // Note: commit() consumes self, so Drop only runs for uncommitted transactions.
-        if std::any::TypeId::of::<Mode>() == std::any::TypeId::of::<RW>() {
-            let mut state = self.shared_state.lock().unwrap();
+impl StorageTransaction for StorageTxnRW<'_> {
+    type Mode = RW;
 
-            if state.commit_counter > 0 {
-                // Scenario 1: Pending writes exist.
-                panic!(
-                    "StorageTxn dropped without commit() while {} pending writes exist! \
-                     This would cause data loss. Always call commit() or handle errors properly.",
-                    state.commit_counter
-                );
-            } else {
-                // Scenario 2: No pending writes, but there might be partial writes from a failed operation.
-                // Abort the transaction to discard them.
-                state.active_txn = None;
-            }
-        }
-    }
-}
-
-impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
-    fn txn(&self) -> &DbTransaction<'env, Mode> {
-        self.txn
+    fn txn(&self) -> &DbTransaction<'_, RW> {
+        &self.guard.active_txn.as_ref().unwrap().txn
     }
 
-    fn tables(&self) -> Arc<Tables> {
-        self.shared_state.lock().unwrap().tables.clone()
+    fn tables(&self) -> &Arc<Tables> {
+        &self.guard.tables
     }
 
-    fn new(
-        txn: &'env DbTransaction<'env, Mode>,
-        file_handlers: FileHandlers<Mode>,
-        scope: StorageScope,
-        metric_updater: MetricsHandler,
-        shared_state: SharedStorageState,
-    ) -> Self {
-        Self { txn, file_handlers, scope, _metric_updater: metric_updater, shared_state }
-    }
-}
-
-impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
-    pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
+    fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
         &self,
         table_id: &TableIdentifier<K, V, T>,
     ) -> StorageResult<TableHandle<'_, K, V, T>> {
@@ -798,6 +735,176 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
             }
         }
         Ok(self.txn().open_table(table_id)?)
+    }
+
+    fn file_handlers(&self) -> &FileHandlers<RW> {
+        &self.file_handlers
+    }
+
+    fn scope(&self) -> StorageScope {
+        self.scope
+    }
+}
+
+impl<'a> StorageTxnRW<'a> {
+    pub(crate) fn txn(&self) -> &DbTransaction<'_, RW> {
+        <Self as StorageTransaction>::txn(self)
+    }
+
+    pub(crate) fn tables(&self) -> &Arc<Tables> {
+        <Self as StorageTransaction>::tables(self)
+    }
+
+    pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
+        &self,
+        table_id: &TableIdentifier<K, V, T>,
+    ) -> StorageResult<TableHandle<'_, K, V, T>> {
+        <Self as StorageTransaction>::open_table(self, table_id)
+    }
+
+    /// Returns the location of the state diff in the mmap file for the given block number.
+    pub fn get_state_diff_location(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<LocationInFile>> {
+        let tables = self.tables();
+        let state_diffs_table = self.open_table(&tables.state_diffs)?;
+        Ok(state_diffs_table.get(self.txn(), &block_number)?)
+    }
+
+    /// Returns the thin state diff stored in the mmap file at the given location.
+    pub fn get_state_diff_from_location(
+        &self,
+        state_diff_location: LocationInFile,
+    ) -> StorageResult<ThinStateDiff> {
+        self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
+    }
+
+    /// Returns the nonce for a contract at a given address and block number.
+    pub fn get_nonce(
+        &self,
+        contract_address: ContractAddress,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Nonce>> {
+        let tables = self.tables();
+        let nonces_table = self.open_table(&tables.nonces)?;
+        Ok(nonces_table.get(self.txn(), &(contract_address, block_number))?)
+    }
+
+    /// Returns the file offset for a given offset kind.
+    pub fn get_file_offset(&self, offset_kind: OffsetKind) -> StorageResult<Option<usize>> {
+        let tables = self.tables();
+        let table = self.open_table(&tables.file_offsets)?;
+        Ok(table.get(self.txn(), &offset_kind)?)
+    }
+
+    /// Commits the changes made in the transaction to the storage.
+    /// The commit counter is incremented. When it reaches batch_size, the MDBX transaction
+    /// is actually committed. This is allowed to be an empty commit (no writes), which
+    /// means the batch_size may be less than the actual number of writes due to incrementing
+    /// when the commit is empty.
+    #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
+    pub fn commit(mut self) -> StorageResult<()> {
+        // Always flush files so readers can access the data immediately.
+        self.file_handlers.flush();
+
+        self.guard.commit_counter += 1;
+
+        if self.guard.commit_counter >= self.guard.batch_size {
+            // Batch size reached - commit the MDBX transaction and reset counter.
+            let txn_to_commit = self.guard.active_txn.take();
+            self.guard.commit_counter = 0;
+
+            if let Some(txn) = txn_to_commit {
+                txn.commit()?;
+            } else {
+                return Err(StorageError::DBInconsistency {
+                    msg: "Batch commit triggered but no active transaction exists".to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Drop for StorageTxnRW<'_> {
+    /// Safety mechanism for RW transactions dropped without commit.
+    ///
+    /// Two scenarios:
+    /// 1. Forgotten commit with pending writes (commit_counter > 0) - panic.
+    /// 2. Failed operation (commit_counter = 0) - abort transaction to discard partial writes.
+    fn drop(&mut self) {
+        // Note: commit() consumes self, so Drop only runs for uncommitted transactions.
+        if self.guard.commit_counter > 0 {
+            // Scenario 1: Pending writes exist.
+            panic!(
+                "StorageTxnRW dropped without commit() while {} pending writes exist! \
+                 This would cause data loss. Always call commit() or handle errors properly.",
+                self.guard.commit_counter
+            );
+        } else {
+            // Scenario 2: No pending writes, but there might be partial writes from a failed
+            // operation. Abort the transaction to discard them.
+            self.guard.active_txn = None;
+        }
+    }
+}
+
+impl<'env, Mode: TransactionKind> StorageTransaction for StorageTxn<'env, Mode> {
+    type Mode = Mode;
+
+    fn txn(&self) -> &DbTransaction<'_, Mode> {
+        &self.txn
+    }
+
+    fn tables(&self) -> &Arc<Tables> {
+        &self.tables
+    }
+
+    fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
+        &self,
+        table_id: &TableIdentifier<K, V, T>,
+    ) -> StorageResult<TableHandle<'_, K, V, T>> {
+        if self.scope == StorageScope::StateOnly {
+            let tables = self.tables();
+            let unused_tables = [
+                tables.events.name,
+                tables.transaction_hash_to_idx.name,
+                tables.transaction_metadata.name,
+            ];
+            if unused_tables.contains(&table_id.name) {
+                return Err(StorageError::ScopeError {
+                    table_name: table_id.name.to_owned(),
+                    storage_scope: self.scope,
+                });
+            }
+        }
+        Ok(self.txn.open_table(table_id)?)
+    }
+
+    fn file_handlers(&self) -> &FileHandlers<Mode> {
+        &self.file_handlers
+    }
+
+    fn scope(&self) -> StorageScope {
+        self.scope
+    }
+}
+
+impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
+    fn txn(&self) -> &DbTransaction<'env, Mode> {
+        &self.txn
+    }
+
+    fn tables(&self) -> &Arc<Tables> {
+        &self.tables
+    }
+
+    pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
+        &self,
+        table_id: &TableIdentifier<K, V, T>,
+    ) -> StorageResult<TableHandle<'_, K, V, T>> {
+        <Self as StorageTransaction>::open_table(self, table_id)
     }
 
     /// Returns the location of the state diff in the mmap file for the given block number.

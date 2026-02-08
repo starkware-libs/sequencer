@@ -6,8 +6,8 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::GlobalRoot;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{MarkerKind, StorageResult, StorageTxn};
+
+use crate::{MarkerKind, StorageResult, StorageTransaction, StorageTxnRW};
 
 /// Interface for reading global root.
 pub trait GlobalRootStorageReader {
@@ -33,14 +33,14 @@ where
     fn revert_global_root(self, block_number: &BlockNumber) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> GlobalRootStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> GlobalRootStorageReader for T {
     fn get_global_root(&self, block_number: &BlockNumber) -> StorageResult<Option<GlobalRoot>> {
         let table = self.open_table(&self.tables().global_root)?;
         Ok(table.get(self.txn(), block_number)?)
     }
 }
 
-impl GlobalRootStorageWriter for StorageTxn<'_, RW> {
+impl GlobalRootStorageWriter for StorageTxnRW<'_> {
     fn set_global_root(
         self,
         block_number: &BlockNumber,
