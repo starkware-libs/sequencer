@@ -39,6 +39,8 @@ libp2p = { workspace = true, features = [
 prost.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
+sha2.workspace = true
+starknet-types-core.workspace = true
 starknet_api.workspace = true
 strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
@@ -51,6 +53,7 @@ validator = { workspace = true, features = ["derive"] }
 [dev-dependencies]
 apollo_network_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+expect-test.workspace = true
 deadqueue = { workspace = true, features = ["unlimited"] }
 defaultmap.workspace = true
 libp2p-swarm-test.workspace = true
