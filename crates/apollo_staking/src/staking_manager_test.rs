@@ -61,9 +61,16 @@ const E2_H1: BlockNumber = EPOCH_2.start_block;
 const E2_H2: BlockNumber = BlockNumber(EPOCH_2.start_block.0 + MIN_EPOCH_LENGTH + 1);
 const E3_H1: BlockNumber = EPOCH_3.start_block;
 
-fn default_with_committee_size(committee_size: usize) -> StakingManagerDynamicConfig {
+fn test_config_with_committee_size(committee_size: usize) -> StakingManagerDynamicConfig {
     let mut config = StakingManagerDynamicConfig::default();
     config.default_committee.committee_size = committee_size;
+
+    let stakers = [STAKER_1, STAKER_2, STAKER_3];
+    let configured_stakers: Vec<ConfiguredStaker> =
+        stakers.iter().map(|s| create_configured_staker(s, true)).collect();
+
+    config.default_committee.stakers = configured_stakers;
+
     config
 }
 
@@ -75,7 +82,7 @@ fn contract() -> MockStakingContract {
 #[fixture]
 fn default_config() -> StakingManagerConfig {
     StakingManagerConfig {
-        dynamic_config: default_with_committee_size(10),
+        dynamic_config: test_config_with_committee_size(10),
         static_config: StakingManagerStaticConfig { max_cached_epochs: 10 },
     }
 }
@@ -131,7 +138,10 @@ async fn get_committee_success(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { dynamic_config: default_with_committee_size(3), ..default_config },
+        StakingManagerConfig {
+            dynamic_config: test_config_with_committee_size(3),
+            ..default_config
+        },
         None,
     );
 
@@ -191,7 +201,10 @@ async fn get_committee_for_next_epoch(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { dynamic_config: default_with_committee_size(3), ..default_config },
+        StakingManagerConfig {
+            dynamic_config: test_config_with_committee_size(3),
+            ..default_config
+        },
         None,
     );
 
@@ -217,29 +230,52 @@ async fn get_committee_applies_dynamic_config_changes(
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
 
+    // Create config for epoch 1 with committee size 2 and use_only_actual_proposer_selection =
+    // false.
+    let epoch1_config = test_config_with_committee_size(2);
+
+    // Create config for epoch 2 with committee size 1 and use_only_actual_proposer_selection =
+    // true.
+    let mut epoch2_config = test_config_with_committee_size(3);
+    epoch2_config.default_committee.use_only_actual_proposer_selection = true;
+
     let mut config_manager_client = MockConfigManagerClient::new();
     config_manager_client
         .expect_get_staking_manager_dynamic_config()
         .times(1)
-        .return_once(|| Ok(default_with_committee_size(2)));
+        .return_once(|| Ok(epoch1_config));
     config_manager_client
         .expect_get_staking_manager_dynamic_config()
         .times(1)
-        .return_once(|| Ok(default_with_committee_size(1)));
+        .return_once(|| Ok(epoch2_config));
+
+    let mut random_generator = MockBlockRandomGenerator::new();
+    // Return a random value that would select STAKER_3 with weighted random selection.
+    random_generator.expect_generate().returning(move |_, _, _, _| 0);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(random_generator),
         default_config,
         Some(Arc::new(config_manager_client)),
     );
 
+    // Test epoch 1: committee size should be 2, use_only_actual_proposer_selection = false.
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
     assert_eq!(committee.members().len(), 2);
+    // When flag is false, get_proposer should use weighted selection (different from actual).
+    assert_eq!(committee.get_proposer(E1_H1, 0).unwrap(), STAKER_3.address);
+    // The actual proposer uses round-robin: (1 + 0) % 3 = 1 -> STAKER_2.
+    assert_eq!(committee.get_actual_proposer(E1_H1, 0), STAKER_2.address);
 
+    // Test epoch 2: committee size should be 3, use_only_actual_proposer_selection = true.
     let committee = committee_manager.get_committee(E2_H1).await.unwrap();
-    assert_eq!(committee.members().len(), 1);
+    assert_eq!(committee.members().len(), 3);
+    // When flag is true, get_proposer should return same as get_actual_proposer.
+    let proposer_actual = committee.get_proposer(E2_H1, 0).unwrap();
+    let actual_proposer = committee.get_actual_proposer(E2_H1, 0);
+    assert_eq!(proposer_actual, actual_proposer);
 }
 
 #[rstest]
@@ -403,7 +439,10 @@ async fn get_proposer_empty_committee(
         Arc::new(contract),
         Arc::new(state_sync_client),
         Arc::new(random_generator),
-        StakingManagerConfig { dynamic_config: default_with_committee_size(0), ..default_config },
+        StakingManagerConfig {
+            dynamic_config: test_config_with_committee_size(0),
+            ..default_config
+        },
         None,
     );
 
@@ -491,6 +530,48 @@ async fn get_proposer_cache(
     assert_eq!(committee.get_proposer(E1_H2, 1).unwrap(), STAKER_4.address);
 }
 
+#[rstest]
+#[case::height_1_round_0(BlockNumber(1), 0, STAKER_2)]
+#[case::height_1_round_1(BlockNumber(1), 1, STAKER_1)]
+#[case::height_1_round_2(BlockNumber(1), 2, STAKER_3)]
+#[case::height_2_round_0(BlockNumber(2), 0, STAKER_1)]
+#[case::height_2_round_1(BlockNumber(2), 1, STAKER_3)]
+#[case::height_2_round_2(BlockNumber(2), 2, STAKER_2)]
+#[case::height_3_round_0(BlockNumber(3), 0, STAKER_3)]
+#[tokio::test]
+async fn test_get_proposer_with_actual_proposer_flag(
+    mut default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+    #[case] height: BlockNumber,
+    #[case] round: u32,
+    #[case] expected_proposer: Staker,
+) {
+    // Test that when use_only_actual_proposer_selection = true,
+    // get_proposer returns the same result as get_actual_proposer.
+    // Expected committee order: [STAKER_3, STAKER_2, STAKER_1] (by weight descending)
+    // With 3 eligible proposers, index = (height + round) % 3
+
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    default_config.dynamic_config.default_committee.use_only_actual_proposer_selection = true;
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(MockBlockRandomGenerator::new()),
+        default_config,
+        None,
+    );
+
+    let committee = committee_manager.get_committee(height).await.unwrap();
+    // When the flag is true, get_proposer should return the same as get_actual_proposer.
+    let proposer_result = committee.get_proposer(height, round).unwrap();
+    let actual_proposer = committee.get_actual_proposer(height, round);
+    assert_eq!(proposer_result, actual_proposer);
+    assert_eq!(proposer_result, expected_proposer.address);
+}
+
 // Helper function to create ConfiguredStaker for testing
 fn create_configured_staker(staker: &Staker, can_propose: bool) -> ConfiguredStaker {
     ConfiguredStaker {
@@ -521,26 +602,15 @@ async fn get_actual_proposer_all_eligible(
     // Expected committee order: [STAKER_3, STAKER_2, STAKER_1] (by weight descending)
     // With 3 eligible proposers, index = (height + round) % 3
 
-    let stakers = vec![STAKER_1, STAKER_2, STAKER_3];
-    let configured_stakers = stakers.iter().map(|s| create_configured_staker(s, true)).collect();
-
     set_current_epoch(&mut contract, EPOCH_1);
     set_previous_epoch(&mut contract, Some(EPOCH_0));
-    set_stakers(&mut contract, EPOCH_1, stakers);
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
 
-    let default_committee =
-        CommitteeConfig { start_epoch: 0, committee_size: 10, stakers: configured_stakers };
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig {
-            dynamic_config: StakingManagerDynamicConfig {
-                default_committee,
-                override_committee: None,
-            },
-            ..default_config
-        },
+        default_config,
         None,
     );
 
@@ -583,8 +653,12 @@ async fn get_actual_proposer_some_eligible(
     set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, stakers);
 
-    let default_committee =
-        CommitteeConfig { start_epoch: 0, committee_size: 10, stakers: configured_stakers };
+    let default_committee = CommitteeConfig {
+        start_epoch: 0,
+        committee_size: 10,
+        stakers: configured_stakers,
+        use_only_actual_proposer_selection: false,
+    };
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_state_sync_client_with_block_hash()),
@@ -619,6 +693,7 @@ async fn get_actual_proposer_no_eligible_panics(
         start_epoch: 0,
         committee_size: 10,
         stakers: vec![create_configured_staker(&STAKER_1, false)],
+        use_only_actual_proposer_selection: false,
     };
 
     let committee_manager = StakingManager::new(
@@ -661,6 +736,7 @@ async fn test_get_actual_proposer_epoch_changes(
             create_configured_staker(&STAKER_2, false),
             create_configured_staker(&STAKER_3, false),
         ],
+        use_only_actual_proposer_selection: false,
     };
     let override_committee = Some(CommitteeConfig {
         start_epoch: 2,
@@ -670,6 +746,7 @@ async fn test_get_actual_proposer_epoch_changes(
             create_configured_staker(&STAKER_2, false),
             create_configured_staker(&STAKER_3, true),
         ],
+        use_only_actual_proposer_selection: false,
     });
 
     let committee_manager = StakingManager::new(

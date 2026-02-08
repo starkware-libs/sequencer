@@ -21,6 +21,7 @@ pub struct CommitteeConfig {
     pub start_epoch: u64,
     pub committee_size: usize,
     pub stakers: Vec<ConfiguredStaker>,
+    pub use_only_actual_proposer_selection: bool,
 }
 
 /// Gets the applicable CommitteeConfig for a given epoch.
@@ -78,6 +79,7 @@ impl Default for StakingManagerDynamicConfig {
                 start_epoch: 0,
                 committee_size: 100,
                 stakers: Vec::new(),
+                use_only_actual_proposer_selection: false,
             },
             override_committee: None,
         }
