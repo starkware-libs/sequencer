@@ -260,23 +260,27 @@ impl StakingManager {
     // This includes selecting the committee and preparing cumulative weights for proposer
     // selection, as well as calculating eligible proposers.
     async fn fetch_and_build_committee(&self, epoch: u64) -> CommitteeProviderResult<Committee> {
-        let contract_stakers = self.staking_contract.get_stakers(epoch).await?;
-
         // Update dynamic config to ensure we have the latest stakers config.
         self.update_dynamic_config().await;
 
-        // Get the active committee config for this epoch (includes size and stakers).
-        let config = {
-            let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned");
-            get_config_for_epoch(
-                &dynamic_config.default_committee,
-                &dynamic_config.override_committee,
-                epoch,
-            )
-            .clone()
-        };
+        // Get the config to inject and use for committee building.
+        // Clone it to avoid holding the lock across await.
+        let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned").clone();
 
-        let committee_members = self.select_committee(contract_stakers, config.committee_size);
+        // Always use get_stakers_with_config - works for all implementations.
+        let contract_stakers =
+            self.staking_contract.get_stakers_with_config(epoch, &dynamic_config).await?;
+
+        // Get the active committee config for this epoch (includes size and stakers).
+        let active_config = get_config_for_epoch(
+            &dynamic_config.default_committee,
+            &dynamic_config.override_committee,
+            epoch,
+        )
+        .clone();
+
+        let committee_members =
+            self.select_committee(contract_stakers, active_config.committee_size);
 
         // Prepare the data needed for proposer selection.
         let cumulative_weights: Vec<u128> = committee_members
@@ -289,7 +293,7 @@ impl StakingManager {
         let total_weight = *cumulative_weights.last().unwrap_or(&0);
 
         let eligible_proposers =
-            self.calculate_eligible_proposers(&committee_members, &config.stakers);
+            self.calculate_eligible_proposers(&committee_members, &active_config.stakers);
 
         // Calculate the randomness block hash for this epoch.
         let randomness_block_hash = self.proposer_randomness_block_hash(epoch).await?;
