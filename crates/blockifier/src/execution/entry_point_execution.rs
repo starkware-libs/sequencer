@@ -13,7 +13,13 @@ use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::GasCosts;
-use crate::execution::call_info::{resource_counter_map, CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{
+    get_opcodes_counter,
+    CallExecution,
+    CallInfo,
+    ExtendedExecutionResources,
+    Retdata,
+};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     EntryPointExecutionContext,
@@ -31,7 +37,6 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
-use crate::transaction::objects::ExecutionResourcesTraits;
 
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]
@@ -411,7 +416,7 @@ pub fn finalize_runner(
 pub fn extract_vm_resources(
     runner: &CairoRunner,
     syscall_handler: &SyscallHintProcessor<'_>,
-) -> Result<ExecutionResources, PostExecutionError> {
+) -> Result<ExtendedExecutionResources, PostExecutionError> {
     // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
     let mut vm_resources_without_inner_calls = runner
@@ -428,14 +433,19 @@ pub fn extract_vm_resources(
     // Take into account the syscall resources of the current call.
     vm_resources_without_inner_calls += &versioned_constants
         .get_additional_os_syscall_resources(&syscall_handler.base.syscalls_usage);
-    Ok(vm_resources_without_inner_calls)
+
+    // Get opcode counters from the runner.
+    let opcode_counter = get_opcodes_counter(runner);
+
+    Ok(ExtendedExecutionResources::new(vm_resources_without_inner_calls, opcode_counter))
 }
 
 pub fn total_vm_resources(
-    tracked_vm_resources_without_inner_calls: &ExecutionResources,
+    tracked_vm_resources_without_inner_calls: &ExtendedExecutionResources,
     inner_calls: &[CallInfo],
 ) -> ExecutionResources {
-    tracked_vm_resources_without_inner_calls + &CallInfo::summarize_vm_resources(inner_calls.iter())
+    &tracked_vm_resources_without_inner_calls.vm_resources
+        + &CallInfo::summarize_vm_resources(inner_calls.iter())
 }
 
 pub fn finalize_execution(
@@ -452,11 +462,11 @@ pub fn finalize_execution(
 
     // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
-    let vm_resources_without_inner_calls = extract_vm_resources(&runner, &syscall_handler)?;
+    let extended_resources_without_inner_calls = extract_vm_resources(&runner, &syscall_handler)?;
 
     let tracked_vm_resources_without_inner_calls = match tracked_resource {
-        TrackedResource::CairoSteps => &vm_resources_without_inner_calls,
-        TrackedResource::SierraGas => &ExecutionResources::default(),
+        TrackedResource::CairoSteps => &extended_resources_without_inner_calls,
+        TrackedResource::SierraGas => &ExtendedExecutionResources::default(),
     };
 
     syscall_handler.finalize();
@@ -482,7 +492,8 @@ pub fn finalize_execution(
         tracked_resource,
         resources: vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
-        builtin_counters: resource_counter_map(vm_resources_without_inner_calls.prover_builtins()),
+        // Use the new to_resource_counter_map to include both builtins and opcodes.
+        builtin_counters: extended_resources_without_inner_calls.to_resource_counter_map(),
         syscalls_usage: syscall_handler_base.syscalls_usage,
     })
 }

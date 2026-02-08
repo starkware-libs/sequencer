@@ -13,8 +13,9 @@ use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource, Tip};
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::context::{BlockContext, TransactionContext};
+use crate::execution::call_info::{OpcodeCounterMap, OpcodeName};
 use crate::fee::resources::TransactionFeeResult;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
@@ -108,6 +109,43 @@ pub fn get_vm_resources_cost(
         GasVectorComputationMode::All => GasVector::from_l2_gas(
             versioned_constants.l1_gas_to_sierra_gas_amount_round_up(vm_l1_gas_usage),
         ),
+    }
+}
+
+/// Calculates the gas consumed by opcodes (e.g., Blake).
+/// This is calculated separately from VM resources since opcodes are tracked differently.
+/// Returns the gas cost as L2 gas (Sierra gas) when in All mode, or L1 gas otherwise.
+pub fn get_opcode_resources_cost(
+    versioned_constants: &VersionedConstants,
+    opcode_usage: &OpcodeCounterMap,
+    computation_mode: &GasVectorComputationMode,
+) -> GasVector {
+    let builtin_gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
+
+    // Calculate total opcode gas cost.
+    let total_opcode_gas: u64 = opcode_usage
+        .iter()
+        .map(|(opcode, count)| {
+            let gas_per_opcode = get_opcode_gas_cost(opcode, builtin_gas_costs);
+            gas_per_opcode.saturating_mul(u64_from_usize(*count))
+        })
+        .fold(0u64, |acc, cost| acc.saturating_add(cost));
+
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => {
+            // Convert to L1 gas using the versioned constants ratio.
+            GasVector::from_l1_gas(
+                versioned_constants.sierra_gas_to_l1_gas_amount_round_up(total_opcode_gas.into()),
+            )
+        }
+        GasVectorComputationMode::All => GasVector::from_l2_gas(total_opcode_gas.into()),
+    }
+}
+
+/// Returns the gas cost for a given opcode.
+pub fn get_opcode_gas_cost(opcode: &OpcodeName, builtin_gas_costs: &BuiltinGasCosts) -> u64 {
+    match opcode {
+        OpcodeName::Blake => builtin_gas_costs.blake,
     }
 }
 

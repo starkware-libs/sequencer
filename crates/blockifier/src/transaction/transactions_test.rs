@@ -92,6 +92,7 @@ use crate::execution::call_info::{
     CallExecution,
     CallInfo,
     ExecutionSummary,
+    ExtendedExecutionResources,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -797,15 +798,19 @@ fn test_invoke_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
-            os_vm_resources: expected_os_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_tx_cairo_resources,
+            ),
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_os_cairo_resources,
+            ),
             sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.os_vm_resources,
+        &mut expected_actual_resources.computation.os_vm_resources.vm_resources,
         &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
@@ -1988,15 +1993,19 @@ fn test_declare_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
-            os_vm_resources: expected_os_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_tx_cairo_resources,
+            ),
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_os_cairo_resources,
+            ),
             sierra_gas: expected_gas_consumed,
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.os_vm_resources,
+        &mut expected_actual_resources.computation.os_vm_resources.vm_resources,
         &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
@@ -2245,15 +2254,19 @@ fn test_deploy_account_tx(
     let mut actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
-            os_vm_resources: expected_os_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_tx_cairo_resources,
+            ),
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_os_cairo_resources,
+            ),
             sierra_gas: expected_gas_consumed.into(),
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut actual_resources.computation.os_vm_resources,
+        &mut actual_resources.computation.os_vm_resources.vm_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -2808,7 +2821,9 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let expected_tx_resources = TransactionResources {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
         computation: ComputationResources {
-            os_vm_resources: expected_os_execution_resources,
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_os_execution_resources,
+            ),
             sierra_gas: GasAmount(0), // Regression-tested explicitly.
             ..Default::default()
         },
