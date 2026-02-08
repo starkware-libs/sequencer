@@ -33,6 +33,7 @@ use starknet_core::types::{
 static SIERRA_COMPILER: LazyLock<SierraCompiler> = LazyLock::new(|| {
     create_sierra_compiler(SierraCompilationConfig {
         max_bytecode_size: 10 * DEFAULT_MAX_BYTECODE_SIZE,
+        audited_libfuncs_only: false,
         ..Default::default()
     })
 });
