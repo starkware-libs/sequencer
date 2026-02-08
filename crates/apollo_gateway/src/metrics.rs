@@ -83,6 +83,7 @@ pub enum GatewayAddTxFailureReason {
     ValidateFailure,
     TransactionLimitExceeded,
     UnauthorizedDeclare,
+    InvalidProof, 
 
     // Additional explicit UnknownErrorCode strings
     InvalidContractClass,
@@ -200,6 +201,9 @@ fn map_starknet_error_to_gateway_add_tx_failure_reason(
             }
             KnownStarknetErrorCode::UnauthorizedDeclare => {
                 GatewayAddTxFailureReason::UnauthorizedDeclare
+            },
+            KnownStarknetErrorCode::InvalidProof => {
+                GatewayAddTxFailureReason::InvalidProof
             }
         },
         // TODO(Asmaa): Find better way to map unknown error codes to failure reasons
