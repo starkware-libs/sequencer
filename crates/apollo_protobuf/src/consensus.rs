@@ -74,7 +74,7 @@ pub struct StreamMessage<T: IntoFromProto, StreamId: IntoFromProto + Clone> {
 
 /// Contains the minimal information needed to start building a proposal.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ProposalInit {
+pub struct BuildParam {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
     /// The current round of the consensus.
@@ -127,9 +127,9 @@ pub struct ConsensusBlockInfo {
 // TODO(Matan): Remove this once we have a proper validator set.
 pub const DEFAULT_VALIDATOR_ID: u64 = 100;
 
-impl Default for ProposalInit {
+impl Default for BuildParam {
     fn default() -> Self {
-        ProposalInit {
+        BuildParam {
             height: Default::default(),
             round: Default::default(),
             valid_round: Default::default(),

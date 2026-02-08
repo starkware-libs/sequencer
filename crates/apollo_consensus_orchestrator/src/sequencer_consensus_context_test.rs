@@ -24,7 +24,7 @@ use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{
     ProposalCommitment,
     ProposalFin,
-    ProposalInit,
+    BuildParam,
     ProposalPart,
     TransactionBatch,
 };
@@ -74,7 +74,7 @@ async fn cancelled_proposal_aborts() {
     deps.batcher.expect_start_height().times(1).return_const(Ok(()));
 
     let mut context = deps.build_context();
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
 
     // Now we intrrupt the proposal and verify that the fin_receiever is dropped.
     context.set_height_and_round(BlockNumber(0), 1).await.unwrap();
@@ -132,8 +132,8 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
-    let init = ProposalInit { round: 1, ..Default::default() };
-    context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), init).await;
+    let build_param = BuildParam { round: 1, ..Default::default() };
+    context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), build_param).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::BlockInfo(block_info));
     assert_eq!(
@@ -258,7 +258,7 @@ async fn build_proposal() {
     let (mut deps, mut network) = create_test_and_network_deps();
     deps.setup_deps_for_build(SetupDepsArgs::default());
     let mut context = deps.build_context();
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
     // Test proposal parts.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     let block_info = receiver.next().await.unwrap();
@@ -299,7 +299,7 @@ async fn build_proposal_skips_write_for_height_0() {
 
     let mut context = deps.build_context();
     let _fin_receiver = context
-        .build_proposal(ProposalInit { height: BlockNumber(0), ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: BlockNumber(0), ..Default::default() }, TIMEOUT)
         .await;
 }
 
@@ -324,7 +324,7 @@ async fn build_proposal_skips_write_for_height_above_0() {
 
     let mut context = deps.build_context();
     let _fin_receiver = context
-        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
         .await;
 }
 
@@ -353,7 +353,7 @@ async fn build_proposal_writes_prev_blob_if_cannot_get_latest_block_number() {
 
     let mut context = deps.build_context();
     let fin_receiver = context
-        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
         .await
         .unwrap();
 
@@ -385,7 +385,7 @@ async fn build_proposal_cende_failure() {
     let mut context = deps.build_context();
 
     let fin_receiver = context
-        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
         .await
         .unwrap();
     assert_eq!(fin_receiver.await, Err(Canceled));
@@ -416,7 +416,7 @@ async fn build_proposal_cende_incomplete() {
     let mut context = deps.build_context();
 
     let fin_receiver = context
-        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
         .await
         .unwrap();
     assert_eq!(fin_receiver.await, Err(Canceled));
@@ -445,7 +445,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
     context.set_height_and_round(BlockNumber::default(), Round::default()).await.unwrap();
 
     if proposer {
-        let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
+        let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
         assert_eq!(fin_receiver.await, Err(Canceled));
     } else {
         let (_content_sender, content_receiver) =
@@ -474,7 +474,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     });
     let mut context = deps.build_context();
     // Build proposal.
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Receive the proposal parts.
     let block_info = receiver.next().await.unwrap();
@@ -486,7 +486,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     context
         .repropose(
             ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
-            ProposalInit { round: 1, ..Default::default() },
+            BuildParam { round: 1, ..Default::default() },
         )
         .await;
     // Re-propose sends the same proposal.
@@ -643,7 +643,7 @@ async fn decision_reached_sends_correct_values() {
     let mut context = deps.build_context();
 
     // This sets up the required state for the test, prior to running the code being tested.
-    let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap().await;
+    let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     // At this point we should have a valid proposal in the context which contains the timestamp.
 
     context
@@ -692,9 +692,9 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
 
     let mut context = deps.build_context();
 
-    let init = ProposalInit::default();
+    let build_param = BuildParam::default();
 
-    let fin_receiver = context.build_proposal(init, TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(build_param, TIMEOUT).await.unwrap();
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
@@ -811,9 +811,9 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
 
     // Build proposal for block number 1.
-    let init = ProposalInit { height: BlockNumber(1), ..Default::default() };
+    let build_param = BuildParam { height: BlockNumber(1), ..Default::default() };
 
-    let fin_receiver = context.build_proposal(init, TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(build_param, TIMEOUT).await.unwrap();
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
@@ -959,7 +959,7 @@ async fn override_prices_behavior(
     apply_fee_transformations(&mut expected_l1_prices, &gas_price_params);
 
     // Run proposal and decision logic.
-    let fin_result = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap().await;
+    let fin_result = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
 
     // In cases where we expect the batcher to fail the block build.
     if build_success {
@@ -1175,7 +1175,7 @@ async fn change_gas_price_overrides() {
     context.deps.config_manager_client = Some(Arc::new(config_manager_client));
 
     let fin_receiver = context
-        .build_proposal(ProposalInit { height: BlockNumber(2), ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: BlockNumber(2), ..Default::default() }, TIMEOUT)
         .await
         .unwrap()
         .await

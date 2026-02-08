@@ -3,9 +3,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use apollo_protobuf::consensus::{
+    BuildParam,
     ConsensusBlockInfo,
     ProposalCommitment,
-    ProposalInit,
     Vote,
     VoteType,
 };
@@ -78,7 +78,7 @@ mock! {
 
         async fn build_proposal(
             &mut self,
-            init: ProposalInit,
+            build_param: BuildParam,
             timeout: Duration,
         ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError>;
 
@@ -92,7 +92,7 @@ mock! {
         async fn repropose(
             &mut self,
             id: ProposalCommitment,
-            init: ProposalInit,
+            build_param: BuildParam,
         );
 
         async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError>;
@@ -149,8 +149,8 @@ pub fn precommit(
     }
 }
 
-pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -> ProposalInit {
-    ProposalInit { height, round, proposer, ..Default::default() }
+pub fn build_param(height: BlockNumber, round: Round, proposer: ValidatorId) -> BuildParam {
+    BuildParam { height, round, proposer, ..Default::default() }
 }
 
 pub fn block_info(height: BlockNumber, round: Round, proposer: ValidatorId) -> ConsensusBlockInfo {
