@@ -315,16 +315,6 @@ impl BootstrapOnlyTransactionProvider {
     pub fn new(txs: Vec<InternalConsensusTransaction>) -> Self {
         Self { txs, index: 0 }
     }
-
-    /// Returns true if all transactions have been consumed.
-    pub fn is_exhausted(&self) -> bool {
-        self.index >= self.txs.len()
-    }
-
-    /// Returns the number of remaining transactions.
-    pub fn remaining(&self) -> usize {
-        self.txs.len().saturating_sub(self.index)
-    }
 }
 
 #[async_trait]

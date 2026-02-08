@@ -218,8 +218,9 @@ fn generate_deploy_fee_token_tx(
     nonce: Nonce,
     salt: ContractAddressSalt,
 ) -> RpcTransaction {
+    let calldata_len: u64 = constructor_calldata.0.len().try_into().expect("calldata length overflow");
     let calldata_vec: Vec<Felt> =
-        [class_hash.0, salt.0, (constructor_calldata.0.len() as u64).into()]
+        [class_hash.0, salt.0, calldata_len.into()]
             .iter()
             .chain(constructor_calldata.0.iter())
             .cloned()
@@ -450,7 +451,8 @@ pub fn generate_bootstrap_internal_transactions() -> Vec<InternalConsensusTransa
         .enumerate()
         .map(|(i, rpc_tx)| {
             // Use a deterministic tx_hash based on index
-            let tx_hash = TransactionHash(Felt::from(i as u64));
+            let idx: u64 = i.try_into().expect("transaction index overflow");
+            let tx_hash = TransactionHash(Felt::from(idx));
             rpc_tx_to_internal_consensus_tx(rpc_tx, tx_hash)
         })
         .collect()

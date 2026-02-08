@@ -14,7 +14,7 @@ use validator::Validate;
 ///
 /// The node will exit bootstrap mode when the funded account has sufficient balance
 /// in both ETH and STRK ERC20 tokens.
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq, Validate)]
 pub struct BootstrapConfig {
     /// When true, the node will automatically enter bootstrap mode if storage is empty.
     /// Bootstrap transactions will be executed without validation.
@@ -36,18 +36,6 @@ pub struct BootstrapConfig {
 
     /// The STRK fee token address for balance checking.
     pub strk_fee_token_address: ContractAddress,
-}
-
-impl Default for BootstrapConfig {
-    fn default() -> Self {
-        Self {
-            enable_bootstrap_mode: false,
-            funded_account_address: ContractAddress::default(),
-            required_balance: 0,
-            eth_fee_token_address: ContractAddress::default(),
-            strk_fee_token_address: ContractAddress::default(),
-        }
-    }
 }
 
 impl SerializeConfig for BootstrapConfig {

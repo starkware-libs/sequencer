@@ -36,7 +36,6 @@ apollo_sierra_compilation_config.workspace = true
 apollo_staking_config.workspace = true
 apollo_state_sync_config.workspace = true
 blockifier.workspace = true
-starknet_api.workspace = true
 clap.workspace = true
 const_format.workspace = true
 papyrus_base_layer.workspace = true
