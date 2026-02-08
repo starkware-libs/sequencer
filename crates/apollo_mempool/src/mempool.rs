@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
@@ -26,6 +26,8 @@ use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace};
 
+use crate::fee_transaction_queue::FeeTransactionQueue;
+use crate::fifo_transaction_queue::FifoTransactionQueue;
 use crate::metrics::{
     metric_count_committed_txs,
     metric_count_evicted_txs,
@@ -41,12 +43,16 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
 use crate::transaction_pool::TransactionPool;
-use crate::transaction_queue::TransactionQueue;
+use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
-#[path = "mempool_test.rs"]
-pub mod mempool_test;
+#[path = "fee_mempool_test.rs"]
+pub mod fee_mempool_test;
+
+#[cfg(test)]
+#[path = "fifo_mempool_test.rs"]
+pub mod fifo_mempool_test;
 
 #[cfg(test)]
 #[path = "mempool_flow_tests.rs"]
@@ -246,7 +252,9 @@ pub struct Mempool {
     // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
-    tx_queue: TransactionQueue,
+    tx_queue: Box<dyn TransactionQueueTrait>,
+    // Transaction references that were staged (returned by get_txs) for FIFO queue rewind.
+    staged_tx_refs: Vec<TransactionReference>,
     // Accounts whose lowest transaction nonce is greater than the account nonce, which are
     // therefore candidates for eviction.
     accounts_with_gap: AccountsWithGap,
@@ -256,11 +264,21 @@ pub struct Mempool {
 
 impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
+        // Select queue type based on deployment_mode.
+        // In Echonet mode, use FIFO queue; otherwise use fee-based priority queue.
+        let tx_queue: Box<dyn TransactionQueueTrait> = if config.static_config.is_echonet() {
+            // Echonet mode uses FIFO queue
+            Box::new(FifoTransactionQueue::default())
+        } else {
+            Box::new(FeeTransactionQueue::default())
+        };
+
         Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
-            tx_queue: TransactionQueue::default(),
+            tx_queue,
+            staged_tx_refs: Vec::new(),
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
@@ -279,7 +297,10 @@ impl Mempool {
     // TODO(AlonH): Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<InternalRpcTransaction>> {
-        self.add_ready_declares();
+        if !self.config.static_config.is_echonet() {
+            self.add_ready_declares();
+        }
+        // Echonet (FIFO) queue doesn't delay declares, so nothing to do here.
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
@@ -289,14 +310,21 @@ impl Mempool {
             let (valid_txs, expired_txs_updates) = self.prune_expired_nonqueued_txs(chunk);
             account_nonce_updates.extend(expired_txs_updates);
 
-            self.enqueue_next_eligible_txs(&valid_txs)?;
+            if !self.config.static_config.is_echonet() {
+                self.enqueue_next_eligible_txs(&valid_txs)?;
+            }
+            // Echonet (FIFO) queue contains all transactions, nothing to enqueue.
             n_remaining_txs -= valid_txs.len();
             eligible_tx_references.extend(valid_txs);
         }
 
-        // Update the mempool state with the given transactions' nonces.
+        // Update the mempool state with the given transactions' nonces and store for FIFO queue
+        // rewind.
         for tx_reference in &eligible_tx_references {
             self.state.stage(tx_reference)?;
+            if self.config.static_config.is_echonet() {
+                self.staged_tx_refs.push(*tx_reference);
+            }
         }
 
         let n_returned_txs = eligible_tx_references.len();
@@ -405,7 +433,10 @@ impl Mempool {
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         // First remove old transactions from the pool.
         let mut account_nonce_updates = self.remove_expired_txs();
-        self.add_ready_declares();
+        if !self.config.static_config.is_echonet() {
+            self.add_ready_declares();
+        }
+        // Echonet (FIFO) queue doesn't delay declares, so nothing to do here.
 
         let tx_reference = TransactionReference::new(&args.tx);
         self.add_tx_validations(tx_reference, &args.tx, args.account_state.nonce)
@@ -424,7 +455,12 @@ impl Mempool {
         );
 
         if let InternalRpcTransactionWithoutTxHash::Declare(_) = &args.tx.tx {
-            self.delayed_declares.push_back(self.clock.now(), args);
+            if self.config.static_config.is_echonet() {
+                // Echonet mode: no delay for declares
+                self.add_tx_inner(args);
+            } else {
+                self.delayed_declares.push_back(self.clock.now(), args);
+            }
         } else {
             self.add_tx_inner(args);
         }
@@ -436,6 +472,70 @@ impl Mempool {
 
     fn insert_to_tx_queue(&mut self, tx_reference: TransactionReference) {
         self.tx_queue.insert(tx_reference, self.config.static_config.validate_resource_bounds);
+    }
+
+    fn rewind_fifo_mempool(
+        &mut self,
+        committed_nonces: &HashMap<ContractAddress, Nonce>,
+        rejected_tx_hashes: &IndexSet<TransactionHash>,
+    ) -> Option<HashSet<TransactionHash>> {
+        let rewind_data = RewindData::Fifo {
+            staged_tx_refs: self.staged_tx_refs.clone(),
+            committed_nonces: committed_nonces.clone(),
+            rejected_tx_hashes: rejected_tx_hashes.clone(),
+        };
+
+        self.tx_queue.rewind_txs(rewind_data)
+    }
+
+    fn rewind_fee_priority_mempool(
+        &mut self,
+        addresses_to_rewind: &[ContractAddress],
+    ) -> Option<HashSet<TransactionHash>> {
+        let mut next_txs_by_address = HashMap::new();
+        for &address in addresses_to_rewind {
+            if let Some(tx_reference) = self.tx_pool.account_txs_sorted_by_nonce(address).next() {
+                next_txs_by_address.insert(address, *tx_reference);
+            }
+        }
+
+        let rewind_data = RewindData::FeePriority {
+            next_txs_by_address,
+            validate_resource_bounds: self.config.static_config.validate_resource_bounds,
+        };
+        self.tx_queue.rewind_txs(rewind_data)
+    }
+
+    fn remove_rejected_txs(
+        &mut self,
+        rejected_tx_hashes: IndexSet<TransactionHash>,
+        rewound_tx_hashes: &Option<HashSet<TransactionHash>>,
+    ) -> AddressToNonce {
+        if !rejected_tx_hashes.is_empty() {
+            debug!("Removed rejected transactions from mempool: {:?}", rejected_tx_hashes);
+        }
+        metric_count_rejected_txs(rejected_tx_hashes.len());
+        let mut account_nonce_updates = AddressToNonce::new();
+        for tx_hash in rejected_tx_hashes {
+            if rewound_tx_hashes.as_ref().is_some_and(|set| set.contains(&tx_hash)) {
+                continue;
+            }
+
+            if let Ok(tx) = self.tx_pool.remove(tx_hash) {
+                self.tx_queue.remove_by_address(tx.contract_address());
+                account_nonce_updates
+                    .entry(tx.contract_address())
+                    .and_modify(|nonce| *nonce = (*nonce).min(tx.nonce()))
+                    .or_insert(tx.nonce());
+            } else {
+                continue; // Transaction hash unknown to mempool, from a different node.
+            }
+
+            // TODO(clean_accounts): remove address with no transactions left after a block cycle /
+            // TTL.
+        }
+
+        account_nonce_updates
     }
 
     fn add_tx_inner(&mut self, args: AddTransactionArgs) {
@@ -451,11 +551,15 @@ impl Mempool {
 
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
         let account_nonce = self.state.resolve_nonce(address, incoming_account_nonce);
-        if tx_reference.nonce == account_nonce {
+
+        if self.config.static_config.is_echonet() {
+            // Echonet mode: FIFO queue - insert all transactions
+            self.insert_to_tx_queue(tx_reference);
+        } else if tx_reference.nonce == account_nonce {
             // Remove queued transactions the account might have. This includes old nonce
             // transactions that have become obsolete; those with an equal nonce should
             // already have been removed in `handle_fee_escalation`.
-            self.tx_queue.remove(address);
+            self.tx_queue.remove_by_address(address);
             self.insert_to_tx_queue(tx_reference);
         }
     }
@@ -490,69 +594,63 @@ impl Mempool {
             self.validate_commitment(address, next_nonce);
             committed_nonce_updates.insert(address, next_nonce);
 
-            // Maybe remove out-of-date transactions.
-            if self
-                .tx_queue
-                .get_nonce(address)
-                .is_some_and(|queued_nonce| queued_nonce != next_nonce)
+            // Remove out-of-date transactions from queue, if any.
+            if !self.config.static_config.is_echonet()
+                && self
+                    .tx_queue
+                    .get_nonce(address)
+                    .is_some_and(|queued_nonce| queued_nonce != next_nonce)
             {
-                assert!(self.tx_queue.remove(address), "Expected to remove address from queue.");
+                assert!(
+                    self.tx_queue.remove_by_address(address),
+                    "Expected to remove address from queue."
+                );
             }
+            // Out-of-date transactions are handled during rewind for Echonet (FIFO).
 
             // Remove from pool.
             let n_removed_txs = self.tx_pool.remove_up_to_nonce_when_committed(address, next_nonce);
             metric_count_committed_txs(n_removed_txs);
 
-            // Maybe close nonce gap.
-            if self.tx_queue.get_nonce(address).is_none() {
+            // Close nonce gap, if exists.
+            if !self.config.static_config.is_echonet() && self.tx_queue.get_nonce(address).is_none()
+            {
                 if let Some(tx_reference) =
                     self.tx_pool.get_by_address_and_nonce(address, next_nonce)
                 {
                     self.insert_to_tx_queue(tx_reference);
                 }
             }
+            // Nonce gaps are handled during rewind for Echonet (FIFO).
         }
 
         // Commit block and rewind nonces of addresses that were not included in block.
-        let addresses_to_rewind = self.state.commit(address_to_nonce);
-        for address in addresses_to_rewind {
-            // Account nonce is the minimal nonce of this address: it was proposed but not included.
-            let tx_reference =
-                self.tx_pool.account_txs_sorted_by_nonce(address).next().unwrap_or_else(|| {
-                    panic!("Address {address} should appear in transaction pool.")
-                });
-            self.tx_queue.remove(address);
-            self.insert_to_tx_queue(*tx_reference);
-        }
+        // This contains addresses that were staged but NOT committed.
+        let staged_but_not_committed_addresses: Vec<ContractAddress> =
+            self.state.commit(address_to_nonce.clone());
+
+        let rewound_tx_hashes: Option<HashSet<TransactionHash>> =
+            if self.config.static_config.is_echonet() {
+                // Echonet mode: FIFO queue rewind
+                self.rewind_fifo_mempool(&address_to_nonce, &rejected_tx_hashes)
+            } else {
+                self.rewind_fee_priority_mempool(&staged_but_not_committed_addresses)
+            };
 
         debug!("Aligned mempool to committed nonces.");
 
-        // Remove rejected transactions from the mempool.
-        if !rejected_tx_hashes.is_empty() {
-            debug!("Removed rejected transactions from mempool: {:?}", rejected_tx_hashes);
-        }
-        metric_count_rejected_txs(rejected_tx_hashes.len());
-        let mut account_nonce_updates = AddressToNonce::new();
-        for tx_hash in rejected_tx_hashes {
-            if let Ok(tx) = self.tx_pool.remove(tx_hash) {
-                self.tx_queue.remove(tx.contract_address());
-                account_nonce_updates
-                    .entry(tx.contract_address())
-                    .and_modify(|nonce| *nonce = (*nonce).min(tx.nonce()))
-                    .or_insert(tx.nonce());
-            } else {
-                continue; // Transaction hash unknown to mempool, from a different node.
-            };
-
-            // TODO(clean_accounts): remove address with no transactions left after a block cycle /
-            // TTL.
-        }
+        let mut account_nonce_updates =
+            self.remove_rejected_txs(rejected_tx_hashes, &rewound_tx_hashes);
 
         // Committed nonces should overwrite rejected transactions.
         account_nonce_updates.extend(committed_nonce_updates);
 
         self.update_state_metrics();
         self.update_accounts_with_gap(account_nonce_updates);
+
+        if self.config.static_config.is_echonet() {
+            self.staged_tx_refs.clear();
+        }
     }
 
     pub fn account_tx_in_pool_or_recent_block(&self, account_address: ContractAddress) -> bool {
@@ -628,7 +726,10 @@ impl Mempool {
     ) -> MempoolResult<()> {
         let TransactionReference { address, nonce, .. } = incoming_tx_reference;
 
-        self.validate_no_delayed_declare_front_run(incoming_tx_reference)?;
+        // Only validate delayed declares for Fee queue (FIFO doesn't delay declares).
+        if !self.config.static_config.is_echonet() {
+            self.validate_no_delayed_declare_front_run(incoming_tx_reference)?;
+        }
 
         if !self.config.static_config.enable_fee_escalation {
             if self.tx_pool.get_by_address_and_nonce(address, nonce).is_some() {
@@ -784,7 +885,10 @@ impl Mempool {
         for (address, account_nonce) in address_to_nonce {
             // Assumption: Future declares are not allowed — their nonce must match the account
             // nonce, so they fill a gap if one exists.
-            if self.delayed_declares.contains(address, account_nonce) {
+            // Only check delayed declares for Fee queue (FIFO doesn't delay declares).
+            if !self.config.static_config.is_echonet()
+                && self.delayed_declares.contains(address, account_nonce)
+            {
                 self.accounts_with_gap.swap_remove(&address);
                 continue;
             }
