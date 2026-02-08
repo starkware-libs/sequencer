@@ -5,7 +5,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -25,7 +24,6 @@ fn serialize_alert() {
         20,
         AlertSeverity::Sos,
         ObserverApplicability::Applicable,
-        AlertEnvFiltering::All,
     );
 
     let serialized = serde_json::to_value(&alert).unwrap();
