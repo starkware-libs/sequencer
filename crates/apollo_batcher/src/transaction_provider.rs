@@ -303,3 +303,46 @@ impl TransactionProvider for ValidateTransactionProvider {
         panic!("Phase is only relevant to proposing transactions.")
     }
 }
+
+/// A simple transaction provider that only returns bootstrap transactions.
+/// Used during the bootstrap phase before consensus starts.
+pub struct BootstrapOnlyTransactionProvider {
+    txs: Vec<InternalConsensusTransaction>,
+    index: usize,
+}
+
+impl BootstrapOnlyTransactionProvider {
+    pub fn new(txs: Vec<InternalConsensusTransaction>) -> Self {
+        Self { txs, index: 0 }
+    }
+
+    /// Returns true if all transactions have been consumed.
+    pub fn is_exhausted(&self) -> bool {
+        self.index >= self.txs.len()
+    }
+
+    /// Returns the number of remaining transactions.
+    pub fn remaining(&self) -> usize {
+        self.txs.len().saturating_sub(self.index)
+    }
+}
+
+#[async_trait]
+impl TransactionProvider for BootstrapOnlyTransactionProvider {
+    async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs> {
+        let remaining = self.txs.len() - self.index;
+        let to_take = min(n_txs, remaining);
+        let result: Vec<_> = self.txs[self.index..self.index + to_take].to_vec();
+        self.index += to_take;
+        Ok(result)
+    }
+
+    async fn get_final_n_executed_txs(&mut self) -> Option<usize> {
+        None
+    }
+
+    #[cfg(test)]
+    fn phase(&self) -> TxProviderPhase {
+        TxProviderPhase::Bootstrap
+    }
+}

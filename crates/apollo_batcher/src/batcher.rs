@@ -62,7 +62,14 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{
+    BlockHash,
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrices,
+    StarknetVersion,
+};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -114,6 +121,7 @@ use crate::pre_confirmed_block_writer::{
 };
 use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
 use crate::transaction_provider::{
+    BootstrapOnlyTransactionProvider,
     ProposeTransactionProvider,
     TxProviderPhase,
     ValidateTransactionProvider,
@@ -764,6 +772,149 @@ impl Batcher {
             (account_transaction_hashes.len() + l1_transaction_hashes.len()).try_into().unwrap(),
         );
         Ok(())
+    }
+
+    /// Execute a bootstrap block directly without consensus.
+    ///
+    /// This method is called during node startup to process bootstrap transactions
+    /// before consensus begins. Each node executes the same hardcoded bootstrap
+    /// transactions independently to arrive at the same deterministic state.
+    ///
+    /// # Arguments
+    /// * `n_txs` - Maximum number of transactions to include in this block
+    ///
+    /// # Returns
+    /// * `Ok(true)` - Block was executed and there may be more transactions remaining
+    /// * `Ok(false)` - Bootstrap is complete (all txs consumed and balance check passes)
+    /// * `Err(_)` - An error occurred during execution
+    #[instrument(skip(self), err)]
+    pub async fn execute_bootstrap_block(&mut self, n_txs: usize) -> BatcherResult<bool> {
+        if self.bootstrap_state != BootstrapState::Active {
+            info!("Bootstrap: not in Active state, nothing to execute");
+            return Ok(false);
+        }
+
+        if self.bootstrap_txs.is_empty() {
+            info!("Bootstrap: no transactions to execute");
+            self.bootstrap_state = BootstrapState::Monitoring;
+            if self.check_bootstrap_completion() {
+                self.bootstrap_state = BootstrapState::Completed;
+                return Ok(false);
+            }
+            return Ok(true); // Still monitoring
+        }
+
+        let height = self.get_height_from_storage()?;
+        info!("Bootstrap: executing block at height {} with up to {} transactions", height, n_txs);
+
+        // Take the transactions for this block
+        let txs_for_block: Vec<_> = self.bootstrap_txs.drain(..n_txs.min(self.bootstrap_txs.len())).collect();
+        let n_txs_in_block = txs_for_block.len();
+        info!("Bootstrap: executing {} transactions, {} remaining", n_txs_in_block, self.bootstrap_txs.len());
+
+        // Create a minimal BlockInfo for the bootstrap block
+        let block_info = BlockInfo {
+            block_number: height,
+            block_timestamp: BlockTimestamp(0), // Bootstrap blocks use timestamp 0
+            sequencer_address: ContractAddress::default(),
+            gas_prices: GasPrices::default(),
+            use_kzg_da: false,
+            starknet_version: StarknetVersion::default(),
+        };
+
+        // Create a transaction provider with just the bootstrap transactions
+        let tx_provider = BootstrapOnlyTransactionProvider::new(txs_for_block);
+
+        // Create block builder
+        let (mut block_builder, _abort_signal_sender) = self
+            .block_builder_factory
+            .create_block_builder(
+                BlockMetadata {
+                    block_info: block_info.clone(),
+                    retrospective_block_hash: None, // No parent hash for bootstrap
+                },
+                BlockBuilderExecutionParams {
+                    deadline: tokio::time::Instant::now() + std::time::Duration::from_secs(300),
+                    is_validator: false,
+                    proposer_idle_detection_delay: std::time::Duration::from_secs(60),
+                },
+                Box::new(tx_provider),
+                None, // No output stream
+                None, // No candidate tx sender
+                None, // No pre-confirmed tx sender
+                tokio::runtime::Handle::current(),
+            )
+            .map_err(|err| {
+                error!("Bootstrap: failed to create block builder: {}", err);
+                BatcherError::InternalError
+            })?;
+
+        // Build the block
+        let block_execution_artifacts = block_builder.build_block().await.map_err(|err| {
+            error!("Bootstrap: failed to build block: {}", err);
+            BatcherError::InternalError
+        })?;
+
+        let state_diff = block_execution_artifacts.thin_state_diff();
+        let partial_block_hash_components = block_execution_artifacts.partial_block_hash_components();
+        let state_diff_commitment =
+            partial_block_hash_components.header_commitments.state_diff_commitment;
+
+        info!(
+            "Bootstrap: block {} built with {} transactions",
+            height,
+            block_execution_artifacts.tx_hashes().len()
+        );
+
+        // Commit the block directly to storage
+        self.commit_proposal_and_block(
+            height,
+            state_diff.clone(),
+            block_execution_artifacts.address_to_nonce(),
+            block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
+            block_execution_artifacts.execution_data.rejected_tx_hashes,
+            StorageCommitmentBlockHash::Partial(partial_block_hash_components),
+        )
+        .await?;
+
+        // Handle commitment manager
+        self.commitment_manager
+            .add_commitment_task(
+                height,
+                state_diff,
+                Some(state_diff_commitment),
+                &self.config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
+            .await
+            .expect("The commitment offset unexpectedly doesn't match the given block height.");
+
+        self.get_commitment_results_and_write_to_storage().await?;
+
+        info!("Bootstrap: block {} committed successfully", height);
+
+        // Update state and check for completion
+        if self.bootstrap_txs.is_empty() {
+            self.bootstrap_state = BootstrapState::Monitoring;
+            if self.check_bootstrap_completion() {
+                info!("Bootstrap: completed successfully");
+                self.bootstrap_state = BootstrapState::Completed;
+                return Ok(false);
+            }
+        }
+
+        Ok(true) // More work to do
+    }
+
+    /// Returns the current bootstrap state.
+    pub fn bootstrap_state(&self) -> BootstrapState {
+        self.bootstrap_state
+    }
+
+    /// Returns true if bootstrap is complete or disabled.
+    pub fn is_bootstrap_complete(&self) -> bool {
+        matches!(self.bootstrap_state, BootstrapState::Completed | BootstrapState::Disabled)
     }
 
     #[instrument(skip(self), err)]
