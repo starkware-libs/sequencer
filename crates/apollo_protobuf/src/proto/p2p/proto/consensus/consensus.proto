@@ -64,11 +64,18 @@ message TransactionBatch {
     repeated ConsensusTransaction transactions = 1;
 }
 
+message CommitmentParts {
+    Uint128 next_l2_gas_price_fri = 1;
+    Felt252 concatenated_counts = 2;
+    Hash parent_commitment = 3;
+}
+
 message ProposalFin {
     // Identifies a Starknet block based on the content streamed in the proposal.
     Hash proposal_commitment = 1;
     // Number of executed transactions in the proposal.
     uint64 executed_transaction_count = 2;
+    optional CommitmentParts commitment_parts = 3;
 }
 
 // Network format:
