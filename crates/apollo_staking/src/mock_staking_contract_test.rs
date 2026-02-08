@@ -65,6 +65,11 @@ fn mock_state_sync_client() -> SharedStateSyncClient {
     Arc::new(MockStateSyncClient::new())
 }
 
+#[fixture]
+fn default_config() -> CommitteeConfig {
+    CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] }
+}
+
 fn mock_client_with_latest(block: Option<BlockNumber>) -> SharedStateSyncClient {
     let mut mock = MockStateSyncClient::new();
     mock.expect_get_latest_block_number().returning(move || Ok(block));
@@ -73,9 +78,10 @@ fn mock_client_with_latest(block: Option<BlockNumber>) -> SharedStateSyncClient 
 
 #[rstest]
 #[tokio::test]
-async fn get_stakers_picks_latest_config_for_epoch(mock_state_sync_client: SharedStateSyncClient) {
-    let default_config =
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
+async fn get_stakers_picks_latest_config_for_epoch(
+    mock_state_sync_client: SharedStateSyncClient,
+    default_config: CommitteeConfig,
+) {
     let override_config = Some(CommitteeConfig {
         start_epoch: 3,
         committee_size: 100,
@@ -96,10 +102,10 @@ async fn get_stakers_picks_latest_config_for_epoch(mock_state_sync_client: Share
 
 #[rstest]
 #[tokio::test]
-async fn get_stakers_no_override(mock_state_sync_client: SharedStateSyncClient) {
-    let default_config =
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
-
+async fn get_stakers_no_override(
+    mock_state_sync_client: SharedStateSyncClient,
+    default_config: CommitteeConfig,
+) {
     let contract = MockStakingContract::new(mock_state_sync_client, default_config, None, None);
 
     // Should always return default stakers when no override is present
@@ -146,10 +152,8 @@ async fn get_stakers_fetches_dynamic_config_successfully(
 #[tokio::test]
 async fn get_stakers_falls_back_to_initial_config_when_fetch_fails(
     mock_state_sync_client: SharedStateSyncClient,
+    default_config: CommitteeConfig,
 ) {
-    let initial_default =
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
-
     let mut mock_config_client = MockConfigManagerClient::new();
     mock_config_client.expect_get_staking_manager_dynamic_config().returning(|| {
         Err(ConfigManagerClientError::ConfigManagerError(ConfigManagerError::ConfigNotFound(
@@ -159,7 +163,7 @@ async fn get_stakers_falls_back_to_initial_config_when_fetch_fails(
 
     let contract = MockStakingContract::new(
         mock_state_sync_client,
-        initial_default,
+        default_config,
         None,
         Some(Arc::new(mock_config_client)),
     );
@@ -179,10 +183,11 @@ async fn get_stakers_falls_back_to_initial_config_when_fetch_fails(
 async fn get_current_epoch_success(
     #[case] block_number: BlockNumber,
     #[case] expected_epoch: Epoch,
+    default_config: CommitteeConfig,
 ) {
     let contract = MockStakingContract::new(
         mock_client_with_latest(Some(block_number)),
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
+        default_config,
         None,
         None,
     );
@@ -191,14 +196,11 @@ async fn get_current_epoch_success(
     assert_eq!(epoch, expected_epoch);
 }
 
+#[rstest]
 #[tokio::test]
-async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks() {
-    let contract = MockStakingContract::new(
-        mock_client_with_latest(None),
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
-        None,
-        None,
-    );
+async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks(default_config: CommitteeConfig) {
+    let contract =
+        MockStakingContract::new(mock_client_with_latest(None), default_config, None, None);
 
     let epoch = contract.get_current_epoch().await.unwrap();
     assert_eq!(epoch, EPOCH_0);
@@ -213,10 +215,11 @@ async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks() {
 async fn get_previous_epoch_success(
     #[case] block_number: BlockNumber,
     #[case] expected_previous_epoch: Option<Epoch>,
+    default_config: CommitteeConfig,
 ) {
     let contract = MockStakingContract::new(
         mock_client_with_latest(Some(block_number)),
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
+        default_config,
         None,
         None,
     );
@@ -225,14 +228,11 @@ async fn get_previous_epoch_success(
     assert_eq!(previous_epoch, expected_previous_epoch);
 }
 
+#[rstest]
 #[tokio::test]
-async fn get_previous_epoch_returns_none_when_no_blocks() {
-    let contract = MockStakingContract::new(
-        mock_client_with_latest(None),
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
-        None,
-        None,
-    );
+async fn get_previous_epoch_returns_none_when_no_blocks(default_config: CommitteeConfig) {
+    let contract =
+        MockStakingContract::new(mock_client_with_latest(None), default_config, None, None);
 
     let previous_epoch = contract.get_previous_epoch().await.unwrap();
     assert_eq!(previous_epoch, None);
