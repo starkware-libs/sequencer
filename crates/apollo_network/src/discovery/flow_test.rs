@@ -39,6 +39,7 @@ impl DiscoveryMixedBehaviour {
             None,
             DEFAULT_PING_INTERVAL,
             DEFAULT_PING_TIMEOUT,
+            None,
         );
         Self {
             identify: mixed_behaviour.identify,
