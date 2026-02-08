@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use starknet_api::block::GasPrice;
 
+use crate::fee_transaction_queue::{FeeTransactionQueue, PendingTransaction, PriorityTransaction};
 use crate::mempool::TransactionReference;
-use crate::transaction_queue::{PendingTransaction, PriorityTransaction, TransactionQueue};
 
-impl TransactionQueue {
+impl FeeTransactionQueue {
     pub fn new(
         priority_queue: Vec<TransactionReference>,
         pending_queue: Vec<TransactionReference>,
@@ -21,7 +21,7 @@ impl TransactionQueue {
             }
         }
 
-        TransactionQueue {
+        FeeTransactionQueue {
             priority_queue: priority_queue.into_iter().map(PriorityTransaction).collect(),
             pending_queue: pending_queue.into_iter().map(PendingTransaction).collect(),
             address_to_tx,
