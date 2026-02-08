@@ -2063,6 +2063,8 @@ dependencies = [
  "replace_with",
  "rstest",
  "serde",
+ "sha2 0.10.9",
+ "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
  "thiserror 1.0.69",
