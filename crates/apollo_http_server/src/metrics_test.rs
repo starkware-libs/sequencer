@@ -1,5 +1,6 @@
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
+use apollo_http_server_config::config::DEFAULT_MAX_REQUEST_BODY_SIZE;
 use apollo_infra::component_client::ClientError;
 use apollo_proc_macros::unique_u16;
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -63,8 +64,13 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        index,
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
+    .await;
 
     // Send transactions to the server.
     for _ in std::iter::repeat_n((), SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
@@ -91,8 +97,13 @@ async fn add_tx_serde_failure_metrics_test() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, unique_u16!()).await;
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        unique_u16!(),
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
+    .await;
 
     // Send a transaction that fails deserialization.
     let tx: InvalidTransaction = "invalid transaction";
