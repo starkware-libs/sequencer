@@ -1,4 +1,4 @@
-//! Integration test for bootstrap flow.
+//! Integration test for bootstrap flow infrastructure components.
 //!
 //! This test verifies that the bootstrap infrastructure works correctly:
 //! - Deterministic address calculation for funded account and fee tokens
@@ -7,8 +7,9 @@
 //! - Bootstrap transaction generation in internal consensus format
 //! - Bootstrap state machine transitions
 //!
-//! NOTE: This test verifies the infrastructure components work together.
-//! Full end-to-end testing with running nodes would require additional wiring.
+//! NOTE: This test verifies infrastructure components in isolation.
+//! For full end-to-end testing with running sequencer nodes, see
+//! `integration_test_bootstrap_empty_storage_flow.rs`.
 
 use apollo_integration_tests::bootstrap::{
     generate_bootstrap_internal_transactions,
@@ -138,10 +139,6 @@ async fn main() {
     info!("  4. Bootstrap transaction generation (5 txs)");
     info!("  5. Bootstrap manager state machine");
     info!("");
-    info!("For full end-to-end testing with running nodes:");
-    info!("  - Use FlowTestSetup::new_for_bootstrap() which:");
-    info!("    - Creates empty storage");
-    info!("    - Generates and injects bootstrap transactions into batcher");
-    info!("    - Configures BootstrapConfig with deterministic addresses");
-    info!("  - Bootstrap transactions are processed automatically by the batcher");
+    info!("For full end-to-end testing with running sequencer nodes, see:");
+    info!("  integration_test_bootstrap_empty_storage_flow");
 }
