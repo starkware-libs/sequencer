@@ -30,8 +30,6 @@ use crate::alerts::{
 fn get_consensus_block_number_stuck(
     alert_name: &'static str,
     alert_env_filtering: AlertEnvFiltering,
-    // TODO(Tsabary): remove the `_duration` argument.
-    _duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
     let expr_template_string = format!(
@@ -60,19 +58,16 @@ pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
         get_consensus_block_number_stuck(
             "consensus_block_number_stuck",
             AlertEnvFiltering::MainnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
             AlertSeverity::Sos,
         ),
         get_consensus_block_number_stuck(
             "consensus_block_number_stuck",
             AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
             AlertSeverity::DayOnly,
         ),
         get_consensus_block_number_stuck(
             "consensus_block_number_stuck_long_time",
             AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(30 * SECS_IN_MIN),
             AlertSeverity::Regular,
         ),
     ]
@@ -85,9 +80,6 @@ pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
 fn get_batched_transactions_stuck(
     alert_name: &'static str,
     alert_env_filtering: AlertEnvFiltering,
-    // TODO(Tsabary): remove the `_duration` and `_alert_severity` arguments.
-    _duration: Duration,
-    _alert_severity: AlertSeverity,
 ) -> Alert {
     let expr_template_string =
         format!("changes({}[{{}}s])", BATCHED_TRANSACTIONS.get_name_with_filter());
@@ -113,20 +105,14 @@ pub(crate) fn get_batched_transactions_stuck_vec() -> Vec<Alert> {
         get_batched_transactions_stuck(
             "batched_transactions_stuck",
             AlertEnvFiltering::MainnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::Sos,
         ),
         get_batched_transactions_stuck(
             "batched_transactions_stuck",
             AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::DayOnly,
         ),
         get_batched_transactions_stuck(
             "batched_transactions_stuck_long_time",
             AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(30 * SECS_IN_MIN),
-            AlertSeverity::Regular,
         ),
     ]
 }

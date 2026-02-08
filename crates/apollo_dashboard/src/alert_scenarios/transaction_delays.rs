@@ -177,8 +177,6 @@ fn get_high_empty_blocks_ratio_alert(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
     ratio: f64,
-    // TODO(Tsabary): remove the `_time_window_seconds` argument.
-    _time_window_seconds: u64,
 ) -> Alert {
     const ALERT_NAME: &str = "high_empty_blocks_ratio";
     // Our histogram buckets are static and the smallest bucket is 0.001.
@@ -218,13 +216,11 @@ pub(crate) fn get_high_empty_blocks_ratio_alert_vec() -> Vec<Alert> {
             AlertEnvFiltering::MainnetStyleAlerts,
             AlertSeverity::Sos,
             0.3,
-            120,
         ),
         get_high_empty_blocks_ratio_alert(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::Regular,
             0.6,
-            300,
         ),
     ]
 }
