@@ -2599,6 +2599,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "http_server_config.static_config.max_request_body_size": {
+    "description": "Max request body size in bytes.",
+    "privacy": "Public",
+    "value": 41943040
+  },
   "http_server_config.static_config.port": {
     "description": "The http server port.",
     "privacy": "Public",
