@@ -95,6 +95,8 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
                  eth_fee_token_address",
+                "batcher_config.bootstrap_config.eth_fee_token_address",
+                "bootstrap_config.eth_fee_token_address",
                 "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address",
                 "state_sync_config.rpc_config.execution_config.eth_fee_contract_address",
             ]),
@@ -133,6 +135,8 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
                  strk_fee_token_address",
+                "batcher_config.bootstrap_config.strk_fee_token_address",
+                "bootstrap_config.strk_fee_token_address",
                 "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address",
                 "state_sync_config.rpc_config.execution_config.strk_fee_contract_address",
             ]),
