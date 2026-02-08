@@ -29,7 +29,11 @@ use crate::bouncer::{
     TxWeights,
 };
 use crate::context::BlockContext;
-use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
+use crate::execution::call_info::{
+    BuiltinCounterMap,
+    ExecutionSummary,
+    ExtendedExecutionResources,
+};
 use crate::fee::resources::{ComputationResources, TransactionResources};
 use crate::state::cached_state::{CachedState, StateChangesKeys, StateMaps, TransactionalState};
 use crate::state::state_api::StateReader;
@@ -618,11 +622,11 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     let tx_resources = TransactionResources {
         computation: ComputationResources {
             sierra_gas: GasAmount::ZERO,
-            tx_vm_resources: ExecutionResources {
+            tx_vm_resources: ExtendedExecutionResources::from_vm_resources(ExecutionResources {
                 builtin_instance_counter: tx_builtin_counters.clone(),
                 ..Default::default()
-            },
-            os_vm_resources: os_vm_resources.clone(),
+            }),
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(os_vm_resources.clone()),
             ..Default::default()
         },
         ..Default::default()

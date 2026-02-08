@@ -23,6 +23,7 @@ use blockifier::execution::call_info::{
     resource_counter_map,
     CallExecution,
     CallInfo,
+    ExtendedExecutionResources,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -545,7 +546,7 @@ fn call_info() -> CallInfo {
             cairo_native: false,
         },
         inner_calls: Vec::new(),
-        resources: execution_resources(),
+        resources: ExtendedExecutionResources::from_vm_resources(execution_resources()),
         tracked_resource: TrackedResource::SierraGas,
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: felt_vector(),
@@ -609,8 +610,10 @@ fn transaction_execution_info() -> TransactionExecutionInfo {
                     },
                 },
                 computation: ComputationResources {
-                    tx_vm_resources: execution_resources(),
-                    os_vm_resources: ExecutionResources::default(),
+                    tx_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                        execution_resources(),
+                    ),
+                    os_vm_resources: ExtendedExecutionResources::default(),
                     n_reverted_steps: 2,
                     sierra_gas: GasAmount(0x128140),
                     reverted_sierra_gas: GasAmount(0x2),

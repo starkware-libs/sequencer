@@ -1,14 +1,13 @@
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 
 use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};
-use crate::execution::call_info::{EventSummary, ExecutionSummary};
+use crate::execution::call_info::{EventSummary, ExecutionSummary, ExtendedExecutionResources};
 #[cfg(test)]
 use crate::execution::contract_class::TrackedResource;
 use crate::fee::eth_gas_constants;
-use crate::fee::fee_utils::get_vm_resources_cost;
+use crate::fee::fee_utils::{get_opcode_resources_cost, get_vm_resources_cost};
 use crate::fee::gas_usage::{
     get_consumed_message_to_l2_emissions_cost,
     get_da_gas_cost,
@@ -60,15 +59,16 @@ pub struct ComputationResources {
     /// Execution resources split between the transaction itself (`tx_vm_resources`) and OS
     /// overhead (`os_vm_resources`). This enables clean proving gas calculation. See usage in
     /// `get_tx_weights`.
-    pub tx_vm_resources: ExecutionResources,
-    pub os_vm_resources: ExecutionResources,
+    /// Now uses ExtendedExecutionResources to include opcode counters for fee calculation.
+    pub tx_vm_resources: ExtendedExecutionResources,
+    pub os_vm_resources: ExtendedExecutionResources,
     pub n_reverted_steps: usize,
     pub sierra_gas: GasAmount,
     pub reverted_sierra_gas: GasAmount,
 }
 
 impl ComputationResources {
-    pub fn total_vm_resources(&self) -> ExecutionResources {
+    pub fn total_vm_resources(&self) -> ExtendedExecutionResources {
         &self.tx_vm_resources + &self.os_vm_resources
     }
 
@@ -77,10 +77,18 @@ impl ComputationResources {
         versioned_constants: &VersionedConstants,
         computation_mode: &GasVectorComputationMode,
     ) -> GasVector {
+        let total_resources = self.total_vm_resources();
         let vm_cost = get_vm_resources_cost(
             versioned_constants,
-            &self.total_vm_resources(),
+            &total_resources.vm_resources,
             self.n_reverted_steps,
+            computation_mode,
+        );
+
+        // Calculate opcode costs from the extended resources.
+        let opcode_cost = get_opcode_resources_cost(
+            versioned_constants,
+            &total_resources.opcode_instance_counter,
             computation_mode,
         );
 
@@ -98,10 +106,18 @@ impl ComputationResources {
             ),
         };
 
-        vm_cost.checked_add(sierra_gas_cost).unwrap_or_else(|| {
+        // Add all costs together: VM cost + opcode cost + sierra gas cost.
+        let vm_plus_opcode = vm_cost.checked_add(opcode_cost).unwrap_or_else(|| {
+            panic!(
+                "Computation resources to gas vector overflowed: tried to add {opcode_cost:?} to \
+                 {vm_cost:?}",
+            )
+        });
+
+        vm_plus_opcode.checked_add(sierra_gas_cost).unwrap_or_else(|| {
             panic!(
                 "Computation resources to gas vector overflowed: tried to add {sierra_gas_cost:?} \
-                 to {vm_cost:?}",
+                 to {vm_plus_opcode:?}",
             )
         })
     }
@@ -111,7 +127,7 @@ impl ComputationResources {
     pub fn total_charged_computation_units(&self, resource: TrackedResource) -> usize {
         match resource {
             TrackedResource::CairoSteps => {
-                self.total_vm_resources().n_steps + self.n_reverted_steps
+                self.total_vm_resources().vm_resources.n_steps + self.n_reverted_steps
             }
             TrackedResource::SierraGas => {
                 usize::try_from(self.sierra_gas.0 + self.reverted_sierra_gas.0).unwrap()

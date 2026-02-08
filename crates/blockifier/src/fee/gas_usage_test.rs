@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_rational::Ratio;
 use num_traits::Zero;
 use pretty_assertions::assert_eq;
@@ -17,7 +16,12 @@ use starknet_types_core::felt::Felt;
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::{ResourceCost, VersionedConstants, VmResourceCosts};
 use crate::context::BlockContext;
-use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
+use crate::execution::call_info::{
+    CallExecution,
+    CallInfo,
+    ExtendedExecutionResources,
+    OrderedEvent,
+};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, GasVectorToL1GasForFee};
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
@@ -406,8 +410,8 @@ fn test_gas_computation_regression_test(
         GasVectorComputationMode::All => (GasAmount(13), GasAmount(7)),
     };
     let computation_resources = ComputationResources {
-        tx_vm_resources,
-        os_vm_resources: ExecutionResources::default(),
+        tx_vm_resources: ExtendedExecutionResources::from_vm_resources(tx_vm_resources),
+        os_vm_resources: ExtendedExecutionResources::default(),
         n_reverted_steps,
         sierra_gas,
         reverted_sierra_gas,

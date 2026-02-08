@@ -385,12 +385,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -440,12 +443,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "pedersen_builtin": 4,
-            "range_check_builtin": 31
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "pedersen_builtin": 4,
+              "range_check_builtin": 31
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -602,12 +608,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "pedersen_builtin": 4,
-                "range_check_builtin": 31
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "pedersen_builtin": 4,
+                  "range_check_builtin": 31
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -657,12 +666,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -819,12 +831,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -874,12 +889,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -1055,12 +1073,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -1110,12 +1131,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "pedersen_builtin": 4,
-            "range_check_builtin": 31
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "pedersen_builtin": 4,
+              "range_check_builtin": 31
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -1272,12 +1296,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "pedersen_builtin": 4,
-                "range_check_builtin": 31
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "pedersen_builtin": 4,
+                  "range_check_builtin": 31
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -1327,12 +1354,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -1489,12 +1519,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -1544,12 +1577,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -1725,12 +1761,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -1780,12 +1819,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "pedersen_builtin": 4,
-            "range_check_builtin": 31
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "pedersen_builtin": 4,
+              "range_check_builtin": 31
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -1942,12 +1984,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "pedersen_builtin": 4,
-                "range_check_builtin": 31
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "pedersen_builtin": 4,
+                  "range_check_builtin": 31
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -1997,12 +2042,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -2159,12 +2207,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -2214,12 +2265,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -2395,12 +2449,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -2450,12 +2507,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "pedersen_builtin": 4,
-            "range_check_builtin": 31
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "pedersen_builtin": 4,
+              "range_check_builtin": 31
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -2612,12 +2672,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "pedersen_builtin": 4,
-                "range_check_builtin": 31
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "pedersen_builtin": 4,
+                  "range_check_builtin": 31
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -2667,12 +2730,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -2829,12 +2895,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -2884,12 +2953,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -3065,12 +3137,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -3120,12 +3195,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "pedersen_builtin": 4,
-            "range_check_builtin": 31
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "pedersen_builtin": 4,
+              "range_check_builtin": 31
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -3282,12 +3360,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "pedersen_builtin": 4,
-                "range_check_builtin": 31
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "pedersen_builtin": 4,
+                  "range_check_builtin": 31
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -3337,12 +3418,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {
@@ -3499,12 +3583,15 @@
             },
             "inner_calls": [],
             "resources": {
-              "n_steps": 2,
-              "n_memory_holes": 3,
-              "builtin_instance_counter": {
-                "range_check_builtin": 31,
-                "pedersen_builtin": 4
-              }
+              "vm_resources": {
+                "n_steps": 2,
+                "n_memory_holes": 3,
+                "builtin_instance_counter": {
+                  "range_check_builtin": 31,
+                  "pedersen_builtin": 4
+                }
+              },
+              "opcode_instance_counter": {}
             },
             "tracked_resource": "SierraGas",
             "storage_access_tracker": {
@@ -3554,12 +3641,15 @@
           }
         ],
         "resources": {
-          "n_steps": 2,
-          "n_memory_holes": 3,
-          "builtin_instance_counter": {
-            "range_check_builtin": 31,
-            "pedersen_builtin": 4
-          }
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "range_check_builtin": 31,
+              "pedersen_builtin": 4
+            }
+          },
+          "opcode_instance_counter": {}
         },
         "tracked_resource": "SierraGas",
         "storage_access_tracker": {

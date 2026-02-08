@@ -24,6 +24,7 @@ use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::vm_syscall_utils::SyscallUsageMap;
 use crate::state::cached_state::StorageEntry;
+use crate::transaction::objects::ExecutionResourcesTraits;
 use crate::utils::u64_from_usize;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -240,12 +241,12 @@ impl ExecutionSummary {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Serialize, Eq, PartialEq)]
 pub struct ChargedResources {
-    pub vm_resources: ExecutionResources, // Counted in CairoSteps mode calls.
-    pub gas_consumed: GasAmount,          // Counted in SierraGas mode calls.
+    pub vm_resources: ExtendedExecutionResources, // Counted in CairoSteps mode calls.
+    pub gas_consumed: GasAmount,                  // Counted in SierraGas mode calls.
 }
 
 impl ChargedResources {
-    pub fn from_execution_resources(resources: ExecutionResources) -> Self {
+    pub fn from_execution_resources(resources: ExtendedExecutionResources) -> Self {
         Self { vm_resources: resources, ..Default::default() }
     }
 
@@ -276,6 +277,125 @@ impl AddAssign<&ChargedResources> for ChargedResources {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
     Blake,
+}
+
+pub type OpcodeCounterMap = BTreeMap<OpcodeName, usize>;
+
+/// Extended execution resources that include both VM execution resources (from cairo-vm)
+/// and opcode instance counters.
+/// This struct wraps the cairo-vm ExecutionResources and adds opcode tracking for fee calculation.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct ExtendedExecutionResources {
+    pub vm_resources: ExecutionResources,
+    pub opcode_instance_counter: OpcodeCounterMap,
+}
+
+impl ExtendedExecutionResources {
+    pub fn new(
+        vm_resources: ExecutionResources,
+        opcode_instance_counter: OpcodeCounterMap,
+    ) -> Self {
+        Self { vm_resources, opcode_instance_counter }
+    }
+
+    /// Creates ExtendedExecutionResources from just VM resources (with empty opcode counter).
+    pub fn from_vm_resources(vm_resources: ExecutionResources) -> Self {
+        Self { vm_resources, opcode_instance_counter: OpcodeCounterMap::new() }
+    }
+
+    /// Returns the total number of steps including memory holes.
+    pub fn total_n_steps(&self) -> usize {
+        self.vm_resources.total_n_steps()
+    }
+
+    /// Returns the builtin instance counter from the underlying VM resources.
+    pub fn prover_builtins(&self) -> BTreeMap<BuiltinName, usize> {
+        self.vm_resources.prover_builtins()
+    }
+
+    /// Returns a combined ResourceCounterMap including both builtins and opcodes.
+    pub fn to_resource_counter_map(&self) -> ResourceCounterMap {
+        let mut map = resource_counter_map(self.vm_resources.prover_builtins());
+        for (opcode, count) in &self.opcode_instance_counter {
+            map.insert(ResourceName::Opcode(opcode.clone()), *count);
+        }
+        map
+    }
+
+    /// Filters unused builtins from the underlying VM resources, preserving opcode counters.
+    pub fn filter_unused_builtins(self) -> Self {
+        Self {
+            vm_resources: self.vm_resources.filter_unused_builtins(),
+            opcode_instance_counter: self.opcode_instance_counter,
+        }
+    }
+}
+
+impl std::ops::Add<&ExtendedExecutionResources> for &ExtendedExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn add(self, other: &ExtendedExecutionResources) -> ExtendedExecutionResources {
+        let mut opcode_counter = self.opcode_instance_counter.clone();
+        for (opcode, count) in &other.opcode_instance_counter {
+            *opcode_counter.entry(opcode.clone()).or_insert(0) += count;
+        }
+        ExtendedExecutionResources {
+            vm_resources: &self.vm_resources + &other.vm_resources,
+            opcode_instance_counter: opcode_counter,
+        }
+    }
+}
+
+impl std::ops::AddAssign<&ExtendedExecutionResources> for ExtendedExecutionResources {
+    fn add_assign(&mut self, other: &ExtendedExecutionResources) {
+        self.vm_resources += &other.vm_resources;
+        for (opcode, count) in &other.opcode_instance_counter {
+            *self.opcode_instance_counter.entry(opcode.clone()).or_insert(0) += count;
+        }
+    }
+}
+
+/// Allow adding ExecutionResources to ExtendedExecutionResources.
+impl std::ops::Add<&ExtendedExecutionResources> for &ExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn add(self, other: &ExtendedExecutionResources) -> ExtendedExecutionResources {
+        ExtendedExecutionResources {
+            vm_resources: self + &other.vm_resources,
+            opcode_instance_counter: other.opcode_instance_counter.clone(),
+        }
+    }
+}
+
+/// Allow adding ExtendedExecutionResources to ExecutionResources.
+impl std::ops::Add<&ExecutionResources> for &ExtendedExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn add(self, other: &ExecutionResources) -> ExtendedExecutionResources {
+        ExtendedExecutionResources {
+            vm_resources: &self.vm_resources + other,
+            opcode_instance_counter: self.opcode_instance_counter.clone(),
+        }
+    }
+}
+
+/// Allow adding ExecutionResources to ExtendedExecutionResources in place.
+impl std::ops::AddAssign<&ExecutionResources> for ExtendedExecutionResources {
+    fn add_assign(&mut self, other: &ExecutionResources) {
+        self.vm_resources += other;
+    }
+}
+
+/// Temporary mock function to get opcode counters from a CairoRunner.
+/// In the future, this will call the actual runner method to retrieve opcode usage.
+/// For now, it returns an empty map as a placeholder.
+pub fn get_opcodes_counter(
+    _runner: &cairo_vm::vm::runners::cairo_runner::CairoRunner,
+) -> OpcodeCounterMap {
+    // TODO: Replace with actual runner method call once available in cairo-vm.
+    // Example: runner.get_opcodes_counter()
+    OpcodeCounterMap::new()
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -332,7 +452,7 @@ pub struct CallInfo {
     pub call: CallEntryPoint,
     pub execution: CallExecution,
     pub inner_calls: Vec<CallInfo>,
-    pub resources: ExecutionResources,
+    pub resources: ExtendedExecutionResources,
     pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
@@ -430,10 +550,10 @@ impl CallInfo {
 
     pub fn summarize_vm_resources<'a>(
         call_infos: impl Iterator<Item = &'a CallInfo>,
-    ) -> ExecutionResources {
+    ) -> ExtendedExecutionResources {
         // Note: the vm resources (and entire charged resources) of a call contains the inner call
         // resources, unlike other fields such as events and messages.
-        call_infos.fold(ExecutionResources::default(), |mut acc, inner_call| {
+        call_infos.fold(ExtendedExecutionResources::default(), |mut acc, inner_call| {
             acc += &inner_call.resources;
             acc
         })
