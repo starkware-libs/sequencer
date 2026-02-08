@@ -71,13 +71,22 @@ impl CommitteeManagerBehaviour {
         )
     }
 
-    /// Compute the committee id from the committee members.
+    /// Compute the committee id as the Poseidon hash of the ordered member list.
     ///
-    /// TODO(noam): implement a proper hash computation.
-    fn compute_committee_id(&self, _members: &[CommitteeMember]) -> super::types::CommitteeId {
-        // Placeholder: return a default value. The real implementation should hash the sorted
-        // member list deterministically.
-        Default::default()
+    /// Each member contributes two field elements: `(staker_id, weight)`. The members are hashed
+    /// in the order provided by consensus (no sorting).
+    fn compute_committee_id(members: &[CommitteeMember]) -> super::types::CommitteeId {
+        use starknet_types_core::felt::Felt;
+        use starknet_types_core::hash::{Poseidon, StarkHash};
+
+        let felts: Vec<Felt> = members
+            .iter()
+            .flat_map(|m| {
+                [*m.staker_id.0.key(), Felt::from(m.weight.0)]
+            })
+            .collect();
+
+        Poseidon::hash_array(&felts)
     }
 
     /// Drain the `add_committee` channel and apply writes to the store.
@@ -86,7 +95,7 @@ impl CommitteeManagerBehaviour {
         while let Poll::Ready(Some((epoch_id, members))) =
             self.add_committee_receiver.poll_next_unpin(cx)
         {
-            let committee_id = self.compute_committee_id(&members);
+            let committee_id = Self::compute_committee_id(&members);
             let mut store = self.store.write().expect("CommitteeStore lock poisoned");
             match store.add_committee(epoch_id, committee_id, members) {
                 Ok(peers_to_disconnect) => {
