@@ -224,9 +224,10 @@ impl ConsensusManager {
             latency_metrics: Some(LatencyMetrics { ping_latency_seconds: CONSENSUS_PING_LATENCY }),
         });
 
-        // TODO: make num_active_epochs configurable via ConsensusManagerConfig.
         let (committee_manager, handles) =
-            apollo_network::committee_manager::behaviour::CommitteeManagerBehaviour::new(2);
+            apollo_network::committee_manager::behaviour::CommitteeManagerBehaviour::new(
+                self.config.num_active_committee_epochs,
+            );
 
         let stark_auth_negotiator = StarkAuthNegotiator::new(
             StakerAddress { staker_address: ContractAddress::default() },
