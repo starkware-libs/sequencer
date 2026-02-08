@@ -371,9 +371,7 @@ pub fn create_committee_provider(
     // TODO(Asmaa/Dafna): Create StakingContract according to config.
     let mock_staking_contract = Arc::new(MockStakingContract::new(
         state_sync_client.clone(),
-        staking_manager_config.dynamic_config.default_committee.clone(),
-        staking_manager_config.dynamic_config.override_committee.clone(),
-        Some(config_manager_client.clone()),
+        staking_manager_config.dynamic_config.clone(),
     ));
     let staking_manager = StakingManager::new(
         mock_staking_contract,
