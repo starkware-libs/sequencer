@@ -26,7 +26,7 @@ use crate::mixed_behaviour::{BridgedBehaviour, ToOtherBehaviourEvent};
 
 type AddCommitteeSender = mpsc::Sender<(EpochId, Vec<CommitteeMember>)>;
 type AddCommitteeReceiver = mpsc::Receiver<(EpochId, Vec<CommitteeMember>)>;
-type StakerToPeerSender = mpsc::Sender<(StakerId, PeerId)>;
+pub type StakerToPeerSender = mpsc::Sender<(StakerId, PeerId)>;
 type StakerToPeerReceiver = mpsc::Receiver<(StakerId, PeerId)>;
 
 pub struct CommitteeManagerHandles {
