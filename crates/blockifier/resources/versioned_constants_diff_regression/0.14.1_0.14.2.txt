@@ -1,5 +1,5 @@
 ~ /archival_data_gas_costs/gas_per_proof/0: 1000000000
 ~ /enable_casm_hash_migration: false
 ~ /gateway/max_proof_size: 90000
-+ /os_constants/allowed_virtual_os_program_hashes/0: "0x59ec5a6173b3d7c9b79f0469efd3e32e5ce1caf83d996146900cf2324448a80"
++ /os_constants/allowed_virtual_os_program_hashes/0: "0x7be1eac4e70041bf0bf257c7637e5aad6cdaa5592989f7d5e6d8c0533cf4a4c"
 ~ /os_constants/builtin_gas_costs/blake: 3334

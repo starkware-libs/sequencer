@@ -88,6 +88,10 @@ where
             let casm = compiled_class_v1_to_casm(&compiled_class_v1)?;
             Ok((compiled_class_hash, casm))
         }
+        // Required when blockifier's `cairo_native` feature is enabled via feature unification
+        // but this crate's `cairo_native` feature is not (e.g. clippy with --all-features).
+        #[allow(unreachable_patterns)]
+        _ => unreachable!(),
     }
 }
 
