@@ -18,6 +18,7 @@ use crate::discovery::DiscoveryConfig;
 use crate::event_tracker::EventMetricsTracker;
 use crate::metrics::{EventMetrics, LatencyMetrics};
 use crate::peer_manager::PeerManagerConfig;
+use crate::committee_manager::behaviour::CommitteeManagerBehaviour;
 use crate::{discovery, gossipsub_impl, peer_manager, prune_dead_connections, sqmr};
 
 // TODO(Shahak): consider reducing the pulicity of all behaviour to pub(crate)
@@ -33,6 +34,7 @@ pub struct MixedBehaviour {
     pub sqmr: sqmr::Behaviour,
     pub gossipsub: gossipsub::Behaviour,
     pub prune_dead_connections: prune_dead_connections::Behaviour,
+    pub committee_manager: Toggle<CommitteeManagerBehaviour>,
     pub event_tracker_metrics: Toggle<EventMetricsTracker>,
 }
 
@@ -79,6 +81,7 @@ impl MixedBehaviour {
         node_version: Option<String>,
         prune_dead_connections_ping_interval: Duration,
         prune_dead_connections_ping_timeout: Duration,
+        committee_manager: Option<CommitteeManagerBehaviour>,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
@@ -146,6 +149,7 @@ impl MixedBehaviour {
                 prune_dead_connections_ping_timeout,
                 latency_metrics,
             ),
+            committee_manager: committee_manager.into(),
             event_tracker_metrics: event_metrics.map(EventMetricsTracker::new).into(),
         }
     }

@@ -26,6 +26,7 @@ use tracing::{debug, error, trace, warn};
 use self::swarm_trait::SwarmTrait;
 use crate::authentication::composed_noise::ComposedNoiseConfig;
 use crate::authentication::negotiator::{DummyNegotiatorType, Negotiator};
+use crate::committee_manager::behaviour::CommitteeManagerBehaviour;
 use crate::gossipsub_impl::Topic;
 use crate::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
 use crate::misconduct_score::MisconductScore;
@@ -706,7 +707,13 @@ impl NetworkManager {
         node_version: Option<String>,
         metrics: Option<NetworkMetrics>,
     ) -> Self {
-        Self::new_with_custom_handshake::<DummyNegotiatorType>(config, None, node_version, metrics)
+        Self::new_with_custom_handshake::<DummyNegotiatorType>(
+            config,
+            None,
+            node_version,
+            metrics,
+            None,
+        )
     }
 
     pub fn new_with_custom_handshake<T>(
@@ -714,6 +721,7 @@ impl NetworkManager {
         handshake_negotiator: Option<T>,
         node_version: Option<String>,
         mut metrics: Option<NetworkMetrics>,
+        committee_manager: Option<CommitteeManagerBehaviour>,
     ) -> Self
     where
         T: Negotiator + 'static,
@@ -766,6 +774,7 @@ impl NetworkManager {
                 node_version,
                 prune_dead_connections_ping_interval,
                 prune_dead_connections_ping_timeout,
+                committee_manager,
             ))
         .expect("Error while building the swarm")
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))

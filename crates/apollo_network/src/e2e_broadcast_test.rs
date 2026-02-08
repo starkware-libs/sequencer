@@ -31,6 +31,7 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
             None,
             DEFAULT_PING_INTERVAL,
             DEFAULT_PING_TIMEOUT,
+            None,
         )
     });
     // Not using SwarmExt::listen because it panics if the swarm emits other events
