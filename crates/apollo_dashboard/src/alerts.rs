@@ -16,7 +16,7 @@ pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 pub(crate) const SECS_IN_MIN: u64 = 60;
 
 /// Alerts to be configured in the dashboard.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Alerts {
     alerts: Vec<Alert>,
 }
@@ -78,7 +78,7 @@ impl fmt::Display for AlertEnvFiltering {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) enum AlertSeverity {
     /// Critical issues that demand immediate attention. These are high-impact incidents that
     /// affect the system's availability.
@@ -102,7 +102,7 @@ pub(crate) enum AlertSeverity {
     Informational,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) enum AlertComparisonOp {
     #[serde(rename = "gt")]
     GreaterThan,
@@ -110,7 +110,7 @@ pub(crate) enum AlertComparisonOp {
     LessThan,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum AlertLogicalOp {
     And,
@@ -120,7 +120,7 @@ pub(crate) enum AlertLogicalOp {
 }
 
 /// Defines the condition to trigger the alert.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 pub(crate) struct AlertCondition {
     // The comparison operator to use when comparing the expression to the value.
     comparison_op: AlertComparisonOp,
@@ -187,7 +187,7 @@ impl Serialize for AlertCondition {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum AlertGroup {
     Batcher,
@@ -202,7 +202,7 @@ pub(crate) enum AlertGroup {
 }
 
 /// Describes the properties of an alert defined in grafana.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Debug, Serialize)]
 pub(crate) struct Alert {
     // The name of the alert.
     name: String,
