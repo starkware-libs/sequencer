@@ -11,7 +11,10 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
 
 use super::ProtobufConversionError;
+use starknet_types_core::felt::Felt;
+
 use crate::consensus::{
+    CommitmentParts,
     ConsensusBlockInfo,
     ProposalCommitment,
     ProposalFin,
@@ -37,9 +40,15 @@ auto_impl_get_test_instance! {
         Precommit = 1,
     }
     pub struct ProposalCommitment(pub StarkHash);
+    pub struct CommitmentParts {
+        pub next_l2_gas_price_fri: GasPrice,
+        pub concatenated_counts: Felt,
+        pub parent_commitment: ProposalCommitment,
+    }
     pub struct ProposalFin {
         pub proposal_commitment: ProposalCommitment,
         pub executed_transaction_count: u64,
+        pub commitment_parts: Option<CommitmentParts>,
     }
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,
