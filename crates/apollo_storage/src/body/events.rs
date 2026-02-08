@@ -1,7 +1,7 @@
 //! Interface for iterating over events from the storage.
 //!
 //! Events are part of the transaction output. Each transaction output holds an array of events.
-//! Import [`EventsReader`] to iterate over events using a read-only [`StorageTxn`].
+//! Import [`EventsReader`] to iterate over events using a read-only `StorageTxn`.
 //!
 //! # Example
 //! ```
@@ -55,10 +55,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
-    Event,
-    EventContent,
-    EventIndexInTransactionOutput,
-    TransactionOutput,
+    Event, EventContent, EventIndexInTransactionOutput, TransactionOutput,
 };
 
 use super::TransactionMetadataTable;

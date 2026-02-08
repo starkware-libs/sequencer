@@ -10,7 +10,7 @@ use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::db::table_types::Table;
 use crate::db::{DbError, KeyAlreadyExistsError};
 use crate::test_utils::{get_test_config_with_path, get_test_storage, get_test_storage_by_scope};
-use crate::{open_storage, BatchConfig, OffsetKind, StorageError, StorageScope, StorageWriter};
+use crate::{BatchConfig, OffsetKind, StorageError, StorageScope, StorageWriter, open_storage};
 
 #[tokio::test]
 async fn append_body() {

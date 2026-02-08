@@ -3,7 +3,7 @@
 //! The block body is the part of the block that contains the transactions and the transaction
 //! outputs.
 //! Import [`BodyStorageReader`] and [`BodyStorageWriter`] to read and write data related
-//! to the block bodies using a [`StorageTxn`].
+//! to the block bodies using a `StorageTxn`.
 //!
 //! See [`events`] module for the interface for handling events.
 //!
@@ -51,26 +51,16 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
-    Transaction,
-    TransactionHash,
-    TransactionOffsetInBlock,
-    TransactionOutput,
+    Transaction, TransactionHash, TransactionOffsetInBlock, TransactionOutput,
 };
 use tracing::debug;
 
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::db::{DbTransaction, RW, TableHandle, TransactionKind};
 use crate::{
-    FileHandlers,
-    MarkerKind,
-    MarkersTable,
-    OffsetKind,
-    StorageError,
-    StorageResult,
-    StorageScope,
-    StorageTxn,
-    TransactionMetadata,
+    FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageError, StorageResult, StorageScope,
+    StorageTransaction, StorageTxn, StorageTxnRW, TransactionMetadata,
 };
 
 type FileOffsetsTable<'env> =
@@ -159,6 +149,33 @@ pub trait BodyStorageReader {
 
 type RevertedBlockBody = (Vec<Transaction>, Vec<TransactionOutput>, Vec<TransactionHash>);
 
+/// Private trait extension for helper methods used by BodyStorageReader.
+trait BodyStorageReaderHelpers: StorageTransaction {
+    fn get_transactions_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<Transaction>>>;
+
+    fn get_transaction_hashes_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<TransactionHash>>>;
+
+    fn get_transactions_and_hashes_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>>;
+
+    fn get_transaction_outputs_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<TransactionOutput>>>;
+}
+
 /// Interface for updating data related to the block body.
 pub trait BodyStorageWriter
 where
@@ -178,7 +195,7 @@ where
     ) -> StorageResult<(Self, Option<RevertedBlockBody>)>;
 }
 
-impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction + BodyStorageReaderHelpers> BodyStorageReader for T {
     fn get_body_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::Body)?.unwrap_or_default())
@@ -197,7 +214,8 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
             return Ok(None);
         };
-        let transaction = self.file_handlers.get_transaction_unchecked(tx_metadata.tx_location)?;
+        let transaction =
+            self.file_handlers().get_transaction_unchecked(tx_metadata.tx_location)?;
         Ok(Some(transaction))
     }
 
@@ -208,8 +226,9 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
         let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
             return Ok(None);
         };
-        let transaction_output =
-            self.file_handlers.get_transaction_output_unchecked(tx_metadata.tx_output_location)?;
+        let transaction_output = self
+            .file_handlers()
+            .get_transaction_output_unchecked(tx_metadata.tx_output_location)?;
         Ok(Some(transaction_output))
     }
 
@@ -304,6 +323,64 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
+impl<'env, Mode: TransactionKind> BodyStorageReaderHelpers for StorageTxn<'env, Mode> {
+    fn get_transaction_outputs_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<TransactionOutput>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, file_handlers| {
+                file_handlers.get_transaction_output_unchecked(tx_metadata.tx_output_location)
+            },
+        )
+    }
+
+    fn get_transactions_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<Transaction>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, file_handlers| {
+                file_handlers.get_transaction_unchecked(tx_metadata.tx_location)
+            },
+        )
+    }
+
+    fn get_transaction_hashes_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<TransactionHash>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, _file_handlers| Ok(tx_metadata.tx_hash),
+        )
+    }
+
+    fn get_transactions_and_hashes_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, file_handlers| {
+                let transaction =
+                    file_handlers.get_transaction_unchecked(tx_metadata.tx_location)?;
+                Ok((transaction, tx_metadata.tx_hash))
+            },
+        )
+    }
+}
+
 impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     // Returns a vector with transaction objects (can be tx hash for example).
     fn get_vector_of_transaction_objects<T>(
@@ -332,11 +409,39 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
         }
         Ok(Some(res))
     }
+}
 
+impl StorageTxnRW<'_> {
+    fn get_vector_of_transaction_objects<T>(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+        tx_metadata_to_tx_object: fn(TransactionMetadata, &FileHandlers<RW>) -> StorageResult<T>,
+    ) -> StorageResult<Option<Vec<T>>> {
+        if self.get_body_marker()? <= block_number {
+            return Ok(None);
+        }
+        let mut cursor = transaction_metadata_table.cursor(self.txn())?;
+        let mut current =
+            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+        let mut res = Vec::new();
+        while let Some((TransactionIndex(current_block_number, _), tx_metadata)) = current {
+            if current_block_number != block_number {
+                break;
+            }
+            let tx_output = tx_metadata_to_tx_object(tx_metadata, &self.file_handlers)?;
+            res.push(tx_output);
+            current = cursor.next()?;
+        }
+        Ok(Some(res))
+    }
+}
+
+impl BodyStorageReaderHelpers for StorageTxnRW<'_> {
     fn get_transaction_outputs_in_block(
         &self,
         block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'env>,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
     ) -> StorageResult<Option<Vec<TransactionOutput>>> {
         self.get_vector_of_transaction_objects(
             block_number,
@@ -350,7 +455,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     fn get_transactions_in_block(
         &self,
         block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'env>,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
     ) -> StorageResult<Option<Vec<Transaction>>> {
         self.get_vector_of_transaction_objects(
             block_number,
@@ -364,7 +469,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     fn get_transaction_hashes_in_block(
         &self,
         block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'env>,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
     ) -> StorageResult<Option<Vec<TransactionHash>>> {
         self.get_vector_of_transaction_objects(
             block_number,
@@ -376,7 +481,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     fn get_transactions_and_hashes_in_block(
         &self,
         block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'env>,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
     ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
         self.get_vector_of_transaction_objects(
             block_number,
@@ -390,13 +495,13 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     }
 }
 
-impl BodyStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW> + BodyStorageReader> BodyStorageWriter for T {
     #[latency_histogram("storage_append_body_latency_seconds", false)]
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables().markers)?;
         update_marker(self.txn(), &markers_table, block_number)?;
 
-        if self.scope != StorageScope::StateOnly {
+        if self.scope() != StorageScope::StateOnly {
             let events_table = self.open_table(&self.tables().events)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables().transaction_hash_to_idx)?;
@@ -407,7 +512,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             write_transactions(
                 &block_body,
                 self.txn(),
-                &self.file_handlers,
+                self.file_handlers(),
                 &file_offset_table,
                 &transaction_hash_to_idx_table,
                 &transaction_metadata_table,
@@ -440,7 +545,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
         }
 
         let reverted_block_body = 'reverted_block_body: {
-            if self.scope == StorageScope::StateOnly {
+            if self.scope() == StorageScope::StateOnly {
                 break 'reverted_block_body None;
             }
 

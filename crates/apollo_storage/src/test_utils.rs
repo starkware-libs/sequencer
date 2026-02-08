@@ -6,11 +6,11 @@ use std::path::PathBuf;
 
 use starknet_api::core::ChainId;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
-use tempfile::{tempdir, TempDir};
+use tempfile::{TempDir, tempdir};
 
 use crate::db::DbConfig;
 use crate::mmap_file::MmapFileConfig;
-use crate::{open_storage, StorageConfig, StorageReader, StorageScope, StorageWriter};
+use crate::{StorageConfig, StorageReader, StorageScope, StorageWriter, open_storage};
 
 fn build_storage_config(storage_scope: StorageScope, path_prefix: PathBuf) -> StorageConfig {
     StorageConfig {

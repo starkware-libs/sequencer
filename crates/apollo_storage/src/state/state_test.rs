@@ -1,7 +1,7 @@
 use apollo_test_utils::get_test_state_diff;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
@@ -11,11 +11,11 @@ use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
+use crate::StorageWriter;
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::get_test_storage;
-use crate::StorageWriter;
 
 #[test]
 fn get_class_definition_at() {

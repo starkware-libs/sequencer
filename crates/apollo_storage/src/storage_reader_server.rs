@@ -3,7 +3,7 @@ use std::io;
 use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use axum::extract::State;

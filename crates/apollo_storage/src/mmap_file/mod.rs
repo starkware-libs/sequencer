@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::result;
 use std::sync::{Arc, Mutex};
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 #[cfg(test)]
 use apollo_test_utils::GetTestInstance;
@@ -28,7 +28,7 @@ use tracing::{debug, instrument, trace};
 use validator::{Validate, ValidationError};
 
 use crate::db::serialization::{StorageSerde, StorageSerdeError, ValueSerde};
-use crate::db::{TransactionKind, RO, RW};
+use crate::db::{RO, RW, TransactionKind};
 
 type MmapFileResult<V> = result::Result<V, MMapFileError>;
 

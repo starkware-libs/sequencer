@@ -1,4 +1,4 @@
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
@@ -8,11 +8,11 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::read_json_file;
 
+use crate::StorageError;
 use crate::class::ClassStorageWriter;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::db::{DbError, KeyAlreadyExistsError};
 use crate::test_utils::get_test_storage;
-use crate::StorageError;
 
 #[test]
 fn append_casm() {

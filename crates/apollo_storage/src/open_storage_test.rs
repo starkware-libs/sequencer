@@ -7,7 +7,7 @@ use tempfile::tempdir;
 
 use crate::header::HeaderStorageReader;
 use crate::test_utils::get_test_config_with_path;
-use crate::{open_storage, StorageConfig, StorageError, StorageReader, StorageScope};
+use crate::{StorageConfig, StorageError, StorageReader, StorageScope, open_storage};
 
 /// Check that storage reader can access storage
 fn check_storage_is_accessible(reader: &StorageReader) -> bool {

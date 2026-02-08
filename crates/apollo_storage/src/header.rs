@@ -2,7 +2,7 @@
 //!
 //! The block header is the part of the block that contains metadata about the block.
 //! Import [`HeaderStorageReader`] and [`HeaderStorageWriter`] to read and write data related
-//! to the block headers using a [`StorageTxn`].
+//! to the block headers using a `StorageTxn`.
 //! # Example
 //! ```
 //! use apollo_storage::open_storage;
@@ -41,22 +41,11 @@ mod header_test;
 
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
-    StarknetVersion,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature, BlockTimestamp,
+    GasPrice, GasPricePerToken, StarknetVersion,
 };
 use starknet_api::core::{
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    StateDiffCommitment,
+    EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress, StateDiffCommitment,
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -65,8 +54,8 @@ use tracing::debug;
 
 use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
-use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTxn};
+use crate::db::{DbTransaction, RW, TableHandle};
+use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTransaction};
 
 /// Storage representation of a Starknet block header.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
@@ -189,7 +178,7 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> HeaderStorageReader for T {
     fn get_header_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::Header)?.unwrap_or_default())
@@ -290,7 +279,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl HeaderStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW>> HeaderStorageWriter for T {
     fn append_header(
         self,
         block_number: BlockNumber,

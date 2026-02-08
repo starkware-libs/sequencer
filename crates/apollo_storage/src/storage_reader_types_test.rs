@@ -9,9 +9,7 @@ use crate::state::StateStorageWriter;
 use crate::storage_reader_server::ServerConfig;
 use crate::storage_reader_server_test_utils::get_response;
 use crate::storage_reader_types::{
-    GenericStorageReaderServer,
-    StorageReaderRequest,
-    StorageReaderResponse,
+    GenericStorageReaderServer, StorageReaderRequest, StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
 

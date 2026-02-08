@@ -1,11 +1,11 @@
 //! Test utilities for storage reader server testing.
 
+use axum::Router;
 use axum::body::{Body, Bytes, HttpBody};
 use axum::http::{Request, StatusCode};
 use axum::response::Response;
-use axum::Router;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use tower::ServiceExt;
 
 /// Helper function to send a storage query request.
