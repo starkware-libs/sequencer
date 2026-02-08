@@ -1165,7 +1165,7 @@ impl Batcher {
             }
             None => {
                 // Parent proposal commitment is not cached. Compute it from the stored state diff.
-                let mut state_diff = self
+                let state_diff = self
                     .storage_reader
                     .get_state_diff(prev_height)
                     .map_err(|err| {
@@ -1176,10 +1176,6 @@ impl Batcher {
                         BatcherError::InternalError
                     })?
                     .expect("Missing state diff for previous height.");
-
-                // Enforcing no deprecated classes (since v0.14.0).
-                // TODO(dafna): Remove once the state sync bug is fixed.
-                state_diff.deprecated_declared_classes = Vec::new();
 
                 Ok(Some(ProposalCommitment {
                     state_diff_commitment: calculate_state_diff_hash(&state_diff),
