@@ -17,9 +17,9 @@ use apollo_class_manager_types::transaction_converter::TransactionConverterError
 use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
+    BuildParam,
     ConsensusBlockInfo,
     ProposalFin,
-    ProposalInit,
     ProposalPart,
     TransactionBatch,
 };
@@ -53,7 +53,7 @@ const MIN_WAIT_DURATION: Duration = Duration::from_millis(1);
 pub(crate) struct ProposalBuildArguments {
     pub deps: SequencerConsensusContextDeps,
     pub batcher_deadline: DateTime,
-    pub proposal_init: ProposalInit,
+    pub build_param: BuildParam,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
     pub gas_price_params: GasPriceParams,
@@ -160,10 +160,10 @@ async fn initiate_build(
     )
     .await;
     let block_info = ConsensusBlockInfo {
-        height: args.proposal_init.height,
-        round: args.proposal_init.round,
-        valid_round: args.proposal_init.valid_round,
-        proposer: args.proposal_init.proposer,
+        height: args.build_param.height,
+        round: args.build_param.round,
+        valid_round: args.build_param.valid_round,
+        proposer: args.build_param.proposer,
         builder: args.builder_address,
         timestamp,
         l1_da_mode: args.l1_da_mode,

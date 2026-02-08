@@ -35,10 +35,10 @@ async fn get_block_info(args: &ProposalBuildArguments) -> ConsensusBlockInfo {
     .await;
 
     ConsensusBlockInfo {
-        height: args.proposal_init.height,
-        round: args.proposal_init.round,
-        valid_round: args.proposal_init.valid_round,
-        proposer: args.proposal_init.proposer,
+        height: args.build_param.height,
+        round: args.build_param.round,
+        valid_round: args.build_param.valid_round,
+        proposer: args.build_param.proposer,
         timestamp,
         builder: args.builder_address,
         l1_da_mode: args.l1_da_mode,
@@ -66,7 +66,7 @@ async fn retrospective_block_hash_happy_flow(
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client.
     test_proposal_args
         .deps
@@ -130,7 +130,7 @@ async fn retrospective_block_hash_sad_flow(
     #[case] state_sync_error: StateSyncClientError,
 ) {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
     // Clone the errors to use them in the match statement.
     let batcher_error_cloned = batcher_error.clone();
     let state_sync_error_cloned = state_sync_error.clone();
@@ -173,7 +173,7 @@ async fn retrospective_block_hash_sad_flow(
 #[tokio::test]
 async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client to return an error.
     test_proposal_args
         .deps
@@ -219,7 +219,7 @@ async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
 #[tokio::test]
 async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client to return BlockHashNotFound error in the first attempt.
     test_proposal_args
         .deps

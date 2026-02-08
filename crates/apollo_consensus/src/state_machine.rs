@@ -9,7 +9,7 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote, VoteType};
+use apollo_protobuf::consensus::{BuildParam, ConsensusBlockInfo, Vote, VoteType};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;
@@ -74,7 +74,7 @@ pub(crate) enum SMRequest {
     DecisionReached(Decision),
     /// Request to re-propose (sent by the leader after advancing to a new round
     /// with a locked/valid value).
-    Repropose(ProposalCommitment, ProposalInit),
+    Repropose(ProposalCommitment, BuildParam),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -531,20 +531,20 @@ impl StateMachine {
                 assert!(old.is_none(), "Proposal for current round should not already exist");
                 let Some(virtual_proposer) = leader_election.virtual_proposer(self.round).ok()
                 else {
-                    // Skip reproposal: we cannot construct ProposalInit without virtual_proposer.
+                    // Skip reproposal: we cannot construct BuildParam without virtual_proposer.
                     // We will advance to the next round when we receive enough nil
                     // prevotes/precommits from validators who timed out (they
                     // schedule TimeoutPropose and broadcast nil votes when no
                     // proposal arrives).
                     return VecDeque::new();
                 };
-                let init = ProposalInit {
+                let build_param = BuildParam {
                     height: self.height,
                     round: self.round,
                     proposer: virtual_proposer,
                     valid_round: Some(valid_round),
                 };
-                let mut output = VecDeque::from([SMRequest::Repropose(proposal_id, init)]);
+                let mut output = VecDeque::from([SMRequest::Repropose(proposal_id, build_param)]);
                 output.append(&mut self.current_round_upons(leader_election));
                 output
             }
