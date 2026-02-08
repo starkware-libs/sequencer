@@ -21,7 +21,7 @@ use apollo_consensus_config::config::{
 use apollo_infra_utils::debug_every_n_ms;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote, VoteType};
+use apollo_protobuf::consensus::{BuildParam, ConsensusBlockInfo, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
 use futures::channel::mpsc;
@@ -916,14 +916,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                         async move { StateMachineEvent::FinishedBuilding(None, round) }.boxed();
                     return Ok(Some(fut));
                 };
-                let init =
-                    ProposalInit { height, round, proposer: virtual_proposer, valid_round: None };
+                let build_param =
+                    BuildParam { height, round, proposer: virtual_proposer, valid_round: None };
                 // TODO(Asmaa): Reconsider: we should keep the builder's timeout bounded
                 // independently of the consensus proposal timeout. We currently use the base
                 // (round 0) proposal timeout for building to avoid giving the Batcher more time
                 // when proposal time is extended for consensus.
                 let timeout = timeouts.get_proposal_timeout(0);
-                let receiver = context.build_proposal(init, timeout).await?;
+                let receiver = context.build_proposal(build_param, timeout).await?;
                 let fut = async move {
                     let proposal_id = receiver.await.ok();
                     StateMachineEvent::FinishedBuilding(proposal_id, round)
@@ -993,8 +993,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 .boxed();
                 Ok(Some(fut))
             }
-            SMRequest::Repropose(proposal_id, init) => {
-                context.repropose(proposal_id, init).await;
+            SMRequest::Repropose(proposal_id, build_param) => {
+                context.repropose(proposal_id, build_param).await;
                 CONSENSUS_REPROPOSALS.increment(1);
                 Ok(None)
             }

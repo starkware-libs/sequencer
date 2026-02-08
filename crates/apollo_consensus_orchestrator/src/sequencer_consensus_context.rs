@@ -33,10 +33,10 @@ use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
+    BuildParam,
     ConsensusBlockInfo,
     HeightAndRound,
     ProposalFin,
-    ProposalInit,
     ProposalPart,
     TransactionBatch,
     Vote,
@@ -463,11 +463,11 @@ impl ConsensusContext for SequencerConsensusContext {
     #[instrument(skip_all)]
     async fn build_proposal(
         &mut self,
-        proposal_init: ProposalInit,
+        build_param: BuildParam,
         timeout: Duration,
     ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError> {
         let cende_write_success =
-            if self.can_skip_write_prev_height_blob(proposal_init.height).await {
+            if self.can_skip_write_prev_height_blob(build_param.height).await {
                 // cende_write_success is a AbortOnDropHandle. To get the actual handle we need to
                 // spawn the task.
                 AbortOnDropHandle::new(tokio::spawn(ready(true)))
@@ -476,12 +476,12 @@ impl ConsensusContext for SequencerConsensusContext {
                 // transactions finality time. Use this option only for one special
                 // sequencer that is the same cluster as the recorder.
                 AbortOnDropHandle::new(
-                    self.deps.cende_ambassador.write_prev_height_blob(proposal_init.height),
+                    self.deps.cende_ambassador.write_prev_height_blob(build_param.height),
                 )
             };
 
         // Handles interrupting an active proposal from a previous height/round
-        self.set_height_and_round(proposal_init.height, proposal_init.round).await?;
+        self.set_height_and_round(build_param.height, build_param.round).await?;
         assert!(
             self.active_proposal.is_none(),
             "We should not have an existing active proposal for the (height, round) when \
@@ -492,10 +492,10 @@ impl ConsensusContext for SequencerConsensusContext {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > self.config.static_config.build_proposal_margin_millis);
-        let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
+        let stream_id = HeightAndRound(build_param.height.0, build_param.round);
         let stream_sender = self.start_stream(stream_id).await;
 
-        info!(?proposal_init, ?timeout, %proposal_id, "Start building proposal");
+        info!(?build_param, ?timeout, %proposal_id, "Start building proposal");
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let gas_price_params = make_gas_price_params(&self.config.dynamic_config);
@@ -518,11 +518,11 @@ impl ConsensusContext for SequencerConsensusContext {
         let use_state_sync_block_timestamp =
             self.config.static_config.deployment_mode.use_state_sync_block_timestamp();
 
-        let round = proposal_init.round;
+        let round = build_param.round;
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
             batcher_deadline,
-            proposal_init,
+            build_param,
             l1_da_mode: self.l1_da_mode,
             stream_sender,
             gas_price_params,
@@ -623,9 +623,9 @@ impl ConsensusContext for SequencerConsensusContext {
         }
     }
 
-    async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit) {
-        info!(?id, ?init, "Reproposing.");
-        let height = init.height;
+    async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam) {
+        info!(?id, ?build_param, "Reproposing.");
+        let height = build_param.height;
         let (block_info, txs, _) = self
             .valid_proposals
             .lock()
@@ -634,7 +634,8 @@ impl ConsensusContext for SequencerConsensusContext {
             .clone();
 
         let transaction_converter = self.deps.transaction_converter.clone();
-        let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
+        let mut stream_sender =
+            self.start_stream(HeightAndRound(height.0, build_param.round)).await;
         tokio::spawn(
             async move {
                 let res =
@@ -642,14 +643,14 @@ impl ConsensusContext for SequencerConsensusContext {
                         .await;
                 match res {
                     Ok(()) => {
-                        info!(?id, ?init, "Reproposal succeeded.");
+                        info!(?id, ?build_param, "Reproposal succeeded.");
                     }
                     Err(e) => {
                         warn!("REPROPOSE_FAILED: Reproposal failed. Error: {e:?}");
                     }
                 }
             }
-            .instrument(error_span!("consensus_repropose", round = init.round)),
+            .instrument(error_span!("consensus_repropose", round = build_param.round)),
         );
     }
 

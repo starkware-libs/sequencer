@@ -631,7 +631,7 @@ fn return_proposal_if_locked_value_is_set() {
         wrapper.next_request().unwrap(),
         SMRequest::Repropose(
             PROPOSAL_ID.unwrap(),
-            apollo_protobuf::consensus::ProposalInit {
+            apollo_protobuf::consensus::BuildParam {
                 height: HEIGHT,
                 round: ROUND + 1,
                 proposer: *PROPOSER_ID,
