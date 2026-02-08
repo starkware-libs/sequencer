@@ -8,8 +8,7 @@
 use starknet_api::core::{ClassHash, CompiledClassHash};
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{StorageResult, StorageTxn};
+use crate::{StorageResult, StorageTransaction, StorageTxnRW};
 
 #[cfg(test)]
 #[path = "class_hash_test.rs"]
@@ -41,7 +40,7 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> ClassHashStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> ClassHashStorageReader for T {
     fn get_executable_class_hash_v2(
         &self,
         class_hash: &ClassHash,
@@ -51,7 +50,7 @@ impl<Mode: TransactionKind> ClassHashStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl ClassHashStorageWriter for StorageTxn<'_, RW> {
+impl ClassHashStorageWriter for StorageTxnRW<'_> {
     fn set_executable_class_hash_v2(
         self,
         class_hash: &ClassHash,

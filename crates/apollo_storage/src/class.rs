@@ -75,7 +75,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::SierraContractClass;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
+use crate::db::RW;
 use crate::mmap_file::LocationInFile;
 use crate::state::{DeclaredClassesTable, DeprecatedDeclaredClassesTable, FileOffsetTable};
 use crate::{
@@ -86,7 +86,8 @@ use crate::{
     OffsetKind,
     StorageError,
     StorageResult,
-    StorageTxn,
+    StorageTransaction,
+    StorageTxnRW,
 };
 
 /// Interface for reading data related to classes or deprecated classes.
@@ -150,8 +151,7 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
-    // TODO(Nadin): Consider moving the function to the general impl StorageTxn<'_, Mode> block.
+impl<T: StorageTransaction> ClassStorageReader for T {
     fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>> {
         let contract_class_location = self.get_class_location(class_hash)?;
         contract_class_location.map(|location| self.get_class_from_location(location)).transpose()
@@ -169,7 +169,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         &self,
         location: crate::LocationInFile,
     ) -> StorageResult<SierraContractClass> {
-        self.file_handlers.get_contract_class_unchecked(location)
+        self.file_handlers().get_contract_class_unchecked(location)
     }
 
     fn get_deprecated_class(
@@ -197,7 +197,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         &self,
         location: LocationInFile,
     ) -> StorageResult<DeprecatedContractClass> {
-        self.file_handlers.get_deprecated_contract_class_unchecked(location)
+        self.file_handlers().get_deprecated_contract_class_unchecked(location)
     }
 
     fn get_class_marker(&self) -> StorageResult<BlockNumber> {
@@ -206,7 +206,7 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl ClassStorageWriter for StorageTxn<'_, RW> {
+impl ClassStorageWriter for StorageTxnRW<'_> {
     #[latency_histogram("storage_append_classes_latency_seconds", false)]
     fn append_classes(
         self,

@@ -43,8 +43,7 @@ mod base_layer_test;
 use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{MarkerKind, StorageResult, StorageTxn};
+use crate::{MarkerKind, StorageResult, StorageTransaction, StorageTxnRW};
 
 /// Interface for reading data related to the base layer.
 pub trait BaseLayerStorageReader {
@@ -69,14 +68,14 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> BaseLayerStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> BaseLayerStorageReader for T {
     fn get_base_layer_block_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables().markers)?;
         Ok(markers_table.get(self.txn(), &MarkerKind::BaseLayerBlock)?.unwrap_or_default())
     }
 }
 
-impl BaseLayerStorageWriter for StorageTxn<'_, RW> {
+impl BaseLayerStorageWriter for StorageTxnRW<'_> {
     fn update_base_layer_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables().markers)?;
         markers_table.upsert(self.txn(), &MarkerKind::BaseLayerBlock, block_number)?;

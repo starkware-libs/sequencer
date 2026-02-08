@@ -7,8 +7,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{StorageResult, StorageTxn};
+use crate::{StorageResult, StorageTransaction, StorageTxnRW};
 
 /// Interface for reading partial block hashes.
 pub trait PartialBlockHashComponentsStorageReader {
@@ -40,7 +39,7 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> PartialBlockHashComponentsStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> PartialBlockHashComponentsStorageReader for T {
     fn get_partial_block_hash_components(
         &self,
         block_number: &BlockNumber,
@@ -50,7 +49,7 @@ impl<Mode: TransactionKind> PartialBlockHashComponentsStorageReader for StorageT
     }
 }
 
-impl PartialBlockHashComponentsStorageWriter for StorageTxn<'_, RW> {
+impl PartialBlockHashComponentsStorageWriter for StorageTxnRW<'_> {
     fn set_partial_block_hash_components(
         self,
         block_number: &BlockNumber,
