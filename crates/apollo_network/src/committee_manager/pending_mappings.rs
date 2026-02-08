@@ -18,15 +18,14 @@ pub(crate) struct PendingMappings {
     capacity: usize,
 }
 
-#[allow(dead_code)]
 impl PendingMappings {
-    fn new(capacity: usize) -> Self {
+    pub(crate) fn new(capacity: usize) -> Self {
         Self { mappings: HashMap::new(), insertion_order: VecDeque::new(), capacity }
     }
 
     /// Adds a pending connection mapping.
     /// If at capacity, evicts the oldest entry in FIFO order.
-    fn add_pending_connection(&mut self, peer_id: PeerId, staker_id: StakerId) {
+    pub(crate) fn add_pending_connection(&mut self, peer_id: PeerId, staker_id: StakerId) {
         // If peer already exists, remove it from the ordering first
         if self.mappings.contains_key(&peer_id) {
             self.insertion_order.retain(|p| p != &peer_id);
@@ -43,19 +42,19 @@ impl PendingMappings {
     }
 
     /// If the peer exists, removes it from the mapping and returns the associated staker_id.
-    fn pending_connection_established(&mut self, peer_id: &PeerId) -> Option<StakerId> {
+    pub(crate) fn pending_connection_established(&mut self, peer_id: &PeerId) -> Option<StakerId> {
         self.insertion_order.retain(|p| p != peer_id);
         self.mappings.remove(peer_id)
     }
 
     /// Removes a peer mapping.
-    fn remove_pending_peer(&mut self, peer_id: &PeerId) {
+    pub(crate) fn remove_pending_peer(&mut self, peer_id: &PeerId) {
         self.insertion_order.retain(|p| p != peer_id);
         self.mappings.remove(peer_id);
     }
 
     /// Removes all mappings whose value is the given staker_id.
-    fn remove_pending_peers(&mut self, staker_id: &StakerId) {
+    pub(crate) fn remove_pending_peers(&mut self, staker_id: &StakerId) {
         // collect peers whose mapped staker_id equals the input; fix comparison and clone keys
         let peers_to_remove: Vec<PeerId> = self
             .mappings
