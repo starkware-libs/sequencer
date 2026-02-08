@@ -198,6 +198,7 @@
 ///
 /// [`Starknet p2p specs`]: https://github.com/starknet-io/starknet-p2p-specs/
 pub mod authentication;
+pub mod committee_manager;
 #[cfg(test)]
 mod config_test;
 pub mod discovery;
