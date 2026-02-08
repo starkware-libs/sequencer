@@ -5,7 +5,7 @@
 // ```
 // for i in `printf '0x01010101010101010101010101010101010101010101010101010101010101%02X\n'
 // {1..40}`; do cargo run --bin get_peer_id_from_secret_key $i ; done 2>/dev/null | awk '/Peer/
-// {printf("\t\"%s\",\n", $NF)}'
+// {printf("\t(%d, \"%s\"),\n", NR-1, $NF)}'
 // ```
 
 #[allow(dead_code)]
