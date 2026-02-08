@@ -21,6 +21,7 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
+use axum::extract::DefaultBodyLimit;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{serve, Extension, Json, Router};
@@ -46,6 +47,10 @@ use crate::metrics::{
     HTTP_SERVER_ADD_TX_LATENCY,
 };
 
+// The value is chosen to be much larger than the transaction size limit as enforced by the Starknet
+// protocol.
+const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 5 * 1024 * 1024; // 5MB
+
 #[cfg(test)]
 #[path = "http_server_test.rs"]
 pub mod http_server_test;
@@ -59,6 +64,8 @@ pub struct HttpServer {
     app_state: AppState,
     config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<HttpServerDynamicConfig>,
+    // The maximum request body size for the http server.
+    max_request_body_size: usize,
 }
 
 #[derive(Clone)]
@@ -87,7 +94,13 @@ impl HttpServer {
         let (dynamic_config_tx, dynamic_config_rx) =
             channel::<HttpServerDynamicConfig>(config.dynamic_config.clone());
         let app_state = AppState { gateway_client, dynamic_config_rx };
-        HttpServer { config, app_state, config_manager_client, dynamic_config_tx }
+        HttpServer {
+            config,
+            app_state,
+            config_manager_client,
+            dynamic_config_tx,
+            max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
+        }
     }
 
     pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
@@ -118,9 +131,9 @@ impl HttpServer {
     pub fn app(&self) -> Router {
         Router::new()
             // Json Rpc endpoint
-            .route("/gateway/add_rpc_transaction", post(add_rpc_tx))
+            .route("/gateway/add_rpc_transaction", post(add_rpc_tx).layer(DefaultBodyLimit::max(self.max_request_body_size)))
             // Rest api endpoint
-            .route("/gateway/add_transaction", post(add_tx))
+            .route("/gateway/add_transaction", post(add_tx).layer(DefaultBodyLimit::max(self.max_request_body_size)))
             // TODO(shahak): Remove this once we fix the centralized simulator to not use is_alive
             // and is_ready.
             .route(
