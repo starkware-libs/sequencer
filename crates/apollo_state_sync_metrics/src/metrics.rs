@@ -13,7 +13,7 @@ use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{StorageReader, StorageTxn};
+use apollo_storage::StorageReader;
 define_infra_metrics!(state_sync);
 
 define_metrics!(
@@ -56,7 +56,14 @@ pub async fn register_metrics(storage_reader: StorageReader) {
     update_marker_metrics(&txn);
 }
 
-pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
+pub fn update_marker_metrics<T, Mode: TransactionKind>(txn: &T)
+where
+    T: HeaderStorageReader
+        + BodyStorageReader
+        + StateStorageReader<Mode>
+        + ClassManagerStorageReader
+        + CasmStorageReader,
+{
     STATE_SYNC_HEADER_MARKER
         .set_lossy(txn.get_header_marker().expect("Should have a header marker").0);
     STATE_SYNC_BODY_MARKER.set_lossy(txn.get_body_marker().expect("Should have a body marker").0);
