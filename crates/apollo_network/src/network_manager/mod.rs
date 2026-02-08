@@ -387,6 +387,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         self.swarm.behaviour_mut().sqmr.on_other_behaviour_event(&event);
         self.swarm.behaviour_mut().peer_manager.on_other_behaviour_event(&event);
         self.swarm.behaviour_mut().gossipsub.on_other_behaviour_event(&event);
+        if let Some(committee_manager) = self.swarm.behaviour_mut().committee_manager.as_mut() {
+            committee_manager.on_other_behaviour_event(&event);
+        }
     }
 
     fn handle_sqmr_event(&mut self, event: sqmr::behaviour::ExternalEvent) {
