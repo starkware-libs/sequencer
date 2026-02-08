@@ -32,6 +32,7 @@ members = [
   "crates/apollo_consensus_orchestrator",
   "crates/apollo_consensus_orchestrator_config",
   "crates/apollo_dashboard",
+  "crates/apollo_deployment_mode",
   "crates/apollo_deployments",
   "crates/apollo_gateway",
   "crates/apollo_gateway_config",
@@ -150,6 +151,7 @@ apollo_consensus_manager_config.path = "crates/apollo_consensus_manager_config"
 apollo_consensus_orchestrator.path = "crates/apollo_consensus_orchestrator"
 apollo_consensus_orchestrator_config.path = "crates/apollo_consensus_orchestrator_config"
 apollo_dashboard.path = "crates/apollo_dashboard"
+apollo_deployment_mode.path = "crates/apollo_deployment_mode"
 apollo_deployments.path = "crates/apollo_deployments"
 apollo_gateway.path = "crates/apollo_gateway"
 apollo_gateway_config.path = "crates/apollo_gateway_config"
