@@ -11,6 +11,7 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     InvokeGatewayOutput,
 };
+use apollo_http_server_config::config::DEFAULT_MAX_REQUEST_BODY_SIZE;
 use apollo_infra::component_client::ClientError;
 use apollo_proc_macros::unique_u16;
 use axum::body::Bytes;
@@ -106,8 +107,13 @@ async fn allow_new_txs() {
     let mock_gateway_client = MockGatewayClient::new();
     let mock_config_manager_client = get_mock_config_manager_client(false);
 
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, unique_u16!()).await;
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        unique_u16!(),
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
+    .await;
 
     // Send a transaction to the server.
     let response = http_client.add_tx(tx.clone()).await;
@@ -156,8 +162,13 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
 
     let mock_config_manager_client = get_mock_config_manager_client(true);
     // TODO(Yael): avoid the hardcoded node offset index, consider dynamic allocation.
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        index,
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
+    .await;
 
     // Send a transaction to the server, without a region.
     http_client.add_tx(tx.clone()).await;
@@ -190,8 +201,13 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
     ));
 
     let mock_config_manager_client = get_mock_config_manager_client(true);
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        index,
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
+    .await;
 
     // Send a transaction to the server.
     http_client.add_tx(tx).await;
@@ -240,8 +256,13 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     ));
 
     let mock_config_manager_client = get_mock_config_manager_client(true);
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        index,
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
+    .await;
 
     // Test a successful response.
     let tx_hash = http_client.assert_add_tx_success(tx.clone()).await;
@@ -314,8 +335,13 @@ async fn test_unsupported_tx_version(
 
     let mock_gateway_client = MockGatewayClient::new();
     let mock_config_manager_client = get_mock_config_manager_client(true);
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        index,
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
+    .await;
 
     let serialized_err =
         http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
@@ -335,8 +361,13 @@ async fn sanitizing_error_message() {
 
     let mock_gateway_client = MockGatewayClient::new();
     let mock_config_manager_client = get_mock_config_manager_client(true);
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, unique_u16!()).await;
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        unique_u16!(),
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
+    .await;
 
     let serialized_err =
         http_client.assert_add_tx_error(tx_json, reqwest::StatusCode::BAD_REQUEST).await;
@@ -359,5 +390,45 @@ async fn sanitizing_error_message() {
         starknet_error.message.contains(" script alert(1) n  script ''[](){}_            "),
         "Escaped message not found. This is the returned error message: {}",
         starknet_error.message
+    );
+}
+
+#[rstest]
+#[case::add_deprecated_gateway_tx(unique_u16!(), deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(unique_u16!(), rpc_invoke_tx())]
+#[tokio::test]
+async fn request_body_size_limit_enforced(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
+    // Happy flow: allow a reasonably sized payload.
+    let max_request_body_size = 1024;
+    let mut mock_gateway_client = MockGatewayClient::new();
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(default_gateway_output()));
+    let mock_config_manager_client = get_mock_config_manager_client(true);
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        index,
+        max_request_body_size,
+    )
+    .await;
+    let response = http_client.add_tx(tx.clone()).await;
+    assert!(response.status().is_success(), "Unexpected status: {}", response.status());
+
+    // Too large: reject.
+    let max_request_body_size = 16;
+    let mock_gateway_client = MockGatewayClient::new();
+    let mock_config_manager_client = get_mock_config_manager_client(true);
+    let http_client = add_tx_http_client(
+        mock_config_manager_client,
+        mock_gateway_client,
+        index + 1,
+        max_request_body_size,
+    )
+    .await;
+    let response = http_client.add_tx(tx).await;
+    assert_eq!(
+        response.status(),
+        reqwest::StatusCode::PAYLOAD_TOO_LARGE,
+        "Unexpected status: {}",
+        response.status()
     );
 }

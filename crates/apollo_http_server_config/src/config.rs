@@ -12,7 +12,7 @@ const HTTP_SERVER_PORT: u16 = 8080;
 pub const DEFAULT_MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
 // The value is chosen to be larger by an order of magnitude than the transaction size limit as
 // enforced by the Starknet protocol.
-const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 40 * 1024 * 1024; // 40MB
+pub const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 40 * 1024 * 1024; // 40MB
 const DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS: u64 = 1_000; // 1 second.
 
 /// The http server connection related configuration.
@@ -32,7 +32,13 @@ impl SerializeConfig for HttpServerConfig {
 }
 
 impl HttpServerConfig {
-    pub fn new(ip: IpAddr, port: u16, max_sierra_program_size: usize) -> Self {
+    // TODO(Arni): Move to test utils.
+    pub fn new(
+        ip: IpAddr,
+        port: u16,
+        max_sierra_program_size: usize,
+        max_request_body_size: usize,
+    ) -> Self {
         Self {
             dynamic_config: HttpServerDynamicConfig {
                 accept_new_txs: true,
@@ -41,7 +47,7 @@ impl HttpServerConfig {
             static_config: HttpServerStaticConfig {
                 ip,
                 port,
-                max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
+                max_request_body_size,
                 dynamic_config_poll_interval: Duration::from_millis(
                     DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS,
                 ),

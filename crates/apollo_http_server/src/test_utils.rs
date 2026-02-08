@@ -8,6 +8,7 @@ use apollo_gateway_types::gateway_types::GatewayOutput;
 use apollo_http_server_config::config::{
     HttpServerConfig,
     HttpServerDynamicConfig,
+    DEFAULT_MAX_REQUEST_BODY_SIZE,
     DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
 };
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
@@ -90,7 +91,12 @@ impl HttpTestClient {
 }
 
 pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
-    HttpServerConfig::new(socket.ip(), socket.port(), DEFAULT_MAX_SIERRA_PROGRAM_SIZE)
+    HttpServerConfig::new(
+        socket.ip(),
+        socket.port(),
+        DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
+        DEFAULT_MAX_REQUEST_BODY_SIZE,
+    )
 }
 
 /// Creates an HTTP server and an HttpTestClient that can interact with it.
@@ -185,13 +191,18 @@ pub async fn add_tx_http_client(
     mock_config_manager_client: MockConfigManagerClient,
     mock_gateway_client: MockGatewayClient,
     port_index: u16,
+    max_request_body_size: usize,
 ) -> HttpTestClient {
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
     println!("Using port index {port_index}");
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), port_index);
-    let http_server_config =
-        HttpServerConfig::new(ip, available_ports.get_next_port(), DEFAULT_MAX_SIERRA_PROGRAM_SIZE);
+    let http_server_config = HttpServerConfig::new(
+        ip,
+        available_ports.get_next_port(),
+        DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
+        max_request_body_size,
+    );
     http_client_server_setup(mock_config_manager_client, mock_gateway_client, http_server_config)
         .await
 }
