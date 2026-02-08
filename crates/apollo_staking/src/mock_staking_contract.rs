@@ -99,4 +99,21 @@ impl StakingContract for MockStakingContract {
 
         Ok(Epoch { epoch_id, start_block, epoch_length: Self::EPOCH_LENGTH })
     }
+
+    async fn get_previous_epoch(&self) -> StakingContractResult<Option<Epoch>> {
+        let current_epoch = self.get_current_epoch().await?;
+
+        if current_epoch.epoch_id == 0 {
+            return Ok(None);
+        }
+
+        let previous_epoch_id = current_epoch.epoch_id - 1;
+        let start_block = BlockNumber(previous_epoch_id * Self::EPOCH_LENGTH);
+
+        Ok(Some(Epoch {
+            epoch_id: previous_epoch_id,
+            start_block,
+            epoch_length: Self::EPOCH_LENGTH,
+        }))
+    }
 }

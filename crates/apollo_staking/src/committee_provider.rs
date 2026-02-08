@@ -33,6 +33,8 @@ pub enum CommitteeProviderError {
     EmptyCommittee,
     #[error("Committee info unavailable for height {height}.")]
     InvalidHeight { height: BlockNumber },
+    #[error("Missing epoch information for epoch {epoch_id}.")]
+    MissingInformation { epoch_id: u64 },
     #[error(transparent)]
     StakingContractError(#[from] StakingContractError),
 }

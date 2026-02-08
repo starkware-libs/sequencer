@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::Round;
@@ -8,7 +8,6 @@ use apollo_staking_config::config::{
     ConfiguredStaker,
     StakingManagerConfig,
     StakingManagerDynamicConfig,
-    StakingManagerStaticConfig,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
@@ -16,6 +15,7 @@ use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use static_assertions::const_assert;
+use tokio::sync::Mutex;
 use tracing::warn;
 
 use crate::committee_provider::{
@@ -49,6 +49,9 @@ struct CommitteeData {
     total_weight: u128,
     // Eligible proposers in canonical committee order (by weight descending).
     eligible_proposers: Vec<ContractAddress>,
+    // Block hash used for proposer selection randomness.
+    // For epoch N, this is the hash of the first block in epoch N-1.
+    randomness_block_hash: Option<BlockHash>,
 }
 
 // Holds committee data for the highest known epochs, limited in size by `capacity``.
@@ -82,6 +85,70 @@ impl Epoch {
     }
 }
 
+struct EpochCache {
+    current: Option<Epoch>,
+    previous: Option<Epoch>,
+}
+
+impl EpochCache {
+    fn new() -> Self {
+        Self { current: None, previous: None }
+    }
+
+    // Tries to resolve the epoch ID by looking only at the current epoch. Past heights are not
+    // supported.
+    fn try_resolve_epoch_id(&self, height: BlockNumber) -> Option<u64> {
+        let current = self.current.as_ref()?;
+        if current.contains(height) {
+            Some(current.epoch_id)
+        } else if current.within_next_epoch_min_bounds(height) {
+            Some(current.epoch_id + 1)
+        } else {
+            None
+        }
+    }
+
+    // Update the cached epochs with the current and previous epochs from the staking contract.
+    async fn update_epochs(
+        &mut self,
+        staking_contract: Arc<dyn StakingContract>,
+    ) -> CommitteeProviderResult<()> {
+        let latest_epoch = staking_contract.get_current_epoch().await?;
+
+        if self.current.as_ref().is_some_and(|current| current.epoch_id == latest_epoch.epoch_id) {
+            // No change in the current epoch, no need to update anything.
+            return Ok(());
+        }
+
+        // Determine whether to reuse the current epoch as the previous, or explicitly fetch it from
+        // the contract.
+        let is_sequential = self
+            .current
+            .as_ref()
+            .is_some_and(|current| current.epoch_id + 1 == latest_epoch.epoch_id);
+        let previous_epoch = if is_sequential {
+            self.current.take()
+        } else {
+            staking_contract.get_previous_epoch().await?
+        };
+
+        // Update the cache with the fetched epochs.
+        self.current = Some(latest_epoch);
+        self.previous = previous_epoch;
+
+        Ok(())
+    }
+
+    // Returns the Epoch object for the given epoch ID.
+    // If the epoch is not cached, returns None.
+    fn get_epoch(&self, epoch_id: u64) -> Option<Epoch> {
+        let matches = |epoch: &Option<Epoch>| -> Option<Epoch> {
+            epoch.as_ref().filter(|epoch| epoch.epoch_id == epoch_id).cloned()
+        };
+        matches(&self.current).or_else(|| matches(&self.previous))
+    }
+}
+
 // Responsible for fetching and storing the committee at a given epoch.
 // The committee is a subset of nodes (proposer and validators) that are selected to participate in
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
@@ -90,11 +157,10 @@ pub struct StakingManager {
     state_sync_client: SharedStateSyncClient,
     committee_data_cache: Mutex<CommitteeDataCache>,
 
-    // Caches the current epoch fetched from the state.
-    cached_epoch: Mutex<Option<Epoch>>,
+    // Caches the current and previous epochs fetched from the state.
+    epoch_cache: Mutex<EpochCache>,
 
     random_generator: Box<dyn BlockRandomGenerator>,
-    static_config: StakingManagerStaticConfig,
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
     config_manager_client: Option<SharedConfigManagerClient>,
 }
@@ -130,9 +196,8 @@ impl StakingManager {
             committee_data_cache: Mutex::new(CommitteeDataCache::new(
                 config.static_config.max_cached_epochs,
             )),
-            cached_epoch: Mutex::new(None),
+            epoch_cache: Mutex::new(EpochCache::new()),
             random_generator,
-            static_config: config.static_config,
             dynamic_config: RwLock::new(config.dynamic_config),
             config_manager_client,
         }
@@ -164,7 +229,7 @@ impl StakingManager {
 
         // Attempt to read from cache.
         {
-            let cache = self.committee_data_cache.lock().expect("Mutex poisoned");
+            let cache = self.committee_data_cache.lock().await;
             if let Some(committee_data) = cache.get(epoch) {
                 return Ok(committee_data.clone());
             }
@@ -174,7 +239,7 @@ impl StakingManager {
         let committee_data = Arc::new(self.fetch_and_build_committee_data(epoch).await?);
 
         // Cache the result.
-        let mut cache = self.committee_data_cache.lock().expect("Mutex poisoned");
+        let mut cache = self.committee_data_cache.lock().await;
         cache.insert(epoch, committee_data.clone());
 
         Ok(committee_data)
@@ -193,14 +258,15 @@ impl StakingManager {
         self.update_dynamic_config().await;
 
         // Get the active committee config for this epoch (includes size and stakers).
-        let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned");
-        let config = get_config_for_epoch(
-            &dynamic_config.default_committee,
-            &dynamic_config.override_committee,
-            epoch,
-        )
-        .clone();
-        drop(dynamic_config); // Release the lock early
+        let config = {
+            let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned");
+            get_config_for_epoch(
+                &dynamic_config.default_committee,
+                &dynamic_config.override_committee,
+                epoch,
+            )
+            .clone()
+        };
 
         let committee_members = self.select_committee(contract_stakers, config.committee_size);
 
@@ -217,11 +283,15 @@ impl StakingManager {
         let eligible_proposers =
             self.calculate_eligible_proposers(&committee_members, &config.stakers);
 
+        // Calculate the randomness block hash for this epoch.
+        let randomness_block_hash = self.proposer_randomness_block_hash(epoch).await?;
+
         Ok(CommitteeData {
             committee_members: Arc::new(committee_members),
             cumulative_weights,
             total_weight,
             eligible_proposers,
+            randomness_block_hash,
         })
     }
 
@@ -236,24 +306,34 @@ impl StakingManager {
         stakers.into_iter().rev().take(committee_size).collect()
     }
 
+    // Returns the block hash used for proposer selection randomness for the given epoch.
+    // For epoch N, this returns the hash of the first block in epoch N-1.
+    // Returns None for epoch 0 (first epoch has no previous epoch).
+    // Assumes the epoch cache is synced at this point.
     async fn proposer_randomness_block_hash(
         &self,
-        current_block_number: BlockNumber,
+        epoch: u64,
     ) -> CommitteeProviderResult<Option<BlockHash>> {
-        let randomness_source_block = current_block_number
-            .0
-            .checked_sub(self.static_config.proposer_prediction_window_in_heights);
-
-        match randomness_source_block {
-            None => {
-                Ok(None) // Not enough history to look back; return None.
-            }
-            Some(block_number) => {
-                let block_hash =
-                    self.state_sync_client.get_block_hash(BlockNumber(block_number)).await?;
-                Ok(Some(block_hash))
-            }
+        // First epoch has no previous epoch.
+        if epoch == 0 {
+            return Ok(None);
         }
+
+        let previous_epoch_id = epoch - 1;
+
+        // Get the previous epoch from the cache.
+        let prev_epoch = {
+            let cache = self.epoch_cache.lock().await;
+            cache.get_epoch(previous_epoch_id)
+        };
+
+        // If the cache is missing the previous epoch, treat it as an error.
+        let prev_epoch = prev_epoch
+            .ok_or(CommitteeProviderError::MissingInformation { epoch_id: previous_epoch_id })?;
+
+        // Get the hash of the first block in the previous epoch.
+        let block_hash = self.state_sync_client.get_block_hash(prev_epoch.start_block).await?;
+        Ok(Some(block_hash))
     }
 
     // Chooses a proposer from the committee using a weighted random selection.
@@ -318,35 +398,20 @@ impl StakingManager {
             .collect()
     }
 
-    fn try_resolve_epoch_id(&self, epoch: &Epoch, height: BlockNumber) -> Option<u64> {
-        if epoch.contains(height) {
-            Some(epoch.epoch_id)
-        } else if epoch.within_next_epoch_min_bounds(height) {
-            Some(epoch.epoch_id + 1)
-        } else {
-            None
-        }
-    }
-
+    // Returns the epoch ID for the given height.
+    // Syncs the epoch cache from state if the height cannot be resolved from cache.
     async fn epoch_at_height(&self, height: BlockNumber) -> CommitteeProviderResult<u64> {
-        // Check if we can resolve the epoch from the cache.
-        {
-            let cached_epoch_guard = self.cached_epoch.lock().expect("Mutex poisoned");
-            if let Some(epoch_id) = cached_epoch_guard
-                .as_ref()
-                .and_then(|epoch| self.try_resolve_epoch_id(epoch, height))
-            {
-                return Ok(epoch_id);
-            }
+        // Try to resolve the epoch from cache.
+        let mut epoch_cache = self.epoch_cache.lock().await;
+        if let Some(epoch_id) = epoch_cache.try_resolve_epoch_id(height) {
+            return Ok(epoch_id);
         }
 
-        // Otherwise, fetch the epoch from the state and cache the result.
-        let epoch = self.staking_contract.get_current_epoch().await?;
+        // Otherwise, sync the epochs from the state.
+        epoch_cache.update_epochs(self.staking_contract.clone()).await?;
 
-        let mut cached_epoch_guard = self.cached_epoch.lock().expect("Mutex poisoned");
-        *cached_epoch_guard = Some(epoch);
-
-        self.try_resolve_epoch_id(cached_epoch_guard.as_ref().unwrap(), height)
+        epoch_cache
+            .try_resolve_epoch_id(height)
             .ok_or(CommitteeProviderError::InvalidHeight { height })
     }
 }
@@ -370,16 +435,17 @@ impl CommitteeProvider for StakingManager {
         height: BlockNumber,
         round: Round,
     ) -> CommitteeProviderResult<ContractAddress> {
-        // Try to get the hash of the block used for proposer selection randomness.
-        let block_hash = self.proposer_randomness_block_hash(height).await?;
-
         // Get the committee for the epoch this height belongs to.
         let committee_data = self.committee_data_at_height(height).await?;
 
         // Generate a pseudorandom value in the range [0, total_weight) based on the height, round,
         // and block hash.
-        let random_value =
-            self.random_generator.generate(height, round, block_hash, committee_data.total_weight);
+        let random_value = self.random_generator.generate(
+            height,
+            round,
+            committee_data.randomness_block_hash,
+            committee_data.total_weight,
+        );
 
         // Select a proposer from the committee using the generated random.
         let proposer = self.choose_proposer(&committee_data, random_value)?;
