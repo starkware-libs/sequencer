@@ -58,7 +58,7 @@ use crate::db::serialization::VersionZeroWrapper;
 use crate::db::table_types::{SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::mmap_file::LocationInFile;
-use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTxn};
+use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTxn, StorageTxnRW};
 
 /// Interface for reading data related to the compiled classes.
 pub trait CasmStorageReader {
@@ -142,7 +142,45 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl CasmStorageWriter for StorageTxn<'_, RW> {
+impl CasmStorageReader for StorageTxnRW<'_> {
+    fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>> {
+        let casm_location = self.get_casm_location(class_hash)?;
+        casm_location.map(|location| self.get_casm_from_location(location)).transpose()
+    }
+
+    fn get_casm_and_sierra(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<(Option<CasmContractClass>, Option<SierraContractClass>)> {
+        Ok((self.get_casm(class_hash)?, self.get_class(class_hash)?))
+    }
+
+    fn get_casm_location(&self, class_hash: &ClassHash) -> StorageResult<Option<LocationInFile>> {
+        let casm_table = self.open_table(&self.tables().casms)?;
+        let casm_location = casm_table.get(self.txn(), class_hash)?;
+        Ok(casm_location)
+    }
+
+    fn get_casm_from_location(&self, location: LocationInFile) -> StorageResult<CasmContractClass> {
+        self.file_handlers.get_casm_unchecked(location)
+    }
+
+    fn get_compiled_class_hash(
+        &self,
+        class_hash: ClassHash,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<CompiledClassHash>> {
+        let compiled_class_hash_table = self.open_table(&self.tables().compiled_class_hash)?;
+        Ok(compiled_class_hash_table.get(self.txn(), &(class_hash, block_number))?)
+    }
+
+    fn get_compiled_class_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::CompiledClass)?.unwrap_or_default())
+    }
+}
+
+impl CasmStorageWriter for StorageTxnRW<'_> {
     #[latency_histogram("storage_append_casm_latency_seconds", false)]
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self> {
         let casm_table = self.open_table(&self.tables().casms)?;

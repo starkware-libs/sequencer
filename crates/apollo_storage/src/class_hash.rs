@@ -8,8 +8,8 @@
 use starknet_api::core::{ClassHash, CompiledClassHash};
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{StorageResult, StorageTxn};
+use crate::db::TransactionKind;
+use crate::{StorageResult, StorageTxn, StorageTxnRW};
 
 #[cfg(test)]
 #[path = "class_hash_test.rs"]
@@ -51,7 +51,17 @@ impl<Mode: TransactionKind> ClassHashStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl ClassHashStorageWriter for StorageTxn<'_, RW> {
+impl ClassHashStorageReader for StorageTxnRW<'_> {
+    fn get_executable_class_hash_v2(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<CompiledClassHash>> {
+        let table = self.open_table(&self.tables().stateless_compiled_class_hash_v2)?;
+        Ok(table.get(self.txn(), class_hash)?)
+    }
+}
+
+impl ClassHashStorageWriter for StorageTxnRW<'_> {
     fn set_executable_class_hash_v2(
         self,
         class_hash: &ClassHash,

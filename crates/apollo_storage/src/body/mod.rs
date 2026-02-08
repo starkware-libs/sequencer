@@ -70,6 +70,7 @@ use crate::{
     StorageResult,
     StorageScope,
     StorageTxn,
+    StorageTxnRW,
     TransactionMetadata,
 };
 
@@ -390,7 +391,208 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     }
 }
 
-impl BodyStorageWriter for StorageTxn<'_, RW> {
+impl BodyStorageReader for StorageTxnRW<'_> {
+    fn get_body_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::Body)?.unwrap_or_default())
+    }
+
+    fn get_event_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::Event)?.unwrap_or_default())
+    }
+
+    fn get_transaction(
+        &self,
+        transaction_index: TransactionIndex,
+    ) -> StorageResult<Option<Transaction>> {
+        let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
+            return Ok(None);
+        };
+        let transaction = self.file_handlers.get_transaction_unchecked(tx_metadata.tx_location)?;
+        Ok(Some(transaction))
+    }
+
+    fn get_transaction_output(
+        &self,
+        transaction_index: TransactionIndex,
+    ) -> StorageResult<Option<TransactionOutput>> {
+        let Some(tx_metadata) = self.get_transaction_metadata(&transaction_index)? else {
+            return Ok(None);
+        };
+        let transaction_output =
+            self.file_handlers.get_transaction_output_unchecked(tx_metadata.tx_output_location)?;
+        Ok(Some(transaction_output))
+    }
+
+    fn get_transaction_idx_by_hash(
+        &self,
+        tx_hash: &TransactionHash,
+    ) -> StorageResult<Option<TransactionIndex>> {
+        let transaction_hash_to_idx_table =
+            self.open_table(&self.tables().transaction_hash_to_idx)?;
+        Ok(transaction_hash_to_idx_table.get(self.txn(), tx_hash)?)
+    }
+
+    fn get_transaction_hash_by_idx(
+        &self,
+        tx_index: &TransactionIndex,
+    ) -> StorageResult<Option<TransactionHash>> {
+        let Some(tx_metadata) = self.get_transaction_metadata(tx_index)? else {
+            return Ok(None);
+        };
+        Ok(Some(tx_metadata.tx_hash))
+    }
+
+    fn get_transaction_metadata(
+        &self,
+        tx_index: &TransactionIndex,
+    ) -> StorageResult<Option<TransactionMetadata>> {
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
+        Ok(transaction_metadata_table.get(self.txn(), tx_index)?)
+    }
+
+    fn get_block_transactions(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<Transaction>>> {
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
+        self.get_transactions_in_block(block_number, transaction_metadata_table)
+    }
+
+    fn get_block_transaction_hashes(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<TransactionHash>>> {
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
+        self.get_transaction_hashes_in_block(block_number, transaction_metadata_table)
+    }
+
+    fn get_block_transactions_with_hash(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
+        self.get_transactions_and_hashes_in_block(block_number, transaction_metadata_table)
+    }
+
+    fn get_block_transaction_outputs(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<TransactionOutput>>> {
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
+        self.get_transaction_outputs_in_block(block_number, transaction_metadata_table)
+    }
+
+    fn get_block_transactions_count(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<usize>> {
+        if self.get_body_marker()? <= block_number {
+            return Ok(None);
+        }
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
+        let mut cursor = transaction_metadata_table.cursor(self.txn())?;
+        let Some(next_block_number) = block_number.next() else {
+            return Ok(None);
+        };
+        cursor.lower_bound(&TransactionIndex(next_block_number, TransactionOffsetInBlock(0)))?;
+        let Some((TransactionIndex(received_block_number, last_tx_index), _tx_hash)) =
+            cursor.prev()?
+        else {
+            return Ok(Some(0));
+        };
+        if received_block_number != block_number {
+            return Ok(Some(0));
+        }
+        Ok(Some(last_tx_index.0 + 1))
+    }
+}
+
+/// Private helper methods for StorageTxnRW body operations.
+impl StorageTxnRW<'_> {
+    fn get_vector_of_transaction_objects<T>(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+        tx_metadata_to_tx_object: fn(TransactionMetadata, &FileHandlers<RW>) -> StorageResult<T>,
+    ) -> StorageResult<Option<Vec<T>>> {
+        if self.get_body_marker()? <= block_number {
+            return Ok(None);
+        }
+        let mut cursor = transaction_metadata_table.cursor(self.txn())?;
+        let mut current =
+            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+        let mut res = Vec::new();
+        while let Some((TransactionIndex(current_block_number, _), tx_metadata)) = current {
+            if current_block_number != block_number {
+                break;
+            }
+            let tx_output = tx_metadata_to_tx_object(tx_metadata, &self.file_handlers)?;
+            res.push(tx_output);
+            current = cursor.next()?;
+        }
+        Ok(Some(res))
+    }
+
+    fn get_transaction_outputs_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<TransactionOutput>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, file_handlers| {
+                file_handlers.get_transaction_output_unchecked(tx_metadata.tx_output_location)
+            },
+        )
+    }
+
+    fn get_transactions_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<Transaction>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, file_handlers| {
+                file_handlers.get_transaction_unchecked(tx_metadata.tx_location)
+            },
+        )
+    }
+
+    fn get_transaction_hashes_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<TransactionHash>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, _file_handlers| Ok(tx_metadata.tx_hash),
+        )
+    }
+
+    fn get_transactions_and_hashes_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'_>,
+    ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, file_handlers| {
+                let transaction =
+                    file_handlers.get_transaction_unchecked(tx_metadata.tx_location)?;
+                Ok((transaction, tx_metadata.tx_hash))
+            },
+        )
+    }
+}
+
+impl BodyStorageWriter for StorageTxnRW<'_> {
     #[latency_histogram("storage_append_body_latency_seconds", false)]
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables().markers)?;

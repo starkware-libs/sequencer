@@ -7,8 +7,8 @@ mod class_manager_test;
 use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{MarkerKind, StorageResult, StorageTxn};
+use crate::db::TransactionKind;
+use crate::{MarkerKind, StorageResult, StorageTxn, StorageTxnRW};
 
 /// Interface for reading data related to the class manager.
 pub trait ClassManagerStorageReader {
@@ -60,7 +60,21 @@ impl<Mode: TransactionKind> ClassManagerStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl ClassManagerStorageWriter for StorageTxn<'_, RW> {
+impl ClassManagerStorageReader for StorageTxnRW<'_> {
+    fn get_class_manager_block_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::ClassManagerBlock)?.unwrap_or_default())
+    }
+
+    fn get_compiler_backward_compatibility_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table
+            .get(self.txn(), &MarkerKind::CompilerBackwardCompatibility)?
+            .unwrap_or_default())
+    }
+}
+
+impl ClassManagerStorageWriter for StorageTxnRW<'_> {
     fn update_class_manager_block_marker(self, block_number: &BlockNumber) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables().markers)?;
         markers_table.upsert(self.txn(), &MarkerKind::ClassManagerBlock, block_number)?;

@@ -66,7 +66,7 @@ use tracing::debug;
 use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
-use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTxn};
+use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTxn, StorageTxnRW};
 
 /// Storage representation of a Starknet block header.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
@@ -290,7 +290,102 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl HeaderStorageWriter for StorageTxn<'_, RW> {
+impl HeaderStorageReader for StorageTxnRW<'_> {
+    fn get_header_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::Header)?.unwrap_or_default())
+    }
+
+    fn get_storage_block_header(
+        &self,
+        block_number: &BlockNumber,
+    ) -> StorageResult<Option<StorageBlockHeader>> {
+        let headers_table = self.open_table(&self.tables().headers)?;
+        Ok(headers_table.get(self.txn(), block_number)?)
+    }
+
+    fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>> {
+        let Some(block_header) = self.get_storage_block_header(&block_number)? else {
+            return Ok(None);
+        };
+        let Some(starknet_version) = self.get_starknet_version(block_number)? else {
+            return Ok(None);
+        };
+        Ok(Some(BlockHeader {
+            block_hash: block_header.block_hash,
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: block_header.parent_hash,
+                block_number: block_header.block_number,
+                l1_gas_price: block_header.l1_gas_price,
+                l1_data_gas_price: block_header.l1_data_gas_price,
+                l2_gas_price: block_header.l2_gas_price,
+                l2_gas_consumed: block_header.l2_gas_consumed,
+                next_l2_gas_price: block_header.next_l2_gas_price,
+                state_root: block_header.state_root,
+                sequencer: block_header.sequencer,
+                timestamp: block_header.timestamp,
+                l1_da_mode: block_header.l1_da_mode,
+                starknet_version,
+            },
+            state_diff_commitment: block_header.state_diff_commitment,
+            transaction_commitment: block_header.transaction_commitment,
+            event_commitment: block_header.event_commitment,
+            receipt_commitment: block_header.receipt_commitment,
+            state_diff_length: block_header.state_diff_length,
+            n_transactions: block_header.n_transactions,
+            n_events: block_header.n_events,
+        }))
+    }
+
+    fn get_block_number_by_hash(
+        &self,
+        block_hash: &BlockHash,
+    ) -> StorageResult<Option<BlockNumber>> {
+        let block_hash_to_number_table = self.open_table(&self.tables().block_hash_to_number)?;
+        Ok(block_hash_to_number_table.get(self.txn(), block_hash)?)
+    }
+
+    fn get_starknet_version(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<StarknetVersion>> {
+        if block_number >= self.get_header_marker()? {
+            return Ok(None);
+        }
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
+        let mut cursor = starknet_version_table.cursor(self.txn())?;
+        let Some(next_block_number) = block_number.next() else {
+            return Ok(None);
+        };
+        cursor.lower_bound(&next_block_number)?;
+        let res = cursor.prev()?;
+        match res {
+            Some((_block_number, starknet_version)) => Ok(Some(starknet_version)),
+            None => unreachable!(
+                "Since block_number >= self.get_header_marker(), starknet_version_table should \
+                 have at least a single mapping."
+            ),
+        }
+    }
+
+    fn get_starknet_version_by_key(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<StarknetVersion>> {
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
+        Ok(starknet_version_table.get(self.txn(), &block_number)?)
+    }
+
+    fn get_block_signature(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<BlockSignature>> {
+        let block_signatures_table = self.open_table(&self.tables().block_signatures)?;
+        Ok(block_signatures_table.get(self.txn(), &block_number)?)
+    }
+}
+
+impl HeaderStorageWriter for StorageTxnRW<'_> {
     fn append_header(
         self,
         block_number: BlockNumber,

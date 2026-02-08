@@ -5,8 +5,8 @@ mod version_test;
 use serde::{Deserialize, Serialize};
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{StorageError, StorageResult, StorageTxn};
+use crate::db::TransactionKind;
+use crate::{StorageError, StorageResult, StorageTxn, StorageTxnRW};
 
 const VERSION_STATE_KEY: &str = "storage_version_state";
 const VERSION_BLOCKS_KEY: &str = "storage_version_blocks";
@@ -70,7 +70,19 @@ impl<Mode: TransactionKind> VersionStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl VersionStorageWriter for StorageTxn<'_, RW> {
+impl VersionStorageReader for StorageTxnRW<'_> {
+    fn get_state_version(&self) -> StorageResult<Option<Version>> {
+        let version_table = self.open_table(&self.tables().storage_version)?;
+        Ok(version_table.get(self.txn(), &VERSION_STATE_KEY.to_string())?)
+    }
+
+    fn get_blocks_version(&self) -> StorageResult<Option<Version>> {
+        let version_table = self.open_table(&self.tables().storage_version)?;
+        Ok(version_table.get(self.txn(), &VERSION_BLOCKS_KEY.to_string())?)
+    }
+}
+
+impl VersionStorageWriter for StorageTxnRW<'_> {
     fn set_state_version(self, version: &Version) -> StorageResult<Self> {
         let version_table = self.open_table(&self.tables().storage_version)?;
         if let Some(current_storage_version) = self.get_state_version()? {

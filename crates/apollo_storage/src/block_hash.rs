@@ -5,8 +5,8 @@
 use starknet_api::block::{BlockHash, BlockNumber};
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{StorageResult, StorageTxn};
+use crate::db::TransactionKind;
+use crate::{StorageResult, StorageTxn, StorageTxnRW};
 
 /// Interface for reading block hashes.
 pub trait BlockHashStorageReader {
@@ -39,7 +39,14 @@ impl<Mode: TransactionKind> BlockHashStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl BlockHashStorageWriter for StorageTxn<'_, RW> {
+impl BlockHashStorageReader for StorageTxnRW<'_> {
+    fn get_block_hash(&self, block_number: &BlockNumber) -> StorageResult<Option<BlockHash>> {
+        let table = self.open_table(&self.tables().block_hashes)?;
+        Ok(table.get(self.txn(), block_number)?)
+    }
+}
+
+impl BlockHashStorageWriter for StorageTxnRW<'_> {
     fn set_block_hash(
         self,
         block_number: &BlockNumber,

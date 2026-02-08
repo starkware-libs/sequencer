@@ -87,6 +87,7 @@ use crate::{
     StorageError,
     StorageResult,
     StorageTxn,
+    StorageTxnRW,
 };
 
 /// Interface for reading data related to classes or deprecated classes.
@@ -206,7 +207,62 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl ClassStorageWriter for StorageTxn<'_, RW> {
+impl ClassStorageReader for StorageTxnRW<'_> {
+    fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>> {
+        let contract_class_location = self.get_class_location(class_hash)?;
+        contract_class_location.map(|location| self.get_class_from_location(location)).transpose()
+    }
+
+    fn get_class_location(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<crate::LocationInFile>> {
+        let declared_classes_table = self.open_table(&self.tables().declared_classes)?;
+        Ok(declared_classes_table.get(self.txn(), class_hash)?)
+    }
+
+    fn get_class_from_location(
+        &self,
+        location: crate::LocationInFile,
+    ) -> StorageResult<SierraContractClass> {
+        self.file_handlers.get_contract_class_unchecked(location)
+    }
+
+    fn get_deprecated_class(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<DeprecatedContractClass>> {
+        let deprecated_contract_class_location = self.get_deprecated_class_location(class_hash)?;
+        deprecated_contract_class_location
+            .map(|location| self.get_deprecated_class_from_location(location))
+            .transpose()
+    }
+
+    fn get_deprecated_class_location(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<LocationInFile>> {
+        let deprecated_declared_classes_table =
+            self.open_table(&self.tables().deprecated_declared_classes)?;
+        let deprecated_contract_class_location =
+            deprecated_declared_classes_table.get(self.txn(), class_hash)?;
+        Ok(deprecated_contract_class_location.map(|value| value.location_in_file))
+    }
+
+    fn get_deprecated_class_from_location(
+        &self,
+        location: LocationInFile,
+    ) -> StorageResult<DeprecatedContractClass> {
+        self.file_handlers.get_deprecated_contract_class_unchecked(location)
+    }
+
+    fn get_class_marker(&self) -> StorageResult<BlockNumber> {
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default())
+    }
+}
+
+impl ClassStorageWriter for StorageTxnRW<'_> {
     #[latency_histogram("storage_append_classes_latency_seconds", false)]
     fn append_classes(
         self,
