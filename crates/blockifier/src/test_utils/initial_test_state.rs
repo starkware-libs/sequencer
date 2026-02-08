@@ -8,7 +8,7 @@ use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
-use crate::blockifier::config::ContractClassManagerConfig;
+use crate::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
@@ -167,14 +167,12 @@ pub fn test_state_inner_with_contract_manager(
     );
 
     #[cfg(not(feature = "cairo_native"))]
-    let (run_cairo_native, wait_on_native_compilation) = (false, false);
+    let native_mode = CairoNativeMode::Disabled;
     #[cfg(feature = "cairo_native")]
-    let (run_cairo_native, wait_on_native_compilation) = (true, true);
+    let native_mode = CairoNativeMode::Sync;
 
-    let manager = ContractClassManager::start(ContractClassManagerConfig::create_for_testing(
-        run_cairo_native,
-        wait_on_native_compilation,
-    ));
+    let manager =
+        ContractClassManager::start(ContractClassManagerConfig::create_for_testing(native_mode));
 
     let reader = state_reader_and_contract_manager_for_testing(reader, manager);
 

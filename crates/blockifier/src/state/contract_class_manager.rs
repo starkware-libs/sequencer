@@ -24,7 +24,7 @@ pub mod trivial_class_manager {
     impl TrivialClassManager {
         pub fn start(config: ContractClassManagerConfig) -> Self {
             assert!(
-                matches!(config.cairo_native_run_config.native_mode(), CairoNativeMode::Disabled),
+                matches!(config.cairo_native_run_config.native_mode, CairoNativeMode::Disabled),
                 "Cairo Native feature is off."
             );
             Self {

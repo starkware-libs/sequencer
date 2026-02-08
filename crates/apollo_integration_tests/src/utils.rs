@@ -67,6 +67,8 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
+use blockifier::blockifier::config::CairoNativeMode;
+#[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::CairoNativeRunConfig;
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
@@ -740,8 +742,7 @@ pub fn create_state_sync_configs(
 fn cairo_native_class_manager_config() -> ContractClassManagerConfig {
     ContractClassManagerConfig {
         cairo_native_run_config: CairoNativeRunConfig {
-            run_cairo_native: true,
-            wait_on_native_compilation: true,
+            native_mode: CairoNativeMode::Sync,
             panic_on_compilation_failure: true,
             ..Default::default()
         },

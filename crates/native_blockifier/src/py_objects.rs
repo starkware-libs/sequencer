@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
+    CairoNativeMode,
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerConfig,
@@ -289,9 +290,20 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
             None => NativeClassesWhitelist::All,
         };
 
+        let native_mode = match (
+            py_cairo_native_run_config.run_cairo_native,
+            py_cairo_native_run_config.wait_on_native_compilation,
+        ) {
+            (false, false) => CairoNativeMode::Disabled,
+            (true, false) => CairoNativeMode::Async,
+            (true, true) => CairoNativeMode::Sync,
+            (false, true) => panic!(
+                "Invalid config: wait_on_native_compilation=true requires run_cairo_native=true"
+            ),
+        };
+
         CairoNativeRunConfig {
-            run_cairo_native: py_cairo_native_run_config.run_cairo_native,
-            wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
+            native_mode,
             channel_size: py_cairo_native_run_config.channel_size,
             native_classes_whitelist,
             panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,

@@ -11,7 +11,7 @@ use rstest::rstest;
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::ClassHash;
 
-use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
+use crate::blockifier::config::{CairoNativeMode, CairoNativeRunConfig, NativeClassesWhitelist};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::global_cache::{
     CachedCairoNative,
@@ -63,17 +63,17 @@ fn create_faulty_request() -> CompilationRequest {
 }
 
 #[rstest]
-#[case::run_native_while_waiting(true, true)]
-#[case::run_native_without_waiting(true, false)]
-#[case::run_without_native(false, false)]
-fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation: bool) {
+#[case::sync(CairoNativeMode::Sync)]
+#[case::async_mode(CairoNativeMode::Async)]
+#[case::disabled(CairoNativeMode::Disabled)]
+fn test_start(#[case] native_mode: CairoNativeMode) {
     let native_config =
-        CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
+        CairoNativeRunConfig { native_mode: native_mode.clone(), ..Default::default() };
     let manager = NativeClassManager::create_for_testing(native_config.clone());
 
     assert_eq!(manager.cairo_native_run_config.clone(), native_config);
-    if run_cairo_native {
-        if wait_on_native_compilation {
+    match native_mode {
+        CairoNativeMode::Sync => {
             assert!(
                 manager.sender.is_none(),
                 "Sender should be None - the compilation worker is not used."
@@ -82,7 +82,8 @@ fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation
                 manager.compiler.is_some(),
                 "Compiler should be Some - compilation is not offloaded to the compilation worker."
             );
-        } else {
+        }
+        CairoNativeMode::Async => {
             assert!(
                 manager.sender.is_some(),
                 "Sender should be Some - the compilation worker is used."
@@ -92,25 +93,26 @@ fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation
                 "Compiler should be None - compilation is offloaded to the compilation worker."
             );
         }
-    } else {
-        assert!(manager.sender.is_none(), "Sender should be None- Cairo native is disabled.");
-        assert!(manager.compiler.is_none(), "Compiler should be None - Cairo native is disabled.");
+        CairoNativeMode::Disabled => {
+            assert!(manager.sender.is_none(), "Sender should be None - Cairo native is disabled.");
+            assert!(
+                manager.compiler.is_none(),
+                "Compiler should be None - Cairo native is disabled."
+            );
+        }
     }
 }
 
 #[rstest]
-#[case::run_native_while_waiting(true, true)]
-#[case::run_native_without_waiting(true, false)]
-#[should_panic(expected = "Native compilation is disabled.")]
-#[case::run_without_native(false, true)]
-#[case::run_without_native(false, false)]
+#[case::sync(CairoNativeMode::Sync)]
+#[case::async_mode(CairoNativeMode::Async)]
+#[case::disabled(CairoNativeMode::Disabled)]
 fn test_set_and_compile(
-    #[case] run_cairo_native: bool,
-    #[case] wait_on_native_compilation: bool,
+    #[case] native_mode: CairoNativeMode,
     #[values(true, false)] should_pass: bool,
 ) {
     let native_config =
-        CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
+        CairoNativeRunConfig { native_mode: native_mode.clone(), ..Default::default() };
     let manager = NativeClassManager::create_for_testing(native_config);
     let request = if should_pass { create_test_request() } else { create_faulty_request() };
     let class_hash = request.0;
@@ -118,12 +120,12 @@ fn test_set_and_compile(
     let compiled_class = CompiledClasses::V1(casm, sierra);
 
     manager.set_and_compile(class_hash, compiled_class);
-    if !run_cairo_native {
+    if matches!(native_mode, CairoNativeMode::Disabled) {
         assert_matches!(manager.class_cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
         return;
     }
 
-    if !wait_on_native_compilation {
+    if matches!(native_mode, CairoNativeMode::Async) {
         assert_matches!(manager.class_cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
         let seconds_to_sleep = 2;
         let max_n_retries = DEFAULT_MAX_CPU_TIME / seconds_to_sleep + 1;
@@ -153,8 +155,7 @@ fn test_set_and_compile(
 fn test_send_compilation_request_channel_disconnected() {
     // We use the channel to send native compilation requests.
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: false,
+        native_mode: CairoNativeMode::Async,
         channel_size: TEST_CHANNEL_SIZE,
         ..CairoNativeRunConfig::default()
     };
@@ -177,8 +178,7 @@ fn test_send_compilation_request_channel_disconnected() {
 #[test]
 fn test_send_compilation_request_channel_full() {
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: false,
+        native_mode: CairoNativeMode::Async,
         channel_size: 0,
         ..CairoNativeRunConfig::default()
     };
@@ -208,8 +208,7 @@ fn test_process_compilation_request(
     #[case] panic_on_compilation_failure: bool,
 ) {
     let manager = NativeClassManager::create_for_testing(CairoNativeRunConfig {
-        wait_on_native_compilation: true,
-        run_cairo_native: true,
+        native_mode: CairoNativeMode::Sync,
         channel_size: TEST_CHANNEL_SIZE,
         panic_on_compilation_failure,
         ..CairoNativeRunConfig::default()
@@ -250,8 +249,7 @@ fn test_native_classes_whitelist(
     #[case] allow_run_native: bool,
 ) {
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: true,
+        native_mode: CairoNativeMode::Sync,
         panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,
         native_classes_whitelist: whitelist,

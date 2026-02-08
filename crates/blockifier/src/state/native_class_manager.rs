@@ -71,7 +71,7 @@ impl NativeClassManager {
         let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
         let cairo_native_run_config = config.cairo_native_run_config;
 
-        match cairo_native_run_config.native_mode() {
+        match cairo_native_run_config.native_mode {
             CairoNativeMode::Disabled => {
                 // Native compilation is disabled - no need to start the compilation worker.
                 NativeClassManager {
@@ -131,7 +131,7 @@ impl NativeClassManager {
         let cached_class = match cached_class {
             CompiledClasses::V1(_, _) => {
                 assert!(
-                    !matches!(self.cairo_native_run_config.native_mode(), CairoNativeMode::Sync),
+                    !matches!(self.cairo_native_run_config.native_mode, CairoNativeMode::Sync),
                     "Manager did not wait on native compilation."
                 );
                 cached_class
@@ -156,7 +156,7 @@ impl NativeClassManager {
         match compiled_class {
             CompiledClasses::V0(_) => self.class_cache.set(class_hash, compiled_class),
             CompiledClasses::V1(compiled_class_v1, sierra_contract_class) => {
-                match self.cairo_native_run_config.native_mode() {
+                match self.cairo_native_run_config.native_mode {
                     CairoNativeMode::Sync => {
                         let compiler = self.compiler.as_ref().expect("Compiler not available.");
                         // After this point, the Native class should be cached and available

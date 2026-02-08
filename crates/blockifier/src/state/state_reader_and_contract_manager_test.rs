@@ -13,7 +13,7 @@ use starknet_api::core::ClassHash;
 
 #[cfg(not(feature = "cairo_native"))]
 use crate::blockifier::config::CairoNativeRunConfig;
-use crate::blockifier::config::ContractClassManagerConfig;
+use crate::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
 #[cfg(not(feature = "cairo_native"))]
@@ -52,29 +52,22 @@ fn build_reader_and_declare_contract(
 }
 
 #[rstest]
-#[case::no_cairo_native(false, false)]
-#[cfg_attr(feature = "cairo_native", case::cairo_native_no_wait(true, false))]
-#[cfg_attr(feature = "cairo_native", case::cairo_native_and_wait(true, true))]
+#[case::disabled(CairoNativeMode::Disabled)]
+#[cfg_attr(feature = "cairo_native", case::async_mode(CairoNativeMode::Async))]
+#[cfg_attr(feature = "cairo_native", case::sync(CairoNativeMode::Sync))]
 fn test_get_compiled_class_without_native_in_cache(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
     cairo_version: CairoVersion,
-    #[case] run_cairo_native: bool,
-    #[case] wait_on_native_compilation: bool,
+    #[case] native_mode: CairoNativeMode,
 ) {
-    // Sanity check: If native compilation is disabled, waiting on it is not allowed.
-    if !run_cairo_native {
-        assert!(!wait_on_native_compilation);
-    }
-    // Sanity check: If the cairo_native feature is off, running native compilation is not allowed.
+    // Sanity check: If the cairo_native feature is off, native must be disabled.
     #[cfg(not(feature = "cairo_native"))]
-    assert!(!run_cairo_native);
+    assert!(matches!(native_mode, CairoNativeMode::Disabled));
 
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_class_hash = test_contract.get_class_hash();
-    let contract_manager_config = ContractClassManagerConfig::create_for_testing(
-        run_cairo_native,
-        wait_on_native_compilation,
-    );
+    let contract_manager_config =
+        ContractClassManagerConfig::create_for_testing(native_mode.clone());
 
     let state_reader =
         build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
@@ -87,7 +80,7 @@ fn test_get_compiled_class_without_native_in_cache(
     match cairo_version {
         CairoVersion::Cairo1(_) => {
             // TODO(Meshi): Test that a compilation request was sent.
-            if wait_on_native_compilation {
+            if matches!(native_mode, CairoNativeMode::Sync) {
                 #[cfg(feature = "cairo_native")]
                 assert_matches!(
                     compiled_class,
@@ -117,7 +110,8 @@ fn test_get_compiled_class_without_native_in_cache(
 fn test_get_compiled_class_when_native_is_cached() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
     let test_class_hash = test_contract.get_class_hash();
-    let contract_manager_config = ContractClassManagerConfig::create_for_testing(true, true);
+    let contract_manager_config =
+        ContractClassManagerConfig::create_for_testing(CairoNativeMode::Sync);
 
     let state_reader =
         build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
@@ -259,7 +253,7 @@ fn test_get_compiled_class_caching_scenarios(
 ) {
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig {
         cairo_native_run_config: CairoNativeRunConfig {
-            wait_on_native_compilation: false,
+            native_mode: CairoNativeMode::Disabled,
             ..Default::default()
         },
         ..Default::default()
