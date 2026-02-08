@@ -92,7 +92,10 @@ fn default_config() -> StakingManagerConfig {
 }
 
 fn set_stakers(contract: &mut MockStakingContract, epoch: Epoch, stakers: StakerSet) {
-    contract.expect_get_stakers().with(eq(epoch.epoch_id)).returning(move |_| Ok(stakers.clone()));
+    contract
+        .expect_get_stakers_with_config()
+        .withf(move |epoch_id, _config| *epoch_id == epoch.epoch_id)
+        .returning(move |_, _| Ok(stakers.clone()));
 }
 
 fn set_current_epoch(contract: &mut MockStakingContract, epoch: Epoch) {
