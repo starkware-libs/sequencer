@@ -22,13 +22,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_consensus::types::{
-    ConsensusContext,
-    ConsensusError,
-    ProposalCommitment,
-    Round,
-    ValidatorId,
-};
+use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
@@ -40,7 +34,6 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
     Vote,
-    DEFAULT_VALIDATOR_ID,
 };
 use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
@@ -157,7 +150,6 @@ impl BuiltProposals {
 pub struct SequencerConsensusContext {
     config: ContextConfig,
     deps: SequencerConsensusContextDeps,
-    validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
     // valid_proposals map upon completion, ensuring consistency across tasks.
@@ -208,22 +200,14 @@ enum ReproposeError {
 impl SequencerConsensusContext {
     pub fn new(config: ContextConfig, deps: SequencerConsensusContextDeps) -> Self {
         register_metrics();
-        let num_validators = config.static_config.num_validators;
         let l1_da_mode = if config.static_config.l1_da_mode {
             L1DataAvailabilityMode::Blob
         } else {
             L1DataAvailabilityMode::Calldata
         };
-        let validators = if let Some(ids) = config.static_config.validator_ids.clone() {
-            ids.into_iter().collect()
-        } else {
-            (0..num_validators).map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i)).collect()
-        };
         Self {
             config,
             deps,
-            // TODO(Matan): Set the actual validator IDs (contract addresses).
-            validators,
             valid_proposals: Arc::new(Mutex::new(BuiltProposals::new())),
             proposal_id: 0,
             current_height: None,
@@ -652,29 +636,6 @@ impl ConsensusContext for SequencerConsensusContext {
             }
             .instrument(error_span!("consensus_repropose", round = build_param.round)),
         );
-    }
-
-    async fn validators(&self, _height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError> {
-        Ok(self.validators.clone())
-    }
-
-    fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError> {
-        let height: usize = height.0.try_into().expect("Cannot convert to usize");
-        let round: usize = round.try_into().expect("Cannot convert to usize");
-        Ok(*self
-            .validators
-            .get((height + round) % self.validators.len())
-            .expect("There should be at least one validator"))
-    }
-
-    fn virtual_proposer(
-        &self,
-        height: BlockNumber,
-        round: Round,
-    ) -> Result<ValidatorId, ConsensusError> {
-        // TODO(Asmaa): Update this when using the committee provider.
-        // For now, keep the virtual proposer selection identical to the real proposer selection.
-        self.proposer(height, round)
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
