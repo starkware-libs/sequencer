@@ -17,7 +17,7 @@ fn format_alert_placeholder(key: &String, context: &String) -> String {
     Template::new(ALERT_PLACEHOLDER_FORMAT).format(&[&key, &context])
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 pub(crate) enum ComparisonValueOrPlaceholder {
     ConcreteValue(f64),
     Placeholder(String),
@@ -67,7 +67,7 @@ impl ComparisonValueOrPlaceholder {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 pub(crate) enum SeverityValueOrPlaceholder {
     ConcreteValue(AlertSeverity),
     Placeholder(String),
@@ -117,8 +117,7 @@ impl SeverityValueOrPlaceholder {
     }
 }
 
-// TODO(Tsabary): remove the `Clone` and `PartialEq` constraints.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
 pub(crate) enum ExpressionOrExpressionWithPlaceholder {
     ConcreteValue(String),
     Placeholder(Template, Vec<String>),
