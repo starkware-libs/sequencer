@@ -30,7 +30,7 @@ fn get_panel_transaction_success_rate() -> Panel {
              window)",
         ),
         format!(
-            "{s} / ({s} + {f})",
+            "{s} / clamp_min(({s} + {f}), 1)",
             s = increase(&ADDED_TRANSACTIONS_SUCCESS, DEFAULT_DURATION),
             f = increase(&ADDED_TRANSACTIONS_FAILURE, DEFAULT_DURATION),
         ),
