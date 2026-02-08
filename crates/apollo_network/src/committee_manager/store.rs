@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "store_test.rs"]
+mod store_test;
+
 use std::collections::{HashMap, VecDeque};
 
 use libp2p::PeerId;
