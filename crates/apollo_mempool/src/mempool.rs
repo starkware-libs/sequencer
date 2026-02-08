@@ -25,6 +25,7 @@ use starknet_api::rpc_transaction::{
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace};
+use url::Url;
 
 use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::fifo_transaction_queue::FifoTransactionQueue;
@@ -268,7 +269,7 @@ impl Mempool {
         // In Echonet mode, use FIFO queue; otherwise use fee-based priority queue.
         let tx_queue: Box<dyn TransactionQueueTrait> = if config.static_config.is_echonet() {
             // Echonet mode uses FIFO queue
-            Box::new(FifoTransactionQueue::new(config.static_config.recorder_url.clone()))
+            Box::new(FifoTransactionQueue::default())
         } else {
             Box::new(FeeTransactionQueue::default())
         };
@@ -285,31 +286,21 @@ impl Mempool {
         }
     }
 
-    /// Returns the timestamp for block creation.
-    ///
-    /// For Fee queue: Returns current unix timestamp
-    /// For FIFO queue: Returns the timestamp of the FIRST transaction in the queue
-    ///                 (fetched from echonet API during add_tx)
-    ///                 This timestamp is then used to filter which transactions to include
-    ///                 in the block (only those with matching timestamp)
-    pub fn get_ts(&mut self) -> u64 {
-        if self.config.static_config.is_echonet() {
-            // Echonet mode: use FIFO queue timestamp
-            if let Some(timestamp) = self.tx_queue.get_first_tx_timestamp() {
-                // Store this timestamp - get_txs() will only return txs with this exact timestamp
-                info!("Mempool get_ts (FIFO): timestamp={}, setting as threshold", timestamp);
-                self.tx_queue.set_last_returned_timestamp(timestamp);
-                timestamp
-            } else {
-                // Queue is empty, return 0
-                info!("Mempool get_ts (FIFO): queue empty, returning 0");
-                0
-            }
-        } else {
-            let timestamp = self.clock.unix_now();
-            debug!("Mempool get_ts (Fee): timestamp={}", timestamp);
-            timestamp
-        }
+    /// Returns a unix timestamp for block creation.
+    pub fn get_ts(&self) -> u64 {
+        self.clock.unix_now()
+    }
+
+    pub fn is_echonet(&self) -> bool {
+        self.config.static_config.is_echonet()
+    }
+
+    pub fn recorder_url(&self) -> &Url {
+        &self.config.static_config.recorder_url
+    }
+
+    pub fn front_tx_hash(&self) -> Option<TransactionHash> {
+        self.tx_queue.front_tx_hash()
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their

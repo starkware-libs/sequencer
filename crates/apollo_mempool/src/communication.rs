@@ -23,7 +23,9 @@ use async_trait::async_trait;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::transaction::TransactionHash;
 use tracing::warn;
+use url::Url;
 
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
@@ -49,6 +51,7 @@ pub struct MempoolCommunicationWrapper {
     mempool: Mempool,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     config_manager_client: SharedConfigManagerClient,
+    cached_front_ts: Option<(TransactionHash, u64)>,
 }
 
 impl MempoolCommunicationWrapper {
@@ -61,6 +64,7 @@ impl MempoolCommunicationWrapper {
             mempool,
             mempool_p2p_propagator_client,
             config_manager_client,
+            cached_front_ts: None,
         }
     }
 
@@ -139,8 +143,50 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn get_ts(&mut self) -> MempoolResult<u64> {
-        Ok(self.mempool.get_ts())
+    async fn fetch_tx_timestamp(&self, recorder_url: &Url, tx_hash: TransactionHash) -> Option<u64> {
+        // We never want this to stall the node. Keep bounded time and fall back on failure.
+        let mut url = recorder_url.join("echonet/tx_timestamp").ok()?;
+        url.query_pairs_mut().append_pair("transactionHash", &tx_hash.to_string());
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(2))
+            .build()
+            .ok()?;
+
+        let resp = client.get(url).send().await.ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+
+        let body = resp.text().await.ok()?;
+        // Accept either `{"timestamp": 1234}` or raw `1234`.
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
+            return v.get("timestamp").and_then(|t| t.as_u64()).or_else(|| v.as_u64());
+        }
+        body.trim().parse::<u64>().ok()
+    }
+
+    async fn get_ts(&mut self) -> MempoolResult<u64> {
+        if !self.mempool.is_echonet() {
+            return Ok(self.mempool.get_ts());
+        }
+
+        let Some(front_hash) = self.mempool.front_tx_hash() else {
+            // No transactions yet; use local clock to keep consensus progressing.
+            return Ok(self.mempool.get_ts());
+        };
+
+        if let Some((cached_hash, cached_ts)) = self.cached_front_ts {
+            if cached_hash == front_hash {
+                return Ok(cached_ts);
+            }
+        }
+
+        let recorder_url = self.mempool.recorder_url().clone();
+        let maybe_ts = self.fetch_tx_timestamp(&recorder_url, front_hash).await;
+        let ts = maybe_ts.unwrap_or_else(|| self.mempool.get_ts());
+        self.cached_front_ts = Some((front_hash, ts));
+        Ok(ts)
     }
 }
 
@@ -173,7 +219,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetMempoolSnapshot() => {
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
-            MempoolRequest::GetTimestamp => MempoolResponse::GetTimestamp(self.get_ts()),
+            MempoolRequest::GetTimestamp => MempoolResponse::GetTimestamp(self.get_ts().await),
         }
     }
 }

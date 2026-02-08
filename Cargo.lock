@@ -1825,7 +1825,6 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "mockall",
- "mockito 1.7.2",
  "pretty_assertions",
  "rand 0.8.5",
  "reqwest 0.12.28",

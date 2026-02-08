@@ -65,6 +65,12 @@ pub trait TransactionQueueTrait: Send + Sync {
         Vec::new()
     }
 
+    /// Returns the first transaction hash in the queue (if any).
+    /// Default implementation returns `None` for queues that don't expose ordering.
+    fn front_tx_hash(&self) -> Option<TransactionHash> {
+        None
+    }
+
     // Default implementation returns None (for queues that don't track first tx timestamp).
     fn get_first_tx_timestamp(&self) -> Option<u64> {
         None
