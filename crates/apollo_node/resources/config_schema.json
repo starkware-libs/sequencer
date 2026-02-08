@@ -2672,7 +2672,7 @@
   "gateway_config.stateless_tx_validator_config.max_proof_size": {
     "description": "Limitation of proof size.",
     "privacy": "Public",
-    "value": 90000
+    "value": 600000
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
