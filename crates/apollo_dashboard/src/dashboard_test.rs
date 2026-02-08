@@ -62,8 +62,8 @@ fn test_ratio_time_series() {
             .with_log_query("Query");
 
     let expected = format!(
-        "(increase({}[{duration}]) / (increase({}[{duration}]) + increase({}[{duration}]) + \
-         increase({}[{duration}])))",
+        "(increase({}[{duration}]) / clamp_min((increase({}[{duration}]) + \
+         increase({}[{duration}]) + increase({}[{duration}])), 1))",
         metric_1.get_name_with_filter(),
         metric_1.get_name_with_filter(),
         metric_2.get_name_with_filter(),
@@ -75,7 +75,7 @@ fn test_ratio_time_series() {
     assert_eq!(panel.extra.log_query, Some("\"Query\"".to_string()));
 
     let expected = format!(
-        "(increase({}[{duration}]) / (increase({}[{duration}])))",
+        "(increase({}[{duration}]) / clamp_min((increase({}[{duration}])), 1))",
         metric_1.get_name_with_filter(),
         metric_2.get_name_with_filter(),
     );

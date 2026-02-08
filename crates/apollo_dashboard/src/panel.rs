@@ -251,7 +251,7 @@ impl Panel {
             .collect::<Vec<_>>()
             .join(" + ");
 
-        let expr = format!("({numerator_expr} / ({denominator_expr}))");
+        let expr = format!("({numerator_expr} / clamp_min(({denominator_expr}), 1))");
 
         Self::new(name, description, expr, PanelType::TimeSeries).with_unit(Unit::PercentUnit)
     }
