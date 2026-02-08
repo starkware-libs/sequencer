@@ -65,7 +65,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // Public methods.
 
     /// Creates and initializes the commitment manager.
-    pub(crate) async fn create_commitment_manager<
+    pub(crate) fn create_commitment_manager<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
     >(
