@@ -230,6 +230,20 @@ impl Serialize for NativeClassesWhitelist {
     }
 }
 
+/// Represents the mode of Cairo Native compilation.
+///
+/// - `Disabled`: Native compilation is off. Classes are executed via CASM.
+/// - `Async`: Native compilation happens asynchronously in a background worker. Classes are
+///   executed via CASM until native compilation completes.
+/// - `Sync`: Native compilation happens synchronously, blocking execution. Used primarily for
+///   testing.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum CairoNativeMode {
+    Disabled,
+    Async,
+    Sync,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
@@ -250,6 +264,24 @@ impl Default for CairoNativeRunConfig {
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: NativeClassesWhitelist::All,
             panic_on_compilation_failure: false,
+        }
+    }
+}
+
+impl CairoNativeRunConfig {
+    /// Returns the [`CairoNativeMode`] derived from the boolean config flags.
+    ///
+    /// # Panics
+    /// Panics if `wait_on_native_compilation` is `true` while `run_cairo_native` is `false`,
+    /// as this combination is invalid.
+    pub fn native_mode(&self) -> CairoNativeMode {
+        match (self.run_cairo_native, self.wait_on_native_compilation) {
+            (false, false) => CairoNativeMode::Disabled,
+            (true, false) => CairoNativeMode::Async,
+            (true, true) => CairoNativeMode::Sync,
+            (false, true) => panic!(
+                "Invalid config: wait_on_native_compilation=true requires run_cairo_native=true"
+            ),
         }
     }
 }
