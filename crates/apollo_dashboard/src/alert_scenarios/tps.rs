@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use apollo_gateway::metrics::{
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
@@ -21,7 +19,6 @@ use crate::alerts::{
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
-    SECS_IN_MIN,
 };
 
 fn build_idle_alert(
@@ -29,8 +26,6 @@ fn build_idle_alert(
     alert_title: &str,
     alert_group: AlertGroup,
     metric_name_with_filter: &str,
-    // TODO(Tsabary): remove the `_duration` argument.
-    _duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
     let expr_template_string =
@@ -58,7 +53,6 @@ pub(crate) fn get_http_server_no_successful_transactions() -> Alert {
         "http server no successful transactions",
         AlertGroup::HttpServer,
         &ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
-        Duration::from_secs(30 * SECS_IN_MIN),
         AlertSeverity::Informational,
     )
 }
@@ -69,7 +63,6 @@ pub(crate) fn get_gateway_add_tx_idle() -> Alert {
         "Gateway add_tx idle (p2p+rpc)",
         AlertGroup::Gateway,
         &GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter(),
-        Duration::from_secs(2 * SECS_IN_MIN),
         AlertSeverity::Regular,
     )
 }
@@ -80,7 +73,6 @@ pub(crate) fn get_mempool_add_tx_idle() -> Alert {
         "Mempool add_tx idle (p2p+rpc)",
         AlertGroup::Mempool,
         &MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
-        Duration::from_secs(2 * SECS_IN_MIN),
         AlertSeverity::Sos,
     )
 }

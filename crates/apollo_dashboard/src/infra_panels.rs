@@ -191,8 +191,6 @@ fn get_request_type_panels(
         .collect::<Vec<_>>()
 }
 
-// TODO(Tsabary): define a trait that includes the `get_all_labeled_metrics` fn, and then unify
-// these two functions.
 fn get_infra_client_panels(
     local_client_metrics: &LocalClientMetrics,
     remote_client_metrics: &RemoteClientMetrics,
