@@ -2,7 +2,7 @@
 //!
 //! The compiled class is the result of compiling a Cairo program.
 //! Import [`CasmStorageReader`] and [`CasmStorageWriter`] to read and write data related to the
-//! compiled classes using a [`StorageTxn`].
+//! compiled classes using a `StorageTxn`.
 //! # Example
 //! ```
 //! use apollo_storage::open_storage;
@@ -56,9 +56,9 @@ use starknet_api::state::SierraContractClass;
 use crate::class::ClassStorageReader;
 use crate::db::serialization::VersionZeroWrapper;
 use crate::db::table_types::{SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::db::{DbTransaction, TableHandle, RW};
 use crate::mmap_file::LocationInFile;
-use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTxn};
+use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTransaction, StorageTxnRW};
 
 /// Interface for reading data related to the compiled classes.
 pub trait CasmStorageReader {
@@ -104,7 +104,7 @@ where
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> CasmStorageReader for T {
     fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>> {
         let casm_location = self.get_casm_location(class_hash)?;
         casm_location.map(|location| self.get_casm_from_location(location)).transpose()
@@ -124,7 +124,7 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
     }
 
     fn get_casm_from_location(&self, location: LocationInFile) -> StorageResult<CasmContractClass> {
-        self.file_handlers.get_casm_unchecked(location)
+        self.file_handlers().get_casm_unchecked(location)
     }
 
     fn get_compiled_class_hash(
@@ -142,7 +142,7 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
     }
 }
 
-impl CasmStorageWriter for StorageTxn<'_, RW> {
+impl CasmStorageWriter for StorageTxnRW<'_> {
     #[latency_histogram("storage_append_casm_latency_seconds", false)]
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self> {
         let casm_table = self.open_table(&self.tables().casms)?;
