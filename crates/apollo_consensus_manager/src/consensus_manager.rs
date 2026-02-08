@@ -21,6 +21,10 @@ use apollo_consensus_orchestrator::sequencer_consensus_context::{
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
+use apollo_network::authentication::stark_authentication::{
+    OsRngChallengeGenerator,
+    StarkAuthNegotiator,
+};
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::metrics::{
     BroadcastNetworkMetrics,
@@ -50,6 +54,7 @@ use apollo_transaction_converter::TransactionConverter;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
+use starknet_api::crypto::utils::PublicKey;
 use tokio::sync::Mutex;
 use tracing::{info, info_span, Instrument};
 
@@ -230,7 +235,13 @@ impl ConsensusManager {
             latency_metrics: Some(LatencyMetrics { ping_latency_seconds: CONSENSUS_PING_LATENCY }),
         });
 
-        NetworkManager::new(self.config.network_config.clone(), None, None, network_manager_metrics)
+        // TODO(noam.s): fix dummy public key.
+        NetworkManager::new(
+            self.config.network_config.clone(),
+            None,
+            Some((self.signature_manager_client.clone(), PublicKey::default())),
+            network_manager_metrics,
+        )
     }
 
     fn create_stream_handler(

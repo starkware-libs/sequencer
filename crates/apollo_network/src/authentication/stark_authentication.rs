@@ -19,7 +19,6 @@ use crate::authentication::negotiator::{
     Negotiator,
     NegotiatorOutput,
 };
-
 pub type StarkAuthNegotiatorResult<T> = Result<T, StarkAuthNegotiatorError>;
 
 #[async_trait]
@@ -27,8 +26,6 @@ pub trait ChallengeGenerator: Send + Sync {
     async fn generate(&self) -> Challenge;
 }
 
-// Default implementation for production use.
-#[allow(dead_code)]
 pub struct OsRngChallengeGenerator;
 
 #[async_trait]
@@ -118,10 +115,14 @@ impl StarkAuthNegotiator {
         let other_signature = RawSignature(Signature::try_from(other_signature)?.signature);
 
         // 3. Verify other's signature.
-        match verify_identity(other_peer_id, other_challenge, other_signature, other_public_key)? {
-            true => Ok(NegotiatorOutput::Success),
-            false => Err(StarkAuthNegotiatorError::VerificationFailure),
+        if !verify_identity(other_peer_id, other_challenge, other_signature, other_public_key)? {
+            return Err(StarkAuthNegotiatorError::VerificationFailure);
         }
+
+        // TODO(noam.s): Ask CommitteeManager to map this staker to the peer once staker
+        // identity is resolved outside the challenge.
+
+        Ok(NegotiatorOutput::Success)
     }
 }
 
