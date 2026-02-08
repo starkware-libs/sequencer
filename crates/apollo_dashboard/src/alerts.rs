@@ -1,9 +1,7 @@
 use std::collections::HashSet;
-use std::fmt;
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use strum_macros::EnumIter;
 
 use crate::alert_placeholders::{
     ComparisonValueOrPlaceholder,
@@ -22,23 +20,16 @@ pub struct Alerts {
 }
 
 impl Alerts {
-    pub(crate) fn new(alerts: Vec<Alert>, alert_env_filtering: AlertEnvFiltering) -> Self {
-        let filtered_alerts: Vec<Alert> = alerts
-            .into_iter()
-            .filter(|alert| alert.alert_env_filtering.matches(&alert_env_filtering))
-            .collect();
-
+    pub(crate) fn new(alerts: Vec<Alert>) -> Self {
         // Validate that there are no duplicate alert names.
-        filtered_alerts
+        alerts
             .iter()
             .map(|alert| alert.name.as_str())
             .try_fold(HashSet::new(), |mut set, name| set.insert(name).then_some(set).ok_or(name))
-            .unwrap_or_else(|duplicate| {
-                panic!("Duplicate alert name found: {duplicate} for env: {alert_env_filtering}")
-            });
+            .unwrap_or_else(|duplicate| panic!("Duplicate alert name found: {duplicate}"));
 
         // Validate that there are no duplicate placeholder names across all alerts.
-        filtered_alerts
+        alerts
             .iter()
             .flat_map(|alert| alert.get_placeholder_names().iter())
             .try_fold(HashSet::new(), |mut set, name| {
@@ -48,33 +39,7 @@ impl Alerts {
                 panic!("Duplicate placeholder name found across alerts: {duplicate}")
             });
 
-        Self { alerts: filtered_alerts }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumIter)]
-pub enum AlertEnvFiltering {
-    All,
-    MainnetStyleAlerts,
-    TestnetStyleAlerts,
-}
-
-impl AlertEnvFiltering {
-    pub fn matches(&self, target: &AlertEnvFiltering) -> bool {
-        self == target || *self == AlertEnvFiltering::All
-    }
-}
-
-impl fmt::Display for AlertEnvFiltering {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            AlertEnvFiltering::All => {
-                unreachable!()
-            } // This variant is used for internal logic and should not be displayed.
-            AlertEnvFiltering::MainnetStyleAlerts => "mainnet",
-            AlertEnvFiltering::TestnetStyleAlerts => "testnet",
-        };
-        write!(f, "{s}")
+        Self { alerts }
     }
 }
 
@@ -226,8 +191,6 @@ pub(crate) struct Alert {
     // Indicates if relevant for observer nodes.
     observer_applicable: ObserverApplicability,
     #[serde(skip)]
-    alert_env_filtering: AlertEnvFiltering,
-    #[serde(skip)]
     placeholder_names: HashSet<String>,
 }
 
@@ -261,7 +224,6 @@ impl Alert {
         evaluation_interval_sec: u64,
         severity: impl Into<SeverityValueOrPlaceholder>,
         observer_applicable: ObserverApplicability,
-        alert_env_filtering: AlertEnvFiltering,
     ) -> Self {
         let severity = severity.into();
 
@@ -293,7 +255,6 @@ impl Alert {
             evaluation_interval_sec,
             severity,
             observer_applicable,
-            alert_env_filtering,
             placeholder_names,
         }
     }
