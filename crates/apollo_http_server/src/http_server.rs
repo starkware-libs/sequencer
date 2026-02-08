@@ -49,7 +49,7 @@ use crate::metrics::{
 
 // The value is chosen to be much larger than the transaction size limit as enforced by the Starknet
 // protocol.
-const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 5 * 1024 * 1024; // 5MB
+pub(crate) const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 5 * 1024 * 1024; // 5MB
 
 #[cfg(test)]
 #[path = "http_server_test.rs"]
@@ -101,6 +101,18 @@ impl HttpServer {
             dynamic_config_tx,
             max_request_body_size: DEFAULT_MAX_REQUEST_BODY_SIZE,
         }
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn new_with_max_request_body_size(
+        config: HttpServerConfig,
+        config_manager_client: SharedConfigManagerClient,
+        gateway_client: SharedGatewayClient,
+        max_request_body_size: usize,
+    ) -> Self {
+        let mut http_server = HttpServer::new(config, config_manager_client, gateway_client);
+        http_server.max_request_body_size = max_request_body_size;
+        http_server
     }
 
     pub async fn run(&mut self) -> Result<(), HttpServerRunError> {

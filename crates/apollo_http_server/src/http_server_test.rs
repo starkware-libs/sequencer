@@ -30,6 +30,7 @@ use crate::errors::HttpServerError;
 use crate::http_server::CLIENT_REGION_HEADER;
 use crate::test_utils::{
     add_tx_http_client,
+    add_tx_http_client_with_max_request_body_size,
     deprecated_gateway_declare_tx,
     deprecated_gateway_deploy_account_tx,
     deprecated_gateway_invoke_tx,
@@ -360,4 +361,40 @@ async fn sanitizing_error_message() {
         "Escaped message not found. This is the returned error message: {}",
         starknet_error.message
     );
+}
+
+#[rstest]
+#[case::add_deprecated_gateway_tx_happy_flow(
+    unique_u16!(), deprecated_gateway_invoke_tx(), 1024, reqwest::StatusCode::OK
+)]
+#[case::add_rpc_tx_happy_flow(
+    unique_u16!(), rpc_invoke_tx(), 1024, reqwest::StatusCode::OK
+)]
+#[case::add_deprecated_gateway_tx_too_large(
+    unique_u16!(), deprecated_gateway_invoke_tx(), 16, reqwest::StatusCode::PAYLOAD_TOO_LARGE
+)]
+#[case::add_rpc_tx_too_large(
+    unique_u16!(), rpc_invoke_tx(), 16, reqwest::StatusCode::PAYLOAD_TOO_LARGE
+)]
+#[tokio::test]
+async fn request_body_size_limit_enforced(
+    #[case] index: u16,
+    #[case] tx: impl GatewayTransaction,
+    #[case] max_request_body_size: usize,
+    #[case] expected_status: reqwest::StatusCode,
+) {
+    let mut mock_gateway_client = MockGatewayClient::new();
+    if expected_status == reqwest::StatusCode::OK {
+        mock_gateway_client.expect_add_tx().times(1).return_const(Ok(default_gateway_output()));
+    }
+    let mock_config_manager_client = get_mock_config_manager_client(true);
+    let http_client = add_tx_http_client_with_max_request_body_size(
+        mock_config_manager_client,
+        mock_gateway_client,
+        index,
+        max_request_body_size,
+    )
+    .await;
+    let response = http_client.add_tx(tx).await;
+    assert_eq!(response.status(), expected_status, "Unexpected status: {}", response.status());
 }
