@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770302839036,
+  "lastUpdate": 1770551963778,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2073,6 +2073,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1338.68537746,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163830216+asmaastarkware@users.noreply.github.com",
+            "name": "asmaa-starkware",
+            "username": "asmaastarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "40685fcf42cce42c029dff86b7a8bd1af6a950e2",
+          "message": "apollo_staking_config: impl serialization and deserialization for CommitteeConfig (#12315)",
+          "timestamp": "2026-02-08T11:41:03Z",
+          "tree_id": "272d362f3bb943642a434dbb191ddeffb26fd99f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/40685fcf42cce42c029dff86b7a8bd1af6a950e2"
+        },
+        "date": 1770551963500,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 852.7842640599999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1203.26548471,
             "unit": "ms"
           }
         ]
