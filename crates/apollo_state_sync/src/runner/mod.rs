@@ -7,6 +7,10 @@ use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
 use apollo_central_sync::{StateSync as CentralStateSync, StateSyncError as CentralStateSyncError};
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config_manager_types::communication::{
+    ConfigManagerClientWrapper,
+    SharedConfigManagerClient,
+};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_network::metrics::{NetworkMetrics, SqmrNetworkMetrics};
@@ -41,7 +45,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::SYNC_STORAGE_OPEN_READ_TRANSACTIONS;
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderComponent};
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
@@ -112,12 +116,25 @@ pub struct StateSyncResources {
 }
 
 impl StateSyncResources {
-    pub fn new(storage_config: &StorageConfig, storage_reader_server_config: ServerConfig) -> Self {
+    pub fn new(
+        storage_config: &StorageConfig,
+        mut storage_reader_server_config: ServerConfig,
+        config_manager_client: SharedConfigManagerClient,
+    ) -> Self {
+        // Set the component in the config
+        storage_reader_server_config.static_config.component = StorageReaderComponent::StateSync;
+
+        let wrapped_config_client = Arc::new(ConfigManagerClientWrapper::new(
+            config_manager_client,
+            storage_reader_server_config.static_config.component,
+        ));
+
         let (storage_reader, storage_writer, storage_reader_server) =
             open_storage_with_metric_and_server(
                 storage_config.clone(),
                 &SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                wrapped_config_client,
             )
             .expect("StateSyncRunner failed opening storage");
         let storage_reader_server_handle =
@@ -149,6 +166,7 @@ impl StateSyncRunner {
         config: StateSyncConfig,
         new_block_receiver: Receiver<SyncBlock>,
         class_manager_client: SharedClassManagerClient,
+        config_manager_client: SharedConfigManagerClient,
     ) -> (Self, StorageReader) {
         let StateSyncConfig { static_config, dynamic_config } = config;
 
@@ -163,7 +181,11 @@ impl StateSyncRunner {
             pending_data,
             pending_classes,
             storage_reader_server_handle,
-        } = StateSyncResources::new(&static_config.storage_config, storage_reader_server_config);
+        } = StateSyncResources::new(
+            &static_config.storage_config,
+            storage_reader_server_config,
+            config_manager_client,
+        );
 
         let StateSyncStaticConfig {
             storage_config: _,

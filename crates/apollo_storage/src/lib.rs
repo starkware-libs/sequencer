@@ -201,6 +201,7 @@ pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response>(
     storage_config: StorageConfig,
     open_readers_metric: &'static MetricGauge,
     storage_reader_server_config: ServerConfig,
+    config_manager_client: std::sync::Arc<dyn storage_reader_server::StorageReaderConfigClient>,
 ) -> StorageResult<StorageWithServer<RequestHandler, Request, Response>>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
@@ -209,8 +210,11 @@ where
 {
     let (reader, writer) =
         open_storage_internal(storage_config, Some(open_readers_metric)).expect("");
-    let storage_reader_server =
-        create_storage_reader_server(reader.clone(), storage_reader_server_config);
+    let storage_reader_server = create_storage_reader_server(
+        reader.clone(),
+        storage_reader_server_config,
+        config_manager_client,
+    );
     Ok((reader, writer, storage_reader_server))
 }
 
@@ -768,6 +772,8 @@ pub enum StorageError {
     BlockSignatureForNonExistingBlock { block_number: BlockNumber, block_signature: BlockSignature },
     #[error("Object {object_name} at height {height} is missing.")]
     MissingObject { object_name: String, height: BlockNumber },
+    #[error("Storage reader server is disabled.")]
+    ServerDisabled,
 }
 
 /// A type alias that maps to std::result::Result<T, StorageError>.

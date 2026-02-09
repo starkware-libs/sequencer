@@ -12,6 +12,7 @@ use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::StateSyncDynamicConfig;
+use apollo_storage::storage_reader_server::StorageReaderServerDynamicConfig;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -79,6 +80,12 @@ impl ConfigManager {
         Ok(config.batcher_dynamic_config.as_ref().unwrap().clone())
     }
 
+    pub(crate) fn get_staking_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerResult<StakingManagerDynamicConfig> {
+        Ok(self.latest_node_dynamic_config.staking_manager_dynamic_config.as_ref().unwrap().clone())
+    }
+
     pub(crate) async fn get_state_sync_dynamic_config(
         &self,
     ) -> ConfigManagerResult<StateSyncDynamicConfig> {
@@ -91,6 +98,35 @@ impl ConfigManager {
     ) -> ConfigManagerResult<StakingManagerDynamicConfig> {
         let config = self.latest_node_dynamic_config.read().await;
         Ok(config.staking_manager_dynamic_config.as_ref().unwrap().clone())
+    }
+
+    pub(crate) fn get_storage_reader_dynamic_config_for_component(
+        &self,
+        component: apollo_storage::storage_reader_server::StorageReaderComponent,
+    ) -> ConfigManagerResult<StorageReaderServerDynamicConfig> {
+        use apollo_storage::storage_reader_server::StorageReaderComponent;
+
+        match component {
+            StorageReaderComponent::Batcher => Ok(self
+                .latest_node_dynamic_config
+                .batcher_dynamic_config
+                .as_ref()
+                .unwrap()
+                .storage_reader_server_dynamic_config
+                .clone()),
+            StorageReaderComponent::StateSync => Ok(self
+                .latest_node_dynamic_config
+                .state_sync_dynamic_config
+                .as_ref()
+                .unwrap()
+                .storage_reader_server_dynamic_config
+                .clone()),
+            StorageReaderComponent::ClassManager => {
+                // TODO: Add class_manager_dynamic_config to NodeDynamicConfig
+                // For now, return enabled config as placeholder
+                Ok(StorageReaderServerDynamicConfig { enable: true })
+            }
+        }
     }
 }
 
@@ -133,6 +169,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             ConfigManagerRequest::GetContextDynamicConfig => {
                 ConfigManagerResponse::GetContextDynamicConfig(
                     self.get_context_dynamic_config().await,
+                )
+            }
+            ConfigManagerRequest::GetStorageReaderDynamicConfigForComponent(component) => {
+                ConfigManagerResponse::GetStorageReaderDynamicConfigForComponent(
+                    self.get_storage_reader_dynamic_config_for_component(component),
                 )
             }
             ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {

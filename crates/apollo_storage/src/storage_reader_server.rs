@@ -31,11 +31,19 @@ pub struct StorageReaderServerStaticConfig {
     pub ip: IpAddr,
     /// The port for the server.
     pub port: u16,
+    /// The component that owns this storage reader server.
+    /// This field is not serialized/deserialized as it's set programmatically.
+    #[serde(skip)]
+    pub component: StorageReaderComponent,
 }
 
 impl Default for StorageReaderServerStaticConfig {
     fn default() -> Self {
-        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8091 }
+        Self {
+            ip: Ipv4Addr::UNSPECIFIED.into(),
+            port: 8091,
+            component: StorageReaderComponent::Batcher,
+        }
     }
 }
 
@@ -89,9 +97,9 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     /// Creates a new server configuration.
-    pub fn new(ip: IpAddr, port: u16, enable: bool) -> Self {
+    pub fn new(ip: IpAddr, port: u16, enable: bool, component: StorageReaderComponent) -> Self {
         Self {
-            static_config: StorageReaderServerStaticConfig { ip, port },
+            static_config: StorageReaderServerStaticConfig { ip, port, component },
             dynamic_config: StorageReaderServerDynamicConfig { enable },
         }
     }
@@ -110,6 +118,11 @@ impl ServerConfig {
     pub fn is_enabled(&self) -> bool {
         self.dynamic_config.enable
     }
+
+    /// Returns the component that owns this server.
+    pub fn component(&self) -> StorageReaderComponent {
+        self.static_config.component
+    }
 }
 
 impl SerializeConfig for ServerConfig {
@@ -118,6 +131,27 @@ impl SerializeConfig for ServerConfig {
         dump.append(&mut prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
         dump
     }
+}
+
+/// Identifies which component owns a storage reader server instance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum StorageReaderComponent {
+    /// Batcher component's storage reader server.
+    #[default]
+    Batcher,
+    /// State sync component's storage reader server.
+    StateSync,
+    /// Class manager component's storage reader server.
+    ClassManager,
+}
+
+/// Trait for config clients that can provide storage reader dynamic config.
+#[async_trait]
+pub trait StorageReaderConfigClient: Send + Sync {
+    /// Gets the storage reader dynamic configuration.
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, Box<dyn std::error::Error + Send + Sync>>;
 }
 
 #[async_trait]
@@ -148,6 +182,7 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     storage_reader: StorageReader,
+    config_manager_client: std::sync::Arc<dyn StorageReaderConfigClient>,
     _phantom: PhantomData<(RequestHandler, Request, Response)>,
 }
 
@@ -156,7 +191,11 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     fn clone(&self) -> Self {
-        Self { storage_reader: self.storage_reader.clone(), _phantom: PhantomData }
+        Self {
+            storage_reader: self.storage_reader.clone(),
+            config_manager_client: self.config_manager_client.clone(),
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -167,8 +206,12 @@ where
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     /// Creates a new storage reader server with the given handler and configuration.
-    pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
-        let app_state = AppState { storage_reader, _phantom: PhantomData };
+    pub fn new(
+        storage_reader: StorageReader,
+        config: ServerConfig,
+        config_manager_client: std::sync::Arc<dyn StorageReaderConfigClient>,
+    ) -> Self {
+        let app_state = AppState { storage_reader, config_manager_client, _phantom: PhantomData };
         Self { app_state, config }
     }
 
@@ -232,6 +275,22 @@ where
     }
 }
 
+/// Fetches and validates the storage reader dynamic configuration.
+async fn get_and_validate_config(
+    config_client: &std::sync::Arc<dyn StorageReaderConfigClient>,
+) -> Result<StorageReaderServerDynamicConfig, StorageServerError> {
+    let dynamic_config = config_client
+        .get_storage_reader_dynamic_config()
+        .await
+        .expect("Should be able to get storage reader dynamic config");
+
+    if !dynamic_config.enable {
+        return Err(StorageServerError(StorageError::ServerDisabled));
+    }
+
+    Ok(dynamic_config)
+}
+
 /// Axum handler for storage query requests.
 async fn handle_request_endpoint<RequestHandler, Request, Response>(
     State(app_state): State<AppState<RequestHandler, Request, Response>>,
@@ -242,6 +301,9 @@ where
     Request: Send + Sync + 'static,
     Response: Send + Sync + 'static,
 {
+    // Get and validate dynamic config before each request
+    get_and_validate_config(&app_state.config_manager_client).await?;
+
     let response = RequestHandler::handle_request(&app_state.storage_reader, request).await?;
 
     Ok(Json(response))
@@ -269,6 +331,7 @@ impl IntoResponse for StorageServerError {
 pub fn create_storage_reader_server<RequestHandler, Request, Response>(
     storage_reader: StorageReader,
     storage_reader_server_config: ServerConfig,
+    config_manager_client: std::sync::Arc<dyn StorageReaderConfigClient>,
 ) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
@@ -276,7 +339,11 @@ where
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     if storage_reader_server_config.is_enabled() {
-        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
+        Some(StorageReaderServer::new(
+            storage_reader,
+            storage_reader_server_config,
+            config_manager_client,
+        ))
     } else {
         None
     }

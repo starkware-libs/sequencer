@@ -32,7 +32,10 @@ use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_config_manager_types::communication::{
+    ConfigManagerClientWrapper,
+    SharedConfigManagerClient,
+};
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
@@ -52,7 +55,7 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderComponent};
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
@@ -1328,15 +1331,23 @@ pub async fn create_batcher(
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     config_manager_client: SharedConfigManagerClient,
 ) -> Batcher {
-    let storage_reader_server_config = ServerConfig {
+    let mut storage_reader_server_config = ServerConfig {
         static_config: config.static_config.storage_reader_server_static_config.clone(),
         dynamic_config: config.dynamic_config.storage_reader_server_dynamic_config.clone(),
     };
+    storage_reader_server_config.static_config.component = StorageReaderComponent::Batcher;
+
+    let wrapped_config_client = Arc::new(ConfigManagerClientWrapper::new(
+        config_manager_client.clone(),
+        storage_reader_server_config.static_config.component,
+    ));
+
     let (storage_reader, storage_writer, storage_reader_server) =
         open_storage_with_metric_and_server(
             config.static_config.storage.clone(),
             &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
             storage_reader_server_config,
+            wrapped_config_client,
         )
         .expect("Failed to open batcher's storage");
 

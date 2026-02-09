@@ -22,10 +22,21 @@ use crate::test_utils::FsClassStorageBuilderForTesting;
 #[cfg(test)]
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
+        use apollo_config_manager_types::communication::MockConfigManagerClient;
+        use apollo_storage::storage_reader_server::StorageReaderServerDynamicConfig;
+
         let builder = FsClassStorageBuilderForTesting::default();
         let (_, config, _) =
             builder.with_existing_paths(path_prefix.path().to_path_buf(), PathBuf::new()).build();
-        Self::new(config.class_hash_storage_config, ServerConfig::default()).unwrap()
+
+        let mut mock_config_manager = MockConfigManagerClient::new();
+        mock_config_manager
+            .expect_get_storage_reader_dynamic_config_for_component()
+            .returning(|_component| Ok(StorageReaderServerDynamicConfig { enable: true }));
+        let config_manager_client = std::sync::Arc::new(mock_config_manager);
+
+        Self::new(config.class_hash_storage_config, ServerConfig::default(), config_manager_client)
+            .unwrap()
     }
 }
 

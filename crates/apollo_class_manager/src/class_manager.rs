@@ -168,10 +168,11 @@ where
 pub fn create_class_manager(
     config: FsClassManagerConfig,
     compiler_client: SharedSierraCompilerClient,
+    config_manager_client: apollo_config_manager_types::communication::SharedConfigManagerClient,
 ) -> FsClassManager {
     let FsClassManagerConfig { class_manager_config, class_storage_config } = config;
-    let fs_class_storage =
-        FsClassStorage::new(class_storage_config).expect("Failed to create class storage.");
+    let fs_class_storage = FsClassStorage::new(class_storage_config, config_manager_client)
+        .expect("Failed to create class storage.");
     let class_manager = ClassManager::new(class_manager_config, compiler_client, fs_class_storage);
 
     FsClassManager(class_manager)

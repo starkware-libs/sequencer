@@ -3,13 +3,14 @@ pub mod runner;
 mod test;
 
 use std::cmp::min;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
-use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_state_sync_config::config::{StateSyncConfig, StateSyncDynamicConfig};
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
@@ -27,6 +28,7 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADD
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
+use tracing::error;
 
 use crate::runner::StateSyncRunner;
 
@@ -35,11 +37,19 @@ const BUFFER_SIZE: usize = 100000;
 pub fn create_state_sync_and_runner(
     config: StateSyncConfig,
     class_manager_client: SharedClassManagerClient,
+    config_manager_client: SharedConfigManagerClient,
 ) -> (StateSync, StateSyncRunner) {
     let (new_block_sender, new_block_receiver) = channel(BUFFER_SIZE);
-    let (state_sync_runner, storage_reader) =
-        StateSyncRunner::new(config.clone(), new_block_receiver, class_manager_client);
-    (StateSync::new(storage_reader, new_block_sender, config), state_sync_runner)
+    let (state_sync_runner, storage_reader) = StateSyncRunner::new(
+        config.clone(),
+        new_block_receiver,
+        class_manager_client,
+        config_manager_client.clone(),
+    );
+    (
+        StateSync::new(storage_reader, new_block_sender, config, config_manager_client),
+        state_sync_runner,
+    )
 }
 
 #[derive(Clone)]
@@ -47,6 +57,8 @@ pub struct StateSync {
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
     starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>>,
+    config_manager_client: SharedConfigManagerClient,
+    dynamic_config: Arc<RwLock<StateSyncDynamicConfig>>,
 }
 
 impl StateSync {
@@ -54,6 +66,7 @@ impl StateSync {
         storage_reader: StorageReader,
         new_block_sender: Sender<SyncBlock>,
         config: StateSyncConfig,
+        config_manager_client: SharedConfigManagerClient,
     ) -> Self {
         let starknet_client = config.static_config.central_sync_client_config.map(|config| {
             let config = config.central_source_config;
@@ -70,7 +83,25 @@ impl StateSync {
             );
             starknet_client
         });
-        Self { storage_reader, new_block_sender, starknet_client }
+        Self {
+            storage_reader,
+            new_block_sender,
+            starknet_client,
+            config_manager_client,
+            dynamic_config: Arc::new(RwLock::new(config.dynamic_config)),
+        }
+    }
+
+    async fn update_dynamic_config(&self) {
+        match self.config_manager_client.get_state_sync_dynamic_config().await {
+            Ok(new_config) => {
+                let mut dynamic_config = self.dynamic_config.write().expect("RwLock poisoned");
+                *dynamic_config = new_config;
+            }
+            Err(error) => {
+                error!("Failed to fetch state sync dynamic config: {error}");
+            }
+        }
     }
 }
 
@@ -79,6 +110,7 @@ impl StateSync {
 #[async_trait]
 impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync {
     async fn handle_request(&mut self, request: StateSyncRequest) -> StateSyncResponse {
+        self.update_dynamic_config().await;
         match request {
             StateSyncRequest::GetBlock(block_number) => {
                 StateSyncResponse::GetBlock(self.get_block(block_number).await.map(Box::new))

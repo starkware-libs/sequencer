@@ -16,6 +16,7 @@ use apollo_metrics::generate_permutation_labels;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::StateSyncDynamicConfig;
+use apollo_storage::storage_reader_server::StorageReaderServerDynamicConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use strum::{EnumVariantNames, VariantNames};
@@ -54,6 +55,11 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
 
+    async fn get_storage_reader_dynamic_config_for_component(
+        &self,
+        component: apollo_storage::storage_reader_server::StorageReaderComponent,
+    ) -> ConfigManagerClientResult<StorageReaderServerDynamicConfig>;
+
     async fn set_node_dynamic_config(
         &self,
         config: NodeDynamicConfig,
@@ -74,6 +80,9 @@ pub enum ConfigManagerRequest {
     GetBatcherDynamicConfig,
     GetStateSyncDynamicConfig,
     GetStakingManagerDynamicConfig,
+    GetStorageReaderDynamicConfigForComponent(
+        apollo_storage::storage_reader_server::StorageReaderComponent,
+    ),
     SetNodeDynamicConfig(Box<NodeDynamicConfig>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
@@ -96,6 +105,9 @@ pub enum ConfigManagerResponse {
     GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
     GetStateSyncDynamicConfig(ConfigManagerResult<StateSyncDynamicConfig>),
     GetStakingManagerDynamicConfig(ConfigManagerResult<StakingManagerDynamicConfig>),
+    GetStorageReaderDynamicConfigForComponent(
+        ConfigManagerResult<StorageReaderServerDynamicConfig>,
+    ),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -212,6 +224,22 @@ where
         )
     }
 
+    async fn get_storage_reader_dynamic_config_for_component(
+        &self,
+        component: apollo_storage::storage_reader_server::StorageReaderComponent,
+    ) -> ConfigManagerClientResult<StorageReaderServerDynamicConfig> {
+        let request = ConfigManagerRequest::GetStorageReaderDynamicConfigForComponent(component);
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetStorageReaderDynamicConfigForComponent,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
     async fn set_node_dynamic_config(
         &self,
         config: NodeDynamicConfig,
@@ -226,5 +254,66 @@ where
             ConfigManagerError,
             Direct
         )
+    }
+}
+
+/// Wrapper type that implements StorageReaderConfigClient for a specific component.
+pub struct ConfigManagerClientWrapper {
+    client: SharedConfigManagerClient,
+    component: apollo_storage::storage_reader_server::StorageReaderComponent,
+}
+
+impl ConfigManagerClientWrapper {
+    pub fn new(
+        client: SharedConfigManagerClient,
+        component: apollo_storage::storage_reader_server::StorageReaderComponent,
+    ) -> Self {
+        Self { client, component }
+    }
+}
+
+#[async_trait]
+impl apollo_storage::storage_reader_server::StorageReaderConfigClient
+    for ConfigManagerClientWrapper
+{
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
+        self.client
+            .get_storage_reader_dynamic_config_for_component(self.component)
+            .await
+            .map_err(|e| Into::<Box<dyn std::error::Error + Send + Sync>>::into(Box::new(e)))
+    }
+}
+
+/// Test-only wrapper for MockConfigManagerClient.
+#[cfg(any(feature = "testing", test))]
+pub struct MockConfigManagerClientWrapper {
+    client: MockConfigManagerClient,
+    component: apollo_storage::storage_reader_server::StorageReaderComponent,
+}
+
+#[cfg(any(feature = "testing", test))]
+impl MockConfigManagerClientWrapper {
+    pub fn new(
+        client: MockConfigManagerClient,
+        component: apollo_storage::storage_reader_server::StorageReaderComponent,
+    ) -> Self {
+        Self { client, component }
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+#[async_trait]
+impl apollo_storage::storage_reader_server::StorageReaderConfigClient
+    for MockConfigManagerClientWrapper
+{
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
+        self.client
+            .get_storage_reader_dynamic_config_for_component(self.component)
+            .await
+            .map_err(|e| Into::<Box<dyn std::error::Error + Send + Sync>>::into(Box::new(e)))
     }
 }

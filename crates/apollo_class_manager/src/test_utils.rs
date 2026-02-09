@@ -51,9 +51,19 @@ impl FsClassStorageBuilderForTesting {
 
     pub fn build(self) -> (FsClassStorage, FsClassStorageConfig, Option<FileHandles>) {
         let Self { config, handles } = self;
+        use apollo_config_manager_types::communication::MockConfigManagerClient;
+        use apollo_storage::storage_reader_server::StorageReaderServerDynamicConfig;
+
+        let mut mock_config_manager = MockConfigManagerClient::new();
+        mock_config_manager
+            .expect_get_storage_reader_dynamic_config_for_component()
+            .returning(|_component| Ok(StorageReaderServerDynamicConfig { enable: true }));
+        let config_manager_client = std::sync::Arc::new(mock_config_manager);
+
         let class_hash_storage = ClassHashStorage::new(
             config.class_hash_storage_config.clone(),
             apollo_storage::storage_reader_server::ServerConfig::default(),
+            config_manager_client,
         )
         .unwrap();
         let fs_class_storage =

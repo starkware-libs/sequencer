@@ -1,5 +1,10 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
 
+use apollo_config_manager_types::communication::{
+    MockConfigManagerClient,
+    MockConfigManagerClientWrapper,
+};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_proc_macros::unique_u16;
 use apollo_test_utils::get_test_block;
@@ -27,7 +32,11 @@ use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::consensus::{ConsensusStorageWriter, LastVotedMarker};
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
-use crate::storage_reader_server::ServerConfig;
+use crate::storage_reader_server::{
+    ServerConfig,
+    StorageReaderComponent,
+    StorageReaderServerDynamicConfig,
+};
 use crate::storage_reader_server_test_utils::get_response;
 use crate::storage_reader_types::{
     GenericStorageReaderServer,
@@ -147,8 +156,19 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         IpAddr::from(Ipv4Addr::LOCALHOST),
         available_ports_factory(instance_index).get_next_port(),
         true,
+        StorageReaderComponent::Batcher,
     );
-    let server = GenericStorageReaderServer::new(reader.clone(), config);
+
+    let mut mock_config_manager = MockConfigManagerClient::new();
+    mock_config_manager
+        .expect_get_storage_reader_dynamic_config_for_component()
+        .returning(|_component| Ok(StorageReaderServerDynamicConfig { enable: true }));
+    let config_manager_client = Arc::new(MockConfigManagerClientWrapper::new(
+        mock_config_manager,
+        StorageReaderComponent::Batcher,
+    ));
+
+    let server = GenericStorageReaderServer::new(reader.clone(), config, config_manager_client);
     let app = server.app();
 
     TestServerSetup {

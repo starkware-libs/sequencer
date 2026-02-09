@@ -1010,6 +1010,7 @@ dependencies = [
  "apollo_class_manager_config",
  "apollo_class_manager_types",
  "apollo_compile_to_casm_types",
+ "apollo_config_manager_types",
  "apollo_infra",
  "apollo_metrics",
  "apollo_storage",
@@ -1229,6 +1230,7 @@ dependencies = [
  "apollo_node_config",
  "apollo_staking_config",
  "apollo_state_sync_config",
+ "apollo_storage",
  "async-trait",
  "notify",
  "serde_json",
@@ -1263,6 +1265,7 @@ dependencies = [
  "apollo_node_config",
  "apollo_staking_config",
  "apollo_state_sync_config",
+ "apollo_storage",
  "async-trait",
  "mockall",
  "serde",
@@ -2578,6 +2581,7 @@ version = "0.17.0-rc.0"
 dependencies = [
  "apollo_central_sync",
  "apollo_class_manager_types",
+ "apollo_config_manager_types",
  "apollo_infra",
  "apollo_network",
  "apollo_p2p_sync",
@@ -2652,6 +2656,7 @@ name = "apollo_storage"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config",
+ "apollo_config_manager_types",
  "apollo_infra_utils",
  "apollo_metrics",
  "apollo_proc_macros",

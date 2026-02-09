@@ -6,9 +6,10 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use apollo_class_manager_config::config::{CachedClassStorageConfig, FsClassStorageConfig};
 use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
+use apollo_config_manager_types::communication::ConfigManagerClientWrapper;
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderComponent};
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
@@ -256,13 +257,23 @@ pub struct ClassHashStorage {
 impl ClassHashStorage {
     pub fn new(
         storage_config: StorageConfig,
-        storage_reader_server_config: ServerConfig,
+        mut storage_reader_server_config: ServerConfig,
+        config_manager_client: apollo_config_manager_types::communication::SharedConfigManagerClient,
     ) -> ClassHashStorageResult<Self> {
+        // Set the component in the config
+        storage_reader_server_config.static_config.component = StorageReaderComponent::ClassManager;
+
+        let wrapped_config_client = Arc::new(ConfigManagerClientWrapper::new(
+            config_manager_client,
+            storage_reader_server_config.static_config.component,
+        ));
+
         let (reader, writer, storage_reader_server) =
             apollo_storage::open_storage_with_metric_and_server(
                 storage_config,
                 &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                wrapped_config_client,
             )?;
 
         let storage_reader_server_handle =
@@ -326,9 +337,15 @@ impl From<FsClassStorageError> for CachedClassStorageError<FsClassStorageError> 
 }
 
 impl FsClassStorage {
-    pub fn new(config: FsClassStorageConfig) -> FsClassStorageResult<Self> {
-        let class_hash_storage =
-            ClassHashStorage::new(config.class_hash_storage_config, ServerConfig::default())?;
+    pub fn new(
+        config: FsClassStorageConfig,
+        config_manager_client: apollo_config_manager_types::communication::SharedConfigManagerClient,
+    ) -> FsClassStorageResult<Self> {
+        let class_hash_storage = ClassHashStorage::new(
+            config.class_hash_storage_config,
+            ServerConfig::default(),
+            config_manager_client,
+        )?;
         std::fs::create_dir_all(&config.persistent_root)?;
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
