@@ -18,8 +18,8 @@ use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
     BuildParam,
-    ConsensusBlockInfo,
     ProposalFin,
+    ProposalInit,
     ProposalPart,
     TransactionBatch,
 };
@@ -106,13 +106,13 @@ pub(crate) enum BuildProposalError {
 pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
-    let block_info = initiate_build(&mut args).await?;
-    let height = block_info.height;
+    let init = initiate_build(&mut args).await?;
+    let height = init.height;
 
     args.stream_sender
-        .send(ProposalPart::BlockInfo(block_info.clone()))
+        .send(ProposalPart::Init(init.clone()))
         .await
-        .map_err(|e| BuildProposalError::SendError(format!("Failed to send block info: {e:?}")))?;
+        .map_err(|e| BuildProposalError::SendError(format!("Failed to send init: {e:?}")))?;
 
     let (proposal_commitment, content) = get_proposal_content(&mut args).await?;
 
@@ -122,7 +122,7 @@ pub(crate) async fn build_proposal(
     valid_proposals.insert_proposal_for_height(
         &height,
         &proposal_commitment,
-        block_info,
+        init,
         content,
         &args.proposal_id,
     );
@@ -143,9 +143,7 @@ async fn get_proposal_timestamp(
     clock.unix_now()
 }
 
-async fn initiate_build(
-    args: &mut ProposalBuildArguments,
-) -> BuildProposalResult<ConsensusBlockInfo> {
+async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
     let timestamp = get_proposal_timestamp(
         args.use_state_sync_block_timestamp,
         &args.deps.state_sync_client,
@@ -159,7 +157,7 @@ async fn initiate_build(
         &args.gas_price_params,
     )
     .await;
-    let block_info = ConsensusBlockInfo {
+    let init = ProposalInit {
         height: args.build_param.height,
         round: args.build_param.round,
         valid_round: args.build_param.valid_round,
@@ -180,7 +178,7 @@ async fn initiate_build(
     let retrospective_block_hash = wait_for_retrospective_block_hash(
         args.deps.batcher.clone(),
         args.deps.state_sync_client.clone(),
-        &block_info,
+        &init,
         args.deps.clock.as_ref(),
         args.retrospective_block_hash_deadline,
         args.retrospective_block_hash_retry_interval_millis,
@@ -191,7 +189,7 @@ async fn initiate_build(
         proposal_id: args.proposal_id,
         deadline: args.batcher_deadline,
         retrospective_block_hash,
-        block_info: convert_to_sn_api_block_info(&block_info)?,
+        block_info: convert_to_sn_api_block_info(&init)?,
         proposal_round: args.proposal_round,
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
@@ -201,7 +199,7 @@ async fn initiate_build(
             err,
         )
     })?;
-    Ok(block_info)
+    Ok(init)
 }
 /// 1. Receive chunks of content from the batcher.
 /// 2. Forward these to the stream handler to be streamed out to the network.

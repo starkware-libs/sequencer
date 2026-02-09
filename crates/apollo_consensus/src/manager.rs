@@ -21,7 +21,7 @@ use apollo_consensus_config::config::{
 use apollo_infra_utils::debug_every_n_ms;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{BuildParam, ConsensusBlockInfo, Vote, VoteType};
+use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_staking::committee_provider::{CommitteeProvider, CommitteeTrait};
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
@@ -99,7 +99,7 @@ impl std::fmt::Debug for RunConsensusArguments {
 /// - `vote_receiver`: The channels to receive votes from the network. These are self contained
 ///   messages.
 /// - `proposals_receiver`: The channel to receive proposals from the network. Proposals are
-///   represented as streams (ConsensusBlockInfo, Content.*, ProposalFin).
+///   represented as streams (ProposalInit, Content.*, ProposalFin).
 // Always print the validator ID since some tests collate multiple consensus logs in a single file.
 #[instrument(
     skip_all,
@@ -186,7 +186,7 @@ pub enum RunHeightRes {
     Sync,
 }
 
-type ProposalReceiverTuple<T> = (ConsensusBlockInfo, mpsc::Receiver<T>);
+type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 
 /// Manages votes and proposals for future heights.
 #[derive(Debug)]
@@ -239,7 +239,7 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
     fn get_current_height_proposals(
         &mut self,
         height: BlockNumber,
-    ) -> Vec<(ConsensusBlockInfo, mpsc::Receiver<ContextT::ProposalPart>)> {
+    ) -> Vec<(ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)> {
         loop {
             let Some(entry) = self.future_proposals_cache.first_entry() else {
                 return Vec::new();
@@ -271,14 +271,14 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
     /// Caches a proposal for a future height.
     fn cache_future_proposal(
         &mut self,
-        block_info: ConsensusBlockInfo,
+        init: ProposalInit,
         content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) {
         self.future_proposals_cache
-            .entry(block_info.height)
+            .entry(init.height)
             .or_default()
-            .entry(block_info.round)
-            .or_insert((block_info, content_receiver));
+            .entry(init.round)
+            .or_insert((init, content_receiver));
     }
 
     fn report_max_cached_block_number_metric(&self, height: BlockNumber) {
@@ -332,7 +332,7 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
         &self,
         current_height: &BlockNumber,
         current_round: Round,
-        proposal: &ConsensusBlockInfo,
+        proposal: &ProposalInit,
     ) -> bool {
         self.should_cache_msg(
             current_height,
@@ -595,10 +595,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         let cached_proposals = self.cache.get_current_height_proposals(height);
         trace!("Cached proposals for height {}: {:?}", height, cached_proposals);
-        for (block_info, content_receiver) in cached_proposals {
-            let new_requests = self
-                .handle_proposal_known_block_info(height, shc, block_info, content_receiver)
-                .await;
+        for (init, content_receiver) in cached_proposals {
+            let new_requests =
+                self.handle_proposal_known_block_info(height, shc, init, content_receiver).await;
             pending_requests.extend(new_requests);
         }
 
@@ -728,45 +727,42 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             return Ok(VecDeque::new());
         };
 
-        let block_info: ConsensusBlockInfo = match first_part.try_into() {
-            Ok(block_info) => block_info,
+        let init: ProposalInit = match first_part.try_into() {
+            Ok(init) => init,
             Err(e) => {
-                warn!("Failed to parse incoming block info. Dropping proposal: {e}");
+                warn!("Failed to parse incoming init. Dropping proposal: {e}");
                 return Ok(VecDeque::new());
             }
         };
 
-        let ord = block_info.height.cmp(&height);
+        let ord = init.height.cmp(&height);
         match ord {
             std::cmp::Ordering::Less => {
-                trace!("Drop proposal from past height. {:?}", block_info);
+                trace!("Drop proposal from past height. {:?}", init);
                 Ok(VecDeque::new())
             }
             std::cmp::Ordering::Greater | std::cmp::Ordering::Equal => {
-                let Ok(proposer) = get_proposer_for_height(
-                    &self.committee_provider,
-                    block_info.height,
-                    block_info.round,
-                )
-                .await
+                let Ok(proposer) =
+                    get_proposer_for_height(&self.committee_provider, init.height, init.round)
+                        .await
                 else {
                     warn!(
                         "VIRTUAL_PROPOSER_LOOKUP_FAILED: Failed to determine virtual proposer for \
                          height {} round {}. Dropping proposal.",
-                        block_info.height.0, block_info.round
+                        init.height.0, init.round
                     );
                     return Ok(VecDeque::new());
                 };
-                if proposer != block_info.proposer {
+                if proposer != init.proposer {
                     warn!(
                         "Invalid proposer for height {} and round {}: expected {:?}, got {:?}",
-                        block_info.height.0, block_info.round, proposer, block_info.proposer
+                        init.height.0, init.round, proposer, init.proposer
                     );
                     return Ok(VecDeque::new());
                 }
                 if ord == std::cmp::Ordering::Greater {
-                    if self.cache.should_cache_proposal(&height, 0, &block_info) {
-                        debug!("Received a proposal for a future height. {:?}", block_info);
+                    if self.cache.should_cache_proposal(&height, 0, &init) {
+                        debug!("Received a proposal for a future height. {:?}", init);
                         // Note: new proposals with the same height/round will be ignored.
                         //
                         // TODO(matan): This only work for trusted peers. In the case of
@@ -776,22 +772,19 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                         // "good" nodes can propose).
                         //
                         // When moving to version 1.0 make sure this is addressed.
-                        self.cache.cache_future_proposal(block_info, content_receiver);
+                        self.cache.cache_future_proposal(init, content_receiver);
                     }
                     Ok(VecDeque::new())
                 } else {
                     match shc {
                         Some(shc) => {
-                            if self.cache.should_cache_proposal(
-                                &height,
-                                shc.current_round(),
-                                &block_info,
-                            ) {
+                            if self.cache.should_cache_proposal(&height, shc.current_round(), &init)
+                            {
                                 Ok(self
                                     .handle_proposal_known_block_info(
                                         height,
                                         shc,
-                                        block_info,
+                                        init,
                                         content_receiver,
                                     )
                                     .await)
@@ -800,7 +793,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                             }
                         }
                         None => {
-                            trace!("Drop proposal from just completed height. {:?}", block_info);
+                            trace!("Drop proposal from just completed height. {:?}", init);
                             Ok(VecDeque::new())
                         }
                     }
@@ -813,12 +806,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &mut self,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
-        block_info: ConsensusBlockInfo,
+        init: ProposalInit,
         content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Requests {
         // Store the stream; requests will reference it by (height, round)
-        self.current_height_proposals_streams.insert((height, block_info.round), content_receiver);
-        shc.handle_proposal(block_info)
+        self.current_height_proposals_streams.insert((height, init.round), content_receiver);
+        shc.handle_proposal(init)
     }
 
     // Handle a single consensus message.
@@ -955,14 +948,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 .boxed();
                 Ok(Some(fut))
             }
-            SMRequest::StartValidateProposal(block_info) => {
+            SMRequest::StartValidateProposal(init) => {
                 // Look up the stored stream.
-                let round = block_info.round;
-                let valid_round = block_info.valid_round;
+                let round = init.round;
+                let valid_round = init.valid_round;
                 let key = (height, round);
                 if let Some(stream) = self.current_height_proposals_streams.remove(&key) {
                     let timeout = timeouts.get_proposal_timeout(round);
-                    let receiver = context.validate_proposal(block_info, timeout, stream).await;
+                    let receiver = context.validate_proposal(init, timeout, stream).await;
                     let fut = async move {
                         let proposal_id = receiver.await.ok();
                         StateMachineEvent::FinishedValidation(proposal_id, round, valid_round)

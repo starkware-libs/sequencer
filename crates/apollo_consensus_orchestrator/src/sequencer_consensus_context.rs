@@ -34,9 +34,9 @@ use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     BuildParam,
-    ConsensusBlockInfo,
     HeightAndRound,
     ProposalFin,
+    ProposalInit,
     ProposalPart,
     TransactionBatch,
     Vote,
@@ -97,18 +97,18 @@ use crate::validate_proposal::{
     ValidateProposalError,
 };
 
-type ValidationParams = (ConsensusBlockInfo, Duration, mpsc::Receiver<ProposalPart>);
+type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
 
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
     BTreeMap<
         ProposalCommitment,
-        (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
+        (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
     >,
 >;
 
 pub(crate) struct BuiltProposals {
-    // {height: {proposal_commitment: (block_info, content, [proposal_ids])}}
+    // {height: {proposal_commitment: (init, content, [proposal_ids])}}
     // Note that multiple proposals IDs can be associated with the same content, but we only need
     // to store one of them.
     //
@@ -127,7 +127,7 @@ impl BuiltProposals {
         &self,
         height: &BlockNumber,
         commitment: &ProposalCommitment,
-    ) -> &(ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId) {
+    ) -> &(ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId) {
         self.data
             .get(height)
             .unwrap_or_else(|| panic!("No proposals found for height {height}"))
@@ -143,14 +143,14 @@ impl BuiltProposals {
         &mut self,
         height: &BlockNumber,
         proposal_commitment: &ProposalCommitment,
-        block_info: ConsensusBlockInfo,
+        init: ProposalInit,
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         proposal_id: &ProposalId,
     ) {
         self.data
             .entry(*height)
             .or_default()
-            .insert(*proposal_commitment, (block_info, transactions, *proposal_id));
+            .insert(*proposal_commitment, (init, transactions, *proposal_id));
     }
 }
 
@@ -276,7 +276,7 @@ impl SequencerConsensusContext {
         height: BlockNumber,
         state_diff: &ThinStateDiff,
         transactions: &[InternalTransactionWithReceipt],
-        block_info: &ConsensusBlockInfo,
+        init: &ProposalInit,
         cende_block_info: &BlockInfo,
         l2_gas_used: GasAmount,
         block_header_commitments: BlockHeaderCommitments,
@@ -300,7 +300,7 @@ impl SequencerConsensusContext {
         let l1_gas_price = cende_block_info.gas_prices.l1_gas_price_per_token();
         let l1_data_gas_price = cende_block_info.gas_prices.l1_data_gas_price_per_token();
         let l2_gas_price = cende_block_info.gas_prices.l2_gas_price_per_token();
-        let sequencer = SequencerContractAddress(block_info.builder);
+        let sequencer = SequencerContractAddress(init.builder);
 
         let block_header_without_hash = BlockHeaderWithoutHash {
             block_number: height,
@@ -310,8 +310,8 @@ impl SequencerConsensusContext {
             l2_gas_consumed: l2_gas_used,
             next_l2_gas_price: self.l2_gas_price,
             sequencer,
-            timestamp: BlockTimestamp(block_info.timestamp),
-            l1_da_mode: block_info.l1_da_mode,
+            timestamp: BlockTimestamp(init.timestamp),
+            l1_da_mode: init.l1_da_mode,
             // TODO(guy.f): Figure out where/if to get the values below from and fill them.
             ..Default::default()
         };
@@ -348,7 +348,7 @@ impl SequencerConsensusContext {
     async fn finalize_decision(
         &mut self,
         height: BlockNumber,
-        block_info: &ConsensusBlockInfo,
+        init: &ProposalInit,
         commitment: ProposalCommitment,
         // Accepts transactions as a vector of batches, as stored in the `BuiltProposals` map.
         transactions: Vec<Vec<InternalConsensusTransaction>>,
@@ -395,11 +395,8 @@ impl SequencerConsensusContext {
             .collect::<Vec<_>>();
 
         // The conversion should never fail, if we already managed to get a decision.
-        let Ok(cende_block_info) = convert_to_sn_api_block_info(block_info) else {
-            warn!(
-                "Failed to convert block info to SN API block info at height {height}: \
-                 {block_info:?}"
-            );
+        let Ok(cende_block_info) = convert_to_sn_api_block_info(init) else {
+            warn!("Failed to convert block info to SN API block info at height {height}: {init:?}");
             return;
         };
 
@@ -408,7 +405,7 @@ impl SequencerConsensusContext {
                 height,
                 &state_diff,
                 &transactions_with_execution_infos,
-                block_info,
+                init,
                 &cende_block_info,
                 l2_gas_used,
                 block_header_commitments,
@@ -574,28 +571,26 @@ impl ConsensusContext for SequencerConsensusContext {
     #[instrument(skip_all)]
     async fn validate_proposal(
         &mut self,
-        block_info: ConsensusBlockInfo,
+        init: ProposalInit,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<ProposalCommitment> {
-        assert_eq!(Some(block_info.height), self.current_height);
+        assert_eq!(Some(init.height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
-        match block_info.round.cmp(&self.current_round) {
+        match init.round.cmp(&self.current_round) {
             std::cmp::Ordering::Less => {
                 trace!("Dropping proposal from past round");
                 fin_receiver
             }
             std::cmp::Ordering::Greater => {
                 trace!("Queueing proposal for future round.");
-                self.queued_proposals.insert(
-                    block_info.round,
-                    ((block_info, timeout, content_receiver), fin_sender),
-                );
+                self.queued_proposals
+                    .insert(init.round, ((init, timeout, content_receiver), fin_sender));
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
                 let block_info_validation = BlockInfoValidation {
-                    height: block_info.height,
+                    height: init.height,
                     block_timestamp_window_seconds: self
                         .config
                         .static_config
@@ -610,7 +605,7 @@ impl ConsensusContext for SequencerConsensusContext {
                         .unwrap_or(self.l2_gas_price),
                 };
                 self.validate_current_round_proposal(
-                    block_info,
+                    init,
                     block_info_validation,
                     timeout,
                     self.config.static_config.validate_proposal_margin_millis,
@@ -626,7 +621,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam) {
         info!(?id, ?build_param, "Reproposing.");
         let height = build_param.height;
-        let (block_info, txs, _) = self
+        let (init, txs, _) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
@@ -639,8 +634,7 @@ impl ConsensusContext for SequencerConsensusContext {
         tokio::spawn(
             async move {
                 let res =
-                    send_reproposal(id, block_info, txs, &mut stream_sender, transaction_converter)
-                        .await;
+                    send_reproposal(id, init, txs, &mut stream_sender, transaction_converter).await;
                 match res {
                     Ok(()) => {
                         info!(?id, ?build_param, "Reproposal succeeded.");
@@ -697,10 +691,10 @@ impl ConsensusContext for SequencerConsensusContext {
         self.interrupt_active_proposal().await;
         let proposal_id;
         let transactions;
-        let block_info;
+        let init;
         {
             let mut proposals = self.valid_proposals.lock().unwrap();
-            (block_info, transactions, proposal_id) =
+            (init, transactions, proposal_id) =
                 proposals.get_proposal(&height, &commitment).clone();
 
             proposals.remove_proposals_below_or_at_height(&height);
@@ -713,16 +707,10 @@ impl ConsensusContext for SequencerConsensusContext {
         // unless the state is fully reverted, otherwise the node will be left in an
         // inconsistent state.
 
-        self.finalize_decision(
-            height,
-            &block_info,
-            commitment,
-            transactions,
-            decision_reached_response,
-        )
-        .await;
+        self.finalize_decision(height, &init, commitment, transactions, decision_reached_response)
+            .await;
 
-        self.previous_block_info = Some(PreviousBlockInfo::from(&block_info));
+        self.previous_block_info = Some(PreviousBlockInfo::from(&init));
 
         Ok(())
     }
@@ -830,11 +818,11 @@ impl ConsensusContext for SequencerConsensusContext {
             }
         }
         // Validate the proposal for the current round if exists.
-        let Some(((block_info, timeout, content), fin_sender)) = to_process else {
+        let Some(((init, timeout, content), fin_sender)) = to_process else {
             return Ok(());
         };
         let block_info_validation = BlockInfoValidation {
-            height: block_info.height,
+            height: init.height,
             block_timestamp_window_seconds: self
                 .config
                 .static_config
@@ -849,7 +837,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .unwrap_or(self.l2_gas_price),
         };
         self.validate_current_round_proposal(
-            block_info,
+            init,
             block_info_validation,
             timeout,
             self.config.static_config.validate_proposal_margin_millis,
@@ -864,7 +852,7 @@ impl ConsensusContext for SequencerConsensusContext {
 impl SequencerConsensusContext {
     async fn validate_current_round_proposal(
         &mut self,
-        block_info: ConsensusBlockInfo,
+        init: ProposalInit,
         block_info_validation: BlockInfoValidation,
         timeout: Duration,
         batcher_timeout_margin: Duration,
@@ -873,14 +861,14 @@ impl SequencerConsensusContext {
     ) {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        info!(?timeout, %proposal_id, proposer=%block_info.proposer, round=self.current_round, "Start validating proposal");
+        info!(?timeout, %proposal_id, proposer=%init.proposer, round=self.current_round, "Start validating proposal");
 
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let gas_price_params = make_gas_price_params(&self.config.dynamic_config);
         let args = ProposalValidateArguments {
             deps: self.deps.clone(),
-            block_info,
+            init,
             block_info_validation,
             proposal_id,
             timeout,
@@ -950,12 +938,12 @@ async fn validate_and_send(
 
 async fn send_reproposal(
     id: ProposalCommitment,
-    block_info: ConsensusBlockInfo,
+    init: ProposalInit,
     txs: Vec<Vec<InternalConsensusTransaction>>,
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
-    stream_sender.send(ProposalPart::BlockInfo(block_info)).await?;
+    stream_sender.send(ProposalPart::Init(init)).await?;
     let mut n_executed_txs: usize = 0;
     for batch in txs.iter() {
         let transactions = futures::future::join_all(batch.iter().map(|tx| {
