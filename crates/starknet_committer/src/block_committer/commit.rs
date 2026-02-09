@@ -19,6 +19,7 @@ use crate::block_committer::measurements_util::{
     MeasurementsTrait,
 };
 use crate::db::forest_trait::ForestReader;
+use crate::forest::deleted_nodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestError;
 use crate::forest::original_skeleton_forest::ForestSortedIndices;
@@ -94,6 +95,15 @@ pub trait CommitBlockTrait: Send {
             &input.state_diff.address_to_nonce,
         )?;
         info!("Updated skeleton forest created successfully.");
+
+        // Find deleted nodes.
+        let _deleted_nodes = deleted_nodes::find_deleted_nodes(
+            &original_forest,
+            &updated_forest,
+            &actual_storage_updates,
+            &actual_classes_updates,
+            &original_contracts_trie_leaves,
+        )?;
 
         // Compute the new hashes.
         let filled_forest = FilledForest::create::<TreeHashFunctionImpl>(
