@@ -227,9 +227,9 @@ impl Engine {
     ) {
         match result {
             Ok(units) => {
-                // TODO(AndrewL): Implement sending units to peers
-                let _ = units;
-                todo!()
+                if let Err(error) = self.broadcast_prepared_units(units).await {
+                    self.emit_event(Event::ShardPublishFailed { error }).await;
+                }
             }
             Err(error) => {
                 self.emit_event(Event::ShardPublishFailed { error }).await;
@@ -254,6 +254,47 @@ impl Engine {
         } else {
             Err(PeerSetError::InvalidPublicKey)
         }
+    }
+
+    async fn broadcast_prepared_units(
+        &mut self,
+        units: Vec<PropellerUnit>,
+    ) -> Result<(), ShardPublishError> {
+        if units.is_empty() {
+            return Ok(());
+        }
+
+        let channel = units[0].channel();
+        let publisher = self.local_peer_id;
+
+        tracing::trace!("[BROADCAST] Publisher {:?} broadcasting {} units", publisher, units.len());
+
+        let tree_manager = self
+            .channels
+            .get(&channel)
+            .ok_or(ShardPublishError::ChannelNotRegistered(channel))?
+            .tree_manager
+            .clone();
+
+        let peers_in_order = tree_manager.make_broadcast_list();
+        debug_assert_eq!(peers_in_order.len(), units.len());
+
+        for (unit, peer) in units.into_iter().zip(peers_in_order) {
+            tracing::trace!(
+                "[BROADCAST] Sending shard index={:?} to peer={:?}",
+                unit.index(),
+                peer
+            );
+            self.send_unit_to_peer(unit, peer).await;
+        }
+
+        Ok(())
+    }
+
+    async fn send_unit_to_peer(&mut self, unit: PropellerUnit, peer: PeerId) {
+        // TODO(AndrewL): Implement handler event emission with connection checking
+        let _ = (unit, peer);
+        todo!()
     }
 
     /// Run the engine in its own task, processing commands and results.
