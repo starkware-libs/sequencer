@@ -16,7 +16,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       # Environment setup.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Install rust components + lld.
       - uses: ./.github/actions/bootstrap

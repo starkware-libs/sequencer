@@ -24,7 +24,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ matrix.branch }}
 
@@ -56,7 +56,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ matrix.branch }}
 

@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 30
     steps:
       # Environment setup.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Fetch the entire history. Required to checkout the merge target commit, so the diff can
           # be computed.
@@ -79,7 +79,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -89,7 +89,7 @@ jobs:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Fetch the entire history.
           fetch-depth: 0
@@ -118,7 +118,7 @@ jobs:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           # Fetch the entire history.
           fetch-depth: 0
@@ -148,7 +148,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

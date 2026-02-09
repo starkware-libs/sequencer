@@ -29,7 +29,7 @@ jobs:
   verify_cairo_file_dependencies:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
