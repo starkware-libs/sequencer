@@ -255,6 +255,7 @@ fn test_native_classes_whitelist(
         panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,
         native_classes_whitelist: whitelist,
+        ..CairoNativeRunConfig::default()
     };
     let manager = NativeClassManager::create_for_testing(native_config);
 

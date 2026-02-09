@@ -10,6 +10,7 @@ use blockifier::blockifier::config::{
     ConcurrencyConfig,
     ContractClassManagerConfig,
     NativeClassesWhitelist,
+    NativeExecutionMode,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstantsOverrides};
@@ -289,9 +290,18 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
             None => NativeClassesWhitelist::All,
         };
 
+        let execution_mode = if !py_cairo_native_run_config.run_cairo_native {
+            NativeExecutionMode::Disabled
+        } else if py_cairo_native_run_config.wait_on_native_compilation {
+            NativeExecutionMode::Sync
+        } else {
+            NativeExecutionMode::Async
+        };
+
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
+            execution_mode,
             channel_size: py_cairo_native_run_config.channel_size,
             native_classes_whitelist,
             panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,

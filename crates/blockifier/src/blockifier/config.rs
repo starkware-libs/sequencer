@@ -242,6 +242,7 @@ pub enum NativeExecutionMode {
 pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
+    pub execution_mode: NativeExecutionMode,
     pub channel_size: usize,
     pub native_classes_whitelist: NativeClassesWhitelist,
     pub panic_on_compilation_failure: bool,
@@ -255,9 +256,28 @@ impl Default for CairoNativeRunConfig {
             #[cfg(not(feature = "cairo_native"))]
             run_cairo_native: false,
             wait_on_native_compilation: false,
+            #[cfg(feature = "cairo_native")]
+            execution_mode: NativeExecutionMode::Async,
+            #[cfg(not(feature = "cairo_native"))]
+            execution_mode: NativeExecutionMode::Disabled,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: NativeClassesWhitelist::All,
             panic_on_compilation_failure: false,
+        }
+    }
+}
+
+impl CairoNativeRunConfig {
+    /// Computes the execution mode from the existing boolean flags.
+    /// This is a transitional helper; once the bool fields are removed,
+    /// callers should read `execution_mode` directly.
+    pub fn execution_mode(&self) -> NativeExecutionMode {
+        if !self.run_cairo_native {
+            NativeExecutionMode::Disabled
+        } else if self.wait_on_native_compilation {
+            NativeExecutionMode::Sync
+        } else {
+            NativeExecutionMode::Async
         }
     }
 }
@@ -275,6 +295,12 @@ impl SerializeConfig for CairoNativeRunConfig {
                 "wait_on_native_compilation",
                 &self.wait_on_native_compilation,
                 "Block Sequencer main program while compiling sierra, for testing.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "execution_mode",
+                &self.execution_mode,
+                "The native execution mode: Disabled, Async, or Sync.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
