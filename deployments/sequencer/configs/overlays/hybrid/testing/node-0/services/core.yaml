@@ -34,6 +34,7 @@ config:
     components.signature_manager.url: sequencer-core-service
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
+    consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote: false
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base: 9.1
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max: 15.0
     consensus_manager_config.context_config.static_config.build_proposal_margin_millis: 1000
@@ -62,38 +63,38 @@ service:
   enabled: true
   type: ClusterIP
   ports:
-  - name: batcher
-    port: 55000
-    targetPort: 55000
-    protocol: TCP
-  - name: class-manager
-    port: 55001
-    targetPort: 55001
-    protocol: TCP
-  - name: consensus-p2p
-    port: 53080
-    targetPort: 53080
-    protocol: TCP
-  - name: signature-manager
-    port: 55008
-    targetPort: 55008
-    protocol: TCP
-  - name: state-sync-network
-    port: 55010
-    targetPort: 55010
-    protocol: TCP
-  - name: state-sync-rpc
-    port: 55009
-    targetPort: 55009
-    protocol: TCP
-  - name: batcher-storage-reader
-    port: 55011
-    targetPort: 55011
-    protocol: TCP
-  - name: state-sync-storage-reader
-    port: 55012
-    targetPort: 55012
-    protocol: TCP
+    - name: batcher
+      port: 55000
+      targetPort: 55000
+      protocol: TCP
+    - name: class-manager
+      port: 55001
+      targetPort: 55001
+      protocol: TCP
+    - name: consensus-p2p
+      port: 53080
+      targetPort: 53080
+      protocol: TCP
+    - name: signature-manager
+      port: 55008
+      targetPort: 55008
+      protocol: TCP
+    - name: state-sync-network
+      port: 55010
+      targetPort: 55010
+      protocol: TCP
+    - name: state-sync-rpc
+      port: 55009
+      targetPort: 55009
+      protocol: TCP
+    - name: batcher-storage-reader
+      port: 55011
+      targetPort: 55011
+      protocol: TCP
+    - name: state-sync-storage-reader
+      port: 55012
+      targetPort: 55012
+      protocol: TCP
 
 statefulSet:
   enabled: true
@@ -102,7 +103,7 @@ persistentVolume:
   enabled: true
   volumeMode: Filesystem
   accessModes:
-  - ReadWriteOnce
+    - ReadWriteOnce
   mountPath: /data
   size: 2Gi
   storageClass: ""
