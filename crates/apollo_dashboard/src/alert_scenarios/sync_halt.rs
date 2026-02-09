@@ -47,8 +47,8 @@ fn get_state_sync_stuck(
     alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
+        alert_name.to_lowercase().replace(' ', "_"),
         alert_name,
-        "State sync stuck",
         AlertGroup::StateSync,
         format!(
             "increase({}[{}s])",
@@ -66,12 +66,12 @@ fn get_state_sync_stuck(
 pub(crate) fn get_state_sync_stuck_vec() -> Vec<Alert> {
     vec![
         get_state_sync_stuck(
-            "state_sync_stuck",
+            "State Sync Stuck",
             Duration::from_secs(2 * SECS_IN_MIN),
             AlertSeverity::Regular,
         ),
         get_state_sync_stuck(
-            "state_sync_stuck_long_time",
+            "State Sync Stuck Long Time",
             Duration::from_secs(30 * SECS_IN_MIN),
             AlertSeverity::Regular,
         ),
