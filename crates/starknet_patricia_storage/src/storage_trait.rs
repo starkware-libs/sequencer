@@ -142,6 +142,16 @@ pub trait Storage: Send + Sync {
     // for details.
     fn delete(&mut self, key: &DbKey) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
 
+    /// Sets values in storage and deletes keys from storage in a single operation.
+    // Use explicit desugaring of `async fn` to allow adding trait bounds to the return type, see
+    // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
+    // for details.
+    fn multi_set_and_delete(
+        &mut self,
+        key_to_value: DbHashMap,
+        keys_to_delete: &[&DbKey],
+    ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
+
     /// If implemented, returns the statistics of the storage.
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats>;
 
@@ -211,6 +221,14 @@ impl Storage for NullStorage {
     }
 
     async fn delete(&mut self, _key: &DbKey) -> PatriciaStorageResult<()> {
+        Ok(())
+    }
+
+    async fn multi_set_and_delete(
+        &mut self,
+        _key_to_value: DbHashMap,
+        _keys_to_delete: &[&DbKey],
+    ) -> PatriciaStorageResult<()> {
         Ok(())
     }
 
