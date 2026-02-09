@@ -2472,6 +2472,7 @@ name = "apollo_staking"
 version = "0.17.0-rc.0"
 dependencies = [
  "apollo_config_manager_types",
+ "apollo_metrics",
  "apollo_protobuf",
  "apollo_staking_config",
  "apollo_state_sync_types",
@@ -2479,6 +2480,7 @@ dependencies = [
  "async-trait",
  "blockifier",
  "blockifier_test_utils",
+ "metrics",
  "mockall",
  "rstest",
  "sha2 0.10.9",
