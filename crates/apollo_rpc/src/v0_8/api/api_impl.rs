@@ -1553,9 +1553,9 @@ impl JsonRpcServer for JsonRpcServerImpl {
     }
 }
 
-async fn read_pending_data<Mode: TransactionKind>(
+async fn read_pending_data(
     pending_data: &Arc<RwLock<PendingData>>,
-    txn: &StorageTxn<'_, Mode>,
+    txn: &StorageTxn<'_>,
 ) -> RpcResult<PendingData> {
     let latest_header = match get_latest_block_number(txn)? {
         Some(latest_block_number) => get_block_header_by_number(txn, latest_block_number)?,
@@ -1601,7 +1601,7 @@ impl JsonRpcServerImpl {
         &self,
         block_id: BlockId,
         get_pending_transactions: impl FnOnce(PendingData) -> RpcResult<Transactions>,
-        get_transactions: impl FnOnce(&StorageTxn<'_, RO>, BlockNumber) -> RpcResult<Transactions>,
+        get_transactions: impl FnOnce(&StorageTxn<'_>, BlockNumber) -> RpcResult<Transactions>,
     ) -> RpcResult<Block> {
         verify_storage_scope(&self.storage_reader)?;
         let txn = self.storage_reader.begin_ro_txn().map_err(internal_server_error)?;
@@ -1711,8 +1711,8 @@ impl JsonRpcServerImpl {
     }
 }
 
-fn get_non_pending_receipt<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+fn get_non_pending_receipt(
+    txn: &StorageTxn<'_>,
     transaction_index: TransactionIndex,
     transaction_hash: TransactionHash,
     tx_version: TransactionVersion,

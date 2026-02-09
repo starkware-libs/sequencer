@@ -340,7 +340,7 @@ impl TryFrom<BroadcastedTransaction> for ExecutableTransactionInput {
 
 pub(crate) fn stored_txn_to_executable_txn(
     stored_txn: starknet_api::transaction::Transaction,
-    storage_txn: &StorageTxn<'_, RO>,
+    storage_txn: &StorageTxn<'_>,
     state_number: StateNumber,
 ) -> Result<ExecutableTransactionInput, ErrorObjectOwned> {
     match stored_txn {
@@ -434,7 +434,7 @@ pub(crate) fn stored_txn_to_executable_txn(
 // of declare transactions from the storage before the execution. They are stored in the state after
 // the block in which they appeared, so we need to get it from the state after given block.
 fn get_deprecated_class_for_re_execution(
-    storage_txn: &StorageTxn<'_, RO>,
+    storage_txn: &StorageTxn<'_>,
     state_number: StateNumber,
     class_hash: ClassHash,
 ) -> Result<starknet_api::deprecated_contract_class::ContractClass, ErrorObjectOwned> {
@@ -451,7 +451,7 @@ fn get_deprecated_class_for_re_execution(
 }
 
 fn get_class_lengths(
-    storage_txn: &StorageTxn<'_, RO>,
+    storage_txn: &StorageTxn<'_>,
     state_number: StateNumber,
     class_hash: ClassHash,
 ) -> Result<(SierraSize, AbiSize, SierraVersion), ErrorObjectOwned> {

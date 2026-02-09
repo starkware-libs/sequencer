@@ -189,14 +189,14 @@ fn verify_storage_scope(storage_reader: &StorageReader) -> RpcResult<()> {
 }
 
 /// Get the latest block that we've downloaded and that we've downloaded its state diff.
-fn get_latest_block_number<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+fn get_latest_block_number(
+    txn: &StorageTxn<'_>,
 ) -> Result<Option<BlockNumber>, ErrorObjectOwned> {
     Ok(txn.get_state_marker().map_err(internal_server_error)?.prev())
 }
 
-fn get_block_status<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+fn get_block_status(
+    txn: &StorageTxn<'_>,
     block_number: BlockNumber,
 ) -> Result<BlockStatus, ErrorObjectOwned> {
     let base_layer_tip = txn.get_base_layer_block_marker().map_err(internal_server_error)?;

@@ -7,7 +7,7 @@ use starknet_api::core::GlobalRoot;
 
 use crate::db::table_types::Table;
 
-use crate::{MarkerKind, StorageResult, StorageTransaction, StorageTxnRW};
+use crate::{MarkerKind, StorageResult, StorageTransaction, StorageTxn};
 
 /// Interface for reading global root.
 pub trait GlobalRootStorageReader {
@@ -40,7 +40,7 @@ impl<T: StorageTransaction> GlobalRootStorageReader for T {
     }
 }
 
-impl GlobalRootStorageWriter for StorageTxnRW<'_> {
+impl GlobalRootStorageWriter for StorageTxn<'_> {
     fn set_global_root(
         self,
         block_number: &BlockNumber,

@@ -56,11 +56,11 @@ pub async fn register_metrics(storage_reader: StorageReader) {
     update_marker_metrics(&txn);
 }
 
-pub fn update_marker_metrics<T, Mode: TransactionKind>(txn: &T)
+pub fn update_marker_metrics<T>(txn: &T)
 where
     T: HeaderStorageReader
         + BodyStorageReader
-        + StateStorageReader<Mode>
+        + StateStorageReader
         + ClassManagerStorageReader
         + CasmStorageReader,
 {

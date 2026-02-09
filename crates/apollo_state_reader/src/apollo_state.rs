@@ -27,7 +27,7 @@ use starknet_types_core::felt::Felt;
 #[path = "apollo_state_test.rs"]
 mod test;
 
-type RawApolloReader<'env> = StorageTxn<'env, RO>;
+type RawApolloReader<'env> = StorageTxn<'env>;
 
 pub struct ClassReader {
     pub reader: SharedClassManagerClient,

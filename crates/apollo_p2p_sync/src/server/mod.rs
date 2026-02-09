@@ -210,7 +210,7 @@ fn register_query<Data, TQuery>(
 pub trait FetchBlockData: Sized {
     async fn fetch_block_data(
         block_number: BlockNumber,
-        txn: &StorageTxn<'_, db::RO>,
+        txn: &StorageTxn<'_>,
         class_manager_client: &mut SharedClassManagerClient,
     ) -> Result<Vec<Self>, P2pSyncServerError>;
 }
@@ -219,7 +219,7 @@ pub trait FetchBlockData: Sized {
 impl FetchBlockData for SignedBlockHeader {
     async fn fetch_block_data(
         block_number: BlockNumber,
-        txn: &StorageTxn<'_, db::RO>,
+        txn: &StorageTxn<'_>,
         _class_manager_client: &mut SharedClassManagerClient,
     ) -> Result<Vec<Self>, P2pSyncServerError> {
         let mut header =
@@ -247,7 +247,7 @@ impl FetchBlockData for SignedBlockHeader {
 impl FetchBlockData for StateDiffChunk {
     async fn fetch_block_data(
         block_number: BlockNumber,
-        txn: &StorageTxn<'_, db::RO>,
+        txn: &StorageTxn<'_>,
         _class_manager_client: &mut SharedClassManagerClient,
     ) -> Result<Vec<Self>, P2pSyncServerError> {
         let thin_state_diff =
@@ -262,7 +262,7 @@ impl FetchBlockData for StateDiffChunk {
 impl FetchBlockData for FullTransaction {
     async fn fetch_block_data(
         block_number: BlockNumber,
-        txn: &StorageTxn<'_, db::RO>,
+        txn: &StorageTxn<'_>,
         _class_manager_client: &mut SharedClassManagerClient,
     ) -> Result<Vec<Self>, P2pSyncServerError> {
         let transactions =
@@ -296,7 +296,7 @@ impl FetchBlockData for FullTransaction {
 impl FetchBlockData for (ApiContractClass, ClassHash) {
     async fn fetch_block_data(
         block_number: BlockNumber,
-        txn: &StorageTxn<'_, db::RO>,
+        txn: &StorageTxn<'_>,
         class_manager_client: &mut SharedClassManagerClient,
     ) -> Result<Vec<Self>, P2pSyncServerError> {
         let thin_state_diff =
@@ -343,7 +343,7 @@ impl FetchBlockData for (ApiContractClass, ClassHash) {
 impl FetchBlockData for (Event, TransactionHash) {
     async fn fetch_block_data(
         block_number: BlockNumber,
-        txn: &StorageTxn<'_, db::RO>,
+        txn: &StorageTxn<'_>,
         _class_manager_client: &mut SharedClassManagerClient,
     ) -> Result<Vec<Self>, P2pSyncServerError> {
         let transaction_outputs = txn.get_block_transaction_outputs(block_number)?.ok_or(

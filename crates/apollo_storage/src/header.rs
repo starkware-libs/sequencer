@@ -66,7 +66,7 @@ use tracing::debug;
 use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
-use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTransaction, StorageTxnRW};
+use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTransaction, StorageTxn};
 
 /// Storage representation of a Starknet block header.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
@@ -290,7 +290,7 @@ impl<T: StorageTransaction> HeaderStorageReader for T {
     }
 }
 
-impl HeaderStorageWriter for StorageTxnRW<'_> {
+impl HeaderStorageWriter for StorageTxn<'_> {
     fn append_header(
         self,
         block_number: BlockNumber,

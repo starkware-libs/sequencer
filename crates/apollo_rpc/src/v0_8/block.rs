@@ -83,8 +83,8 @@ pub struct Block {
     pub transactions: Transactions,
 }
 
-pub fn get_block_header_by_number<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+pub fn get_block_header_by_number(
+    txn: &StorageTxn<'_>,
     block_number: BlockNumber,
 ) -> Result<starknet_api::block::BlockHeader, ErrorObjectOwned> {
     let header = txn
@@ -98,8 +98,8 @@ pub fn get_block_header_by_number<Mode: TransactionKind>(
 /// Return the closest block number that corresponds to the given block id and is accepted (i.e not
 /// pending). Latest block means the most advanced block that we've downloaded and that we've
 /// downloaded its state diff.
-pub(crate) fn get_accepted_block_number<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+pub(crate) fn get_accepted_block_number(
+    txn: &StorageTxn<'_>,
     block_id: BlockId,
 ) -> Result<BlockNumber, ErrorObjectOwned> {
     Ok(match block_id {
@@ -141,9 +141,9 @@ pub(crate) struct BlockNotRevertedValidator {
 }
 
 impl BlockNotRevertedValidator {
-    pub fn new<Mode: TransactionKind>(
+    pub fn new(
         block_number: BlockNumber,
-        txn: &StorageTxn<'_, Mode>,
+        txn: &StorageTxn<'_>,
     ) -> Result<Self, ErrorObjectOwned> {
         let header = txn
             .get_block_header(block_number)
