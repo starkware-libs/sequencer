@@ -23,3 +23,22 @@ impl OpaquePeerId {
         self.0
     }
 }
+
+// TODO(guyn): remove allow dead code once we use the duplicate vote report.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BadPeerReport {
+    pub peer_id: OpaquePeerId,
+    pub reason: String,
+    pub penalty_card: PenaltyCard,
+}
+
+// TODO(guyn): need to decide how much misconduct score to add when getting each yellow card.
+/// Represents the severity of the bad peer behavior.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PenaltyCard {
+    /// Overtly malicious behavior.
+    Red,
+    /// Possibly sent malicious data on accident, will be considered malicious on repeat offenses.
+    Yellow,
+}
