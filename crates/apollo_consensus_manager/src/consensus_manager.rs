@@ -282,6 +282,7 @@ impl ConsensusManager {
                 clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
+                config_manager_client: Some(Arc::clone(&self.config_manager_client)),
             },
         )
     }
