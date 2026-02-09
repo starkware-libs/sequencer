@@ -13,6 +13,7 @@ use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote};
 pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
+use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
@@ -182,4 +183,6 @@ pub enum ConsensusError {
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
     InternalNetworkError(String),
+    #[error(transparent)]
+    SendError(#[from] SendError),
 }

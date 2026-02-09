@@ -24,7 +24,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
-use futures::channel::mpsc;
+use futures::channel::mpsc::{self, SendError};
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
@@ -442,6 +442,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     // participating in the consensus. A fix and node restart are required.
                     return Err(e);
                 }
+                e @ ConsensusError::SendError(_) => {
+                    error!("Error while running consensus for height {height}: {e}");
+                    return Err(e);
+                }
             },
         };
 
@@ -797,6 +801,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc.handle_proposal(&leader_election, block_info)
     }
 
+    async fn report_peer(
+        &self,
+        broadcast_channels: &mut BroadcastVoteChannel,
+        metadata: &BroadcastedMessageMetadata,
+    ) -> Result<(), SendError> {
+        broadcast_channels.broadcast_topic_client.report_peer(metadata.clone()).await
+    }
+
     // Handle a single consensus message.
     // shc - None if the height was just completed and we should drop the message.
     async fn handle_vote(
@@ -822,14 +834,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
             (Err(e), metadata) => {
                 // Failed to parse consensus message. Report the peer and drop the vote.
-                if broadcast_channels
-                    .broadcast_topic_client
-                    .report_peer(metadata.clone())
-                    .now_or_never()
-                    .is_none()
-                {
-                    error!("Unable to send report_peer. {:?}", metadata)
-                }
+                self.report_peer(broadcast_channels, &metadata).await?;
                 warn!(
                     "Failed to parse incoming consensus vote, dropping vote. Error: {e}. Vote \
                      metadata: {metadata:?}"
