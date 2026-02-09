@@ -2,6 +2,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
@@ -41,6 +42,10 @@ impl ConfigManager {
     pub(crate) fn get_mempool_dynamic_config(&self) -> ConfigManagerResult<MempoolDynamicConfig> {
         Ok(self.latest_node_dynamic_config.mempool_dynamic_config.as_ref().unwrap().clone())
     }
+
+    pub(crate) fn get_context_dynamic_config(&self) -> ConfigManagerResult<ContextDynamicConfig> {
+        Ok(self.latest_node_dynamic_config.context_dynamic_config.as_ref().unwrap().clone())
+    }
 }
 
 #[async_trait]
@@ -56,6 +61,9 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             }
             ConfigManagerRequest::GetMempoolDynamicConfig => {
                 ConfigManagerResponse::GetMempoolDynamicConfig(self.get_mempool_dynamic_config())
+            }
+            ConfigManagerRequest::GetContextDynamicConfig => {
+                ConfigManagerResponse::GetContextDynamicConfig(self.get_context_dynamic_config())
             }
             ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {
                 ConfigManagerResponse::SetNodeDynamicConfig(

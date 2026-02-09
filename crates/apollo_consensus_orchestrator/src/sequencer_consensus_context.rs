@@ -22,6 +22,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterError,
     TransactionConverterTrait,
 };
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -70,7 +71,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{BlobParameters, CendeAmbassadorError, CendeContext};
@@ -186,6 +187,7 @@ pub struct SequencerConsensusContextDeps {
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
+    pub config_manager_client: Option<SharedConfigManagerClient>,
 }
 
 #[derive(thiserror::Error, PartialEq, Debug)]
@@ -362,6 +364,24 @@ impl SequencerConsensusContext {
                     .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
             })
             .await
+    }
+
+    /// Updates the dynamic configuration from the config manager.
+    /// Called at height changes to fetch the latest config.
+    async fn update_dynamic_config(&mut self) {
+        let Some(ref client) = self.deps.config_manager_client else {
+            return; // No config manager, skip update.
+        };
+
+        match client.get_context_dynamic_config().await {
+            Ok(new_config) => {
+                debug!("Updated dynamic config: {new_config:?}");
+                self.config.dynamic_config = new_config;
+            }
+            Err(e) => {
+                warn!("Failed to fetch dynamic config from config manager: {e:?}");
+            }
+        }
     }
 
     fn update_l2_gas_price(&mut self, l2_gas_used: GasAmount) {
@@ -775,6 +795,9 @@ impl ConsensusContext for SequencerConsensusContext {
         round: Round,
     ) -> Result<(), ConsensusError> {
         if self.current_height.map(|h| height > h).unwrap_or(true) {
+            // Fetch latest dynamic config at the start of new heights.
+            self.update_dynamic_config().await;
+
             self.current_height = Some(height);
             assert_eq!(round, 0);
             self.current_round = round;
