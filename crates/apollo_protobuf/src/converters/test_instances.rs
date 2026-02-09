@@ -3,7 +3,7 @@ use std::fmt::Display;
 use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use prost::DecodeError;
 use rand::Rng;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::crypto::utils::RawSignature;
@@ -57,6 +57,7 @@ auto_impl_get_test_instance! {
         pub l1_data_gas_price_fri: GasPrice,
         pub l1_gas_price_wei: GasPrice,
         pub l1_data_gas_price_wei: GasPrice,
+        pub starknet_version: StarknetVersion,
     }
     pub enum ProposalPart {
         BlockInfo(ConsensusBlockInfo) = 0,
