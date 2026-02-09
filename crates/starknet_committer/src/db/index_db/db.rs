@@ -14,9 +14,9 @@ use starknet_patricia_storage::errors::{DeserializationError, SerializationResul
 #[cfg(any(feature = "testing", test))]
 use starknet_patricia_storage::storage_trait::AsyncStorage;
 use starknet_patricia_storage::storage_trait::{
-    create_db_key,
     DbHashMap,
     DbKey,
+    DbOperationMap,
     DbValue,
     PatriciaStorageResult,
     Storage,
@@ -33,6 +33,7 @@ use crate::db::forest_trait::{
     ForestMetadataType,
     ForestReader,
     ForestWriter,
+    ForestWriterWithMetadata,
     StorageInitializer,
 };
 use crate::db::index_db::leaves::{
@@ -41,11 +42,13 @@ use crate::db::index_db::leaves::{
     IndexLayoutStarknetStorageValue,
 };
 use crate::db::index_db::types::{
+    get_node_index_db_key,
     EmptyNodeData,
     IndexFilledNode,
     IndexLayoutSubTree,
     IndexNodeContext,
 };
+use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -197,15 +200,11 @@ impl<S: Storage> ForestReader for IndexDb<S> {
         &mut self,
         _initial_read_context: Self::InitialReadContext,
     ) -> PatriciaStorageResult<StateRoots> {
-        let contracts_trie_root_key = create_db_key(
-            IndexLayoutContractState::get_static_prefix(&EmptyKeyContext),
-            IndexLayoutContractState::DB_KEY_SEPARATOR,
-            &NodeIndex::ROOT.0.to_be_bytes(),
-        );
-        let classes_trie_root_key = create_db_key(
-            IndexLayoutCompiledClassHash::get_static_prefix(&EmptyKeyContext),
-            IndexLayoutCompiledClassHash::DB_KEY_SEPARATOR,
-            &NodeIndex::ROOT.0.to_be_bytes(),
+        let contracts_trie_root_key =
+            get_node_index_db_key::<IndexLayoutContractState>(&EmptyKeyContext, NodeIndex::ROOT);
+        let classes_trie_root_key = get_node_index_db_key::<IndexLayoutCompiledClassHash>(
+            &EmptyKeyContext,
+            NodeIndex::ROOT,
         );
 
         let roots = self.storage.mget(&[&contracts_trie_root_key, &classes_trie_root_key]).await?;
@@ -222,10 +221,10 @@ impl<S: Storage> ForestWriter for IndexDb<S> {
         serialize_forest::<IndexNodeLayout>(filled_forest)
     }
 
-    async fn write_updates(&mut self, updates: DbHashMap) -> usize {
+    async fn write_updates(&mut self, updates: DbOperationMap) -> usize {
         let n_updates = updates.len();
         self.storage
-            .mset(updates)
+            .multi_set_and_delete(updates)
             .await
             .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
         n_updates
@@ -261,6 +260,40 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
 
     async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
         Ok(self.storage.get(&db_key).await?)
+    }
+}
+
+impl<S: Storage> ForestWriterWithMetadata for IndexDb<S> {
+    fn serialize_deleted_nodes(deleted_nodes: &DeletedNodes) -> SerializationResult<Vec<DbKey>> {
+        let mut keys_to_delete = Vec::new();
+
+        // Classes trie deleted nodes.
+        for node_index in &deleted_nodes.classes_trie {
+            keys_to_delete.push(get_node_index_db_key::<IndexLayoutCompiledClassHash>(
+                &EmptyKeyContext,
+                *node_index,
+            ));
+        }
+
+        // Contracts trie deleted nodes.
+        for node_index in &deleted_nodes.contracts_trie {
+            keys_to_delete.push(get_node_index_db_key::<IndexLayoutContractState>(
+                &EmptyKeyContext,
+                *node_index,
+            ));
+        }
+
+        // Storage tries deleted nodes.
+        for (contract_address, node_indices) in &deleted_nodes.storage_tries {
+            for node_index in node_indices {
+                keys_to_delete.push(get_node_index_db_key::<IndexLayoutStarknetStorageValue>(
+                    contract_address,
+                    *node_index,
+                ));
+            }
+        }
+
+        Ok(keys_to_delete)
     }
 }
 
