@@ -304,8 +304,8 @@ impl StateSync {
     }
 }
 
-fn verify_synced_up_to<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+fn verify_synced_up_to(
+    txn: &StorageTxn<'_>,
     block_number: BlockNumber,
 ) -> Result<(), StateSyncError> {
     if let Some(latest_block_number) = latest_synced_block(txn)? {
@@ -317,8 +317,8 @@ fn verify_synced_up_to<Mode: TransactionKind>(
     Err(StateSyncError::BlockNotFound(block_number))
 }
 
-fn latest_synced_block<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+fn latest_synced_block(
+    txn: &StorageTxn<'_>,
 ) -> StateSyncResult<Option<BlockNumber>> {
     let latest_state_block_number = txn.get_state_marker()?.prev();
     if latest_state_block_number.is_none() {
@@ -333,8 +333,8 @@ fn latest_synced_block<Mode: TransactionKind>(
     Ok(min(latest_state_block_number, latest_transaction_block_number))
 }
 
-fn verify_contract_deployed<Mode: TransactionKind>(
-    state_reader: &StateReader<'_, Mode>,
+fn verify_contract_deployed(
+    state_reader: &StateReader<'_>,
     state_number: StateNumber,
     contract_address: ContractAddress,
 ) -> Result<(), StateSyncError> {

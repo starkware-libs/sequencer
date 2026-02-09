@@ -38,6 +38,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
 
+use self::db_stats::{DbTableStats, DbWholeStats};
 use self::serialization::{Key, ValueSerde};
 use self::table_types::{DbCursor, DbCursorTrait};
 use crate::db::table_types::TableType;
@@ -268,6 +269,22 @@ impl DbWriter {
     #[allow(dead_code)]
     pub(crate) fn begin_rw_txn(&mut self) -> DbResult<DbWriteTransaction<'_>> {
         Ok(DbWriteTransaction { txn: self.env.begin_rw_txn()? })
+    }
+
+    pub(crate) fn get_table_stats(&self, name: &str) -> DbResult<DbTableStats> {
+        DbReader { env: self.env.clone() }.get_table_stats(name)
+    }
+
+    pub(crate) fn get_db_stats(&self) -> DbResult<DbWholeStats> {
+        DbReader { env: self.env.clone() }.get_db_stats()
+    }
+
+    pub(crate) fn get_free_pages(&self) -> DbResult<usize> {
+        DbReader { env: self.env.clone() }.get_free_pages()
+    }
+
+    pub(crate) fn get_db_info(&self) -> DbResult<libmdbx::Info> {
+        DbReader { env: self.env.clone() }.get_db_info()
     }
 
     /// Creates a persistent write transaction that can be stored in a struct.

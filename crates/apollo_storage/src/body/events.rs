@@ -65,7 +65,7 @@ use super::TransactionMetadataTable;
 use crate::body::{EventsTableKey, TransactionIndex};
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursor, DbCursorTrait, NoValue, SimpleTable, Table};
-use crate::db::{DbTransaction, RO};
+use crate::db::{DbTransaction, RW};
 use crate::{FileHandlers, StorageResult, StorageTxn, TransactionMetadata};
 
 /// An identifier of an event.
@@ -113,7 +113,7 @@ pub trait EventsReader<'txn, 'env> {
 }
 
 // TODO(DanB): support all read transactions (including RW).
-impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
+impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env> {
     fn iter_events(
         &'env self,
         optional_address: Option<ContractAddress>,
@@ -168,8 +168,8 @@ impl Iterator for EventIter<'_, '_> {
 /// This iterator goes over the events in the order of the events table key.
 /// That is, the events iterated first by the contract address and then by the event index.
 pub struct EventIterByContractAddress<'env, 'txn> {
-    txn: &'txn DbTransaction<'env, RO>,
-    file_handles: &'txn FileHandlers<RO>,
+    txn: &'txn DbTransaction<'env, RW>,
+    file_handles: &'txn FileHandlers<RW>,
     // This value is the next entry in the events table to search for relevant events. If it is
     // None there are no more events.
     next_entry_in_event_table: Option<EventsTableKey>,
@@ -214,7 +214,7 @@ impl EventIterByContractAddress<'_, '_> {
 /// First by the block number, then by the transaction offset in the block,
 /// and finally, by the event index in the transaction output.
 pub struct EventIterByEventIndex<'txn> {
-    file_handlers: &'txn FileHandlers<RO>,
+    file_handlers: &'txn FileHandlers<RW>,
     tx_current: Option<(TransactionIndex, TransactionOutput)>,
     tx_cursor: TransactionMetadataTableCursor<'txn>,
     event_index_in_tx_current: EventIndexInTransactionOutput,
@@ -277,7 +277,7 @@ impl EventIterByEventIndex<'_> {
     }
 }
 
-impl<'txn, 'env> StorageTxn<'env, RO>
+impl<'txn, 'env> StorageTxn<'env>
 where
     'env: 'txn,
 {
@@ -387,7 +387,7 @@ fn get_events_from_tx(
 
 /// A cursor of the events table.
 type EventsTableCursor<'txn> =
-    DbCursor<'txn, RO, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
+    DbCursor<'txn, RW, EventsTableKey, NoVersionValueWrapper<NoValue>, CommonPrefix>;
 /// A cursor of the transaction outputs table.
 type TransactionMetadataTableCursor<'txn> =
-    DbCursor<'txn, RO, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
+    DbCursor<'txn, RW, TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>;
