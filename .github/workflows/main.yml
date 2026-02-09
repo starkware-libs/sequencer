@@ -84,6 +84,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo test -p workspace_tests
+      - run: sccache --show-stats
 
   run-tests:
     runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
@@ -113,6 +114,7 @@ jobs:
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
+      - run: sccache --show-stats
 
   run-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
@@ -142,6 +144,7 @@ jobs:
           scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
+      - run: sccache --show-stats
 
   # TODO(dan): Once all cargo-deny issues are resolved, consider merging this into code_style job.
   cargo-deny:
