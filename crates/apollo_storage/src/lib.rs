@@ -121,7 +121,7 @@ pub mod storage_reader_server_test_utils;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::fs;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -263,10 +263,9 @@ fn open_storage_internal(
     let shared_state = SharedState::new(db_writer, tables.clone(), batch_size);
 
     let reader = StorageReader {
-        db_reader,
+        shared_state: shared_state.clone(),
         scope: storage_config.scope,
-        file_readers,
-        tables,
+        file_handlers: file_writers.clone(),
         open_readers_metric,
     };
     let writer = StorageWriter::new(file_writers, storage_config.scope, shared_state);
@@ -471,9 +470,8 @@ pub enum StorageScope {
 /// A struct for starting RO transactions ([`StorageTxn`]) to the storage.
 #[derive(Clone)]
 pub struct StorageReader {
-    db_reader: DbReader,
-    file_readers: FileHandlers<RO>,
-    tables: Arc<Tables>,
+    shared_state: SharedStorageState,
+    file_handlers: FileHandlers<RW>,
     scope: StorageScope,
     open_readers_metric: Option<&'static MetricGauge>,
 }
@@ -531,30 +529,47 @@ impl StorageReader {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading data from the storage.
     ///
-    /// RO transactions get a fresh read-only transaction from the database, providing a
-    /// consistent snapshot of committed data.
-    pub fn begin_ro_txn(&self) -> StorageResult<StorageTxn<'_, RO>> {
-        Ok(StorageTxn {
-            txn: self.db_reader.begin_ro_txn()?,
-            file_handlers: self.file_readers.clone(),
-            tables: self.tables.clone(),
-            scope: self.scope,
-            _metric_updater: MetricsHandler::new(self.open_readers_metric),
-        })
+    /// RO transactions acquire a read lock on the shared state, allowing them to see
+    /// uncommitted writes from the persistent RW transaction. Multiple RO transactions
+    /// can run concurrently.
+    pub fn begin_ro_txn(&self) -> StorageResult<StorageTxn<'_>> {
+        let guard = self.shared_state.read().unwrap();
+        // Ensure persistent transaction exists
+        if guard.active_txn.is_none() {
+            drop(guard);
+            let mut write_guard = self.shared_state.write().unwrap();
+            write_guard.ensure_active_txn()?;
+            drop(write_guard);
+            let guard = self.shared_state.read().unwrap();
+            Ok(StorageTxn {
+                guard: TxnGuard::Read(guard),
+                file_handlers: self.file_handlers.clone(),
+                scope: self.scope,
+                _metric_updater: MetricsHandler::new(self.open_readers_metric),
+            })
+        } else {
+            Ok(StorageTxn {
+                guard: TxnGuard::Read(guard),
+                file_handlers: self.file_handlers.clone(),
+                scope: self.scope,
+                _metric_updater: MetricsHandler::new(self.open_readers_metric),
+            })
+        }
     }
 
     /// Returns metadata about the tables in the storage.
     pub fn db_tables_stats(&self) -> StorageResult<DbStats> {
         let mut tables_stats = BTreeMap::new();
+        let state = self.shared_state.read().unwrap();
         for name in Tables::field_names() {
-            tables_stats.insert(name.to_string(), self.db_reader.get_table_stats(name)?);
+            tables_stats.insert(name.to_string(), state.db_writer.get_table_stats(name)?);
         }
-        Ok(DbStats { db_stats: self.db_reader.get_db_stats()?, tables_stats })
+        Ok(DbStats { db_stats: state.db_writer.get_db_stats()?, tables_stats })
     }
 
     /// Returns metadata about the memory mapped files in the storage.
     pub fn mmap_files_stats(&self) -> HashMap<String, MMapFileStats> {
-        self.file_readers.stats()
+        self.file_handlers.stats()
     }
 
     /// Returns the scope of the storage.
@@ -574,9 +589,9 @@ struct SharedState {
 }
 
 impl SharedState {
-    /// Creates a new SharedState wrapped in Arc<Mutex>.
-    fn new(db_writer: DbWriter, tables: Arc<Tables>, batch_size: usize) -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self {
+    /// Creates a new SharedState wrapped in Arc<RwLock>.
+    fn new(db_writer: DbWriter, tables: Arc<Tables>, batch_size: usize) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(Self {
             db_writer,
             tables,
             active_txn: None,
@@ -595,7 +610,7 @@ impl SharedState {
 }
 
 /// Type alias for shared state.
-type SharedStorageState = Arc<Mutex<SharedState>>;
+type SharedStorageState = Arc<RwLock<SharedState>>;
 
 /// A struct for starting RW transactions ([`StorageTxn`]) to the storage.
 /// There is a single non clonable writer instance, to make sure there is only one write transaction
@@ -617,17 +632,17 @@ impl StorageWriter {
         Self { file_writers, scope, shared_state }
     }
 
-    /// Returns a [`StorageTxnRW`] for reading and modifying data in the storage.
+    /// Returns a [`StorageTxn`] for reading and modifying data in the storage.
     ///
     /// This may return a reference to an ongoing persistent transaction rather than
     /// a fresh snapshot. Multiple calls to `begin_rw_txn()` will share the same
     /// underlying transaction until the batch commits (when counter reaches batch_size).
     /// When batch_size=1, this behaves like non-batching mode (commits on every transaction).
-    pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxnRW<'_>> {
-        let mut guard = self.shared_state.lock().unwrap();
+    pub fn begin_rw_txn(&mut self) -> StorageResult<StorageTxn<'_>> {
+        let mut guard = self.shared_state.write().unwrap();
         guard.ensure_active_txn()?;
-        Ok(StorageTxnRW {
-            guard,
+        Ok(StorageTxn {
+            guard: TxnGuard::Write(guard),
             file_handlers: self.file_writers.clone(),
             scope: self.scope,
             _metric_updater: MetricsHandler::new(None),
@@ -662,11 +677,9 @@ impl Drop for MetricsHandler {
 /// Common interface for all storage transactions (RO and RW).
 /// This allows reader traits to be implemented once generically, eliminating duplication.
 pub trait StorageTransaction {
-    /// The transaction mode (RO or RW).
-    type Mode: TransactionKind;
-
     /// Returns a reference to the underlying database transaction.
-    fn txn(&self) -> &DbTransaction<'_, Self::Mode>;
+    /// Always returns RW since the persistent transaction is always RW.
+    fn txn(&self) -> &DbTransaction<'_, RW>;
 
     /// Returns a reference to the table definitions.
     fn tables(&self) -> &Arc<Tables>;
@@ -678,42 +691,59 @@ pub trait StorageTransaction {
     ) -> StorageResult<TableHandle<'_, K, V, T>>;
 
     /// Returns a reference to the file handlers.
-    fn file_handlers(&self) -> &FileHandlers<Self::Mode>;
+    fn file_handlers(&self) -> &FileHandlers<RW>;
 
     /// Returns the storage scope.
     fn scope(&self) -> StorageScope;
 }
 
+/// Guard for accessing SharedState with either read or write access.
+enum TxnGuard<'a> {
+    Read(RwLockReadGuard<'a, SharedState>),
+    Write(RwLockWriteGuard<'a, SharedState>),
+}
+
+impl<'a> TxnGuard<'a> {
+    /// Returns a reference to the SharedState (works for both Read and Write guards).
+    fn state(&self) -> &SharedState {
+        match self {
+            TxnGuard::Read(guard) => guard,
+            TxnGuard::Write(guard) => guard,
+        }
+    }
+
+    /// Returns a mutable reference to the SharedState.
+    /// Panics if called on a Read guard.
+    fn state_mut(&mut self) -> &mut SharedState {
+        match self {
+            TxnGuard::Read(_) => panic!("Cannot get mutable access to SharedState from a read-only transaction"),
+            TxnGuard::Write(guard) => guard,
+        }
+    }
+
+    /// Returns true if this is a write guard.
+    fn is_write(&self) -> bool {
+        matches!(self, TxnGuard::Write(_))
+    }
+}
+
 /// A struct for interacting with the storage.
 /// The actually functionality is implemented on the transaction in multiple traits.
-pub struct StorageTxn<'env, Mode: TransactionKind + 'static> {
-    txn: DbTransaction<'env, Mode>,
-    file_handlers: FileHandlers<Mode>,
-    tables: Arc<Tables>,
+pub struct StorageTxn<'env> {
+    guard: TxnGuard<'env>,
+    file_handlers: FileHandlers<RW>,
     scope: StorageScope,
     // Do not remove this. It is used to automatically update metrics on create/drop.
     _metric_updater: MetricsHandler,
 }
 
-/// RW-specific transaction that holds a MutexGuard for safe access to the persistent transaction.
-/// The MutexGuard is held for the entire lifetime of StorageTxnRW, ensuring safe access
-/// to the transaction.
-pub struct StorageTxnRW<'a> {
-    guard: MutexGuard<'a, SharedState>,
-    file_handlers: FileHandlers<RW>,
-    scope: StorageScope,
-    _metric_updater: MetricsHandler,
-}
-
-impl StorageTransaction for StorageTxnRW<'_> {
-    type Mode = RW;
-
+impl StorageTransaction for StorageTxn<'_> {
     fn txn(&self) -> &DbTransaction<'_, RW> {
-        &self.guard.active_txn.as_ref().unwrap().txn
+        &self.guard.state().active_txn.as_ref().unwrap().txn
     }
 
     fn tables(&self) -> &Arc<Tables> {
-        &self.guard.tables
+        &self.guard.state().tables
     }
 
     fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
@@ -746,7 +776,7 @@ impl StorageTransaction for StorageTxnRW<'_> {
     }
 }
 
-impl<'a> StorageTxnRW<'a> {
+impl<'a> StorageTxn<'a> {
     pub(crate) fn txn(&self) -> &DbTransaction<'_, RW> {
         <Self as StorageTransaction>::txn(self)
     }
@@ -803,17 +833,24 @@ impl<'a> StorageTxnRW<'a> {
     /// is actually committed. This is allowed to be an empty commit (no writes), which
     /// means the batch_size may be less than the actual number of writes due to incrementing
     /// when the commit is empty.
+    /// 
+    /// Returns an error if called on a read-only transaction.
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(mut self) -> StorageResult<()> {
+        if !self.guard.is_write() {
+            return Err(StorageError::DBInconsistency { msg: "Cannot commit a read-only transaction".to_string() });
+        }
+
         // Always flush files so readers can access the data immediately.
         self.file_handlers.flush();
 
-        self.guard.commit_counter += 1;
+        let state = self.guard.state_mut();
+        state.commit_counter += 1;
 
-        if self.guard.commit_counter >= self.guard.batch_size {
+        if state.commit_counter >= state.batch_size {
             // Batch size reached - commit the MDBX transaction and reset counter.
-            let txn_to_commit = self.guard.active_txn.take();
-            self.guard.commit_counter = 0;
+            let txn_to_commit = state.active_txn.take();
+            state.commit_counter = 0;
 
             if let Some(txn) = txn_to_commit {
                 txn.commit()?;
@@ -827,122 +864,37 @@ impl<'a> StorageTxnRW<'a> {
     }
 }
 
-impl Drop for StorageTxnRW<'_> {
+impl Drop for StorageTxn<'_> {
     /// Safety mechanism for RW transactions dropped without commit.
     ///
     /// Two scenarios:
     /// 1. Forgotten commit with pending writes (commit_counter > 0) - panic.
     /// 2. Failed operation (commit_counter = 0) - abort transaction to discard partial writes.
+    /// 
+    /// For read-only transactions, this does nothing.
     fn drop(&mut self) {
+        // Only apply write transaction logic if this is a write guard
+        if !self.guard.is_write() {
+            return;
+        }
+
         // Note: commit() consumes self, so Drop only runs for uncommitted transactions.
-        if self.guard.commit_counter > 0 {
+        let state = self.guard.state_mut();
+        if state.commit_counter > 0 {
             // Scenario 1: Pending writes exist.
             panic!(
-                "StorageTxnRW dropped without commit() while {} pending writes exist! \
+                "StorageTxn dropped without commit() while {} pending writes exist! \
                  This would cause data loss. Always call commit() or handle errors properly.",
-                self.guard.commit_counter
+                state.commit_counter
             );
         } else {
             // Scenario 2: No pending writes, but there might be partial writes from a failed
             // operation. Abort the transaction to discard them.
-            self.guard.active_txn = None;
+            state.active_txn = None;
         }
     }
 }
 
-impl<'env, Mode: TransactionKind> StorageTransaction for StorageTxn<'env, Mode> {
-    type Mode = Mode;
-
-    fn txn(&self) -> &DbTransaction<'_, Mode> {
-        &self.txn
-    }
-
-    fn tables(&self) -> &Arc<Tables> {
-        &self.tables
-    }
-
-    fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
-        &self,
-        table_id: &TableIdentifier<K, V, T>,
-    ) -> StorageResult<TableHandle<'_, K, V, T>> {
-        if self.scope == StorageScope::StateOnly {
-            let tables = self.tables();
-            let unused_tables = [
-                tables.events.name,
-                tables.transaction_hash_to_idx.name,
-                tables.transaction_metadata.name,
-            ];
-            if unused_tables.contains(&table_id.name) {
-                return Err(StorageError::ScopeError {
-                    table_name: table_id.name.to_owned(),
-                    storage_scope: self.scope,
-                });
-            }
-        }
-        Ok(self.txn.open_table(table_id)?)
-    }
-
-    fn file_handlers(&self) -> &FileHandlers<Mode> {
-        &self.file_handlers
-    }
-
-    fn scope(&self) -> StorageScope {
-        self.scope
-    }
-}
-
-impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
-    fn txn(&self) -> &DbTransaction<'env, Mode> {
-        &self.txn
-    }
-
-    fn tables(&self) -> &Arc<Tables> {
-        &self.tables
-    }
-
-    pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
-        &self,
-        table_id: &TableIdentifier<K, V, T>,
-    ) -> StorageResult<TableHandle<'_, K, V, T>> {
-        <Self as StorageTransaction>::open_table(self, table_id)
-    }
-
-    /// Returns the location of the state diff in the mmap file for the given block number.
-    pub fn get_state_diff_location(
-        &self,
-        block_number: BlockNumber,
-    ) -> StorageResult<Option<LocationInFile>> {
-        let tables = self.tables();
-        let state_diffs_table = self.open_table(&tables.state_diffs)?;
-        Ok(state_diffs_table.get(self.txn(), &block_number)?)
-    }
-
-    /// Returns the thin state diff stored in the mmap file at the given location.
-    pub fn get_state_diff_from_location(
-        &self,
-        state_diff_location: LocationInFile,
-    ) -> StorageResult<ThinStateDiff> {
-        self.file_handlers.get_thin_state_diff_unchecked(state_diff_location)
-    }
-
-    /// Returns the nonce for a contract at a given address and block number.
-    pub fn get_nonce(
-        &self,
-        contract_address: ContractAddress,
-        block_number: BlockNumber,
-    ) -> StorageResult<Option<Nonce>> {
-        let tables = self.tables();
-        let nonces_table = self.open_table(&tables.nonces)?;
-        Ok(nonces_table.get(self.txn(), &(contract_address, block_number))?)
-    }
-
-    /// Returns the file offset for a given offset kind.
-    pub fn get_file_offset(&self, offset_kind: OffsetKind) -> StorageResult<Option<usize>> {
-        let tables = self.tables();
-        let table = self.open_table(&tables.file_offsets)?;
-        Ok(table.get(self.txn(), &offset_kind)?)
-    }
-}
 
 /// Returns the names of the tables in the storage.
 pub fn table_names() -> &'static [&'static str] {

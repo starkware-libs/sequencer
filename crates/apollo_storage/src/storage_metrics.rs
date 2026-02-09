@@ -17,8 +17,9 @@ use crate::{StorageReader, StorageResult};
 #[allow(clippy::as_conversions)]
 pub fn update_storage_metrics(reader: &StorageReader) -> StorageResult<()> {
     debug!("updating storage metrics");
-    gauge!("storage_free_pages_number").set(reader.db_reader.get_free_pages()? as f64);
-    let info = reader.db_reader.get_db_info()?;
+    let state = reader.shared_state.read().unwrap();
+    gauge!("storage_free_pages_number").set(state.db_writer.get_free_pages()? as f64);
+    let info = state.db_writer.get_db_info()?;
     counter!("storage_last_page_number")
         .absolute(u64::try_from(info.last_pgno()).expect("usize should fit in u64"));
     counter!("storage_last_transaction_index")

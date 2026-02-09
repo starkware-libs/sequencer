@@ -1170,7 +1170,7 @@ pub fn get_block_txs_by_number<
     Mode: TransactionKind,
     Transaction: TryFrom<starknet_api::transaction::Transaction, Error = ErrorObjectOwned>,
 >(
-    txn: &StorageTxn<'_, Mode>,
+    txn: &StorageTxn<'_>,
     block_number: BlockNumber,
 ) -> Result<Vec<Transaction>, ErrorObjectOwned> {
     let transactions = txn
@@ -1181,8 +1181,8 @@ pub fn get_block_txs_by_number<
     transactions.into_iter().map(Transaction::try_from).collect()
 }
 
-pub fn get_block_tx_hashes_by_number<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+pub fn get_block_tx_hashes_by_number(
+    txn: &StorageTxn<'_>,
     block_number: BlockNumber,
 ) -> Result<Vec<TransactionHash>, ErrorObjectOwned> {
     let transaction_hashes = txn
