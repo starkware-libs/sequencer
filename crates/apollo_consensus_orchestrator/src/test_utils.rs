@@ -32,7 +32,7 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_protobuf::consensus::{
     BuildParam,
-    ConsensusBlockInfo,
+    ProposalInit,
     HeightAndRound,
     ProposalCommitment as ProtoProposalCommitment,
     ProposalFin,
@@ -350,7 +350,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo {
+pub(crate) fn block_info(height: BlockNumber, round: u32) -> ProposalInit {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
@@ -364,7 +364,7 @@ pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo 
     let l1_data_gas_price_fri = l1_data_gas_price_wei
         .wei_to_fri(ETH_TO_FRI_RATE)
         .expect("L1 data gas price must be non-zero");
-    ConsensusBlockInfo {
+    ProposalInit {
         height,
         round,
         valid_round: None,

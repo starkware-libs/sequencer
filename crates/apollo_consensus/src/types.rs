@@ -9,7 +9,7 @@ use apollo_network::network_manager::{
     GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{BuildParam, ConsensusBlockInfo, Vote};
+use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote};
 pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
@@ -52,11 +52,11 @@ impl<'a> LeaderElection<'a> {
 #[async_trait]
 pub trait ConsensusContext {
     /// The parts of the proposal that are streamed in.
-    /// Must contain at least the ConsensusBlockInfo and ProposalFin.
+    /// Must contain at least the ProposalInit and ProposalFin.
     type ProposalPart: TryFrom<Vec<u8>, Error = ProtobufConversionError>
         + Into<Vec<u8>>
-        + TryInto<ConsensusBlockInfo, Error = ProtobufConversionError>
-        + From<ConsensusBlockInfo>
+        + TryInto<ProposalInit, Error = ProtobufConversionError>
+        + From<ProposalInit>
         + Clone
         + Send
         + Debug;
@@ -98,7 +98,7 @@ pub trait ConsensusContext {
     ///   by ConsensusContext.
     async fn validate_proposal(
         &mut self,
-        block_info: ConsensusBlockInfo,
+        init: ProposalInit,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<ProposalCommitment>;

@@ -91,7 +91,7 @@ pub struct BuildParam {
 /// distinguish whether an issue comes from the L1 price reading or the conversion rate instead of
 /// comparing after multiplication.
 #[derive(Clone, Debug, PartialEq)]
-pub struct ConsensusBlockInfo {
+pub struct ProposalInit {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
     /// The current round of the consensus.
@@ -138,9 +138,9 @@ impl Default for BuildParam {
     }
 }
 
-impl Default for ConsensusBlockInfo {
+impl Default for ProposalInit {
     fn default() -> Self {
-        ConsensusBlockInfo {
+        ProposalInit {
             height: Default::default(),
             round: Default::default(),
             valid_round: Default::default(),
@@ -189,32 +189,32 @@ pub struct ProposalFin {
 /// A part of the proposal.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProposalPart {
-    /// The block info part of the proposal.
-    BlockInfo(ConsensusBlockInfo),
+    /// The init part of the proposal (block metadata).
+    Init(ProposalInit),
     /// Identifies the content of the proposal; contains `id(v)` in Tendermint terms.
     Fin(ProposalFin),
     /// A part of the proposal that contains one or more transactions.
     Transactions(TransactionBatch),
 }
 
-impl TryInto<ConsensusBlockInfo> for ProposalPart {
+impl TryInto<ProposalInit> for ProposalPart {
     type Error = ProtobufConversionError;
 
-    fn try_into(self: ProposalPart) -> Result<ConsensusBlockInfo, Self::Error> {
+    fn try_into(self: ProposalPart) -> Result<ProposalInit, Self::Error> {
         match self {
-            ProposalPart::BlockInfo(block_info) => Ok(block_info),
+            ProposalPart::Init(init) => Ok(init),
             _ => Err(ProtobufConversionError::WrongEnumVariant {
                 type_description: "ProposalPart",
-                expected: "BlockInfo",
+                expected: "Init",
                 value_as_str: format!("{self:?}"),
             }),
         }
     }
 }
 
-impl From<ConsensusBlockInfo> for ProposalPart {
-    fn from(value: ConsensusBlockInfo) -> Self {
-        ProposalPart::BlockInfo(value)
+impl From<ProposalInit> for ProposalPart {
+    fn from(value: ProposalInit) -> Self {
+        ProposalPart::Init(value)
     }
 }
 

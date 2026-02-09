@@ -117,7 +117,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let block_info = block_info(BlockNumber(0), 0);
+    let init = block_info(BlockNumber(0), 0);
     let transactions =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
@@ -128,14 +128,14 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     });
     content_sender.send(fin.clone()).await.unwrap();
     let fin_receiver =
-        context.validate_proposal(block_info.clone(), TIMEOUT, content_receiver).await;
+        context.validate_proposal(init.clone(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
     let build_param = BuildParam { round: 1, ..Default::default() };
     context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), build_param).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), ProposalPart::BlockInfo(block_info));
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: executed_transactions })
@@ -261,11 +261,11 @@ async fn build_proposal() {
     let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
     // Test proposal parts.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    let block_info = receiver.next().await.unwrap();
+    let part = receiver.next().await.unwrap();
     let after: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
-    let ProposalPart::BlockInfo(info) = block_info else {
-        panic!("Expected ProposalPart::BlockInfo");
+    let ProposalPart::Init(info) = part else {
+        panic!("Expected ProposalPart::Init");
     };
     assert!(info.timestamp >= before && info.timestamp <= after);
     assert_eq!(
@@ -476,7 +476,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Receive the proposal parts.
-    let block_info = receiver.next().await.unwrap();
+    let part = receiver.next().await.unwrap();
     let _txs = receiver.next().await.unwrap();
     let fin = receiver.next().await.unwrap();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
@@ -490,7 +490,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
         .await;
     // Re-propose sends the same proposal.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), block_info);
+    assert_eq!(receiver.next().await.unwrap(), part);
 
     let reproposed_txs = ProposalPart::Transactions(TransactionBatch { transactions });
     assert_eq!(receiver.next().await.unwrap(), reproposed_txs);
@@ -514,22 +514,22 @@ async fn gas_price_fri_out_of_range() {
     let (_content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     // Receive a block info with l1_gas_price_fri that is outside the margin of error.
-    let mut block_info_1 = block_info(BlockNumber(0), 0);
-    block_info_1.l1_gas_price_fri = block_info_1.l1_gas_price_fri.checked_mul_u128(2).unwrap();
-    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid block_info,
+    let mut init_1 = block_info(BlockNumber(0), 0);
+    init_1.l1_gas_price_fri = init_1.l1_gas_price_fri.checked_mul_u128(2).unwrap();
+    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
     let fin_receiver =
-        context.validate_proposal(block_info_1, TIMEOUT * 100, content_receiver).await;
+        context.validate_proposal(init_1, TIMEOUT * 100, content_receiver).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 
     // Do the same for data gas price.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let mut block_info_2 = block_info(BlockNumber(0), 0);
-    block_info_2.l1_data_gas_price_fri =
-        block_info_2.l1_data_gas_price_fri.checked_mul_u128(2).unwrap();
-    content_sender.send(ProposalPart::BlockInfo(block_info_2).clone()).await.unwrap();
-    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid block_info,
+    let mut init_2 = block_info(BlockNumber(0), 0);
+    init_2.l1_data_gas_price_fri =
+        init_2.l1_data_gas_price_fri.checked_mul_u128(2).unwrap();
+    content_sender.send(ProposalPart::Init(init_2).clone()).await.unwrap();
+    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
     let fin_receiver = context
         .validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT * 100, content_receiver)
@@ -573,24 +573,24 @@ async fn gas_price_limits(#[case] maximum: bool) {
 
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
 
-    let mut block_info = block_info(BlockNumber(0), 0);
+    let mut init = block_info(BlockNumber(0), 0);
 
     if maximum {
         // Set the gas price to the maximum value.
-        block_info.l1_gas_price_wei = GasPrice(max_gas_price);
-        block_info.l1_data_gas_price_wei = GasPrice(max_data_price);
-        block_info.l1_gas_price_fri =
-            block_info.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
-        block_info.l1_data_gas_price_fri =
-            block_info.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        init.l1_gas_price_wei = GasPrice(max_gas_price);
+        init.l1_data_gas_price_wei = GasPrice(max_data_price);
+        init.l1_gas_price_fri =
+            init.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        init.l1_data_gas_price_fri =
+            init.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
     } else {
         // Set the gas price to the minimum value.
-        block_info.l1_gas_price_wei = GasPrice(min_gas_price);
-        block_info.l1_data_gas_price_wei = GasPrice(min_data_price);
-        block_info.l1_gas_price_fri =
-            block_info.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
-        block_info.l1_data_gas_price_fri =
-            block_info.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        init.l1_gas_price_wei = GasPrice(min_gas_price);
+        init.l1_data_gas_price_wei = GasPrice(min_data_price);
+        init.l1_gas_price_fri =
+            init.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        init.l1_data_gas_price_fri =
+            init.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
     }
 
     // Send transactions and then fin.
@@ -598,7 +598,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
 
     // Even though we used the minimum/maximum gas price, not the values we gave the provider,
     // the proposal should be still be valid due to the clamping of limit prices.
-    let fin_receiver = context.validate_proposal(block_info, TIMEOUT, content_receiver).await;
+    let fin_receiver = context.validate_proposal(init, TIMEOUT, content_receiver).await;
     assert_eq!(fin_receiver.await, Ok(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0)));
 }
 
@@ -697,9 +697,9 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
-    let block_info = receiver.next().await.unwrap();
-    let ProposalPart::BlockInfo(info) = block_info else {
-        panic!("Expected ProposalPart::BlockInfo");
+    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(info) = part else {
+        panic!("Expected ProposalPart::Init");
     };
 
     let default_context_config = ContextDynamicConfig::default();
@@ -816,18 +816,18 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
-    let info = receiver.next().await.unwrap();
-    let ProposalPart::BlockInfo(info) = info else {
-        panic!("Expected ProposalPart::BlockInfo");
+    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(info) = part else {
+        panic!("Expected ProposalPart::Init");
     };
     assert_eq!(info.height, BlockNumber(1));
 
-    let previous_block_info = block_info(BlockNumber(0), 0);
+    let previous_init = block_info(BlockNumber(0), 0);
 
-    assert_eq!(info.l1_gas_price_wei, previous_block_info.l1_gas_price_wei);
-    assert_eq!(info.l1_data_gas_price_wei, previous_block_info.l1_data_gas_price_wei);
-    assert_eq!(info.l1_gas_price_fri, previous_block_info.l1_gas_price_fri);
-    assert_eq!(info.l1_data_gas_price_fri, previous_block_info.l1_data_gas_price_fri);
+    assert_eq!(info.l1_gas_price_wei, previous_init.l1_gas_price_wei);
+    assert_eq!(info.l1_data_gas_price_wei, previous_init.l1_data_gas_price_wei);
+    assert_eq!(info.l1_gas_price_fri, previous_init.l1_gas_price_fri);
+    assert_eq!(info.l1_data_gas_price_fri, previous_init.l1_data_gas_price_fri);
 
     assert_eq!(
         receiver.next().await.unwrap(),
@@ -1123,13 +1123,13 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap_err();
     assert!(matches!(proposal_commitment, Canceled));
 
-    // Modify the incoming block info to make sure it matches the overrides. Now it passes.
-    let mut modified_block_info = block_info(BlockNumber(1), 0);
-    modified_block_info.l2_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L2_GAS_PRICE);
+    // Modify the incoming init to make sure it matches the overrides. Now it passes.
+    let mut modified_init = block_info(BlockNumber(1), 0);
+    modified_init.l2_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L2_GAS_PRICE);
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
     let fin_receiver =
-        context.validate_proposal(modified_block_info, TIMEOUT, content_receiver).await;
+        context.validate_proposal(modified_init, TIMEOUT, content_receiver).await;
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -1151,15 +1151,15 @@ async fn change_gas_price_overrides() {
     assert!(matches!(proposal_commitment, Canceled));
 
     // Add the new overrides so validation passes.
-    let mut modified_block_info = block_info(BlockNumber(1), 1);
-    modified_block_info.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
+    let mut modified_init = block_info(BlockNumber(1), 1);
+    modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
     // Note that the eth to fri conversion rate by default is 10^18 so we can just replace wei to
     // fri 1:1.
-    modified_block_info.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
+    modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
     let fin_receiver =
-        context.validate_proposal(modified_block_info, TIMEOUT, content_receiver).await;
+        context.validate_proposal(modified_init, TIMEOUT, content_receiver).await;
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -1183,9 +1183,9 @@ async fn change_gas_price_overrides() {
     assert_eq!(fin_receiver.0, STATE_DIFF_COMMITMENT.0.0);
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
-    let info = receiver.next().await.unwrap();
-    let ProposalPart::BlockInfo(_) = info else {
-        panic!("Expected ProposalPart::BlockInfo");
+    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(_) = part else {
+        panic!("Expected ProposalPart::Init");
     };
 }
 

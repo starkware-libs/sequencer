@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use apollo_protobuf::consensus::{
     BuildParam,
-    ConsensusBlockInfo,
     ProposalCommitment,
+    ProposalInit,
     Round,
     Vote,
     VoteType,
@@ -41,21 +41,21 @@ pub struct TestBlock {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TestProposalPart {
-    BlockInfo(ConsensusBlockInfo),
+    Init(ProposalInit),
     Invalid,
 }
 
-impl From<ConsensusBlockInfo> for TestProposalPart {
-    fn from(block_info: ConsensusBlockInfo) -> Self {
-        TestProposalPart::BlockInfo(block_info)
+impl From<ProposalInit> for TestProposalPart {
+    fn from(init: ProposalInit) -> Self {
+        TestProposalPart::Init(init)
     }
 }
 
-impl TryFrom<TestProposalPart> for ConsensusBlockInfo {
+impl TryFrom<TestProposalPart> for ProposalInit {
     type Error = ProtobufConversionError;
     fn try_from(part: TestProposalPart) -> Result<Self, Self::Error> {
-        if let TestProposalPart::BlockInfo(block_info) = part {
-            return Ok(block_info);
+        if let TestProposalPart::Init(init) = part {
+            return Ok(init);
         }
         Err(ProtobufConversionError::SerdeJsonError("Invalid proposal part".to_string()))
     }
@@ -63,8 +63,8 @@ impl TryFrom<TestProposalPart> for ConsensusBlockInfo {
 
 impl From<TestProposalPart> for Vec<u8> {
     fn from(part: TestProposalPart) -> Vec<u8> {
-        if let TestProposalPart::BlockInfo(block_info) = part {
-            return block_info.into();
+        if let TestProposalPart::Init(init) = part {
+            return init.into();
         }
         vec![]
     }
@@ -74,7 +74,7 @@ impl TryFrom<Vec<u8>> for TestProposalPart {
     type Error = ProtobufConversionError;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(TestProposalPart::BlockInfo(value.try_into()?))
+        Ok(TestProposalPart::Init(value.try_into()?))
     }
 }
 
@@ -94,7 +94,7 @@ mock! {
 
         async fn validate_proposal(
             &mut self,
-            block_info: ConsensusBlockInfo,
+            init: ProposalInit,
             timeout: Duration,
             content: mpsc::Receiver<TestProposalPart>
         ) -> oneshot::Receiver<ProposalCommitment>;
@@ -163,8 +163,8 @@ pub fn build_param(height: BlockNumber, round: Round, proposer: ValidatorId) -> 
     BuildParam { height, round, proposer, ..Default::default() }
 }
 
-pub fn block_info(height: BlockNumber, round: Round, proposer: ValidatorId) -> ConsensusBlockInfo {
-    ConsensusBlockInfo { height, round, proposer, ..Default::default() }
+pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -> ProposalInit {
+    ProposalInit { height, round, proposer, ..Default::default() }
 }
 
 #[derive(Debug)]

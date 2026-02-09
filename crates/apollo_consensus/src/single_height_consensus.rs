@@ -23,7 +23,7 @@ const DUPLICATE_VOTE_LOG_PERIOD_MS: u64 = 10_000;
 
 use apollo_consensus_config::config::TimeoutsConfig;
 use apollo_infra_utils::trace_every_n_ms;
-use apollo_protobuf::consensus::{ConsensusBlockInfo, Vote, VoteType};
+use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -108,40 +108,40 @@ impl SingleHeightConsensus {
         self.state_machine.start(leader_election)
     }
 
-    /// Process the proposal block info message and initiate block validation by returning
+    /// Process the proposal init message and initiate block validation by returning
     /// `SMRequest::StartValidateProposal` to the manager.
     #[instrument(skip_all)]
     pub(crate) fn handle_proposal(
         &mut self,
         leader_election: &LeaderElection<'_>,
-        block_info: ConsensusBlockInfo,
+        init: ProposalInit,
     ) -> Requests {
-        debug!("Received {block_info:?}");
+        debug!("Received {init:?}");
         let height = self.state_machine.height();
-        if block_info.height != height {
-            warn!("Invalid proposal height: expected {:?}, got {:?}", height, block_info.height);
+        if init.height != height {
+            warn!("Invalid proposal height: expected {:?}, got {:?}", height, init.height);
             return VecDeque::new();
         }
         // TODO(guyn): replace this with assert_eq, but also need to fix simulation_test.
-        let Some(proposer_id) = leader_election.virtual_proposer(block_info.round).ok() else {
+        let Some(proposer_id) = leader_election.virtual_proposer(init.round).ok() else {
             return VecDeque::new();
         };
-        if block_info.proposer != proposer_id {
-            warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, block_info.proposer);
+        if init.proposer != proposer_id {
+            warn!("Invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
             return VecDeque::new();
         }
         // Avoid duplicate validations:
         // - If SM already has an entry for this round, a (re)proposal was already recorded.
         // - If we already started validating this round, ignore repeats.
-        if self.state_machine.has_proposal_for_round(block_info.round)
-            || self.pending_validation_rounds.contains(&block_info.round)
+        if self.state_machine.has_proposal_for_round(init.round)
+            || self.pending_validation_rounds.contains(&init.round)
         {
-            warn!("Round {} already handled a proposal, ignoring", block_info.round);
+            warn!("Round {} already handled a proposal, ignoring", init.round);
             return VecDeque::new();
         }
-        let timeout = self.timeouts.get_proposal_timeout(block_info.round);
+        let timeout = self.timeouts.get_proposal_timeout(init.round);
         info!(
-            "Accepting {block_info:?}. node_round: {}, timeout: {timeout:?}",
+            "Accepting {init:?}. node_round: {}, timeout: {timeout:?}",
             self.state_machine.round()
         );
         // TODO(Asmaa): rename the metric.
@@ -149,9 +149,9 @@ impl SingleHeightConsensus {
 
         // Since validating the proposal is non-blocking, avoid validating the same round twice in
         // parallel (e.g., due to repeats or spam).
-        self.pending_validation_rounds.insert(block_info.round);
+        self.pending_validation_rounds.insert(init.round);
         // Ask the manager to start validation.
-        VecDeque::from([SMRequest::StartValidateProposal(block_info)])
+        VecDeque::from([SMRequest::StartValidateProposal(init)])
     }
 
     #[instrument(skip_all)]

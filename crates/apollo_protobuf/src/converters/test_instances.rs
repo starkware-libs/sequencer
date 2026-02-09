@@ -14,9 +14,9 @@ use starknet_types_core::felt::Felt;
 use super::ProtobufConversionError;
 use crate::consensus::{
     CommitmentParts,
-    ConsensusBlockInfo,
     ProposalCommitment,
     ProposalFin,
+    ProposalInit,
     ProposalPart,
     StreamMessage,
     StreamMessageBody,
@@ -52,7 +52,7 @@ auto_impl_get_test_instance! {
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,
     }
-    pub struct ConsensusBlockInfo {
+    pub struct ProposalInit {
         pub height: BlockNumber,
         pub round: u32,
         pub valid_round: Option<u32>,
@@ -69,7 +69,7 @@ auto_impl_get_test_instance! {
         pub version_constant_commitment: StarkHash,
     }
     pub enum ProposalPart {
-        BlockInfo(ConsensusBlockInfo) = 0,
+        Init(ProposalInit) = 0,
         Fin(ProposalFin) = 1,
         Transactions(TransactionBatch) = 2,
     }

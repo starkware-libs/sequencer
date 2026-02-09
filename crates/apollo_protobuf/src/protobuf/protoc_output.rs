@@ -436,7 +436,7 @@ pub mod stream_message {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BlockInfo {
+pub struct ProposalInit {
     #[prost(uint64, tag = "1")]
     pub height: u64,
     #[prost(uint32, tag = "2")]
@@ -495,7 +495,7 @@ pub struct ProposalFin {
     pub commitment_parts: ::core::option::Option<CommitmentParts>,
 }
 /// Network format:
-/// 1. First message is BlockInfo (includes all block metadata)
+/// 1. First message is ProposalInit (init, includes all block metadata)
 /// 2. transactions is sent repeatedly (for non-empty blocks)
 /// 3. Last message is ProposalFin
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -510,7 +510,7 @@ pub mod proposal_part {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Message {
         #[prost(message, tag = "1")]
-        BlockInfo(super::BlockInfo),
+        Init(super::ProposalInit),
         #[prost(message, tag = "2")]
         Fin(super::ProposalFin),
         #[prost(message, tag = "3")]

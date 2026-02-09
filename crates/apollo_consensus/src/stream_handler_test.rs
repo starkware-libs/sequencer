@@ -4,7 +4,7 @@ use std::fmt::Display;
 use apollo_consensus_config::config::StreamHandlerConfig;
 use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart, StreamMessageBody};
+use apollo_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::mpsc::{self, Receiver, SendError, Sender};
@@ -119,7 +119,7 @@ fn setup() -> (
 
 fn build_init_message(round: u32, stream_id: u64, message_id: u32) -> StreamMessage {
     StreamMessage {
-        message: StreamMessageBody::Content(ProposalPart::BlockInfo(ConsensusBlockInfo {
+        message: StreamMessageBody::Content(ProposalPart::Init(ProposalInit {
             round,
             ..Default::default()
         })),
@@ -163,7 +163,7 @@ async fn outbound_single() {
     // Send the content of the stream.
     for i in 0..num_messages {
         let block_info =
-            ProposalPart::BlockInfo(ConsensusBlockInfo { round: i, ..Default::default() });
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
         sender.send(block_info).await.unwrap();
     }
 
@@ -212,7 +212,7 @@ async fn outbound_multiple() {
         let sender = stream_senders.get_mut(as_usize(stream_id)).unwrap();
         for i in 0..num_messages {
             let block_info =
-                ProposalPart::BlockInfo(ConsensusBlockInfo { round: i, ..Default::default() });
+                ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
             sender.send(block_info).await.unwrap();
         }
     }
@@ -271,7 +271,7 @@ async fn inbound_in_order() {
         let message = receiver.next().await.unwrap();
         assert_eq!(
             message,
-            ProposalPart::BlockInfo(ConsensusBlockInfo { round: i, ..Default::default() })
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
         );
     }
     // Check that the receiver was closed:
@@ -307,7 +307,7 @@ async fn lru_cache_for_inbound_streams() {
         let message = receiver.next().await.unwrap();
         assert_eq!(
             message,
-            ProposalPart::BlockInfo(ConsensusBlockInfo {
+            ProposalPart::Init(ProposalInit {
                 round: i.try_into().unwrap(),
                 ..Default::default()
             })
@@ -356,8 +356,8 @@ async fn inbound_multiple() {
         for i in 0..num_messages {
             let message = receiver.next().await.unwrap();
             actual_msgs.get_mut(as_usize(sid)).unwrap().push(message);
-            expected_msgs.get_mut(as_usize(sid)).unwrap().push(ProposalPart::BlockInfo(
-                ConsensusBlockInfo { round: i, ..Default::default() },
+            expected_msgs.get_mut(as_usize(sid)).unwrap().push(ProposalPart::Init(
+                ProposalInit { round: i, ..Default::default() },
             ));
         }
         // Check that the receiver was closed:
@@ -405,7 +405,7 @@ async fn inbound_delayed_first() {
         let message = receiver.next().await.unwrap();
         assert_eq!(
             message,
-            ProposalPart::BlockInfo(ConsensusBlockInfo { round: i, ..Default::default() })
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
         );
     }
     // Check that the receiver was closed:
@@ -445,7 +445,7 @@ async fn inbound_delayed_middle() {
         let message = receiver.next().await.unwrap();
         assert_eq!(
             message,
-            ProposalPart::BlockInfo(ConsensusBlockInfo { round: i, ..Default::default() })
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
         );
     }
 
@@ -461,7 +461,7 @@ async fn inbound_delayed_middle() {
         let message = receiver.next().await.unwrap();
         assert_eq!(
             message,
-            ProposalPart::BlockInfo(ConsensusBlockInfo { round: i, ..Default::default() })
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
         );
     }
     // Check that the receiver was closed:
