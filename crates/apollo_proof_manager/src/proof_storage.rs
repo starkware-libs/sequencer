@@ -3,7 +3,6 @@ use std::fs::OpenOptions;
 use std::io::{BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
-use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
 use starknet_api::transaction::fields::Proof;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
@@ -25,8 +24,8 @@ pub enum FsProofStorageError {
     IoError(#[from] std::io::Error),
     #[error("Proof for facts_hash {facts_hash} not found.")]
     ProofNotFound { facts_hash: Felt },
-    #[error(transparent)]
-    ProofEncodingError(#[from] ProofEncodingError),
+    #[error("Proof file byte length {0} is not a multiple of 4.")]
+    InvalidProofLength(usize),
 }
 
 type FsProofStorageResult<T> = Result<T, FsProofStorageError>;
@@ -108,10 +107,10 @@ impl FsProofStorage {
             .expect("Failing to open file with given options is impossible");
 
         let mut writer = BufWriter::new(file);
-        let proof_bytes = ProofBytes::try_from(proof.clone())?;
+        let bytes: Vec<u8> = proof.0.iter().flat_map(|n| n.to_be_bytes()).collect();
 
         // Single write.
-        writer.write_all(&proof_bytes.0)?;
+        writer.write_all(&bytes)?;
         writer.flush()?;
         Ok(())
     }
@@ -124,8 +123,11 @@ impl FsProofStorage {
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
 
-        let proof_bytes = ProofBytes(buffer);
-        Ok(proof_bytes.into())
+        let (chunks, []) = buffer.as_chunks::<4>() else {
+            return Err(FsProofStorageError::InvalidProofLength(buffer.len()));
+        };
+        let data: Vec<u32> = chunks.iter().map(|c| u32::from_be_bytes(*c)).collect();
+        Ok(Proof::from(data))
     }
 
     fn write_proof_atomically(&self, facts_hash: Felt, proof: Proof) -> FsProofStorageResult<()> {
