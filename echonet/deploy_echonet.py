@@ -151,6 +151,13 @@ def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
     if "start_block" not in data:
         raise ValueError("Missing required key: start_block")
 
+    if int(data["start_block"]) == 0:
+        logger.error(
+            f"Refusing to deploy: start_block is 0 in {keys_in_repo}. "
+            "Set a non-zero start_block and re-run."
+        )
+        raise SystemExit(1)
+
     shutil.copyfile(keys_in_repo, generated_path)
     logger.info(f"Copied keys file: {keys_in_repo} -> {generated_path}")
 
