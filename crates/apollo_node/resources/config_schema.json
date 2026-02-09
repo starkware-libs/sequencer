@@ -1999,6 +1999,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height": {
+    "description": "List of minimum L2 gas prices per block height in format 'height1:price1,height2:price2'. Each entry specifies a height and the minimum gas price that applies from that height onwards. For a given block height h, the minimum gas price is determined by finding the largest height in this list where height <= h. If no such entry exists, falls back to versioned_constants.min_gas_price.",
+    "privacy": "Public",
+    "value": ""
+  },
   "consensus_manager_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
     "privacy": "Public",
