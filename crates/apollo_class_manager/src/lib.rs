@@ -5,11 +5,7 @@ pub mod metrics;
 
 // Re-export selected items from the now-private class_storage module.
 pub use class_storage::{
-    CachedClassStorage,
-    ClassHashStorage,
-    ClassHashStorageError,
-    ClassStorage,
-    FsClassStorage,
+    CachedClassStorage, ClassHashStorage, ClassHashStorageError, ClassStorage, FsClassStorage,
     FsClassStorageError,
 };
 

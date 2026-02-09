@@ -8,7 +8,7 @@ use apollo_storage::db::DbConfig;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::mmap_file::MmapFileConfig;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageScope};
+use apollo_storage::{StorageConfig, StorageReader, StorageScope, open_storage};
 use blake2::digest::consts::U31;
 use blake2::{Blake2s, Digest};
 use rand::distributions::Uniform;
@@ -20,10 +20,7 @@ use starknet_api::core::ChainId;
 use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
-    Input,
-    ReaderConfig,
-    StarknetStorageKey,
-    StateDiff,
+    Input, ReaderConfig, StarknetStorageKey, StateDiff,
 };
 use starknet_committer::block_committer::measurements_util::{Action, MeasurementsTrait};
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
@@ -36,14 +33,8 @@ use tokio::time::sleep;
 use tracing::{error, info, warn};
 
 use crate::args::{
-    BenchmarkFlavor,
-    GlobalArgs,
-    InterferenceArgs,
-    InterferenceType,
-    ShortKeySizeArg,
-    StorageBenchmarkCommand,
-    StorageType,
-    DEFAULT_DATA_PATH,
+    BenchmarkFlavor, DEFAULT_DATA_PATH, GlobalArgs, InterferenceArgs, InterferenceType,
+    ShortKeySizeArg, StorageBenchmarkCommand, StorageType,
 };
 use crate::utils::BenchmarkMeasurements;
 

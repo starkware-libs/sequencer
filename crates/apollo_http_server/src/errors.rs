@@ -3,9 +3,7 @@ use std::io;
 use apollo_config_manager_types::communication::ConfigManagerClientError;
 use apollo_gateway_types::communication::GatewayClientError;
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewayError;
 use axum::http::StatusCode;

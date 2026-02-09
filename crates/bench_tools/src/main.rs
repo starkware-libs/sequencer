@@ -2,9 +2,7 @@ use std::path::PathBuf;
 
 use bench_tools::gcs;
 use bench_tools::types::benchmark_config::{
-    find_benchmark_by_name,
-    find_benchmarks_by_package,
-    BENCHMARKS,
+    BENCHMARKS, find_benchmark_by_name, find_benchmarks_by_package,
 };
 use bench_tools::utils::parse_absolute_time_limits;
 use clap::{Parser, Subcommand};

@@ -13,18 +13,15 @@ use starknet_os::opcode_instances::OpcodeInstanceCounts;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
+use tracing_subscriber::reload::Handle;
 
 use crate::os_cli::commands::{
-    dump_program,
-    dump_program_hashes,
-    dump_source_files,
-    parse_and_run_aggregator,
+    dump_program, dump_program_hashes, dump_source_files, parse_and_run_aggregator,
     parse_and_run_os,
 };
 use crate::os_cli::tests::python_tests::OsPythonTestRunner;
-use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
+use crate::shared_utils::types::{IoArgs, PythonTestArg, run_python_test};
 
 #[derive(Parser, Debug)]
 pub struct OsCliCommand {

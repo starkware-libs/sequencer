@@ -4,9 +4,7 @@ use std::time::Duration;
 
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_network::network_manager::{
-    BroadcastTopicChannels,
-    BroadcastTopicClient,
-    GenericReceiver,
+    BroadcastTopicChannels, BroadcastTopicClient, GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote};

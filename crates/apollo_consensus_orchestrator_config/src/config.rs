@@ -3,16 +3,11 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_comma_separated_str,
-    deserialize_milliseconds_to_duration,
-    deserialize_seconds_to_duration,
-    serialize_optional_comma_separated,
+    deserialize_comma_separated_str, deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration, serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
+    SerializeConfig, prepend_sub_config_name, ser_optional_param, ser_param,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};

@@ -1,12 +1,12 @@
 use clap::{Parser, Subcommand};
 use tracing::info;
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
+use tracing_subscriber::reload::Handle;
 
 use crate::committer_cli::commands::parse_and_commit;
 use crate::committer_cli::tests::python_tests::CommitterPythonTestRunner;
-use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
+use crate::shared_utils::types::{IoArgs, PythonTestArg, run_python_test};
 
 #[derive(Parser, Debug)]
 pub struct CommitterCliCommand {

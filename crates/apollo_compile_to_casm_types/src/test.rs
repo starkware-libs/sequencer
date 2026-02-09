@@ -3,7 +3,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 
-use crate::{size_of_serialized, RawClass, RawExecutableClass};
+use crate::{RawClass, RawExecutableClass, size_of_serialized};
 
 #[test]
 fn test_size_of_serialized() {

@@ -13,11 +13,8 @@ pub mod test_utils;
 
 pub use apollo_l1_provider_config::config::L1ProviderConfig;
 use papyrus_base_layer::constants::{
-    EventIdentifier,
-    CONSUMED_MESSAGE_TO_L2_EVENT_IDENTIFIER,
-    LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
-    MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
-    MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
+    CONSUMED_MESSAGE_TO_L2_EVENT_IDENTIFIER, EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+    MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER, MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
 
 use crate::transaction_manager::TransactionManagerConfig;

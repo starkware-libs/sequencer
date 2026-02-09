@@ -1,13 +1,11 @@
 use std::sync::{Arc, LazyLock};
 
 use apollo_class_manager_types::{
-    ClassManagerClientResult,
-    ExecutableClass,
-    MockClassManagerClient,
+    ClassManagerClientResult, ExecutableClass, MockClassManagerClient,
 };
 use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClientResult};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
@@ -17,16 +15,8 @@ use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use mockall::predicate;
 use rstest::rstest;
 use starknet_api::block::{
-    BlockHeaderWithoutHash,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
-    GasPriceVector,
-    GasPrices,
-    NonzeroGasPrice,
-    StarknetVersion,
+    BlockHeaderWithoutHash, BlockInfo, BlockNumber, BlockTimestamp, GasPrice, GasPricePerToken,
+    GasPriceVector, GasPrices, NonzeroGasPrice, StarknetVersion,
 };
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, ContractAddress, SequencerContractAddress};
@@ -36,8 +26,7 @@ use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::gateway_fixed_block_state_reader::{
-    GatewayFixedBlockStateReader,
-    GatewayFixedBlockSyncStateClient,
+    GatewayFixedBlockStateReader, GatewayFixedBlockSyncStateClient,
 };
 use crate::state_reader::StateReaderFactory;
 use crate::sync_state_reader::{SyncStateReader, SyncStateReaderFactory};

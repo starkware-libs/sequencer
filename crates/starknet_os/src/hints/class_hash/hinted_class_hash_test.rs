@@ -7,8 +7,7 @@ use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::class_hash::hinted_class_hash::{
-    add_backward_compatibility_space,
-    compute_cairo_hinted_class_hash,
+    add_backward_compatibility_space, compute_cairo_hinted_class_hash,
 };
 use crate::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 

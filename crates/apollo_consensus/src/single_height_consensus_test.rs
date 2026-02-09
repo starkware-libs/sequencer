@@ -1,5 +1,5 @@
 use apollo_consensus_config::config::TimeoutsConfig;
-use apollo_protobuf::consensus::{ProposalInit, VoteType, DEFAULT_VALIDATOR_ID};
+use apollo_protobuf::consensus::{DEFAULT_VALIDATOR_ID, ProposalInit, VoteType};
 use assert_matches::assert_matches;
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
@@ -8,7 +8,7 @@ use test_case::test_case;
 
 use super::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
-use crate::test_utils::{block_info, precommit, prevote, TestBlock};
+use crate::test_utils::{TestBlock, block_info, precommit, prevote};
 use crate::types::{ConsensusError, LeaderElection, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 

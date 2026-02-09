@@ -7,41 +7,20 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, Calldata, ContractAddressSalt, Fee, PaymasterData, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    DeclareTransactionOutput,
-    DeployAccountTransactionOutput,
-    DeployTransactionOutput,
-    Event,
-    InvokeTransactionOutput,
-    L1HandlerTransactionOutput,
-    L1ToL2Payload,
-    L2ToL1Payload,
-    MessageToL1,
+    DeclareTransactionOutput, DeployAccountTransactionOutput, DeployTransactionOutput, Event,
+    InvokeTransactionOutput, L1HandlerTransactionOutput, L1ToL2Payload, L2ToL1Payload, MessageToL1,
     RevertedTransactionExecutionStatus as SnApiRevertedTransactionExecutionStatus,
-    TransactionExecutionStatus as SnApiTransactionExecutionStatus,
-    TransactionHash,
-    TransactionOffsetInBlock,
-    TransactionOutput,
-    TransactionVersion,
+    TransactionExecutionStatus as SnApiTransactionExecutionStatus, TransactionHash,
+    TransactionOffsetInBlock, TransactionOutput, TransactionVersion,
 };
 use strum_macros::EnumIter;
 use tracing::error;

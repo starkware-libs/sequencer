@@ -2,24 +2,15 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::num::NonZeroUsize;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
 
 use crate::storage_trait::{
-    AsyncStorage,
-    DbHashMap,
-    DbKey,
-    DbValue,
-    EmptyStorageConfig,
-    NoStats,
-    NullStorage,
-    PatriciaStorageResult,
-    Storage,
-    StorageConfigTrait,
-    StorageStats,
+    AsyncStorage, DbHashMap, DbKey, DbValue, EmptyStorageConfig, NoStats, NullStorage,
+    PatriciaStorageResult, Storage, StorageConfigTrait, StorageStats,
 };
 
 // 1M entries.

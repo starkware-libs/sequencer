@@ -5,16 +5,8 @@ use std::sync::Arc;
 use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ff::{BigInt, PrimeField};
 use cairo_native::starknet::{
-    BlockInfo,
-    ExecutionInfo,
-    ExecutionInfoV2,
-    Secp256k1Point,
-    Secp256r1Point,
-    StarknetSyscallHandler,
-    SyscallResult,
-    TxInfo,
-    TxV2Info,
-    U256,
+    BlockInfo, ExecutionInfo, ExecutionInfoV2, Secp256k1Point, Secp256r1Point,
+    StarknetSyscallHandler, SyscallResult, TxInfo, TxV2Info, U256,
 };
 use num_bigint::BigUint;
 use starknet_api::contract_class::EntryPointType;
@@ -29,22 +21,16 @@ use crate::blockifier_versioned_constants::GasCosts;
 use crate::execution::call_info::{MessageToL1, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    CallType,
-    EntryPointExecutionContext,
-    ExecutableCallEntryPoint,
+    CallEntryPoint, CallType, EntryPointExecutionContext, ExecutableCallEntryPoint,
 };
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
 use crate::execution::secp;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
-use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR_FELT};
+use crate::execution::syscalls::hint_processor::{OUT_OF_GAS_ERROR_FELT, SyscallExecutionError};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::execution::syscalls::vm_syscall_utils::{
-    SelfOrRevert,
-    SyscallExecutorBaseError,
-    SyscallSelector,
-    TryExtractRevert,
+    SelfOrRevert, SyscallExecutorBaseError, SyscallSelector, TryExtractRevert,
 };
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;

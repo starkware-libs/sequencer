@@ -5,15 +5,12 @@ use alloy::rpc::types::Log;
 use alloy::sol_types::SolEventInterface;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::core::{EntryPointSelector, Nonce};
-use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
+use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_types_core::felt::Felt;
 
 use crate::ethereum_base_layer_contract::{
-    EthereumBaseLayerError,
-    EthereumBaseLayerResult,
-    EthereumContractAddress,
-    Starknet,
+    EthereumBaseLayerError, EthereumBaseLayerResult, EthereumContractAddress, Starknet,
 };
 use crate::{EventData, L1Event};
 

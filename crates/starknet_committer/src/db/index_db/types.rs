@@ -4,24 +4,17 @@ use ethnum::U256;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePath,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::{SubTreeTrait, UnmodifiedChildTraversal};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{
-    DBObject,
-    EmptyDeserializationContext,
-    HasStaticPrefix,
+    DBObject, EmptyDeserializationContext, HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
+use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue, create_db_key};
 use starknet_types_core::felt::Felt;
 
 use crate::db::facts_db::node_serde::SERIALIZE_HASH_BYTES;

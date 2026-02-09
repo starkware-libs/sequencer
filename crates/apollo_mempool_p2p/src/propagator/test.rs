@@ -1,22 +1,19 @@
 use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverterTrait,
+    MockTransactionConverterTrait, TransactionConverterTrait,
 };
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequest;
 use apollo_network::network_manager::test_utils::{
+    BroadcastNetworkMock, MockMessagesToBroadcastReceiver, TestSubscriberChannels,
     mock_register_broadcast_topic,
-    BroadcastNetworkMock,
-    MockMessagesToBroadcastReceiver,
-    TestSubscriberChannels,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
+use futures::FutureExt;
 use futures::channel::mpsc::Receiver;
 use futures::stream::StreamExt;
-use futures::FutureExt;
 use mockall::predicate;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use tokio::time::timeout;

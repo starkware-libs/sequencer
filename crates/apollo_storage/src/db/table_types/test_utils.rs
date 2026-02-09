@@ -1,15 +1,15 @@
 use assert_matches::assert_matches;
-use rand::rngs::ThreadRng;
 use rand::Rng;
+use rand::rngs::ThreadRng;
 use tracing::debug;
 
 use super::{Table, TableType};
+use crate::DbError;
 use crate::db::db_test::get_test_env;
 use crate::db::serialization::{NoVersionValueWrapper, StorageSerde, StorageSerdeError};
 use crate::db::table_types::{DbCursor, DbCursorTrait};
-use crate::db::{DbReader, DbResult, DbWriter, TableHandle, TableIdentifier, RO, RW};
+use crate::db::{DbReader, DbResult, DbWriter, RO, RW, TableHandle, TableIdentifier};
 use crate::serialization::serializers::auto_storage_serde;
-use crate::DbError;
 
 // TODO(dvir): consider adding tests with keys and values in different sizes.
 

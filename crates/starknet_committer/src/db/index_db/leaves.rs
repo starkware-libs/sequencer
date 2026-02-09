@@ -3,10 +3,7 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::LeafResult;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia_storage::db_object::{
-    DBObject,
-    EmptyDeserializationContext,
-    EmptyKeyContext,
-    HasStaticPrefix,
+    DBObject, EmptyDeserializationContext, EmptyKeyContext, HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationError};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};

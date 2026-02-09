@@ -3,32 +3,19 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use rust_rocksdb::statistics::StatsLevel;
 use rust_rocksdb::{
-    BlockBasedIndexType,
-    BlockBasedOptions,
-    Cache,
-    Options,
-    SliceTransform,
-    WriteBatch,
+    BlockBasedIndexType, BlockBasedOptions, Cache, DB, Options, SliceTransform, WriteBatch,
     WriteOptions,
-    DB,
 };
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::storage_trait::{
-    AsyncStorage,
-    DbHashMap,
-    DbKey,
-    DbValue,
-    PatriciaStorageError,
-    PatriciaStorageResult,
-    Storage,
-    StorageConfigTrait,
-    StorageStats,
+    AsyncStorage, DbHashMap, DbKey, DbValue, PatriciaStorageError, PatriciaStorageResult, Storage,
+    StorageConfigTrait, StorageStats,
 };
 
 // General database Options.

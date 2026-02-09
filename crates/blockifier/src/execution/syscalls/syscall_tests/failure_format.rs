@@ -3,7 +3,7 @@ use starknet_api::felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::errors::EntryPointExecutionError;
-use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
+use crate::execution::stack_trace::{Cairo1RevertHeader, extract_trailing_cairo1_revert_trace};
 
 #[test]
 fn test_syscall_failure_format() {

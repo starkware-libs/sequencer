@@ -7,9 +7,7 @@ use thiserror::Error;
 
 use crate::context::TransactionContext;
 use crate::fee::fee_utils::{
-    get_balance_and_if_covers_fee,
-    get_fee_by_gas_vector,
-    GasVectorToL1GasForFee,
+    GasVectorToL1GasForFee, get_balance_and_if_covers_fee, get_fee_by_gas_vector,
 };
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::state_api::StateReader;
@@ -19,9 +17,7 @@ use crate::transaction::objects::{TransactionExecutionResult, TransactionInfo};
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Error, PartialEq)]
 pub enum FeeCheckError {
-    #[error(
-        "Insufficient max {resource}: max amount: {max_amount}, actual used: {actual_amount}."
-    )]
+    #[error("Insufficient max {resource}: max amount: {max_amount}, actual used: {actual_amount}.")]
     MaxGasAmountExceeded { resource: Resource, max_amount: GasAmount, actual_amount: GasAmount },
     #[error("Insufficient max fee: max fee: {}, actual fee: {}.", max_fee.0, actual_fee.0)]
     MaxFeeExceeded { max_fee: Fee, actual_fee: Fee },

@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 use crate::tracing::CustomLogger;
 

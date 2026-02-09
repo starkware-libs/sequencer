@@ -1,7 +1,5 @@
 use apollo_class_manager_types::{
-    ClassManagerRequest,
-    ClassManagerRequestLabelValue,
-    ClassManagerResponse,
+    ClassManagerRequest, ClassManagerRequestLabelValue, ClassManagerResponse,
 };
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};

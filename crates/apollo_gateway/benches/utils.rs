@@ -9,7 +9,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
-use starknet_api::test_utils::{valid_resource_bounds_for_testing, NonceManager};
+use starknet_api::test_utils::{NonceManager, valid_resource_bounds_for_testing};
 
 const N_TXS: usize = 100;
 

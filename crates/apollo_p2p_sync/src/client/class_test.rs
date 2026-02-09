@@ -2,16 +2,11 @@ use std::collections::HashMap;
 
 use apollo_class_manager_types::{ClassHashes, MockClassManagerClient};
 use apollo_protobuf::sync::{
-    BlockHashOrNumber,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    Direction,
-    Query,
+    BlockHashOrNumber, DataOrFin, DeclaredClass, DeprecatedDeclaredClass, Direction, Query,
     StateDiffChunk,
 };
 use apollo_storage::class_manager::ClassManagerStorageReader;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use futures::FutureExt;
 use mockall::predicate::eq;
 use papyrus_common::pending_classes::ApiContractClass;
@@ -20,20 +15,13 @@ use rand_chacha::ChaCha8Rng;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointOffset,
-    EntryPointV0,
+    ContractClass as DeprecatedContractClass, EntryPointOffset, EntryPointV0,
 };
 use starknet_api::state::SierraContractClass;
 
 use super::test_utils::{
-    random_header,
-    run_test,
-    wait_for_marker,
-    Action,
-    DataType,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    TIMEOUT_FOR_TEST,
+    Action, DataType, SLEEP_DURATION_TO_LET_SYNC_ADVANCE, TIMEOUT_FOR_TEST, random_header,
+    run_test, wait_for_marker,
 };
 
 #[tokio::test]

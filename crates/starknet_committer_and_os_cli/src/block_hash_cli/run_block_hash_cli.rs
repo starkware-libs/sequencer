@@ -1,14 +1,13 @@
 use clap::{Parser, Subcommand};
 use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_commitments,
-    calculate_block_hash,
+    calculate_block_commitments, calculate_block_hash,
 };
 use tracing::info;
 
 use crate::block_hash_cli::tests::python_tests::BlockHashPythonTestRunner;
 use crate::committer_cli::block_hash::{BlockCommitmentsInput, BlockHashInput};
 use crate::shared_utils::read::{load_input, write_to_file};
-use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
+use crate::shared_utils::types::{IoArgs, PythonTestArg, run_python_test};
 
 #[derive(Parser, Debug)]
 pub struct BlockHashCliCommand {

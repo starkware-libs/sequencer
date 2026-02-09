@@ -6,25 +6,22 @@ use std::str::FromStr;
 use std::time::SystemTime;
 use std::vec;
 
+use apollo_network::NetworkConfig;
 use apollo_network::network_manager::{
-    BroadcastTopicChannels,
-    BroadcastTopicClient,
-    BroadcastTopicClientTrait,
-    BroadcastTopicServer,
+    BroadcastTopicChannels, BroadcastTopicClient, BroadcastTopicClientTrait, BroadcastTopicServer,
     NetworkManager,
 };
-use apollo_network::NetworkConfig;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use clap::Parser;
-use converters::{StressTestMessage, METADATA_SIZE};
-use futures::future::join_all;
+use converters::{METADATA_SIZE, StressTestMessage};
 use futures::StreamExt;
-use libp2p::gossipsub::{Sha256Topic, Topic};
+use futures::future::join_all;
 use libp2p::Multiaddr;
+use libp2p::gossipsub::{Sha256Topic, Topic};
 use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::time::Duration;
-use tracing::{info, trace, Level};
+use tracing::{Level, info, trace};
 
 #[cfg(test)]
 mod converters_test;

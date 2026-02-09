@@ -1,20 +1,13 @@
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use lazy_static::lazy_static;
 use rand::random;
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeclareTransactionOutput,
-    DeployAccountTransaction,
-    DeployAccountTransactionOutput,
-    DeployTransactionOutput,
-    FullTransaction,
-    InvokeTransaction,
-    InvokeTransactionOutput,
-    L1HandlerTransactionOutput,
-    Transaction as StarknetApiTransaction,
+    DeclareTransaction, DeclareTransactionOutput, DeployAccountTransaction,
+    DeployAccountTransactionOutput, DeployTransactionOutput, FullTransaction, InvokeTransaction,
+    InvokeTransactionOutput, L1HandlerTransactionOutput, Transaction as StarknetApiTransaction,
     TransactionOutput,
 };
 use starknet_api::tx_hash;

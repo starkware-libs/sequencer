@@ -1,20 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use libp2p::identity::Keypair;
 use libp2p::PeerId;
+use libp2p::identity::Keypair;
 use rstest::{fixture, rstest};
 
 use crate::types::ShardSignatureVerificationError;
 use crate::{
-    Channel,
-    MerkleTree,
-    MessageRoot,
-    PropellerScheduleManager,
-    PropellerUnit,
-    ShardIndex,
-    ShardValidationError,
-    UnitValidator,
+    Channel, MerkleTree, MessageRoot, PropellerScheduleManager, PropellerUnit, ShardIndex,
+    ShardValidationError, UnitValidator,
 };
 
 struct TestEnv {

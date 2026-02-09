@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::CompiledClassHash;
@@ -12,11 +12,7 @@ use starknet_types_core::hash::StarkHash as HashFunction;
 use crate::hints::error::OsHintError;
 use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::{
-    insert_values_to_fields,
-    CairoSized,
-    IdentifierGetter,
-    LoadCairoObject,
-    VmUtilsResult,
+    CairoSized, IdentifierGetter, LoadCairoObject, VmUtilsResult, insert_values_to_fields,
 };
 
 #[cfg(test)]

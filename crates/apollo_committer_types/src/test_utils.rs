@@ -5,10 +5,7 @@ use starknet_api::block::BlockNumber;
 use tokio::sync::Mutex;
 
 use crate::committer_types::{
-    CommitBlockRequest,
-    CommitBlockResponse,
-    RevertBlockRequest,
-    RevertBlockResponse,
+    CommitBlockRequest, CommitBlockResponse, RevertBlockRequest, RevertBlockResponse,
 };
 use crate::communication::{CommitterClient, MockCommitterClient};
 use crate::errors::CommitterClientResult;

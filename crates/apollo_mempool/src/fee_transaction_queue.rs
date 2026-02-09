@@ -4,8 +4,8 @@ use std::collections::{BTreeSet, HashMap};
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::Tip;
 
 use crate::mempool::TransactionReference;
 

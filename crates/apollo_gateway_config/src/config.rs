@@ -1,15 +1,11 @@
 use std::collections::BTreeMap;
 
 use apollo_config::converters::{
-    deserialize_comma_separated_str,
-    serialize_optional_comma_separated,
+    deserialize_comma_separated_str, serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_optional_sub_config,
+    SerializeConfig, prepend_sub_config_name, ser_optional_param, ser_optional_sub_config,
     ser_param,
-    SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier::config::ContractClassManagerConfig;

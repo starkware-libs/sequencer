@@ -7,38 +7,30 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_consensus::storage::{get_voted_height_storage, HeightVotedStorageTrait};
+use apollo_consensus::storage::{HeightVotedStorageTrait, get_voted_height_storage};
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::votes_threshold::QuorumType;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::CendeAmbassador;
 use apollo_consensus_orchestrator::sequencer_consensus_context::{
-    SequencerConsensusContext,
-    SequencerConsensusContextDeps,
+    SequencerConsensusContext, SequencerConsensusContextDeps,
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::metrics::{
-    BroadcastNetworkMetrics,
-    EventMetrics,
-    LabeledMessageMetrics,
-    LatencyMetrics,
-    MessageMetrics,
+    BroadcastNetworkMetrics, EventMetrics, LabeledMessageMetrics, LatencyMetrics, MessageMetrics,
     NetworkMetrics,
 };
 use apollo_network::network_manager::{
-    BroadcastTopicChannels,
-    BroadcastTopicClient,
-    BroadcastTopicServer,
-    NetworkManager,
+    BroadcastTopicChannels, BroadcastTopicClient, BroadcastTopicServer, NetworkManager,
 };
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
-use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
+use apollo_reverts::{RevertComponentData, revert_blocks_and_eternal_pending};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
@@ -46,27 +38,17 @@ use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
 use tokio::sync::Mutex;
-use tracing::{info, info_span, Instrument};
+use tracing::{Instrument, info, info_span};
 
 use crate::metrics::{
-    register_metrics,
-    CONSENSUS_NETWORK_EVENTS,
-    CONSENSUS_NUM_BLACKLISTED_PEERS,
-    CONSENSUS_NUM_CONNECTED_PEERS,
-    CONSENSUS_PING_LATENCY,
-    CONSENSUS_PROPOSALS_DROPPED_MESSAGE_SIZE,
-    CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES,
-    CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
-    CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
-    CONSENSUS_PROPOSALS_RECEIVED_MESSAGE_SIZE,
-    CONSENSUS_PROPOSALS_SENT_MESSAGE_SIZE,
-    CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING,
-    CONSENSUS_VOTES_DROPPED_MESSAGE_SIZE,
-    CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
-    CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
-    CONSENSUS_VOTES_NUM_SENT_MESSAGES,
-    CONSENSUS_VOTES_RECEIVED_MESSAGE_SIZE,
-    CONSENSUS_VOTES_SENT_MESSAGE_SIZE,
+    CONSENSUS_NETWORK_EVENTS, CONSENSUS_NUM_BLACKLISTED_PEERS, CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_PING_LATENCY, CONSENSUS_PROPOSALS_DROPPED_MESSAGE_SIZE,
+    CONSENSUS_PROPOSALS_NUM_DROPPED_MESSAGES, CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, CONSENSUS_PROPOSALS_RECEIVED_MESSAGE_SIZE,
+    CONSENSUS_PROPOSALS_SENT_MESSAGE_SIZE, CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING,
+    CONSENSUS_VOTES_DROPPED_MESSAGE_SIZE, CONSENSUS_VOTES_NUM_DROPPED_MESSAGES,
+    CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES, CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_RECEIVED_MESSAGE_SIZE, CONSENSUS_VOTES_SENT_MESSAGE_SIZE, register_metrics,
 };
 
 type ProposalStreamMessage = StreamMessage<ProposalPart, HeightAndRound>;

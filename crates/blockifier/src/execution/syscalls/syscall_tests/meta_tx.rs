@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use cairo_vm::Felt252;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use expect_test::expect;
 use starknet_api::abi::abi_utils::{selector_from_name, starknet_keccak};
 use starknet_api::contract_class::SierraVersion;
@@ -12,13 +12,8 @@ use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
-    signed_tx_version,
-    InvokeTransactionV0,
-    TransactionHash,
-    TransactionHasher,
-    TransactionOptions,
-    TransactionVersion,
-    QUERY_VERSION_BASE,
+    InvokeTransactionV0, QUERY_VERSION_BASE, TransactionHash, TransactionHasher,
+    TransactionOptions, TransactionVersion, signed_tx_version,
 };
 use starknet_api::{calldata, felt};
 use starknet_types_core::hash::{Pedersen, StarkHash};
@@ -30,7 +25,7 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::syscall_tests::DeterministicExecutionResources;
 use crate::state::state_api::StateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
+use crate::test_utils::{BALANCE, trivial_external_entry_point_with_address};
 use crate::transaction::objects::{CommonAccountFields, CurrentTransactionInfo, TransactionInfo};
 
 #[test_case(RunnableCairo1::Casm, ExecutionMode::Execute, false, false; "VM, execute")]

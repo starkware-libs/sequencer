@@ -3,7 +3,7 @@ use strum::IntoEnumIterator;
 
 use crate::alert_definitions::{get_apollo_alerts, get_dev_alerts_json_path};
 use crate::alerts::AlertEnvFiltering;
-use crate::dashboard_definitions::{get_apollo_dashboard, DEV_JSON_PATH};
+use crate::dashboard_definitions::{DEV_JSON_PATH, get_apollo_dashboard};
 
 const FIX_BINARY_NAME: &str = "sequencer_dashboard_generator";
 

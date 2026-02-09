@@ -6,12 +6,8 @@ use csv::Writer;
 use serde::{Deserialize, Serialize};
 use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::measurements_util::{
-    Action,
-    BlockMeasurement,
-    BlockModificationsCounts,
-    MeasurementNotStartedError,
-    MeasurementsTrait,
-    SingleBlockMeasurements,
+    Action, BlockMeasurement, BlockModificationsCounts, MeasurementNotStartedError,
+    MeasurementsTrait, SingleBlockMeasurements,
 };
 use starknet_types_core::felt::Felt;
 use tracing::info;

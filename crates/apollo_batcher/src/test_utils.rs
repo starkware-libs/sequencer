@@ -3,9 +3,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{
-    BatcherConfig,
-    BatcherStaticConfig,
-    FirstBlockWithPartialBlockHash,
+    BatcherConfig, BatcherStaticConfig, FirstBlockWithPartialBlockHash,
 };
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
@@ -21,33 +19,27 @@ use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use mockall::predicate::eq;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
 use starknet_api::state::ThinStateDiff;
-use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
-use starknet_api::transaction::fields::{Fee, TransactionSignature};
+use starknet_api::test_utils::invoke::{InvokeTxArgs, internal_invoke_tx};
+use starknet_api::test_utils::l1_handler::{L1HandlerTxArgs, executable_l1_handler_tx};
 use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::block_builder::{
-    BlockBuilderError,
-    BlockBuilderResult,
-    BlockBuilderTrait,
-    BlockExecutionArtifacts,
-    BlockTransactionExecutionData,
-    FailOnErrorCause,
-    MockBlockBuilderFactoryTrait,
+    BlockBuilderError, BlockBuilderResult, BlockBuilderTrait, BlockExecutionArtifacts,
+    BlockTransactionExecutionData, FailOnErrorCause, MockBlockBuilderFactoryTrait,
 };
 use crate::pre_confirmed_block_writer::{
-    MockPreconfirmedBlockWriterFactoryTrait,
-    MockPreconfirmedBlockWriterTrait,
+    MockPreconfirmedBlockWriterFactoryTrait, MockPreconfirmedBlockWriterTrait,
 };
 use crate::transaction_provider::{TransactionProvider, TxProviderPhase};
 

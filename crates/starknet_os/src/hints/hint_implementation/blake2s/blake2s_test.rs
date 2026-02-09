@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::execution::casm_hash_estimation::{
-    CasmV2HashResourceEstimate,
-    EstimateCasmHashResources,
+    CasmV2HashResourceEstimate, EstimateCasmHashResources,
 };
 use blockifier::execution::contract_class::FeltSizeCount;
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -14,12 +13,8 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
 use crate::test_utils::cairo_runner::{
+    EndpointArg, EntryPointRunnerConfig, ImplicitArg, PointerArg, ValueArg,
     initialize_and_run_cairo_0_entry_point,
-    EndpointArg,
-    EntryPointRunnerConfig,
-    ImplicitArg,
-    PointerArg,
-    ValueArg,
 };
 
 /// Return the estimated execution resources for Blake2s hashing.

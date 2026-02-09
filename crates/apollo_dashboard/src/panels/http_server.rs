@@ -1,16 +1,13 @@
 use apollo_http_server::metrics::{
-    ADDED_TRANSACTIONS_DEPRECATED_ERROR,
-    ADDED_TRANSACTIONS_FAILURE,
-    ADDED_TRANSACTIONS_INTERNAL_ERROR,
-    ADDED_TRANSACTIONS_SUCCESS,
-    ADDED_TRANSACTIONS_TOTAL,
+    ADDED_TRANSACTIONS_DEPRECATED_ERROR, ADDED_TRANSACTIONS_FAILURE,
+    ADDED_TRANSACTIONS_INTERNAL_ERROR, ADDED_TRANSACTIONS_SUCCESS, ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
 };
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{get_time_since_last_increase_expr, Row};
+use crate::dashboard::{Row, get_time_since_last_increase_expr};
 use crate::panel::{Panel, PanelType, Unit};
-use crate::query_builder::{increase, DEFAULT_DURATION};
+use crate::query_builder::{DEFAULT_DURATION, increase};
 
 fn get_panel_total_transactions_received() -> Panel {
     Panel::new(

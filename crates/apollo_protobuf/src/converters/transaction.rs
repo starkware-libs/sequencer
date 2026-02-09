@@ -9,53 +9,26 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
-    RpcDeclareTransaction,
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
-    RpcTransaction,
+    RpcDeclareTransaction, RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction,
 };
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, Fee, PaymasterData,
+    ResourceBounds, Tip, TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeclareTransactionV0V1,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    DeployTransaction,
-    FullTransaction,
-    InvokeTransaction,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    L1HandlerTransaction,
-    Transaction,
-    TransactionHash,
-    TransactionOutput,
-    TransactionVersion,
+    DeclareTransaction, DeclareTransactionV0V1, DeclareTransactionV2, DeclareTransactionV3,
+    DeployAccountTransaction, DeployAccountTransactionV1, DeployAccountTransactionV3,
+    DeployTransaction, FullTransaction, InvokeTransaction, InvokeTransactionV0,
+    InvokeTransactionV1, InvokeTransactionV3, L1HandlerTransaction, Transaction, TransactionHash,
+    TransactionOutput, TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 
+use super::ProtobufConversionError;
 use super::common::{
-    enum_int_to_volition_domain,
-    missing,
-    try_from_starkfelt_to_u128,
-    try_from_starkfelt_to_u32,
+    enum_int_to_volition_domain, missing, try_from_starkfelt_to_u32, try_from_starkfelt_to_u128,
     volition_domain_to_enum_int,
 };
-use super::ProtobufConversionError;
 use crate::sync::{DataOrFin, Query, TransactionQuery};
 use crate::transaction::DeclareTransactionV3Common;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};

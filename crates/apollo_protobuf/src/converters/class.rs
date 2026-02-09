@@ -17,8 +17,8 @@ use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::{deprecated_contract_class, state};
 use starknet_types_core::felt::Felt;
 
-use super::common::{missing, volition_domain_to_enum_int};
 use super::ProtobufConversionError;
+use super::common::{missing, volition_domain_to_enum_int};
 use crate::sync::{ClassQuery, DataOrFin, Query};
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 

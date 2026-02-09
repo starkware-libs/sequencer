@@ -8,12 +8,10 @@ use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_types_core::felt::Felt;
 
 use crate::db::create_original_skeleton_tests::{
-    create_tree_cases,
-    test_create_original_skeleton,
-    CreateTreeCase,
+    CreateTreeCase, create_tree_cases, test_create_original_skeleton,
 };
-use crate::db::index_db::test_utils::convert_facts_db_to_index_db;
 use crate::db::index_db::IndexNodeLayout;
+use crate::db::index_db::test_utils::convert_facts_db_to_index_db;
 use crate::hash_function::mock_hash::MockTreeHashFunction;
 
 impl TreeHashFunction<MockLeaf> for MockTreeHashFunction {

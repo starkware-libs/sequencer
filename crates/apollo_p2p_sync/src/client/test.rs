@@ -6,7 +6,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use futures::FutureExt;
 use indexmap::IndexMap;
 use rand::Rng;
@@ -18,13 +18,8 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
 use crate::client::test_utils::{
-    random_header,
-    run_test,
-    wait_for_marker,
-    Action,
-    DataType,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    TIMEOUT_FOR_TEST,
+    Action, DataType, SLEEP_DURATION_TO_LET_SYNC_ADVANCE, TIMEOUT_FOR_TEST, random_header,
+    run_test, wait_for_marker,
 };
 
 #[tokio::test]

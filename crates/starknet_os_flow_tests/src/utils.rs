@@ -6,9 +6,7 @@ use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
-    BlockExecutionSummary,
-    TransactionExecutionOutput,
-    TransactionExecutor,
+    BlockExecutionSummary, TransactionExecutionOutput, TransactionExecutor,
 };
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
@@ -20,10 +18,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash as StarknetAPICompiledClassHash,
-    ContractAddress,
-    Nonce,
+    ClassHash, CompiledClassHash as StarknetAPICompiledClassHash, ContractAddress, Nonce,
     PatriciaKey,
 };
 use starknet_api::declare_tx_args;
@@ -32,30 +27,23 @@ use starknet_api::executable_transaction::{AccountTransaction, DeclareTransactio
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
+use starknet_api::test_utils::{CHAIN_ID_FOR_TESTS, NonceManager};
 use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::input::{
-    try_node_index_into_contract_address,
-    try_node_index_into_patricia_key,
-    Input,
-    ReaderConfig,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
+    Input, ReaderConfig, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    try_node_index_into_contract_address, try_node_index_into_patricia_key,
 };
 use starknet_committer::block_committer::measurements_util::NoMeasurements;
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::facts_db::create_facts_tree::get_leaves;
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
-use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::ForestWriter;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{
-    CompiledClassHash,
-    RootHashes,
-    StarknetForestProofs,
+    CompiledClassHash, RootHashes, StarknetForestProofs,
 };
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;

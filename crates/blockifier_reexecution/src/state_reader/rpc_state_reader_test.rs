@@ -23,10 +23,7 @@ use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::class_hash;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeployAccountTransaction,
-    Transaction,
-    TransactionVersion,
+    DeclareTransaction, DeployAccountTransaction, Transaction, TransactionVersion,
 };
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
@@ -34,9 +31,7 @@ use crate::cli::guess_chain_id_from_node_url;
 use crate::compile::legacy_to_contract_class_v0;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::rpc_state_reader::{
-    ConsecutiveRpcStateReaders,
-    RetryConfig,
-    RpcStateReader,
+    ConsecutiveRpcStateReaders, RetryConfig, RpcStateReader,
 };
 use crate::utils::RPC_NODE_URL;
 

@@ -7,10 +7,7 @@ use starknet_types_core::felt::Felt;
 use crate::state::cached_state::StateMaps;
 use crate::state::state_api::StateReader;
 use crate::state::stateful_compression::{
-    Alias,
-    AliasKey,
-    MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
-    MIN_VALUE_FOR_ALIAS_ALLOC,
+    Alias, AliasKey, MAX_NON_COMPRESSED_CONTRACT_ADDRESS, MIN_VALUE_FOR_ALIAS_ALLOC,
 };
 
 /// Decompresses the state diff by replacing the aliases with addresses and storage keys.

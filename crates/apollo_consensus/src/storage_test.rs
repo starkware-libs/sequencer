@@ -1,7 +1,7 @@
 use assert_matches::assert_matches;
 use starknet_api::block::BlockNumber;
 
-use crate::storage::{get_voted_height_storage, HeightVotedStorageError, HeightVotedStorageTrait};
+use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait, get_voted_height_storage};
 use crate::test_utils::get_new_storage_config;
 
 #[test]

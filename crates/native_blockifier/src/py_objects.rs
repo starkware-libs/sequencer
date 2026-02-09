@@ -6,10 +6,7 @@ use std::path::PathBuf;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
-    CairoNativeRunConfig,
-    ConcurrencyConfig,
-    ContractClassManagerConfig,
-    NativeClassesWhitelist,
+    CairoNativeRunConfig, ConcurrencyConfig, ContractClassManagerConfig, NativeClassesWhitelist,
     NativeExecutionMode,
 };
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
@@ -261,11 +258,9 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
 
 #[derive(Clone, Debug, FromPyObject)]
 pub struct PyCairoNativeRunConfig {
-    pub run_cairo_native: bool,
-    pub wait_on_native_compilation: bool,
     pub execution_mode: String,
     pub channel_size: usize,
-    // Determines which contracts are allowd to run Cairo Native. `None` → All.
+    // Determines which contracts are allowed to run Cairo Native. `None` → All.
     pub native_classes_whitelist: Option<Vec<PyFelt>>,
     pub panic_on_compilation_failure: bool,
 }
@@ -273,8 +268,6 @@ pub struct PyCairoNativeRunConfig {
 impl Default for PyCairoNativeRunConfig {
     fn default() -> Self {
         Self {
-            run_cairo_native: false,
-            wait_on_native_compilation: false,
             execution_mode: "Disabled".to_string(),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: None,
@@ -296,12 +289,12 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
             "Disabled" => NativeExecutionMode::Disabled,
             "Async" => NativeExecutionMode::Async,
             "Sync" => NativeExecutionMode::Sync,
-            other => panic!("Invalid execution_mode: '{other}'. Expected Disabled, Async, or Sync."),
+            other => {
+                panic!("Invalid execution_mode: '{other}'. Expected Disabled, Async, or Sync.")
+            }
         };
 
         CairoNativeRunConfig {
-            run_cairo_native: py_cairo_native_run_config.run_cairo_native,
-            wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
             execution_mode,
             channel_size: py_cairo_native_run_config.channel_size,
             native_classes_whitelist,

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -10,9 +10,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
-    CompiledClassHashV2ToV1,
-    TransactionExecutorError,
-    TransactionExecutorResult,
+    CompiledClassHashV2ToV1, TransactionExecutorError, TransactionExecutorResult,
 };
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};

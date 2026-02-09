@@ -11,12 +11,8 @@ use starknet_types_core::felt::Felt;
 use crate::hints::class_hash::hinted_class_hash::compute_cairo_hinted_class_hash;
 use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::{
+    CairoSized, IdentifierGetter, LoadCairoObject, VmUtilsError, VmUtilsResult,
     insert_values_to_fields,
-    CairoSized,
-    IdentifierGetter,
-    LoadCairoObject,
-    VmUtilsError,
-    VmUtilsResult,
 };
 
 pub(crate) static DEPRECATED_COMPILED_CLASS_VERSION: LazyLock<Felt> = LazyLock::new(|| {

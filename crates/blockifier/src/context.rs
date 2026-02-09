@@ -1,18 +1,14 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Fee,
-    GasVectorComputationMode,
-    Tip,
-    ValidResourceBounds,
+    AllResourceBounds, Fee, GasVectorComputationMode, Tip, ValidResourceBounds,
 };
 
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -20,10 +16,7 @@ use crate::bouncer::BouncerConfig;
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::transaction::objects::{
-    CurrentTransactionInfo,
-    HasRelatedFeeType,
-    TransactionInfo,
-    TransactionInfoCreator,
+    CurrentTransactionInfo, HasRelatedFeeType, TransactionInfo, TransactionInfoCreator,
 };
 
 #[derive(Clone, Debug)]

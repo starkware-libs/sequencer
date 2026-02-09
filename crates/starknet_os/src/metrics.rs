@@ -6,7 +6,7 @@ use cairo_vm::vm::runners::cairo_runner::{CairoRunner, ExecutionResources};
 use serde::Serialize;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::opcode_instances::{get_opcode_instances, OpcodeInstanceCounts};
+use crate::opcode_instances::{OpcodeInstanceCounts, get_opcode_instances};
 
 #[derive(Debug, Serialize)]
 pub struct ProgramRunInfo {

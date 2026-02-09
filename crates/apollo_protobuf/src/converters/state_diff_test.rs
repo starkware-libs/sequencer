@@ -1,12 +1,7 @@
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 
 use crate::sync::{
-    ContractDiff,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    StateDiffChunk,
-    StateDiffQuery,
+    ContractDiff, DataOrFin, DeclaredClass, DeprecatedDeclaredClass, StateDiffChunk, StateDiffQuery,
 };
 
 #[test]

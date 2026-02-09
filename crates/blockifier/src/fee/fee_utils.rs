@@ -7,7 +7,7 @@ use num_bigint::BigUint;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::{to_discounted_l1_gas, GasAmount, GasVector};
+use starknet_api::execution_resources::{GasAmount, GasVector, to_discounted_l1_gas};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas};
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource, Tip};

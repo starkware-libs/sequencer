@@ -2,9 +2,9 @@ use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 use std::path::Path;
 
-use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, combine_config_map_and_pointers};
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::{ConfigError, ParamPath, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
+use apollo_config::{ConfigError, FIELD_SEPARATOR, IS_NONE_MARK, ParamPath, SerializedParam};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use serde_json::{Map, Value};
@@ -13,11 +13,8 @@ use validator::ValidationError;
 
 use crate::definitions::ConfigPointersMap;
 use crate::node_config::{
+    CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS, CONFIG_SCHEMA_PATH, POINTER_TARGET_VALUE,
     SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_POINTERS,
-    CONFIG_SCHEMA_PATH,
-    POINTER_TARGET_VALUE,
 };
 
 /// Returns the set of all non-pointer private parameters and all pointer target parameters pointed

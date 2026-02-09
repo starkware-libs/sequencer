@@ -4,8 +4,7 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonTree,
-    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
 use starknet_types_core::felt::Felt;
 

@@ -3,17 +3,14 @@ use std::convert::AsRef;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-    HashFunction,
-    TreeHashFunction,
+    HashFunction, TreeHashFunction,
 };
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash};
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::db::index_db::leaves::{
-    IndexLayoutCompiledClassHash,
-    IndexLayoutContractState,
-    IndexLayoutStarknetStorageValue,
+    IndexLayoutCompiledClassHash, IndexLayoutContractState, IndexLayoutStarknetStorageValue,
 };
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::L1ProviderConfig;
+use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider_types::InvalidValidationStatus::*;
 use apollo_l1_provider_types::ValidationStatus::*;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient, SessionState};
@@ -12,7 +12,7 @@ use apollo_time::time::Clock;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
-use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
+use starknet_api::test_utils::l1_handler::{L1HandlerTxArgs, executable_l1_handler_tx};
 use starknet_api::tx_hash;
 
 use crate::SessionState::*;

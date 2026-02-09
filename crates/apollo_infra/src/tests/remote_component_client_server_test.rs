@@ -20,8 +20,8 @@ use hyper_util::server::conn::auto::Builder as Http2ServerBuilder;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::channel;
@@ -29,48 +29,22 @@ use tokio::sync::{Mutex, Semaphore};
 use tokio::task;
 
 use crate::component_client::{
-    ClientError,
-    ClientResult,
-    LocalComponentClient,
-    RemoteClientConfig,
-    RemoteComponentClient,
+    ClientError, ClientResult, LocalComponentClient, RemoteClientConfig, RemoteComponentClient,
 };
 use crate::component_definitions::{
-    ComponentClient,
-    RequestId,
-    RequestWrapper,
-    ServerError,
-    APPLICATION_OCTET_STREAM,
-    BUSY_PREVIOUS_REQUESTS_MSG,
-    REQUEST_ID_HEADER,
+    APPLICATION_OCTET_STREAM, BUSY_PREVIOUS_REQUESTS_MSG, ComponentClient, REQUEST_ID_HEADER,
+    RequestId, RequestWrapper, ServerError,
 };
 use crate::component_server::{
-    ComponentServerStarter,
-    LocalComponentServer,
-    LocalServerConfig,
-    RemoteComponentServer,
+    ComponentServerStarter, LocalComponentServer, LocalServerConfig, RemoteComponentServer,
 };
 use crate::serde_utils::SerdeWrapper;
 use crate::tests::{
-    available_ports_factory,
-    dummy_remote_server_config,
-    test_a_b_functionality,
-    ComponentA,
-    ComponentAClientTrait,
-    ComponentARequest,
-    ComponentAResponse,
-    ComponentB,
-    ComponentBClientTrait,
-    ComponentBRequest,
-    ComponentBResponse,
-    ResultA,
-    ResultB,
-    ValueA,
-    ValueB,
-    TEST_LOCAL_CLIENT_METRICS,
-    TEST_LOCAL_SERVER_METRICS,
-    TEST_REMOTE_CLIENT_METRICS,
-    TEST_REMOTE_SERVER_METRICS,
+    ComponentA, ComponentAClientTrait, ComponentARequest, ComponentAResponse, ComponentB,
+    ComponentBClientTrait, ComponentBRequest, ComponentBResponse, ResultA, ResultB,
+    TEST_LOCAL_CLIENT_METRICS, TEST_LOCAL_SERVER_METRICS, TEST_REMOTE_CLIENT_METRICS,
+    TEST_REMOTE_SERVER_METRICS, ValueA, ValueB, available_ports_factory,
+    dummy_remote_server_config, test_a_b_functionality,
 };
 
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;

@@ -13,13 +13,11 @@ use starknet_api::{calldata, felt};
 use crate::context::BlockContext;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    EntryPointExecutionContext,
-    SierraGasRevertTracker,
+    CallEntryPoint, EntryPointExecutionContext, SierraGasRevertTracker,
 };
 use crate::state::state_api::State;
-use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
+use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::test_utils::invoke_tx_with_default_flags;
 
 /// Enum for all resource costs.

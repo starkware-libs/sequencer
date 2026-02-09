@@ -6,9 +6,7 @@ use std::sync::Arc;
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_infra::{
-    handle_all_response_variants,
-    impl_debug_for_infra_requests_and_responses,
-    impl_labeled_request,
+    handle_all_response_variants, impl_debug_for_infra_requests_and_responses, impl_labeled_request,
 };
 use apollo_metrics::generate_permutation_labels;
 use async_trait::async_trait;

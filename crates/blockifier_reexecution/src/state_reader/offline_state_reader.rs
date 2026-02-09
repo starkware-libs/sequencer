@@ -13,8 +13,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::{
-    FetchCompiledClasses,
-    StateReaderAndContractManager,
+    FetchCompiledClasses, StateReaderAndContractManager,
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::{Deserialize, Serialize};
@@ -29,11 +28,10 @@ use starknet_types_core::felt::Felt;
 use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_class_v1};
 use crate::errors::ReexecutionResult;
 use crate::state_reader::reexecution_state_reader::{
-    ConsecutiveReexecutionStateReaders,
-    ReexecutionStateReader,
+    ConsecutiveReexecutionStateReaders, ReexecutionStateReader,
 };
 use crate::state_reader::rpc_state_reader::StarknetContractClassMapping;
-use crate::utils::{get_chain_info, ReexecutionStateMaps};
+use crate::utils::{ReexecutionStateMaps, get_chain_info};
 
 pub struct OfflineReexecutionData {
     offline_state_reader_prev_block: OfflineStateReader,

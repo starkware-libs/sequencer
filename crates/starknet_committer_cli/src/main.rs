@@ -3,8 +3,8 @@ use clap::{Parser, Subcommand};
 use starknet_committer_cli::args::{GlobalArgs, StorageBenchmarkCommand};
 use tracing::info;
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
+use tracing_subscriber::reload::Handle;
 
 #[derive(Parser, Debug)]
 pub struct CommitterCliCommand {

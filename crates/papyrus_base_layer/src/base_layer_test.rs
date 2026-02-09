@@ -5,8 +5,8 @@ use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
 use pretty_assertions::assert_eq;
 
-use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
 use crate::BaseLayerContract;
+use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
 
 // TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
 // tests.

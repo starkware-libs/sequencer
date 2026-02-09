@@ -7,20 +7,11 @@ use starknet_api::block::{FeeType, GasPrice, NonzeroGasPrice};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
 use starknet_api::test_utils::{
-    DEFAULT_ETH_L1_DATA_GAS_PRICE,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_L2_GAS_MAX_AMOUNT,
-    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT, DEFAULT_L2_GAS_MAX_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE,
 };
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Fee,
-    GasVectorComputationMode,
-    Resource,
-    ResourceBounds,
-    Tip,
+    AllResourceBounds, Fee, GasVectorComputationMode, Resource, ResourceBounds, Tip,
     ValidResourceBounds,
 };
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -32,12 +23,9 @@ use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionR
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::receipt::TransactionReceipt;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{gas_vector_from_vm_usage, get_vm_resource_usage, BALANCE};
+use crate::test_utils::{BALANCE, gas_vector_from_vm_usage, get_vm_resource_usage};
 use crate::transaction::test_utils::{
-    all_resource_bounds,
-    block_context,
-    invoke_tx_with_default_flags,
-    l1_resource_bounds,
+    all_resource_bounds, block_context, invoke_tx_with_default_flags, l1_resource_bounds,
 };
 use crate::utils::u64_from_usize;
 

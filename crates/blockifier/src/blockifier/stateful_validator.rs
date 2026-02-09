@@ -7,9 +7,7 @@ use thiserror::Error;
 
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::blockifier::transaction_executor::{
-    TransactionExecutor,
-    TransactionExecutorError,
-    BLOCK_STATE_ACCESS_ERR,
+    BLOCK_STATE_ACCESS_ERR, TransactionExecutor, TransactionExecutorError,
 };
 use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;

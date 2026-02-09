@@ -4,11 +4,11 @@ use std::io::Read;
 use apollo_proc_macros::versioned_rpc;
 use apollo_rpc_execution::objects::FeeEstimation;
 use apollo_rpc_execution::{AbiSize, ExecutableTransactionInput, ExecutionError, SierraSize};
-use apollo_storage::compiled_class::CasmStorageReader;
-use apollo_storage::db::serialization::StorageSerdeError;
-use apollo_storage::db::RO;
-use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageTxn;
+use apollo_storage::compiled_class::CasmStorageReader;
+use apollo_storage::db::RO;
+use apollo_storage::db::serialization::StorageSerdeError;
+use apollo_storage::state::StateStorageReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use flate2::bufread::GzDecoder;
 use jsonrpsee::core::RpcResult;
@@ -21,8 +21,7 @@ use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::{
-    ContractClass as StarknetApiDeprecatedContractClass,
-    Program,
+    ContractClass as StarknetApiDeprecatedContractClass, Program,
 };
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::fields::Fee;
@@ -32,40 +31,24 @@ use tracing::debug;
 
 use super::block::Block;
 use super::broadcasted_transaction::{
-    BroadcastedDeclareTransaction,
-    BroadcastedDeclareV1Transaction,
-    BroadcastedTransaction,
+    BroadcastedDeclareTransaction, BroadcastedDeclareV1Transaction, BroadcastedTransaction,
 };
 use super::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use super::error::{
-    ContractError,
-    JsonRpcError,
-    BLOCK_NOT_FOUND,
-    CONTRACT_NOT_FOUND,
-    INVALID_CONTINUATION_TOKEN,
+    BLOCK_NOT_FOUND, CONTRACT_NOT_FOUND, ContractError, INVALID_CONTINUATION_TOKEN, JsonRpcError,
 };
 use super::execution::TransactionTrace;
 use super::state::{ContractClass, StateUpdate};
 use super::transaction::{
-    DeployAccountTransaction,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    Event,
-    GeneralTransactionReceipt,
-    InvokeTransaction,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    MessageFromL1,
-    TransactionStatus,
-    TransactionWithHash,
-    TypedDeployAccountTransaction,
-    TypedInvokeTransaction,
+    DeployAccountTransaction, DeployAccountTransactionV1, DeployAccountTransactionV3, Event,
+    GeneralTransactionReceipt, InvokeTransaction, InvokeTransactionV0, InvokeTransactionV1,
+    InvokeTransactionV3, MessageFromL1, TransactionStatus, TransactionWithHash,
+    TypedDeployAccountTransaction, TypedInvokeTransaction,
 };
 use super::write_api_result::{AddDeclareOkResult, AddDeployAccountOkResult, AddInvokeOkResult};
 use crate::api::{BlockId, CallRequest};
 use crate::syncing_state::SyncingState;
-use crate::{internal_server_error, ContinuationTokenAsStruct};
+use crate::{ContinuationTokenAsStruct, internal_server_error};
 
 pub mod api_impl;
 #[cfg(test)]

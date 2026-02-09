@@ -3,8 +3,7 @@ use std::path::PathBuf;
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint as Cairo1Hint, StarknetHint};
 use cairo_lang_runner::casm_run::{cell_ref_to_relocatable, execute_core_hint_base};
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
-    BuiltinHintProcessor,
-    HintProcessorData as Cairo0Hint,
+    BuiltinHintProcessor, HintProcessorData as Cairo0Hint,
 };
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
 use cairo_vm::stdlib::any::Any;
@@ -20,9 +19,7 @@ use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
 use crate::hint_processor::common_hint_processor::{
-    CommonHintProcessor,
-    VmHintExtensionResult,
-    VmHintResult,
+    CommonHintProcessor, VmHintExtensionResult, VmHintResult,
 };
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 #[cfg(any(test, feature = "testing"))]

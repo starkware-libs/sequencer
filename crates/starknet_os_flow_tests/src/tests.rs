@@ -4,9 +4,9 @@ use std::sync::{Arc, LazyLock};
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -19,20 +19,11 @@ use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice};
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    ContractAddress,
-    EthAddress,
-    Nonce,
+    ClassHash, ContractAddress, EthAddress, Nonce, calculate_contract_address,
 };
 use starknet_api::executable_transaction::{
-    AccountTransaction,
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    L1HandlerTransaction as ExecutableL1HandlerTransaction,
-    Transaction,
-    TransactionType,
+    AccountTransaction, DeclareTransaction, DeployAccountTransaction, InvokeTransaction,
+    L1HandlerTransaction as ExecutableL1HandlerTransaction, Transaction, TransactionType,
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::HashOutput;
@@ -40,52 +31,29 @@ use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::test_utils::{
-    NonceManager,
-    CHAIN_ID_FOR_TESTS,
-    CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
-    TEST_SEQUENCER_ADDRESS,
+    CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_TIMESTAMP, DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE, DEFAULT_STRK_L2_GAS_PRICE, NonceManager, TEST_SEQUENCER_ADDRESS,
 };
 use starknet_api::transaction::constants::{
-    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
-    EXECUTE_ENTRY_POINT_NAME,
+    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME, EXECUTE_ENTRY_POINT_NAME,
 };
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AllResourceBounds, Calldata, ContractAddressSalt, Fee, ResourceBounds, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    L1HandlerTransaction,
-    L1ToL2Payload,
-    L2ToL1Payload,
-    MessageToL1,
-    TransactionVersion,
+    L1HandlerTransaction, L1ToL2Payload, L2ToL1Payload, MessageToL1, TransactionVersion,
 };
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{
-    calldata,
-    contract_address,
-    declare_tx_args,
-    deploy_account_tx_args,
-    felt,
-    invoke_tx_args,
+    calldata, contract_address, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args,
 };
 use starknet_committer::block_committer::input::{
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
+    StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_core::crypto::ecdsa_sign;
-use starknet_crypto::{get_public_key, Signature};
+use starknet_crypto::{Signature, get_public_key};
 use starknet_os::hints::hint_implementation::deprecated_compiled_class::class_hash::compute_deprecated_class_hash;
 use starknet_os::hints::vars::Const;
 use starknet_os::io::os_output::MessageToL2;
@@ -93,32 +61,19 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
 use crate::initial_state::{
-    create_default_initial_state_data,
+    InitialState, InitialStateData, OsExecutionContracts, create_default_initial_state_data,
     get_deploy_contract_tx_and_address_with_salt,
-    InitialState,
-    InitialStateData,
-    OsExecutionContracts,
 };
 use crate::special_contracts::{
-    DATA_GAS_ACCOUNT_CONTRACT_CASM,
-    DATA_GAS_ACCOUNT_CONTRACT_SIERRA,
-    V1_BOUND_CAIRO0_CONTRACT,
-    V1_BOUND_CAIRO1_CONTRACT_CASM,
-    V1_BOUND_CAIRO1_CONTRACT_SIERRA,
+    DATA_GAS_ACCOUNT_CONTRACT_CASM, DATA_GAS_ACCOUNT_CONTRACT_SIERRA, V1_BOUND_CAIRO0_CONTRACT,
+    V1_BOUND_CAIRO1_CONTRACT_CASM, V1_BOUND_CAIRO1_CONTRACT_SIERRA,
 };
 use crate::test_manager::{
-    TestManager,
-    TestParameters,
-    FUNDED_ACCOUNT_ADDRESS,
-    STRK_FEE_TOKEN_ADDRESS,
+    FUNDED_ACCOUNT_ADDRESS, STRK_FEE_TOKEN_ADDRESS, TestManager, TestParameters,
 };
 use crate::utils::{
-    divide_vec_into_n_parts,
-    get_class_hash_of_feature_contract,
-    get_class_info_of_cairo0_contract,
-    get_class_info_of_feature_contract,
-    maybe_dummy_block_hash_and_number,
-    update_expected_storage,
+    divide_vec_into_n_parts, get_class_hash_of_feature_contract, get_class_info_of_cairo0_contract,
+    get_class_info_of_feature_contract, maybe_dummy_block_hash_and_number, update_expected_storage,
     update_expected_storage_updates_for_block_hash_contract,
 };
 

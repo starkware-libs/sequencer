@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::sync::mpsc::{channel, Sender};
+use serde::de::DeserializeOwned;
+use tokio::sync::mpsc::{Sender, channel};
 use tokio::time::Instant;
-use tracing::field::{display, Empty};
+use tracing::field::{Empty, display};
 use tracing::instrument;
 
 use crate::component_client::ClientResult;

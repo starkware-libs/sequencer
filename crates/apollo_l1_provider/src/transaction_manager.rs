@@ -1,5 +1,5 @@
-use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
+use std::collections::btree_map::Entry;
 use std::ops::{Deref, Sub};
 use std::time::Duration;
 
@@ -11,11 +11,7 @@ use tracing::{debug, info, warn};
 
 use crate::metrics::L1_PROVIDER_NUM_PENDING_TXS;
 use crate::transaction_record::{
-    Records,
-    TransactionPayload,
-    TransactionRecord,
-    TransactionRecordPolicy,
-    TransactionState,
+    Records, TransactionPayload, TransactionRecord, TransactionRecordPolicy, TransactionState,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]

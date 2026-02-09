@@ -5,11 +5,8 @@ use apollo_gateway_config::config::RpcStateReaderConfig;
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::cli::{
+    BlockifierReexecutionCliArgs, Command, FULL_RESOURCES_DIR, TransactionInput,
     parse_block_numbers_args,
-    BlockifierReexecutionCliArgs,
-    Command,
-    TransactionInput,
-    FULL_RESOURCES_DIR,
 };
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
@@ -51,8 +48,6 @@ async fn main() {
     // Initialize the contract class manager.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();
     if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
-        contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
         contract_class_manager_config.cairo_native_run_config.execution_mode =
             blockifier::blockifier::config::NativeExecutionMode::Sync;
     }

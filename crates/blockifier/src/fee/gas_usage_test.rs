@@ -18,13 +18,10 @@ use crate::blockifier_versioned_constants::{ResourceCost, VersionedConstants, Vm
 use crate::context::BlockContext;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::fee::eth_gas_constants;
-use crate::fee::fee_utils::{get_fee_by_gas_vector, GasVectorToL1GasForFee};
+use crate::fee::fee_utils::{GasVectorToL1GasForFee, get_fee_by_gas_vector};
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
 use crate::fee::resources::{
-    ComputationResources,
-    StarknetResources,
-    StateResources,
-    TransactionResources,
+    ComputationResources, StarknetResources, StateResources, TransactionResources,
 };
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::get_vm_resource_usage;

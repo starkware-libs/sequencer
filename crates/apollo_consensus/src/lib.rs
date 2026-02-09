@@ -26,7 +26,7 @@
 
 #[allow(missing_docs)]
 pub mod types;
-pub use manager::{run_consensus, RunConsensusArguments};
+pub use manager::{RunConsensusArguments, run_consensus};
 #[allow(missing_docs)]
 pub mod metrics;
 #[allow(missing_docs)]

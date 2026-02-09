@@ -1,10 +1,9 @@
 use apollo_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    TestSubscriberChannels,
+    TestSubscriberChannels, mock_register_broadcast_topic,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::Vote;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use futures::{SinkExt, StreamExt};
 use starknet_api::block::BlockNumber;
 use test_case::test_case;

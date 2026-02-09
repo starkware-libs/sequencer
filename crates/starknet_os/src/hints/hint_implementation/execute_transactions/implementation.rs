@@ -1,8 +1,6 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
+    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
@@ -15,9 +13,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::enum_definition::{AllHints, OsHint, StatelessHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execute_transactions::utils::{
-    calculate_padding,
-    N_MISSING_BLOCKS_BOUND,
-    SHA256_INPUT_CHUNK_SIZE_BOUND,
+    N_MISSING_BLOCKS_BOUND, SHA256_INPUT_CHUNK_SIZE_BOUND, calculate_padding,
 };
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;

@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use apollo_l1_provider_types::{
-    InvalidValidationStatus,
-    MockL1ProviderClient,
-    ValidationStatus as L1ValidationStatus,
+    InvalidValidationStatus, MockL1ProviderClient, ValidationStatus as L1ValidationStatus,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
 use assert_matches::assert_matches;
@@ -12,14 +10,11 @@ use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::executable_transaction::L1HandlerTransaction;
-use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{InvokeTxArgs, internal_invoke_tx};
 use starknet_api::tx_hash;
 
 use crate::transaction_provider::{
-    ProposeTransactionProvider,
-    TransactionProvider,
-    TransactionProviderError,
-    TxProviderPhase,
+    ProposeTransactionProvider, TransactionProvider, TransactionProviderError, TxProviderPhase,
     ValidateTransactionProvider,
 };
 

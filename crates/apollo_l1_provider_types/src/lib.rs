@@ -6,9 +6,7 @@ use std::sync::Arc;
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_infra::{
-    handle_all_response_variants,
-    impl_debug_for_infra_requests_and_responses,
-    impl_labeled_request,
+    handle_all_response_variants, impl_debug_for_infra_requests_and_responses, impl_labeled_request,
 };
 use apollo_metrics::generate_permutation_labels;
 use async_trait::async_trait;
@@ -17,11 +15,11 @@ use indexmap::IndexSet;
 use mockall::automock;
 use papyrus_base_layer::L1Event;
 use serde::{Deserialize, Serialize};
+use starknet_api::StarknetApiError;
 use starknet_api::block::{BlockNumber, BlockTimestamp, UnixTimestamp};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher};
-use starknet_api::StarknetApiError;
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tracing::instrument;

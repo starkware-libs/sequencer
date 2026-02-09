@@ -1,6 +1,6 @@
 use rstest::rstest;
-use tokio::signal::unix::{signal, SignalKind};
-use tokio::time::{sleep, timeout, Duration};
+use tokio::signal::unix::{SignalKind, signal};
+use tokio::time::{Duration, sleep, timeout};
 
 use crate::tasks::{inner_spawn_with_exit_on_panic, spawn_with_exit_on_panic};
 

@@ -4,13 +4,7 @@ use blake2::Blake2s;
 use digest::Digest;
 
 use crate::storage_trait::{
-    AsyncStorage,
-    DbHashMap,
-    DbKey,
-    DbValue,
-    EmptyStorageConfig,
-    PatriciaStorageResult,
-    Storage,
+    AsyncStorage, DbHashMap, DbKey, DbValue, EmptyStorageConfig, PatriciaStorageResult, Storage,
 };
 
 #[macro_export]

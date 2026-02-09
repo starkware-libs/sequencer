@@ -1,15 +1,8 @@
 use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
 
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 

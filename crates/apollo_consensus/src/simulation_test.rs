@@ -24,12 +24,7 @@ use test_case::test_case;
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::types::{
-    ConsensusError,
-    Decision,
-    LeaderElection,
-    ProposalCommitment,
-    Round,
-    ValidatorId,
+    ConsensusError, Decision, LeaderElection, ProposalCommitment, Round, ValidatorId,
 };
 use crate::votes_threshold::QuorumType;
 

@@ -1,43 +1,35 @@
 use std::collections::HashMap;
 
 use blockifier::execution::casm_hash_estimation::{
-    CasmV1HashResourceEstimate,
-    CasmV2HashResourceEstimate,
-    EstimateCasmHashResources,
+    CasmV1HashResourceEstimate, CasmV2HashResourceEstimate, EstimateCasmHashResources,
 };
 use blockifier::execution::contract_class::{EntryPointV1, EntryPointsByType, NestedFeltCounts};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use expect_test::{expect, Expect};
+use expect_test::{Expect, expect};
 use log::info;
 use rstest::rstest;
-use starknet_api::contract_class::compiled_class_hash::{
-    HashVersion,
-    HashableCompiledClass,
-    COMPILED_CLASS_V1,
-};
 use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::compiled_class_hash::{
+    COMPILED_CLASS_V1, HashVersion, HashableCompiledClass,
+};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinSet;
 
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
 use crate::hints::vars::Const;
-use crate::opcode_instances::{get_opcode_instances, OpcodeInstanceCounts};
+use crate::opcode_instances::{OpcodeInstanceCounts, get_opcode_instances};
 use crate::test_utils::cairo_runner::{
-    initialize_cairo_runner,
+    EndpointArg, EntryPointRunnerConfig, ImplicitArg, ValueArg, initialize_cairo_runner,
     run_cairo_0_entrypoint,
-    EndpointArg,
-    EntryPointRunnerConfig,
-    ImplicitArg,
-    ValueArg,
 };
 use crate::vm_utils::LoadCairoObject;
 

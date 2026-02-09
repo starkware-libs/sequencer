@@ -15,12 +15,10 @@ use crate::context::BlockContext;
 use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::cached_state::StateMaps;
 use crate::state::state_api::StateReader;
-use crate::test_utils::initial_test_state::{fund_account, test_state, test_state_inner};
 use crate::test_utils::BALANCE;
+use crate::test_utils::initial_test_state::{fund_account, test_state, test_state_inner};
 use crate::transaction::test_utils::{
-    block_context,
-    default_all_resource_bounds,
-    invoke_tx_with_default_flags,
+    block_context, default_all_resource_bounds, invoke_tx_with_default_flags,
 };
 
 #[rstest]

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use crate::transaction::fields::TransactionSignature;
 use crate::transaction::TransactionHash;
+use crate::transaction::fields::TransactionSignature;
 use crate::{executable_transaction, transaction};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]

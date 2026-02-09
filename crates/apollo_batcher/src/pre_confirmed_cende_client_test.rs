@@ -2,11 +2,7 @@ use apollo_batcher_types::batcher_types::Round;
 use assert_matches::assert_matches;
 use mockito::{Server, ServerGuard};
 use starknet_api::block::{
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
-    StarknetVersion,
+    BlockNumber, BlockTimestamp, GasPrice, GasPricePerToken, StarknetVersion,
 };
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -14,12 +10,8 @@ use starknet_api::felt;
 use url::Url;
 
 use super::pre_confirmed_cende_client::{
-    CendeWritePreconfirmedBlock,
-    PreconfirmedCendeClient,
-    PreconfirmedCendeClientError,
-    PreconfirmedCendeClientTrait,
-    PreconfirmedCendeConfig,
-    RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH,
+    CendeWritePreconfirmedBlock, PreconfirmedCendeClient, PreconfirmedCendeClientError,
+    PreconfirmedCendeClientTrait, PreconfirmedCendeConfig, RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH,
 };
 use crate::cende_client_types::{CendeBlockMetadata, CendePreconfirmedBlock};
 

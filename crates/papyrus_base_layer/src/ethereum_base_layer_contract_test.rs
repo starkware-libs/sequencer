@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use url::Url;
 
-use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
 use crate::BaseLayerContract;
+use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
 
 #[tokio::test]
 #[ignore = "This test uses external dependencies, like Infura. But still it is a good \

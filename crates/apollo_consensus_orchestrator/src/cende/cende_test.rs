@@ -11,12 +11,8 @@ use url::Url;
 use super::{CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
 use crate::metrics::{
-    register_metrics,
-    CendeWriteFailureReason,
-    CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
-    CENDE_WRITE_BLOB_FAILURE,
-    CENDE_WRITE_BLOB_SUCCESS,
-    LABEL_CENDE_FAILURE_REASON,
+    CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER, CENDE_WRITE_BLOB_FAILURE, CENDE_WRITE_BLOB_SUCCESS,
+    CendeWriteFailureReason, LABEL_CENDE_FAILURE_REASON, register_metrics,
 };
 
 const HEIGHT_TO_WRITE: BlockNumber = BlockNumber(10);

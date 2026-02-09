@@ -1,12 +1,12 @@
 use std::net::Ipv4Addr;
 
 use apollo_config::secrets::Sensitive;
-use libp2p::{identity, PeerId};
+use libp2p::{PeerId, identity};
 use validator::Validate;
 
+use crate::NetworkConfig;
 use crate::test_utils::DUMMY_MULTI_ADDRESS;
 use crate::utils::make_multiaddr;
-use crate::NetworkConfig;
 
 #[test]
 fn test_bootstrap_peer_multiaddr_empty_is_valid() {

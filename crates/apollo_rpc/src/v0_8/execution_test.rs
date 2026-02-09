@@ -1,78 +1,53 @@
 use std::fs::read_to_string;
 use std::sync::Arc;
 
+use apollo_rpc_execution::ExecutableTransactionInput;
 use apollo_rpc_execution::execution_utils::selector_from_name;
 use apollo_rpc_execution::objects::{
-    CallType,
-    FeeEstimation,
-    FunctionCall,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    PriceUnit,
-    Retdata,
+    CallType, FeeEstimation, FunctionCall, OrderedEvent, OrderedL2ToL1Message, PriceUnit, Retdata,
     RevertReason,
 };
 use apollo_rpc_execution::testing_instances::get_storage_var_address;
-use apollo_rpc_execution::ExecutableTransactionInput;
+use apollo_starknet_client::reader::PendingData;
 use apollo_starknet_client::reader::objects::pending_data::{
-    PendingBlock,
-    PendingBlockOrDeprecated,
-    PendingStateUpdate,
+    PendingBlock, PendingBlockOrDeprecated, PendingStateUpdate,
 };
 use apollo_starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
 use apollo_starknet_client::reader::objects::transaction::{
-    IntermediateInvokeTransaction as ClientInvokeTransaction,
-    Transaction as ClientTransaction,
+    IntermediateInvokeTransaction as ClientInvokeTransaction, Transaction as ClientTransaction,
     TransactionReceipt as ClientTransactionReceipt,
 };
-use apollo_starknet_client::reader::PendingData;
+use apollo_storage::StorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::class_hash::ClassHashStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
-use apollo_storage::StorageWriter;
 use apollo_test_utils::{
-    auto_impl_get_test_instance,
-    get_number_of_variants,
-    get_rng,
-    GetTestInstance,
+    GetTestInstance, auto_impl_get_test_instance, get_number_of_variants, get_rng,
 };
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::indexmap;
-use jsonrpsee::core::server::MethodsError;
 use jsonrpsee::RpcModule;
+use jsonrpsee::core::server::MethodsError;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingClassesTrait};
 use papyrus_common::state::{
-    DeclaredClassHashEntry,
-    DeployedContract as CommonDeployedContract,
-    MigratedCompiledClassHashEntry,
-    StorageEntry as CommonStorageEntry,
+    DeclaredClassHashEntry, DeployedContract as CommonDeployedContract,
+    MigratedCompiledClassHashEntry, StorageEntry as CommonStorageEntry,
 };
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
-    BlockBody,
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockTimestamp,
+    BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp,
     GasPricePerToken,
 };
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::EntryPointType;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
-    PatriciaKey,
-    SequencerContractAddress,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
+    PatriciaKey, SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
@@ -80,10 +55,7 @@ use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
 use starknet_api::test_utils::{path_in_resources, read_json_file};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
-    L1HandlerTransaction,
-    TransactionHash,
-    TransactionOffsetInBlock,
-    TransactionVersion,
+    L1HandlerTransaction, TransactionHash, TransactionOffsetInBlock, TransactionVersion,
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
@@ -91,57 +63,32 @@ use tokio::sync::RwLock;
 
 use super::api::api_impl::JsonRpcServerImpl;
 use super::api::{
-    decompress_program,
-    SimulatedTransaction,
-    SimulationFlag,
-    TransactionTraceWithHash,
+    SimulatedTransaction, SimulationFlag, TransactionTraceWithHash, decompress_program,
 };
 use super::broadcasted_transaction::{
-    BroadcastedDeclareTransaction,
-    BroadcastedDeclareV1Transaction,
-    BroadcastedTransaction,
+    BroadcastedDeclareTransaction, BroadcastedDeclareV1Transaction, BroadcastedTransaction,
 };
-use super::error::{TransactionExecutionError, BLOCK_NOT_FOUND, CONTRACT_NOT_FOUND};
+use super::error::{BLOCK_NOT_FOUND, CONTRACT_NOT_FOUND, TransactionExecutionError};
 use super::execution::{
-    DeclareTransactionTrace,
-    DeployAccountTransactionTrace,
-    FunctionInvocation,
-    FunctionInvocationResult,
-    InvokeTransactionTrace,
-    L1HandlerTransactionTrace,
-    TransactionTrace,
+    DeclareTransactionTrace, DeployAccountTransactionTrace, FunctionInvocation,
+    FunctionInvocationResult, InvokeTransactionTrace, L1HandlerTransactionTrace, TransactionTrace,
 };
 use super::state::{
-    ClassHashes,
-    ContractNonce,
-    DeployedContract,
-    ReplacedClass,
-    StorageDiff,
-    StorageEntry,
+    ClassHashes, ContractNonce, DeployedContract, ReplacedClass, StorageDiff, StorageEntry,
     ThinStateDiff,
 };
 use super::transaction::{
-    Builtin,
-    DeployAccountTransaction,
-    ExecutionResources,
-    InvokeTransaction,
-    InvokeTransactionV1,
-    MessageFromL1,
-    TransactionVersion1,
+    Builtin, DeployAccountTransaction, ExecutionResources, InvokeTransaction, InvokeTransactionV1,
+    MessageFromL1, TransactionVersion1,
 };
 use crate::api::{BlockHashOrNumber, BlockId, CallRequest, Tag};
 use crate::test_utils::{
-    call_and_validate_schema_for_result,
+    SpecFile, call_and_validate_schema_for_result,
     call_api_then_assert_and_validate_schema_for_result,
-    get_starknet_spec_api_schema_for_components,
-    get_starknet_spec_api_schema_for_method_results,
-    get_test_pending_classes,
-    get_test_pending_data,
-    get_test_rpc_config,
-    get_test_rpc_server_and_storage_writer,
-    get_test_rpc_server_and_storage_writer_from_params,
+    get_starknet_spec_api_schema_for_components, get_starknet_spec_api_schema_for_method_results,
+    get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
+    get_test_rpc_server_and_storage_writer, get_test_rpc_server_and_storage_writer_from_params,
     validate_schema,
-    SpecFile,
 };
 use crate::version_config::VERSION_0_8 as VERSION;
 

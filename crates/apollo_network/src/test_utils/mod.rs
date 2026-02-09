@@ -9,13 +9,13 @@ use futures::future::Either;
 use lazy_static::lazy_static;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use libp2p::swarm::{ConnectionId, NetworkBehaviour, Swarm, SwarmEvent};
-use libp2p::{identity, Multiaddr, PeerId, Stream, StreamProtocol};
+use libp2p::{Multiaddr, PeerId, Stream, StreamProtocol, identity};
 use libp2p_swarm_test::SwarmExt;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
 
-use crate::utils::{make_multiaddr, StreamMap};
 use crate::Bytes;
+use crate::utils::{StreamMap, make_multiaddr};
 
 lazy_static! {
     #[cfg(test)]

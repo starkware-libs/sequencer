@@ -8,15 +8,10 @@ use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{
-    contract_address_into_node_index,
-    Input,
-    StarknetStorageValue,
-    StateDiff,
+    Input, StarknetStorageValue, StateDiff, contract_address_into_node_index,
 };
 use crate::block_committer::measurements_util::{
-    Action,
-    BlockModificationsCounts,
-    MeasurementsTrait,
+    Action, BlockModificationsCounts, MeasurementsTrait,
 };
 use crate::db::forest_trait::ForestReader;
 use crate::forest::filled_forest::FilledForest;

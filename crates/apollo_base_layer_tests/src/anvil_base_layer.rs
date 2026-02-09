@@ -13,19 +13,11 @@ use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
-    CircularUrlIterator,
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    EthereumBaseLayerError,
-    Starknet,
-    StarknetL1Contract,
+    CircularUrlIterator, EthereumBaseLayerConfig, EthereumBaseLayerContract,
+    EthereumBaseLayerError, Starknet, StarknetL1Contract,
 };
 use papyrus_base_layer::{
-    BaseLayerContract,
-    L1BlockHeader,
-    L1BlockNumber,
-    L1BlockReference,
-    L1Event,
+    BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event,
 };
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::hash::StarkHash;
@@ -67,13 +59,14 @@ impl AnvilBaseLayer {
         }
 
         let error_message = format!(
-"\n{}\n{}\n",
-"Anvil binary not found!".bold().red(),
-"Install instructions (for local development):\n
+            "\n{}\n{}\n",
+            "Anvil binary not found!".bold().red(),
+            "Install instructions (for local development):\n
 Execute from within a directory that's included in PATH, like ~/.local/bin:\n
 curl -L \
  https://github.com/foundry-rs/foundry/releases/download/v1.5.1/foundry_v1.5.1_linux_amd64.tar.gz \
- | tar -xz --wildcards 'anvil'".yellow()
+ | tar -xz --wildcards 'anvil'"
+                .yellow()
         );
 
         // We don't further inspect the output as it is irrelevant to the spawn check.

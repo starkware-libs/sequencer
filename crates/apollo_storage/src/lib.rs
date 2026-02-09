@@ -123,7 +123,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::sync::Arc;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
@@ -133,13 +133,7 @@ use db::db_stats::{DbTableStats, DbWholeStats};
 use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use db::table_types::{CommonPrefix, NoValue, Table, TableType};
 use mmap_file::{
-    open_file,
-    FileHandler,
-    LocationInFile,
-    MMapFileError,
-    MmapFileConfig,
-    Reader,
-    Writer,
+    FileHandler, LocationInFile, MMapFileError, MmapFileConfig, Reader, Writer, open_file,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -158,27 +152,15 @@ use crate::body::TransactionIndex;
 use crate::consensus::LastVotedMarker;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
-    open_env,
-    DbConfig,
-    DbError,
-    DbReader,
-    DbTransaction,
-    DbWriter,
-    TableHandle,
-    TableIdentifier,
-    TransactionKind,
-    RO,
-    RW,
+    DbConfig, DbError, DbReader, DbTransaction, DbWriter, RO, RW, TableHandle, TableIdentifier,
+    TransactionKind, open_env,
 };
 use crate::header::StorageBlockHeader;
-use crate::metrics::{register_metrics, STORAGE_COMMIT_LATENCY};
+use crate::metrics::{STORAGE_COMMIT_LATENCY, register_metrics};
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::storage_reader_server::{
-    create_storage_reader_server,
-    ServerConfig,
-    StorageReaderServer,
-    StorageReaderServerHandler,
+    ServerConfig, StorageReaderServer, StorageReaderServerHandler, create_storage_reader_server,
 };
 use crate::version::{VersionStorageReader, VersionStorageWriter};
 

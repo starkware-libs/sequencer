@@ -13,48 +13,26 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
-    BlockInfo,
-    BlockTimestamp,
-    GasPricePerToken,
-    GasPrices,
-    StarknetVersion,
+    BlockInfo, BlockTimestamp, GasPricePerToken, GasPrices, StarknetVersion,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::{
-    InternalRpcDeployAccountTransaction,
-    InternalRpcTransaction,
-    RpcDeployAccountTransaction,
+    InternalRpcDeployAccountTransaction, InternalRpcTransaction, RpcDeployAccountTransaction,
     RpcInvokeTransaction,
 };
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, Fee, PaymasterData,
+    ResourceBounds, Tip, TransactionSignature,
 };
 use starknet_api::transaction::{
-    Event,
-    L1ToL2Payload,
-    MessageToL1,
-    TransactionHash,
-    TransactionOffsetInBlock,
+    Event, L1ToL2Payload, MessageToL1, TransactionHash, TransactionOffsetInBlock,
     TransactionVersion,
 };
 

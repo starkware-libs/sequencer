@@ -3,12 +3,11 @@ use std::sync::{Arc, Mutex};
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::state_api::StateReader;
+use blockifier::test_utils::BALANCE;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
-use blockifier::test_utils::BALANCE;
 use blockifier::transaction::test_utils::{
-    default_all_resource_bounds,
-    invoke_tx_with_default_flags,
+    default_all_resource_bounds, invoke_tx_with_default_flags,
 };
 use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -22,9 +21,7 @@ use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 
 use crate::cairo_staking_contract::{
-    CairoStakingContract,
-    ExtendedStateReader,
-    StateReaderFactory,
+    CairoStakingContract, ExtendedStateReader, StateReaderFactory,
 };
 use crate::committee_provider::Staker;
 use crate::contract_types::ContractStaker;

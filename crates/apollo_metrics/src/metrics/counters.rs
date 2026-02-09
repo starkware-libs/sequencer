@@ -8,12 +8,7 @@ use metrics::{counter, describe_counter};
 use num_traits::Num;
 
 use crate::metrics::{
-    HasMetricDetails,
-    HasMetricFilterKind,
-    Metric,
-    MetricDetails,
-    MetricFilterKind,
-    MetricScope,
+    HasMetricDetails, HasMetricFilterKind, Metric, MetricDetails, MetricFilterKind, MetricScope,
 };
 #[cfg(any(feature = "testing", test))]
 use crate::test_utils::{assert_equality, assert_metric_exists, parse_numeric_metric};

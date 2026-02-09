@@ -55,10 +55,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
-    Event,
-    EventContent,
-    EventIndexInTransactionOutput,
-    TransactionOutput,
+    Event, EventContent, EventIndexInTransactionOutput, TransactionOutput,
 };
 
 use super::TransactionMetadataTable;

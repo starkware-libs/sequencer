@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use apollo_config::secrets::Sensitive;
 use apollo_infra_utils::url::to_safe_string;

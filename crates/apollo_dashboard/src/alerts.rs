@@ -6,9 +6,7 @@ use serde::{Serialize, Serializer};
 use strum_macros::EnumIter;
 
 use crate::alert_placeholders::{
-    ComparisonValueOrPlaceholder,
-    ExpressionOrExpressionWithPlaceholder,
-    SeverityValueOrPlaceholder,
+    ComparisonValueOrPlaceholder, ExpressionOrExpressionWithPlaceholder, SeverityValueOrPlaceholder,
 };
 
 pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";

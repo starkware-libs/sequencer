@@ -10,17 +10,13 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::hash::StarkHash;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 use tracing::debug;
 
 use super::block_data_stream_builder::{
-    BadPeerError,
-    BlockData,
-    BlockDataStreamBuilder,
-    BlockNumberLimit,
-    ParseDataError,
+    BadPeerError, BlockData, BlockDataStreamBuilder, BlockNumberLimit, ParseDataError,
 };
-use super::{P2pSyncClientError, ALLOWED_SIGNATURES_LENGTH};
+use super::{ALLOWED_SIGNATURES_LENGTH, P2pSyncClientError};
 
 impl BlockData for SignedBlockHeader {
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.

@@ -4,15 +4,9 @@ use rstest_reuse::template;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::NodeLayout;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
-    create_binary_entry_from_u128,
-    create_binary_skeleton_node,
-    create_edge_entry_from_u128,
-    create_edge_skeleton_node,
-    create_expected_skeleton_nodes,
-    create_root_edge_entry,
-    create_unmodified_subtree_skeleton_node,
-    AdditionHash,
-    MockLeaf,
+    AdditionHash, MockLeaf, create_binary_entry_from_u128, create_binary_skeleton_node,
+    create_edge_entry_from_u128, create_edge_skeleton_node, create_expected_skeleton_nodes,
+    create_root_edge_entry, create_unmodified_subtree_skeleton_node,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;

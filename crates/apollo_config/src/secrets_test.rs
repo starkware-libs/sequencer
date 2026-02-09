@@ -1,4 +1,4 @@
-use crate::secrets::{Sensitive, DEFAULT_REDACTION_OUTPUT};
+use crate::secrets::{DEFAULT_REDACTION_OUTPUT, Sensitive};
 
 #[test]
 fn test_default_redaction_output() {

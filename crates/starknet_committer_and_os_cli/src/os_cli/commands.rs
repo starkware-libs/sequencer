@@ -2,10 +2,7 @@ use std::path::Path;
 
 use apollo_starknet_os_program::test_programs::ALIASES_TEST_BYTES;
 use apollo_starknet_os_program::{
-    AGGREGATOR_PROGRAM_BYTES,
-    CAIRO_FILES_MAP,
-    OS_PROGRAM_BYTES,
-    PROGRAM_HASHES,
+    AGGREGATOR_PROGRAM_BYTES, CAIRO_FILES_MAP, OS_PROGRAM_BYTES, PROGRAM_HASHES,
 };
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
@@ -21,8 +18,8 @@ use starknet_os::runner::{run_aggregator, run_os_stateless, run_os_stateless_for
 use starknet_types_core::felt::Felt;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
+use tracing_subscriber::reload::Handle;
 
 use crate::os_cli::run_os_cli::{AggregatorCliOutput, OsCliOutput, ProgramToDump};
 use crate::shared_utils::read::{load_input, write_to_file};

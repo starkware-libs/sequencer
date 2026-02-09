@@ -9,10 +9,7 @@ use starknet_core::crypto::Signature;
 use starknet_core::types::Felt;
 
 use crate::signature_manager::{
-    verify_identity,
-    verify_precommit_vote_signature,
-    LocalKeyStore,
-    SignatureManager,
+    LocalKeyStore, SignatureManager, verify_identity, verify_precommit_vote_signature,
 };
 
 const ALICE_IDENTITY_SIGNATURE: Signature = Signature {

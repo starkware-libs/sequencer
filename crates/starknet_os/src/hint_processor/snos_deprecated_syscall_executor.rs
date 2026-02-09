@@ -1,41 +1,16 @@
 use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::{
-    DeprecatedSyscallExecutor,
-    DeprecatedSyscallExecutorBaseError,
+    DeprecatedSyscallExecutor, DeprecatedSyscallExecutorBaseError,
 };
 use blockifier::execution::deprecated_syscalls::{
-    CallContractRequest,
-    CallContractResponse,
-    DelegateCallRequest,
-    DelegateCallResponse,
-    DeployRequest,
-    DeployResponse,
-    DeprecatedSyscallSelector,
-    EmitEventRequest,
-    EmitEventResponse,
-    GetBlockNumberRequest,
-    GetBlockNumberResponse,
-    GetBlockTimestampRequest,
-    GetBlockTimestampResponse,
-    GetCallerAddressRequest,
-    GetCallerAddressResponse,
-    GetContractAddressRequest,
-    GetContractAddressResponse,
-    GetSequencerAddressRequest,
-    GetSequencerAddressResponse,
-    GetTxInfoRequest,
-    GetTxInfoResponse,
-    GetTxSignatureRequest,
-    GetTxSignatureResponse,
-    LibraryCallRequest,
-    LibraryCallResponse,
-    ReplaceClassRequest,
-    ReplaceClassResponse,
-    SendMessageToL1Request,
-    SendMessageToL1Response,
-    StorageReadRequest,
-    StorageReadResponse,
-    StorageWriteRequest,
-    StorageWriteResponse,
+    CallContractRequest, CallContractResponse, DelegateCallRequest, DelegateCallResponse,
+    DeployRequest, DeployResponse, DeprecatedSyscallSelector, EmitEventRequest, EmitEventResponse,
+    GetBlockNumberRequest, GetBlockNumberResponse, GetBlockTimestampRequest,
+    GetBlockTimestampResponse, GetCallerAddressRequest, GetCallerAddressResponse,
+    GetContractAddressRequest, GetContractAddressResponse, GetSequencerAddressRequest,
+    GetSequencerAddressResponse, GetTxInfoRequest, GetTxInfoResponse, GetTxSignatureRequest,
+    GetTxSignatureResponse, LibraryCallRequest, LibraryCallResponse, ReplaceClassRequest,
+    ReplaceClassResponse, SendMessageToL1Request, SendMessageToL1Response, StorageReadRequest,
+    StorageReadResponse, StorageWriteRequest, StorageWriteResponse,
 };
 use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::execution::execution_utils::ReadOnlySegment;
@@ -45,20 +20,17 @@ use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::StarknetApiError;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::{CallInfoTracker, ExecutionHelperError};
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::vars::CairoStruct;
 use crate::vm_utils::{
-    get_address_of_nested_fields_from_base_address,
-    get_field_offset,
-    get_size_of_cairo_struct,
-    write_to_temp_segment,
-    VmUtilsError,
+    VmUtilsError, get_address_of_nested_fields_from_base_address, get_field_offset,
+    get_size_of_cairo_struct, write_to_temp_segment,
 };
 
 #[derive(Debug, thiserror::Error)]

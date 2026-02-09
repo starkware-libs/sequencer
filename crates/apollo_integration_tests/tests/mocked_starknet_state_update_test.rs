@@ -4,8 +4,8 @@ use alloy::rpc::types::eth::Filter as EthEventFilter;
 use alloy::sol_types::SolEventInterface;
 use apollo_base_layer_tests::anvil_base_layer::{AnvilBaseLayer, MockedStateUpdate};
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
-use papyrus_base_layer::ethereum_base_layer_contract::Starknet;
 use papyrus_base_layer::BaseLayerContract;
+use papyrus_base_layer::ethereum_base_layer_contract::Starknet;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 

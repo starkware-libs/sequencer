@@ -11,16 +11,14 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
+use starknet_api::StarknetApiError;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::hash::HashOutput;
 use starknet_api::state::StorageKey;
-use starknet_api::StarknetApiError;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{
-    EdgePathError,
-    PathToBottomError,
-    PreimageError,
+    EdgePathError, PathToBottomError, PreimageError,
 };
 use starknet_types_core::felt::Felt;
 

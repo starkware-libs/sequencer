@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use apollo_gateway_types::deprecated_gateway_error::StarknetError;
 use apollo_state_sync_types::communication::{
-    SharedStateSyncClient,
-    StateSyncClient,
-    StateSyncClientError,
+    SharedStateSyncClient, StateSyncClient, StateSyncClientError,
 };
 use apollo_state_sync_types::errors::StateSyncError;
 use async_trait::async_trait;

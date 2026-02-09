@@ -3,13 +3,11 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use apollo_storage::compiled_class::CasmStorageReader;
-use apollo_storage::db::{TransactionKind, RO};
+use apollo_storage::db::{RO, TransactionKind};
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageResult, StorageTxn};
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::transaction::objects::TransactionExecutionInfo;

@@ -39,18 +39,11 @@ use std::collections::{BTreeMap, HashSet};
 use apollo_infra_utils::dumping::serialize_to_file;
 use itertools::chain;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::{
-    ConfigError,
-    ParamPath,
-    ParamPrivacy,
-    ParamPrivacyInput,
-    SerializationType,
-    SerializedContent,
-    SerializedParam,
-    FIELD_SEPARATOR,
-    IS_NONE_MARK,
+    ConfigError, FIELD_SEPARATOR, IS_NONE_MARK, ParamPath, ParamPrivacy, ParamPrivacyInput,
+    SerializationType, SerializedContent, SerializedParam,
 };
 
 /// Type alias for a pointer parameter and its serialized representation.

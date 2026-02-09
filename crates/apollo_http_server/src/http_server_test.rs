@@ -1,22 +1,17 @@
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewayError;
 use apollo_gateway_types::gateway_types::{
-    DeclareGatewayOutput,
-    DeployAccountGatewayOutput,
-    GatewayOutput,
-    InvokeGatewayOutput,
+    DeclareGatewayOutput, DeployAccountGatewayOutput, GatewayOutput, InvokeGatewayOutput,
 };
 use apollo_infra::component_client::ClientError;
 use apollo_proc_macros::unique_u16;
+use axum::Json;
 use axum::body::Bytes;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use http_body_util::BodyExt;
 use rstest::rstest;
 use serde_json::Value;
@@ -29,14 +24,9 @@ use tracing_test::traced_test;
 use crate::errors::HttpServerError;
 use crate::http_server::CLIENT_REGION_HEADER;
 use crate::test_utils::{
-    add_tx_http_client,
-    deprecated_gateway_declare_tx,
-    deprecated_gateway_deploy_account_tx,
-    deprecated_gateway_invoke_tx,
-    get_mock_config_manager_client,
-    rpc_invoke_tx,
-    GatewayTransaction,
-    TransactionSerialization,
+    GatewayTransaction, TransactionSerialization, add_tx_http_client,
+    deprecated_gateway_declare_tx, deprecated_gateway_deploy_account_tx,
+    deprecated_gateway_invoke_tx, get_mock_config_manager_client, rpc_invoke_tx,
 };
 
 const DEPRECATED_GATEWAY_INVOKE_TX_RESPONSE_JSON_PATH: &str =

@@ -3,8 +3,7 @@ use std::vec;
 
 use apollo_l1_provider_types::errors::L1ProviderClientError;
 use apollo_l1_provider_types::{
-    InvalidValidationStatus as L1InvalidValidationStatus,
-    SharedL1ProviderClient,
+    InvalidValidationStatus as L1InvalidValidationStatus, SharedL1ProviderClient,
     ValidationStatus as L1ValidationStatus,
 };
 use apollo_mempool_types::communication::{MempoolClientError, SharedMempoolClient};

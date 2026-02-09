@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use tempfile::tempdir;
 
-use crate::regression_test_utils::{generate_protos, PROTOC_OUTPUT, PROTO_DIR, PROTO_FILES};
+use crate::regression_test_utils::{PROTO_DIR, PROTO_FILES, PROTOC_OUTPUT, generate_protos};
 
 #[test]
 fn protoc_output_matches_result_of_running_protoc() {

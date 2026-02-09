@@ -11,37 +11,28 @@ use std::collections::HashMap;
 use apollo_config::secrets::Sensitive;
 use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoints,
+    CasmContractClass, CasmContractEntryPoints,
 };
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
 use serde::{Deserialize, Serialize};
+use starknet_api::StarknetApiError;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use tracing::{debug, error, instrument};
 use url::Url;
 
 use crate::reader::objects::block::BlockStatus;
 pub use crate::reader::objects::block::{
-    Block,
-    BlockSignatureData,
-    BlockSignatureMessage,
-    TransactionReceiptsError,
+    Block, BlockSignatureData, BlockSignatureMessage, TransactionReceiptsError,
 };
 pub use crate::reader::objects::pending_data::PendingData;
 pub use crate::reader::objects::state::{
-    ContractClass,
-    DeclaredClassHashEntry,
-    DeployedContract,
-    ReplacedClass,
-    StateDiff,
-    StateUpdate,
+    ContractClass, DeclaredClassHashEntry, DeployedContract, ReplacedClass, StateDiff, StateUpdate,
     StorageEntry,
 };
 #[cfg(doc)]

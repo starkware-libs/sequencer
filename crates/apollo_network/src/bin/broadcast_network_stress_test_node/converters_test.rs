@@ -1,6 +1,6 @@
 use rstest::rstest;
 
-use crate::converters::{StressTestMessage, METADATA_SIZE};
+use crate::converters::{METADATA_SIZE, StressTestMessage};
 
 #[rstest]
 #[case::one_byte_len(10)]

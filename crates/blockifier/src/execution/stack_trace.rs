@@ -13,8 +13,7 @@ use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::syscalls::hint_processor::{
-    SyscallExecutionError,
-    ENTRYPOINT_FAILED_ERROR_FELT,
+    ENTRYPOINT_FAILED_ERROR_FELT, SyscallExecutionError,
 };
 use crate::transaction::errors::TransactionExecutionError;
 

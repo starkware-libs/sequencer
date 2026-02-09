@@ -18,8 +18,7 @@ use starknet_types_core::felt::Felt;
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
 use crate::hint_processor::snos_hint_processor::{
-    DeprecatedSyscallHintProcessor,
-    SyscallHintProcessor,
+    DeprecatedSyscallHintProcessor, SyscallHintProcessor,
 };
 use crate::io::os_input::{CachedStateInput, OsBlockInput};
 use crate::vm_utils::VmUtilsError;

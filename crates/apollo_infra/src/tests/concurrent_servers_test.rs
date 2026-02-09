@@ -7,37 +7,24 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
-use tokio::sync::mpsc::channel;
 use tokio::sync::Semaphore;
+use tokio::sync::mpsc::channel;
 use tokio::task;
 use tokio::time::timeout;
 
 use crate::component_client::{
-    ClientResult,
-    LocalComponentClient,
-    RemoteClientConfig,
-    RemoteComponentClient,
+    ClientResult, LocalComponentClient, RemoteClientConfig, RemoteComponentClient,
 };
 use crate::component_definitions::{
-    ComponentClient,
-    ComponentRequestHandler,
-    ComponentStarter,
-    PrioritizedRequest,
-    RequestWrapper,
+    ComponentClient, ComponentRequestHandler, ComponentStarter, PrioritizedRequest, RequestWrapper,
 };
 use crate::component_server::{
-    ComponentServerStarter,
-    ConcurrentLocalComponentServer,
-    LocalServerConfig,
+    ComponentServerStarter, ConcurrentLocalComponentServer, LocalServerConfig,
     RemoteComponentServer,
 };
 use crate::tests::{
-    available_ports_factory,
-    dummy_remote_server_config,
-    TEST_LOCAL_CLIENT_METRICS,
-    TEST_LOCAL_SERVER_METRICS,
-    TEST_REMOTE_CLIENT_METRICS,
-    TEST_REMOTE_SERVER_METRICS,
+    TEST_LOCAL_CLIENT_METRICS, TEST_LOCAL_SERVER_METRICS, TEST_REMOTE_CLIENT_METRICS,
+    TEST_REMOTE_SERVER_METRICS, available_ports_factory, dummy_remote_server_config,
 };
 use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 

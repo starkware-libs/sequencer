@@ -3,16 +3,13 @@ use std::ops::Deref;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_network_types::network_types::PeerId;
 use apollo_signature_manager_types::{
-    KeyStore,
-    KeyStoreResult,
-    SignatureManagerError,
-    SignatureManagerResult,
+    KeyStore, KeyStoreResult, SignatureManagerError, SignatureManagerResult,
 };
 use async_trait::async_trait;
 use starknet_api::block::BlockHash;
 use starknet_api::core::Nonce;
 use starknet_api::crypto::utils::{PrivateKey, PublicKey, RawSignature, SignatureConversionError};
-use starknet_core::crypto::{ecdsa_sign, ecdsa_verify, EcdsaVerifyError};
+use starknet_core::crypto::{EcdsaVerifyError, ecdsa_sign, ecdsa_verify};
 use starknet_core::types::Felt;
 use starknet_crypto::get_public_key;
 use thiserror::Error;

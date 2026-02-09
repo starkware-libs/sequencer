@@ -10,11 +10,7 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{
-    DbHashMap,
-    DbKey,
-    DbValue,
-    PatriciaStorageResult,
-    Storage,
+    DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage,
 };
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};

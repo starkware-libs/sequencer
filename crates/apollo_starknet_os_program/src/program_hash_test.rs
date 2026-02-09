@@ -5,10 +5,7 @@ use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use expect_test::expect_file;
 
 use crate::program_hash::{
-    compute_aggregator_program_hash,
-    compute_os_program_hash,
-    AggregatorHash,
-    ProgramHashes,
+    AggregatorHash, ProgramHashes, compute_aggregator_program_hash, compute_os_program_hash,
 };
 
 static PROGRAM_HASH_PATH: LazyLock<PathBuf> = LazyLock::new(|| {

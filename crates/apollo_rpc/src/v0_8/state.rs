@@ -2,10 +2,8 @@ use std::collections::HashMap;
 
 use apollo_starknet_client::reader::objects::state::{
     DeclaredClassHashEntry as ClientDeclaredClassHashEntry,
-    DeployedContract as ClientDeployedContract,
-    ReplacedClass as ClientReplacedClass,
-    StateDiff as ClientStateDiff,
-    StorageEntry as ClientStorageEntry,
+    DeployedContract as ClientDeployedContract, ReplacedClass as ClientReplacedClass,
+    StateDiff as ClientStateDiff, StorageEntry as ClientStorageEntry,
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;

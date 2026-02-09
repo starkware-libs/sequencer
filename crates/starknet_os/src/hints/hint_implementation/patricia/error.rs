@@ -1,9 +1,7 @@
 use num_bigint::BigUint;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{
-    EdgePathError,
-    PathToBottomError,
-    PreimageError,
+    EdgePathError, PathToBottomError, PreimageError,
 };
 
 #[derive(Debug, thiserror::Error)]

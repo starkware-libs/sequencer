@@ -16,16 +16,10 @@ use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClie
 use apollo_proc_macros::latency_histogram;
 use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
-    CENTRAL_SYNC_BASE_LAYER_MARKER,
-    CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
-    CENTRAL_SYNC_FORKS_FROM_FEEDER,
-    STATE_SYNC_BODY_MARKER,
-    STATE_SYNC_CLASS_MANAGER_MARKER,
-    STATE_SYNC_COMPILED_CLASS_MARKER,
-    STATE_SYNC_HEADER_LATENCY_SEC,
-    STATE_SYNC_HEADER_MARKER,
-    STATE_SYNC_PROCESSED_TRANSACTIONS,
-    STATE_SYNC_STATE_MARKER,
+    CENTRAL_SYNC_BASE_LAYER_MARKER, CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
+    CENTRAL_SYNC_FORKS_FROM_FEEDER, STATE_SYNC_BODY_MARKER, STATE_SYNC_CLASS_MANAGER_MARKER,
+    STATE_SYNC_COMPILED_CLASS_MARKER, STATE_SYNC_HEADER_LATENCY_SEC, STATE_SYNC_HEADER_MARKER,
+    STATE_SYNC_PROCESSED_TRANSACTIONS, STATE_SYNC_STATE_MARKER,
 };
 use apollo_storage::base_layer::{BaseLayerStorageReader, BaseLayerStorageWriter};
 use apollo_storage::body::BodyStorageWriter;
@@ -41,25 +35,20 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
 use futures::future::pending;
 use futures::stream;
-use futures_util::{pin_mut, select, Stream, StreamExt};
+use futures_util::{Stream, StreamExt, pin_mut, select};
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::PendingClasses;
 use sources::base_layer::BaseLayerSourceError;
 use starknet_api::block::{
-    Block,
-    BlockHash,
-    BlockHashAndNumber,
-    BlockNumber,
-    BlockSignature,
-    StarknetVersion,
+    Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature, StarknetVersion,
 };
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
 use tokio::sync::{Mutex, RwLock};
-use tokio::task::{spawn_blocking, JoinError};
+use tokio::task::{JoinError, spawn_blocking};
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::pending_sync::sync_pending_data;
@@ -453,12 +442,10 @@ impl<
             deployed_contract_class_definitions
                 .into_iter()
                 .filter_map(|(class_hash, deprecated_class)| {
-                    match state_reader
-                        .get_deprecated_class_definition_block_number(&class_hash)
-                    {
+                    match state_reader.get_deprecated_class_definition_block_number(&class_hash) {
                         Ok(Some(_)) => None, // Class already exists, filter it out
                         Ok(None) => Some(Ok((class_hash, deprecated_class))), // Class doesn't exist, keep it
-                        Err(e) => Some(Err(e)), // Propagate error
+                        Err(e) => Some(Err(e)),                               // Propagate error
                     }
                 })
                 .collect::<Result<IndexMap<ClassHash, DeprecatedContractClass>, StorageError>>()?

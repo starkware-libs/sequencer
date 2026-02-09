@@ -13,14 +13,10 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Calldata,
-    ResourceBounds,
-    ValidResourceBounds,
-    HIGH_GAS_AMOUNT,
-};
 use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::fields::{
+    AllResourceBounds, Calldata, HIGH_GAS_AMOUNT, ResourceBounds, ValidResourceBounds,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::{GasCosts, VersionedConstants};
@@ -29,12 +25,10 @@ use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::errors::{
-    ConstructorEntryPointExecutionError,
-    EntryPointExecutionError,
-    PreExecutionError,
+    ConstructorEntryPointExecutionError, EntryPointExecutionError, PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call_wrapper;
-use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
+use crate::execution::stack_trace::{Cairo1RevertHeader, extract_trailing_cairo1_revert_trace};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::{State, StateReader, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};

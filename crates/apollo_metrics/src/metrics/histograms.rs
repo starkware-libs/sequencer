@@ -2,18 +2,13 @@ use std::collections::BTreeSet;
 use std::fmt::Debug;
 
 use indexmap::IndexMap;
-use metrics::{describe_histogram, histogram, IntoF64};
+use metrics::{IntoF64, describe_histogram, histogram};
 #[cfg(any(feature = "testing", test))]
-use regex::{escape, Regex};
+use regex::{Regex, escape};
 
 use crate::metric_definitions::METRIC_LABEL_FILTER;
 use crate::metrics::{
-    HasMetricDetails,
-    HasMetricFilterKind,
-    LossyIntoF64,
-    Metric,
-    MetricDetails,
-    MetricFilterKind,
+    HasMetricDetails, HasMetricFilterKind, LossyIntoF64, Metric, MetricDetails, MetricFilterKind,
     MetricScope,
 };
 #[cfg(any(feature = "testing", test))]

@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use apollo_l1_gas_price_types::{GasPriceData, MockL1GasPriceProviderClient};
@@ -9,9 +9,7 @@ use rstest::rstest;
 use starknet_api::block::GasPrice;
 
 use crate::l1_gas_price_scraper::{
-    L1GasPriceScraper,
-    L1GasPriceScraperConfig,
-    L1GasPriceScraperError,
+    L1GasPriceScraper, L1GasPriceScraperConfig, L1GasPriceScraperError,
 };
 
 const BLOCK_TIME: u64 = 2;

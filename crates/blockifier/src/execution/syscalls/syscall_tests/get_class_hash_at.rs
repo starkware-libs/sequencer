@@ -9,7 +9,7 @@ use crate::context::ChainInfo;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
+use crate::test_utils::{BALANCE, trivial_external_entry_point_new};
 
 /// Tests the `get_class_hash_at` syscall, ensuring that:
 /// 1. `accessed_contract_addresses` contains `address` for a valid entry.

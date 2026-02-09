@@ -3,25 +3,12 @@ use std::path::Path;
 use std::sync::Arc;
 
 use libmdbx::{
-    Database as MdbxDb,
-    DatabaseFlags,
-    Geometry,
-    PageSize,
-    Stat,
-    TableFlags,
-    WriteFlags,
-    WriteMap,
+    Database as MdbxDb, DatabaseFlags, Geometry, PageSize, Stat, TableFlags, WriteFlags, WriteMap,
 };
 use page_size;
 
 use crate::storage_trait::{
-    AsyncStorage,
-    DbHashMap,
-    DbKey,
-    DbValue,
-    EmptyStorageConfig,
-    PatriciaStorageResult,
-    Storage,
+    AsyncStorage, DbHashMap, DbKey, DbValue, EmptyStorageConfig, PatriciaStorageResult, Storage,
     StorageStats,
 };
 

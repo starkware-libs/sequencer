@@ -3,9 +3,9 @@
 #[path = "serde_utils_test.rs"]
 mod serde_utils_test;
 
+use serde::Deserializer;
 use serde::de::{Deserialize, Visitor};
 use serde::ser::{Serialize, SerializeTuple};
-use serde::Deserializer;
 
 use crate::deprecated_contract_class::ContractClassAbiEntry;
 

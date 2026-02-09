@@ -14,18 +14,16 @@ use alloy::sol;
 use alloy::sol_types::sol_data;
 use alloy::transports::TransportErrorKind;
 use apollo_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_vec,
-    serialize_slice,
+    deserialize_milliseconds_to_duration, deserialize_vec, serialize_slice,
 };
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use starknet_api::StarknetApiError;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
-use starknet_api::StarknetApiError;
 use tokio::time::error::Elapsed;
 use tracing::{debug, error, info, instrument};
 use url::Url;
@@ -33,12 +31,7 @@ use validator::{Validate, ValidationError};
 
 use crate::eth_events::parse_event;
 use crate::{
-    BaseLayerContract,
-    L1BlockHash,
-    L1BlockHeader,
-    L1BlockNumber,
-    L1BlockReference,
-    L1Event,
+    BaseLayerContract, L1BlockHash, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event,
 };
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;

@@ -1,4 +1,4 @@
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use starknet_api::deprecated_contract_class::ContractClass;
 
 use crate::protobuf::Cairo0Class;

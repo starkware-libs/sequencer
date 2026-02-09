@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
-use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
+use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use async_trait::async_trait;
 use futures::FutureExt;
 use lru::LruCache;
@@ -18,10 +18,8 @@ use tracing::{debug, info, instrument, warn};
 use url::Url;
 
 use crate::metrics::{
+    ETH_TO_STRK_ERROR_COUNT, ETH_TO_STRK_RATE, ETH_TO_STRK_SUCCESS_COUNT,
     register_eth_to_strk_metrics,
-    ETH_TO_STRK_ERROR_COUNT,
-    ETH_TO_STRK_RATE,
-    ETH_TO_STRK_SUCCESS_COUNT,
 };
 
 #[cfg(test)]

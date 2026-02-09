@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 use std::sync::LazyLock;
 
-use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use itertools::Itertools;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Blake2Felt252, Poseidon, StarkHash};

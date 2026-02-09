@@ -3,11 +3,7 @@ use std::collections::HashMap;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_committer::block_committer::input::{
-    Input,
-    ReaderConfig,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
+    Input, ReaderConfig, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;

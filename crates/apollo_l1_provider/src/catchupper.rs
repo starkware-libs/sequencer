@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 
 use apollo_l1_provider_types::SharedL1ProviderClient;

@@ -10,11 +10,7 @@ use std::sync::Arc;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_metrics::generate_permutation_labels;
 use apollo_metrics::metrics::{
-    LabeledMetricHistogram,
-    MetricCounter,
-    MetricGauge,
-    MetricHistogram,
-    MetricScope,
+    LabeledMetricHistogram, MetricCounter, MetricGauge, MetricHistogram, MetricScope,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -27,10 +23,7 @@ use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
 use crate::component_server::RemoteServerConfig;
 use crate::metrics::{
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
+    LocalClientMetrics, LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics,
 };
 use crate::requests::LABEL_NAME_REQUEST_VARIANT;
 use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};

@@ -2,13 +2,7 @@ use blockifier::blockifier::block::validated_gas_prices;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::{
-    BlockHash,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
-    NonzeroGasPrice,
+    BlockHash, BlockInfo, BlockNumber, BlockTimestamp, GasPrice, GasPricePerToken, NonzeroGasPrice,
 };
 use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot};
 use starknet_api::data_availability::L1DataAvailabilityMode;

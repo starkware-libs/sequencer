@@ -6,8 +6,8 @@
 
 use libp2p::identity::PeerId;
 
-use crate::types::{PeerSetError, ShardIndex, TreeGenerationError};
 use crate::ShardValidationError;
+use crate::types::{PeerSetError, ShardIndex, TreeGenerationError};
 
 pub type Stake = u64;
 

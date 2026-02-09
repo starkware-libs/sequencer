@@ -3,61 +3,41 @@ use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
-    GetProposalContent,
-    GetProposalContentResponse,
-    ProposalCommitment,
-    ProposalId,
-    ProposalStatus,
-    ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
+    GetProposalContent, GetProposalContentResponse, ProposalCommitment, ProposalId, ProposalStatus,
+    ProposeBlockInput, SendProposalContent, SendProposalContentInput, SendProposalContentResponse,
     ValidateBlockInput,
 };
 use apollo_batcher_types::communication::MockBatcherClient;
-use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverter,
-    TransactionConverterTrait,
-};
 use apollo_class_manager_types::EmptyClassManagerClient;
+use apollo_class_manager_types::transaction_converter::{
+    MockTransactionConverterTrait, TransactionConverter, TransactionConverterTrait,
+};
 use apollo_consensus::types::Round;
 use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextStaticConfig};
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    BroadcastNetworkMock,
-    TestSubscriberChannels,
+    BroadcastNetworkMock, TestSubscriberChannels, mock_register_broadcast_topic,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
-    HeightAndRound,
-    ProposalCommitment as ProtoProposalCommitment,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    TransactionBatch,
-    Vote,
+    ConsensusBlockInfo, HeightAndRound, ProposalCommitment as ProtoProposalCommitment, ProposalFin,
+    ProposalInit, ProposalPart, TransactionBatch, Vote,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DateTime, DefaultClock};
+use futures::SinkExt;
 use futures::channel::mpsc;
 use futures::executor::block_on;
-use futures::SinkExt;
 use mockall::Sequence;
 use starknet_api::block::{
-    BlockNumber,
-    GasPrice,
-    TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
-    TEMP_ETH_GAS_FEE_IN_WEI,
+    BlockNumber, GasPrice, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH_GAS_FEE_IN_WEI,
 };
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
-use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{InvokeTxArgs, rpc_invoke_tx};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
@@ -67,11 +47,9 @@ use crate::build_proposal::ProposalBuildArguments;
 use crate::cende::MockCendeContext;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
-    BuiltProposals,
-    SequencerConsensusContext,
-    SequencerConsensusContextDeps,
+    BuiltProposals, SequencerConsensusContext, SequencerConsensusContextDeps,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
+use crate::utils::{GasPriceParams, StreamSender, make_gas_price_params};
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;

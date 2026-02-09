@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
+use assert_json_diff::{CompareMode, Config, assert_json_matches_no_panic};
 use num_enum::IntoPrimitive;
 use serde::Serialize;
 use socket2::{Domain, Socket, Type};

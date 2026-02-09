@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
+    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
     insert_value_into_ap,
 };
 use starknet_api::core::ContractAddress;
@@ -14,9 +12,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::{
-    get_contract_state_entry_and_storage_ptr,
-    StateEntryPtr,
-    StoragePtr,
+    StateEntryPtr, StoragePtr, get_contract_state_entry_and_storage_ptr,
 };
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
@@ -24,7 +20,7 @@ use crate::hints::hint_implementation::compiled_class::utils::CompiledClassFact;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
-use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
+use crate::vm_utils::{LoadCairoObject, get_address_of_nested_fields};
 
 pub(crate) fn enter_scope_with_aliases(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     // Note that aliases, execution_helper, state_update_pointers and block_input do not enter the

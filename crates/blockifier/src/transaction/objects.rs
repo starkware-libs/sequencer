@@ -7,34 +7,18 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::constants::VALIDATE_DEPLOY_ENTRY_POINT_SELECTOR;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Fee,
-    GasVectorComputationMode,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, Fee, GasVectorComputationMode, PaymasterData, Tip, TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    signed_tx_version,
-    Event,
-    MessageToL1,
-    RevertedTransactionExecutionStatus,
-    TransactionExecutionStatus,
-    TransactionHash,
-    TransactionOptions,
-    TransactionVersion,
+    Event, MessageToL1, RevertedTransactionExecutionStatus, TransactionExecutionStatus,
+    TransactionHash, TransactionOptions, TransactionVersion, signed_tx_version,
 };
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{
-    BuiltinCounterMap,
-    CallInfo,
-    ExecutionSummary,
-    OrderedEvent,
-    OrderedItem,
-    OrderedL2ToL1Message,
+    BuiltinCounterMap, CallInfo, ExecutionSummary, OrderedEvent, OrderedItem, OrderedL2ToL1Message,
 };
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;

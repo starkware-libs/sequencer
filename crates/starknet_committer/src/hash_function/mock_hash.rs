@@ -5,9 +5,7 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_functio
 use starknet_types_core::hash::StarkHash;
 
 use crate::db::index_db::leaves::{
-    IndexLayoutCompiledClassHash,
-    IndexLayoutContractState,
-    IndexLayoutStarknetStorageValue,
+    IndexLayoutCompiledClassHash, IndexLayoutContractState, IndexLayoutStarknetStorageValue,
 };
 use crate::hash_function::hash::{PedersenHashFunction, PoseidonHashFunction};
 

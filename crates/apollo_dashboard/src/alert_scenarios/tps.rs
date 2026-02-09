@@ -1,23 +1,15 @@
 use apollo_gateway::metrics::{
-    GATEWAY_TRANSACTIONS_RECEIVED,
-    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
+    GATEWAY_TRANSACTIONS_RECEIVED, GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_SUCCESS;
 use apollo_infra_utils::template::Template;
 use apollo_mempool::metrics::MEMPOOL_TRANSACTIONS_RECEIVED;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::alert_placeholders::{format_sampling_window, ExpressionOrExpressionWithPlaceholder};
+use crate::alert_placeholders::{ExpressionOrExpressionWithPlaceholder, format_sampling_window};
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 

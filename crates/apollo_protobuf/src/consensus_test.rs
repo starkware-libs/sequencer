@@ -1,7 +1,7 @@
 // ConsensusBlockInfo tests.
 
-use starknet_api::block::GasPrice;
 use starknet_api::StarknetApiError;
+use starknet_api::block::GasPrice;
 
 #[test]
 fn wei_to_fri_converts_correctly() {

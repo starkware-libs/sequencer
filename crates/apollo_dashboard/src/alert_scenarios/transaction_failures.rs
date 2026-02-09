@@ -1,22 +1,13 @@
 use apollo_http_server::metrics::{
-    ADDED_TRANSACTIONS_DEPRECATED_ERROR,
-    ADDED_TRANSACTIONS_FAILURE,
-    ADDED_TRANSACTIONS_INTERNAL_ERROR,
-    ADDED_TRANSACTIONS_TOTAL,
+    ADDED_TRANSACTIONS_DEPRECATED_ERROR, ADDED_TRANSACTIONS_FAILURE,
+    ADDED_TRANSACTIONS_INTERNAL_ERROR, ADDED_TRANSACTIONS_TOTAL,
 };
 use apollo_mempool::metrics::{MEMPOOL_TRANSACTIONS_DROPPED, MEMPOOL_TRANSACTIONS_RECEIVED};
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 

@@ -4,10 +4,8 @@ use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use super::{
+    BytecodeSegment, BytecodeSegmentInnerNode, BytecodeSegmentNode,
     create_bytecode_segment_structure,
-    BytecodeSegment,
-    BytecodeSegmentInnerNode,
-    BytecodeSegmentNode,
 };
 use crate::hints::hint_implementation::compiled_class::utils::BytecodeSegmentLeaf;
 

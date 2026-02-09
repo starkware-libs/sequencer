@@ -4,8 +4,8 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::concurrency::versioned_storage::VersionedStorage;
 use crate::concurrency::TxIndex;
+use crate::concurrency::versioned_storage::VersionedStorage;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::{ContractClassMapping, StateMaps};
 use crate::state::errors::StateError;

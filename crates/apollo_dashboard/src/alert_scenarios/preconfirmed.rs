@@ -2,15 +2,8 @@ use apollo_batcher::metrics::PRECONFIRMED_BLOCK_WRITTEN;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 

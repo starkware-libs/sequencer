@@ -2,24 +2,13 @@
 mod utils;
 
 use apollo_l1_provider_types::{
-    InvalidValidationStatus,
-    L1ProviderClient,
-    SessionState,
-    ValidationStatus,
+    InvalidValidationStatus, L1ProviderClient, SessionState, ValidationStatus,
 };
 use starknet_api::block::BlockNumber;
 use utils::{
-    send_cancellation_finalization,
-    send_cancellation_request,
-    send_message_from_l1_to_l2,
-    setup_anvil_base_layer,
-    setup_scraper_and_provider,
-    CALL_DATA,
-    CALL_DATA_2,
-    POLLING_INTERVAL_DURATION,
-    ROUND_TO_SEC_MARGIN_DURATION,
-    TARGET_L2_HEIGHT,
-    TIMELOCK_DURATION,
+    CALL_DATA, CALL_DATA_2, POLLING_INTERVAL_DURATION, ROUND_TO_SEC_MARGIN_DURATION,
+    TARGET_L2_HEIGHT, TIMELOCK_DURATION, send_cancellation_finalization, send_cancellation_request,
+    send_message_from_l1_to_l2, setup_anvil_base_layer, setup_scraper_and_provider,
 };
 
 use crate::utils::WAIT_FOR_ASYNC_PROCESSING_DURATION;

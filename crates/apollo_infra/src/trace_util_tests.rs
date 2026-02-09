@@ -5,14 +5,10 @@ use thiserror::Error;
 use tracing::instrument;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{reload, EnvFilter};
+use tracing_subscriber::{EnvFilter, reload};
 
 use crate::trace_util::{
-    create_fmt_layer,
-    get_log_directives,
-    rename_error_to_message,
-    set_log_level,
-    ReloadHandle,
+    ReloadHandle, create_fmt_layer, get_log_directives, rename_error_to_message, set_log_level,
 };
 
 #[test]

@@ -1,9 +1,7 @@
 use std::time::Duration;
 
 use starknet_committer::block_committer::measurements_util::{
-    Action,
-    BlockModificationsCounts,
-    MeasurementsTrait,
+    Action, BlockModificationsCounts, MeasurementsTrait,
 };
 use tokio::time::sleep;
 

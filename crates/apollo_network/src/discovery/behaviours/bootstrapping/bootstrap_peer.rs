@@ -6,13 +6,7 @@ use futures::Stream;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use libp2p::swarm::{
-    dummy,
-    AddressChange,
-    ConnectionClosed,
-    ConnectionHandler,
-    DialFailure,
-    FromSwarm,
-    ToSwarm,
+    AddressChange, ConnectionClosed, ConnectionHandler, DialFailure, FromSwarm, ToSwarm, dummy,
 };
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::{Instant, Sleep};

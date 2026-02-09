@@ -4,7 +4,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_api::transaction::{constants, L2ToL1Payload};
+use starknet_api::transaction::{L2ToL1Payload, constants};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
@@ -12,28 +12,21 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::BlockContext;
 use crate::execution::call_info::{
-    CallExecution,
-    CallInfo,
-    ExecutionSummary,
-    MessageToL1,
-    OrderedL2ToL1Message,
+    CallExecution, CallInfo, ExecutionSummary, MessageToL1, OrderedL2ToL1Message,
 };
 use crate::fee::eth_gas_constants;
 use crate::fee::gas_usage::{
-    get_consumed_message_to_l2_emissions_cost,
-    get_log_message_to_l1_emissions_cost,
+    get_consumed_message_to_l2_emissions_cost, get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
 use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
+use crate::test_utils::BALANCE;
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::BALANCE;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
-    calculate_class_info_for_testing,
-    create_resource_bounds,
-    invoke_tx_with_default_flags,
+    calculate_class_info_for_testing, create_resource_bounds, invoke_tx_with_default_flags,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{u64_from_usize, usize_from_u64};

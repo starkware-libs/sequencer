@@ -16,9 +16,7 @@ use thiserror::Error;
 
 use crate::committee_provider::Staker;
 use crate::contract_types::{
-    ContractStaker,
-    GET_CURRENT_EPOCH_DATA_ENTRY_POINT,
-    GET_STAKERS_ENTRY_POINT,
+    ContractStaker, GET_CURRENT_EPOCH_DATA_ENTRY_POINT, GET_STAKERS_ENTRY_POINT,
 };
 use crate::staking_contract::{StakingContract, StakingContractResult};
 use crate::staking_manager::Epoch;

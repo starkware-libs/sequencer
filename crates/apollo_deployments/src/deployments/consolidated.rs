@@ -3,8 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use apollo_infra::component_client::remote_component_client::DEFAULT_RETRIES;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::{
-    ActiveComponentExecutionConfig,
-    ReactiveComponentExecutionConfig,
+    ActiveComponentExecutionConfig, ReactiveComponentExecutionConfig,
 };
 use serde::Serialize;
 use strum::{Display, IntoEnumIterator};

@@ -13,7 +13,7 @@ use crate::mixed_behaviour::MixedBehaviour;
 use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager};
 use crate::peer_manager::PeerManagerConfig;
 use crate::prune_dead_connections::{DEFAULT_PING_INTERVAL, DEFAULT_PING_TIMEOUT};
-use crate::{sqmr, Bytes};
+use crate::{Bytes, sqmr};
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 

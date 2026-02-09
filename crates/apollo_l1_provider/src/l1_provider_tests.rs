@@ -3,18 +3,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_infra::trace_util::configure_tracing;
-use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::SessionState::{
-    self,
-    Propose as ProposeSession,
-    Validate as ValidateSession,
+    self, Propose as ProposeSession, Validate as ValidateSession,
 };
+use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
-    Event,
-    InvalidValidationStatus,
-    L1ProviderClient,
-    ProviderState,
-    ValidationStatus,
+    Event, InvalidValidationStatus, L1ProviderClient, ProviderState, ValidationStatus,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::errors::StateSyncError;
@@ -27,21 +21,18 @@ use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
-use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
+use starknet_api::test_utils::l1_handler::{L1HandlerTxArgs, executable_l1_handler_tx};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 
+use crate::L1ProviderConfig;
 use crate::catchupper::{Catchupper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::test_utils::{
-    l1_handler,
+    ConsumedTransaction, FakeL1ProviderClient, L1ProviderContentBuilder, l1_handler,
     make_catchupper,
-    ConsumedTransaction,
-    FakeL1ProviderClient,
-    L1ProviderContentBuilder,
 };
 use crate::transaction_record::TransactionState;
-use crate::L1ProviderConfig;
 
 fn commit_block_no_rejected(
     l1_provider: &mut L1Provider,

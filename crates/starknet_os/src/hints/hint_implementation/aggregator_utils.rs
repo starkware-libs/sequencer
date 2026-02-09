@@ -1,5 +1,5 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -10,15 +10,10 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::state_update_pointers::{StateEntryPtr, StoragePtr};
 use crate::io::os_output::{
-    FullOsOutput,
-    MessageToL2,
-    MESSAGE_TO_L1_CONST_FIELD_SIZE,
-    MESSAGE_TO_L2_CONST_FIELD_SIZE,
+    FullOsOutput, MESSAGE_TO_L1_CONST_FIELD_SIZE, MESSAGE_TO_L2_CONST_FIELD_SIZE, MessageToL2,
 };
 use crate::io::os_output_types::{
-    FullCompiledClassHashUpdate,
-    FullContractChanges,
-    FullContractStorageUpdate,
+    FullCompiledClassHashUpdate, FullContractChanges, FullContractStorageUpdate,
 };
 use crate::vm_utils::{LoadIntoVmMemory, VmUtilsResult};
 

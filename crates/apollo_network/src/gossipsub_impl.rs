@@ -20,11 +20,11 @@
 //! - **Production**: [`gossipsub::Sha256Topic`] for security and privacy
 
 use libp2p::gossipsub::TopicHash;
-use libp2p::{gossipsub, PeerId};
+use libp2p::{PeerId, gossipsub};
 use tracing::error;
 
 use crate::mixed_behaviour::BridgedBehaviour;
-use crate::{mixed_behaviour, Bytes};
+use crate::{Bytes, mixed_behaviour};
 
 /// Topic type used for GossipSub messaging (test: [`gossipsub::IdentTopic`], production:
 /// [`gossipsub::Sha256Topic`]).

@@ -10,20 +10,14 @@ use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl}
 use crate::patricia_merkle_tree::internal_test_utils::TestTreeHashFunction;
 use crate::patricia_merkle_tree::node_data::errors::LeafError;
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonNodeMap,
-    UpdatedSkeletonTree,
-    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonNodeMap, UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
 
 #[tokio::test(flavor = "multi_thread")]

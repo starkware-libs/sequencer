@@ -13,20 +13,12 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::state_diff_encryption::utils::{
-    compute_public_keys,
-    decrypt_state_diff,
-    decrypt_symmetric_key,
-    encrypt_state_diff,
-    encrypt_symmetric_key,
-    maybe_decrypt_iter,
+    compute_public_keys, decrypt_state_diff, decrypt_symmetric_key, encrypt_state_diff,
+    encrypt_symmetric_key, maybe_decrypt_iter,
 };
 use crate::test_utils::cairo_runner::{
-    initialize_cairo_runner,
+    EndpointArg, EntryPointRunnerConfig, ImplicitArg, ValueArg, initialize_cairo_runner,
     run_cairo_0_entrypoint,
-    EndpointArg,
-    EntryPointRunnerConfig,
-    ImplicitArg,
-    ValueArg,
 };
 
 fn add_memory_segment_and_load_explicit_arg(

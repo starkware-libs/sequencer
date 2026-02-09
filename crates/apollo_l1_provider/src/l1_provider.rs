@@ -5,13 +5,8 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_ms;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
-    Event,
-    L1ProviderResult,
-    L1ProviderSnapshot,
-    ProviderState,
-    SessionState,
-    SharedL1ProviderClient,
-    ValidationStatus,
+    Event, L1ProviderResult, L1ProviderSnapshot, ProviderState, SessionState,
+    SharedL1ProviderClient, ValidationStatus,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, DefaultClock};
@@ -21,10 +16,10 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace, warn};
 
+use crate::L1ProviderConfig;
 use crate::catchupper::Catchupper;
 use crate::metrics::register_provider_metrics;
 use crate::transaction_manager::TransactionManager;
-use crate::L1ProviderConfig;
 
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]

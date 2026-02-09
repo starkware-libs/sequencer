@@ -219,25 +219,19 @@ use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_comma_separated_str,
-    deserialize_optional_sensitive_vec_u8,
-    deserialize_seconds_to_duration,
-    serialize_optional_comma_separated,
-    serialize_optional_vec_u8,
+    deserialize_comma_separated_str, deserialize_optional_sensitive_vec_u8,
+    deserialize_seconds_to_duration, serialize_optional_comma_separated, serialize_optional_vec_u8,
 };
 use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
+    SerializeConfig, prepend_sub_config_name, ser_optional_param, ser_param,
 };
 use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_optional_sensitive_vec_u256;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
+use libp2p::Multiaddr;
 use libp2p::identity::Keypair;
 use libp2p::swarm::dial_opts::DialOpts;
-use libp2p::Multiaddr;
 use peer_manager::PeerManagerConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;

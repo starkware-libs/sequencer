@@ -1,9 +1,5 @@
 use apollo_metrics::metrics::{
-    LabeledMetricHistogram,
-    MetricDetails,
-    MetricGauge,
-    MetricHistogram,
-    MetricQueryName,
+    LabeledMetricHistogram, MetricDetails, MetricGauge, MetricHistogram, MetricQueryName,
 };
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};

@@ -6,16 +6,11 @@ use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer
 use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_mempool_types::communication::{
-    AddTransactionArgsWrapper,
-    MempoolRequest,
-    MempoolResponse,
+    AddTransactionArgsWrapper, MempoolRequest, MempoolResponse,
 };
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
-    CommitBlockArgs,
-    MempoolResult,
-    MempoolSnapshot,
-    ValidationArgs,
+    CommitBlockArgs, MempoolResult, MempoolSnapshot, ValidationArgs,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_time::time::DefaultClock;

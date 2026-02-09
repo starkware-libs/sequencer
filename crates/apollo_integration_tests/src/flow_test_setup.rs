@@ -6,18 +6,17 @@ use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_config::secrets::Sensitive;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
-use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
+use apollo_infra::metrics::{MetricsConfig, metrics_recorder};
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::test_utils::{
-    create_connected_network_configs,
-    network_config_into_broadcast_channels,
-};
 use apollo_network::network_manager::BroadcastTopicChannels;
+use apollo_network::network_manager::test_utils::{
+    create_connected_network_configs, network_config_into_broadcast_channels,
+};
 use apollo_node::clients::SequencerNodeClients;
 use apollo_node::servers::run_component_servers;
 use apollo_node::utils::create_node_modules;
@@ -29,42 +28,32 @@ use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::{
-    AccountTransactionGenerator,
-    MultiAccountTransactionGenerator,
-};
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::{
-    make_block_history_on_anvil,
-    ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
-    OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
+    AccountTransactionGenerator, MultiAccountTransactionGenerator,
 };
 use papyrus_base_layer::BaseLayerContract;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use papyrus_base_layer::test_utils::{
+    ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS, OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
+    make_block_history_on_anvil,
+};
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{
-    L1HandlerTransaction,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
+    L1HandlerTransaction, TransactionHash, TransactionHasher, TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
-use tracing::{debug, instrument, Instrument};
+use tracing::{Instrument, debug, instrument};
 use url::Url;
 
 use crate::state_reader::{StorageTestHandles, StorageTestSetup};
 use crate::utils::{
-    create_consensus_manager_configs_from_network_configs,
-    create_mempool_p2p_configs,
-    create_node_config,
-    create_state_sync_configs,
-    set_validator_id,
-    spawn_local_eth_to_strk_oracle,
-    spawn_local_success_recorder,
-    AccumulatedTransactions,
+    AccumulatedTransactions, create_consensus_manager_configs_from_network_configs,
+    create_mempool_p2p_configs, create_node_config, create_state_sync_configs, set_validator_id,
+    spawn_local_eth_to_strk_oracle, spawn_local_success_recorder,
 };
 
 pub const NUM_OF_SEQUENCERS: usize = 2;

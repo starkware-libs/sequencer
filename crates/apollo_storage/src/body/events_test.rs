@@ -5,14 +5,10 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::{
-    Event,
-    EventContent,
-    EventData,
-    EventIndexInTransactionOutput,
-    TransactionOffsetInBlock,
+    Event, EventContent, EventData, EventIndexInTransactionOutput, TransactionOffsetInBlock,
 };
 
-use crate::body::events::{get_events_from_tx, EventIndex, EventsReader};
+use crate::body::events::{EventIndex, EventsReader, get_events_from_tx};
 use crate::body::{BodyStorageWriter, TransactionIndex};
 use crate::db::table_types::Table;
 use crate::header::HeaderStorageWriter;

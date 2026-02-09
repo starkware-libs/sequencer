@@ -2,9 +2,9 @@ use apollo_starknet_client::reader::ReaderClientError;
 use apollo_storage::StorageError;
 use futures::channel::mpsc::SendError;
 use serde::{Deserialize, Serialize};
+use starknet_api::StarknetApiError;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::StarknetApiError;
 use thiserror::Error;
 
 #[derive(Debug, Error, Serialize, Deserialize, Clone, PartialEq, Eq)]

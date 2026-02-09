@@ -9,44 +9,31 @@ use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
+use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::{
-    calldata,
-    class_hash,
-    compiled_class_hash,
-    contract_address,
-    deploy_account_tx_args,
-    felt,
-    nonce,
-    storage_key,
+    calldata, class_hash, compiled_class_hash, contract_address, deploy_account_tx_args, felt,
+    nonce, storage_key,
 };
 
+use crate::concurrency::TxIndex;
 use crate::concurrency::test_utils::{
-    class_hash,
-    contract_address,
-    safe_versioned_state_for_testing,
+    class_hash, contract_address, safe_versioned_state_for_testing,
 };
 use crate::concurrency::versioned_state::{
-    OptionalVersionedState,
-    ThreadSafeVersionedState,
-    VersionedStateProxy,
+    OptionalVersionedState, ThreadSafeVersionedState, VersionedStateProxy,
 };
-use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
 use crate::state::cached_state::{
-    CachedState,
-    ContractClassMapping,
-    StateMaps,
-    TransactionalState,
+    CachedState, ContractClassMapping, StateMaps, TransactionalState,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, UpdatableState};
+use crate::test_utils::BALANCE;
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::BALANCE;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{default_all_resource_bounds, l1_resource_bounds};

@@ -1,17 +1,13 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use libp2p::identity::PublicKey;
 use libp2p::PeerId;
+use libp2p::identity::PublicKey;
 
 use crate::types::{Channel, ShardSignatureVerificationError};
 use crate::{
+    MessageRoot, PropellerScheduleManager, PropellerUnit, ShardIndex, ShardValidationError,
     signature,
-    MessageRoot,
-    PropellerScheduleManager,
-    PropellerUnit,
-    ShardIndex,
-    ShardValidationError,
 };
 
 #[derive(Debug, Clone)]

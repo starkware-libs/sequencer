@@ -12,13 +12,7 @@ use libp2p::core::{ConnectedPoint, Endpoint};
 use libp2p::multihash::Multihash;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
-    ConnectionClosed,
-    ConnectionId,
-    DialError,
-    DialFailure,
-    FromSwarm,
-    NetworkBehaviour,
-    ToSwarm,
+    ConnectionClosed, ConnectionId, DialError, DialFailure, FromSwarm, NetworkBehaviour, ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::timeout;

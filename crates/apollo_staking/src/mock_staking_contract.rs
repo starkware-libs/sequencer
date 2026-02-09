@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_staking_config::config::{get_config_for_epoch, CommitteeConfig, ConfiguredStaker};
+use apollo_staking_config::config::{CommitteeConfig, ConfiguredStaker, get_config_for_epoch};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;

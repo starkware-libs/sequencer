@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use apollo_config::dumping::{ConfigPointers, Pointers};
 use apollo_config::{ParamPath, SerializedContent, SerializedParam};
+use serde_json::Value;
 #[cfg(any(feature = "testing", test))]
 use serde_json::to_value;
-use serde_json::Value;
 
 #[cfg(any(feature = "testing", test))]
 use crate::node_config::CONFIG_POINTERS;

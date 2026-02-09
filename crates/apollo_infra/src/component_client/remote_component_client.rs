@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::time::Duration;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -12,24 +12,20 @@ use http::{StatusCode, Uri};
 use http_body_util::{BodyExt, Full};
 use hyper::body::Body;
 use hyper::{Request as HyperRequest, Response as HyperResponse};
-use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
+use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tokio::time::Instant;
-use tracing::field::{display, Empty};
+use tracing::field::{Empty, display};
 use tracing::{debug, instrument, trace, warn};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{
-    ComponentClient,
-    RequestId,
-    ServerError,
-    APPLICATION_OCTET_STREAM,
-    REQUEST_ID_HEADER,
+    APPLICATION_OCTET_STREAM, ComponentClient, REQUEST_ID_HEADER, RequestId, ServerError,
 };
 use crate::metrics::RemoteClientMetrics;
 use crate::requests::LabeledRequest;

@@ -6,24 +6,16 @@ use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{InvokeTransaction, TransactionType};
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, Calldata, Fee, PaymasterData, Tip, TransactionSignature,
 };
 use starknet_api::transaction::{
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    TransactionHash,
+    InvokeTransactionV0, InvokeTransactionV1, InvokeTransactionV3, TransactionHash,
 };
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_transaction::{PyDataAvailabilityMode, PyResourceBoundsMapping};
-use crate::py_utils::{from_py_felts, py_attr, PyFelt};
+use crate::py_utils::{PyFelt, from_py_felts, py_attr};
 
 #[derive(FromPyObject)]
 struct PyInvokeTransactionV0 {

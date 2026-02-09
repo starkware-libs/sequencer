@@ -7,21 +7,16 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    NodeData,
+    BinaryData, EdgeData, NodeData,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonTreeImpl,
-    OriginalSkeletonTreeResult,
+    OriginalSkeletonTreeImpl, OriginalSkeletonTreeResult,
 };
 use starknet_patricia::patricia_merkle_tree::traversal::{
-    SubTreeTrait,
-    TraversalResult,
-    UnmodifiedChildTraversal,
+    SubTreeTrait, TraversalResult, UnmodifiedChildTraversal,
 };
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
@@ -30,9 +25,7 @@ use starknet_patricia_storage::storage_trait::{DbKey, Storage};
 use tracing::warn;
 
 use crate::block_committer::input::{
-    contract_address_into_node_index,
-    ReaderConfig,
-    StarknetStorageValue,
+    ReaderConfig, StarknetStorageValue, contract_address_into_node_index,
 };
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;

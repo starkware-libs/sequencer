@@ -6,25 +6,23 @@ use std::iter::once;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
+use apollo_config::{FIELD_SEPARATOR, IS_NONE_MARK, ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::{
-    ReactiveComponentExecutionConfig,
-    DEFAULT_INVALID_PORT,
-    DEFAULT_URL,
+    DEFAULT_INVALID_PORT, DEFAULT_URL, ReactiveComponentExecutionConfig,
 };
 use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use phf::phf_set;
 use serde::{Serialize, Serializer};
-use serde_json::{from_str, json, Map, Value};
+use serde_json::{Map, Value, from_str, json};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::deployment_definitions::{ComponentConfigInService, CONFIG_BASE_DIR};
+use crate::deployment_definitions::{CONFIG_BASE_DIR, ComponentConfigInService};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;

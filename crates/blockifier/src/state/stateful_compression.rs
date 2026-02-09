@@ -1,8 +1,8 @@
 use std::collections::{BTreeSet, HashMap};
 
+use starknet_api::StarknetApiError;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 

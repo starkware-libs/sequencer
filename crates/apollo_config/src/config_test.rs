@@ -17,44 +17,23 @@ use validator::Validate;
 
 use crate::command::{get_command_matches, update_config_map_by_command_args};
 use crate::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_optional_list_with_url_and_headers,
-    serialize_optional_list_with_url_and_headers,
-    UrlAndHeaders,
+    UrlAndHeaders, deserialize_milliseconds_to_duration,
+    deserialize_optional_list_with_url_and_headers, serialize_optional_list_with_url_and_headers,
 };
 use crate::dumping::{
-    combine_config_map_and_pointers,
-    generate_struct_pointer,
-    prepend_sub_config_name,
-    required_param_description,
-    ser_generated_param,
-    ser_optional_param,
-    ser_optional_sub_config,
-    ser_param,
-    ser_pointer_target_param,
-    ser_pointer_target_required_param,
-    ser_required_param,
-    set_pointing_param_paths,
-    SerializeConfig,
+    SerializeConfig, combine_config_map_and_pointers, generate_struct_pointer,
+    prepend_sub_config_name, required_param_description, ser_generated_param, ser_optional_param,
+    ser_optional_sub_config, ser_param, ser_pointer_target_param,
+    ser_pointer_target_required_param, ser_required_param, set_pointing_param_paths,
 };
 use crate::loading::{
-    load,
-    load_and_process_config,
-    split_pointers_map,
-    split_values_and_types,
-    update_config_map_by_pointers,
-    update_optional_values,
+    load, load_and_process_config, split_pointers_map, split_values_and_types,
+    update_config_map_by_pointers, update_optional_values,
 };
 use crate::presentation::get_config_presentation;
 use crate::{
-    ConfigError,
-    ParamPath,
-    ParamPrivacy,
-    ParamPrivacyInput,
-    SerializationType,
-    SerializedContent,
-    SerializedParam,
-    CONFIG_FILE_ARG,
+    CONFIG_FILE_ARG, ConfigError, ParamPath, ParamPrivacy, ParamPrivacyInput, SerializationType,
+    SerializedContent, SerializedParam,
 };
 
 lazy_static! {

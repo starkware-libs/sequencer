@@ -2,15 +2,12 @@ use apollo_gateway_config::compiler_version::VersionId;
 use apollo_gateway_config::config::StatelessTransactionValidatorConfig;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
-    RpcDeclareTransaction,
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
-    RpcTransaction,
+    RpcDeclareTransaction, RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::fields::{Fee, Tip, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
-use tracing::{instrument, Level};
+use tracing::{Level, instrument};
 
 use crate::errors::{StatelessTransactionValidatorError, StatelessTransactionValidatorResult};
 

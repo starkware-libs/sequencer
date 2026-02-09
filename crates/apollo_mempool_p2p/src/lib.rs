@@ -4,34 +4,25 @@ pub mod runner;
 
 use std::collections::HashMap;
 
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_gateway_types::communication::SharedGatewayClient;
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::metrics::{
-    BroadcastNetworkMetrics,
-    EventMetrics,
-    LabeledMessageMetrics,
-    LatencyMetrics,
-    MessageMetrics,
+    BroadcastNetworkMetrics, EventMetrics, LabeledMessageMetrics, LatencyMetrics, MessageMetrics,
     NetworkMetrics,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
-use tracing::{info_span, Instrument};
+use tracing::{Instrument, info_span};
 
 use crate::metrics::{
-    MEMPOOL_P2P_DROPPED_MESSAGE_SIZE,
-    MEMPOOL_P2P_NETWORK_EVENTS,
-    MEMPOOL_P2P_NUM_CONNECTED_PEERS,
-    MEMPOOL_P2P_NUM_DROPPED_MESSAGES,
-    MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
-    MEMPOOL_P2P_NUM_SENT_MESSAGES,
-    MEMPOOL_P2P_PING_LATENCY,
-    MEMPOOL_P2P_RECEIVED_MESSAGE_SIZE,
+    MEMPOOL_P2P_DROPPED_MESSAGE_SIZE, MEMPOOL_P2P_NETWORK_EVENTS, MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+    MEMPOOL_P2P_NUM_DROPPED_MESSAGES, MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
+    MEMPOOL_P2P_NUM_SENT_MESSAGES, MEMPOOL_P2P_PING_LATENCY, MEMPOOL_P2P_RECEIVED_MESSAGE_SIZE,
     MEMPOOL_P2P_SENT_MESSAGE_SIZE,
 };
 use crate::propagator::MempoolP2pPropagator;

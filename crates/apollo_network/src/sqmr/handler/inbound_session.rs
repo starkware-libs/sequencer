@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::future::Future;
 use std::io;
 use std::pin::Pin;
-use std::task::{ready, Context, Poll, Waker};
+use std::task::{Context, Poll, Waker, ready};
 
 use futures::future::BoxFuture;
 use futures::io::WriteHalf;

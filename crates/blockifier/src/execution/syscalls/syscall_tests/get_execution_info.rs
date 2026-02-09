@@ -8,27 +8,14 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::{
-    CHAIN_ID_FOR_TESTS,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    TEST_SEQUENCER_ADDRESS,
+    CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP, CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, TEST_SEQUENCER_ADDRESS,
 };
 use starknet_api::transaction::fields::{
-    valid_resource_bounds_as_felts,
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    Fee,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, Fee, PaymasterData, Resource,
+    ResourceBounds, Tip, TransactionSignature, ValidResourceBounds, valid_resource_bounds_as_felts,
 };
-use starknet_api::transaction::{TransactionVersion, QUERY_VERSION_BASE};
+use starknet_api::transaction::{QUERY_VERSION_BASE, TransactionVersion};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{felt, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
@@ -40,12 +27,9 @@ use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::initial_test_state::test_state_inner;
-use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
+use crate::test_utils::{BALANCE, trivial_external_entry_point_with_address};
 use crate::transaction::objects::{
-    CommonAccountFields,
-    CurrentTransactionInfo,
-    DeprecatedTransactionInfo,
-    TransactionInfo,
+    CommonAccountFields, CurrentTransactionInfo, DeprecatedTransactionInfo, TransactionInfo,
 };
 
 #[cfg_attr(

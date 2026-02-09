@@ -1,12 +1,7 @@
 use std::collections::HashMap;
 
 use apollo_protobuf::sync::{
-    BlockHashOrNumber,
-    DataOrFin,
-    Direction,
-    HeaderQuery,
-    Query,
-    SignedBlockHeader,
+    BlockHashOrNumber, DataOrFin, Direction, HeaderQuery, Query, SignedBlockHeader,
 };
 use apollo_storage::header::HeaderStorageReader;
 use apollo_test_utils::get_rng;
@@ -15,19 +10,10 @@ use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use tokio::time::timeout;
 
 use super::test_utils::{
-    create_block_hashes_and_signatures,
-    random_header,
-    run_test,
-    setup,
+    Action, DataType, HEADER_QUERY_LENGTH, SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+    TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE, TIMEOUT_FOR_TEST, TestArgs,
+    WAIT_PERIOD_FOR_NEW_DATA, create_block_hashes_and_signatures, random_header, run_test, setup,
     wait_for_marker,
-    Action,
-    DataType,
-    TestArgs,
-    HEADER_QUERY_LENGTH,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE,
-    TIMEOUT_FOR_TEST,
-    WAIT_PERIOD_FOR_NEW_DATA,
 };
 
 #[tokio::test]

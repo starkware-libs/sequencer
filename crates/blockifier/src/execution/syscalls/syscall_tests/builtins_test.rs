@@ -14,7 +14,7 @@ use crate::context::{BlockContext, ChainInfo};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::test_templates::runnable_version;
-use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
+use crate::test_utils::{BALANCE, trivial_external_entry_point_new};
 
 const TESTED_BUILTIN_GAS_COST: u64 = u64::pow(10, 7);
 

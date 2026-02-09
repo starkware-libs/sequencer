@@ -6,9 +6,7 @@ use blockifier::execution::contract_class::TrackedResource;
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
+    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
@@ -25,21 +23,15 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{InnerInconsistentStorageValueError, OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
-    assert_retdata_as_expected,
-    compare_retdata,
-    extract_actual_retdata,
-    get_account_deployment_data,
-    get_calldata,
-    set_state_entry,
+    assert_retdata_as_expected, compare_retdata, extract_actual_retdata,
+    get_account_deployment_data, get_calldata, set_state_entry,
 };
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
 use crate::vm_utils::{
-    get_address_of_nested_fields,
-    get_address_of_nested_fields_from_base_address,
-    LoadCairoObject,
+    LoadCairoObject, get_address_of_nested_fields, get_address_of_nested_fields_from_base_address,
 };
 
 pub(crate) fn load_next_tx<S: StateReader>(

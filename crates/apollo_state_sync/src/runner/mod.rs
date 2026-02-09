@@ -6,9 +6,7 @@ use std::sync::Arc;
 use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
 use apollo_central_sync::{
-    StateSync as CentralStateSync,
-    StateSyncError as CentralStateSyncError,
-    GENESIS_HASH,
+    GENESIS_HASH, StateSync as CentralStateSync, StateSyncError as CentralStateSyncError,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -17,25 +15,19 @@ use apollo_network::metrics::{NetworkMetrics, SqmrNetworkMetrics};
 use apollo_network::network_manager::{NetworkError, NetworkManager};
 use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels, P2pSyncClientError};
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
-use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
+use apollo_p2p_sync::{BUFFER_SIZE, Protocol};
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
-use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending, RevertComponentData};
-use apollo_rpc::{run_server, RpcConfig};
-use apollo_starknet_client::reader::objects::pending_data::{
-    PendingBlock,
-    PendingBlockOrDeprecated,
-};
+use apollo_reverts::{RevertComponentData, revert_block, revert_blocks_and_eternal_pending};
+use apollo_rpc::{RpcConfig, run_server};
 use apollo_starknet_client::reader::PendingData;
+use apollo_starknet_client::reader::objects::pending_data::{
+    PendingBlock, PendingBlockOrDeprecated,
+};
 use apollo_state_sync_config::config::{CentralSyncClientConfig, StateSyncConfig};
 use apollo_state_sync_metrics::metrics::{
-    register_metrics,
-    update_marker_metrics,
-    P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
-    P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
-    P2P_SYNC_NUM_BLACKLISTED_PEERS,
-    P2P_SYNC_NUM_CONNECTED_PEERS,
-    STATE_SYNC_REVERTED_TRANSACTIONS,
-    STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING,
+    P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS, P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
+    P2P_SYNC_NUM_BLACKLISTED_PEERS, P2P_SYNC_NUM_CONNECTED_PEERS, STATE_SYNC_REVERTED_TRANSACTIONS,
+    STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING, register_metrics, update_marker_metrics,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
@@ -44,14 +36,11 @@ use apollo_storage::metrics::SYNC_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::ServerConfig;
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
-    open_storage_with_metric_and_server,
-    StorageConfig,
-    StorageReader,
-    StorageWriter,
+    StorageConfig, StorageReader, StorageWriter, open_storage_with_metric_and_server,
 };
 use async_trait::async_trait;
 use futures::channel::mpsc::Receiver;
-use futures::future::{self, pending, BoxFuture};
+use futures::future::{self, BoxFuture, pending};
 use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;

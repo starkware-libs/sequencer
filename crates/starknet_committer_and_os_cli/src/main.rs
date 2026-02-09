@@ -1,15 +1,13 @@
 use apollo_infra_utils::tracing_utils::configure_tracing;
 use clap::{Args, Parser, Subcommand};
 use starknet_committer_and_os_cli::block_hash_cli::run_block_hash_cli::{
-    run_block_hash_cli,
-    BlockHashCliCommand,
+    BlockHashCliCommand, run_block_hash_cli,
 };
 use starknet_committer_and_os_cli::committer_cli::run_committer_cli::{
-    run_committer_cli,
-    CommitterCliCommand,
+    CommitterCliCommand, run_committer_cli,
 };
-use starknet_committer_and_os_cli::kzg_cli::run_kzg_cli::{run_kzg_cli, KzgCliCommand};
-use starknet_committer_and_os_cli::os_cli::run_os_cli::{run_os_cli, OsCliCommand};
+use starknet_committer_and_os_cli::kzg_cli::run_kzg_cli::{KzgCliCommand, run_kzg_cli};
+use starknet_committer_and_os_cli::os_cli::run_os_cli::{OsCliCommand, run_os_cli};
 use tracing::info;
 
 /// Committer and OS CLI.

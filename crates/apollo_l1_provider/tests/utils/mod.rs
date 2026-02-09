@@ -8,33 +8,27 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-use alloy::primitives::{Uint, U256};
+use alloy::primitives::{U256, Uint};
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_infra::component_client::LocalComponentClient;
 use apollo_infra::component_definitions::{ComponentStarter, RequestWrapper};
 use apollo_infra::component_server::{
-    ComponentServerStarter,
-    LocalComponentServer,
-    LocalServerConfig,
+    ComponentServerStarter, LocalComponentServer, LocalServerConfig,
 };
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
-use apollo_l1_provider::{event_identifiers_to_track, L1ProviderConfig};
+use apollo_l1_provider::{L1ProviderConfig, event_identifiers_to_track};
 use apollo_l1_provider_types::{
-    Event,
-    L1ProviderClient,
-    L1ProviderRequest,
-    L1ProviderResponse,
-    ProviderState,
+    Event, L1ProviderClient, L1ProviderRequest, L1ProviderResponse, ProviderState,
 };
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use chrono::{DateTime, Duration as ChronoDur, Utc};
-use futures::{poll, FutureExt};
+use futures::{FutureExt, poll};
 use papyrus_base_layer::ethereum_base_layer_contract::Starknet::LogMessageToL2;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockNumber, L1BlockReference};

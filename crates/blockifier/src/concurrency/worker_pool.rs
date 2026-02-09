@@ -1,11 +1,11 @@
 use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
+use std::sync::{Arc, mpsc};
 
 use crate::blockifier::config::WorkerPoolConfig;
+use crate::concurrency::TxIndex;
 use crate::concurrency::utils::AbortIfPanic;
 use crate::concurrency::worker_logic::WorkerExecutor;
-use crate::concurrency::TxIndex;
 use crate::state::state_api::StateReader;
 
 /// Used to execute transactions concurrently.

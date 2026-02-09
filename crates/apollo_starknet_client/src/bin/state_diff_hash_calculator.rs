@@ -23,8 +23,8 @@
 
 use std::io::{self, Read};
 
-use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::StateUpdate;
+use apollo_starknet_client::reader::objects::state::StateDiff;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::state::ThinStateDiff;
 

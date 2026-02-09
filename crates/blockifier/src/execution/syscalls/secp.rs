@@ -8,18 +8,12 @@ use num_bigint::BigUint;
 
 use crate::abi::sierra_types::{SierraType, SierraU256};
 use crate::execution::execution_utils::{
-    felt_from_ptr,
-    relocatable_from_ptr,
-    write_maybe_relocatable,
-    write_u256,
+    felt_from_ptr, relocatable_from_ptr, write_maybe_relocatable, write_u256,
 };
 use crate::execution::secp::new_affine;
 use crate::execution::syscalls::hint_processor::felt_to_bool;
 use crate::execution::syscalls::vm_syscall_utils::{
-    SyscallBaseResult,
-    SyscallExecutorBaseError,
-    SyscallRequest,
-    SyscallResponse,
+    SyscallBaseResult, SyscallExecutorBaseError, SyscallRequest, SyscallResponse,
     WriteResponseResult,
 };
 

@@ -5,7 +5,7 @@ use tempfile::TempDir;
 
 use crate::db::serialization::{NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use crate::db::table_types::Table;
-use crate::db::{get_page_size, open_env, DbError, DbIter, DbReader, DbResult, DbWriter};
+use crate::db::{DbError, DbIter, DbReader, DbResult, DbWriter, get_page_size, open_env};
 use crate::test_utils::get_test_config;
 
 pub(crate) fn get_test_env() -> ((DbReader, DbWriter), TempDir) {

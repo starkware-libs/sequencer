@@ -2,12 +2,8 @@ use std::future::ready;
 use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{
-    CentralObjects,
-    DecisionReachedResponse,
-    ProposalCommitment as BatcherProposalCommitment,
-    ProposalStatus,
-    SendProposalContent,
-    SendProposalContentResponse,
+    CentralObjects, DecisionReachedResponse, ProposalCommitment as BatcherProposalCommitment,
+    ProposalStatus, SendProposalContent, SendProposalContentResponse,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
@@ -16,17 +12,11 @@ use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextDynamicConfig};
 use apollo_infra::component_client::ClientError;
 use apollo_l1_gas_price_types::errors::{
-    EthToStrkOracleClientError,
-    L1GasPriceClientError,
-    L1GasPriceProviderError,
+    EthToStrkOracleClientError, L1GasPriceClientError, L1GasPriceProviderError,
 };
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{
-    ProposalCommitment,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    TransactionBatch,
+    ProposalCommitment, ProposalFin, ProposalInit, ProposalPart, TransactionBatch,
 };
 use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClientError};
 use apollo_time::time::MockClock;
@@ -38,11 +28,7 @@ use futures::{FutureExt, SinkExt, StreamExt};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{
-    BlockNumber,
-    GasPrice,
-    TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
-    TEMP_ETH_GAS_FEE_IN_WEI,
-    WEI_PER_ETH,
+    BlockNumber, GasPrice, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH_GAS_FEE_IN_WEI, WEI_PER_ETH,
 };
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::execution_resources::GasAmount;
@@ -53,15 +39,8 @@ use crate::cende::MockCendeContext;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::test_utils::{
-    block_info,
-    create_test_and_network_deps,
-    send_proposal_to_validator_context,
-    SetupDepsArgs,
-    ETH_TO_FRI_RATE,
-    INTERNAL_TX_BATCH,
-    STATE_DIFF_COMMITMENT,
-    TIMEOUT,
-    TX_BATCH,
+    ETH_TO_FRI_RATE, INTERNAL_TX_BATCH, STATE_DIFF_COMMITMENT, SetupDepsArgs, TIMEOUT, TX_BATCH,
+    block_info, create_test_and_network_deps, send_proposal_to_validator_context,
 };
 use crate::utils::{apply_fee_transformations, make_gas_price_params};
 

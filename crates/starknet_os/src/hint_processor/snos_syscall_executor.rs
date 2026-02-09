@@ -2,41 +2,18 @@ use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 use blockifier::execution::execution_utils::ReadOnlySegment;
 use blockifier::execution::syscalls::hint_processor::{
-    ENTRYPOINT_FAILED_ERROR_FELT,
-    INVALID_ARGUMENT_FELT,
+    ENTRYPOINT_FAILED_ERROR_FELT, INVALID_ARGUMENT_FELT,
 };
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::execution::syscalls::vm_syscall_utils::{
-    CallContractRequest,
-    CallContractResponse,
-    DeployRequest,
-    DeployResponse,
-    EmitEventRequest,
-    EmitEventResponse,
-    GetBlockHashRequest,
-    GetBlockHashResponse,
-    GetClassHashAtRequest,
-    GetClassHashAtResponse,
-    GetExecutionInfoRequest,
-    GetExecutionInfoResponse,
-    LibraryCallRequest,
-    LibraryCallResponse,
-    MetaTxV0Request,
-    MetaTxV0Response,
-    ReplaceClassRequest,
-    ReplaceClassResponse,
-    RevertData,
-    SelfOrRevert,
-    SendMessageToL1Request,
-    SendMessageToL1Response,
-    StorageReadRequest,
-    StorageReadResponse,
-    StorageWriteRequest,
-    StorageWriteResponse,
-    SyscallExecutorBaseError,
-    SyscallSelector,
-    TryExtractRevert,
+    CallContractRequest, CallContractResponse, DeployRequest, DeployResponse, EmitEventRequest,
+    EmitEventResponse, GetBlockHashRequest, GetBlockHashResponse, GetClassHashAtRequest,
+    GetClassHashAtResponse, GetExecutionInfoRequest, GetExecutionInfoResponse, LibraryCallRequest,
+    LibraryCallResponse, MetaTxV0Request, MetaTxV0Response, ReplaceClassRequest,
+    ReplaceClassResponse, RevertData, SelfOrRevert, SendMessageToL1Request,
+    SendMessageToL1Response, StorageReadRequest, StorageReadResponse, StorageWriteRequest,
+    StorageWriteResponse, SyscallExecutorBaseError, SyscallSelector, TryExtractRevert,
 };
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::errors::math_errors::MathError;
@@ -47,8 +24,8 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
@@ -56,12 +33,8 @@ use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::vars::CairoStruct;
 use crate::vm_utils::{
-    get_address_of_nested_fields_from_base_address,
-    get_field_offset,
-    get_size_of_cairo_struct,
-    write_to_temp_segment,
-    IdentifierGetter,
-    VmUtilsError,
+    IdentifierGetter, VmUtilsError, get_address_of_nested_fields_from_base_address,
+    get_field_offset, get_size_of_cairo_struct, write_to_temp_segment,
 };
 
 #[derive(Debug, thiserror::Error)]

@@ -2,19 +2,19 @@
 use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_infra::component_definitions::{ComponentStarter, default_component_start_fn};
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use async_trait::async_trait;
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
-use starknet_api::contract_class::ContractClass;
-use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
+use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::state::SierraContractClass;
 use thiserror::Error;
 use tracing::instrument;
 
 use crate::compiler::SierraToCasmCompiler;
-use crate::metrics::{register_metrics, COMPILATION_DURATION};
+use crate::metrics::{COMPILATION_DURATION, register_metrics};
 
 pub mod communication;
 pub mod compiler;

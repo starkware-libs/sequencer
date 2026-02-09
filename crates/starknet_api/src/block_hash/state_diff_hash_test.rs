@@ -1,12 +1,8 @@
 use indexmap::indexmap;
 
 use crate::block_hash::state_diff_hash::{
-    calculate_state_diff_hash,
-    chain_declared_classes,
-    chain_deployed_contracts,
-    chain_deprecated_declared_classes,
-    chain_nonces,
-    chain_storage_diffs,
+    calculate_state_diff_hash, chain_declared_classes, chain_deployed_contracts,
+    chain_deprecated_declared_classes, chain_nonces, chain_storage_diffs,
 };
 use crate::block_hash::test_utils::get_state_diff;
 use crate::core::{ClassHash, CompiledClassHash, Nonce, StateDiffCommitment};

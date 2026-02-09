@@ -15,38 +15,21 @@ use starknet_patricia_storage::errors::{DeserializationError, SerializationResul
 #[cfg(any(feature = "testing", test))]
 use starknet_patricia_storage::storage_trait::AsyncStorage;
 use starknet_patricia_storage::storage_trait::{
-    create_db_key,
-    DbHashMap,
-    DbKey,
-    DbValue,
-    PatriciaStorageResult,
-    Storage,
+    DbHashMap, DbKey, DbValue, PatriciaStorageResult, Storage, create_db_key,
 };
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
 use crate::db::forest_trait::{
-    read_forest,
-    serialize_forest,
-    EmptyInitialReadContext,
-    ForestMetadata,
-    ForestMetadataType,
-    ForestReader,
-    ForestWriter,
-    StorageInitializer,
+    EmptyInitialReadContext, ForestMetadata, ForestMetadataType, ForestReader, ForestWriter,
+    StorageInitializer, read_forest, serialize_forest,
 };
 use crate::db::index_db::leaves::{
-    IndexLayoutCompiledClassHash,
-    IndexLayoutContractState,
-    IndexLayoutStarknetStorageValue,
+    IndexLayoutCompiledClassHash, IndexLayoutContractState, IndexLayoutStarknetStorageValue,
 };
 use crate::db::index_db::types::{
-    EmptyNodeData,
-    IndexFilledNode,
-    IndexFilledNodeWithHasher,
-    IndexLayoutSubTree,
-    IndexNodeContext,
+    EmptyNodeData, IndexFilledNode, IndexFilledNodeWithHasher, IndexLayoutSubTree, IndexNodeContext,
 };
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;

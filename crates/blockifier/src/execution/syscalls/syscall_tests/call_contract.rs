@@ -22,7 +22,7 @@ use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
-use crate::test_utils::{trivial_external_entry_point_new, CompilerBasedVersion, BALANCE};
+use crate::test_utils::{BALANCE, CompilerBasedVersion, trivial_external_entry_point_new};
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm;"VM")]

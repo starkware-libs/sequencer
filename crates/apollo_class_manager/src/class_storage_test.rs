@@ -11,11 +11,7 @@ use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
 use crate::class_storage::{
-    CachedClassStorage,
-    ClassHashStorage,
-    ClassStorage,
-    FsClassStorage,
-    FsClassStorageError,
+    CachedClassStorage, ClassHashStorage, ClassStorage, FsClassStorage, FsClassStorageError,
 };
 use crate::test_utils::FsClassStorageBuilderForTesting;
 

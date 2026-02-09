@@ -14,7 +14,7 @@ use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
-use crate::test_utils::{trivial_external_entry_point_new, CompilerBasedVersion, BALANCE};
+use crate::test_utils::{BALANCE, CompilerBasedVersion, trivial_external_entry_point_new};
 
 /// Asserts that the charged resources of a call is consistent with the inner calls in its subtree.
 fn assert_charged_resource_as_expected_rec(call_info: &CallInfo) {

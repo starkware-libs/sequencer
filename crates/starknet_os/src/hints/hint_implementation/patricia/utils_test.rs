@@ -4,31 +4,15 @@ use assert_matches::assert_matches;
 use num_bigint::BigUint;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePath,
-    EdgePathLength,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePath, EdgePathLength, PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
 use super::{
-    build_update_tree,
-    get_children,
-    get_descents,
-    patricia_guess_descents,
-    CanonicNode,
-    DecodeNodeCase,
-    DescentMap,
-    DescentStart,
-    InnerNode,
-    LayerIndex,
-    Path,
-    PatriciaError,
-    Preimage,
-    PreimageMap,
-    UpdateTree,
+    CanonicNode, DecodeNodeCase, DescentMap, DescentStart, InnerNode, LayerIndex, Path,
+    PatriciaError, Preimage, PreimageMap, UpdateTree, build_update_tree, get_children,
+    get_descents, patricia_guess_descents,
 };
 
 /// Builds a full preimage map for a binary tree of the given height.

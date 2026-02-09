@@ -7,12 +7,8 @@ use tokio::task;
 
 use crate::component_client::LocalComponentClient;
 use crate::component_definitions::{
-    ComponentClient,
-    ComponentRequestHandler,
-    ComponentStarter,
-    PrioritizedRequest,
-    RequestPriority,
-    RequestWrapper,
+    ComponentClient, ComponentRequestHandler, ComponentStarter, PrioritizedRequest,
+    RequestPriority, RequestWrapper,
 };
 use crate::component_server::{ComponentServerStarter, LocalComponentServer, LocalServerConfig};
 use crate::tests::{TEST_LOCAL_CLIENT_METRICS, TEST_LOCAL_SERVER_METRICS};

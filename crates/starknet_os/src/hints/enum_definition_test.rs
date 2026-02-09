@@ -16,14 +16,8 @@ use starknet_api::deprecated_contract_class::ContractClass;
 use strum::IntoEnumIterator;
 
 use crate::hints::enum_definition::{
-    AggregatorHint,
-    AllHints,
-    CommonHint,
-    DeprecatedSyscallHint,
-    HintExtension,
-    OsHint,
-    StatelessHint,
-    TEST_HINT_PREFIX,
+    AggregatorHint, AllHints, CommonHint, DeprecatedSyscallHint, HintExtension, OsHint,
+    StatelessHint, TEST_HINT_PREFIX,
 };
 use crate::hints::types::HintEnum;
 

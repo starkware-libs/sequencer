@@ -20,12 +20,7 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::SqmrClientSender;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_protobuf::sync::{
-    ClassQuery,
-    DataOrFin,
-    HeaderQuery,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
+    ClassQuery, DataOrFin, HeaderQuery, SignedBlockHeader, StateDiffChunk, StateDiffQuery,
     TransactionQuery,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;

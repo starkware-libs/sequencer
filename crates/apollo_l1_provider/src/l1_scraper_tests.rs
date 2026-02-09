@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::MockL1ProviderClient;
+use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use assert_matches::assert_matches;
 use papyrus_base_layer::{L1BlockHash, L1BlockReference, MockBaseLayerContract};

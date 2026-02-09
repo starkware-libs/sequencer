@@ -2,23 +2,18 @@ use std::cell::Cell;
 use std::sync::Arc;
 
 use apollo_class_manager_types::{
-    ClassManagerClientError,
-    ClassManagerError,
-    MockClassManagerClient,
-    SharedClassManagerClient,
+    ClassManagerClientError, ClassManagerError, MockClassManagerClient, SharedClassManagerClient,
 };
+use apollo_storage::StorageWriter;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
-use apollo_storage::StorageWriter;
 use assert_matches::assert_matches;
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
@@ -27,10 +22,7 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use indexmap::indexmap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingClassesTrait};
 use papyrus_common::state::{
-    DeclaredClassHashEntry,
-    DeployedContract,
-    ReplacedClass,
-    StorageEntry,
+    DeclaredClassHashEntry, DeployedContract, ReplacedClass, StorageEntry,
 };
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::contract_class::{ContractClass, SierraVersion};

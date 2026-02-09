@@ -14,17 +14,10 @@ use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
-    process_transactions,
-    CentralBlockInfo,
-    CentralBouncerWeights,
-    CentralCasmContractClassEntry,
-    CentralCasmHashComputationData,
-    CentralCompiledClassHashesForMigration,
-    CentralCompressedStateDiff,
-    CentralFeeMarketInfo,
-    CentralSierraContractClassEntry,
-    CentralStateDiff,
-    CentralTransactionWritten,
+    CentralBlockInfo, CentralBouncerWeights, CentralCasmContractClassEntry,
+    CentralCasmHashComputationData, CentralCompiledClassHashesForMigration,
+    CentralCompressedStateDiff, CentralFeeMarketInfo, CentralSierraContractClassEntry,
+    CentralStateDiff, CentralTransactionWritten, process_transactions,
 };
 #[cfg(test)]
 use mockall::automock;
@@ -40,17 +33,14 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
-use tracing::{info, warn, Instrument};
+use tracing::{Instrument, info, warn};
 use url::Url;
 
 use crate::fee_market::FeeMarketInfo;
 use crate::metrics::{
+    CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER, CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
+    CENDE_WRITE_BLOB_SUCCESS, CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, CendeWriteFailureReason,
     record_write_failure,
-    CendeWriteFailureReason,
-    CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
-    CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
-    CENDE_WRITE_BLOB_SUCCESS,
-    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
 };
 
 #[derive(thiserror::Error, Debug)]

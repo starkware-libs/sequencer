@@ -4,28 +4,18 @@ use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClie
 use apollo_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_protobuf::sync::{
-    BlockHashOrNumber,
-    ClassQuery,
-    ContractDiff,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    EventQuery,
-    HeaderQuery,
-    Query,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
+    BlockHashOrNumber, ClassQuery, ContractDiff, DataOrFin, DeclaredClass, DeprecatedDeclaredClass,
+    EventQuery, HeaderQuery, Query, SignedBlockHeader, StateDiffChunk, StateDiffQuery,
     TransactionQuery,
 };
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{db, StorageReader, StorageTxn};
+use apollo_storage::{StorageReader, StorageTxn, db};
 use async_trait::async_trait;
-use futures::never::Never;
 use futures::StreamExt;
+use futures::never::Never;
 use papyrus_common::pending_classes::ApiContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;

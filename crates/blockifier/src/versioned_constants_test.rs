@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cached::proc_macro::cached;
-use glob::{glob, Paths};
+use glob::{Paths, glob};
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;

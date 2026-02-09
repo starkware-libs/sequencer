@@ -5,20 +5,11 @@ use apollo_infra_utils::template::Template;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_placeholders::{
-    format_sampling_window,
-    ComparisonValueOrPlaceholder,
-    ExpressionOrExpressionWithPlaceholder,
+    ComparisonValueOrPlaceholder, ExpressionOrExpressionWithPlaceholder, format_sampling_window,
 };
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 

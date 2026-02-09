@@ -1,4 +1,4 @@
-use std::io::{stdout, Result as IoResult, Write};
+use std::io::{Result as IoResult, Write, stdout};
 use std::str::FromStr;
 
 use time::macros::format_description;
@@ -8,7 +8,7 @@ use tracing::warn;
 use tracing_subscriber::filter::Directive;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, reload, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, reload};
 
 // Renames the "error" key to "message" in a JSON object, if present.
 // If "message" already exists, leaves the object unchanged.

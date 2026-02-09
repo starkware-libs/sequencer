@@ -1,29 +1,17 @@
 use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "testing", test))]
 use starknet_api::compression_utils::compress_and_encode;
-use starknet_api::compression_utils::{decode_and_decompress_with_size_limit, CompressionError};
+use starknet_api::compression_utils::{CompressionError, decode_and_decompress_with_size_limit};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
-    EntryPointByType,
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcInvokeTransaction,
-    RpcInvokeTransactionV3,
-    RpcTransaction,
+    EntryPointByType, RpcDeclareTransaction, RpcDeclareTransactionV3, RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3, RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    PaymasterData,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, PaymasterData,
+    ResourceBounds, Tip, TransactionSignature,
 };
 
 // TODO(Yael): remove the deprecated_gateway_transaction once we decide to support only transactions

@@ -8,15 +8,10 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
-use super::common::{missing, volition_domain_to_enum_int};
 use super::ProtobufConversionError;
+use super::common::{missing, volition_domain_to_enum_int};
 use crate::sync::{
-    ContractDiff,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    Query,
-    StateDiffChunk,
+    ContractDiff, DataOrFin, DeclaredClass, DeprecatedDeclaredClass, Query, StateDiffChunk,
     StateDiffQuery,
 };
 use crate::{auto_impl_into_and_try_from_vec_u8, auto_impl_try_from_vec_u8, protobuf};

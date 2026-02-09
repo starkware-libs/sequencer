@@ -16,8 +16,7 @@ use crate::committer_cli::commands::commit;
 use crate::committer_cli::parse_input::cast::CommitterFactsDbInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
 use crate::committer_cli::tests::parse_from_python::{
-    parse_input_single_storage_tree_flow_test,
-    TreeFlowInput,
+    TreeFlowInput, parse_input_single_storage_tree_flow_test,
 };
 
 // TODO(Aner, 20/06/2024): these tests needs to be fixed to be run correctly in the CI:

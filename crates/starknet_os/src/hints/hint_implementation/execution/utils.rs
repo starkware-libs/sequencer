@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
+    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
@@ -13,27 +11,19 @@ use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
-use starknet_api::transaction::fields::{
-    valid_resource_bounds_as_felts,
-    AccountDeploymentData,
-    Calldata,
-    ResourceAsFelts,
-    ValidResourceBounds,
-};
 use starknet_api::transaction::InvokeTransaction;
+use starknet_api::transaction::fields::{
+    AccountDeploymentData, Calldata, ResourceAsFelts, ValidResourceBounds,
+    valid_resource_bounds_as_felts,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::vars::{CairoStruct, Ids};
 use crate::vm_utils::{
-    get_address_of_nested_fields_from_base_address,
-    insert_values_to_fields,
-    CairoSized,
-    IdentifierGetter,
-    LoadCairoObject,
-    VmUtilsError,
-    VmUtilsResult,
+    CairoSized, IdentifierGetter, LoadCairoObject, VmUtilsError, VmUtilsResult,
+    get_address_of_nested_fields_from_base_address, insert_values_to_fields,
 };
 
 /// Corresponds to the ResourceBounds struct in Cairo.

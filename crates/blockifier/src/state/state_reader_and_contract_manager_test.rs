@@ -11,8 +11,6 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 #[cfg(not(feature = "cairo_native"))]
 use starknet_api::core::ClassHash;
 
-#[cfg(not(feature = "cairo_native"))]
-use crate::blockifier::config::CairoNativeRunConfig;
 use crate::blockifier::config::{ContractClassManagerConfig, NativeExecutionMode};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
@@ -64,12 +62,9 @@ fn test_get_compiled_class_without_native_in_cache(
     #[cfg(not(feature = "cairo_native"))]
     assert!(matches!(mode, NativeExecutionMode::Disabled));
 
-    let run_cairo_native = mode != NativeExecutionMode::Disabled;
-    let wait_on_native_compilation = mode == NativeExecutionMode::Sync;
-
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_class_hash = test_contract.get_class_hash();
-    let contract_manager_config = ContractClassManagerConfig::create_for_testing(mode);
+    let contract_manager_config = ContractClassManagerConfig::create_for_testing(mode.clone());
 
     let state_reader =
         build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
@@ -82,7 +77,7 @@ fn test_get_compiled_class_without_native_in_cache(
     match cairo_version {
         CairoVersion::Cairo1(_) => {
             // TODO(Meshi): Test that a compilation request was sent.
-            if wait_on_native_compilation {
+            if matches!(mode, NativeExecutionMode::Sync) {
                 #[cfg(feature = "cairo_native")]
                 assert_matches!(
                     compiled_class,
@@ -253,13 +248,7 @@ fn test_get_compiled_class_caching_scenarios(
     #[case] first_scenario: GetCompiledClassTestScenario,
     #[case] second_scenario: GetCompiledClassTestScenario,
 ) {
-    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig {
-        cairo_native_run_config: CairoNativeRunConfig {
-            wait_on_native_compilation: false,
-            ..Default::default()
-        },
-        ..Default::default()
-    });
+    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
     let class_hash = *DUMMY_CLASS_HASH;
 
     // First execution.

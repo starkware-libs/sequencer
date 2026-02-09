@@ -1,22 +1,16 @@
 use std::clone::Clone;
 use std::sync::Arc;
 
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterTrait,
-};
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_class_manager_types::transaction_converter::{
+    TransactionConverter, TransactionConverterTrait,
+};
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_gateway_types::gateway_types::{
-    DeclareGatewayOutput,
-    DeployAccountGatewayOutput,
-    GatewayOutput,
-    InvokeGatewayOutput,
+    DeclareGatewayOutput, DeployAccountGatewayOutput, GatewayOutput, InvokeGatewayOutput,
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
@@ -28,28 +22,23 @@ use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
-    InternalRpcTransaction,
-    InternalRpcTransactionWithoutTxHash,
-    RpcDeclareTransaction,
+    InternalRpcTransaction, InternalRpcTransactionWithoutTxHash, RpcDeclareTransaction,
     RpcTransaction,
 };
 use starknet_api::transaction::fields::TransactionSignature;
 use tracing::{debug, warn};
 
 use crate::errors::{
-    mempool_client_result_to_deprecated_gw_result,
+    GatewayResult, mempool_client_result_to_deprecated_gw_result,
     transaction_converter_err_to_deprecated_gw_err,
-    GatewayResult,
 };
-use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
+use crate::metrics::{GATEWAY_ADD_TX_LATENCY, GatewayMetricHandle, register_metrics};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::{
-    StatefulTransactionValidatorFactory,
-    StatefulTransactionValidatorFactoryTrait,
+    StatefulTransactionValidatorFactory, StatefulTransactionValidatorFactoryTrait,
 };
 use crate::stateless_transaction_validator::{
-    StatelessTransactionValidator,
-    StatelessTransactionValidatorTrait,
+    StatelessTransactionValidator, StatelessTransactionValidatorTrait,
 };
 use crate::sync_state_reader::SyncStateReaderFactory;
 

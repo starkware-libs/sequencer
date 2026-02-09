@@ -1,20 +1,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_l1_provider_types::InvalidValidationStatus;
 use apollo_l1_provider_types::InvalidValidationStatus::{
-    AlreadyIncludedInProposedBlock,
-    AlreadyIncludedOnL2,
-    ConsumedOnL1,
-    NotFound,
+    AlreadyIncludedInProposedBlock, AlreadyIncludedOnL2, ConsumedOnL1, NotFound,
 };
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
-    BlockExecutionSummary,
-    TransactionExecutionOutput,
-    TransactionExecutorError,
+    BlockExecutionSummary, TransactionExecutionOutput, TransactionExecutorError,
     TransactionExecutorResult,
 };
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -27,30 +22,24 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 use itertools::chain;
 use metrics_exporter_prometheus::PrometheusBuilder;
-use mockall::predicate::eq;
 use mockall::Sequence;
+use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::BlockInfo;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
-use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::tx_hash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::block_builder::{
-    BlockBuilder,
-    BlockBuilderError,
-    BlockBuilderExecutionParams,
-    BlockBuilderResult,
-    BlockBuilderTrait,
-    BlockExecutionArtifacts,
-    BlockTransactionExecutionData,
-    FailOnErrorCause,
+    BlockBuilder, BlockBuilderError, BlockBuilderExecutionParams, BlockBuilderResult,
+    BlockBuilderTrait, BlockExecutionArtifacts, BlockTransactionExecutionData, FailOnErrorCause,
 };
-use crate::metrics::{BlockCloseReason, BLOCK_CLOSE_REASON, LABEL_NAME_BLOCK_CLOSE_REASON};
+use crate::metrics::{BLOCK_CLOSE_REASON, BlockCloseReason, LABEL_NAME_BLOCK_CLOSE_REASON};
 use crate::test_utils::{test_l1_handler_txs, test_txs};
 use crate::transaction_executor::MockTransactionExecutorTrait;
 use crate::transaction_provider::TransactionProviderError::L1HandlerTransactionValidationFailed;

@@ -11,7 +11,7 @@
 mod utils;
 
 use apollo_mempool_config::config::MempoolConfig;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use utils::{BenchTestSetup, BenchTestSetupConfig};
 
 fn run_invoke_benchmark(criterion: &mut Criterion, config: &BenchTestSetupConfig) {

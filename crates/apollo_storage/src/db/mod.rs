@@ -29,7 +29,7 @@ use std::path::PathBuf;
 use std::result;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;

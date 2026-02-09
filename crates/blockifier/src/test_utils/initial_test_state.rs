@@ -13,8 +13,7 @@ use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_reader_and_contract_manager::{
-    FetchCompiledClasses,
-    StateReaderAndContractManager,
+    FetchCompiledClasses, StateReaderAndContractManager,
 };
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;

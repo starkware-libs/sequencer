@@ -5,18 +5,13 @@ use apollo_infra::trace_util::configure_tracing;
 use apollo_integration_tests::integration_test_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
 use apollo_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use apollo_integration_tests::utils::{
-    create_integration_test_tx_generator,
-    DeployAndInvokeTxs,
-    ACCOUNT_ID_0,
-    N_TXS_IN_FIRST_BLOCK,
+    ACCOUNT_ID_0, DeployAndInvokeTxs, N_TXS_IN_FIRST_BLOCK, create_integration_test_tx_generator,
 };
 use clap::Parser;
 use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    Starknet,
+    EthereumBaseLayerConfig, EthereumBaseLayerContract, Starknet,
 };
-use papyrus_base_layer::test_utils::{anvil_mine_blocks, DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS};
+use papyrus_base_layer::test_utils::{DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS, anvil_mine_blocks};
 use serde_json::Value;
 use tracing::info;
 use url::Url;

@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
 use starknet_os::hints::hint_implementation::kzg::utils::{
-    compute_blob_commitments,
-    compute_legacy_blob_commitments,
+    compute_blob_commitments, compute_legacy_blob_commitments,
 };
 use tracing::info;
 

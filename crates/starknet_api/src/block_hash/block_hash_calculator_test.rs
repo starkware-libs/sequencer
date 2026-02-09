@@ -4,23 +4,13 @@ use starknet_types_core::felt::Felt;
 use super::concat_counts;
 use crate::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken, StarknetVersion};
 use crate::block_hash::block_hash_calculator::{
-    calculate_block_commitments,
-    calculate_block_hash,
-    BlockHashVersion,
-    BlockHeaderCommitments,
-    PartialBlockHashComponents,
-    TransactionHashingData,
+    BlockHashVersion, BlockHeaderCommitments, PartialBlockHashComponents, TransactionHashingData,
+    calculate_block_commitments, calculate_block_hash,
 };
 use crate::block_hash::test_utils::{get_state_diff, get_transaction_output};
 use crate::core::{
-    ContractAddress,
-    EventCommitment,
-    GlobalRoot,
-    PatriciaKey,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    StateDiffCommitment,
-    TransactionCommitment,
+    ContractAddress, EventCommitment, GlobalRoot, PatriciaKey, ReceiptCommitment,
+    SequencerContractAddress, StateDiffCommitment, TransactionCommitment,
 };
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::hash::PoseidonHash;

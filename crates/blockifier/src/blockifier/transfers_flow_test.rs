@@ -7,9 +7,7 @@ use strum::IntoEnumIterator;
 use super::transaction_executor::BlockExecutionSummary;
 use crate::blockifier::config::ConcurrencyConfig;
 use crate::test_utils::transfers_generator::{
-    RecipientGeneratorType,
-    TransfersGenerator,
-    TransfersGeneratorConfig,
+    RecipientGeneratorType, TransfersGenerator, TransfersGeneratorConfig,
 };
 use crate::transaction::objects::TransactionExecutionInfo;
 

@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use apollo_protobuf::consensus::{Vote, VoteType, DEFAULT_VALIDATOR_ID};
+use apollo_protobuf::consensus::{DEFAULT_VALIDATOR_ID, Vote, VoteType};
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;

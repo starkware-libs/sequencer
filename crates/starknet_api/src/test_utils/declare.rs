@@ -5,33 +5,19 @@ use crate::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
-    AccountTransaction,
-    DeclareTransaction as ExecutableDeclareTransaction,
+    AccountTransaction, DeclareTransaction as ExecutableDeclareTransaction,
 };
 use crate::rpc_transaction::{
-    InternalRpcDeclareTransactionV3,
-    InternalRpcTransaction,
-    InternalRpcTransactionWithoutTxHash,
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcTransaction,
+    InternalRpcDeclareTransactionV3, InternalRpcTransaction, InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction, RpcDeclareTransactionV3, RpcTransaction,
 };
 use crate::state::SierraContractClass;
 use crate::transaction::fields::{
-    AccountDeploymentData,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, Fee, PaymasterData, Tip, TransactionSignature, ValidResourceBounds,
 };
 use crate::transaction::{
-    DeclareTransaction,
-    DeclareTransactionV0V1,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
-    TransactionHash,
-    TransactionVersion,
+    DeclareTransaction, DeclareTransactionV0V1, DeclareTransactionV2, DeclareTransactionV3,
+    TransactionHash, TransactionVersion,
 };
 use crate::{compiled_class_hash, contract_address};
 

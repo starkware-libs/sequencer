@@ -4,35 +4,29 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_l1_provider_types::{
-    Event,
-    L1ProviderClient,
-    L1ProviderClientResult,
-    L1ProviderSnapshot,
-    ProviderState,
-    SessionState,
-    ValidationStatus,
+    Event, L1ProviderClient, L1ProviderClientResult, L1ProviderSnapshot, ProviderState,
+    SessionState, ValidationStatus,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::test_utils::FakeClock;
 use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
-use itertools::{chain, Itertools};
+use itertools::{Itertools, chain};
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockNumber, BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::{
-    L1HandlerTransaction as ExecutableL1HandlerTransaction,
-    L1HandlerTransaction,
+    L1HandlerTransaction as ExecutableL1HandlerTransaction, L1HandlerTransaction,
 };
 use starknet_api::hash::StarkHash;
-use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
+use starknet_api::test_utils::l1_handler::{L1HandlerTxArgs, executable_l1_handler_tx};
 use starknet_api::transaction::TransactionHash;
 
+use crate::L1ProviderConfig;
 use crate::catchupper::{Catchupper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionManagerConfig};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
-use crate::L1ProviderConfig;
 
 macro_rules! make_catchupper {
     (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*]) => {{

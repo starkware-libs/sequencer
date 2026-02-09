@@ -1,9 +1,6 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
-    end_to_end_flow,
-    test_single_tx,
-    EndToEndFlowArgs,
-    EndToEndTestScenario,
+    EndToEndFlowArgs, EndToEndTestScenario, end_to_end_flow, test_single_tx,
 };
 use mempool_test_utils::starknet_api_test_utils::generate_bootstrap_declare;
 use starknet_api::execution_resources::GasAmount;

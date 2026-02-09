@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus_config::config::{ConsensusConfig, StreamHandlerConfig};
 use apollo_consensus_orchestrator_config::config::{CendeConfig, ContextConfig};

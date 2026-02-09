@@ -4,42 +4,27 @@ use std::sync::Arc;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
-    AccountState,
-    AddTransactionArgs,
-    CommitBlockArgs,
-    MempoolResult,
-    MempoolSnapshot,
-    MempoolStateSnapshot,
-    ValidationArgs,
+    AccountState, AddTransactionArgs, CommitBlockArgs, MempoolResult, MempoolSnapshot,
+    MempoolStateSnapshot, ValidationArgs,
 };
 use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
-use rand::{thread_rng, Rng};
+use rand::{Rng, thread_rng};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
-    InternalRpcTransaction,
-    InternalRpcTransactionLabelValue,
-    InternalRpcTransactionWithoutTxHash,
+    InternalRpcTransaction, InternalRpcTransactionLabelValue, InternalRpcTransactionWithoutTxHash,
 };
-use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::Tip;
 use tracing::{debug, info, instrument, trace};
 
 use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::metrics::{
-    metric_count_committed_txs,
-    metric_count_evicted_txs,
-    metric_count_expired_txs,
-    metric_count_rejected_txs,
-    metric_set_get_txs_size,
-    LABEL_NAME_TX_TYPE,
-    MEMPOOL_DELAYED_DECLARES_SIZE,
-    MEMPOOL_PENDING_QUEUE_SIZE,
-    MEMPOOL_POOL_SIZE,
-    MEMPOOL_PRIORITY_QUEUE_SIZE,
-    MEMPOOL_TOTAL_SIZE_BYTES,
-    MEMPOOL_TRANSACTIONS_RECEIVED,
+    LABEL_NAME_TX_TYPE, MEMPOOL_DELAYED_DECLARES_SIZE, MEMPOOL_PENDING_QUEUE_SIZE,
+    MEMPOOL_POOL_SIZE, MEMPOOL_PRIORITY_QUEUE_SIZE, MEMPOOL_TOTAL_SIZE_BYTES,
+    MEMPOOL_TRANSACTIONS_RECEIVED, metric_count_committed_txs, metric_count_evicted_txs,
+    metric_count_expired_txs, metric_count_rejected_txs, metric_set_get_txs_size,
 };
 use crate::transaction_pool::TransactionPool;
 use crate::utils::try_increment_nonce;

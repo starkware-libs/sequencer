@@ -3,40 +3,28 @@ use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
 use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverterError,
-    TransactionConverterResult,
+    MockTransactionConverterTrait, TransactionConverterError, TransactionConverterResult,
 };
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
-    GatewayConfig,
-    GatewayStaticConfig,
-    StatefulTransactionValidatorConfig,
+    GatewayConfig, GatewayStaticConfig, StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_gateway_types::gateway_types::{
-    DeclareGatewayOutput,
-    DeployAccountGatewayOutput,
-    GatewayOutput,
-    InvokeGatewayOutput,
+    DeclareGatewayOutput, DeployAccountGatewayOutput, GatewayOutput, InvokeGatewayOutput,
 };
 use apollo_mempool_types::communication::{
-    AddTransactionArgsWrapper,
-    MempoolClientError,
-    MempoolClientResult,
-    MockMempoolClient,
+    AddTransactionArgsWrapper, MempoolClientError, MempoolClientResult, MockMempoolClient,
 };
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, ValidationArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
@@ -51,31 +39,20 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
-    InternalRpcTransaction,
-    RpcDeclareTransaction,
-    RpcTransaction,
-    RpcTransactionLabelValue,
+    InternalRpcTransaction, RpcDeclareTransaction, RpcTransaction, RpcTransactionLabelValue,
 };
 use starknet_api::test_utils::declare::{
-    default_compiled_contract_class,
-    DeclareTxArgsWithContractClass,
+    DeclareTxArgsWithContractClass, default_compiled_contract_class,
 };
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{InvokeTxArgs, executable_invoke_tx};
 use starknet_api::test_utils::{
-    valid_resource_bounds_for_testing,
-    TestingTxArgs,
-    CHAIN_ID_FOR_TESTS,
-    VALID_ACCOUNT_BALANCE,
+    CHAIN_ID_FOR_TESTS, TestingTxArgs, VALID_ACCOUNT_BALANCE, valid_resource_bounds_for_testing,
 };
-use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::{
-    contract_address,
-    declare_tx_args,
-    deploy_account_tx_args,
-    invoke_tx_args,
-    nonce,
+    contract_address, declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce,
 };
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
@@ -84,20 +61,13 @@ use tempfile::TempDir;
 use crate::errors::{GatewayResult, StatelessTransactionValidatorError};
 use crate::gateway::Gateway;
 use crate::metrics::{
-    register_metrics,
-    GatewayMetricHandle,
-    SourceLabelValue,
-    GATEWAY_ADD_TX_LATENCY,
-    GATEWAY_TRANSACTIONS_FAILED,
-    GATEWAY_TRANSACTIONS_RECEIVED,
-    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
-    LABEL_NAME_SOURCE,
-    LABEL_NAME_TX_TYPE,
+    GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_FAILED, GATEWAY_TRANSACTIONS_RECEIVED,
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, GatewayMetricHandle, LABEL_NAME_SOURCE,
+    LABEL_NAME_TX_TYPE, SourceLabelValue, register_metrics,
 };
-use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::state_reader_test_utils::{TestStateReaderFactory, local_test_state_reader_factory};
 use crate::stateful_transaction_validator::{
-    MockStatefulTransactionValidatorFactoryTrait,
-    MockStatefulTransactionValidatorTrait,
+    MockStatefulTransactionValidatorFactoryTrait, MockStatefulTransactionValidatorTrait,
 };
 use crate::stateless_transaction_validator::MockStatelessTransactionValidatorTrait;
 

@@ -9,15 +9,12 @@ use apollo_protobuf::protobuf::{PropellerUnit as ProtoUnit, PropellerUnitBatch a
 use asynchronous_codec::Framed;
 use futures::prelude::*;
 use libp2p::swarm::handler::{
-    ConnectionEvent,
-    ConnectionHandler,
-    ConnectionHandlerEvent,
-    FullyNegotiatedInbound,
+    ConnectionEvent, ConnectionHandler, ConnectionHandlerEvent, FullyNegotiatedInbound,
 };
 use libp2p::swarm::{Stream, StreamProtocol, SubstreamProtocol};
 
-use crate::protocol::{PropellerCodec, PropellerProtocol};
 use crate::PropellerUnit;
+use crate::protocol::{PropellerCodec, PropellerProtocol};
 
 /// Events that the handler can send to the behaviour.
 #[derive(Debug)]

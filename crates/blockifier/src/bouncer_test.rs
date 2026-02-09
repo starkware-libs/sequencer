@@ -16,17 +16,9 @@ use starknet_api::{class_hash, contract_address, felt, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
-    builtins_to_gas,
-    get_patricia_update_resources,
-    get_tx_weights,
-    map_class_hash_to_casm_hash_computation_resources,
-    verify_tx_weights_within_max_capacity,
-    Bouncer,
-    BouncerWeights,
-    BuiltinWeights,
-    CasmHashComputationData,
-    CasmHashMigrationData,
-    TxWeights,
+    Bouncer, BouncerWeights, BuiltinWeights, CasmHashComputationData, CasmHashMigrationData,
+    TxWeights, builtins_to_gas, get_patricia_update_resources, get_tx_weights,
+    map_class_hash_to_casm_hash_computation_resources, verify_tx_weights_within_max_capacity,
 };
 use crate::context::BlockContext;
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
@@ -39,8 +31,7 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::ExecutionResourcesTraits;
 use crate::transaction::test_utils::{
-    create_init_data_for_compiled_class_hash_migration_test,
-    TestInitData,
+    TestInitData, create_init_data_for_compiled_class_hash_migration_test,
 };
 use crate::utils::{add_maps, u64_from_usize};
 

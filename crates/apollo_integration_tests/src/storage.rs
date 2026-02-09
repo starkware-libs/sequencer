@@ -5,15 +5,9 @@ use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 
 use crate::executable_setup::NodeExecutableId;
 use crate::state_reader::{
-    StorageTestConfig,
-    StorageTestSetup,
-    BATCHER_DB_PATH_SUFFIX,
-    CLASSES_STORAGE_DB_PATH_SUFFIX,
-    CLASS_HASH_STORAGE_DB_PATH_SUFFIX,
-    CLASS_MANAGER_DB_PATH_SUFFIX,
-    COMMITTER_DB_PATH_SUFFIX,
-    CONSENSUS_DB_PATH_SUFFIX,
-    STATE_SYNC_DB_PATH_SUFFIX,
+    BATCHER_DB_PATH_SUFFIX, CLASS_HASH_STORAGE_DB_PATH_SUFFIX, CLASS_MANAGER_DB_PATH_SUFFIX,
+    CLASSES_STORAGE_DB_PATH_SUFFIX, COMMITTER_DB_PATH_SUFFIX, CONSENSUS_DB_PATH_SUFFIX,
+    STATE_SYNC_DB_PATH_SUFFIX, StorageTestConfig, StorageTestSetup,
 };
 
 // TODO(victork): consider completely removing this struct and use path directly

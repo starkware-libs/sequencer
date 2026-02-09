@@ -13,26 +13,18 @@ use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::state::{EntryPoint, SierraContractClass};
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    PaymasterData,
-    ResourceBounds,
-    TransactionSignature,
+    AccountDeploymentData, AllResourceBounds, PaymasterData, ResourceBounds, TransactionSignature,
 };
-use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
+use starknet_api::{StarknetApiError, calldata, contract_address, declare_tx_args, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StatelessTransactionValidatorResult;
 use crate::stateless_transaction_validator::{
-    StatelessTransactionValidator,
-    StatelessTransactionValidatorError,
+    StatelessTransactionValidator, StatelessTransactionValidatorError,
 };
 use crate::test_utils::{
-    create_sierra_program,
+    NON_EMPTY_RESOURCE_BOUNDS, RpcTransactionArgs, TransactionType, create_sierra_program,
     rpc_tx_for_testing,
-    RpcTransactionArgs,
-    TransactionType,
-    NON_EMPTY_RESOURCE_BOUNDS,
 };
 
 static DEFAULT_VALIDATOR_CONFIG: LazyLock<StatelessTransactionValidatorConfig> =

@@ -1,14 +1,8 @@
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_infra::metrics::{
-    InfraMetrics,
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
+    InfraMetrics, LocalClientMetrics, LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics,
 };
 #[cfg(test)]
 use apollo_metrics::metrics::LabeledMetricCounter;

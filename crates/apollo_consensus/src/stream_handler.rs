@@ -13,17 +13,15 @@ use apollo_network::utils::StreamMap;
 use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use apollo_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use apollo_protobuf::converters::ProtobufConversionError;
+use futures::StreamExt;
 use futures::channel::mpsc;
 use futures::never::Never;
-use futures::StreamExt;
 use lru::LruCache;
 use tracing::{info, instrument, warn};
 
 use crate::metrics::{
-    CONSENSUS_INBOUND_STREAM_EVICTED,
-    CONSENSUS_INBOUND_STREAM_FINISHED,
-    CONSENSUS_INBOUND_STREAM_STARTED,
-    CONSENSUS_OUTBOUND_STREAM_FINISHED,
+    CONSENSUS_INBOUND_STREAM_EVICTED, CONSENSUS_INBOUND_STREAM_FINISHED,
+    CONSENSUS_INBOUND_STREAM_STARTED, CONSENSUS_OUTBOUND_STREAM_FINISHED,
     CONSENSUS_OUTBOUND_STREAM_STARTED,
 };
 

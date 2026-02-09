@@ -3,9 +3,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    NodeData,
+    BinaryData, EdgeData, NodeData,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
@@ -17,14 +15,12 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, DbValue, Storage};
 
 use crate::block_committer::input::try_node_index_into_contract_address;
 use crate::db::db_layout::DbLayout;
+use crate::db::facts_db::FactDbFilledNode;
 use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::facts_db::node_serde::FactNodeDeserializationContext;
 use crate::db::facts_db::types::FactsSubTree;
-use crate::db::facts_db::FactDbFilledNode;
 use crate::db::index_db::leaves::{
-    IndexLayoutCompiledClassHash,
-    IndexLayoutContractState,
-    IndexLayoutStarknetStorageValue,
+    IndexLayoutCompiledClassHash, IndexLayoutContractState, IndexLayoutStarknetStorageValue,
 };
 use crate::db::index_db::types::{EmptyNodeData, IndexFilledNodeWithHasher, IndexLayoutSubTree};
 use crate::hash_function::mock_hash::MockTreeHashFunction;

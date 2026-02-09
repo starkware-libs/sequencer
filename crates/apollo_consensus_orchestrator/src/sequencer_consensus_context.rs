@@ -11,36 +11,22 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
-    DecisionReachedInput,
-    DecisionReachedResponse,
-    ProposalId,
-    StartHeightInput,
+    DecisionReachedInput, DecisionReachedResponse, ProposalId, StartHeightInput,
 };
 use apollo_batcher_types::communication::BatcherClient;
 use apollo_class_manager_types::transaction_converter::{
-    TransactionConverterError,
-    TransactionConverterTrait,
+    TransactionConverterError, TransactionConverterTrait,
 };
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{
-    ConsensusContext,
-    ConsensusError,
-    ProposalCommitment,
-    Round,
-    ValidatorId,
+    ConsensusContext, ConsensusError, ProposalCommitment, Round, ValidatorId,
 };
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
-    HeightAndRound,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    TransactionBatch,
-    Vote,
-    DEFAULT_VALIDATOR_ID,
+    ConsensusBlockInfo, DEFAULT_VALIDATOR_ID, HeightAndRound, ProposalFin, ProposalInit,
+    ProposalPart, TransactionBatch, Vote,
 };
 use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
@@ -48,16 +34,12 @@ use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
+use futures::SinkExt;
 use futures::channel::mpsc::SendError;
 use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
-use futures::SinkExt;
 use starknet_api::block::{
-    BlockHeaderWithoutHash,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
+    BlockHeaderWithoutHash, BlockInfo, BlockNumber, BlockTimestamp, GasPrice,
 };
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -70,24 +52,19 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{Instrument, error, error_span, info, instrument, trace, warn};
 
-use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
+use crate::build_proposal::{BuildProposalError, ProposalBuildArguments, build_proposal};
 use crate::cende::{BlobParameters, CendeContext, InternalTransactionWithReceipt};
-use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
+use crate::fee_market::{FeeMarketInfo, calculate_next_base_gas_price};
 use crate::metrics::{
-    record_build_proposal_failure,
-    record_validate_proposal_failure,
+    CONSENSUS_L2_GAS_PRICE, record_build_proposal_failure, record_validate_proposal_failure,
     register_metrics,
-    CONSENSUS_L2_GAS_PRICE,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::{convert_to_sn_api_block_info, make_gas_price_params, StreamSender};
+use crate::utils::{StreamSender, convert_to_sn_api_block_info, make_gas_price_params};
 use crate::validate_proposal::{
-    validate_proposal,
-    BlockInfoValidation,
-    ProposalValidateArguments,
-    ValidateProposalError,
+    BlockInfoValidation, ProposalValidateArguments, ValidateProposalError, validate_proposal,
 };
 
 type ValidationParams = (ConsensusBlockInfo, Duration, mpsc::Receiver<ProposalPart>);

@@ -12,11 +12,11 @@ use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
 use apollo_reverts::RevertConfig;
 use apollo_signature_manager_types::MockSignatureManagerClient;
 use apollo_state_sync_types::communication::MockStateSyncClient;
-use mockall::predicate::eq;
 use mockall::Sequence;
+use mockall::predicate::eq;
 use starknet_api::block::BlockNumber;
 use tokio::sync::Mutex;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 use crate::consensus_manager::{ConsensusManager, ConsensusManagerArgs};
 

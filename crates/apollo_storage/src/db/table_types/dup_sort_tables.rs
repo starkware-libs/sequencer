@@ -11,18 +11,8 @@ use libmdbx::{TableFlags, WriteFlags};
 use super::{DbResult, Table, TableType};
 use crate::db::serialization::{Key as KeyTrait, StorageSerde, StorageSerdeEx, ValueSerde};
 use crate::db::{
-    DbCursor,
-    DbCursorTrait,
-    DbError,
-    DbKeyType,
-    DbTransaction,
-    DbValueType,
-    DbWriter,
-    KeyAlreadyExistsError,
-    TableHandle,
-    TableIdentifier,
-    TransactionKind,
-    RW,
+    DbCursor, DbCursorTrait, DbError, DbKeyType, DbTransaction, DbValueType, DbWriter,
+    KeyAlreadyExistsError, RW, TableHandle, TableIdentifier, TransactionKind,
 };
 
 // NOTICE: If a write operation fails (insert, upsert, append, delete, append_greater_sub_key), the

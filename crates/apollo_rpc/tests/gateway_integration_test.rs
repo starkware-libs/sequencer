@@ -1,9 +1,7 @@
 use std::env;
 
 use apollo_rpc::{
-    AddInvokeOkResultRPC0_8,
-    InvokeTransactionRPC0_8,
-    InvokeTransactionV1RPC0_8,
+    AddInvokeOkResultRPC0_8, InvokeTransactionRPC0_8, InvokeTransactionV1RPC0_8,
     TransactionVersion1RPC0_8,
 };
 use apollo_starknet_client::writer::objects::transaction::InvokeTransaction as SNClientInvokeTransaction;

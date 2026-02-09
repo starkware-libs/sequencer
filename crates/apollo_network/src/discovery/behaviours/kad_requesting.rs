@@ -2,16 +2,10 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
+use libp2p::core::transport::PortUse;
 use libp2p::swarm::{
-    dummy,
-    ConnectionDenied,
-    ConnectionHandler,
-    ConnectionId,
-    FromSwarm,
-    NetworkBehaviour,
-    ToSwarm,
+    ConnectionDenied, ConnectionHandler, ConnectionId, FromSwarm, NetworkBehaviour, ToSwarm, dummy,
 };
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::{Duration, Instant, Sleep};

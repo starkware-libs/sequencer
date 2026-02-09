@@ -6,15 +6,10 @@ use rstest_reuse::{apply, template};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
-    create_32_bytes_entry,
-    create_binary_entry_from_u128,
-    create_binary_skeleton_node,
-    create_edge_entry_from_u128,
-    create_edge_skeleton_node,
-    create_expected_skeleton_nodes,
-    create_root_edge_entry,
+    AdditionHash, create_32_bytes_entry, create_binary_entry_from_u128,
+    create_binary_skeleton_node, create_edge_entry_from_u128, create_edge_skeleton_node,
+    create_expected_skeleton_nodes, create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
-    AdditionHash,
 };
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
@@ -26,15 +21,11 @@ use starknet_types_core::hash::StarkHash;
 
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
+    Input, ReaderConfig, StarknetStorageKey, StarknetStorageValue, StateDiff,
     contract_address_into_node_index,
-    Input,
-    ReaderConfig,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
 };
-use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::facts_db::FactsDb;
+use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::forest_trait::{EmptyInitialReadContext, ForestReader, StorageInitializer};
 use crate::db::index_db::test_utils::convert_facts_forest_db_to_index_db;
 use crate::db::index_db::{IndexDb, IndexDbReadContext};

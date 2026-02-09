@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
 use blockifier::blockifier::config::ContractClassManagerConfig;
@@ -29,10 +27,8 @@ use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonc
 use crate::gateway_fixed_block_state_reader::MockGatewayFixedBlockStateReader;
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
-    StatefulTransactionValidator,
-    StatefulTransactionValidatorFactory,
-    StatefulTransactionValidatorFactoryTrait,
-    StatefulTransactionValidatorTrait,
+    StatefulTransactionValidator, StatefulTransactionValidatorFactory,
+    StatefulTransactionValidatorFactoryTrait, StatefulTransactionValidatorTrait,
 };
 
 #[tokio::test]

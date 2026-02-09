@@ -9,13 +9,8 @@ use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::{FullTransaction, TransactionHash};
 
 use super::test_utils::{
-    random_header,
-    run_test,
-    wait_for_marker,
-    Action,
-    DataType,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    TIMEOUT_FOR_TEST,
+    Action, DataType, SLEEP_DURATION_TO_LET_SYNC_ADVANCE, TIMEOUT_FOR_TEST, random_header,
+    run_test, wait_for_marker,
 };
 
 #[tokio::test]

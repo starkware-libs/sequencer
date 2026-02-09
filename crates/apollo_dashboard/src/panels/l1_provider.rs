@@ -1,15 +1,13 @@
 use apollo_l1_provider::metrics::{
-    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
-    L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
-    L1_MESSAGE_SCRAPER_REORG_DETECTED,
-    L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
+    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
+    L1_MESSAGE_SCRAPER_REORG_DETECTED, L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
     L1_PROVIDER_NUM_PENDING_TXS,
 };
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{get_time_since_last_increase_expr, Row};
+use crate::dashboard::{Row, get_time_since_last_increase_expr};
 use crate::panel::{Panel, PanelType, Unit};
-use crate::query_builder::{increase, DEFAULT_DURATION};
+use crate::query_builder::{DEFAULT_DURATION, increase};
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
     Panel::new(

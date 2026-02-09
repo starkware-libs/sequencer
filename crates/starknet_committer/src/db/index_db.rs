@@ -8,5 +8,5 @@ pub mod serde_tests;
 pub mod test_utils;
 pub mod types;
 
-pub use db::{IndexDb, IndexDbReadContext, IndexNodeLayout};
 pub(crate) use db::{CLASSES_TREE_PREFIX, CONTRACTS_TREE_PREFIX};
+pub use db::{IndexDb, IndexDbReadContext, IndexNodeLayout};

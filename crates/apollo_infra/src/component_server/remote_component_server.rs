@@ -3,16 +3,16 @@ use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use bytes::Bytes;
-use http::header::CONTENT_TYPE;
 use http::StatusCode;
+use http::header::CONTENT_TYPE;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
-use hyper::service::{service_fn, Service};
+use hyper::service::{Service, service_fn};
 use hyper::{Request as HyperRequest, Response as HyperResponse};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder as ServerBuilder;
@@ -25,12 +25,8 @@ use validator::Validate;
 
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{
-    ComponentClient,
-    RequestId,
-    ServerError,
-    APPLICATION_OCTET_STREAM,
-    BUSY_PREVIOUS_REQUESTS_MSG,
-    REQUEST_ID_HEADER,
+    APPLICATION_OCTET_STREAM, BUSY_PREVIOUS_REQUESTS_MSG, ComponentClient, REQUEST_ID_HEADER,
+    RequestId, ServerError,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;

@@ -1,6 +1,5 @@
 use crate::execution::syscalls::hint_processor::{
-    INVALID_INPUT_LENGTH_ERROR_FELT,
-    OUT_OF_GAS_ERROR_FELT,
+    INVALID_INPUT_LENGTH_ERROR_FELT, OUT_OF_GAS_ERROR_FELT,
 };
 use crate::execution::syscalls::syscall_base::KECCAK_FULL_RATE_IN_WORDS;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallBaseResult, SyscallExecutorBaseError};

@@ -2,7 +2,7 @@ use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
 use apollo_metrics::metrics::{MetricGauge, MetricScope};
 use rstest::rstest;
 
-use crate::query_builder::{increase, sum_by_label, DisplayMethod};
+use crate::query_builder::{DisplayMethod, increase, sum_by_label};
 
 #[test]
 fn increase_formats_correctly() {

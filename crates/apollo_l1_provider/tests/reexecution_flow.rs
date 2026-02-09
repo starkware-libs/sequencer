@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider::L1ProviderConfig;
+use apollo_l1_provider::l1_provider::L1Provider;
 use apollo_l1_provider_types::{MockL1ProviderClient, ProviderState};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::test_utils::FakeClock;

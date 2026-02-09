@@ -8,17 +8,14 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use ethnum::U256;
 use num_bigint::{BigInt, Sign};
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::BASE;
 use crate::test_utils::cairo_runner::{
+    Cairo0EntryPointRunnerResult, EndpointArg, EntryPointRunnerConfig, ImplicitArg,
     initialize_and_run_cairo_0_entry_point,
-    Cairo0EntryPointRunnerResult,
-    EndpointArg,
-    EntryPointRunnerConfig,
-    ImplicitArg,
 };
 
 #[allow(clippy::too_many_arguments)]

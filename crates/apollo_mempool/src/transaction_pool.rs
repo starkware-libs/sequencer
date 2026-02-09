@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{hash_map, BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, hash_map};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,8 +13,7 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
 use crate::metrics::{
-    TRANSACTION_TIME_SPENT_UNTIL_BATCHED,
-    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
+    TRANSACTION_TIME_SPENT_UNTIL_BATCHED, TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 use crate::utils::try_increment_nonce;
 

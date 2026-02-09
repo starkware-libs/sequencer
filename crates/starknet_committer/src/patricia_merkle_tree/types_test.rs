@@ -3,7 +3,7 @@ use starknet_api::core::ContractAddress;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 
-use crate::block_committer::input::{contract_address_into_node_index, StarknetStorageKey};
+use crate::block_committer::input::{StarknetStorageKey, contract_address_into_node_index};
 use crate::patricia_merkle_tree::types::fixed_hex_string_no_prefix;
 
 #[rstest]

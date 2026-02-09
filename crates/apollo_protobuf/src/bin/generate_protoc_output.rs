@@ -3,10 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use apollo_protobuf::regression_test_utils::{
-    generate_protos,
-    PROTOC_OUTPUT,
-    PROTO_DIR,
-    PROTO_FILES,
+    PROTO_DIR, PROTO_FILES, PROTOC_OUTPUT, generate_protos,
 };
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 

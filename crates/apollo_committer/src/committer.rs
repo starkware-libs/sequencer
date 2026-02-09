@@ -5,13 +5,10 @@ use std::path::PathBuf;
 
 use apollo_committer_config::config::{ApolloStorage, CommitterConfig};
 use apollo_committer_types::committer_types::{
-    CommitBlockRequest,
-    CommitBlockResponse,
-    RevertBlockRequest,
-    RevertBlockResponse,
+    CommitBlockRequest, CommitBlockResponse, RevertBlockRequest, RevertBlockResponse,
 };
 use apollo_committer_types::errors::{CommitterError, CommitterResult};
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_infra::component_definitions::{ComponentStarter, default_component_start_fn};
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
@@ -21,24 +18,15 @@ use starknet_api::state::ThinStateDiff;
 use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
-    Action,
-    BlockDurations,
-    BlockMeasurement,
-    BlockModificationsCounts,
-    MeasurementsTrait,
+    Action, BlockDurations, BlockMeasurement, BlockModificationsCounts, MeasurementsTrait,
     SingleBlockMeasurements,
 };
 use starknet_committer::db::forest_trait::{
-    EmptyInitialReadContext,
-    ForestMetadataType,
-    ForestReader,
-    ForestStorageWithEmptyReadContext,
+    EmptyInitialReadContext, ForestMetadataType, ForestReader, ForestStorageWithEmptyReadContext,
 };
 use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::db::serde_db_utils::{
-    deserialize_felt_no_packing,
-    serialize_felt_no_packing,
-    DbBlockNumber,
+    DbBlockNumber, deserialize_felt_no_packing, serialize_felt_no_packing,
 };
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
@@ -48,20 +36,11 @@ use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::{debug, error, info, warn};
 
 use crate::metrics::{
-    register_metrics,
-    AVERAGE_COMPUTE_RATE,
-    AVERAGE_READ_RATE,
-    AVERAGE_WRITE_RATE,
-    COMPUTE_DURATION_PER_BLOCK,
-    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
-    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
-    COUNT_EMPTIED_LEAVES_PER_BLOCK,
-    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
-    EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
-    OFFSET,
-    READ_DURATION_PER_BLOCK,
-    TOTAL_BLOCK_DURATION,
-    WRITE_DURATION_PER_BLOCK,
+    AVERAGE_COMPUTE_RATE, AVERAGE_READ_RATE, AVERAGE_WRITE_RATE, COMPUTE_DURATION_PER_BLOCK,
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK, COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_EMPTIED_LEAVES_PER_BLOCK, COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
+    EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK, OFFSET, READ_DURATION_PER_BLOCK, TOTAL_BLOCK_DURATION,
+    WRITE_DURATION_PER_BLOCK, register_metrics,
 };
 
 #[cfg(test)]

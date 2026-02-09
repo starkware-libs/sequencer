@@ -2,36 +2,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use aerospike::{
-    as_bin,
-    operations,
-    BatchOperation,
-    BatchPolicy,
-    BatchReadPolicy,
-    BatchWritePolicy,
-    Bin,
-    Bins,
-    Client,
-    ClientPolicy,
-    CommitLevel,
-    Error as AerospikeError,
-    Host,
-    Key,
-    ReadPolicy,
-    Record,
-    Result as AerospikeResult,
-    ResultCode,
-    Value,
-    WritePolicy,
+    BatchOperation, BatchPolicy, BatchReadPolicy, BatchWritePolicy, Bin, Bins, Client,
+    ClientPolicy, CommitLevel, Error as AerospikeError, Host, Key, ReadPolicy, Record,
+    Result as AerospikeResult, ResultCode, Value, WritePolicy, as_bin, operations,
 };
 
 use crate::storage_trait::{
-    AsyncStorage,
-    DbHashMap,
-    DbKey,
-    DbValue,
-    EmptyStorageConfig,
-    NoStats,
-    PatriciaStorageResult,
+    AsyncStorage, DbHashMap, DbKey, DbValue, EmptyStorageConfig, NoStats, PatriciaStorageResult,
     Storage,
 };
 

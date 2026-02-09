@@ -2,7 +2,7 @@
 use std::fmt::Debug;
 
 use apollo_storage::consensus::{ConsensusStorageReader, ConsensusStorageWriter, LastVotedMarker};
-use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageWriter};
+use apollo_storage::{StorageConfig, StorageReader, StorageWriter, open_storage};
 use starknet_api::block::BlockNumber;
 
 #[cfg(test)]

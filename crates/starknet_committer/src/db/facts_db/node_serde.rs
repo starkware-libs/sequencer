@@ -2,22 +2,14 @@ use ethnum::U256;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::{
-    DEFAULT_DB_KEY_SEPARATOR,
-    DEFAULT_PATRICIA_NODE_PREFIX,
+    DEFAULT_DB_KEY_SEPARATOR, DEFAULT_PATRICIA_NODE_PREFIX,
 };
 use starknet_patricia_storage::db_object::{
-    DBObject,
-    EmptyDeserializationContext,
-    HasDynamicPrefix,
-    HasStaticPrefix,
+    DBObject, EmptyDeserializationContext, HasDynamicPrefix, HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
 use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};

@@ -4,24 +4,17 @@ use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use assert_matches::assert_matches;
-use jsonrpsee::core::client::{ClientT, Error};
 use jsonrpsee::core::RpcResult;
+use jsonrpsee::core::client::{ClientT, Error};
 use jsonrpsee::http_client::HttpClientBuilder;
 use jsonrpsee::types::ErrorObjectOwned;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockStatus,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockStatus,
 };
 
 use crate::test_utils::{
-    get_test_highest_block,
-    get_test_pending_classes,
-    get_test_pending_data,
-    get_test_rpc_config,
+    get_test_highest_block, get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
 };
 use crate::{get_block_status, run_server};
 

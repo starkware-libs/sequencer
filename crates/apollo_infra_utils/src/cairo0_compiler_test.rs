@@ -1,11 +1,8 @@
 use std::path::PathBuf;
 
 use crate::cairo0_compiler::{
-    CairoLangVersion,
-    EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION,
-    EXPECTED_CAIRO0_VERSION,
-    PIP_REQUIREMENTS_FILE,
-    STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE,
+    CairoLangVersion, EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION, EXPECTED_CAIRO0_VERSION,
+    PIP_REQUIREMENTS_FILE, STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE,
 };
 
 fn get_cairo_lang_version_from_requirements(path_to_requirements: &PathBuf) -> String {

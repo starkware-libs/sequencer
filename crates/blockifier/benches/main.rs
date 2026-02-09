@@ -15,9 +15,7 @@ use std::sync::Arc;
 use apollo_infra_utils::set_global_allocator;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use blockifier::blockifier::config::{
-    ConcurrencyConfig,
-    TransactionExecutorConfig,
-    WorkerPoolConfig,
+    ConcurrencyConfig, TransactionExecutorConfig, WorkerPoolConfig,
 };
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::concurrency::worker_pool::WorkerPool;
@@ -25,17 +23,14 @@ use blockifier::context::BlockContext;
 use blockifier::state::cached_state::CachedState;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::transfers_generator::{
-    ExecutorWrapper,
-    RecipientGeneratorType,
-    TransfersGenerator,
-    TransfersGeneratorConfig,
+    ExecutorWrapper, RecipientGeneratorType, TransfersGenerator, TransfersGeneratorConfig,
 };
 use blockifier::transaction::account_transaction::AccountTransaction;
-use blockifier::transaction::test_utils::{create_test_init_data, TestInitData};
+use blockifier::transaction::test_utils::{TestInitData, create_test_init_data};
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use starknet_api::invoke_tx_args;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::TransactionVersion;

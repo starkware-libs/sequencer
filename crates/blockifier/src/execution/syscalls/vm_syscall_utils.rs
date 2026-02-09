@@ -9,35 +9,27 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use serde::Serialize;
+use starknet_api::StarknetApiError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::abi::sierra_types::SierraTypeError;
 use crate::blockifier_versioned_constants::{EventLimits, GasCostsError, VersionedConstants};
 use crate::execution::call_info::MessageToL1;
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutorBaseError;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
+use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutorBaseError;
 use crate::execution::execution_utils::{
-    felt_from_ptr,
-    write_felt,
-    write_maybe_relocatable,
-    ReadOnlySegment,
+    ReadOnlySegment, felt_from_ptr, write_felt, write_maybe_relocatable,
 };
 use crate::execution::syscalls::hint_processor::{
-    felt_to_bool,
-    read_call_params,
-    read_calldata,
-    read_felt_array,
-    write_segment,
-    EmitEventError,
-    OUT_OF_GAS_ERROR_FELT,
+    EmitEventError, OUT_OF_GAS_ERROR_FELT, felt_to_bool, read_call_params, read_calldata,
+    read_felt_array, write_segment,
 };
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::utils::u64_from_usize;

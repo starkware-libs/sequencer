@@ -1,7 +1,7 @@
 use apollo_storage::StorageError;
+use starknet_api::StarknetApiError;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
-use starknet_api::StarknetApiError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CommitmentManagerError {

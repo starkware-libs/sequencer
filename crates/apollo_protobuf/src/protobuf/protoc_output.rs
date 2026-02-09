@@ -376,17 +376,7 @@ pub struct Vote {
 }
 /// Nested message and enum types in `Vote`.
 pub mod vote {
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum VoteType {
         Prevote = 0,
@@ -524,17 +514,7 @@ pub struct Iteration {
 }
 /// Nested message and enum types in `Iteration`.
 pub mod iteration {
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum Direction {
         Forward = 0,
@@ -747,9 +727,7 @@ pub struct TransactionsRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TransactionsResponse {
     #[prost(oneof = "transactions_response::TransactionMessage", tags = "1, 2")]
-    pub transaction_message: ::core::option::Option<
-        transactions_response::TransactionMessage,
-    >,
+    pub transaction_message: ::core::option::Option<transactions_response::TransactionMessage>,
 }
 /// Nested message and enum types in `TransactionsResponse`.
 pub mod transactions_response {
@@ -776,10 +754,7 @@ pub struct TransactionWithReceipt {
 pub struct TransactionInBlock {
     #[prost(message, optional, tag = "12")]
     pub transaction_hash: ::core::option::Option<Hash>,
-    #[prost(
-        oneof = "transaction_in_block::Txn",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"
-    )]
+    #[prost(oneof = "transaction_in_block::Txn", tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11")]
     pub txn: ::core::option::Option<transaction_in_block::Txn>,
 }
 /// Nested message and enum types in `TransactionInBlock`.
@@ -1209,9 +1184,7 @@ pub struct StateDiffsRequest {
 pub struct StateDiffsResponse {
     /// All of the messages related to a block need to be sent before a message from the next block is sent.
     #[prost(oneof = "state_diffs_response::StateDiffMessage", tags = "1, 2, 3")]
-    pub state_diff_message: ::core::option::Option<
-        state_diffs_response::StateDiffMessage,
-    >,
+    pub state_diff_message: ::core::option::Option<state_diffs_response::StateDiffMessage>,
 }
 /// Nested message and enum types in `StateDiffsResponse`.
 pub mod state_diffs_response {

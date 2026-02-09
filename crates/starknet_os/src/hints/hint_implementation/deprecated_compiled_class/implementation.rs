@@ -13,7 +13,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
+use crate::vm_utils::{LoadCairoObject, get_address_of_nested_fields};
 
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,

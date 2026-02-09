@@ -2,9 +2,7 @@ use apollo_class_manager_types::transaction_converter::TransactionConverterError
 use apollo_class_manager_types::{ClassManagerClientError, ClassManagerError};
 use apollo_gateway_config::compiler_version::{VersionId, VersionIdError};
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_gateway_types::gateway_types::SUPPORTED_TRANSACTION_VERSIONS;
@@ -13,11 +11,11 @@ use apollo_mempool_types::errors::MempoolError;
 use blockifier::state::errors::StateError;
 use reqwest::StatusCode;
 use serde_json::{Error as SerdeError, Value};
+use starknet_api::StarknetApiError;
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{AllResourceBounds, TransactionSignature};
-use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tracing::{debug, error, warn};
 

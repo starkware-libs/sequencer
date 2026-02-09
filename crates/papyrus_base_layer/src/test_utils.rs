@@ -1,14 +1,12 @@
 use alloy::network::TransactionBuilder;
-use alloy::primitives::{address as ethereum_address, U256};
+use alloy::primitives::{U256, address as ethereum_address};
 use alloy::providers::Provider;
 use alloy::rpc::types::TransactionRequest;
 use starknet_api::hash::StarkHash;
 use tracing::debug;
 
 use crate::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    EthereumContractAddress,
+    EthereumBaseLayerConfig, EthereumBaseLayerContract, EthereumContractAddress,
 };
 
 // This address is commonly used as the L1 address of the Starknet core contract.

@@ -3,7 +3,7 @@ use std::io;
 use std::path::Path;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -18,7 +18,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::define_versioned_constants;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
+use starknet_api::transaction::fields::{GasVectorComputationMode, Tip, hex_to_tip};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
 use thiserror::Error;

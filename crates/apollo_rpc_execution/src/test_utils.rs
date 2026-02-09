@@ -12,30 +12,19 @@ use lazy_static::lazy_static;
 use serde::de::DeserializeOwned;
 use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::{
-    BlockBody,
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
+    BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp,
+    GasPrice, GasPricePerToken,
 };
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::SierraVersion;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
-    DeclareTransactionV0V1,
-    DeclareTransactionV2,
-    DeployAccountTransaction,
-    DeployAccountTransactionV1,
-    InvokeTransaction,
-    InvokeTransactionV1,
-    TransactionHash,
+    DeclareTransactionV0V1, DeclareTransactionV2, DeployAccountTransaction,
+    DeployAccountTransactionV1, InvokeTransaction, InvokeTransactionV1, TransactionHash,
 };
 use starknet_api::{calldata, class_hash, compiled_class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
@@ -43,7 +32,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution_utils::selector_from_name;
 use crate::objects::{PendingData, TransactionSimulationOutput};
 use crate::testing_instances::get_test_execution_config;
-use crate::{simulate_transactions, ExecutableTransactionInput, OnlyQuery, SierraSize};
+use crate::{ExecutableTransactionInput, OnlyQuery, SierraSize, simulate_transactions};
 
 lazy_static! {
     pub static ref CHAIN_ID: ChainId = ChainId::Other(String::from("TEST_CHAIN_ID"));

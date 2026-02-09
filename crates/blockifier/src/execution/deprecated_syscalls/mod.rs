@@ -1,8 +1,7 @@
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use deprecated_syscall_executor::{
-    DeprecatedSyscallExecutorBaseError,
-    DeprecatedSyscallExecutorBaseResult,
+    DeprecatedSyscallExecutorBaseError, DeprecatedSyscallExecutorBaseResult,
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
@@ -14,18 +13,11 @@ use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use self::hint_processor::{
-    felt_to_bool,
-    read_call_params,
-    read_calldata,
-    read_felt_array,
-    DeprecatedSyscallExecutionError,
+    DeprecatedSyscallExecutionError, felt_to_bool, read_call_params, read_calldata, read_felt_array,
 };
 use crate::execution::call_info::MessageToL1;
 use crate::execution::execution_utils::{
-    felt_from_ptr,
-    write_felt,
-    write_maybe_relocatable,
-    ReadOnlySegment,
+    ReadOnlySegment, felt_from_ptr, write_felt, write_maybe_relocatable,
 };
 
 pub mod deprecated_syscall_executor;

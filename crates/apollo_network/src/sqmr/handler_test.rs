@@ -1,18 +1,15 @@
 use std::collections::HashSet;
 use std::io;
 use std::pin::Pin;
-use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
 use assert_matches::assert_matches;
 use futures::task::{Context, Poll};
-use futures::{select, AsyncReadExt, AsyncWriteExt, FutureExt, Stream as StreamTrait, StreamExt};
+use futures::{AsyncReadExt, AsyncWriteExt, FutureExt, Stream as StreamTrait, StreamExt, select};
 use lazy_static::lazy_static;
 use libp2p::swarm::handler::{
-    ConnectionEvent,
-    DialUpgradeError,
-    FullyNegotiatedInbound,
-    FullyNegotiatedOutbound,
+    ConnectionEvent, DialUpgradeError, FullyNegotiatedInbound, FullyNegotiatedOutbound,
 };
 use libp2p::swarm::{ConnectionHandler, ConnectionHandlerEvent, Stream, StreamUpgradeError};
 use libp2p::{PeerId, StreamProtocol};
@@ -20,15 +17,11 @@ use libp2p::{PeerId, StreamProtocol};
 use super::super::messages::{read_message, write_message};
 use super::super::{Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
 use super::{
-    Handler,
-    HandlerEvent,
-    RequestFromBehaviourEvent,
-    RequestToBehaviourEvent,
-    SessionError,
+    Handler, HandlerEvent, RequestFromBehaviourEvent, RequestToBehaviourEvent, SessionError,
 };
+use crate::Bytes;
 use crate::sqmr::handler;
 use crate::test_utils::{dummy_data, get_connected_streams};
-use crate::Bytes;
 
 impl Unpin for Handler {}
 

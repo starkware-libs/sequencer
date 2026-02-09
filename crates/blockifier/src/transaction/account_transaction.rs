@@ -10,16 +10,10 @@ use starknet_api::executable_transaction::{AccountTransaction as Transaction, Tr
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, Fee, PaymasterData, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
-use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
+use starknet_api::transaction::{TransactionHash, TransactionVersion, constants};
 use starknet_types_core::felt::Felt;
 
 use super::errors::ResourceBoundsError;
@@ -28,22 +22,15 @@ use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    CallType,
-    EntryPointExecutionContext,
-    SierraGasRevertTracker,
+    CallEntryPoint, CallType, EntryPointExecutionContext, SierraGasRevertTracker,
 };
 use crate::execution::stack_trace::{
-    extract_trailing_cairo1_revert_trace,
-    gen_tx_execution_error_trace,
-    Cairo1RevertHeader,
+    Cairo1RevertHeader, extract_trailing_cairo1_revert_trace, gen_tx_execution_error_trace,
 };
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
-    get_fee_by_gas_vector,
-    get_sequencer_balance_keys,
+    GasVectorToL1GasForFee, get_fee_by_gas_vector, get_sequencer_balance_keys,
     verify_can_pay_committed_bounds,
-    GasVectorToL1GasForFee,
 };
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
@@ -51,25 +38,15 @@ use crate::retdata;
 use crate::state::cached_state::{StateCache, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::transaction::errors::{
-    TransactionExecutionError,
-    TransactionFeeError,
-    TransactionPreValidationError,
+    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
 };
 use crate::transaction::objects::{
-    HasRelatedFeeType,
-    RevertError,
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfo,
-    TransactionInfoCreator,
-    TransactionInfoCreatorInner,
+    HasRelatedFeeType, RevertError, TransactionExecutionInfo, TransactionExecutionResult,
+    TransactionInfo, TransactionInfoCreator, TransactionInfoCreatorInner,
     TransactionPreValidationResult,
 };
 use crate::transaction::transactions::{
-    enforce_fee,
-    Executable,
-    ExecutableTransaction,
-    ValidatableTransaction,
+    Executable, ExecutableTransaction, ValidatableTransaction, enforce_fee,
 };
 
 #[cfg(test)]

@@ -2,26 +2,19 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
-    ProposalCommitment,
-    ProposalId,
-    ProposalStatus,
-    SendProposalContent,
-    SendProposalContentInput,
+    ProposalCommitment, ProposalId, ProposalStatus, SendProposalContent, SendProposalContentInput,
     SendProposalContentResponse,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
-    ProposalCommitment as ConsensusProposalCommitment,
-    ProposalFin,
-    ProposalPart,
-    TransactionBatch,
+    ConsensusBlockInfo, ProposalCommitment as ConsensusProposalCommitment, ProposalFin,
+    ProposalPart, TransactionBatch,
 };
 use assert_matches::assert_matches;
-use futures::channel::mpsc;
 use futures::SinkExt;
+use futures::channel::mpsc;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::StateDiffCommitment;
@@ -34,21 +27,13 @@ use tokio_util::sync::CancellationToken;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
-    block_info,
+    CHANNEL_SIZE, SetupDepsArgs, TIMEOUT, TX_BATCH, TestDeps, block_info,
     create_test_and_network_deps,
-    SetupDepsArgs,
-    TestDeps,
-    CHANNEL_SIZE,
-    TIMEOUT,
-    TX_BATCH,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams};
+use crate::utils::{GasPriceParams, make_gas_price_params};
 use crate::validate_proposal::{
-    validate_proposal,
+    BlockInfoValidation, ProposalValidateArguments, ValidateProposalError, validate_proposal,
     within_margin,
-    BlockInfoValidation,
-    ProposalValidateArguments,
-    ValidateProposalError,
 };
 
 struct TestProposalValidateArguments {

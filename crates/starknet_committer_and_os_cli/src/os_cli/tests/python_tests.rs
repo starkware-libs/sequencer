@@ -2,7 +2,7 @@ use starknet_os::test_utils::errors::OsSpecificTestError;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
-use crate::os_cli::commands::{validate_os_input, AggregatorCliInput, OsCliInput};
+use crate::os_cli::commands::{AggregatorCliInput, OsCliInput, validate_os_input};
 use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult};
 use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
 

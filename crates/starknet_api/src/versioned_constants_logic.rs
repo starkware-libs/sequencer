@@ -6,11 +6,7 @@ use std::path::Path;
 use expect_test::expect_file;
 #[cfg(any(test, feature = "testing"))]
 use json_patch::{
-    diff as json_diff,
-    AddOperation,
-    PatchOperation,
-    RemoveOperation,
-    ReplaceOperation,
+    AddOperation, PatchOperation, RemoveOperation, ReplaceOperation, diff as json_diff,
 };
 #[cfg(any(test, feature = "testing"))]
 use serde_json::Value;

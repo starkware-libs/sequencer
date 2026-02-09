@@ -10,9 +10,7 @@ use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 
 use crate::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterError,
-    TransactionConverterTrait,
+    TransactionConverter, TransactionConverterError, TransactionConverterTrait,
 };
 use crate::{ClassHashes, MockClassManagerClient};
 

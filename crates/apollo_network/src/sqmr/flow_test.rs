@@ -1,5 +1,5 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
 
@@ -13,7 +13,7 @@ use super::{Config, InboundSessionId, OutboundSessionId, SessionId};
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::create_fully_connected_swarms_stream;
 use crate::utils::StreamMap;
-use crate::{mixed_behaviour, peer_manager, Bytes};
+use crate::{Bytes, mixed_behaviour, peer_manager};
 
 const NUM_PEERS: usize = 3;
 const NUM_MESSAGES_PER_SESSION: usize = 5;

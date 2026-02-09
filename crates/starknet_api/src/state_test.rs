@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use serde_json::json;
 
 use crate::class_hash;

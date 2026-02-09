@@ -23,12 +23,10 @@ use apollo_storage::StorageConfig;
 use apollo_test_utils::send_request;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::context::ChainInfo;
-use futures::future::join_all;
 use futures::TryFutureExt;
+use futures::future::join_all;
 use mempool_test_utils::starknet_api_test_utils::{
-    contract_class,
-    AccountId,
-    MultiAccountTransactionGenerator,
+    AccountId, MultiAccountTransactionGenerator, contract_class,
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
@@ -39,44 +37,28 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::TransactionHash;
 use tokio::join;
-use tokio::time::{sleep, Instant};
+use tokio::time::{Instant, sleep};
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutableId};
 use crate::monitoring_utils::{
-    assert_no_reverted_txs,
-    await_batcher_block,
-    await_block,
-    await_sync_block,
-    await_txs_accepted,
-    get_consensus_decisions_reached,
-    sequencer_num_accepted_txs,
-    verify_txs_accepted,
+    assert_no_reverted_txs, await_batcher_block, await_block, await_sync_block, await_txs_accepted,
+    get_consensus_decisions_reached, sequencer_num_accepted_txs, verify_txs_accepted,
 };
 use crate::node_component_configs::{
-    create_consolidated_component_configs,
-    create_distributed_component_configs,
+    create_consolidated_component_configs, create_distributed_component_configs,
     create_hybrid_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::state_reader::StorageTestHandles;
-use crate::storage::{get_integration_test_storage, CustomPaths};
+use crate::storage::{CustomPaths, get_integration_test_storage};
 use crate::utils::{
-    create_consensus_manager_configs_from_network_configs,
-    create_integration_test_tx_generator,
-    create_mempool_p2p_configs,
-    create_node_config,
-    create_state_sync_configs,
-    send_consensus_txs,
-    send_message_to_l2_and_calculate_tx_hash,
-    set_validator_id,
-    spawn_local_eth_to_strk_oracle,
+    ConsensusTxs, DeclareTx, DeployAndInvokeTxs, TestScenario,
+    create_consensus_manager_configs_from_network_configs, create_integration_test_tx_generator,
+    create_mempool_p2p_configs, create_node_config, create_state_sync_configs, send_consensus_txs,
+    send_message_to_l2_and_calculate_tx_hash, set_validator_id, spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
-    ConsensusTxs,
-    DeclareTx,
-    DeployAndInvokeTxs,
-    TestScenario,
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;

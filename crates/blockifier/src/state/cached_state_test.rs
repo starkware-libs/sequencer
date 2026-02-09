@@ -9,22 +9,16 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::transaction::fields::{Fee, TransactionSignature, ValidResourceBounds};
 use starknet_api::{
-    class_hash,
-    compiled_class_hash,
-    contract_address,
-    felt,
-    invoke_tx_args,
-    nonce,
-    storage_key,
+    class_hash, compiled_class_hash, contract_address, felt, invoke_tx_args, nonce, storage_key,
 };
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::*;
+use crate::test_utils::BALANCE;
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::BALANCE;
-use crate::transaction::test_utils::{default_all_resource_bounds, run_invoke_tx, STORAGE_WRITE};
+use crate::transaction::test_utils::{STORAGE_WRITE, default_all_resource_bounds, run_invoke_tx};
 const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(

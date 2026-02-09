@@ -9,8 +9,8 @@ use crate::blockifier::block::pre_process_block;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::state::state_api::StateReader;
-use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
+use crate::test_utils::initial_test_state::test_state;
 
 #[test]
 fn test_pre_process_block() {

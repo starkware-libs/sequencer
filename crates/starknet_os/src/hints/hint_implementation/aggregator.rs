@@ -1,7 +1,5 @@
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
-    insert_value_into_ap,
+    get_ptr_from_var_name, insert_value_from_var_name, insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use starknet_types_core::felt::Felt;
@@ -13,7 +11,7 @@ use crate::hints::hint_implementation::aggregator_utils::FullOsOutputs;
 use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
-use crate::io::os_output::{wrap_missing, FullOsOutput, OsOutput};
+use crate::io::os_output::{FullOsOutput, OsOutput, wrap_missing};
 use crate::io::os_output_types::TryFromOutputIter;
 use crate::vm_utils::LoadIntoVmMemory;
 

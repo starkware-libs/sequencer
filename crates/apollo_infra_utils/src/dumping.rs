@@ -1,4 +1,4 @@
-use std::fs::{create_dir_all, File};
+use std::fs::{File, create_dir_all};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
@@ -7,7 +7,7 @@ use colored::Colorize;
 use serde::Serialize;
 use serde_json::to_writer_pretty;
 #[cfg(any(feature = "testing", test))]
-use serde_json::{from_reader, to_value, Value};
+use serde_json::{Value, from_reader, to_value};
 
 #[cfg(any(feature = "testing", test))]
 use crate::path::resolve_project_relative_path;

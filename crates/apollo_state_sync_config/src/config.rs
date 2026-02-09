@@ -3,15 +3,15 @@ use std::path::PathBuf;
 use std::result;
 
 use apollo_central_sync_config::config::{CentralSourceConfig, SyncConfig};
-use apollo_config::dumping::{prepend_sub_config_name, ser_optional_sub_config, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_optional_sub_config};
 use apollo_config::{ParamPath, SerializedParam};
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
 use apollo_rpc::RpcConfig;
+use apollo_storage::StorageConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::ServerConfig;
-use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 

@@ -5,18 +5,13 @@ use std::sync::{Arc, LazyLock};
 
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
-use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoint,
-    CasmContractEntryPoints,
-};
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass, CasmContractEntryPoint, CasmContractEntryPoints,
+};
 use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::serde::deserialize_program::{
-    ApTracking,
-    FlowTrackingData,
-    HintParams,
-    ReferenceManager,
+    ApTracking, FlowTrackingData, HintParams, ReferenceManager,
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -28,16 +23,12 @@ use num_bigint::BigUint;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::contract_class::compiled_class_hash::{
-    EntryPointHashable,
-    HashableCompiledClass,
-    HashableNestedIntList,
+    EntryPointHashable, HashableCompiledClass, HashableNestedIntList,
 };
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion, VersionedCasm};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointOffset,
-    EntryPointV0,
+    ContractClass as DeprecatedContractClass, EntryPointOffset, EntryPointV0,
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;
@@ -45,9 +36,7 @@ use starknet_types_core::hash::Blake2Felt252;
 
 use crate::abi::constants::{self};
 use crate::execution::casm_hash_estimation::{
-    CasmV1HashResourceEstimate,
-    CasmV2HashResourceEstimate,
-    EstimateCasmHashResources,
+    CasmV1HashResourceEstimate, CasmV2HashResourceEstimate, EstimateCasmHashResources,
     EstimatedExecutionResources,
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};

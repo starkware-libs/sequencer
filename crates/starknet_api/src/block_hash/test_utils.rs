@@ -8,10 +8,7 @@ use crate::execution_resources::{GasAmount, GasVector};
 use crate::state::ThinStateDiff;
 use crate::transaction::fields::Fee;
 use crate::transaction::{
-    L2ToL1Payload,
-    MessageToL1,
-    RevertedTransactionExecutionStatus,
-    TransactionExecutionStatus,
+    L2ToL1Payload, MessageToL1, RevertedTransactionExecutionStatus, TransactionExecutionStatus,
 };
 
 pub(crate) fn get_transaction_output() -> TransactionOutputForHash {

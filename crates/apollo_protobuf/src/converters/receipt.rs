@@ -4,21 +4,14 @@ use starknet_api::core::{ContractAddress, EthAddress, PatriciaKey};
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
-    DeclareTransactionOutput,
-    DeployAccountTransactionOutput,
-    DeployTransactionOutput,
-    InvokeTransactionOutput,
-    L1HandlerTransactionOutput,
-    L2ToL1Payload,
-    MessageToL1,
-    RevertedTransactionExecutionStatus,
-    TransactionExecutionStatus,
-    TransactionOutput,
+    DeclareTransactionOutput, DeployAccountTransactionOutput, DeployTransactionOutput,
+    InvokeTransactionOutput, L1HandlerTransactionOutput, L2ToL1Payload, MessageToL1,
+    RevertedTransactionExecutionStatus, TransactionExecutionStatus, TransactionOutput,
 };
 use starknet_types_core::felt::Felt;
 
-use super::common::{missing, try_from_starkfelt_to_u128};
 use super::ProtobufConversionError;
+use super::common::{missing, try_from_starkfelt_to_u128};
 use crate::protobuf;
 
 impl TryFrom<protobuf::Receipt> for TransactionOutput {

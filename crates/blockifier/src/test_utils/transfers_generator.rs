@@ -10,26 +10,24 @@ use starknet_api::block::BlockInfo;
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
 use starknet_api::execution_resources::GasVector;
-use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::invoke::executable_invoke_tx;
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
-use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 
 use crate::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::{
-    BlockExecutionSummary,
-    TransactionExecutor,
-    DEFAULT_STACK_SIZE,
+    BlockExecutionSummary, DEFAULT_STACK_SIZE, TransactionExecutor,
 };
 use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::CachedState;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{RunnableCairo1, BALANCE};
+use crate::test_utils::{BALANCE, RunnableCairo1};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;

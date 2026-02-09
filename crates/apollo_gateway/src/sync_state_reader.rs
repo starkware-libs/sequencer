@@ -1,23 +1,18 @@
 use std::future::Future;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_metrics::metrics::LossyIntoF64;
 use apollo_state_sync_types::communication::{
-    SharedStateSyncClient,
-    StateSyncClient,
-    StateSyncClientError,
-    StateSyncClientResult,
+    SharedStateSyncClient, StateSyncClient, StateSyncClientError, StateSyncClientResult,
 };
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
@@ -31,13 +26,10 @@ use starknet_types_core::felt::Felt;
 use tracing::{error, info};
 
 use crate::gateway_fixed_block_state_reader::{
-    GatewayFixedBlockStateReader,
-    GatewayFixedBlockSyncStateClient,
-    StarknetResult,
+    GatewayFixedBlockStateReader, GatewayFixedBlockSyncStateClient, StarknetResult,
 };
 use crate::metrics::{
-    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
-    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
+    GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS, GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME,
 };
 use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 

@@ -17,14 +17,10 @@ use serde::{Deserialize, Serialize};
 use starknet_api::compression_utils::compress_and_encode;
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-};
 use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::fields::{
+    AccountDeploymentData, Fee, PaymasterData, Tip, TransactionSignature,
+};
 
 use super::state::ContractClass;
 use super::transaction::{DeployAccountTransaction, InvokeTransaction, ResourceBoundsMapping};

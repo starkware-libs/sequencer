@@ -4,7 +4,7 @@ use apollo_deployments::deployments::distributed::DISTRIBUTED_NODE_REQUIRED_PORT
 use apollo_deployments::deployments::hybrid::HYBRID_NODE_REQUIRED_PORTS_NUM;
 use apollo_deployments::service::{NodeService, NodeType};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
-use apollo_node_config::component_config::{set_urls_to_localhost, ComponentConfig};
+use apollo_node_config::component_config::{ComponentConfig, set_urls_to_localhost};
 
 pub type NodeComponentConfigs = HashMap<NodeService, ComponentConfig>;
 

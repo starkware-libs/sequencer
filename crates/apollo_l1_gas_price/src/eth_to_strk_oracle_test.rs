@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::UrlAndHeaders;
-use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
+use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use mockito::{Mock, ServerGuard};
 use serde_json::json;
 use tokio::{self};

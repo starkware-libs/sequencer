@@ -9,24 +9,18 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, Nonce, calculate_contract_address,
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::executable_transaction::{
-    AccountTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
+    AccountTransaction, DeployAccountTransaction, InvokeTransaction,
     Transaction as StarknetAPITransaction,
 };
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_api::state::{ContractClassComponentHashes, SierraContractClass};
 use starknet_api::test_utils::deploy_account::deploy_account_tx;
 use starknet_api::test_utils::invoke::invoke_tx;
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER};
+use starknet_api::test_utils::{CHAIN_ID_FOR_TESTS, CURRENT_BLOCK_NUMBER, NonceManager};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
@@ -38,20 +32,14 @@ use starknet_types_core::felt::Felt;
 
 use crate::state_trait::FlowTestState;
 use crate::test_manager::{
+    EXPECTED_STRK_FEE_TOKEN_ADDRESS, FUNDED_ACCOUNT_ADDRESS, STRK_FEE_TOKEN_ADDRESS,
     block_context_for_flow_tests,
-    EXPECTED_STRK_FEE_TOKEN_ADDRESS,
-    FUNDED_ACCOUNT_ADDRESS,
-    STRK_FEE_TOKEN_ADDRESS,
 };
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
-    commit_state_diff,
-    create_cairo1_bootstrap_declare_tx,
-    create_committer_state_diff,
-    create_declare_tx,
-    execute_transactions,
+    ExecutionOutput, commit_state_diff, create_cairo1_bootstrap_declare_tx,
+    create_committer_state_diff, create_declare_tx, execute_transactions,
     get_class_hash_of_feature_contract,
-    ExecutionOutput,
 };
 
 const INITIAL_TOKEN_SUPPLY: u128 = 10_000_000_000_000_000_000_000_000_000_000_000;

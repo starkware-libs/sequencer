@@ -1,10 +1,8 @@
-use libp2p::identity::Keypair;
 use libp2p::PeerId;
+use libp2p::identity::Keypair;
 
 use crate::signature::{
-    sign_message_id,
-    try_extract_public_key_from_peer_id,
-    validate_public_key_matches_peer_id,
+    sign_message_id, try_extract_public_key_from_peer_id, validate_public_key_matches_peer_id,
     verify_message_id_signature,
 };
 use crate::types::MessageRoot;

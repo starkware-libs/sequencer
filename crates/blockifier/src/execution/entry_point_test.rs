@@ -15,14 +15,14 @@ use starknet_api::{calldata, felt, storage_key};
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo};
-use crate::execution::entry_point::{call_view_entry_point, CallEntryPoint};
+use crate::execution::entry_point::{CallEntryPoint, call_view_entry_point};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR_FELT;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
+use crate::test_utils::{BALANCE, trivial_external_entry_point_new};
 
 #[test]
 fn test_call_info_iteration() {

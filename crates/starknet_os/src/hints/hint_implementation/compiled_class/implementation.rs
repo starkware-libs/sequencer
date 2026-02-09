@@ -4,9 +4,7 @@ use std::vec::IntoIter;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
+    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
@@ -19,17 +17,13 @@ use super::utils::BytecodeSegment;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::compiled_class::utils::{
-    create_bytecode_segment_structure,
-    BytecodeSegmentNode,
-    CompiledClassFact,
+    BytecodeSegmentNode, CompiledClassFact, create_bytecode_segment_structure,
 };
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
-    get_address_of_nested_fields,
+    CairoSized, LoadCairoObject, get_address_of_nested_fields,
     get_address_of_nested_fields_from_base_address,
-    CairoSized,
-    LoadCairoObject,
 };
 
 pub(crate) fn assign_bytecode_segments(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {

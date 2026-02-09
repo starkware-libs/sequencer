@@ -7,11 +7,9 @@ use apollo_storage::db::RO;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageReader, StorageTxn};
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
-use blockifier::state::errors::{couple_casm_and_sierra, StateError};
+use blockifier::state::errors::{StateError, couple_casm_and_sierra};
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;

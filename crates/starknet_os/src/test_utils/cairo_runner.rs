@@ -21,10 +21,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::OsBlockInput;
 use crate::test_utils::errors::{
-    BuiltinMismatchError,
-    Cairo0EntryPointRunnerError,
-    ExplicitArgError,
-    ImplicitArgError,
+    BuiltinMismatchError, Cairo0EntryPointRunnerError, ExplicitArgError, ImplicitArgError,
     LoadReturnValueError,
 };
 

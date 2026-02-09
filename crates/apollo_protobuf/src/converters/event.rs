@@ -6,8 +6,8 @@ use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::transaction::{Event, EventContent, EventData, EventKey, TransactionHash};
 use starknet_types_core::felt::Felt;
 
-use super::common::missing;
 use super::ProtobufConversionError;
+use super::common::missing;
 use crate::sync::{DataOrFin, EventQuery, Query};
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 

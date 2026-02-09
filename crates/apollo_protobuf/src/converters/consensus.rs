@@ -10,21 +10,11 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
 
 use super::common::{
-    enum_int_to_l1_data_availability_mode,
-    l1_data_availability_mode_to_enum_int,
-    missing,
+    enum_int_to_l1_data_availability_mode, l1_data_availability_mode_to_enum_int, missing,
 };
 use crate::consensus::{
-    ConsensusBlockInfo,
-    IntoFromProto,
-    ProposalCommitment,
-    ProposalFin,
-    ProposalPart,
-    StreamMessage,
-    StreamMessageBody,
-    TransactionBatch,
-    Vote,
-    VoteType,
+    ConsensusBlockInfo, IntoFromProto, ProposalCommitment, ProposalFin, ProposalPart,
+    StreamMessage, StreamMessageBody, TransactionBatch, Vote, VoteType,
 };
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};

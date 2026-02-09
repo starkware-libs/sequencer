@@ -9,10 +9,7 @@ use starknet_api::execution_resources::GasAmount;
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::bouncer::vm_resources_to_gas;
 use crate::execution::contract_class::{
-    EntryPointV1,
-    EntryPointsByType,
-    FeltSizeCount,
-    NestedFeltCounts,
+    EntryPointV1, EntryPointsByType, FeltSizeCount, NestedFeltCounts,
 };
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::utils::u64_from_usize;

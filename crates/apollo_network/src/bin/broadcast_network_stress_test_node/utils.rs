@@ -2,10 +2,10 @@ use std::collections::{BTreeMap, HashSet};
 use std::net::Ipv4Addr;
 use std::vec;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_network::utils::make_multiaddr;
 use apollo_network::NetworkConfig;
+use apollo_network::utils::make_multiaddr;
 use libp2p::identity::Keypair;
 use serde::{Deserialize, Serialize};
 

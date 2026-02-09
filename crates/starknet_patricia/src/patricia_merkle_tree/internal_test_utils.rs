@@ -4,15 +4,14 @@ use rstest::{fixture, rstest};
 use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 
-use crate::patricia_merkle_tree::external_test_utils::{get_random_u256, MockLeaf};
+use crate::patricia_merkle_tree::external_test_utils::{MockLeaf, get_random_u256};
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::SkeletonLeaf;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-    HashFunction,
-    TreeHashFunction,
+    HashFunction, TreeHashFunction,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;

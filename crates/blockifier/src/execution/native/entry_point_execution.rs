@@ -5,9 +5,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use crate::execution::call_info::{BuiltinCounterMap, CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
-    ExecutableCallEntryPoint,
+    EntryPointExecutionContext, EntryPointExecutionResult, ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;

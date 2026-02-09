@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
+    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
@@ -15,10 +13,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    EdgeData,
-    EdgePathLength,
-    PathToBottom,
-    Preimage,
+    EdgeData, EdgePathLength, PathToBottom, Preimage,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
@@ -26,25 +21,14 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::{
-    build_update_tree,
-    create_preimage_mapping,
-    patricia_guess_descents,
-    DecodeNodeCase,
-    DescentMap,
-    DescentStart,
-    InnerNode,
-    LayerIndex,
-    Path,
-    UpdateTree,
+    DecodeNodeCase, DescentMap, DescentStart, InnerNode, LayerIndex, Path, UpdateTree,
+    build_update_tree, create_preimage_mapping, patricia_guess_descents,
 };
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
-    get_address_of_nested_fields,
-    get_field_offset,
-    get_size_of_cairo_struct,
-    insert_value_to_nested_field,
-    insert_values_to_fields,
+    get_address_of_nested_fields, get_field_offset, get_size_of_cairo_struct,
+    insert_value_to_nested_field, insert_values_to_fields,
 };
 
 pub(crate) fn set_siblings(

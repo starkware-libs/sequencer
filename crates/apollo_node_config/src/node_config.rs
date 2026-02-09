@@ -7,15 +7,9 @@ use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
 use apollo_class_manager_config::config::FsClassManagerConfig;
 use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::dumping::{
-    generate_optional_struct_pointer,
-    generate_struct_pointer,
-    prepend_sub_config_name,
-    ser_optional_sub_config,
-    ser_pointer_target_param,
-    set_pointing_param_paths,
-    ConfigPointers,
-    Pointers,
-    SerializeConfig,
+    ConfigPointers, Pointers, SerializeConfig, generate_optional_struct_pointer,
+    generate_struct_pointer, prepend_sub_config_name, ser_optional_sub_config,
+    ser_pointer_target_param, set_pointing_param_paths,
 };
 use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
@@ -28,8 +22,7 @@ use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_gas_price_provider_config::config::{
-    L1GasPriceProviderConfig,
-    L1GasPriceScraperConfig,
+    L1GasPriceProviderConfig, L1GasPriceScraperConfig,
 };
 use apollo_l1_provider_config::config::L1ProviderConfig;
 use apollo_l1_scraper_config::config::L1ScraperConfig;
@@ -143,7 +136,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "The ID of the validator. \
                  Also the address of this validator as a starknet contract.",
             ),
-            set_pointing_param_paths(&["consensus_manager_config.consensus_manager_config.dynamic_config.validator_id"]),
+            set_pointing_param_paths(&[
+                "consensus_manager_config.consensus_manager_config.dynamic_config.validator_id",
+            ]),
         ),
         (
             ser_pointer_target_param(

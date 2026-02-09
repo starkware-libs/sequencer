@@ -2,23 +2,19 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
+use tokio::sync::mpsc::{Receiver, Sender, channel};
 use tokio::time::Instant;
 use tracing::{error, info, instrument, trace, warn};
 use validator::Validate;
 
 use crate::component_definitions::{
-    ComponentRequestHandler,
-    ComponentStarter,
-    PrioritizedRequest,
-    RequestId,
-    RequestPriority,
+    ComponentRequestHandler, ComponentStarter, PrioritizedRequest, RequestId, RequestPriority,
     RequestWrapper,
 };
 use crate::component_server::ComponentServerStarter;

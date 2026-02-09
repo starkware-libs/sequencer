@@ -1,7 +1,6 @@
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    insert_value_into_ap,
+    get_integer_from_var_name, insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::core::ContractAddress;

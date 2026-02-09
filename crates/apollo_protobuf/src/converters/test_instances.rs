@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, auto_impl_get_test_instance, get_number_of_variants};
 use prost::DecodeError;
 use rand::Rng;
 use starknet_api::block::{BlockNumber, GasPrice};
@@ -12,15 +12,8 @@ use starknet_api::hash::StarkHash;
 
 use super::ProtobufConversionError;
 use crate::consensus::{
-    ConsensusBlockInfo,
-    ProposalCommitment,
-    ProposalFin,
-    ProposalPart,
-    StreamMessage,
-    StreamMessageBody,
-    TransactionBatch,
-    Vote,
-    VoteType,
+    ConsensusBlockInfo, ProposalCommitment, ProposalFin, ProposalPart, StreamMessage,
+    StreamMessageBody, TransactionBatch, Vote, VoteType,
 };
 
 auto_impl_get_test_instance! {

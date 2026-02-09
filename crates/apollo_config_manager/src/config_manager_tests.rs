@@ -1,7 +1,7 @@
 use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_config_manager_config::config::ConfigManagerConfig;
-use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_config::ValidatorId;
+use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
 
 use crate::config_manager::ConfigManager;

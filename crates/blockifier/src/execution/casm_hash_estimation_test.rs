@@ -7,9 +7,7 @@ use rstest::rstest;
 use starknet_types_core::hash::Blake2Felt252;
 
 use crate::execution::casm_hash_estimation::{
-    CasmV2HashResourceEstimate,
-    EstimateCasmHashResources,
-    EstimatedExecutionResources,
+    CasmV2HashResourceEstimate, EstimateCasmHashResources, EstimatedExecutionResources,
 };
 use crate::execution::contract_class::FeltSizeCount;
 

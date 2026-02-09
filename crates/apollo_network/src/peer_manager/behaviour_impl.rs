@@ -1,14 +1,8 @@
-use std::task::{ready, Poll};
+use std::task::{Poll, ready};
 
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
-    dummy,
-    ConnectionClosed,
-    ConnectionId,
-    DialError,
-    DialFailure,
-    NetworkBehaviour,
-    ToSwarm,
+    ConnectionClosed, ConnectionId, DialError, DialFailure, NetworkBehaviour, ToSwarm, dummy,
 };
 use libp2p::{Multiaddr, PeerId};
 use tracing::{debug, error, warn};

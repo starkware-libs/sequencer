@@ -13,7 +13,7 @@ use crate::block_committer::input::StarknetStorageValue;
 use crate::db::facts_db::node_serde::FACT_LAYOUT_DB_KEY_SEPARATOR;
 use crate::db::serde_db_utils::{deserialize_felt_no_packing, serialize_felt_no_packing};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};
+use crate::patricia_merkle_tree::types::{CompiledClassHash, fixed_hex_string_no_prefix};
 
 #[derive(Clone, Debug)]
 pub enum CommitterLeafPrefix {

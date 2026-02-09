@@ -19,7 +19,7 @@ use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, Tr
 use crate::state::compiled_class_hash_migration::CompiledClassHashMigrationUpdater;
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
-use crate::state::stateful_compression::{allocate_aliases_in_storage, compress, CompressionError};
+use crate::state::stateful_compression::{CompressionError, allocate_aliases_in_storage, compress};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;

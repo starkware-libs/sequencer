@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::str::FromStr;
 
 use num_traits::Num;
-use regex::{escape, Regex};
+use regex::{Regex, escape};
 use tracing::info;
 
 // TODO(Tsabary): consider removing the logging and returning a `Result` instead of an `Option`; the

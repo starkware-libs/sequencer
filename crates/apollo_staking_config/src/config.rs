@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::de::Error as DeError;
 use serde::ser::Error as SerError;

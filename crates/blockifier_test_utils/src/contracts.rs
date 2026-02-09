@@ -6,15 +6,15 @@ use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use expect_test::expect;
-use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::SierraVersion;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts, LibfuncArg};
+use crate::cairo_compile::{CompilationArtifacts, LibfuncArg, cairo0_compile, cairo1_compile};
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
 
 pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo1";

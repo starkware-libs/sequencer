@@ -9,33 +9,26 @@ use std::time::Duration;
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
-use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
+use apollo_l1_gas_price_types::{DEFAULT_ETH_TO_FRI_RATE, L1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use futures::channel::mpsc;
 use futures::SinkExt;
+use futures::channel::mpsc;
 use num_rational::Ratio;
+use starknet_api::StarknetApiError;
 use starknet_api::block::{
-    BlockHashAndNumber,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    GasPriceVector,
-    GasPrices,
-    NonzeroGasPrice,
-    WEI_PER_ETH,
+    BlockHashAndNumber, BlockNumber, BlockTimestamp, GasPrice, GasPriceVector, GasPrices,
+    NonzeroGasPrice, WEI_PER_ETH,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::StarknetApiError;
 use tracing::{error, info, warn};
 
 use crate::metrics::{
-    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
-    CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC,
+    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC,
 };
 
 pub(crate) struct StreamSender {

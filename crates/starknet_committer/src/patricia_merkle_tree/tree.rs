@@ -9,19 +9,14 @@ use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::block_committer::input::{
-    contract_address_into_node_index,
+    StarknetStorageKey, StarknetStorageValue, contract_address_into_node_index,
     try_node_index_into_contract_address,
-    StarknetStorageKey,
-    StarknetStorageValue,
 };
 use crate::db::facts_db::traversal::fetch_patricia_paths;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{
+    CompiledClassHash, ContractsTrieProof, RootHashes, StarknetForestProofs,
     class_hash_into_node_index,
-    CompiledClassHash,
-    ContractsTrieProof,
-    RootHashes,
-    StarknetForestProofs,
 };
 
 #[derive(Clone, Default)]

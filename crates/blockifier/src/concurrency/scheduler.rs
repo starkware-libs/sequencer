@@ -2,8 +2,8 @@ use std::cmp::min;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, TryLockError};
 
-use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
+use dashmap::mapref::one::RefMut;
 
 use crate::concurrency::TxIndex;
 

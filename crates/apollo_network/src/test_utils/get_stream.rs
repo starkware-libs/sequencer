@@ -3,20 +3,13 @@ use std::task::{Context, Poll};
 
 use futures::future::BoxFuture;
 use futures::{AsyncRead, AsyncWrite, FutureExt};
+use libp2p::core::Endpoint;
 use libp2p::core::transport::PortUse;
 use libp2p::core::upgrade::{InboundUpgrade, OutboundUpgrade, UpgradeInfo};
-use libp2p::core::Endpoint;
 use libp2p::swarm::handler::{ConnectionEvent, FullyNegotiatedInbound, FullyNegotiatedOutbound};
 use libp2p::swarm::{
-    ConnectionDenied,
-    ConnectionHandler,
-    ConnectionHandlerEvent,
-    ConnectionId,
-    FromSwarm,
-    NetworkBehaviour,
-    Stream,
-    SubstreamProtocol,
-    ToSwarm,
+    ConnectionDenied, ConnectionHandler, ConnectionHandlerEvent, ConnectionId, FromSwarm,
+    NetworkBehaviour, Stream, SubstreamProtocol, ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
 

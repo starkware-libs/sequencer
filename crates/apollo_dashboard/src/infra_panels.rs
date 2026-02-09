@@ -1,17 +1,13 @@
 use std::fmt;
 
 use apollo_infra::metrics::{
-    InfraMetrics,
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
+    InfraMetrics, LocalClientMetrics, LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics,
 };
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::metrics::{LabeledMetricHistogram, MetricDetails, MetricQueryName};
 
 use crate::dashboard::Row;
-use crate::panel::{Panel, PanelType, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::panel::{HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE, Panel, PanelType};
 use crate::query_builder::increase;
 
 const INFRA_ROW_TITLE_SUFFIX: &str = "Infra";

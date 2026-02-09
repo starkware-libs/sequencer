@@ -3,10 +3,7 @@ use std::fmt::Debug;
 use std::future::Future;
 
 use starknet_patricia_storage::db_object::{
-    DBObject,
-    EmptyDeserializationContext,
-    EmptyKeyContext,
-    HasStaticPrefix,
+    DBObject, EmptyDeserializationContext, EmptyKeyContext, HasStaticPrefix,
 };
 use starknet_types_core::felt::Felt;
 

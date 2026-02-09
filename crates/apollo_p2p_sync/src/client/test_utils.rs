@@ -5,29 +5,22 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_network::network_manager::test_utils::{
-    mock_register_sqmr_protocol_client,
-    MockClientResponsesManager,
-};
 use apollo_network::network_manager::GenericReceiver;
+use apollo_network::network_manager::test_utils::{
+    MockClientResponsesManager, mock_register_sqmr_protocol_client,
+};
 use apollo_p2p_sync_config::config::P2pSyncClientConfig;
 use apollo_protobuf::sync::{
-    ClassQuery,
-    DataOrFin,
-    HeaderQuery,
-    Query,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
+    ClassQuery, DataOrFin, HeaderQuery, Query, SignedBlockHeader, StateDiffChunk, StateDiffQuery,
     TransactionQuery,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_storage::StorageReader;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::test_utils::get_test_storage;
-use apollo_storage::StorageReader;
 use apollo_test_utils::GetTestInstance;
 use futures::channel::mpsc;
 use futures::future::BoxFuture;
@@ -37,11 +30,7 @@ use papyrus_common::pending_classes::ApiContractClass;
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
 };
 use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;

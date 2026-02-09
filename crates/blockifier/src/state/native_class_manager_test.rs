@@ -1,5 +1,5 @@
-use std::sync::mpsc::{sync_channel, TrySendError};
 use std::sync::Arc;
+use std::sync::mpsc::{TrySendError, sync_channel};
 use std::thread::sleep;
 
 use apollo_compilation_utils::errors::CompilationUtilError;
@@ -11,19 +11,15 @@ use rstest::rstest;
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::ClassHash;
 
-use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
+use crate::blockifier::config::{
+    CairoNativeRunConfig, NativeClassesWhitelist, NativeExecutionMode,
+};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::global_cache::{
-    CachedCairoNative,
-    CompiledClasses,
-    RawClassCache,
-    GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+    CachedCairoNative, CompiledClasses, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST, RawClassCache,
 };
 use crate::state::native_class_manager::{
-    process_compilation_request,
-    CompilationRequest,
-    ContractClassManagerError,
-    NativeClassManager,
+    CompilationRequest, ContractClassManagerError, NativeClassManager, process_compilation_request,
 };
 use crate::test_utils::contracts::FeatureContractTrait;
 
@@ -63,17 +59,16 @@ fn create_faulty_request() -> CompilationRequest {
 }
 
 #[rstest]
-#[case::run_native_while_waiting(true, true)]
-#[case::run_native_without_waiting(true, false)]
-#[case::run_without_native(false, false)]
-fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation: bool) {
-    let native_config =
-        CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
+#[case::sync(NativeExecutionMode::Sync)]
+#[case::async_mode(NativeExecutionMode::Async)]
+#[case::disabled(NativeExecutionMode::Disabled)]
+fn test_start(#[case] mode: NativeExecutionMode) {
+    let native_config = CairoNativeRunConfig { execution_mode: mode.clone(), ..Default::default() };
     let manager = NativeClassManager::create_for_testing(native_config.clone());
 
     assert_eq!(manager.cairo_native_run_config.clone(), native_config);
-    if run_cairo_native {
-        if wait_on_native_compilation {
+    match mode {
+        NativeExecutionMode::Sync => {
             assert!(
                 manager.sender.is_none(),
                 "Sender should be None - the compilation worker is not used."
@@ -82,7 +77,8 @@ fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation
                 manager.compiler.is_some(),
                 "Compiler should be Some - compilation is not offloaded to the compilation worker."
             );
-        } else {
+        }
+        NativeExecutionMode::Async => {
             assert!(
                 manager.sender.is_some(),
                 "Sender should be Some - the compilation worker is used."
@@ -92,25 +88,25 @@ fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation
                 "Compiler should be None - compilation is offloaded to the compilation worker."
             );
         }
-    } else {
-        assert!(manager.sender.is_none(), "Sender should be None- Cairo native is disabled.");
-        assert!(manager.compiler.is_none(), "Compiler should be None - Cairo native is disabled.");
+        NativeExecutionMode::Disabled => {
+            assert!(manager.sender.is_none(), "Sender should be None - Cairo native is disabled.");
+            assert!(
+                manager.compiler.is_none(),
+                "Compiler should be None - Cairo native is disabled."
+            );
+        }
     }
 }
 
 #[rstest]
-#[case::run_native_while_waiting(true, true)]
-#[case::run_native_without_waiting(true, false)]
-#[should_panic(expected = "Native compilation is disabled.")]
-#[case::run_without_native(false, true)]
-#[case::run_without_native(false, false)]
+#[case::sync(NativeExecutionMode::Sync)]
+#[case::async_mode(NativeExecutionMode::Async)]
+#[case::disabled(NativeExecutionMode::Disabled)]
 fn test_set_and_compile(
-    #[case] run_cairo_native: bool,
-    #[case] wait_on_native_compilation: bool,
+    #[case] mode: NativeExecutionMode,
     #[values(true, false)] should_pass: bool,
 ) {
-    let native_config =
-        CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
+    let native_config = CairoNativeRunConfig { execution_mode: mode.clone(), ..Default::default() };
     let manager = NativeClassManager::create_for_testing(native_config);
     let request = if should_pass { create_test_request() } else { create_faulty_request() };
     let class_hash = request.0;
@@ -118,12 +114,12 @@ fn test_set_and_compile(
     let compiled_class = CompiledClasses::V1(casm, sierra);
 
     manager.set_and_compile(class_hash, compiled_class);
-    if !run_cairo_native {
+    if matches!(mode, NativeExecutionMode::Disabled) {
         assert_matches!(manager.class_cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
         return;
     }
 
-    if !wait_on_native_compilation {
+    if matches!(mode, NativeExecutionMode::Async) {
         assert_matches!(manager.class_cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
         let seconds_to_sleep = 2;
         let max_n_retries = DEFAULT_MAX_CPU_TIME / seconds_to_sleep + 1;
@@ -153,8 +149,7 @@ fn test_set_and_compile(
 fn test_send_compilation_request_channel_disconnected() {
     // We use the channel to send native compilation requests.
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: false,
+        execution_mode: NativeExecutionMode::Async,
         channel_size: TEST_CHANNEL_SIZE,
         ..CairoNativeRunConfig::default()
     };
@@ -177,8 +172,7 @@ fn test_send_compilation_request_channel_disconnected() {
 #[test]
 fn test_send_compilation_request_channel_full() {
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: false,
+        execution_mode: NativeExecutionMode::Async,
         channel_size: 0,
         ..CairoNativeRunConfig::default()
     };
@@ -208,8 +202,7 @@ fn test_process_compilation_request(
     #[case] panic_on_compilation_failure: bool,
 ) {
     let manager = NativeClassManager::create_for_testing(CairoNativeRunConfig {
-        wait_on_native_compilation: true,
-        run_cairo_native: true,
+        execution_mode: NativeExecutionMode::Sync,
         channel_size: TEST_CHANNEL_SIZE,
         panic_on_compilation_failure,
         ..CairoNativeRunConfig::default()
@@ -250,12 +243,10 @@ fn test_native_classes_whitelist(
     #[case] allow_run_native: bool,
 ) {
     let native_config = CairoNativeRunConfig {
-        run_cairo_native: true,
-        wait_on_native_compilation: true,
+        execution_mode: NativeExecutionMode::Sync,
         panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,
         native_classes_whitelist: whitelist,
-        ..CairoNativeRunConfig::default()
     };
     let manager = NativeClassManager::create_for_testing(native_config);
 

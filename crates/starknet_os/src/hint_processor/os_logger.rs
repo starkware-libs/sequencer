@@ -14,7 +14,7 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::hint_processor::constants::BUILTIN_INSTANCE_SIZES;
 use crate::hints::vars::{CairoStruct, Ids};
-use crate::vm_utils::{get_address_of_nested_fields, VmUtilsError};
+use crate::vm_utils::{VmUtilsError, get_address_of_nested_fields};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsLoggerError {

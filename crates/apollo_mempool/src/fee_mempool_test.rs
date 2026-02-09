@@ -6,14 +6,13 @@ use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_types::communication::{
-    MempoolP2pPropagatorClientError,
-    MockMempoolP2pPropagatorClient,
+    MempoolP2pPropagatorClientError, MockMempoolP2pPropagatorClient,
 };
 use apollo_mempool_types::communication::AddTransactionArgsWrapper;
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, ValidationArgs};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use apollo_time::test_utils::FakeClock;
 use expect_test::expect;
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -22,32 +21,23 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
+use starknet_api::test_utils::declare::{DeclareTxArgs, internal_rpc_declare_tx};
 use starknet_api::test_utils::invoke::internal_invoke_tx;
 use starknet_api::test_utils::valid_resource_bounds_for_testing;
-use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
 
 use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;
 use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::mempool::{
-    AccountsWithGap,
-    Mempool,
-    MempoolContent,
-    MempoolState,
-    TransactionReference,
+    AccountsWithGap, Mempool, MempoolContent, MempoolState, TransactionReference,
 };
 use crate::metrics::register_metrics;
 use crate::test_utils::{
-    add_tx,
-    add_tx_expect_error,
-    commit_block,
-    get_txs_and_assert_expected,
-    validate_tx,
-    validate_tx_expect_error,
-    MempoolMetrics,
+    MempoolMetrics, add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected,
+    validate_tx, validate_tx_expect_error,
 };
 use crate::transaction_pool::TransactionPool;
 use crate::{add_tx_input, tx};

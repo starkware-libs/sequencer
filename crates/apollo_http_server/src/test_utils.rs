@@ -6,9 +6,7 @@ use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayOutput;
 use apollo_http_server_config::config::{
-    HttpServerConfig,
-    HttpServerDynamicConfig,
-    DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
+    DEFAULT_MAX_SIERRA_PROGRAM_SIZE, HttpServerConfig, HttpServerDynamicConfig,
 };
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use blockifier_test_utils::cairo_versions::CairoVersion;

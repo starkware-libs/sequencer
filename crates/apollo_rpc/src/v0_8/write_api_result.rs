@@ -1,7 +1,5 @@
 use apollo_starknet_client::writer::objects::response::{
-    DeclareResponse,
-    DeployAccountResponse,
-    InvokeResponse,
+    DeclareResponse, DeployAccountResponse, InvokeResponse,
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, ContractAddress};

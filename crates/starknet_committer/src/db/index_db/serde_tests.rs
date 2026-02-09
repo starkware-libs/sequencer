@@ -7,12 +7,7 @@ use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePath,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePath, EdgePathLength, NodeData, PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
@@ -22,9 +17,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
 use crate::db::index_db::leaves::{
-    IndexLayoutCompiledClassHash,
-    IndexLayoutContractState,
-    IndexLayoutStarknetStorageValue,
+    IndexLayoutCompiledClassHash, IndexLayoutContractState, IndexLayoutStarknetStorageValue,
 };
 use crate::db::index_db::types::{EmptyNodeData, IndexFilledNode, IndexNodeContext};
 use crate::hash_function::hash::TreeHashFunctionImpl;

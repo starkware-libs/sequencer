@@ -1,7 +1,5 @@
 use apollo_compile_to_casm_types::{
-    SierraCompilerError,
-    SierraCompilerRequest,
-    SierraCompilerResponse,
+    SierraCompilerError, SierraCompilerRequest, SierraCompilerResponse,
 };
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};

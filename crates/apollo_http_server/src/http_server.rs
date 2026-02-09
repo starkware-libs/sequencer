@@ -6,15 +6,11 @@ use std::time::Duration;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewayError;
 use apollo_gateway_types::gateway_types::{
-    GatewayInput,
-    GatewayOutput,
-    SUPPORTED_TRANSACTION_VERSIONS,
+    GatewayInput, GatewayOutput, SUPPORTED_TRANSACTION_VERSIONS,
 };
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra::component_definitions::ComponentStarter;
@@ -23,27 +19,23 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
-use axum::{serve, Extension, Json, Router};
+use axum::{Extension, Json, Router, serve};
 use blockifier_reexecution::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use tokio::net::TcpListener;
-use tokio::sync::watch::{channel, Receiver, Sender};
+use tokio::sync::watch::{Receiver, Sender, channel};
 use tokio::time;
 use tracing::{debug, info, instrument, warn};
 
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
 use crate::metrics::{
-    init_metrics,
-    ADDED_TRANSACTIONS_DEPRECATED_ERROR,
-    ADDED_TRANSACTIONS_FAILURE,
-    ADDED_TRANSACTIONS_INTERNAL_ERROR,
-    ADDED_TRANSACTIONS_SUCCESS,
-    ADDED_TRANSACTIONS_TOTAL,
-    HTTP_SERVER_ADD_TX_LATENCY,
+    ADDED_TRANSACTIONS_DEPRECATED_ERROR, ADDED_TRANSACTIONS_FAILURE,
+    ADDED_TRANSACTIONS_INTERNAL_ERROR, ADDED_TRANSACTIONS_SUCCESS, ADDED_TRANSACTIONS_TOTAL,
+    HTTP_SERVER_ADD_TX_LATENCY, init_metrics,
 };
 
 #[cfg(test)]

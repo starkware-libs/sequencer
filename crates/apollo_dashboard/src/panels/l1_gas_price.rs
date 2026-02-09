@@ -1,21 +1,16 @@
 use apollo_l1_gas_price::metrics::{
-    ETH_TO_STRK_ERROR_COUNT,
-    ETH_TO_STRK_RATE,
-    ETH_TO_STRK_SUCCESS_COUNT,
-    L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
-    L1_GAS_PRICE_LATEST_MEAN_VALUE,
-    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
-    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
-    L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK,
-    L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+    ETH_TO_STRK_ERROR_COUNT, ETH_TO_STRK_RATE, ETH_TO_STRK_SUCCESS_COUNT,
+    L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE, L1_GAS_PRICE_LATEST_MEAN_VALUE,
+    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK, L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{get_time_since_last_increase_expr, Row};
+use crate::dashboard::{Row, get_time_since_last_increase_expr};
 use crate::panel::{Panel, PanelType, Unit};
-use crate::query_builder::{increase, DEFAULT_DURATION};
+use crate::query_builder::{DEFAULT_DURATION, increase};
 
 fn get_panel_eth_to_strk_error_count() -> Panel {
     Panel::new(

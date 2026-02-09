@@ -5,10 +5,7 @@ use std::fmt::Display;
 use std::time::Instant;
 
 use apollo_committer_types::committer_types::{
-    CommitBlockRequest,
-    CommitBlockResponse,
-    RevertBlockRequest,
-    RevertBlockResponse,
+    CommitBlockRequest, CommitBlockResponse, RevertBlockRequest, RevertBlockResponse,
 };
 use apollo_committer_types::communication::CommitterRequestLabelValue;
 use starknet_api::block::{BlockHash, BlockNumber};

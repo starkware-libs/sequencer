@@ -5,13 +5,10 @@ use num_bigint::{BigUint, RandBigInt};
 use rand::Rng;
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{
-    DBObject,
-    EmptyDeserializationContext,
-    EmptyKeyContext,
-    HasStaticPrefix,
+    DBObject, EmptyDeserializationContext, EmptyKeyContext, HasStaticPrefix,
 };
 use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
+use starknet_patricia_storage::storage_trait::{DbKey, DbKeyPrefix, DbValue, create_db_key};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 

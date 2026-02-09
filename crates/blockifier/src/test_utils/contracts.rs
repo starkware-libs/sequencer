@@ -8,8 +8,7 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointOffset,
+    ContractClass as DeprecatedContractClass, EntryPointOffset,
 };
 use starknet_api::state::SierraContractClass;
 

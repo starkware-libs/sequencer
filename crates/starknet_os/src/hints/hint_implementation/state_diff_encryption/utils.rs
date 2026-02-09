@@ -4,7 +4,7 @@ use digest::Digest;
 use starknet_types_core::curve::AffinePoint;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::hint_implementation::kzg::utils::{decode_blobs, FftError};
+use crate::hints::hint_implementation::kzg::utils::{FftError, decode_blobs};
 use crate::io::os_output::OsOutputError;
 use crate::io::os_output_types::{PartialOsStateDiff, TryFromOutputIter};
 

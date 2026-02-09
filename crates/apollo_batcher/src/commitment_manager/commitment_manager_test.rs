@@ -3,10 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_batcher_config::config::{
-    BatcherConfig,
-    BatcherStaticConfig,
-    CommitmentManagerConfig,
-    FirstBlockWithPartialBlockHash,
+    BatcherConfig, BatcherStaticConfig, CommitmentManagerConfig, FirstBlockWithPartialBlockHash,
 };
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::MockCommitterClient;
@@ -22,11 +19,10 @@ use tokio::time::sleep;
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::commitment_manager::commitment_manager_impl::{
-    ApolloCommitmentManager,
-    CommitmentManager,
+    ApolloCommitmentManager, CommitmentManager,
 };
 use crate::commitment_manager::errors::CommitmentManagerError;
-use crate::test_utils::{test_state_diff, INITIAL_HEIGHT, LATEST_BLOCK_IN_STORAGE};
+use crate::test_utils::{INITIAL_HEIGHT, LATEST_BLOCK_IN_STORAGE, test_state_diff};
 
 struct MockDependencies {
     pub(crate) storage_reader: MockBatcherStorageReader,

@@ -2,17 +2,15 @@ use std::cmp::min;
 use std::collections::HashMap;
 
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
+    get_integer_from_var_name, get_ptr_from_var_name, insert_value_from_var_name,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use rand::rngs::OsRng;
 use rand::RngCore;
+use rand::rngs::OsRng;
 use sha2::{Digest, Sha256};
 use starknet_types_core::felt::Felt;
 

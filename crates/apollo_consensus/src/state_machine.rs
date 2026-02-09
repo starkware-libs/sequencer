@@ -16,17 +16,11 @@ use starknet_api::crypto::utils::RawSignature;
 use tracing::{debug, info, trace, warn};
 
 use crate::metrics::{
-    TimeoutType,
-    CONSENSUS_HELD_LOCKS,
-    CONSENSUS_NEW_VALUE_LOCKS,
-    CONSENSUS_ROUND,
-    CONSENSUS_ROUND_ABOVE_ZERO,
-    CONSENSUS_ROUND_ADVANCES,
-    CONSENSUS_TIMEOUTS,
-    LABEL_NAME_TIMEOUT_TYPE,
+    CONSENSUS_HELD_LOCKS, CONSENSUS_NEW_VALUE_LOCKS, CONSENSUS_ROUND, CONSENSUS_ROUND_ABOVE_ZERO,
+    CONSENSUS_ROUND_ADVANCES, CONSENSUS_TIMEOUTS, LABEL_NAME_TIMEOUT_TYPE, TimeoutType,
 };
 use crate::types::{Decision, LeaderElection, ProposalCommitment, Round, ValidatorId};
-use crate::votes_threshold::{QuorumType, VotesThreshold, ROUND_SKIP_THRESHOLD};
+use crate::votes_threshold::{QuorumType, ROUND_SKIP_THRESHOLD, VotesThreshold};
 
 /// The unique identifier for a specific validator's vote in a specific round.
 type VoteKey = (Round, ValidatorId);

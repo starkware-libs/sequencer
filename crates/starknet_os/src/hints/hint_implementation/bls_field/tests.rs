@@ -13,20 +13,13 @@ use rand::Rng;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::hint_implementation::kzg::utils::{split_bigint3, BASE, BLS_PRIME};
+use crate::hints::hint_implementation::kzg::utils::{BASE, BLS_PRIME, split_bigint3};
 use crate::test_utils::cairo_runner::{
-    initialize_and_run_cairo_0_entry_point,
-    EndpointArg,
-    ImplicitArg,
-    PointerArg,
-    ValueArg,
+    EndpointArg, ImplicitArg, PointerArg, ValueArg, initialize_and_run_cairo_0_entry_point,
 };
 use crate::test_utils::utils::{
-    get_entrypoint_runner_config,
-    pack_bigint3,
-    seeded_random_prng,
+    DEFAULT_PRIME, get_entrypoint_runner_config, pack_bigint3, seeded_random_prng,
     test_cairo_function,
-    DEFAULT_PRIME,
 };
 
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);

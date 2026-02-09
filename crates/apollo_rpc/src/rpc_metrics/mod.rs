@@ -5,10 +5,10 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::time::Instant;
 
-use jsonrpsee::server::middleware::rpc::{Batch, Notification, RpcServiceT};
-use jsonrpsee::server::MethodResponse;
-use jsonrpsee::types::Request;
 use jsonrpsee::Methods;
+use jsonrpsee::server::MethodResponse;
+use jsonrpsee::server::middleware::rpc::{Batch, Notification, RpcServiceT};
+use jsonrpsee::types::Request;
 use metrics::{counter, histogram};
 
 // Name of the metrics.

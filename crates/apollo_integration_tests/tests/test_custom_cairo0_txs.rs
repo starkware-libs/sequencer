@@ -1,17 +1,13 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
-    end_to_end_flow,
+    ACCOUNT_ID_1 as CAIRO0_ACCOUNT_ID, EndToEndFlowArgs, EndToEndTestScenario, end_to_end_flow,
     validate_tx_count,
-    EndToEndFlowArgs,
-    EndToEndTestScenario,
-    ACCOUNT_ID_1 as CAIRO0_ACCOUNT_ID,
 };
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
-    AccountTransactionGenerator,
-    MultiAccountTransactionGenerator,
+    AccountTransactionGenerator, MultiAccountTransactionGenerator,
 };
 use starknet_api::core::calculate_contract_address;
 use starknet_api::execution_resources::GasAmount;

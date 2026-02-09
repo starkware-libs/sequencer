@@ -19,13 +19,13 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_rpc_execution::ExecutionConfig;
+use apollo_starknet_client::RetryConfig;
 use apollo_starknet_client::reader::PendingData;
 use apollo_starknet_client::writer::StarknetGatewayClient;
-use apollo_starknet_client::RetryConfig;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::body::events::EventIndex;
 use apollo_storage::db::TransactionKind;
@@ -34,9 +34,9 @@ use apollo_storage::{StorageReader, StorageScope, StorageTxn};
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::server::middleware::rpc::RpcServiceBuilder;
 use jsonrpsee::server::{Server, ServerConfig, ServerHandle};
+use jsonrpsee::types::ErrorObjectOwned;
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
-use jsonrpsee::types::ErrorObjectOwned;
 pub use latest::error;
 use papyrus_common::pending_classes::PendingClasses;
 use rpc_metrics::MetricLogger;
@@ -55,8 +55,7 @@ use crate::api::get_methods_from_supported_apis;
 use crate::middleware::proxy_rpc_request;
 use crate::syncing_state::get_last_synced_block;
 pub use crate::v0_8::transaction::{
-    InvokeTransaction as InvokeTransactionRPC0_8,
-    InvokeTransactionV1 as InvokeTransactionV1RPC0_8,
+    InvokeTransaction as InvokeTransactionRPC0_8, InvokeTransactionV1 as InvokeTransactionV1RPC0_8,
     TransactionVersion1 as TransactionVersion1RPC0_8,
 };
 pub use crate::v0_8::write_api_result::AddInvokeOkResult as AddInvokeOkResultRPC0_8;
@@ -117,15 +116,11 @@ impl SerializeConfig for RpcConfig {
             ),
             ser_param(
                 "ip",
-                &self.ip.to_string(), "The JSON RPC server ip.",
-                ParamPrivacyInput::Public
+                &self.ip.to_string(),
+                "The JSON RPC server ip.",
+                ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "port",
-                &self.port,
-                "The JSON RPC server port.",
-                ParamPrivacyInput::Public
-            ),
+            ser_param("port", &self.port, "The JSON RPC server port.", ParamPrivacyInput::Public),
             ser_param(
                 "max_events_chunk_size",
                 &self.max_events_chunk_size,

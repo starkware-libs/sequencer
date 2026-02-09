@@ -3,12 +3,12 @@ use std::net::{IpAddr, Ipv4Addr};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_proc_macros::unique_u16;
 use apollo_test_utils::get_test_block;
-use axum::http::StatusCode;
 use axum::Router;
+use axum::http::StatusCode;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -30,9 +30,7 @@ use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::storage_reader_server::ServerConfig;
 use crate::storage_reader_server_test_utils::get_response;
 use crate::storage_reader_types::{
-    GenericStorageReaderServer,
-    StorageReaderRequest,
-    StorageReaderResponse,
+    GenericStorageReaderServer, StorageReaderRequest, StorageReaderResponse,
 };
 use crate::test_utils::get_test_storage;
 use crate::version::VersionStorageReader;

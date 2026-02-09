@@ -6,26 +6,13 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::utils::{
-    compress,
-    get_bucket_offsets,
-    get_n_elms_per_felt,
-    pack_usize_in_felts,
-    BitsArray,
-    BucketElement,
-    BucketElement125,
-    BucketElement31,
-    BucketElement62,
-    BucketElementTrait,
-    Buckets,
-    CompressionSet,
-    N_UNIQUE_BUCKETS,
-    TOTAL_N_BUCKETS,
+    BitsArray, BucketElement, BucketElement31, BucketElement62, BucketElement125,
+    BucketElementTrait, Buckets, CompressionSet, N_UNIQUE_BUCKETS, TOTAL_N_BUCKETS, compress,
+    get_bucket_offsets, get_n_elms_per_felt, pack_usize_in_felts,
 };
 use crate::hints::error::OsHintError;
 use crate::hints::hint_implementation::stateless_compression::utils::{
-    decompress,
-    unpack_felts,
-    unpack_felts_to_usize,
+    decompress, unpack_felts, unpack_felts_to_usize,
 };
 
 #[rstest]

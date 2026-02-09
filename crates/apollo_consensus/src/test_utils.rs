@@ -3,15 +3,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
-    ProposalCommitment,
-    ProposalInit,
-    Vote,
-    VoteType,
+    ConsensusBlockInfo, ProposalCommitment, ProposalInit, Vote, VoteType,
 };
 use apollo_protobuf::converters::ProtobufConversionError;
-use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
+use apollo_storage::db::DbConfig;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;

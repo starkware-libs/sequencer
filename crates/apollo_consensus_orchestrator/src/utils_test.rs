@@ -14,10 +14,8 @@ use crate::build_proposal::ProposalBuildArguments;
 use crate::metrics::CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC;
 use crate::test_utils::create_proposal_build_arguments;
 use crate::utils::{
-    get_l1_prices_in_fri_and_wei,
-    retrospective_block_hash,
+    RetrospectiveBlockHashError, get_l1_prices_in_fri_and_wei, retrospective_block_hash,
     wait_for_retrospective_block_hash,
-    RetrospectiveBlockHashError,
 };
 
 const CURRENT_BLOCK_NUMBER: BlockNumber = BlockNumber(STORED_BLOCK_HASH_BUFFER);

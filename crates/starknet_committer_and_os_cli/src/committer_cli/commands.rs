@@ -5,8 +5,8 @@ use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
-use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
+use tracing_subscriber::reload::Handle;
 
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
 use crate::committer_cli::parse_input::cast::{CommitterFactsDbInputImpl, FactsDbInputImpl};

@@ -13,10 +13,7 @@ use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
 use starknet_api::transaction::fields::ResourceAsFelts;
 
 use super::{
-    fetch_nested_fields_address,
-    get_size_of_cairo_struct,
-    IdentifierGetter,
-    VmUtilsResult,
+    IdentifierGetter, VmUtilsResult, fetch_nested_fields_address, get_size_of_cairo_struct,
 };
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hints::hint_implementation::compiled_class::utils::CompiledClassFact;

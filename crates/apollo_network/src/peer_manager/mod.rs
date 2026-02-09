@@ -2,16 +2,15 @@ use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_seconds_to_duration,
+    deserialize_milliseconds_to_duration, deserialize_seconds_to_duration,
 };
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use futures::future::BoxFuture;
 use futures::FutureExt;
+use futures::future::BoxFuture;
+use libp2p::PeerId;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::{ConnectionId, ToSwarm};
-use libp2p::PeerId;
 use peer::Peer;
 use serde::{Deserialize, Serialize};
 use tracing::info;

@@ -8,8 +8,7 @@ use starknet_api::rpc_transaction::RpcDeclareTransactionV3;
 use starknet_api::test_utils::read_json_file;
 
 use crate::deprecated_gateway_transaction::{
-    DeprecatedGatewayDeclareTransaction,
-    DeprecatedGatewayDeployAccountTransaction,
+    DeprecatedGatewayDeclareTransaction, DeprecatedGatewayDeployAccountTransaction,
     DeprecatedGatewayInvokeTransaction,
 };
 

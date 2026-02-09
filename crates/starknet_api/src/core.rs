@@ -18,7 +18,7 @@ use crate::crypto::utils::PublicKey;
 use crate::hash::{HashOutput, PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
-use crate::{impl_from_through_intermediate, StarknetApiError, StarknetApiResult};
+use crate::{StarknetApiError, StarknetApiResult, impl_from_through_intermediate};
 
 /// Felt.
 pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {

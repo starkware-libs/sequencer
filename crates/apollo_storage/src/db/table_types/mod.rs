@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use libmdbx::Cursor;
 
 use super::serialization::{Key as KeyTrait, ValueSerde};
-use super::{DbResult, DbTransaction, TransactionKind, RW};
+use super::{DbResult, DbTransaction, RW, TransactionKind};
 
 mod dup_sort_tables;
 mod simple_table;

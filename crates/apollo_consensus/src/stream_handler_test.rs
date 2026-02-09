@@ -6,7 +6,7 @@ use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadca
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart, StreamMessageBody};
 use apollo_protobuf::converters::ProtobufConversionError;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use futures::channel::mpsc::{self, Receiver, SendError, Sender};
 use futures::{FutureExt, SinkExt, StreamExt};
 use prost::DecodeError;

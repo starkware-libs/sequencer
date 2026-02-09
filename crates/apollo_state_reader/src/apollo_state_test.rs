@@ -1,9 +1,9 @@
 use core::panic;
 
+use apollo_storage::StorageResult;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
-use apollo_storage::StorageResult;
 use assert_matches::assert_matches;
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::entry_point::CallEntryPoint;

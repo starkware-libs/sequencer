@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name};
 use apollo_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::component_execution_config::{
-    ActiveComponentExecutionConfig,
-    ReactiveComponentExecutionConfig,
+    ActiveComponentExecutionConfig, ReactiveComponentExecutionConfig,
 };
 
 // TODO(Tsabary): consider adding hierarchical structure to the components config based on

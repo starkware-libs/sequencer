@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
-use blockifier::execution::syscalls::vm_syscall_utils::{execute_next_syscall, SyscallUsageMap};
+use blockifier::execution::syscalls::vm_syscall_utils::{SyscallUsageMap, execute_next_syscall};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -12,8 +12,7 @@ use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint as Cairo1Hint, Starkne
 use cairo_lang_runner::casm_run::{cell_ref_to_relocatable, execute_core_hint_base};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
-    BuiltinHintProcessor,
-    HintProcessorData as Cairo0Hint,
+    BuiltinHintProcessor, HintProcessorData as Cairo0Hint,
 };
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
 use cairo_vm::types::exec_scope::ExecutionScopes;
@@ -30,14 +29,10 @@ use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::common_hint_processor::{
-    CommonHintProcessor,
-    VmHintExtensionResult,
-    VmHintResult,
+    CommonHintProcessor, VmHintExtensionResult, VmHintResult,
 };
 use crate::hint_processor::execution_helper::{
-    CallInfoTracker,
-    ExecutionHelperError,
-    OsExecutionHelper,
+    CallInfoTracker, ExecutionHelperError, OsExecutionHelper,
 };
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 #[cfg(any(test, feature = "testing"))]
@@ -48,11 +43,7 @@ use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::hints::vars::CairoStruct;
 use crate::io::os_input::{
-    CachedStateInput,
-    CommitmentInfo,
-    OsBlockInput,
-    OsHintsConfig,
-    OsInputError,
+    CachedStateInput, CommitmentInfo, OsBlockInput, OsHintsConfig, OsInputError,
 };
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};

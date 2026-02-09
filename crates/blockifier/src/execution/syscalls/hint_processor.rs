@@ -14,16 +14,14 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::StarknetApiError;
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
-    valid_resource_bounds_as_felts,
-    Calldata,
-    ResourceAsFelts,
+    Calldata, ResourceAsFelts, valid_resource_bounds_as_felts,
 };
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
@@ -31,54 +29,24 @@ use crate::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    CallType,
-    EntryPointExecutionContext,
-    ExecutableCallEntryPoint,
+    CallEntryPoint, CallType, EntryPointExecutionContext, ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
-    felt_from_ptr,
-    felt_range_from_ptr,
-    write_maybe_relocatable,
-    ReadOnlySegment,
-    ReadOnlySegments,
+    ReadOnlySegment, ReadOnlySegments, felt_from_ptr, felt_range_from_ptr, write_maybe_relocatable,
 };
 use crate::execution::syscalls::secp::SecpHintProcessor;
 use crate::execution::syscalls::syscall_base::{SyscallHandlerBase, SyscallResult};
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::execution::syscalls::vm_syscall_utils::{
-    execute_next_syscall,
-    CallContractRequest,
-    CallContractResponse,
-    DeployRequest,
-    DeployResponse,
-    EmitEventRequest,
-    EmitEventResponse,
-    GetBlockHashRequest,
-    GetBlockHashResponse,
-    GetClassHashAtRequest,
-    GetClassHashAtResponse,
-    GetExecutionInfoRequest,
-    GetExecutionInfoResponse,
-    LibraryCallRequest,
-    LibraryCallResponse,
-    MetaTxV0Request,
-    MetaTxV0Response,
-    ReplaceClassRequest,
-    ReplaceClassResponse,
-    RevertData,
-    SelfOrRevert,
-    SendMessageToL1Request,
-    SendMessageToL1Response,
-    StorageReadRequest,
-    StorageReadResponse,
-    StorageWriteRequest,
-    StorageWriteResponse,
-    SyscallBaseResult,
-    SyscallExecutorBaseError,
-    SyscallSelector,
-    TryExtractRevert,
+    CallContractRequest, CallContractResponse, DeployRequest, DeployResponse, EmitEventRequest,
+    EmitEventResponse, GetBlockHashRequest, GetBlockHashResponse, GetClassHashAtRequest,
+    GetClassHashAtResponse, GetExecutionInfoRequest, GetExecutionInfoResponse, LibraryCallRequest,
+    LibraryCallResponse, MetaTxV0Request, MetaTxV0Response, ReplaceClassRequest,
+    ReplaceClassResponse, RevertData, SelfOrRevert, SendMessageToL1Request,
+    SendMessageToL1Response, StorageReadRequest, StorageReadResponse, StorageWriteRequest,
+    StorageWriteResponse, SyscallBaseResult, SyscallExecutorBaseError, SyscallSelector,
+    TryExtractRevert, execute_next_syscall,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;

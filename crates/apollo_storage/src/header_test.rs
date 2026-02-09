@@ -1,11 +1,7 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
 };
 use starknet_api::felt;
 

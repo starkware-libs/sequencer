@@ -1,7 +1,5 @@
 use apollo_gateway_types::communication::{
-    GatewayRequest,
-    GatewayRequestLabelValue,
-    GatewayResponse,
+    GatewayRequest, GatewayRequestLabelValue, GatewayResponse,
 };
 use apollo_gateway_types::errors::GatewayError;
 use apollo_infra::component_definitions::ComponentRequestHandler;

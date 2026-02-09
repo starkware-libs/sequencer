@@ -17,11 +17,7 @@ use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::node_serde::FactNodeDeserializationContext;
 use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
 use crate::db::forest_trait::{
-    read_forest,
-    serialize_forest,
-    ForestReader,
-    ForestWriter,
-    StorageInitializer,
+    ForestReader, ForestWriter, StorageInitializer, read_forest, serialize_forest,
 };
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;

@@ -5,24 +5,19 @@ use std::time::Duration;
 
 use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterError,
-    TransactionConverterResult,
+    TransactionConverter, TransactionConverterError, TransactionConverterResult,
     TransactionConverterTrait,
 };
-use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use blockifier::blockifier::transaction_executor::{
-    BlockExecutionSummary,
-    CompiledClassHashesForMigration,
-    TransactionExecutionOutput,
-    TransactionExecutorError as BlockifierTransactionExecutorError,
-    TransactionExecutorResult,
+    BlockExecutionSummary, CompiledClassHashesForMigration, TransactionExecutionOutput,
+    TransactionExecutorError as BlockifierTransactionExecutorError, TransactionExecutorResult,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -39,9 +34,7 @@ use indexmap::{IndexMap, IndexSet};
 use mockall::automock;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_commitments,
-    PartialBlockHashComponents,
-    TransactionHashingData,
+    PartialBlockHashComponents, TransactionHashingData, calculate_block_commitments,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce, SequencerContractAddress};
@@ -58,11 +51,8 @@ use tracing::{debug, error, info, trace, warn};
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::{
+    BATCHER_CLASS_CACHE_METRICS, BlockCloseReason, PROPOSER_DEFERRED_TXS, VALIDATOR_WASTED_TXS,
     record_block_close_reason,
-    BlockCloseReason,
-    BATCHER_CLASS_CACHE_METRICS,
-    PROPOSER_DEFERRED_TXS,
-    VALIDATOR_WASTED_TXS,
 };
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;

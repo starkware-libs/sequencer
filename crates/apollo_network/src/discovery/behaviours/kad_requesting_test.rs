@@ -1,10 +1,10 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::task::{Context, Poll, Waker};
 
 use futures::StreamExt;
-use libp2p::swarm::SwarmEvent;
 use libp2p::Swarm;
+use libp2p::swarm::SwarmEvent;
 use libp2p_swarm_test::SwarmExt;
 use tokio::time::Duration;
 use waker_fn::waker_fn;

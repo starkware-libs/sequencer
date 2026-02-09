@@ -17,10 +17,7 @@ use starknet_types_core::felt::Felt;
 use crate::errors::StarknetOsError;
 use crate::hints::vars::Const;
 use crate::io::os_output_types::{
-    FullCommitmentOsStateDiff,
-    FullOsStateDiff,
-    PartialCommitmentOsStateDiff,
-    PartialOsStateDiff,
+    FullCommitmentOsStateDiff, FullOsStateDiff, PartialCommitmentOsStateDiff, PartialOsStateDiff,
     TryFromOutputIter,
 };
 use crate::metrics::{AggregatorMetrics, OsMetrics};

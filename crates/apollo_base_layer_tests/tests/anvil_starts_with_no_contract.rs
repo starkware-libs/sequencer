@@ -1,16 +1,13 @@
 use alloy::node_bindings::Anvil;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
+use papyrus_base_layer::BaseLayerContract;
 use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    EthereumBaseLayerError,
+    EthereumBaseLayerConfig, EthereumBaseLayerContract, EthereumBaseLayerError,
 };
 use papyrus_base_layer::test_utils::{
+    ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS, OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
     make_block_history_on_anvil,
-    ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
-    OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
-use papyrus_base_layer::BaseLayerContract;
 use tracing::info;
 
 #[tokio::test]

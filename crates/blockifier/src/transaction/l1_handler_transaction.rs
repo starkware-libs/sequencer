@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
 
 use super::objects::RevertError;
 use crate::context::BlockContext;
@@ -16,13 +16,8 @@ use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::errors::{TransactionExecutionError, TransactionFeeError};
 use crate::transaction::objects::{
-    CommonAccountFields,
-    DeprecatedTransactionInfo,
-    HasRelatedFeeType,
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfo,
-    TransactionInfoCreator,
+    CommonAccountFields, DeprecatedTransactionInfo, HasRelatedFeeType, TransactionExecutionInfo,
+    TransactionExecutionResult, TransactionInfo, TransactionInfoCreator,
 };
 use crate::transaction::transactions::{Executable, ExecutableTransaction};
 

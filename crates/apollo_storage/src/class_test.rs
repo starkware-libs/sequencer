@@ -10,9 +10,9 @@ use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 
 use super::{ClassStorageReader, ClassStorageWriter};
+use crate::StorageError;
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::get_test_storage;
-use crate::StorageError;
 
 #[test]
 fn append_classes_writes_correct_data() {

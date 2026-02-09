@@ -2,24 +2,14 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use apollo_class_manager_types::{MockClassManagerClient, SharedClassManagerClient};
-use apollo_network::network_manager::test_utils::{
-    create_test_server_query_manager,
-    mock_register_sqmr_protocol_server,
-};
 use apollo_network::network_manager::ServerQueryManager;
+use apollo_network::network_manager::test_utils::{
+    create_test_server_query_manager, mock_register_sqmr_protocol_server,
+};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_protobuf::sync::{
-    BlockHashOrNumber,
-    ClassQuery,
-    DataOrFin,
-    Direction,
-    EventQuery,
-    HeaderQuery,
-    Query,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
-    TransactionQuery,
+    BlockHashOrNumber, ClassQuery, DataOrFin, Direction, EventQuery, HeaderQuery, Query,
+    SignedBlockHeader, StateDiffChunk, StateDiffQuery, TransactionQuery,
 };
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class_manager::ClassManagerStorageWriter;
@@ -27,34 +17,25 @@ use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageReader, StorageWriter};
-use apollo_test_utils::{get_rng, get_test_body, GetTestInstance};
-use futures::channel::mpsc::Sender;
+use apollo_test_utils::{GetTestInstance, get_rng, get_test_body};
 use futures::StreamExt;
+use futures::channel::mpsc::Sender;
 use lazy_static::lazy_static;
 use mockall::predicate::eq;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_common::state::create_random_state_diff;
 use rand::random;
 use starknet_api::block::{
-    BlockBody,
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
 };
 use starknet_api::contract_class::ContractClass;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::{
-    Event,
-    FullTransaction,
-    Transaction,
-    TransactionHash,
-    TransactionOutput,
+    Event, FullTransaction, Transaction, TransactionHash, TransactionOutput,
 };
 
-use super::{split_thin_state_diff, FetchBlockData, P2pSyncServer, P2pSyncServerChannels};
+use super::{FetchBlockData, P2pSyncServer, P2pSyncServerChannels, split_thin_state_diff};
 use crate::server::register_query;
 const BUFFER_SIZE: usize = 10;
 const NUM_OF_BLOCKS: usize = 10;

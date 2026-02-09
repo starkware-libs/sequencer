@@ -4,9 +4,7 @@ use futures::{AsyncReadExt, AsyncWriteExt};
 use pretty_assertions::assert_eq;
 
 use super::{
-    read_message,
-    read_message_without_length_prefix,
-    write_message,
+    read_message, read_message_without_length_prefix, write_message,
     write_message_without_length_prefix,
 };
 use crate::test_utils::{dummy_data, get_connected_streams};

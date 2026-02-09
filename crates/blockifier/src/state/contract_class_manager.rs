@@ -10,7 +10,7 @@ pub mod trivial_class_manager {
     use starknet_api::class_cache::GlobalContractCache;
     use starknet_api::core::{ClassHash, CompiledClassHash};
 
-    use crate::blockifier::config::ContractClassManagerConfig;
+    use crate::blockifier::config::{ContractClassManagerConfig, NativeExecutionMode};
     use crate::execution::contract_class::RunnableCompiledClass;
     use crate::state::global_cache::{CompiledClasses, RawClassCache};
 
@@ -24,7 +24,10 @@ pub mod trivial_class_manager {
     impl TrivialClassManager {
         pub fn start(config: ContractClassManagerConfig) -> Self {
             assert!(
-                !config.cairo_native_run_config.run_cairo_native,
+                matches!(
+                    config.cairo_native_run_config.execution_mode,
+                    NativeExecutionMode::Disabled
+                ),
                 "Cairo Native feature is off."
             );
             Self {

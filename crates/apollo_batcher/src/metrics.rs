@@ -1,17 +1,10 @@
 use apollo_batcher_types::communication::BATCHER_REQUEST_LABELS;
 use apollo_infra::metrics::{
-    InfraMetrics,
-    LocalClientMetrics,
-    LocalServerMetrics,
-    RemoteClientMetrics,
-    RemoteServerMetrics,
+    InfraMetrics, LocalClientMetrics, LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics,
 };
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
 use blockifier::metrics::{
-    CacheMetrics,
-    CALLS_RUNNING_NATIVE,
-    NATIVE_CLASS_RETURNED,
-    NATIVE_COMPILATION_ERROR,
+    CALLS_RUNNING_NATIVE, CacheMetrics, NATIVE_CLASS_RETURNED, NATIVE_COMPILATION_ERROR,
     TOTAL_CALLS,
 };
 use starknet_api::block::BlockNumber;

@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use indexmap::IndexMap;
 pub use papyrus_common::state::{
-    DeclaredClassHashEntry,
-    DeployedContract,
-    MigratedCompiledClassHashEntry,
-    ReplacedClass,
+    DeclaredClassHashEntry, DeployedContract, MigratedCompiledClassHashEntry, ReplacedClass,
     StorageEntry,
 };
 use serde::{Deserialize, Serialize};

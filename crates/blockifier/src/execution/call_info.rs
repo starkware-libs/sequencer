@@ -12,10 +12,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{
-    Event,
-    EventContent,
-    L2ToL1Payload,
-    MessageToL1 as StarknetAPIMessageToL1,
+    Event, EventContent, L2ToL1Payload, MessageToL1 as StarknetAPIMessageToL1,
 };
 use starknet_types_core::felt::Felt;
 

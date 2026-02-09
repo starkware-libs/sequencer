@@ -1,5 +1,5 @@
 use crate::errors::{DeserializationError, SerializationResult};
-use crate::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
+use crate::storage_trait::{DbKey, DbKeyPrefix, DbValue, create_db_key};
 
 pub struct EmptyKeyContext;
 

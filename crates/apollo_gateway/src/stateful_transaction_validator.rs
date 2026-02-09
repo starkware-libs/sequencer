@@ -2,9 +2,7 @@ use std::sync::Arc;
 
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
@@ -24,14 +22,13 @@ use num_rational::Ratio;
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
-    AccountTransaction as ExecutableTransaction,
-    InvokeTransaction as ExecutableInvokeTransaction,
+    AccountTransaction as ExecutableTransaction, InvokeTransaction as ExecutableInvokeTransaction,
 };
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
-use tracing::{debug, Span};
+use tracing::{Span, debug};
 
-use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
+use crate::errors::{StatefulTransactionValidatorResult, mempool_client_err_to_deprecated_gw_err};
 use crate::gateway_fixed_block_state_reader::GatewayFixedBlockStateReader;
 use crate::metrics::{GATEWAY_CLASS_CACHE_METRICS, GATEWAY_VALIDATE_TX_LATENCY};
 use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};

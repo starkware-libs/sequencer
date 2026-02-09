@@ -3,7 +3,7 @@ use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
 
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
-use crate::query_builder::{sum_by_label, DisplayMethod, DEFAULT_DURATION};
+use crate::query_builder::{DEFAULT_DURATION, DisplayMethod, sum_by_label};
 
 // Class compilation is a rare event, so we use a longer histogram range to capture enough data
 // points.

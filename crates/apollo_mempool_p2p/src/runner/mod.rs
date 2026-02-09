@@ -10,16 +10,13 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_network::network_manager::{
-    BroadcastTopicClient,
-    BroadcastTopicClientTrait,
-    BroadcastTopicServer,
-    NetworkError,
+    BroadcastTopicClient, BroadcastTopicClientTrait, BroadcastTopicServer, NetworkError,
 };
 use apollo_protobuf::mempool::RpcTransactionBatch;
 use async_trait::async_trait;
+use futures::StreamExt;
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
-use futures::StreamExt;
 use tokio::time::MissedTickBehavior::Delay;
 use tracing::{debug, warn};
 

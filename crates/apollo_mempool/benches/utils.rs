@@ -4,16 +4,13 @@ use std::sync::Arc;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_server::{ComponentServerStarter, LocalServerConfig};
 use apollo_infra::metrics::{LocalClientMetrics, LocalServerMetrics};
-use apollo_mempool::communication::{create_mempool, LocalMempoolServer};
+use apollo_mempool::communication::{LocalMempoolServer, create_mempool};
 use apollo_mempool_config::config::MempoolConfig;
 use apollo_mempool_p2p_types::communication::{
-    MempoolP2pPropagatorClient,
-    MempoolP2pPropagatorClientResult,
+    MempoolP2pPropagatorClient, MempoolP2pPropagatorClientResult,
 };
 use apollo_mempool_types::communication::{
-    AddTransactionArgsWrapper,
-    LocalMempoolClient,
-    SharedMempoolClient,
+    AddTransactionArgsWrapper, LocalMempoolClient, SharedMempoolClient,
 };
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs, CommitBlockArgs};
 use apollo_metrics::metrics::{LabeledMetricHistogram, MetricCounter, MetricGauge, MetricScope};
@@ -27,9 +24,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
-    InternalRpcTransaction,
-    InternalRpcTransactionWithoutTxHash,
-    RpcTransaction,
+    InternalRpcTransaction, InternalRpcTransactionWithoutTxHash, RpcTransaction,
 };
 use starknet_api::{nonce, tx_hash};
 use tokio::sync::mpsc;

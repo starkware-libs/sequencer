@@ -8,19 +8,12 @@ use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::hints::hint_implementation::kzg::test_utils::horner_eval;
 use crate::hints::hint_implementation::kzg::utils::{
-    polynomial_coefficients_to_kzg_commitment,
-    BLS_PRIME,
-    FIELD_ELEMENTS_PER_BLOB,
+    BLS_PRIME, FIELD_ELEMENTS_PER_BLOB, polynomial_coefficients_to_kzg_commitment,
 };
 use crate::io::os_output::OsKzgCommitmentInfo;
 use crate::io::os_output_types::{
-    FullCompiledClassHashUpdate,
-    FullContractChanges,
-    FullContractStorageUpdate,
-    FullOsStateDiff,
-    PartialCompiledClassHashUpdate,
-    PartialContractChanges,
-    PartialContractStorageUpdate,
+    FullCompiledClassHashUpdate, FullContractChanges, FullContractStorageUpdate, FullOsStateDiff,
+    PartialCompiledClassHashUpdate, PartialContractChanges, PartialContractStorageUpdate,
     PartialOsStateDiff,
 };
 

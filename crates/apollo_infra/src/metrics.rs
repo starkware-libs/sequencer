@@ -1,11 +1,8 @@
 use std::sync::OnceLock;
 
 use apollo_metrics::metrics::{
-    LabeledMetricHistogram,
-    MetricCounter,
-    MetricGauge,
+    COLLECT_SEQUENCER_PROFILING_METRICS, LabeledMetricHistogram, MetricCounter, MetricGauge,
     MetricHistogram,
-    COLLECT_SEQUENCER_PROFILING_METRICS,
 };
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use serde::{Deserialize, Serialize};

@@ -1,18 +1,12 @@
 use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
-    AccountTransaction as ApiExecutableTransaction,
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    L1HandlerTransaction,
-    Transaction as StarknetApiExecutableTransaction,
+    AccountTransaction as ApiExecutableTransaction, DeclareTransaction, DeployAccountTransaction,
+    InvokeTransaction, L1HandlerTransaction, Transaction as StarknetApiExecutableTransaction,
 };
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
-    CalculateContractAddress,
-    Transaction as StarknetApiTransaction,
-    TransactionHash,
+    CalculateContractAddress, Transaction as StarknetApiTransaction, TransactionHash,
 };
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
@@ -20,14 +14,10 @@ use crate::context::BlockContext;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::{
-    AccountTransaction,
-    ExecutionFlags as AccountExecutionFlags,
+    AccountTransaction, ExecutionFlags as AccountExecutionFlags,
 };
 use crate::transaction::objects::{
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfo,
-    TransactionInfoCreator,
+    TransactionExecutionInfo, TransactionExecutionResult, TransactionInfo, TransactionInfoCreator,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 

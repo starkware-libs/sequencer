@@ -7,14 +7,14 @@ use std::vec;
 
 use apollo_network_types::test_utils::DUMMY_PEER_ID;
 use deadqueue::unlimited::Queue;
-use futures::channel::mpsc::{unbounded, UnboundedSender};
+use futures::channel::mpsc::{UnboundedSender, unbounded};
 use futures::channel::oneshot;
 use futures::future::FutureExt;
 use futures::stream::Stream;
-use futures::{pin_mut, Future, SinkExt, StreamExt};
+use futures::{Future, SinkExt, StreamExt, pin_mut};
 use lazy_static::lazy_static;
-use libp2p::core::transport::PortUse;
 use libp2p::core::ConnectedPoint;
+use libp2p::core::transport::PortUse;
 use libp2p::gossipsub::{MessageId, PublishError, SubscriptionError, TopicHash};
 use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
@@ -29,7 +29,7 @@ use crate::misconduct_score::MisconductScore;
 use crate::network_manager::{BroadcastTopicClientTrait, ServerQueryManager};
 use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{GenericEvent, InboundSessionId, OutboundSessionId};
-use crate::{mixed_behaviour, Bytes};
+use crate::{Bytes, mixed_behaviour};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 

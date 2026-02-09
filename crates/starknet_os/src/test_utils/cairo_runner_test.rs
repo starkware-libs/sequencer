@@ -4,11 +4,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 
 use crate::test_utils::cairo_runner::{
-    Cairo0EntryPointRunnerResult,
-    EndpointArg,
-    EntryPointRunnerConfig,
-    ImplicitArg,
-    PointerArg,
+    Cairo0EntryPointRunnerResult, EndpointArg, EntryPointRunnerConfig, ImplicitArg, PointerArg,
     ValueArg,
 };
 use crate::test_utils::utils::run_cairo_function_and_check_result;

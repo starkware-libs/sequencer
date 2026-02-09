@@ -17,7 +17,7 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::maybe_dummy_block_hash_and_number;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::test_utils::{create_test_init_data, emit_n_events_tx, TestInitData};
+use crate::transaction::test_utils::{TestInitData, create_test_init_data, emit_n_events_tx};
 use crate::transaction::transaction_execution::Transaction;
 
 fn get_txs<const N: usize>(txs: [AccountTransaction; N]) -> Vec<Transaction> {

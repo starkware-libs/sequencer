@@ -2,12 +2,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_optional_sensitive_map,
-    deserialize_seconds_to_duration,
-    serialize_optional_map,
+    deserialize_milliseconds_to_duration, deserialize_optional_sensitive_map,
+    deserialize_seconds_to_duration, serialize_optional_map,
 };
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, prepend_sub_config_name, ser_param};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_starknet_client::RetryConfig;

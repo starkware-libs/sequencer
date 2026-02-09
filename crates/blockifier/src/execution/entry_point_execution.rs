@@ -16,18 +16,12 @@ use crate::blockifier_versioned_constants::GasCosts;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
-    ExecutableCallEntryPoint,
+    EntryPointExecutionContext, EntryPointExecutionResult, ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
-    read_execution_retdata,
-    write_felt,
+    Args, ReadOnlySegments, SEGMENT_ARENA_BUILTIN_SIZE, read_execution_retdata, write_felt,
     write_maybe_relocatable,
-    Args,
-    ReadOnlySegments,
-    SEGMENT_ARENA_BUILTIN_SIZE,
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;

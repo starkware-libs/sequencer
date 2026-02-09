@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 #[cfg(any(feature = "testing", test))]
-use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, auto_impl_get_test_instance, get_number_of_variants};
 use indexmap::IndexMap;
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};

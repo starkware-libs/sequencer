@@ -1,6 +1,6 @@
+use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::execute_next_deprecated_syscall;
 use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
-use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 use paste::paste;

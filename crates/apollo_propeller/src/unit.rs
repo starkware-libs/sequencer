@@ -2,9 +2,7 @@
 
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_protobuf::protobuf::{
-    Hash256 as ProtoHash256,
-    MerkleProof as ProtoMerkleProof,
-    PeerId as ProtoPeerId,
+    Hash256 as ProtoHash256, MerkleProof as ProtoMerkleProof, PeerId as ProtoPeerId,
     PropellerUnit as ProtoPropellerUnit,
 };
 use libp2p::core::PeerId;

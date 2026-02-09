@@ -1,7 +1,7 @@
 use serde_json::json;
 use strum::IntoEnumIterator;
 
-use super::{verify_block_signature, StarknetVersion};
+use super::{StarknetVersion, verify_block_signature};
 use crate::block::{BlockHash, BlockNumber, BlockSignature, BlockTimestamp};
 use crate::core::{GlobalRoot, SequencerPublicKey};
 use crate::crypto::utils::{PublicKey, Signature};

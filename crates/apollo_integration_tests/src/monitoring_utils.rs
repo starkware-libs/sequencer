@@ -5,12 +5,8 @@ use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::metrics::MetricDetails;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_state_sync_metrics::metrics::{
-    STATE_SYNC_BODY_MARKER,
-    STATE_SYNC_CLASS_MANAGER_MARKER,
-    STATE_SYNC_COMPILED_CLASS_MARKER,
-    STATE_SYNC_HEADER_MARKER,
-    STATE_SYNC_PROCESSED_TRANSACTIONS,
-    STATE_SYNC_STATE_MARKER,
+    STATE_SYNC_BODY_MARKER, STATE_SYNC_CLASS_MANAGER_MARKER, STATE_SYNC_COMPILED_CLASS_MARKER,
+    STATE_SYNC_HEADER_MARKER, STATE_SYNC_PROCESSED_TRANSACTIONS, STATE_SYNC_STATE_MARKER,
 };
 use starknet_api::block::BlockNumber;
 use tokio::try_join;

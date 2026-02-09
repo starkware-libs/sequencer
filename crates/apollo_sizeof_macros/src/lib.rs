@@ -5,15 +5,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
 use syn::{
-    parse_macro_input,
+    Data, DataEnum, DataStruct, DeriveInput, Fields, GenericParam, Generics, parse_macro_input,
     parse_quote,
-    Data,
-    DataEnum,
-    DataStruct,
-    DeriveInput,
-    Fields,
-    GenericParam,
-    Generics,
 };
 
 /// This macro derives the `SizeOf` trait for structs and enums, allowing them to calculate

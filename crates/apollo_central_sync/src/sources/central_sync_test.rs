@@ -9,7 +9,7 @@ use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use assert_matches::assert_matches;
 use async_stream::stream;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -17,14 +17,8 @@ use futures::StreamExt;
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{
-    Block,
-    BlockBody,
-    BlockHash,
-    BlockHashAndNumber,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    Block, BlockBody, BlockHash, BlockHashAndNumber, BlockHeader, BlockHeaderWithoutHash,
+    BlockNumber, BlockSignature,
 };
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
@@ -38,18 +32,10 @@ use tracing::{debug, error};
 use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
 use crate::sources::central::{
-    BlocksStream,
-    CompiledClassesStream,
-    MockCentralSourceTrait,
-    StateUpdatesStream,
+    BlocksStream, CompiledClassesStream, MockCentralSourceTrait, StateUpdatesStream,
 };
 use crate::{
-    CentralError,
-    CentralSourceTrait,
-    GenericStateSync,
-    StateSyncError,
-    StateSyncResult,
-    SyncConfig,
+    CentralError, CentralSourceTrait, GenericStateSync, StateSyncError, StateSyncResult, SyncConfig,
 };
 
 const SYNC_SLEEP_DURATION: Duration = Duration::from_millis(100); // 100ms

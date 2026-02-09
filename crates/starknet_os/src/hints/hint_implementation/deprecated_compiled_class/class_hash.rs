@@ -8,9 +8,7 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
 use crate::hints::class_hash::hinted_class_hash::{
-    compute_cairo_hinted_class_hash,
-    CairoContractDefinition,
-    HintedClassHashError,
+    CairoContractDefinition, HintedClassHashError, compute_cairo_hinted_class_hash,
 };
 use crate::hints::hint_implementation::deprecated_compiled_class::utils::DEPRECATED_COMPILED_CLASS_VERSION;
 

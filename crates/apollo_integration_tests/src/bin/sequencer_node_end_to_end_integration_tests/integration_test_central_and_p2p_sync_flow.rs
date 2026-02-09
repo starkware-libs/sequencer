@@ -2,8 +2,7 @@ use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_node_config::component_execution_config::{
-    ActiveComponentExecutionMode,
-    ReactiveComponentExecutionMode,
+    ActiveComponentExecutionMode, ReactiveComponentExecutionMode,
 };
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_state_sync_config::config::CentralSyncClientConfig;

@@ -7,7 +7,7 @@ use apollo_config::validators::validate_path_exists;
 use apollo_config::{CONFIG_FILE_ARG, CONFIG_FILE_SHORT_ARG_NAME};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_infra::component_definitions::{ComponentStarter, default_component_start_fn};
 use apollo_infra::component_server::WrapperServer;
 use apollo_node_config::config_utils::load_and_validate_config;
 use apollo_node_config::node_config::NodeDynamicConfig;
@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde_json::Value;
 use tokio::sync::mpsc;
-use tokio::time::{interval, Duration as TokioDuration, Interval};
+use tokio::time::{Duration as TokioDuration, Interval, interval};
 
 const FS_EVENT_CHANNEL_CAPACITY: usize = 16;
 use tracing::{error, info};

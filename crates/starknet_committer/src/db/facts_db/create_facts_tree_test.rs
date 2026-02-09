@@ -3,9 +3,7 @@ use rstest_reuse::apply;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::MockLeaf;
 
 use crate::db::create_original_skeleton_tests::{
-    create_tree_cases,
-    test_create_original_skeleton,
-    CreateTreeCase,
+    CreateTreeCase, create_tree_cases, test_create_original_skeleton,
 };
 use crate::db::facts_db::FactsNodeLayout;
 

@@ -1,14 +1,8 @@
 use std::task::{Context, Poll};
 
 use libp2p::swarm::{
-    ConnectionDenied,
-    ConnectionId,
-    FromSwarm,
-    NetworkBehaviour,
-    THandler,
-    THandlerInEvent,
-    THandlerOutEvent,
-    ToSwarm,
+    ConnectionDenied, ConnectionId, FromSwarm, NetworkBehaviour, THandler, THandlerInEvent,
+    THandlerOutEvent, ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
 use tracing::debug;

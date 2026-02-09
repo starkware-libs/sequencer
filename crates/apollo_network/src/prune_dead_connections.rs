@@ -6,18 +6,13 @@ use std::convert::Infallible;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
+use libp2p::core::transport::PortUse;
 use libp2p::swarm::{
-    CloseConnection,
-    ConnectionDenied,
-    ConnectionHandler,
-    ConnectionId,
-    FromSwarm,
-    NetworkBehaviour,
-    ToSwarm,
+    CloseConnection, ConnectionDenied, ConnectionHandler, ConnectionId, FromSwarm,
+    NetworkBehaviour, ToSwarm,
 };
-use libp2p::{ping, Multiaddr, PeerId};
+use libp2p::{Multiaddr, PeerId, ping};
 use tracing::{debug, warn};
 
 use crate::metrics::LatencyMetrics;

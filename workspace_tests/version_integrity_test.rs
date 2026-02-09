@@ -2,12 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use toml_test_utils::{
-    CrateCargoToml,
-    DependencyValue,
-    LocalCrate,
-    PackageEntryValue,
-    MEMBER_TOMLS,
-    ROOT_TOML,
+    CrateCargoToml, DependencyValue, LocalCrate, MEMBER_TOMLS, PackageEntryValue, ROOT_TOML,
 };
 
 const PARENT_BRANCH: &str = include_str!("../scripts/parent_branch.txt");

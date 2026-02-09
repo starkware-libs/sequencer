@@ -1,6 +1,6 @@
 use http::StatusCode;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use thiserror::Error;
 
 use super::{LocalComponentClient, RemoteComponentClient};

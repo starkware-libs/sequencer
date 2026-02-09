@@ -13,7 +13,7 @@ use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::{serve, Json, Router};
+use axum::{Json, Router, serve};
 use metrics_exporter_prometheus::PrometheusHandle;
 use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;

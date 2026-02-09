@@ -9,9 +9,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_pie::{
-    BuiltinAdditionalData,
-    CairoPie,
-    OutputBuiltinAdditionalData,
+    BuiltinAdditionalData, CairoPie, OutputBuiltinAdditionalData,
 };
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use starknet_api::core::{ClassHash, CompiledClassHash};
@@ -27,11 +25,7 @@ use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
 use crate::io::os_input::{
-    CachedStateInput,
-    OsBlockInput,
-    OsHints,
-    OsHintsConfig,
-    StarknetOsInput,
+    CachedStateInput, OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput,
 };
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::{AggregatorMetrics, OsMetrics};

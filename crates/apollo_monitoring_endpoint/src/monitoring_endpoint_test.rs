@@ -2,28 +2,24 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 
-use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
+use apollo_infra::metrics::{MetricsConfig, metrics_recorder};
 use apollo_l1_provider_types::{L1ProviderSnapshot, MockL1ProviderClient};
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::{
-    MempoolSnapshot,
-    MempoolStateSnapshot,
-    TransactionQueueSnapshot,
+    MempoolSnapshot, MempoolStateSnapshot, TransactionQueueSnapshot,
 };
 use apollo_monitoring_endpoint_config::config::{
-    MonitoringEndpointConfig,
-    MONITORING_ENDPOINT_DEFAULT_IP,
-    MONITORING_ENDPOINT_DEFAULT_PORT,
+    MONITORING_ENDPOINT_DEFAULT_IP, MONITORING_ENDPOINT_DEFAULT_PORT, MonitoringEndpointConfig,
 };
+use axum::Router;
 use axum::http::StatusCode;
 use axum::response::Response;
-use axum::Router;
 use http_body_util::BodyExt;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
 use metrics::{counter, describe_counter};
 use pretty_assertions::assert_eq;
-use serde_json::{from_slice, to_value, Value};
+use serde_json::{Value, from_slice, to_value};
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::{nonce, tx_hash};
@@ -32,15 +28,8 @@ use tokio::task::yield_now;
 use tower::util::ServiceExt;
 
 use crate::monitoring_endpoint::{
-    create_monitoring_endpoint,
-    MonitoringEndpoint,
-    ALIVE,
-    L1_PROVIDER_SNAPSHOT,
-    MEMPOOL_SNAPSHOT,
-    METRICS,
-    READY,
-    SET_LOG_LEVEL,
-    VERSION,
+    ALIVE, L1_PROVIDER_SNAPSHOT, MEMPOOL_SNAPSHOT, METRICS, MonitoringEndpoint, READY,
+    SET_LOG_LEVEL, VERSION, create_monitoring_endpoint,
 };
 use crate::test_utils::{build_post_request, build_request};
 

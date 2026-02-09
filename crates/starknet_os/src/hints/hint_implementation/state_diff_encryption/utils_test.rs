@@ -4,15 +4,11 @@ use starknet_types_core::curve::AffinePoint;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{
-    polynomial_coefficients_to_blob,
-    FIELD_ELEMENTS_PER_BLOB,
+    FIELD_ELEMENTS_PER_BLOB, polynomial_coefficients_to_blob,
 };
 use crate::hints::hint_implementation::state_diff_encryption::utils::{
-    compute_starknet_public_keys,
-    decrypt_state_diff,
-    decrypt_state_diff_from_blobs,
-    encrypt_state_diff,
-    encrypt_symmetric_key,
+    compute_starknet_public_keys, decrypt_state_diff, decrypt_state_diff_from_blobs,
+    encrypt_state_diff, encrypt_symmetric_key,
 };
 use crate::io::os_output_types::{PartialOsStateDiff, TryFromOutputIter};
 

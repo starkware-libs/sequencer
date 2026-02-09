@@ -1,14 +1,11 @@
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
-    GetProposalContent,
-    GetProposalContentResponse,
-    ProposalCommitment,
+    GetProposalContent, GetProposalContentResponse, ProposalCommitment,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverterError,
+    MockTransactionConverterTrait, TransactionConverterError,
 };
 use apollo_consensus::types::ProposalCommitment as ConsensusProposalCommitment;
 use apollo_infra::component_client::ClientError;
@@ -16,11 +13,9 @@ use assert_matches::assert_matches;
 use starknet_api::core::ClassHash;
 use tokio_util::task::AbortOnDropHandle;
 
-use crate::build_proposal::{build_proposal, BuildProposalError};
+use crate::build_proposal::{BuildProposalError, build_proposal};
 use crate::test_utils::{
-    create_proposal_build_arguments,
-    INTERNAL_TX_BATCH,
-    STATE_DIFF_COMMITMENT,
+    INTERNAL_TX_BATCH, STATE_DIFF_COMMITMENT, create_proposal_build_arguments,
 };
 
 #[tokio::test]

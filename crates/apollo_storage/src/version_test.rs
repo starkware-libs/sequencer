@@ -4,27 +4,15 @@ use rand::Rng;
 
 use crate::db::table_types::Table;
 use crate::test_utils::{
-    get_test_storage,
-    get_test_storage_by_scope,
-    get_test_storage_with_config_by_scope,
+    get_test_storage, get_test_storage_by_scope, get_test_storage_with_config_by_scope,
 };
 use crate::version::{
-    StorageVersionError,
-    Version,
-    VersionStorageReader,
+    StorageVersionError, VERSION_BLOCKS_KEY, VERSION_STATE_KEY, Version, VersionStorageReader,
     VersionStorageWriter,
-    VERSION_BLOCKS_KEY,
-    VERSION_STATE_KEY,
 };
 use crate::{
-    open_storage,
-    set_version_if_needed,
-    verify_storage_version,
-    StorageError,
-    StorageScope,
-    StorageWriter,
-    STORAGE_VERSION_BLOCKS,
-    STORAGE_VERSION_STATE,
+    STORAGE_VERSION_BLOCKS, STORAGE_VERSION_STATE, StorageError, StorageScope, StorageWriter,
+    open_storage, set_version_if_needed, verify_storage_version,
 };
 
 // TODO(Dvir): Add this test for set_blocks_version or combine the logic.

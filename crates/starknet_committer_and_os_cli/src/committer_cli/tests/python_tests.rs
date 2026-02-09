@@ -6,29 +6,21 @@ use serde_json::json;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_committer::block_committer::input::{
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
+    StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use starknet_committer::block_committer::random_structs::DummyRandomValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
 use starknet_committer::db::facts_db::{FactDbFilledNode, FactsNodeLayout};
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::{
-    TreeHashFunctionImpl,
-    CONTRACT_CLASS_LEAF_V0,
-    CONTRACT_STATE_HASH_VERSION,
+    CONTRACT_CLASS_LEAF_V0, CONTRACT_STATE_HASH_VERSION, TreeHashFunctionImpl,
 };
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
@@ -45,8 +37,7 @@ use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
 use crate::committer_cli::parse_input::cast::CommitterFactsDbInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
 use crate::committer_cli::tests::parse_from_python::{
-    parse_input_single_storage_tree_flow_test,
-    TreeFlowInput,
+    TreeFlowInput, parse_input_single_storage_tree_flow_test,
 };
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 

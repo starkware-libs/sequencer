@@ -1,58 +1,42 @@
 use apollo_consensus::metrics::{
-    CONSENSUS_CONFLICTING_VOTES,
-    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
-    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
-    CONSENSUS_INBOUND_STREAM_EVICTED,
+    CONSENSUS_CONFLICTING_VOTES, CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC, CONSENSUS_INBOUND_STREAM_EVICTED,
 };
 use apollo_consensus_manager::metrics::{
-    CONSENSUS_NUM_CONNECTED_PEERS,
-    CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+    CONSENSUS_NUM_CONNECTED_PEERS, CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
 use apollo_consensus_orchestrator::metrics::{
-    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
-    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
-    CONSENSUS_PROPOSAL_FIN_MISMATCH,
-    CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC,
+    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
+    CONSENSUS_PROPOSAL_FIN_MISMATCH, CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC,
 };
 use apollo_l1_gas_price::metrics::{
-    ETH_TO_STRK_ERROR_COUNT,
-    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    ETH_TO_STRK_ERROR_COUNT, L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
 };
 use apollo_l1_provider::metrics::{
-    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
-    L1_MESSAGE_SCRAPER_REORG_DETECTED,
+    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_storage::metrics::{
-    BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-    CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
+    BATCHER_STORAGE_OPEN_READ_TRANSACTIONS, CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
     SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
 };
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 
 use crate::alert_scenarios::block_production_delay::{
-    get_cende_write_blob_failure_alert_vec,
-    get_cende_write_blob_failure_once_alert,
-    get_consensus_block_number_progress_is_slow_vec,
-    get_consensus_p2p_peer_down_vec,
-    get_consensus_round_above_zero,
-    get_consensus_round_above_zero_multiple_times_vec,
+    get_cende_write_blob_failure_alert_vec, get_cende_write_blob_failure_once_alert,
+    get_consensus_block_number_progress_is_slow_vec, get_consensus_p2p_peer_down_vec,
+    get_consensus_round_above_zero, get_consensus_round_above_zero_multiple_times_vec,
 };
 use crate::alert_scenarios::block_production_halt::{
-    get_batched_transactions_stuck_vec,
-    get_consensus_block_number_stuck_vec,
-    get_consensus_p2p_not_enough_peers_for_quorum_vec,
-    get_consensus_round_high_vec,
+    get_batched_transactions_stuck_vec, get_consensus_block_number_stuck_vec,
+    get_consensus_p2p_not_enough_peers_for_quorum_vec, get_consensus_round_high_vec,
 };
 use crate::alert_scenarios::infra_alerts::{
-    get_general_pod_disk_utilization_vec,
-    get_general_pod_high_cpu_utilization,
-    get_general_pod_memory_utilization_vec,
-    get_general_pod_state_crashloopbackoff,
-    get_general_pod_state_not_ready,
-    get_periodic_ping,
+    get_general_pod_disk_utilization_vec, get_general_pod_high_cpu_utilization,
+    get_general_pod_memory_utilization_vec, get_general_pod_state_crashloopbackoff,
+    get_general_pod_state_not_ready, get_periodic_ping,
 };
 use crate::alert_scenarios::l1_gas_prices::{
     get_eth_to_strk_success_count_alert_vec,
@@ -61,42 +45,27 @@ use crate::alert_scenarios::l1_gas_prices::{
 };
 use crate::alert_scenarios::l1_handlers::get_l1_message_scraper_no_successes_alert_vec;
 use crate::alert_scenarios::mempool_size::{
-    get_mempool_evictions_count_alert_vec,
-    get_mempool_pool_size_increase_vec,
+    get_mempool_evictions_count_alert_vec, get_mempool_pool_size_increase_vec,
 };
 use crate::alert_scenarios::preconfirmed::get_preconfirmed_block_not_written_vec;
 use crate::alert_scenarios::sync_halt::{get_state_sync_lag_vec, get_state_sync_stuck_vec};
 use crate::alert_scenarios::tps::{
-    get_gateway_add_tx_idle,
-    get_gateway_low_successful_transaction_rate_vec,
-    get_http_server_no_successful_transactions,
-    get_mempool_add_tx_idle,
+    get_gateway_add_tx_idle, get_gateway_low_successful_transaction_rate_vec,
+    get_http_server_no_successful_transactions, get_mempool_add_tx_idle,
 };
 use crate::alert_scenarios::transaction_delays::{
-    get_high_empty_blocks_ratio_alert_vec,
-    get_http_server_avg_add_tx_latency_alert_vec,
-    get_http_server_min_add_tx_latency_alert_vec,
-    get_http_server_p95_add_tx_latency_alert_vec,
+    get_high_empty_blocks_ratio_alert_vec, get_http_server_avg_add_tx_latency_alert_vec,
+    get_http_server_min_add_tx_latency_alert_vec, get_http_server_p95_add_tx_latency_alert_vec,
     get_mempool_p2p_peer_down_vec,
 };
 use crate::alert_scenarios::transaction_failures::{
     get_http_server_high_deprecated_transaction_failure_ratio,
-    get_http_server_high_transaction_failure_ratio,
-    get_http_server_internal_error_once,
-    get_http_server_internal_error_ratio_vec,
-    get_mempool_transaction_drop_ratio_vec,
+    get_http_server_high_transaction_failure_ratio, get_http_server_internal_error_once,
+    get_http_server_internal_error_ratio_vec, get_mempool_transaction_drop_ratio_vec,
 };
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    Alerts,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, Alerts, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 

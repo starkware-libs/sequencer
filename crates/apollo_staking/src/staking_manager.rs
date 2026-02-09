@@ -4,10 +4,7 @@ use std::sync::{Arc, RwLock};
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::Round;
 use apollo_staking_config::config::{
-    get_config_for_epoch,
-    ConfiguredStaker,
-    StakingManagerConfig,
-    StakingManagerDynamicConfig,
+    ConfiguredStaker, StakingManagerConfig, StakingManagerDynamicConfig, get_config_for_epoch,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
@@ -19,11 +16,7 @@ use tokio::sync::Mutex;
 use tracing::warn;
 
 use crate::committee_provider::{
-    Committee,
-    CommitteeProvider,
-    CommitteeProviderError,
-    CommitteeProviderResult,
-    Staker,
+    Committee, CommitteeProvider, CommitteeProviderError, CommitteeProviderResult, Staker,
 };
 use crate::staking_contract::StakingContract;
 use crate::utils::BlockRandomGenerator;

@@ -2,7 +2,7 @@
 
 use starknet_types_core::hash::{Poseidon, StarkHash};
 
-use crate::crypto::utils::{verify_message_hash_signature, PublicKey, Signature};
+use crate::crypto::utils::{PublicKey, Signature, verify_message_hash_signature};
 use crate::felt;
 
 #[test]

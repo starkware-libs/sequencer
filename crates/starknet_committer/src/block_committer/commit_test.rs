@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use expect_test::{expect, Expect};
-use rand::rngs::SmallRng;
+use expect_test::{Expect, expect};
 use rand::SeedableRng;
+use rand::rngs::SmallRng;
 use rstest::rstest;
 use rstest_reuse::{apply, template};
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -13,21 +13,14 @@ use starknet_types_core::felt::Felt;
 
 use crate::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use crate::block_committer::input::{
-    Input,
-    ReaderConfig,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
+    Input, ReaderConfig, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use crate::block_committer::measurements_util::NoMeasurements;
 use crate::block_committer::state_diff_generator::generate_random_state_diff;
-use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::facts_db::FactsDb;
+use crate::db::facts_db::types::FactsDbInitialRead;
 use crate::db::forest_trait::{
-    EmptyInitialReadContext,
-    ForestReader,
-    ForestWriter,
-    StorageInitializer,
+    EmptyInitialReadContext, ForestReader, ForestWriter, StorageInitializer,
 };
 use crate::db::index_db::{IndexDb, IndexDbReadContext};
 use crate::patricia_merkle_tree::types::CompiledClassHash;

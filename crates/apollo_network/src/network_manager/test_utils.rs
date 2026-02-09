@@ -3,29 +3,19 @@ use std::time::Duration;
 
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
-use futures::future::{ready, Ready};
+use futures::future::{Ready, ready};
 use futures::sink::With;
 use futures::stream::Map;
 use futures::{SinkExt, StreamExt};
+use libp2p::PeerId;
 use libp2p::gossipsub::SubscriptionError;
 use libp2p::identity::Keypair;
-use libp2p::PeerId;
 
 use super::{
-    BroadcastReceivedMessagesConverterFn,
-    BroadcastTopicChannels,
-    BroadcastTopicClient,
-    BroadcastedMessageMetadata,
-    GenericReceiver,
-    NetworkError,
-    NetworkManager,
-    ReportReceiver,
-    ServerQueryManager,
-    ServerResponsesSender,
-    SqmrClientPayload,
-    SqmrClientSender,
-    SqmrServerReceiver,
-    Topic,
+    BroadcastReceivedMessagesConverterFn, BroadcastTopicChannels, BroadcastTopicClient,
+    BroadcastedMessageMetadata, GenericReceiver, NetworkError, NetworkManager, ReportReceiver,
+    ServerQueryManager, ServerResponsesSender, SqmrClientPayload, SqmrClientSender,
+    SqmrServerReceiver, Topic,
 };
 use crate::utils::make_multiaddr;
 use crate::{Bytes, NetworkConfig};

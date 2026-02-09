@@ -11,13 +11,7 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
 use crate::block::{
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    GasPriceVector,
-    GasPrices,
-    NonzeroGasPrice,
+    BlockInfo, BlockNumber, BlockTimestamp, GasPrice, GasPriceVector, GasPrices, NonzeroGasPrice,
     StarknetVersion,
 };
 use crate::contract_address;

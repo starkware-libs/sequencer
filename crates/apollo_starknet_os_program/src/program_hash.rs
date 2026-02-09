@@ -1,4 +1,4 @@
-use cairo_vm::program_hash::{compute_program_hash_chain, ProgramHashError as VmProgramHashError};
+use cairo_vm::program_hash::{ProgramHashError as VmProgramHashError, compute_program_hash_chain};
 use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::types::program::Program;
 use serde::{Deserialize, Serialize};

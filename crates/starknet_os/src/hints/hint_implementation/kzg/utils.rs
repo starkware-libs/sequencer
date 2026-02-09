@@ -4,11 +4,11 @@ use std::sync::LazyLock;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
-use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT};
+use c_kzg::{BYTES_PER_BLOB, BYTES_PER_FIELD_ELEMENT, Blob, KzgCommitment, KzgSettings};
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_traits::{Num, Signed, Zero};
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, Bytes};
+use serde_with::{Bytes, serde_as};
 use sha2::{Digest, Sha256};
 use starknet_types_core::felt::Felt;
 

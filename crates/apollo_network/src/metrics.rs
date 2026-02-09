@@ -2,11 +2,7 @@ use std::collections::HashMap;
 
 use apollo_metrics::generate_permutation_labels;
 use apollo_metrics::metrics::{
-    LabeledMetricCounter,
-    LossyIntoF64,
-    MetricCounter,
-    MetricGauge,
-    MetricHistogram,
+    LabeledMetricCounter, LossyIntoF64, MetricCounter, MetricGauge, MetricHistogram,
 };
 use libp2p::gossipsub::{PublishError, TopicHash};
 use strum::{IntoStaticStr, VariantNames};

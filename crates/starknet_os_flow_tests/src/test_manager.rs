@@ -14,74 +14,53 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
-use expect_test::{expect, Expect};
+use expect_test::{Expect, expect};
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber, PreviousBlockNumber};
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce, PatriciaKey};
 use starknet_api::executable_transaction::{
-    AccountTransaction,
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    L1HandlerTransaction,
-    Transaction as StarknetApiTransaction,
+    AccountTransaction, DeclareTransaction, DeployAccountTransaction, InvokeTransaction,
+    L1HandlerTransaction, Transaction as StarknetApiTransaction,
 };
 use starknet_api::hash::StateRoots;
 use starknet_api::invoke_tx_args;
 use starknet_api::state::{SierraContractClass, StorageKey};
-use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::{NonceManager, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::{Calldata, Tip};
+use starknet_api::test_utils::invoke::{InvokeTxArgs, invoke_tx};
+use starknet_api::test_utils::{CHAIN_ID_FOR_TESTS, NonceManager};
 use starknet_api::transaction::MessageToL1;
+use starknet_api::transaction::fields::{Calldata, Tip};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_committer::block_committer::input::{
-    IsSubset,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
+    IsSubset, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{
-    OsBlockInput,
-    OsChainInfo,
-    OsHints,
-    OsHintsConfig,
-    StarknetOsInput,
+    OsBlockInput, OsChainInfo, OsHints, OsHintsConfig, StarknetOsInput,
 };
 use starknet_os::io::os_output::{MessageToL2, OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::io::os_output_types::{
-    FullOsStateDiff,
-    PartialCommitmentOsStateDiff,
-    PartialOsStateDiff,
-    TryFromOutputIter,
+    FullOsStateDiff, PartialCommitmentOsStateDiff, PartialOsStateDiff, TryFromOutputIter,
 };
 use starknet_os::io::test_utils::validate_kzg_segment;
-use starknet_os::runner::{run_os_stateless_for_testing, DEFAULT_OS_LAYOUT};
+use starknet_os::runner::{DEFAULT_OS_LAYOUT, run_os_stateless_for_testing};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
-    create_default_initial_state_data,
+    InitialState, InitialStateData, OsExecutionContracts, create_default_initial_state_data,
     get_initial_deploy_account_tx,
-    InitialState,
-    InitialStateData,
-    OsExecutionContracts,
 };
 use crate::state_trait::FlowTestState;
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
-    commit_state_diff,
-    create_cached_state_input_and_commitment_infos,
-    create_committer_state_diff,
-    divide_vec_into_n_parts,
-    execute_transactions,
+    ExecutionOutput, commit_state_diff, create_cached_state_input_and_commitment_infos,
+    create_committer_state_diff, divide_vec_into_n_parts, execute_transactions,
     maybe_dummy_block_hash_and_number,
-    ExecutionOutput,
 };
 
 /// The STRK fee token address that was deployed when initializing the default initial state.

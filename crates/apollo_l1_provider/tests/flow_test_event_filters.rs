@@ -5,30 +5,20 @@ use std::str::FromStr;
 
 use alloy::consensus::Header as HeaderInner;
 use alloy::primitives::{
-    keccak256,
-    BlockHash,
-    Bytes,
-    Log as LogInner,
-    LogData,
-    TxHash,
-    B256,
-    U256,
+    B256, BlockHash, Bytes, Log as LogInner, LogData, TxHash, U256, keccak256,
 };
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header, Log};
 use alloy::transports::mock::Asserter;
 use apollo_l1_provider::event_identifiers_to_track;
 use assert_matches::assert_matches;
+use papyrus_base_layer::BaseLayerContract;
 use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    EthereumBaseLayerError,
+    EthereumBaseLayerConfig, EthereumBaseLayerContract, EthereumBaseLayerError,
 };
 use papyrus_base_layer::test_utils::{
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-    DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
+    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
 };
-use papyrus_base_layer::BaseLayerContract;
 use utils::{L1_CONTRACT_ADDRESS, L2_ENTRY_POINT};
 
 // This test requires that we do some manual work to produce the logs we expect to get from the

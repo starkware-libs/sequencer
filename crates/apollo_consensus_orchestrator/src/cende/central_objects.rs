@@ -3,47 +3,28 @@ use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigratio
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use serde::Serialize;
 use starknet_api::block::{
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    NonzeroGasPrice,
-    StarknetVersion,
+    BlockInfo, BlockNumber, BlockTimestamp, NonzeroGasPrice, StarknetVersion,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, Nonce,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::rpc_transaction::{
-    InternalRpcDeclareTransactionV3,
-    InternalRpcDeployAccountTransaction,
-    InternalRpcTransaction,
-    InternalRpcTransactionWithoutTxHash,
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
+    InternalRpcDeclareTransactionV3, InternalRpcDeployAccountTransaction, InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash, RpcDeployAccountTransaction, RpcInvokeTransaction,
 };
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
-use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-};
 use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::{
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, Fee, PaymasterData,
+    ResourceBounds, Tip, TransactionSignature,
+};
 use starknet_types_core::felt::Felt;
 
 use super::{CendeAmbassadorError, CendeAmbassadorResult};

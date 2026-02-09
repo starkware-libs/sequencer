@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::sync::{Arc, Mutex};
 
-use apollo_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
+use apollo_gateway::errors::{RPCStateReaderError, serde_err_to_state_err};
 use apollo_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
 use apollo_gateway::rpc_state_reader::RpcStateReader as GatewayRpcStateReader;
 use apollo_gateway_config::config::RpcStateReaderConfig;
@@ -20,19 +20,13 @@ use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::{
-    FetchCompiledClasses,
-    StateReaderAndContractManager,
+    FetchCompiledClasses, StateReaderAndContractManager,
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use serde::Serialize;
-use serde_json::{json, to_value, Value};
+use serde_json::{Value, json, to_value};
 use starknet_api::block::{
-    BlockHash,
-    BlockHashAndNumber,
-    BlockInfo,
-    BlockNumber,
-    GasPricePerToken,
-    StarknetVersion,
+    BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, GasPricePerToken, StarknetVersion,
 };
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
@@ -46,24 +40,16 @@ use crate::compile::{legacy_to_contract_class_v0, sierra_to_versioned_contract_c
 use crate::errors::ReexecutionResult;
 use crate::retry_request;
 use crate::serde_utils::{
-    deserialize_transaction_json_to_starknet_api_tx,
-    hashmap_from_raw,
-    nested_hashmap_from_raw,
+    deserialize_transaction_json_to_starknet_api_tx, hashmap_from_raw, nested_hashmap_from_raw,
 };
 use crate::state_reader::offline_state_reader::{
-    SerializableDataNextBlock,
-    SerializableDataPrevBlock,
-    SerializableOfflineReexecutionData,
+    SerializableDataNextBlock, SerializableDataPrevBlock, SerializableOfflineReexecutionData,
 };
 use crate::state_reader::reexecution_state_reader::{
-    ConsecutiveReexecutionStateReaders,
-    ReexecutionStateReader,
+    ConsecutiveReexecutionStateReaders, ReexecutionStateReader,
 };
 use crate::utils::{
-    disjoint_hashmap_union,
-    get_chain_info,
-    get_rpc_state_reader_config,
-    ComparableStateDiff,
+    ComparableStateDiff, disjoint_hashmap_union, get_chain_info, get_rpc_state_reader_config,
 };
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;

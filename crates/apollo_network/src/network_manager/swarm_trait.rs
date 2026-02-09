@@ -11,7 +11,7 @@ use crate::misconduct_score::MisconductScore;
 use crate::peer_manager::ReputationModifier;
 use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{InboundSessionId, OutboundSessionId, SessionId};
-use crate::{mixed_behaviour, Bytes};
+use crate::{Bytes, mixed_behaviour};
 pub type Event = SwarmEvent<<mixed_behaviour::MixedBehaviour as NetworkBehaviour>::ToSwarm>;
 
 pub trait SwarmTrait: Stream<Item = Event> + Unpin {

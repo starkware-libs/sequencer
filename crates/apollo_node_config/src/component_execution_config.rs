@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, ToSocketAddrs};
 
-use apollo_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_optional_sub_config, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};

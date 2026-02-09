@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_integer_from_var_name,
-    get_maybe_relocatable_from_var_name,
-    get_ptr_from_var_name,
+    get_integer_from_var_name, get_maybe_relocatable_from_var_name, get_ptr_from_var_name,
     insert_value_from_var_name,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;

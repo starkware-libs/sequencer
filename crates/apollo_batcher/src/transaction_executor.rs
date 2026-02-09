@@ -1,8 +1,6 @@
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use blockifier::blockifier::transaction_executor::{
-    BlockExecutionSummary,
-    TransactionExecutionOutput,
-    TransactionExecutorResult,
+    BlockExecutionSummary, TransactionExecutionOutput, TransactionExecutorResult,
 };
 use blockifier::state::state_api::StateReader;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;

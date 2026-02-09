@@ -1,17 +1,13 @@
 use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block_hash::block_hash_calculator::{
-    TransactionHashingData,
-    TransactionOutputForHash,
+    TransactionHashingData, TransactionOutputForHash,
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionExecutionStatus;
 
 use crate::block_hash_cli::tests::objects::{
-    get_thin_state_diff,
-    get_transaction_output_for_hash,
-    get_tx_data,
-    get_tx_execution_infos,
+    get_thin_state_diff, get_transaction_output_for_hash, get_tx_data, get_tx_execution_infos,
 };
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 

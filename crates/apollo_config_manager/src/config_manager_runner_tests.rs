@@ -5,8 +5,7 @@ use std::time::Duration;
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{
-    MockConfigManagerClient,
-    SharedConfigManagerClient,
+    MockConfigManagerClient, SharedConfigManagerClient,
 };
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;

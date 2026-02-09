@@ -5,24 +5,17 @@ use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensu
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::executable_transaction::{
-    AccountTransaction,
-    Transaction as ExecutableTransaction,
-    ValidateCompiledClassHashError,
+    AccountTransaction, Transaction as ExecutableTransaction, ValidateCompiledClassHashError,
 };
 use starknet_api::rpc_transaction::{
-    InternalRpcDeclareTransactionV3,
-    InternalRpcDeployAccountTransaction,
-    InternalRpcTransaction,
-    InternalRpcTransactionWithoutTxHash,
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
-    RpcTransaction,
+    InternalRpcDeclareTransactionV3, InternalRpcDeployAccountTransaction, InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash, RpcDeclareTransaction, RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction, RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::CalculateContractAddress;
-use starknet_api::{executable_transaction, transaction, StarknetApiError};
+use starknet_api::transaction::fields::Fee;
+use starknet_api::{StarknetApiError, executable_transaction, transaction};
 use thiserror::Error;
 
 use crate::{ClassHashes, ClassManagerClientError, SharedClassManagerClient};

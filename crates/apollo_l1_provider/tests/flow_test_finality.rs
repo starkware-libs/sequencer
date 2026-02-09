@@ -2,24 +2,14 @@
 mod utils;
 
 use apollo_l1_provider_types::{
-    InvalidValidationStatus,
-    L1ProviderClient,
-    SessionState,
-    ValidationStatus,
+    InvalidValidationStatus, L1ProviderClient, SessionState, ValidationStatus,
 };
 use apollo_l1_scraper_config::config::L1ScraperConfig;
 use starknet_api::block::BlockNumber;
 use utils::{
-    send_message_from_l1_to_l2,
-    setup_anvil_base_layer,
-    setup_scraper_and_provider,
-    CALL_DATA,
-    CALL_DATA_2,
-    CHAIN_ID,
-    POLLING_INTERVAL_DURATION,
-    ROUND_TO_SEC_MARGIN_DURATION,
-    TARGET_L2_HEIGHT,
-    WAIT_FOR_ASYNC_PROCESSING_DURATION,
+    CALL_DATA, CALL_DATA_2, CHAIN_ID, POLLING_INTERVAL_DURATION, ROUND_TO_SEC_MARGIN_DURATION,
+    TARGET_L2_HEIGHT, WAIT_FOR_ASYNC_PROCESSING_DURATION, send_message_from_l1_to_l2,
+    setup_anvil_base_layer, setup_scraper_and_provider,
 };
 
 #[tokio::test]

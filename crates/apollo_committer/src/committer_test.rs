@@ -2,9 +2,7 @@ use std::path::PathBuf;
 
 use apollo_committer_config::config::CommitterConfig;
 use apollo_committer_types::committer_types::{
-    CommitBlockRequest,
-    RevertBlockRequest,
-    RevertBlockResponse,
+    CommitBlockRequest, RevertBlockRequest, RevertBlockResponse,
 };
 use apollo_committer_types::errors::CommitterError;
 use assert_matches::assert_matches;

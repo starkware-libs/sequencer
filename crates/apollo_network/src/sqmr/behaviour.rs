@@ -4,35 +4,27 @@ mod behaviour_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io;
-use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
-use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
+use libp2p::core::transport::PortUse;
 use libp2p::swarm::{
-    ConnectionClosed,
-    ConnectionDenied,
-    ConnectionHandler,
-    ConnectionId,
-    FromSwarm,
-    NetworkBehaviour,
-    NotifyHandler,
-    ToSwarm,
+    ConnectionClosed, ConnectionDenied, ConnectionHandler, ConnectionId, FromSwarm,
+    NetworkBehaviour, NotifyHandler, ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
 use tracing::{debug, error};
 
 use super::handler::{
-    Handler,
-    RequestFromBehaviourEvent,
-    RequestToBehaviourEvent,
+    Handler, RequestFromBehaviourEvent, RequestToBehaviourEvent,
     SessionError as HandlerSessionError,
 };
 use super::{Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
 use crate::mixed_behaviour::{self, BridgedBehaviour};
-use crate::{peer_manager, Bytes};
+use crate::{Bytes, peer_manager};
 
 #[derive(thiserror::Error, Debug)]
 pub enum SessionError {

@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use apollo_network_types::test_utils::{get_peer_id, DUMMY_PEER_ID};
+use apollo_network_types::test_utils::{DUMMY_PEER_ID, get_peer_id};
 use assert_matches::assert_matches;
 use futures::future::poll_fn;
 use futures::{FutureExt, Stream, StreamExt};

@@ -3,9 +3,7 @@ use pretty_assertions::assert_eq;
 use starknet_crypto::Felt;
 
 use crate::compression_utils::{
-    compress_and_encode,
-    decode_and_decompress_with_size_limit,
-    CompressionError,
+    CompressionError, compress_and_encode, decode_and_decompress_with_size_limit,
 };
 use crate::test_utils::read_json_file;
 

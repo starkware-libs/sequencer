@@ -2,26 +2,19 @@ use std::time::Instant;
 
 use apollo_class_manager_config::config::{ClassManagerConfig, FsClassManagerConfig};
 use apollo_class_manager_types::{
-    ClassHashes,
-    ClassId,
-    ClassManagerError,
-    ClassManagerResult,
-    ExecutableClassHash,
+    ClassHashes, ClassId, ClassManagerError, ClassManagerResult, ExecutableClassHash,
 };
 use apollo_compile_to_casm_types::{
-    RawClass,
-    RawExecutableClass,
-    SharedSierraCompilerClient,
-    SierraCompilerClientError,
+    RawClass, RawExecutableClass, SharedSierraCompilerClient, SierraCompilerClientError,
 };
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_infra::component_definitions::{ComponentStarter, default_component_start_fn};
 use async_trait::async_trait;
-use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
+use starknet_api::state::{CONTRACT_CLASS_VERSION, SierraContractClass};
 use tracing::{debug, instrument};
 
+use crate::FsClassManager;
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
 use crate::metrics::register_metrics;
-use crate::FsClassManager;
 
 #[cfg(test)]
 #[path = "class_manager_test.rs"]

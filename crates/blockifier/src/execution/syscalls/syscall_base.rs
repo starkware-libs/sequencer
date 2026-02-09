@@ -1,5 +1,5 @@
 /// This file is for sharing common logic between Native and VM syscall implementations.
-use std::collections::{hash_map, HashMap};
+use std::collections::{HashMap, hash_map};
 use std::convert::From;
 use std::sync::Arc;
 
@@ -7,64 +7,40 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
+    ClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce, calculate_contract_address,
 };
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionSignature};
 use starknet_api::transaction::{
+    EventContent, InvokeTransactionV0, TransactionHasher, TransactionOptions, TransactionVersion,
     signed_tx_version,
-    EventContent,
-    InvokeTransactionV0,
-    TransactionHasher,
-    TransactionOptions,
-    TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants;
 use crate::context::TransactionContext;
 use crate::execution::call_info::{
-    CallInfo,
-    MessageToL1,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    StorageAccessTracker,
+    CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message, StorageAccessTracker,
 };
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    CallType,
-    ConstructorContext,
-    EntryPointExecutionContext,
+    CallEntryPoint, CallType, ConstructorContext, EntryPointExecutionContext,
     ExecutableCallEntryPoint,
 };
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::syscalls::hint_processor::{
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR_FELT, ENTRYPOINT_FAILED_ERROR_FELT, INVALID_ARGUMENT_FELT,
     SyscallExecutionError,
-    BLOCK_NUMBER_OUT_OF_RANGE_ERROR_FELT,
-    ENTRYPOINT_FAILED_ERROR_FELT,
-    INVALID_ARGUMENT_FELT,
 };
 use crate::execution::syscalls::vm_syscall_utils::{
-    exceeds_event_size_limit,
-    SyscallBaseResult,
-    SyscallExecutorBaseError,
-    SyscallSelector,
-    SyscallUsageMap,
-    TryExtractRevert,
+    SyscallBaseResult, SyscallExecutorBaseError, SyscallSelector, SyscallUsageMap,
+    TryExtractRevert, exceeds_event_size_limit,
 };
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
 use crate::transaction::objects::{
-    CommonAccountFields,
-    DeprecatedTransactionInfo,
-    TransactionInfo,
+    CommonAccountFields, DeprecatedTransactionInfo, TransactionInfo,
 };
 
 pub type SyscallResult<T> = Result<T, SyscallExecutionError>;

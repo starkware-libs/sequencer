@@ -3,17 +3,12 @@ use std::fmt::Debug;
 #[cfg(any(feature = "testing", test))]
 use std::str::FromStr;
 
-use metrics::{describe_gauge, gauge, IntoF64};
+use metrics::{IntoF64, describe_gauge, gauge};
 #[cfg(any(feature = "testing", test))]
 use num_traits::Num;
 
 use crate::metrics::{
-    HasMetricDetails,
-    HasMetricFilterKind,
-    LossyIntoF64,
-    Metric,
-    MetricDetails,
-    MetricFilterKind,
+    HasMetricDetails, HasMetricFilterKind, LossyIntoF64, Metric, MetricDetails, MetricFilterKind,
     MetricScope,
 };
 #[cfg(any(feature = "testing", test))]

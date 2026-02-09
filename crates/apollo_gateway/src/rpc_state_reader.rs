@@ -4,9 +4,7 @@ use apollo_rpc::CompiledContractClass;
 use apollo_state_sync_types::communication::StateSyncClientResult;
 use async_trait::async_trait;
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::CompiledClasses;
@@ -14,28 +12,19 @@ use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateRe
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::errors::{serde_err_to_state_err, RPCStateReaderError, RPCStateReaderResult};
+use crate::errors::{RPCStateReaderError, RPCStateReaderResult, serde_err_to_state_err};
 use crate::gateway_fixed_block_state_reader::{GatewayFixedBlockStateReader, StarknetResult};
 use crate::rpc_objects::{
-    BlockHeader,
-    BlockId,
-    GetBlockWithTxHashesParams,
-    GetClassHashAtParams,
-    GetCompiledClassParams,
-    GetNonceParams,
-    GetStorageAtParams,
-    RpcResponse,
-    RPC_CLASS_HASH_NOT_FOUND,
-    RPC_ERROR_BLOCK_NOT_FOUND,
-    RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
-    RPC_ERROR_INVALID_PARAMS,
+    BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams, GetCompiledClassParams,
+    GetNonceParams, GetStorageAtParams, RPC_CLASS_HASH_NOT_FOUND, RPC_ERROR_BLOCK_NOT_FOUND,
+    RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND, RPC_ERROR_INVALID_PARAMS, RpcResponse,
 };
 use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFactory};
 

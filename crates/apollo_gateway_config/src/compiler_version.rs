@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use apollo_compilation_utils::class_utils::sierra_program_as_felts_to_big_uint_as_hex;
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_lang_starknet_classes::compiler_version::VersionId as CairoLangVersionId;
 use cairo_lang_starknet_classes::contract_class::version_id_from_serialized_sierra_program;

@@ -5,8 +5,7 @@ use apollo_class_manager_types::transaction_converter::TransactionConverterTrait
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_mempool_p2p_types::communication::{
-    MempoolP2pPropagatorRequest,
-    MempoolP2pPropagatorResponse,
+    MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse,
 };
 use apollo_mempool_p2p_types::errors::MempoolP2pPropagatorError;
 use apollo_mempool_p2p_types::mempool_p2p_types::MempoolP2pPropagatorResult;

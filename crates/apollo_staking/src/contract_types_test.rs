@@ -3,7 +3,7 @@ use blockifier::execution::call_info::Retdata;
 use rstest::rstest;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
-use starknet_api::core::{ContractAddress, PatriciaKey, CONTRACT_ADDRESS_DOMAIN_SIZE};
+use starknet_api::core::{CONTRACT_ADDRESS_DOMAIN_SIZE, ContractAddress, PatriciaKey};
 use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 

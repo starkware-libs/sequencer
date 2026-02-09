@@ -6,17 +6,17 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use apollo_class_manager_config::config::{CachedClassStorageConfig, FsClassStorageConfig};
 use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
+use apollo_storage::StorageConfig;
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::ServerConfig;
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
-use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
 use tokio::task::AbortHandle;
 use tracing::instrument;
 
-use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
+use crate::metrics::{CairoClassType, ClassObjectType, increment_n_classes, record_class_size};
 
 #[cfg(test)]
 #[path = "class_storage_test.rs"]

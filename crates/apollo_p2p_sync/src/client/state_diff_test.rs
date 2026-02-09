@@ -1,14 +1,8 @@
 use std::collections::HashMap;
 
 use apollo_protobuf::sync::{
-    BlockHashOrNumber,
-    ContractDiff,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    Direction,
-    Query,
-    StateDiffChunk,
+    BlockHashOrNumber, ContractDiff, DataOrFin, DeclaredClass, DeprecatedDeclaredClass, Direction,
+    Query, StateDiffChunk,
 };
 use apollo_storage::state::StateStorageReader;
 use apollo_test_utils::get_rng;
@@ -16,18 +10,13 @@ use futures::FutureExt;
 use indexmap::indexmap;
 use starknet_api::block::BlockNumber;
 use starknet_api::compiled_class_hash;
-use starknet_api::core::{ascii_as_felt, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, ascii_as_felt};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
 use super::test_utils::{
-    random_header,
-    run_test,
-    wait_for_marker,
-    Action,
-    DataType,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    TIMEOUT_FOR_TEST,
+    Action, DataType, SLEEP_DURATION_TO_LET_SYNC_ADVANCE, TIMEOUT_FOR_TEST, random_header,
+    run_test, wait_for_marker,
 };
 
 #[tokio::test]

@@ -1,18 +1,12 @@
 use std::task::{Context, Poll};
 
 use bootstrap_peer::BootstrapPeerEventStream;
-use futures::stream::SelectAll;
 use futures::StreamExt;
-use libp2p::core::transport::PortUse;
+use futures::stream::SelectAll;
 use libp2p::core::Endpoint;
+use libp2p::core::transport::PortUse;
 use libp2p::swarm::{
-    dummy,
-    ConnectionDenied,
-    ConnectionHandler,
-    ConnectionId,
-    FromSwarm,
-    NetworkBehaviour,
-    ToSwarm,
+    ConnectionDenied, ConnectionHandler, ConnectionId, FromSwarm, NetworkBehaviour, ToSwarm, dummy,
 };
 use libp2p::{Multiaddr, PeerId};
 use tracing::{info, warn};

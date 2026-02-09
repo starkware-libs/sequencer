@@ -7,12 +7,8 @@ use crate::hints::hint_implementation::aggregator_utils::ToMaybeRelocatables;
 use crate::hints::hint_implementation::state_diff_encryption::utils::maybe_decrypt_iter;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::io::os_output::{
-    felt_as_bool,
-    try_into_custom_error,
-    wrap_missing,
+    OsKzgCommitmentInfo, OsOutputError, felt_as_bool, try_into_custom_error, wrap_missing,
     wrap_missing_as,
-    OsKzgCommitmentInfo,
-    OsOutputError,
 };
 
 #[cfg(test)]

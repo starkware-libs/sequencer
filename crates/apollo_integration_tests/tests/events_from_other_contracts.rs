@@ -1,4 +1,4 @@
-use apollo_base_layer_tests::anvil_base_layer::{send_message_to_l2, AnvilBaseLayer};
+use apollo_base_layer_tests::anvil_base_layer::{AnvilBaseLayer, send_message_to_l2};
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use assert_matches::assert_matches;
 use papyrus_base_layer::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};

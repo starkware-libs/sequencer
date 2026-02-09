@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
-use crate::core::{ascii_as_felt, EntryPointSelector};
+use crate::core::{EntryPointSelector, ascii_as_felt};
 
 pub const EXECUTE_ENTRY_POINT_NAME: &str = "__execute__";
 pub const TRANSFER_ENTRY_POINT_NAME: &str = "transfer";

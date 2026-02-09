@@ -7,10 +7,7 @@ use apollo_infra_utils::info_every_n_ms;
 use apollo_l1_gas_price_provider_config::config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{
-    EthToStrkOracleClientTrait,
-    GasPriceData,
-    L1GasPriceProviderResult,
-    PriceInfo,
+    EthToStrkOracleClientTrait, GasPriceData, L1GasPriceProviderResult, PriceInfo,
 };
 use async_trait::async_trait;
 use starknet_api::block::BlockTimestamp;
@@ -18,10 +15,8 @@ use tracing::{info, trace, warn};
 
 use crate::eth_to_strk_oracle::EthToStrkOracleClient;
 use crate::metrics::{
-    register_provider_metrics,
-    L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
-    L1_GAS_PRICE_LATEST_MEAN_VALUE,
-    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
+    L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE, L1_GAS_PRICE_LATEST_MEAN_VALUE,
+    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, register_provider_metrics,
 };
 
 #[cfg(test)]

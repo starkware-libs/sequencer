@@ -5,16 +5,13 @@ use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::NodeLayoutFor;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
-    Leaf,
-    LeafModifications,
-    SkeletonLeaf,
+    Leaf, LeafModifications, SkeletonLeaf,
 };
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonTree,
-    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::map_storage::MapStorage;

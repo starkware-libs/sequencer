@@ -3,16 +3,13 @@ use std::sync::Arc;
 
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_staking_config::config::{
-    CommitteeConfig,
-    ConfiguredStaker,
-    StakingManagerConfig,
-    StakingManagerDynamicConfig,
+    CommitteeConfig, ConfiguredStaker, StakingManagerConfig, StakingManagerDynamicConfig,
     StakingManagerStaticConfig,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use assert_matches::assert_matches;
-use mockall::predicate::eq;
 use mockall::TimesRange;
+use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, PatriciaKey};
@@ -21,7 +18,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::committee_provider::{Committee, CommitteeProvider, CommitteeProviderError, Staker};
 use crate::staking_contract::MockStakingContract;
-use crate::staking_manager::{Epoch, StakingManager, MIN_EPOCH_LENGTH};
+use crate::staking_manager::{Epoch, MIN_EPOCH_LENGTH, StakingManager};
 use crate::utils::MockBlockRandomGenerator;
 
 const STAKER_1: Staker = Staker {

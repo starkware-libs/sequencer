@@ -6,45 +6,34 @@ use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus_config::config::{
-    ConsensusConfig,
-    ConsensusDynamicConfig,
-    ConsensusStaticConfig,
-    FutureMsgLimitsConfig,
-    Timeout,
+    ConsensusConfig, ConsensusDynamicConfig, ConsensusStaticConfig, FutureMsgLimitsConfig, Timeout,
     TimeoutsConfig,
 };
 use apollo_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    MockBroadcastedMessagesSender,
-    TestSubscriberChannels,
+    MockBroadcastedMessagesSender, TestSubscriberChannels, mock_register_broadcast_topic,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{ProposalCommitment, Vote, DEFAULT_VALIDATOR_ID};
+use apollo_protobuf::consensus::{DEFAULT_VALIDATOR_ID, ProposalCommitment, Vote};
 use apollo_storage::StorageConfig;
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
-use mockall::predicate::eq;
 use mockall::Sequence;
+use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 
-use super::{run_consensus, MultiHeightManager, RunHeightRes};
+use super::{MultiHeightManager, RunHeightRes, run_consensus};
+use crate::RunConsensusArguments;
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
-    block_info,
-    precommit,
-    prevote,
-    MockTestContext,
-    NoOpHeightVotedStorage,
-    TestProposalPart,
+    MockTestContext, NoOpHeightVotedStorage, TestProposalPart, block_info, precommit, prevote,
 };
 use crate::types::{ConsensusError, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
-use crate::RunConsensusArguments;
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();

@@ -8,17 +8,13 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
 use rstest::rstest;
-use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
 use crate::execution::contract_class::{
-    CompiledClassV1,
-    ContractClassV1Inner,
-    FeltSizeCount,
-    NestedFeltCounts,
-    RunnableCompiledClass,
+    CompiledClassV1, ContractClassV1Inner, FeltSizeCount, NestedFeltCounts, RunnableCompiledClass,
 };
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::transaction::errors::TransactionExecutionError;

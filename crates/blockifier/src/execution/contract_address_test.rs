@@ -2,7 +2,7 @@ use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
+use starknet_api::core::{ClassHash, ContractAddress, calculate_contract_address};
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::{calldata, felt};
 
@@ -12,9 +12,9 @@ use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
+use crate::test_utils::BALANCE;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::BALANCE;
 
 #[rstest]
 fn test_calculate_contract_address() {

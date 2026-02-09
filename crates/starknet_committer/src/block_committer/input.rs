@@ -1,17 +1,17 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::StarknetApiError;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::{StorageKey, ThinStateDiff};
-use starknet_api::StarknetApiError;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 
-use crate::patricia_merkle_tree::types::{class_hash_into_node_index, CompiledClassHash};
+use crate::patricia_merkle_tree::types::{CompiledClassHash, class_hash_into_node_index};
 
 #[cfg(test)]
 #[path = "input_test.rs"]

@@ -6,37 +6,13 @@ use std::time::Instant;
 
 use lazy_static::lazy_static;
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
-    parse,
-    parse2,
-    parse_macro_input,
-    parse_str,
-    Error,
-    Expr,
-    ExprLit,
-    Ident,
-    Item,
-    ItemConst,
-    ItemEnum,
-    ItemExternCrate,
-    ItemFn,
-    ItemMod,
-    ItemStatic,
-    ItemStruct,
-    ItemTrait,
-    ItemTraitAlias,
-    ItemType,
-    ItemUnion,
-    ItemUse,
-    LitBool,
-    LitStr,
-    Meta,
-    Token,
-    TraitItem,
-    Visibility,
+    Error, Expr, ExprLit, Ident, Item, ItemConst, ItemEnum, ItemExternCrate, ItemFn, ItemMod,
+    ItemStatic, ItemStruct, ItemTrait, ItemTraitAlias, ItemType, ItemUnion, ItemUse, LitBool,
+    LitStr, Meta, Token, TraitItem, Visibility, parse, parse_macro_input, parse_str, parse2,
 };
 
 /// This macro is a wrapper around the "rpc" macro supplied by the jsonrpsee library that generates

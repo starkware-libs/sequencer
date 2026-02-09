@@ -3,27 +3,22 @@ use std::time::Duration;
 
 use apollo_gateway_types::communication::{GatewayClient, GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
-    KnownStarknetErrorCode,
-    StarknetError,
-    StarknetErrorCode,
+    KnownStarknetErrorCode, StarknetError, StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewayError;
 use apollo_gateway_types::gateway_types::{GatewayInput, GatewayOutput, InvokeGatewayOutput};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_mempool_p2p_types::communication::{
-    MempoolP2pPropagatorClient,
-    MockMempoolP2pPropagatorClient,
+    MempoolP2pPropagatorClient, MockMempoolP2pPropagatorClient,
 };
 use apollo_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    BroadcastNetworkMock,
-    TestSubscriberChannels,
+    BroadcastNetworkMock, TestSubscriberChannels, mock_register_broadcast_topic,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkError};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
-use apollo_test_utils::{get_rng, GetTestInstance};
-use futures::future::{pending, ready, BoxFuture};
+use apollo_test_utils::{GetTestInstance, get_rng};
+use futures::future::{BoxFuture, pending, ready};
 use futures::stream::StreamExt;
 use futures::{FutureExt, SinkExt};
 use starknet_api::core::Nonce;

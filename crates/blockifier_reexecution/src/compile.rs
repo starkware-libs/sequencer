@@ -6,28 +6,22 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::LazyLock;
 
-use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
+use apollo_compile_to_casm::{SierraCompiler, create_sierra_compiler};
 use apollo_compile_to_casm_types::RawClass;
 use apollo_sierra_compilation_config::config::{
-    SierraCompilationConfig,
-    DEFAULT_MAX_BYTECODE_SIZE,
+    DEFAULT_MAX_BYTECODE_SIZE, SierraCompilationConfig,
 };
 use blockifier::state::state_api::StateResult;
 use flate2::bufread;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointOffset,
-    EntryPointV0,
-    Program,
+    ContractClass as DeprecatedContractClass, EntryPointOffset, EntryPointV0, Program,
 };
 use starknet_api::hash::StarkHash;
 use starknet_api::state::SierraContractClass;
 use starknet_core::types::{
-    CompressedLegacyContractClass,
-    LegacyContractEntryPoint,
-    LegacyEntryPointsByType,
+    CompressedLegacyContractClass, LegacyContractEntryPoint, LegacyEntryPointsByType,
 };
 
 static SIERRA_COMPILER: LazyLock<SierraCompiler> = LazyLock::new(|| {

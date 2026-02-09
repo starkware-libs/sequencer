@@ -1,8 +1,6 @@
 use apollo_config::converters::{
-    serialize_optional_list_with_url_and_headers,
-    serialize_optional_vec_u8,
+    UrlAndHeaders, serialize_optional_list_with_url_and_headers, serialize_optional_vec_u8,
     serialize_slice,
-    UrlAndHeaders,
 };
 use serde::{Serialize, Serializer};
 use url::Url;

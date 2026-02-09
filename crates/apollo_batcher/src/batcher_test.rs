@@ -3,27 +3,13 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{
-    BatcherConfig,
-    BatcherDynamicConfig,
-    BatcherStaticConfig,
-    BlockBuilderConfig,
+    BatcherConfig, BatcherDynamicConfig, BatcherStaticConfig, BlockBuilderConfig,
 };
 use apollo_batcher_types::batcher_types::{
-    DecisionReachedInput,
-    DecisionReachedResponse,
-    GetHeightResponse,
-    GetProposalContent,
-    GetProposalContentInput,
-    GetProposalContentResponse,
-    ProposalCommitment,
-    ProposalId,
-    ProposalStatus,
-    RevertBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
-    StartHeightInput,
-    ValidateBlockInput,
+    DecisionReachedInput, DecisionReachedResponse, GetHeightResponse, GetProposalContent,
+    GetProposalContentInput, GetProposalContentResponse, ProposalCommitment, ProposalId,
+    ProposalStatus, RevertBlockInput, SendProposalContent, SendProposalContentInput,
+    SendProposalContentResponse, StartHeightInput, ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
@@ -40,16 +26,12 @@ use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use indexmap::{indexmap, IndexMap, IndexSet};
+use indexmap::{IndexMap, IndexSet, indexmap};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::{
-    BlockHash,
-    BlockHeaderWithoutHash,
-    BlockInfo,
-    BlockNumber,
-    StarknetVersion,
+    BlockHash, BlockHeaderWithoutHash, BlockInfo, BlockNumber, StarknetVersion,
 };
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
@@ -64,54 +46,26 @@ use tempfile::TempDir;
 use validator::Validate;
 
 use crate::batcher::{
-    Batcher,
-    BatcherStorageReader,
-    BatcherStorageWriter,
-    MockBatcherStorageReader,
-    MockBatcherStorageWriter,
-    StorageCommitmentBlockHash,
+    Batcher, BatcherStorageReader, BatcherStorageWriter, MockBatcherStorageReader,
+    MockBatcherStorageWriter, StorageCommitmentBlockHash,
 };
 use crate::block_builder::{
-    AbortSignalSender,
-    BlockBuilderError,
-    BlockBuilderResult,
-    BlockExecutionArtifacts,
+    AbortSignalSender, BlockBuilderError, BlockBuilderResult, BlockExecutionArtifacts,
     MockBlockBuilderFactoryTrait,
 };
 use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
 use crate::metrics::{
-    BATCHED_TRANSACTIONS,
-    BUILDING_HEIGHT,
-    LAST_SYNCED_BLOCK_HEIGHT,
-    PROPOSAL_ABORTED,
-    PROPOSAL_FAILED,
-    PROPOSAL_STARTED,
-    PROPOSAL_SUCCEEDED,
-    REJECTED_TRANSACTIONS,
-    REVERTED_BLOCKS,
-    REVERTED_TRANSACTIONS,
-    SYNCED_TRANSACTIONS,
+    BATCHED_TRANSACTIONS, BUILDING_HEIGHT, LAST_SYNCED_BLOCK_HEIGHT, PROPOSAL_ABORTED,
+    PROPOSAL_FAILED, PROPOSAL_STARTED, PROPOSAL_SUCCEEDED, REJECTED_TRANSACTIONS, REVERTED_BLOCKS,
+    REVERTED_TRANSACTIONS, SYNCED_TRANSACTIONS,
 };
 use crate::test_utils::{
-    propose_block_input,
-    test_contract_nonces,
-    test_l1_handler_txs,
-    test_state_diff,
-    test_txs,
+    BLOCK_GENERATION_TIMEOUT, BUILD_BLOCK_FAIL_ON_ERROR, DUMMY_BLOCK_HASH,
+    DUMMY_FINAL_N_EXECUTED_TXS, FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+    FakeProposeBlockBuilder, FakeValidateBlockBuilder, INITIAL_HEIGHT, LATEST_BLOCK_IN_STORAGE,
+    MockClients, MockDependencies, PROPOSAL_ID, STREAMING_CHUNK_SIZE, propose_block_input,
+    test_contract_nonces, test_l1_handler_txs, test_state_diff, test_txs,
     verify_indexed_execution_infos,
-    FakeProposeBlockBuilder,
-    FakeValidateBlockBuilder,
-    MockClients,
-    MockDependencies,
-    BLOCK_GENERATION_TIMEOUT,
-    BUILD_BLOCK_FAIL_ON_ERROR,
-    DUMMY_BLOCK_HASH,
-    DUMMY_FINAL_N_EXECUTED_TXS,
-    FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-    INITIAL_HEIGHT,
-    LATEST_BLOCK_IN_STORAGE,
-    PROPOSAL_ID,
-    STREAMING_CHUNK_SIZE,
 };
 
 fn get_test_state_diff(

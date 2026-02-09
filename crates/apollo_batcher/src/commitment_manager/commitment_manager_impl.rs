@@ -3,44 +3,33 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{
-    BatcherConfig,
-    CommitmentManagerConfig,
-    FirstBlockWithPartialBlockHash,
+    BatcherConfig, CommitmentManagerConfig, FirstBlockWithPartialBlockHash,
 };
 use apollo_committer_types::committer_types::{
-    CommitBlockRequest,
-    CommitBlockResponse,
-    RevertBlockRequest,
+    CommitBlockRequest, CommitBlockResponse, RevertBlockRequest,
 };
 use apollo_committer_types::communication::{CommitterRequestLabelValue, SharedCommitterClient};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::{
-    calculate_block_hash,
-    PartialBlockHashComponents,
+    PartialBlockHashComponents, calculate_block_hash,
 };
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::time::{sleep, Duration};
+use tokio::sync::mpsc::{Receiver, Sender, channel};
+use tokio::time::{Duration, sleep};
 use tracing::info;
 
 use crate::batcher::{BatcherStorageReader, BatcherStorageWriter};
 use crate::commitment_manager::errors::CommitmentManagerError;
 use crate::commitment_manager::state_committer::{StateCommitter, StateCommitterTrait};
 use crate::commitment_manager::types::{
-    CommitmentTaskOutput,
-    CommitterTaskInput,
-    CommitterTaskOutput,
-    FinalBlockCommitment,
-    RevertTaskOutput,
-    TaskTimer,
+    CommitmentTaskOutput, CommitterTaskInput, CommitterTaskOutput, FinalBlockCommitment,
+    RevertTaskOutput, TaskTimer,
 };
 use crate::metrics::{
-    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
-    COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
-    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
-    GLOBAL_ROOT_HEIGHT,
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY, COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
+    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY, GLOBAL_ROOT_HEIGHT,
 };
 
 // TODO(Amos): Add this to config.

@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 use std::future::Future;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_metrics::metrics::MetricGauge;
+use apollo_storage::StorageWriter;
 use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::block_hash::BlockHashStorageWriter;
 use apollo_storage::body::BodyStorageWriter;
@@ -12,7 +13,6 @@ use apollo_storage::global_root::GlobalRootStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::partial_block_hash::PartialBlockHashComponentsStorageWriter;
 use apollo_storage::state::StateStorageWriter;
-use apollo_storage::StorageWriter;
 use futures::future::pending;
 use futures::never::Never;
 use serde::{Deserialize, Serialize};

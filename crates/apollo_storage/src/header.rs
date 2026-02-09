@@ -41,22 +41,11 @@ mod header_test;
 
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
-    StarknetVersion,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature, BlockTimestamp,
+    GasPrice, GasPricePerToken, StarknetVersion,
 };
 use starknet_api::core::{
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    StateDiffCommitment,
+    EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress, StateDiffCommitment,
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -65,7 +54,7 @@ use tracing::debug;
 
 use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::db::{DbTransaction, RW, TableHandle, TransactionKind};
 use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTxn};
 
 /// Storage representation of a Starknet block header.

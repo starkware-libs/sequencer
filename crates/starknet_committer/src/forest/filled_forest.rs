@@ -9,19 +9,14 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::Update
 use tracing::info;
 
 use crate::block_committer::input::{
-    contract_address_into_node_index,
-    try_node_index_into_contract_address,
-    StarknetStorageValue,
+    StarknetStorageValue, contract_address_into_node_index, try_node_index_into_contract_address,
 };
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::ForestHashFunction;
 use crate::patricia_merkle_tree::leaf::leaf_impl::{ContractState, ContractStateInput};
 use crate::patricia_merkle_tree::types::{
-    ClassesTrie,
-    CompiledClassHash,
-    ContractsTrie,
-    StorageTrieMap,
+    ClassesTrie, CompiledClassHash, ContractsTrie, StorageTrieMap,
 };
 
 pub struct FilledForest {

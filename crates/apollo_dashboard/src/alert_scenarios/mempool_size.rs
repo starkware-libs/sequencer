@@ -1,21 +1,11 @@
 use apollo_mempool::metrics::{
-    DropReason,
-    LABEL_NAME_DROP_REASON,
-    MEMPOOL_POOL_SIZE,
-    MEMPOOL_TRANSACTIONS_DROPPED,
+    DropReason, LABEL_NAME_DROP_REASON, MEMPOOL_POOL_SIZE, MEMPOOL_TRANSACTIONS_DROPPED,
 };
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 

@@ -1,14 +1,11 @@
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::{
-    ConfigManagerClientError,
-    MockConfigManagerClient,
+    ConfigManagerClientError, MockConfigManagerClient,
 };
 use apollo_config_manager_types::errors::ConfigManagerError;
 use apollo_staking_config::config::{
-    CommitteeConfig,
-    ConfiguredStaker,
-    StakingManagerDynamicConfig,
+    CommitteeConfig, ConfiguredStaker, StakingManagerDynamicConfig,
 };
 use apollo_state_sync_types::communication::{MockStateSyncClient, SharedStateSyncClient};
 use rstest::{fixture, rstest};

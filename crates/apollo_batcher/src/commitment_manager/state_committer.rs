@@ -10,10 +10,7 @@ use tokio::task::JoinHandle;
 use tracing::{error, info};
 
 use crate::commitment_manager::types::{
-    CommitmentTaskOutput,
-    CommitterTaskInput,
-    CommitterTaskOutput,
-    RevertTaskOutput,
+    CommitmentTaskOutput, CommitterTaskInput, CommitterTaskOutput, RevertTaskOutput,
 };
 
 /// Commits state changes by calling the committer.

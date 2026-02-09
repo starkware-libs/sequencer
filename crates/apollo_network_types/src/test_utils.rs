@@ -1,6 +1,6 @@
-use apollo_test_utils::{auto_impl_get_test_instance, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, auto_impl_get_test_instance};
 use lazy_static::lazy_static;
-use libp2p::{identity, multiaddr, Multiaddr, PeerId};
+use libp2p::{Multiaddr, PeerId, identity, multiaddr};
 use rand_chacha::ChaCha8Rng;
 
 use crate::network_types::{BroadcastedMessageMetadata, OpaquePeerId};

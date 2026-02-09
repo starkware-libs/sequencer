@@ -1,18 +1,18 @@
 use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
+use starknet_api::StarknetApiError;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::{AllResourceBounds, Fee, Resource};
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::StarknetApiError;
+use starknet_api::transaction::fields::{AllResourceBounds, Fee, Resource};
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
 use crate::bouncer::BouncerWeights;
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::stack_trace::{gen_tx_execution_error_trace, Cairo1RevertSummary};
+use crate::execution::stack_trace::{Cairo1RevertSummary, gen_tx_execution_error_trace};
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
 

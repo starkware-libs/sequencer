@@ -25,12 +25,8 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::metrics::{
-    CONSENSUS_BUILD_PROPOSAL_FAILED,
-    CONSENSUS_BUILD_PROPOSAL_TOTAL,
-    CONSENSUS_CONFLICTING_VOTES,
-    CONSENSUS_PROPOSALS_INVALID,
-    CONSENSUS_PROPOSALS_VALIDATED,
-    CONSENSUS_PROPOSALS_VALID_INIT,
+    CONSENSUS_BUILD_PROPOSAL_FAILED, CONSENSUS_BUILD_PROPOSAL_TOTAL, CONSENSUS_CONFLICTING_VOTES,
+    CONSENSUS_PROPOSALS_INVALID, CONSENSUS_PROPOSALS_VALID_INIT, CONSENSUS_PROPOSALS_VALIDATED,
 };
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent};
 use crate::types::{LeaderElection, ProposalCommitment, Round, ValidatorId};

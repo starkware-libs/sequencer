@@ -3,7 +3,7 @@ use std::fs::read_to_string;
 
 use clap::{Args, Parser, Subcommand};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{chain_id_from_hex_str, ChainId};
+use starknet_api::core::{ChainId, chain_id_from_hex_str};
 
 use crate::errors::{ReexecutionError, ReexecutionResult};
 

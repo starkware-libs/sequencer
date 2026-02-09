@@ -1,4 +1,4 @@
-use cairo_lang_starknet_classes::compiler_version::{current_sierra_version_id, VersionId};
+use cairo_lang_starknet_classes::compiler_version::{VersionId, current_sierra_version_id};
 use semver::Version;
 
 use super::SierraVersion;

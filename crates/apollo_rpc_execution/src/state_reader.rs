@@ -9,9 +9,7 @@ use apollo_storage::class_hash::ClassHashStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageReader};
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -24,10 +22,7 @@ use starknet_types_core::felt::Felt;
 use tokio::runtime::Handle;
 
 use crate::execution_utils::{
-    self,
-    get_contract_class,
-    is_contract_class_declared,
-    ExecutionUtilsError,
+    self, ExecutionUtilsError, get_contract_class, is_contract_class_declared,
 };
 use crate::objects::PendingData;
 

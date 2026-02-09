@@ -3,18 +3,14 @@ use rstest::rstest;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Pedersen;
 
 use crate::block_committer::input::StarknetStorageValue;
-use crate::hash_function::hash::{TreeHashFunctionImpl, CONTRACT_CLASS_LEAF_V0};
+use crate::hash_function::hash::{CONTRACT_CLASS_LEAF_V0, TreeHashFunctionImpl};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 

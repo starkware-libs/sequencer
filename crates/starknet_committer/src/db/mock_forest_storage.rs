@@ -8,22 +8,12 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::Origi
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{
-    create_db_key,
-    DbHashMap,
-    DbKey,
-    DbKeyPrefix,
-    DbValue,
-    PatriciaStorageResult,
-    Storage,
+    DbHashMap, DbKey, DbKeyPrefix, DbValue, PatriciaStorageResult, Storage, create_db_key,
 };
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::db::forest_trait::{
-    EmptyInitialReadContext,
-    ForestMetadata,
-    ForestMetadataType,
-    ForestReader,
-    ForestWriter,
+    EmptyInitialReadContext, ForestMetadata, ForestMetadataType, ForestReader, ForestWriter,
     StorageInitializer,
 };
 use crate::forest::filled_forest::FilledForest;

@@ -14,9 +14,7 @@ use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus_config::config::{
-    ConsensusConfig,
-    ConsensusDynamicConfig,
-    FutureMsgLimitsConfig,
+    ConsensusConfig, ConsensusDynamicConfig, FutureMsgLimitsConfig,
 };
 use apollo_infra_utils::debug_every_n_ms;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
@@ -33,26 +31,16 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::metrics::{
+    CONSENSUS_BLOCK_NUMBER, CONSENSUS_CACHED_VOTES, CONSENSUS_DECISIONS_REACHED_AS_PROPOSER,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_MAX_CACHED_BLOCK_NUMBER, CONSENSUS_PROPOSALS_RECEIVED, CONSENSUS_REPROPOSALS,
     register_metrics,
-    CONSENSUS_BLOCK_NUMBER,
-    CONSENSUS_CACHED_VOTES,
-    CONSENSUS_DECISIONS_REACHED_AS_PROPOSER,
-    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
-    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
-    CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
-    CONSENSUS_PROPOSALS_RECEIVED,
-    CONSENSUS_REPROPOSALS,
 };
 use crate::single_height_consensus::{Requests, SingleHeightConsensus};
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::storage::HeightVotedStorageTrait;
 use crate::types::{
-    BroadcastVoteChannel,
-    ConsensusContext,
-    ConsensusError,
-    Decision,
-    LeaderElection,
-    Round,
+    BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, LeaderElection, Round,
 };
 use crate::votes_threshold::QuorumType;
 

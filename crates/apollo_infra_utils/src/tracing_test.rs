@@ -6,22 +6,14 @@ use std::time::Duration;
 
 use tracing::field::{Field, Visit};
 use tracing::span::{Attributes, Id, Record};
-use tracing::subscriber::{with_default, DefaultGuard};
+use tracing::subscriber::{DefaultGuard, with_default};
 use tracing::{Event, Level, Metadata, Subscriber};
 use tracing_subscriber::fmt::SubscriberBuilder;
 
 use crate::tracing::{CustomLogger, TraceLevel};
 use crate::{
-    debug_every_n,
-    debug_every_n_ms,
-    error_every_n,
-    error_every_n_ms,
-    info_every_n,
-    info_every_n_ms,
-    trace_every_n,
-    trace_every_n_ms,
-    warn_every_n,
-    warn_every_n_ms,
+    debug_every_n, debug_every_n_ms, error_every_n, error_every_n_ms, info_every_n,
+    info_every_n_ms, trace_every_n, trace_every_n_ms, warn_every_n, warn_every_n_ms,
 };
 
 #[test]

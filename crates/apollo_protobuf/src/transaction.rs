@@ -2,20 +2,14 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, PaymasterData, Tip, TransactionSignature, ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
-use crate::converters::common::{
-    enum_int_to_volition_domain,
-    missing,
-    volition_domain_to_enum_int,
-};
 use crate::converters::ProtobufConversionError;
+use crate::converters::common::{
+    enum_int_to_volition_domain, missing, volition_domain_to_enum_int,
+};
 use crate::protobuf;
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]

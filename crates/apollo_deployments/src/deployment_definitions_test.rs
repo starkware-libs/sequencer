@@ -5,7 +5,7 @@ use std::fs::File;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node_config::config_utils::private_parameters;
-use serde_json::{to_value, Map, Value};
+use serde_json::{Map, Value, to_value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 

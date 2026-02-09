@@ -1,20 +1,12 @@
 use apollo_l1_gas_price::metrics::{
-    ETH_TO_STRK_SUCCESS_COUNT,
-    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
+    ETH_TO_STRK_SUCCESS_COUNT, L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
     PENDING_DURATION_DEFAULT,
 };
 

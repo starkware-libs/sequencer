@@ -2,8 +2,7 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::DataOrFin;
 use apollo_state_sync_metrics::metrics::{
-    STATE_SYNC_BODY_MARKER,
-    STATE_SYNC_PROCESSED_TRANSACTIONS,
+    STATE_SYNC_BODY_MARKER, STATE_SYNC_PROCESSED_TRANSACTIONS,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::{BodyStorageReader, BodyStorageWriter};
@@ -12,17 +11,13 @@ use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockBody, BlockNumber};
-use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{InvokeTxArgs, invoke_tx};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
 
-use super::block_data_stream_builder::{
-    BadPeerError,
-    BlockData,
-    BlockDataStreamBuilder,
-    BlockNumberLimit,
-    ParseDataError,
-};
 use super::P2pSyncClientError;
+use super::block_data_stream_builder::{
+    BadPeerError, BlockData, BlockDataStreamBuilder, BlockNumberLimit, ParseDataError,
+};
 
 impl BlockData for (BlockBody, BlockNumber) {
     fn write_to_storage<'a>(

@@ -5,7 +5,7 @@ use sha3::{Digest, Keccak256};
 use starknet_types_core::felt::{Felt, FromStrError};
 use starknet_types_core::hash::{Poseidon, StarkHash as StarkHashTrait};
 
-use crate::core::{GlobalRoot, GLOBAL_STATE_VERSION};
+use crate::core::{GLOBAL_STATE_VERSION, GlobalRoot};
 
 pub type StarkHash = Felt;
 

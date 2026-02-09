@@ -6,9 +6,7 @@ use rstest::{fixture, rstest};
 use starknet_api::core::ContractAddress;
 
 use crate::block_committer::state_diff_generator::{
-    generate_random_state_diff,
-    generate_random_storage_entry,
-    RANDOM_STATE_DIFF_CONTRACT_ADDRESS,
+    RANDOM_STATE_DIFF_CONTRACT_ADDRESS, generate_random_state_diff, generate_random_storage_entry,
 };
 
 const N_STORAGE_UPDATES: usize = 1000_usize;

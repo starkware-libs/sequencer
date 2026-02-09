@@ -15,7 +15,7 @@ use super::super::{Config, GenericEvent, InboundSessionId, OutboundSessionId, Se
 use super::{Behaviour, Event, ExternalEvent, SessionError, ToOtherBehaviourEvent};
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::dummy_data;
-use crate::{mixed_behaviour, peer_manager, Bytes};
+use crate::{Bytes, mixed_behaviour, peer_manager};
 
 impl Unpin for Behaviour {}
 

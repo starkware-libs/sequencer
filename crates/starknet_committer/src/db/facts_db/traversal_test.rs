@@ -6,24 +6,12 @@ use rstest::rstest;
 use serde::Deserialize;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
-    create_binary_entry,
-    create_binary_entry_from_u128,
-    create_edge_entry,
-    create_edge_entry_from_u128,
-    create_leaf_entry,
-    create_leaf_patricia_key,
+    AdditionHash, MockLeaf, create_binary_entry, create_binary_entry_from_u128, create_edge_entry,
+    create_edge_entry_from_u128, create_leaf_entry, create_leaf_patricia_key,
     small_tree_index_to_full,
-    AdditionHash,
-    MockLeaf,
 };
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePath,
-    EdgePathLength,
-    PathToBottom,
-    Preimage,
-    PreimageMap,
+    BinaryData, EdgeData, EdgePath, EdgePathLength, PathToBottom, Preimage, PreimageMap,
 };
 use starknet_patricia::patricia_merkle_tree::traversal::SubTreeTrait;
 use starknet_patricia::patricia_merkle_tree::types::{SortedLeafIndices, SubTreeHeight};
@@ -320,7 +308,7 @@ async fn test_fetch_patricia_paths_inner_impl(
 )]
 /// SubTree structure:
 /// ```text
-/// 
+///
 ///         38
 ///        /  \
 ///      18    20

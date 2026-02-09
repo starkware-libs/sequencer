@@ -3,12 +3,7 @@ use std::collections::{HashMap, HashSet};
 use num_bigint::BigUint;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    EdgeData,
-    EdgePath,
-    EdgePathLength,
-    PathToBottom,
-    Preimage,
-    PreimageMap,
+    EdgeData, EdgePath, EdgePathLength, PathToBottom, Preimage, PreimageMap,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;

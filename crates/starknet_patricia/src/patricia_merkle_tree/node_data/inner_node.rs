@@ -5,9 +5,7 @@ use starknet_api::hash::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::patricia_merkle_tree::node_data::errors::{
-    EdgePathError,
-    PathToBottomError,
-    PreimageError,
+    EdgePathError, PathToBottomError, PreimageError,
 };
 use crate::patricia_merkle_tree::node_data::leaf::Leaf;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};

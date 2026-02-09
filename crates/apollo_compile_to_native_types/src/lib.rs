@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::dumping::{SerializeConfig, ser_optional_param, ser_param};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;

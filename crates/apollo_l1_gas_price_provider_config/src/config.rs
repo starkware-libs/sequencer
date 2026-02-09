@@ -2,16 +2,12 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_float_seconds_to_duration,
+    UrlAndHeaders, deserialize_float_seconds_to_duration,
     deserialize_optional_sensitive_list_with_url_and_headers,
     serialize_optional_list_with_url_and_headers,
-    UrlAndHeaders,
 };
 use apollo_config::dumping::{
-    prepend_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
+    SerializeConfig, prepend_sub_config_name, ser_optional_param, ser_param,
 };
 use apollo_config::secrets::Sensitive;
 use apollo_config::validators::validate_ascii;
@@ -36,9 +32,10 @@ impl SerializeConfig for EthToStrkOracleConfig {
             ser_param(
                 "url_header_list",
                 &serialize_optional_list_with_url_and_headers(
-                    &self.url_header_list.as_ref().map(|list| {
-                        list.iter().map(|s| s.peek_secret()).cloned().collect()
-                    }),
+                    &self
+                        .url_header_list
+                        .as_ref()
+                        .map(|list| list.iter().map(|s| s.peek_secret()).cloned().collect()),
                 ),
                 "A list of Url+HTTP headers for the eth to strk oracle. \
                  The url is followed by a comma and then headers as key^value pairs, separated by commas. \

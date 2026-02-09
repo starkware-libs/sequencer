@@ -8,16 +8,11 @@ use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Calldata,
-    Fee,
-    GasVectorComputationMode,
-    Resource,
-    ResourceBounds,
+    AllResourceBounds, Calldata, Fee, GasVectorComputationMode, Resource, ResourceBounds,
     ValidResourceBounds,
 };
-use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
@@ -26,21 +21,15 @@ use crate::context::{BlockContext, ChainInfo};
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::GasVectorToL1GasForFee;
 use crate::state::state_api::StateReader;
-use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
+use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
-    block_context,
-    create_gas_amount_bounds_with_default_price,
-    default_all_resource_bounds,
-    default_l1_resource_bounds,
-    invoke_tx_with_default_flags,
-    l1_resource_bounds,
-    max_fee,
-    run_invoke_tx,
-    TestInitData,
+    TestInitData, block_context, create_gas_amount_bounds_with_default_price,
+    default_all_resource_bounds, default_l1_resource_bounds, invoke_tx_with_default_flags,
+    l1_resource_bounds, max_fee, run_invoke_tx,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 

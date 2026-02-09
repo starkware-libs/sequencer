@@ -7,23 +7,13 @@ use apollo_infra_utils::template::Template;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alert_placeholders::{
-    format_sampling_window,
-    ComparisonValueOrPlaceholder,
-    ExpressionOrExpressionWithPlaceholder,
-    SeverityValueOrPlaceholder,
+    ComparisonValueOrPlaceholder, ExpressionOrExpressionWithPlaceholder,
+    SeverityValueOrPlaceholder, format_sampling_window,
 };
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
-    EVALUATION_INTERVAL_SEC_DEFAULT,
-    PENDING_DURATION_DEFAULT,
-    SECS_IN_MIN,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, EVALUATION_INTERVAL_SEC_DEFAULT, ObserverApplicability,
+    PENDING_DURATION_DEFAULT, SECS_IN_MIN,
 };
 
 /// Block number is stuck for more than duration minutes.

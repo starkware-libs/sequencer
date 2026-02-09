@@ -2,14 +2,8 @@ use apollo_infra_utils::test_utils::assert_json_eq;
 use apollo_metrics::metrics::{MetricCounter, MetricQueryName, MetricScope};
 
 use crate::alerts::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertEnvFiltering,
-    AlertGroup,
-    AlertLogicalOp,
-    AlertSeverity,
-    ObserverApplicability,
+    Alert, AlertComparisonOp, AlertCondition, AlertEnvFiltering, AlertGroup, AlertLogicalOp,
+    AlertSeverity, ObserverApplicability,
 };
 use crate::panel::{Panel, PanelType, ThresholdMode, ThresholdStep, Thresholds, Unit};
 

@@ -14,19 +14,16 @@ use futures::future::{BoxFuture, FutureExt};
 use itertools::zip_eq;
 use papyrus_base_layer::constants::EventIdentifier;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
-use starknet_api::block::BlockNumber;
 use starknet_api::StarknetApiError;
+use starknet_api::block::BlockNumber;
 use static_assertions::const_assert;
 use thiserror::Error;
 use tokio::time::sleep;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::metrics::{
-    register_scraper_metrics,
-    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
-    L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
-    L1_MESSAGE_SCRAPER_REORG_DETECTED,
-    L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
+    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
+    L1_MESSAGE_SCRAPER_REORG_DETECTED, L1_MESSAGE_SCRAPER_SUCCESS_COUNT, register_scraper_metrics,
 };
 
 #[cfg(test)]

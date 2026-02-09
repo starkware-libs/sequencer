@@ -7,10 +7,10 @@ use derive_more::Deref;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
+use crate::StarknetApiError;
 use crate::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use crate::core::CompiledClassHash;
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use crate::StarknetApiError;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]

@@ -6,48 +6,39 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
-    ProposalId,
-    ProposalStatus,
-    SendProposalContent,
-    SendProposalContentInput,
-    ValidateBlockInput,
+    ProposalId, ProposalStatus, SendProposalContent, SendProposalContentInput, ValidateBlockInput,
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::ProposalCommitment;
-use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
+use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::StateSyncClient;
 use apollo_time::time::{Clock, ClockExt, DateTime};
-use futures::channel::mpsc;
 use futures::StreamExt;
+use futures::channel::mpsc;
+use starknet_api::StarknetApiError;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_api::StarknetApiError;
 use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 
 use crate::metrics::{
-    CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
-    CONSENSUS_NUM_TXS_IN_PROPOSAL,
+    CONSENSUS_NUM_BATCHES_IN_PROPOSAL, CONSENSUS_NUM_TXS_IN_PROPOSAL,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
-    convert_to_sn_api_block_info,
-    get_l1_prices_in_fri_and_wei,
-    retrospective_block_hash,
-    truncate_to_executed_txs,
-    GasPriceParams,
-    RetrospectiveBlockHashError,
+    GasPriceParams, RetrospectiveBlockHashError, convert_to_sn_api_block_info,
+    get_l1_prices_in_fri_and_wei, retrospective_block_hash, truncate_to_executed_txs,
 };
 
 const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;

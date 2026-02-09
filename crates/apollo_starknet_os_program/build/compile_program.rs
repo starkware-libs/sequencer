@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use apollo_infra_utils::cairo0_compiler::{compile_cairo0_program, Cairo0CompilerError};
+use apollo_infra_utils::cairo0_compiler::{Cairo0CompilerError, compile_cairo0_program};
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 
 pub async fn compile_and_output_program(

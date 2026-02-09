@@ -5,10 +5,7 @@ use starknet_api::block::BlockHashAndNumber;
 
 use crate::blockifier::block::pre_process_block;
 use crate::blockifier::transaction_executor::{
-    finalize_block,
-    BlockExecutionSummary,
-    TransactionExecutionOutput,
-    TransactionExecutorResult,
+    BlockExecutionSummary, TransactionExecutionOutput, TransactionExecutorResult, finalize_block,
 };
 use crate::bouncer::Bouncer;
 use crate::concurrency::worker_logic::WorkerExecutor;

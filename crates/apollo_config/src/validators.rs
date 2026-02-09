@@ -4,8 +4,8 @@ use std::path::Path;
 
 use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
 
-use crate::secrets::Sensitive;
 use crate::ConfigError;
+use crate::secrets::Sensitive;
 
 /// Custom validation for ASCII string.
 pub fn validate_ascii(name: &impl ToString) -> Result<(), ValidationError> {

@@ -7,16 +7,11 @@ use rstest::rstest;
 use starknet_api::transaction::TransactionHash;
 
 use crate::metrics::{
-    ADDED_TRANSACTIONS_FAILURE,
-    ADDED_TRANSACTIONS_SUCCESS,
-    ADDED_TRANSACTIONS_TOTAL,
+    ADDED_TRANSACTIONS_FAILURE, ADDED_TRANSACTIONS_SUCCESS, ADDED_TRANSACTIONS_TOTAL,
 };
 use crate::test_utils::{
-    add_tx_http_client,
-    deprecated_gateway_invoke_tx,
-    get_mock_config_manager_client,
-    rpc_invoke_tx,
-    GatewayTransaction,
+    GatewayTransaction, add_tx_http_client, deprecated_gateway_invoke_tx,
+    get_mock_config_manager_client, rpc_invoke_tx,
 };
 
 type InvalidTransaction = &'static str;

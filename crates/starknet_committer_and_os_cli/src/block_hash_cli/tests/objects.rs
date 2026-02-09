@@ -1,20 +1,12 @@
 use std::collections::HashMap;
 
 use blockifier::execution::call_info::{
-    CallExecution,
-    CallInfo,
-    MessageToL1 as BlockifierMessageToL1,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    Retdata,
+    CallExecution, CallInfo, MessageToL1 as BlockifierMessageToL1, OrderedEvent,
+    OrderedL2ToL1Message, Retdata,
 };
 use blockifier::execution::entry_point::{CallEntryPoint, CallType};
 use blockifier::execution::stack_trace::{
-    Cairo1RevertHeader,
-    Cairo1RevertSummary,
-    ErrorStack,
-    ErrorStackHeader,
-    ErrorStackSegment,
+    Cairo1RevertHeader, Cairo1RevertSummary, ErrorStack, ErrorStackHeader, ErrorStackSegment,
 };
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::fee::resources::{ComputationResources, StarknetResources, TransactionResources};
@@ -22,32 +14,19 @@ use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::indexmap;
 use starknet_api::block_hash::block_hash_calculator::{
-    TransactionHashingData,
-    TransactionOutputForHash,
+    TransactionHashingData, TransactionOutputForHash,
 };
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
     PatriciaKey,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee, TransactionSignature};
 use starknet_api::transaction::{
-    Event,
-    EventContent,
-    EventData,
-    EventKey,
-    L2ToL1Payload,
-    MessageToL1,
-    RevertedTransactionExecutionStatus,
-    TransactionExecutionStatus,
-    TransactionHash,
+    Event, EventContent, EventData, EventKey, L2ToL1Payload, MessageToL1,
+    RevertedTransactionExecutionStatus, TransactionExecutionStatus, TransactionHash,
 };
 use starknet_types_core::felt::Felt;
 
