@@ -163,6 +163,23 @@ impl MessageProcessor {
                         break;
                     }
                 }
+
+                else => {
+                    tracing::trace!(
+                        "[MSG_PROC] All channels closed for channel={:?} publisher={:?} root={:?}",
+                        self.channel,
+                        self.publisher,
+                        self.message_root
+                    );
+                    self.engine_tx
+                        .send(StateManagerToEngine::Finalized {
+                            channel: self.channel,
+                            publisher: self.publisher,
+                            message_root: self.message_root,
+                        })
+                        .expect("Engine task has exited");
+                    break;
+                }
             }
         }
 
