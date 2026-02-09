@@ -4,7 +4,7 @@ use starknet_api::hash::HashOutput;
 
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::TempSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
@@ -29,7 +29,7 @@ pub struct UpdatedSkeletonTree {
 
 impl UpdatedSkeletonTree {
     pub fn create<'a>(
-        original_skeleton: &mut impl OriginalSkeletonTree<'a>,
+        original_skeleton: &mut OriginalSkeletonTreeImpl<'a>,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonTreeResult<Self> {
         if leaf_modifications.is_empty() {
