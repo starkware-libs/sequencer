@@ -34,6 +34,7 @@ config:
     components.signature_manager.url: sequencer-core-service
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
+    consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote: false
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base: 9.1
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max: 15.0
     consensus_manager_config.context_config.static_config.build_proposal_margin_millis: 1000
