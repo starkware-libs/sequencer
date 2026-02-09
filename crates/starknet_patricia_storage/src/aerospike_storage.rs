@@ -28,6 +28,8 @@ use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
+    DbOperation,
+    DbOperationMap,
     DbValue,
     EmptyStorageConfig,
     NoStats,
@@ -186,6 +188,33 @@ impl Storage for AerospikeStorage {
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         self.client.delete(&self.config.write_policy, &self.get_key(key.clone())?).await?;
+        Ok(())
+    }
+
+    async fn multi_set_and_delete(
+        &mut self,
+        key_to_operation: DbOperationMap,
+    ) -> PatriciaStorageResult<()> {
+        let mut ops = Vec::new();
+        for (key, op) in key_to_operation.iter() {
+            match op {
+                DbOperation::Set(value) => {
+                    let bin = as_bin!(&self.config.bin_name, value.0);
+                    ops.push(BatchOperation::write(
+                        &self.config.batch_write_policy,
+                        self.get_key(key.clone())?,
+                        vec![operations::put(&bin)],
+                    ));
+                }
+                DbOperation::Delete => {
+                    ops.push(BatchOperation::remove(
+                        &self.config.batch_write_policy,
+                        self.get_key(key.clone())?,
+                    ));
+                }
+            }
+        }
+        self.client.batch(&self.config.batch_policy, &ops).await?;
         Ok(())
     }
 
