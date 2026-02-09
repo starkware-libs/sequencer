@@ -12,6 +12,7 @@ use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
     DbKeyPrefix,
+    DbOperationMap,
     DbValue,
     PatriciaStorageResult,
     Storage,
@@ -24,8 +25,10 @@ use crate::db::forest_trait::{
     ForestMetadataType,
     ForestReader,
     ForestWriter,
+    ForestWriterWithMetadata,
     StorageInitializer,
 };
+use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -116,10 +119,20 @@ impl<S: Storage> ForestWriter for MockForestStorage<S> {
         Ok(HashMap::new())
     }
 
-    async fn write_updates(&mut self, updates: DbHashMap) -> usize {
+    async fn write_updates(&mut self, updates: DbOperationMap) -> usize {
         let n_updates = updates.len();
-        self.storage.mset(updates).await.expect("Write of updates to storage failed");
+        self.storage
+            .multi_set_and_delete(updates)
+            .await
+            .expect("Write of updates to storage failed");
         n_updates
+    }
+}
+
+impl<S: Storage> ForestWriterWithMetadata for MockForestStorage<S> {
+    fn serialize_deleted_nodes(_deleted_nodes: &DeletedNodes) -> SerializationResult<Vec<DbKey>> {
+        // MockForestStorage doesn't need to serialize deleted nodes
+        Ok(Vec::new())
     }
 }
 
