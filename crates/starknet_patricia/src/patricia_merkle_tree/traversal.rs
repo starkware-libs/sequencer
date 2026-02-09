@@ -24,7 +24,7 @@ pub enum TraversalError {
 }
 
 /// An enum that specifies how to treat unmodified children during the construction of the
-/// [crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl]..
+/// [crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree]..
 pub enum UnmodifiedChildTraversal {
     // Indicates that the child must be read since we don't have the data to create an original
     // tree node.
@@ -113,7 +113,7 @@ pub trait SubTreeTrait<'a>: Sized {
     }
 
     /// Decide whether to traverse an unmodified child during the construction of the
-    /// [crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl].
+    /// [crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree].
     fn should_traverse_unmodified_child(data: Self::NodeData) -> UnmodifiedChildTraversal;
 
     /// Returns the full [DbKey] of the root node.

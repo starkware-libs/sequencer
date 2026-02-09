@@ -15,7 +15,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModific
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonTreeImpl,
+    OriginalSkeletonTree,
     OriginalSkeletonTreeResult,
 };
 use starknet_patricia::patricia_merkle_tree::traversal::{
@@ -55,7 +55,7 @@ macro_rules! log_trivial_modification {
 /// The function is generic over the DB layout (`Layout`), which controls the concrete node data
 /// (`Layout::NodeData`) and traversal strategy (via `Layout::SubTree`).
 pub(crate) async fn fetch_nodes<'a, L, Layout>(
-    skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
+    skeleton_tree: &mut OriginalSkeletonTree<'a>,
     subtrees: Vec<Layout::SubTree>,
     storage: &mut impl Storage,
     leaf_modifications: &LeafModifications<L>,
@@ -159,7 +159,7 @@ where
 /// `should_traverse_unmodified_child` is `Skip`, then the corresponding bottom node is also
 /// added to the skeleton. Otherwise, the bottom subtree is added to the next subtrees.
 fn handle_unmodified_subtree<'a, L: Leaf, SubTree: SubTreeTrait<'a>>(
-    skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
+    skeleton_tree: &mut OriginalSkeletonTree<'a>,
     next_subtrees: &mut Vec<SubTree>,
     filled_root: FilledNode<L, SubTree::NodeData>,
     subtree: SubTree,
@@ -202,7 +202,7 @@ fn handle_unmodified_subtree<'a, L: Leaf, SubTree: SubTreeTrait<'a>>(
 /// Handles a subtree referred by an edge or a binary node. Decides whether we deserialize the
 /// referred subtree or not, and if we should continue traversing the child's direction.
 fn handle_child_subtree<'a, SubTree: SubTreeTrait<'a>>(
-    skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
+    skeleton_tree: &mut OriginalSkeletonTree<'a>,
     next_subtrees: &mut Vec<SubTree>,
     subtree: SubTree,
     subtree_data: SubTree::NodeData,
@@ -300,9 +300,9 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
     leaf_modifications: &LeafModifications<L>,
     previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
-) -> OriginalSkeletonTreeResult<OriginalSkeletonTreeImpl<'a>> {
+) -> OriginalSkeletonTreeResult<OriginalSkeletonTree<'a>> {
     if sorted_leaf_indices.is_empty() {
-        return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
+        return Ok(OriginalSkeletonTree::create_unmodified(root_hash));
     }
     if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
         log_warning_for_empty_leaves(
@@ -319,11 +319,11 @@ pub async fn create_original_skeleton_tree<'a, L: Leaf, Layout: NodeLayout<'a, L
                     .collect::<HashMap<NodeIndex, L>>(),
             );
         }
-        return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
+        return Ok(OriginalSkeletonTree::create_empty(sorted_leaf_indices));
     }
     let main_subtree =
         Layout::SubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash.into());
-    let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
+    let mut skeleton_tree = OriginalSkeletonTree { nodes: HashMap::new(), sorted_leaf_indices };
     fetch_nodes::<L, Layout>(
         &mut skeleton_tree,
         vec![main_subtree],
@@ -343,7 +343,7 @@ pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTree<'a>>>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
@@ -383,7 +383,7 @@ pub async fn create_contracts_trie<'a, Layout: NodeLayoutFor<ContractState>>(
     storage: &mut impl Storage,
     contracts_trie_root_hash: HashOutput,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)>
+) -> ForestResult<(OriginalSkeletonTree<'a>, HashMap<NodeIndex, ContractState>)>
 where
     <Layout as NodeLayoutFor<ContractState>>::DbLeaf: HasStaticPrefix<KeyContext = EmptyKeyContext>,
 {
@@ -413,7 +413,7 @@ pub async fn create_classes_trie<'a, Layout: NodeLayoutFor<CompiledClassHash>>(
     classes_trie_root_hash: HashOutput,
     config: &ReaderConfig,
     contracts_trie_sorted_indices: SortedLeafIndices<'a>,
-) -> ForestResult<OriginalSkeletonTreeImpl<'a>>
+) -> ForestResult<OriginalSkeletonTree<'a>>
 where
     <Layout as NodeLayoutFor<CompiledClassHash>>::DbLeaf:
         HasStaticPrefix<KeyContext = EmptyKeyContext>,

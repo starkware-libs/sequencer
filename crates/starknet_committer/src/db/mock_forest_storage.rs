@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
-use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{
@@ -87,10 +87,10 @@ impl<S: Storage> ForestReader for MockForestStorage<S> {
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
         Ok((
             OriginalSkeletonForest {
-                classes_trie: OriginalSkeletonTreeImpl::create_empty(
+                classes_trie: OriginalSkeletonTree::create_empty(
                     forest_sorted_indices.classes_trie_sorted_indices,
                 ),
-                contracts_trie: OriginalSkeletonTreeImpl::create_empty(
+                contracts_trie: OriginalSkeletonTree::create_empty(
                     forest_sorted_indices.contracts_trie_sorted_indices,
                 ),
                 storage_tries: HashMap::new(),

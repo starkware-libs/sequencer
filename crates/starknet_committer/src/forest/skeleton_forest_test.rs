@@ -15,7 +15,7 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_unmodified_subtree_skeleton_node,
     AdditionHash,
 };
-use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext};
 use starknet_patricia_storage::map_storage::MapStorage;
@@ -203,7 +203,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         create_storage_leaf_entry(16),
         ])),
      OriginalSkeletonForest{
-        classes_trie: OriginalSkeletonTreeImpl {
+        classes_trie: OriginalSkeletonTree {
             nodes: create_expected_skeleton_nodes(
                         vec![
                             create_edge_skeleton_node(1, 0, 1),
@@ -217,7 +217,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
                     ),
             sorted_leaf_indices: SortedLeafIndices::new(&mut [])
         },
-        contracts_trie: OriginalSkeletonTreeImpl {
+        contracts_trie: OriginalSkeletonTree {
             nodes: create_expected_skeleton_nodes(
                     vec![
                         create_binary_skeleton_node(1),
@@ -234,7 +234,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         storage_tries: HashMap::from([
             (
                 ContractAddress::try_from(Felt::ZERO).unwrap(),
-                OriginalSkeletonTreeImpl {
+                OriginalSkeletonTree {
                     nodes: create_expected_skeleton_nodes(
                         vec![
                             create_binary_skeleton_node(1),
@@ -253,7 +253,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
             ),
             (
                 ContractAddress::try_from(Felt::from(6_u128)).unwrap(),
-                OriginalSkeletonTreeImpl {
+                OriginalSkeletonTree {
                     nodes: create_expected_skeleton_nodes(
                         vec![
                             create_binary_skeleton_node(1),
@@ -271,7 +271,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
             ),
             (
                 ContractAddress::try_from(Felt::from(7_u128)).unwrap(),
-                OriginalSkeletonTreeImpl {
+                OriginalSkeletonTree {
                     nodes: create_expected_skeleton_nodes(
                         vec![
                             create_binary_skeleton_node(1),
@@ -413,9 +413,9 @@ fn create_class_hash_to_compiled_class_hash(
 
 fn create_original_skeleton_with_sorted_indices<'a>(
     indices: SortedLeafIndices<'a>,
-    skeleton: &OriginalSkeletonTreeImpl<'_>,
-) -> OriginalSkeletonTreeImpl<'a> {
-    OriginalSkeletonTreeImpl { nodes: skeleton.nodes.clone(), sorted_leaf_indices: indices }
+    skeleton: &OriginalSkeletonTree<'_>,
+) -> OriginalSkeletonTree<'a> {
+    OriginalSkeletonTree { nodes: skeleton.nodes.clone(), sorted_leaf_indices: indices }
 }
 
 fn create_expected_sorted_indices(indices: &[u128]) -> Vec<NodeIndex> {

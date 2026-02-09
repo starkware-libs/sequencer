@@ -9,7 +9,7 @@ use crate::patricia_merkle_tree::internal_test_utils::get_initial_updated_skelet
 use crate::patricia_merkle_tree::node_data::inner_node::PathToBottom;
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
@@ -121,7 +121,7 @@ fn test_updated_skeleton_tree_impl_create(
         leaf_modifications.iter().map(|(index, val)| (*index, (*val).into())).collect();
     let mut leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut leaf_indices);
-    let mut original_skeleton = OriginalSkeletonTreeImpl {
+    let mut original_skeleton = OriginalSkeletonTree {
         nodes: original_skeleton.iter().cloned().collect(),
         sorted_leaf_indices,
     };
@@ -140,9 +140,9 @@ fn test_updated_skeleton_tree_impl_create(
 fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
     let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();
     let mut original_skeleton = if modifications.is_empty() {
-        OriginalSkeletonTreeImpl::create_unmodified(HashOutput::ROOT_OF_EMPTY_TREE)
+        OriginalSkeletonTree::create_unmodified(HashOutput::ROOT_OF_EMPTY_TREE)
     } else {
-        OriginalSkeletonTreeImpl::create_empty(SortedLeafIndices::new(&mut indices))
+        OriginalSkeletonTree::create_empty(SortedLeafIndices::new(&mut indices))
     };
 
     let skeleton_modifications =

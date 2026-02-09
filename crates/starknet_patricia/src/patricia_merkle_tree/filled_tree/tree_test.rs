@@ -17,7 +17,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
-use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTree;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
@@ -258,14 +258,13 @@ async fn test_delete_leaf_from_empty_tree() {
     let mut indices = [NodeIndex::FIRST_LEAF];
     // Create an empty original skeleton tree with a single leaf modified.
     let mut original_skeleton_tree =
-        OriginalSkeletonTreeImpl::create_empty(SortedLeafIndices::new(&mut indices));
+        OriginalSkeletonTree::create_empty(SortedLeafIndices::new(&mut indices));
 
     // Create an updated skeleton tree with a single leaf that is deleted.
     let skeleton_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, SkeletonLeaf::Zero)]);
 
     let updated_skeleton_tree =
-        UpdatedSkeletonTree::create(&mut original_skeleton_tree, &skeleton_modifications)
-            .unwrap();
+        UpdatedSkeletonTree::create(&mut original_skeleton_tree, &skeleton_modifications).unwrap();
 
     let leaf_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, MockLeaf(Felt::ZERO))]);
     // Compute the filled tree.
