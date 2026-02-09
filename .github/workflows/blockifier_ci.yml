@@ -60,7 +60,7 @@ jobs:
       - run: cargo build -p blockifier --features transaction_serde
 
   test-with-cairo-native-feature:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -82,7 +82,7 @@ jobs:
       - run: cargo test -p blockifier --features tracing
 
   benchmarking:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to benchmark the old code.
@@ -95,18 +95,19 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Benchmark the base branch code.
-      - run: cargo run -p bench_tools -- run --package blockifier --out /tmp/base_results
+      - name: Benchmark base branch (Base branch)
+        run: cargo run -p bench_tools -- run --package blockifier --out /tmp/base_results
 
-      # Checkout the current branch to benchmark the new code.
+      # Checkout the PR branch into a subdirectory to avoid overwriting
+      # the base branch's composite action files at the workspace root.
       - uses: actions/checkout@v4
         with:
-          clean: false
-          sparse-checkout: |
-            /*
-            !.github/actions/
+          path: pr
 
       # Benchmark the current branch and compare to the previous run.
-      - run: |
+      - name: Benchmark current branch (Feature branch)
+        working-directory: pr/pr
+        run: |
           cargo run -p bench_tools -- run-and-compare \
             --package blockifier \
             --out /tmp/new_results \
