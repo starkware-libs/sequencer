@@ -155,10 +155,16 @@ impl Default for ContractClassManagerConfig {
 
 impl ContractClassManagerConfig {
     #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
-    pub fn create_for_testing(run_cairo_native: bool, wait_on_native_compilation: bool) -> Self {
+    pub fn create_for_testing(mode: NativeExecutionMode) -> Self {
+        let (run_cairo_native, wait_on_native_compilation) = match mode {
+            NativeExecutionMode::Disabled => (false, false),
+            NativeExecutionMode::Async => (true, false),
+            NativeExecutionMode::Sync => (true, true),
+        };
         let cairo_native_run_config = CairoNativeRunConfig {
             run_cairo_native,
             wait_on_native_compilation,
+            execution_mode: mode,
             ..Default::default()
         };
         let native_compiler_config = SierraCompilationConfig::create_for_testing();
