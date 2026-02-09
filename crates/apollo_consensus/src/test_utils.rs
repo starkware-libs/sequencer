@@ -199,20 +199,13 @@ pub fn get_new_storage_config() -> StorageConfig {
     }
 }
 
-// To avoid huge refactoring, we use ConsensusError instead of CommitteeError, and for actual
-// proposer we return the first validator if the function returns an error.
 pub fn test_committee(
     validators: Vec<ValidatorId>,
-    // TODO(Asmaa): no need to return Result.
-    get_actual_proposer_fn: Box<
-        dyn Fn(Round) -> Result<ContractAddress, ConsensusError> + Send + Sync,
-    >,
-    // TODO(Asmaa): use CommitteeError instead of ConsensusError.
+    get_actual_proposer_fn: Box<dyn Fn(Round) -> ContractAddress + Send + Sync>,
     get_virtual_proposer_fn: Box<
-        dyn Fn(Round) -> Result<ContractAddress, ConsensusError> + Send + Sync,
+        dyn Fn(Round) -> Result<ContractAddress, CommitteeError> + Send + Sync,
     >,
 ) -> Arc<dyn CommitteeTrait> {
-    let first_validator = validators[0];
     let stakers = validators
         .into_iter()
         .map(|address| Staker { address, weight: StakingWeight(1), public_key: Felt::ZERO })
@@ -223,11 +216,8 @@ pub fn test_committee(
 
     let mut mock = MockCommitteeTrait::new();
     mock.expect_members().return_const(stakers);
-    mock.expect_get_proposer().returning(move |_, round| {
-        (*get_virtual)(round).map_err(|_| CommitteeError::EmptyCommittee)
-    });
-    mock.expect_get_actual_proposer()
-        .returning(move |_, round| (*get_actual)(round).unwrap_or(first_validator));
+    mock.expect_get_proposer().returning(move |_, round| (*get_virtual)(round));
+    mock.expect_get_actual_proposer().returning(move |_, round| (*get_actual)(round));
     Arc::new(mock)
 }
 
