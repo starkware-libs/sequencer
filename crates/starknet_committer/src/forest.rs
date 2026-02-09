@@ -1,3 +1,4 @@
+pub mod deleted_nodes;
 pub mod filled_forest;
 pub mod forest_errors;
 pub mod original_skeleton_forest;
