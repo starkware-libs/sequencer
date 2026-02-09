@@ -20,6 +20,8 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+hex.workspace = true
+insta.workspace = true
 rstest.workspace = true
 
 

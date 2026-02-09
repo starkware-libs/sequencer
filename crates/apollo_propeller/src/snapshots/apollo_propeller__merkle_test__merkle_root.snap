@@ -1,0 +1,5 @@
+---
+source: crates/apollo_propeller/src/merkle_test.rs
+expression: hash_to_hex(&root)
+---
+866084152d6e6b7fa7df1e928890bf9d925c2dcf73848a3ad7d7e8912dc099fb
