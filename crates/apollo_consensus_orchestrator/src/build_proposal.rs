@@ -173,6 +173,8 @@ async fn initiate_build(
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
         starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        // TODO(Asmaa): Put the real value once we have it.
+        version_constant_commitment: Default::default(),
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
