@@ -79,6 +79,14 @@ macro_rules! define_short_key_storage {
                 self.storage.delete(&Self::small_key(key)).await
             }
 
+            async fn multi_set_and_delete(
+                &mut self,
+                _key_to_value: DbHashMap,
+                _keys_to_delete: &[&DbKey],
+            ) -> PatriciaStorageResult<()> {
+                unimplemented!()
+            }
+
             fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
                 self.storage.get_stats()
             }

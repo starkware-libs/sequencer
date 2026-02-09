@@ -145,6 +145,14 @@ impl Storage for MdbxStorage {
         Ok(())
     }
 
+    async fn multi_set_and_delete(
+        &mut self,
+        _key_to_value: DbHashMap,
+        _keys_to_delete: &[&DbKey],
+    ) -> PatriciaStorageResult<()> {
+        unimplemented!()
+    }
+
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(MdbxStorageStats(self.db.stat()?))
     }
