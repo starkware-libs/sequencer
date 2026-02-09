@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_consensus_config::config::ConsensusDynamicConfig;
+use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
@@ -34,6 +35,8 @@ pub trait ConfigManagerClient: Send + Sync {
 
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
 
+    async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
+
     async fn set_node_dynamic_config(
         &self,
         config: NodeDynamicConfig,
@@ -49,6 +52,7 @@ pub trait ConfigManagerClient: Send + Sync {
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
     GetMempoolDynamicConfig,
+    GetContextDynamicConfig,
     SetNodeDynamicConfig(NodeDynamicConfig),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
@@ -66,6 +70,7 @@ generate_permutation_labels! {
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
+    GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerResponse);
@@ -101,6 +106,17 @@ where
         handle_all_response_variants!(
             ConfigManagerResponse,
             GetMempoolDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig> {
+        let request = ConfigManagerRequest::GetContextDynamicConfig;
+        handle_all_response_variants!(
+            ConfigManagerResponse,
+            GetContextDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct

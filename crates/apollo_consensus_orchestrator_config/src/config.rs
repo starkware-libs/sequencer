@@ -8,7 +8,12 @@ use apollo_config::converters::{
     deserialize_seconds_to_duration,
     serialize_optional_comma_separated,
 };
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -78,6 +83,19 @@ impl SerializeConfig for CendeConfig {
 const GWEI_FACTOR: u128 = u128::pow(10, 9);
 const ETH_FACTOR: u128 = u128::pow(10, 18);
 
+/// Dynamic configuration for the consensus orchestrator context.
+/// Can be updated at runtime via the config manager.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default, Validate)]
+pub struct ContextDynamicConfig {
+    // Future fields will be added here (e.g., min_gas_price_overrides).
+}
+
+impl SerializeConfig for ContextDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::new() // Empty for now.
+    }
+}
+
 /// Configuration for the Context struct.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ContextConfig {
@@ -137,6 +155,9 @@ pub struct ContextConfig {
     /// The interval between retrospective block hash retries.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub retrospective_block_hash_retry_interval_millis: Duration,
+    /// Dynamic configuration that can be updated at runtime.
+    #[validate(nested)]
+    pub dynamic_config: ContextDynamicConfig,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -280,6 +301,8 @@ impl SerializeConfig for ContextConfig {
             "Optional explicit set of validator IDs (comma separated).",
             ParamPrivacyInput::Public,
         ));
+        dump.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+
         dump
     }
 }
@@ -308,6 +331,7 @@ impl Default for ContextConfig {
             override_eth_to_fri_rate: None,
             build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
+            dynamic_config: ContextDynamicConfig::default(),
         }
     }
 }
