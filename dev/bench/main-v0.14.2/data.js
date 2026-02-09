@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770642677402,
+  "lastUpdate": 1770643267879,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -237,6 +237,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1251.8555669300001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a4bad89a74e3a38432c3786e05840cac34d6433",
+          "message": "starknet_api: serialize proofs using base 64 encoding (#12402)",
+          "timestamp": "2026-02-09T12:50:21Z",
+          "tree_id": "59d7d14bf76431f495b14750010be01ac54b2d49",
+          "url": "https://github.com/starkware-libs/sequencer/commit/6a4bad89a74e3a38432c3786e05840cac34d6433"
+        },
+        "date": 1770643267581,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 784.70779021,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1232.0599567699999,
             "unit": "ms"
           }
         ]
