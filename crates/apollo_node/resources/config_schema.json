@@ -2129,6 +2129,11 @@
     "privacy": "Public",
     "value": 1000000000
   },
+  "consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height": {
+    "description": "List of minimum L2 gas prices per block height in format 'height1:price1,height2:price2'. Each entry specifies a height and the minimum gas price that applies from that height onwards.",
+    "privacy": "Public",
+    "value": ""
+  },
   "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate": {
     "description": "Replace the Eth-to-Fri conversion rate with this value.",
     "privacy": "Public",

@@ -2,7 +2,13 @@ use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_config::ValidatorId;
+use apollo_consensus_orchestrator_config::config::{
+    parse_price_per_height,
+    ContextDynamicConfig,
+    PricePerHeight,
+};
 use apollo_node_config::node_config::NodeDynamicConfig;
+use validator::Validate;
 
 use crate::config_manager::ConfigManager;
 
@@ -72,4 +78,109 @@ async fn config_manager_get_batcher_dynamic_config() {
         retrieved, batcher_dynamic_config,
         "Batcher dynamic config mismatch: {retrieved:#?} != {batcher_dynamic_config:#?}",
     );
+}
+
+#[test]
+fn test_context_dynamic_config_serialize_deserialize() {
+    let config = ContextDynamicConfig {
+        min_l2_gas_price_per_height: vec![
+            PricePerHeight { height: 100, price: 10_000_000_000 },
+            PricePerHeight { height: 500, price: 20_000_000_000 },
+            PricePerHeight { height: 1000, price: 30_000_000_000 },
+        ],
+    };
+
+    // Serialize to JSON
+    let json = serde_json::to_string(&config).expect("Failed to serialize");
+
+    // Deserialize back
+    let deserialized: ContextDynamicConfig =
+        serde_json::from_str(&json).expect("Failed to deserialize");
+
+    // Should match original
+    assert_eq!(deserialized, config);
+}
+
+#[test]
+fn test_context_dynamic_config_serialize_deserialize_empty() {
+    let config = ContextDynamicConfig { min_l2_gas_price_per_height: vec![] };
+
+    let json = serde_json::to_string(&config).expect("Failed to serialize");
+    let deserialized: ContextDynamicConfig =
+        serde_json::from_str(&json).expect("Failed to deserialize");
+
+    assert_eq!(deserialized, config);
+}
+
+#[test]
+fn test_parse_price_per_height_with_whitespace() {
+    // Test that whitespace is properly trimmed during parsing
+    let data = " 100 : 10000000000 , 500 :  20000000000 ";
+    // This func is used for deserialization of the min_l2_gas_price_per_height field.
+    let result = parse_price_per_height(data).expect("Failed to parse");
+
+    assert_eq!(result.len(), 2);
+    assert_eq!(result[0].height, 100);
+    assert_eq!(result[0].price, 10_000_000_000);
+    assert_eq!(result[1].height, 500);
+    assert_eq!(result[1].price, 20_000_000_000);
+}
+
+#[test]
+fn test_context_dynamic_config_validation_valid() {
+    let config = ContextDynamicConfig {
+        min_l2_gas_price_per_height: vec![
+            PricePerHeight { height: 100, price: 10_000_000_000 },
+            PricePerHeight { height: 500, price: 20_000_000_000 },
+            PricePerHeight { height: 1000, price: 30_000_000_000 },
+        ],
+    };
+
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_context_dynamic_config_validation_price_below_minimum() {
+    let config = ContextDynamicConfig {
+        min_l2_gas_price_per_height: vec![
+            PricePerHeight { height: 100, price: 500_000_000 }, // Below 8 gwei
+        ],
+    };
+
+    assert!(config.validate().is_err());
+}
+
+#[test]
+fn test_context_dynamic_config_validation_heights_not_in_order() {
+    let config = ContextDynamicConfig {
+        min_l2_gas_price_per_height: vec![
+            PricePerHeight { height: 500, price: 10_000_000_000 },
+            PricePerHeight { height: 100, price: 20_000_000_000 }, // Out of order
+        ],
+    };
+
+    assert!(config.validate().is_err());
+}
+
+#[test]
+fn test_context_dynamic_config_validation_duplicate_heights() {
+    let config = ContextDynamicConfig {
+        min_l2_gas_price_per_height: vec![
+            PricePerHeight { height: 100, price: 10_000_000_000 },
+            PricePerHeight { height: 100, price: 20_000_000_000 }, // Duplicate
+        ],
+    };
+
+    assert!(config.validate().is_err());
+}
+
+#[test]
+fn test_context_dynamic_config_validation_price_at_minimum() {
+    let config = ContextDynamicConfig {
+        min_l2_gas_price_per_height: vec![
+            PricePerHeight { height: 100, price: 8_000_000_000 }, // Exactly 8 gwei
+        ],
+    };
+
+    assert!(config.validate().is_ok());
 }

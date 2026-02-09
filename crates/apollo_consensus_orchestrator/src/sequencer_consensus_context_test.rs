@@ -13,7 +13,7 @@ use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
-use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextDynamicConfig};
+use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_l1_gas_price_types::errors::{
     EthToStrkOracleClientError,
@@ -52,6 +52,10 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use crate::cende::MockCendeContext;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
+use crate::sequencer_consensus_context::{
+    SequencerConsensusContext,
+    SequencerConsensusContextDeps,
+};
 use crate::test_utils::{
     block_info,
     create_test_and_network_deps,
@@ -59,6 +63,7 @@ use crate::test_utils::{
     SetupDepsArgs,
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
+    NUM_VALIDATORS,
     STATE_DIFF_COMMITMENT,
     TIMEOUT,
     TX_BATCH,
@@ -1189,4 +1194,260 @@ fn make_config_manager_client(provider_config: ContextDynamicConfig) -> MockConf
         .returning(move || Ok(provider_config.clone()));
     config_manager_client.expect_set_node_dynamic_config().returning(|_| Ok(()));
     config_manager_client
+}
+
+#[tokio::test]
+async fn test_dynamic_config_updates_min_gas_price() {
+    // Test constants
+    const FIRST_CONFIG_HEIGHT: u64 = 100;
+    const FIRST_CONFIG_MIN_PRICE: u128 = 10_000_000_000;
+    const SECOND_CONFIG_HEIGHT: u64 = 200;
+    const SECOND_CONFIG_MIN_PRICE: u128 = 20_000_000_000;
+
+    const INITIAL_GAS_PRICE: u128 = 8_000_000_000; // below first minimum
+    const FIRST_TEST_HEIGHT: u64 = 150; // Between 100 and 200
+    const SECOND_TEST_HEIGHT: u64 = 250; // Above 200
+    const INTERMEDIATE_GAS_PRICE: u128 = 15_000_000_000; // Below second minimum
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+
+    // Create a mock config manager client that will return dynamic config
+    let mut mock_config_manager = MockConfigManagerClient::new();
+
+    // Mock expects get_context_dynamic_config to be called twice (once per height change)
+    // This is called inside set_height_and_round() -> update_dynamic_config() ->
+    // client.get_context_dynamic_config()
+
+    // First call returns config with min price at FIRST_CONFIG_HEIGHT
+    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
+        Ok(ContextDynamicConfig {
+            min_l2_gas_price_per_height: vec![PricePerHeight {
+                height: FIRST_CONFIG_HEIGHT,
+                price: FIRST_CONFIG_MIN_PRICE,
+            }],
+        })
+    });
+
+    // Second call returns config with additional min price at SECOND_CONFIG_HEIGHT
+    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
+        Ok(ContextDynamicConfig {
+            min_l2_gas_price_per_height: vec![
+                PricePerHeight { height: FIRST_CONFIG_HEIGHT, price: FIRST_CONFIG_MIN_PRICE },
+                PricePerHeight { height: SECOND_CONFIG_HEIGHT, price: SECOND_CONFIG_MIN_PRICE },
+            ],
+        })
+    });
+
+    // Setup batcher expectations for two heights
+    // set_height_and_round() calls batcher.start_height() to notify the batcher
+    deps.batcher.expect_start_height().times(2).returning(|_| Ok(()));
+
+    // Convert TestDeps to SequencerConsensusContextDeps and add config manager
+    let mut context_deps: SequencerConsensusContextDeps = deps.into();
+    context_deps.config_manager_client = Some(Arc::new(mock_config_manager));
+
+    let mut context = SequencerConsensusContext::new(
+        ContextConfig {
+            proposal_buffer_size: CHANNEL_SIZE,
+            num_validators: NUM_VALIDATORS,
+            chain_id: CHAIN_ID,
+            ..Default::default()
+        },
+        context_deps,
+    );
+
+    // Set initial L2 gas price below minimum
+    context.l2_gas_price = GasPrice(INITIAL_GAS_PRICE);
+
+    // Test at FIRST_TEST_HEIGHT: Should use min price from first config.
+    // This calls set_height_and_round which triggers update_dynamic_config() internally
+    context.set_height_and_round(BlockNumber(FIRST_TEST_HEIGHT), 0).await.unwrap();
+
+    // Verify dynamic config was updated
+    assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 1);
+    assert_eq!(
+        context.config.dynamic_config.min_l2_gas_price_per_height[0].price,
+        FIRST_CONFIG_MIN_PRICE
+    );
+
+    // Simulate gas price update - this calls the fee market logic with min_l2_gas_price_per_height
+    context.update_l2_gas_price(BlockNumber(FIRST_TEST_HEIGHT), GasAmount(1000));
+
+    // Gas price should have increased towards minimum (gradual adjustment)
+    // Formula: new_price = min(price + price/48, min_gas_price)
+    // Starting at INITIAL_GAS_PRICE (8 Gwei), with gas_price_max_change_denominator = 48
+    // max_increase = 8_000_000_000 / 48 = 166_666_666
+    // expected = 8_000_000_000 + 166_666_666 = 8_166_666_666
+    const GAS_PRICE_MAX_CHANGE_DENOMINATOR: u128 = 48;
+    let expected_price_after_first =
+        INITIAL_GAS_PRICE + (INITIAL_GAS_PRICE / GAS_PRICE_MAX_CHANGE_DENOMINATOR);
+    let expected_price_after_first = expected_price_after_first.min(FIRST_CONFIG_MIN_PRICE);
+
+    let price_after_first_update = context.l2_gas_price.0;
+    assert_eq!(
+        price_after_first_update, expected_price_after_first,
+        "Gas price should be exactly {} (8 Gwei + 8/48), got {}",
+        expected_price_after_first, price_after_first_update
+    );
+
+    // Test at SECOND_TEST_HEIGHT: Should use min price from config2
+    context.set_height_and_round(BlockNumber(SECOND_TEST_HEIGHT), 0).await.unwrap();
+
+    // Verify dynamic config was updated again
+    assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 2);
+    assert_eq!(
+        context.config.dynamic_config.min_l2_gas_price_per_height[1].price,
+        SECOND_CONFIG_MIN_PRICE
+    );
+
+    // Set gas price below new minimum
+    context.l2_gas_price = GasPrice(INTERMEDIATE_GAS_PRICE);
+
+    // Simulate gas price update
+    context.update_l2_gas_price(BlockNumber(SECOND_TEST_HEIGHT), GasAmount(1000));
+
+    // Gas price should have increased towards new minimum
+    // Formula: new_price = min(price + price/48, min_gas_price)
+    // Starting at INTERMEDIATE_GAS_PRICE (15 Gwei)
+    // max_increase = 15_000_000_000 / 48 = 312_500_000
+    // expected = 15_000_000_000 + 312_500_000 = 15_312_500_000
+    let expected_price_after_second =
+        INTERMEDIATE_GAS_PRICE + (INTERMEDIATE_GAS_PRICE / GAS_PRICE_MAX_CHANGE_DENOMINATOR);
+    let expected_price_after_second = expected_price_after_second.min(SECOND_CONFIG_MIN_PRICE);
+
+    let price_after_second_update = context.l2_gas_price.0;
+    assert_eq!(
+        price_after_second_update, expected_price_after_second,
+        "Gas price should be exactly {} (15 Gwei + 15/48), got {}",
+        expected_price_after_second, price_after_second_update
+    );
+}
+
+#[tokio::test]
+async fn test_dynamic_config_updates_min_gas_price() {
+    // Test constants
+    const FIRST_CONFIG_HEIGHT: u64 = 100;
+    const FIRST_CONFIG_MIN_PRICE: u128 = 10_000_000_000;
+    const SECOND_CONFIG_HEIGHT: u64 = 200;
+    const SECOND_CONFIG_MIN_PRICE: u128 = 20_000_000_000;
+
+    const INITIAL_GAS_PRICE: u128 = 8_000_000_000; // below first minimum
+    const FIRST_TEST_HEIGHT: u64 = 150; // Between 100 and 200
+    const SECOND_TEST_HEIGHT: u64 = 250; // Above 200
+    const INTERMEDIATE_GAS_PRICE: u128 = 15_000_000_000; // Below second minimum
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+
+    // Create a mock config manager client that will return dynamic config
+    let mut mock_config_manager = MockConfigManagerClient::new();
+
+    // Mock expects get_context_dynamic_config to be called twice (once per height change)
+    // This is called inside set_height_and_round() -> update_dynamic_config() ->
+    // client.get_context_dynamic_config()
+
+    // First call returns config with min price at FIRST_CONFIG_HEIGHT
+    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
+        Ok(ContextDynamicConfig {
+            min_l2_gas_price_per_height: vec![PricePerHeight {
+                height: FIRST_CONFIG_HEIGHT,
+                price: FIRST_CONFIG_MIN_PRICE,
+            }],
+        })
+    });
+
+    // Second call returns config with additional min price at SECOND_CONFIG_HEIGHT
+    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
+        Ok(ContextDynamicConfig {
+            min_l2_gas_price_per_height: vec![
+                PricePerHeight { height: FIRST_CONFIG_HEIGHT, price: FIRST_CONFIG_MIN_PRICE },
+                PricePerHeight { height: SECOND_CONFIG_HEIGHT, price: SECOND_CONFIG_MIN_PRICE },
+            ],
+        })
+    });
+
+    // Setup batcher expectations for two heights
+    // set_height_and_round() calls batcher.start_height() to notify the batcher
+    deps.batcher.expect_start_height().times(2).returning(|_| Ok(()));
+
+    // Convert TestDeps to SequencerConsensusContextDeps and add config manager
+    let mut context_deps: SequencerConsensusContextDeps = deps.into();
+    context_deps.config_manager_client = Some(Arc::new(mock_config_manager));
+
+    let mut context = SequencerConsensusContext::new(
+        ContextConfig {
+            proposal_buffer_size: CHANNEL_SIZE,
+            num_validators: NUM_VALIDATORS,
+            chain_id: CHAIN_ID,
+            ..Default::default()
+        },
+        context_deps,
+    );
+
+    // Set initial L2 gas price below minimum
+    context.l2_gas_price = GasPrice(INITIAL_GAS_PRICE);
+
+    // Test at FIRST_TEST_HEIGHT: Should use min price from first config.
+    // This calls set_height_and_round which triggers update_dynamic_config() internally
+    context.set_height_and_round(BlockNumber(FIRST_TEST_HEIGHT), 0).await.unwrap();
+
+    // Verify dynamic config was updated
+    assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 1);
+    assert_eq!(
+        context.config.dynamic_config.min_l2_gas_price_per_height[0].price,
+        FIRST_CONFIG_MIN_PRICE
+    );
+
+    // Simulate gas price update - this calls the fee market logic with min_l2_gas_price_per_height
+    context.update_l2_gas_price(BlockNumber(FIRST_TEST_HEIGHT), GasAmount(1000));
+
+    // Gas price should have increased towards minimum (gradual adjustment)
+    // Formula: new_price = min(price + price/48, min_gas_price)
+    // Starting at INITIAL_GAS_PRICE (8 Gwei), with gas_price_max_change_denominator = 48
+    // max_increase = 8_000_000_000 / 48 = 166_666_666
+    // expected = 8_000_000_000 + 166_666_666 = 8_166_666_666
+    const GAS_PRICE_MAX_CHANGE_DENOMINATOR: u128 = 48;
+    let expected_price_after_first =
+        INITIAL_GAS_PRICE + (INITIAL_GAS_PRICE / GAS_PRICE_MAX_CHANGE_DENOMINATOR);
+    let expected_price_after_first = expected_price_after_first.min(FIRST_CONFIG_MIN_PRICE);
+
+    let price_after_first_update = context.l2_gas_price.0;
+    assert_eq!(
+        price_after_first_update, expected_price_after_first,
+        "Gas price should be exactly {} (8 Gwei + 8/48), got {}",
+        expected_price_after_first, price_after_first_update
+    );
+
+    // Test at SECOND_TEST_HEIGHT: Should use min price from config2
+    context.set_height_and_round(BlockNumber(SECOND_TEST_HEIGHT), 0).await.unwrap();
+
+    // Verify dynamic config was updated again
+    assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 2);
+    assert_eq!(
+        context.config.dynamic_config.min_l2_gas_price_per_height[1].price,
+        SECOND_CONFIG_MIN_PRICE
+    );
+
+    // Set gas price below new minimum
+    context.l2_gas_price = GasPrice(INTERMEDIATE_GAS_PRICE);
+
+    // Simulate gas price update
+    context.update_l2_gas_price(BlockNumber(SECOND_TEST_HEIGHT), GasAmount(1000));
+
+    // Gas price should have increased towards new minimum
+    // Formula: new_price = min(price + price/48, min_gas_price)
+    // Starting at INTERMEDIATE_GAS_PRICE (15 Gwei)
+    // max_increase = 15_000_000_000 / 48 = 312_500_000
+    // expected = 15_000_000_000 + 312_500_000 = 15_312_500_000
+    let expected_price_after_second =
+        INTERMEDIATE_GAS_PRICE + (INTERMEDIATE_GAS_PRICE / GAS_PRICE_MAX_CHANGE_DENOMINATOR);
+    let expected_price_after_second = expected_price_after_second.min(SECOND_CONFIG_MIN_PRICE);
+
+    let price_after_second_update = context.l2_gas_price.0;
+    assert_eq!(
+        price_after_second_update, expected_price_after_second,
+        "Gas price should be exactly {} (15 Gwei + 15/48), got {}",
+        expected_price_after_second, price_after_second_update
+    );
 }
