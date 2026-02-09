@@ -15,7 +15,23 @@ runs:
     - name: Mount Namespace cache volume
       uses: namespacelabs/nscloud-cache-action@v1
       with:
-        path: /home/runner/.cargo
+        path: |
+          /home/runner/.cargo
+          /home/runner/.cache/sccache
+
+    - name: Install sccache
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y sccache
+
+    - name: Configure sccache
+      shell: bash
+      run: |
+        mkdir -p /home/runner/.cache/sccache
+        echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
+        echo "SCCACHE_DIR=/home/runner/.cache/sccache" >> "$GITHUB_ENV"
+        echo "SCCACHE_CACHE_SIZE=50G" >> "$GITHUB_ENV"
 
     - uses: moonrepo/setup-rust@v1
       name: Install Rust toolchain and binaries

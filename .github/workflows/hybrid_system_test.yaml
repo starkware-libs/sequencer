@@ -53,7 +53,7 @@ jobs:
           python-version: "pypy3.9"
 
       - name: Set up pip dependency caching
-        uses: namespacelabs/nscloud-cache-action@v1
+        uses: namespacelabs/namespace-profile-yoav-cache-testing-profile@v1
         with:
           cache: python
 
