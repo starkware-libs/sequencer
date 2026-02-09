@@ -12,10 +12,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonN
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonTree,
-    UpdatedSkeletonTreeImpl,
-};
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 
 #[allow(clippy::as_conversions)]
 const TREE_HEIGHT: usize = SubTreeHeight::ACTUAL_HEIGHT.0 as usize;
