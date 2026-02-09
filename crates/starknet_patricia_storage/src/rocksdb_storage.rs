@@ -23,6 +23,8 @@ use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
+    DbOperation,
+    DbOperationMap,
     DbValue,
     PatriciaStorageError,
     PatriciaStorageResult,
@@ -310,15 +312,14 @@ impl Storage for RocksDbStorage {
 
     async fn multi_set_and_delete(
         &mut self,
-        key_to_value: DbHashMap,
-        keys_to_delete: &[&DbKey],
+        key_to_operation: DbOperationMap,
     ) -> PatriciaStorageResult<()> {
         let mut batch = WriteBatch::default();
-        for key in key_to_value.keys() {
-            batch.put(&key.0, &key_to_value[key].0);
-        }
-        for key in keys_to_delete {
-            batch.delete(&key.0);
+        for (key, operation) in key_to_operation.iter() {
+            match operation {
+                DbOperation::Set(value) => batch.put(&key.0, &value.0),
+                DbOperation::Delete => batch.delete(&key.0),
+            }
         }
         Ok(self.db.write_opt(&batch, &self.options.write_options)?)
     }

@@ -7,6 +7,7 @@ use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
+    DbOperationMap,
     DbValue,
     EmptyStorageConfig,
     PatriciaStorageResult,
@@ -81,8 +82,7 @@ macro_rules! define_short_key_storage {
 
             async fn multi_set_and_delete(
                 &mut self,
-                _key_to_value: DbHashMap,
-                _keys_to_delete: &[&DbKey],
+                _key_to_operation: DbOperationMap,
             ) -> PatriciaStorageResult<()> {
                 unimplemented!()
             }

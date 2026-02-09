@@ -12,6 +12,8 @@ use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
+    DbOperation,
+    DbOperationMap,
     DbValue,
     EmptyStorageConfig,
     NoStats,
@@ -54,12 +56,13 @@ impl Storage for MapStorage {
 
     async fn multi_set_and_delete(
         &mut self,
-        key_to_value: DbHashMap,
-        keys_to_delete: &[&DbKey],
+        key_to_operation: DbOperationMap,
     ) -> PatriciaStorageResult<()> {
-        self.mset(key_to_value).await?;
-        for key in keys_to_delete {
-            self.0.remove(*key);
+        for (key, operation) in key_to_operation.into_iter() {
+            match operation {
+                DbOperation::Set(value) => self.0.insert(key, value),
+                DbOperation::Delete => self.0.remove(&key),
+            };
         }
         Ok(())
     }
@@ -314,15 +317,21 @@ impl<S: Storage> Storage for CachedStorage<S> {
 
     async fn multi_set_and_delete(
         &mut self,
-        key_to_value: DbHashMap,
-        keys_to_delete: &[&DbKey],
+        key_to_operation: DbOperationMap,
     ) -> PatriciaStorageResult<()> {
-        self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
-        self.update_cached_values(&key_to_value);
-        self.storage.multi_set_and_delete(key_to_value, keys_to_delete).await?;
-        keys_to_delete.iter().for_each(|key| {
-            self.cache.pop(key);
-        });
+        self.writes += u128::try_from(key_to_operation.len()).expect("usize should fit in u128");
+        self.storage.multi_set_and_delete(key_to_operation.clone()).await?;
+        for (key, operation) in key_to_operation.into_iter() {
+            match operation {
+                DbOperation::Set(value) => {
+                    self.update_cached_value(&key, &value);
+                }
+                DbOperation::Delete => {
+                    self.cache.pop(&key);
+                }
+            };
+        }
+
         Ok(())
     }
 
