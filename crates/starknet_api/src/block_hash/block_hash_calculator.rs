@@ -1,4 +1,5 @@
 use std::sync::LazyLock;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
@@ -106,6 +107,15 @@ pub struct TransactionHashingData {
     pub transaction_signature: TransactionSignature,
     pub transaction_output: TransactionOutputForHash,
     pub transaction_hash: TransactionHash,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct BlockCommitmentsMeasurements {
+    pub transaction_commitment_duration: Duration,
+    pub event_commitment_duration: Duration,
+    pub receipt_commitment_duration: Duration,
+    pub state_diff_commitment_duration: Duration,
+    pub n_events: usize, // number of events in the block
 }
 
 /// Commitments of a block.
@@ -230,7 +240,7 @@ pub async fn calculate_block_commitments(
     state_diff: ThinStateDiff,
     l1_da_mode: L1DataAvailabilityMode,
     starknet_version: &StarknetVersion,
-) -> BlockHeaderCommitments {
+) -> (BlockHeaderCommitments, BlockCommitmentsMeasurements) {
     let transaction_leaf_elements: Vec<TransactionLeafElement> = transactions_data
         .iter()
         .map(|tx_leaf| {
@@ -265,31 +275,57 @@ pub async fn calculate_block_commitments(
         l1_da_mode,
     );
 
-    // Spawn tasks for parallel execution
+    let n_events = event_leaf_elements.len();
+
+    // Spawn tasks for parallel execution; each measures its own duration.
     let transaction_task = spawn_blocking(move || {
-        calculate_transaction_commitment::<Poseidon>(&transaction_leaf_elements)
+        let start = Instant::now();
+        let commitment = calculate_transaction_commitment::<Poseidon>(&transaction_leaf_elements);
+        (commitment, start.elapsed())
     });
 
-    let event_task =
-        spawn_blocking(move || calculate_event_commitment::<Poseidon>(&event_leaf_elements));
+    let event_task = spawn_blocking(move || {
+        let start = Instant::now();
+        let commitment = calculate_event_commitment::<Poseidon>(&event_leaf_elements);
+        (commitment, start.elapsed())
+    });
 
-    let receipt_task =
-        spawn_blocking(move || calculate_receipt_commitment::<Poseidon>(&receipt_elements));
+    let receipt_task = spawn_blocking(move || {
+        let start = Instant::now();
+        let commitment = calculate_receipt_commitment::<Poseidon>(&receipt_elements);
+        (commitment, start.elapsed())
+    });
 
-    let state_diff_task = spawn_blocking(move || calculate_state_diff_hash(&state_diff));
+    let state_diff_task = spawn_blocking(move || {
+        let start = Instant::now();
+        let commitment = calculate_state_diff_hash(&state_diff);
+        (commitment, start.elapsed())
+    });
 
     // Wait for all tasks to complete.
-    let (transaction_commitment, event_commitment, receipt_commitment, state_diff_commitment) =
-        tokio::try_join!(transaction_task, event_task, receipt_task, state_diff_task)
-            .expect("Failed to join block commitments tasks.");
+    let (
+        (transaction_commitment, transaction_duration),
+        (event_commitment, event_duration),
+        (receipt_commitment, receipt_duration),
+        (state_diff_commitment, state_diff_duration),
+    ) = tokio::try_join!(transaction_task, event_task, receipt_task, state_diff_task)
+        .expect("Failed to join block commitments tasks.");
 
-    BlockHeaderCommitments {
+    let commitments = BlockHeaderCommitments {
         transaction_commitment,
         event_commitment,
         receipt_commitment,
         state_diff_commitment,
         concatenated_counts,
-    }
+    };
+    let timings = BlockCommitmentsMeasurements {
+        transaction_commitment_duration: transaction_duration,
+        event_commitment_duration: event_duration,
+        receipt_commitment_duration: receipt_duration,
+        state_diff_commitment_duration: state_diff_duration,
+        n_events,
+    };
+    (commitments, timings)
 }
 
 // A single felt: [
