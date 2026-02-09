@@ -74,7 +74,11 @@ use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{BlobParameters, CendeAmbassadorError, CendeContext};
-use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
+use crate::fee_market::{
+    calculate_next_base_gas_price,
+    get_min_gas_price_for_height,
+    FeeMarketInfo,
+};
 use crate::metrics::{
     record_build_proposal_failure,
     record_validate_proposal_failure,
@@ -364,8 +368,7 @@ impl SequencerConsensusContext {
             .await
     }
 
-    fn update_l2_gas_price(&mut self, l2_gas_used: GasAmount) {
-        let gas_target = VersionedConstants::latest_constants().gas_target;
+    fn update_l2_gas_price(&mut self, height: BlockNumber, l2_gas_used: GasAmount) {
         if let Some(override_value) = self.config.override_l2_gas_price_fri {
             info!(
                 "L2 gas price ({}) is not updated, remains on override value of {override_value} \
@@ -374,8 +377,21 @@ impl SequencerConsensusContext {
             );
             self.l2_gas_price = GasPrice(override_value);
         } else {
-            self.l2_gas_price =
-                calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
+            let versioned_constants = VersionedConstants::latest_constants();
+            let gas_target = versioned_constants.gas_target;
+            // Get the minimum gas price for this height from config, or fallback to versioned
+            // constants
+            let min_gas_price = get_min_gas_price_for_height(
+                height,
+                &self.config.price_per_height,
+                versioned_constants.min_gas_price,
+            );
+            self.l2_gas_price = calculate_next_base_gas_price(
+                self.l2_gas_price,
+                l2_gas_used,
+                gas_target,
+                min_gas_price,
+            );
         }
 
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
@@ -394,7 +410,7 @@ impl SequencerConsensusContext {
         let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
             decision_reached_response;
 
-        self.update_l2_gas_price(l2_gas_used);
+        self.update_l2_gas_price(height, l2_gas_used);
 
         // Remove transactions that were not accepted by the Batcher, so `transactions` and
         // `central_objects.execution_infos` correspond to the same list of (only accepted)

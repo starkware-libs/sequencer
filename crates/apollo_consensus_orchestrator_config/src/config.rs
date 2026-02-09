@@ -78,6 +78,15 @@ impl SerializeConfig for CendeConfig {
 const GWEI_FACTOR: u128 = u128::pow(10, 9);
 const ETH_FACTOR: u128 = u128::pow(10, 18);
 
+/// Represents a minimum gas price that applies starting from a specific block height.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct PricePerHeight {
+    /// The block height at which this price becomes active.
+    pub height: u64,
+    /// The minimum gas price in fri.
+    pub price: u128,
+}
+
 /// Configuration for the Context struct.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ContextConfig {
@@ -137,6 +146,10 @@ pub struct ContextConfig {
     /// The interval between retrospective block hash retries.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub retrospective_block_hash_retry_interval_millis: Duration,
+    /// List of minimum L2 gas prices per block height. If not provided, the minimum gas price will
+    /// be the versioned constants minimum gas price.
+    #[serde(default)]
+    pub price_per_height: Vec<PricePerHeight>,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -280,6 +293,17 @@ impl SerializeConfig for ContextConfig {
             "Optional explicit set of validator IDs (comma separated).",
             ParamPrivacyInput::Public,
         ));
+        // Serialize price_per_height as a JSON array
+        if !self.price_per_height.is_empty() {
+            let (key, value) = ser_param(
+                "price_per_height",
+                &self.price_per_height,
+                "List of minimum L2 gas prices per block height. Each entry specifies a height \
+                 and the minimum gas price that applies from that height onwards.",
+                ParamPrivacyInput::Public,
+            );
+            dump.insert(key, value);
+        }
         dump
     }
 }
@@ -308,6 +332,7 @@ impl Default for ContextConfig {
             override_eth_to_fri_rate: None,
             build_proposal_time_ratio_for_retrospective_block_hash: 0.7,
             retrospective_block_hash_retry_interval_millis: Duration::from_millis(500),
+            price_per_height: Vec::new(),
         }
     }
 }
