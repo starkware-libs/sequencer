@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770643267879,
+  "lastUpdate": 1770646368921,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -271,6 +271,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1232.0599567699999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "84831ef113649303a98788dbb8b1bc323960e6be",
+          "message": "starknet_patricia: use tokio mutex insted of std mutex (#12357)",
+          "timestamp": "2026-02-09T13:48:31Z",
+          "tree_id": "41230ca363ca5efe8d5c6d080a9cc005eb8081af",
+          "url": "https://github.com/starkware-libs/sequencer/commit/84831ef113649303a98788dbb8b1bc323960e6be"
+        },
+        "date": 1770646368571,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 785.9259467100001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1277.03511888,
             "unit": "ms"
           }
         ]
