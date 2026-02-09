@@ -2291,7 +2291,6 @@ dependencies = [
  "async-trait",
  "hex",
  "lru 0.12.5",
- "proving_utils",
  "starknet-types-core",
  "starknet_api",
  "tempfile",
