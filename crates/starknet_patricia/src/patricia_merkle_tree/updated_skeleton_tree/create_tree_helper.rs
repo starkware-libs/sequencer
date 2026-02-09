@@ -13,7 +13,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonT
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonNodeMap,
-    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonTree,
     UpdatedSkeletonTreeResult,
 };
 
@@ -68,7 +68,7 @@ fn has_leaves_on_both_sides(root_index: &NodeIndex, leaf_indices: &SortedLeafInd
     split_leaves(root_index, leaf_indices).iter().all(|leaves_in_side| !leaves_in_side.is_empty())
 }
 
-impl UpdatedSkeletonTreeImpl {
+impl UpdatedSkeletonTree {
     /// Finalize the skeleton bottom layer := the updated skeleton nodes created directly from the
     /// original skeleton and leaf modifications, without being dependant in any descendants
     /// (i.e., modified leaves, and unmodified nodes).

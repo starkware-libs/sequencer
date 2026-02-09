@@ -12,7 +12,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonN
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 
 #[allow(clippy::as_conversions)]
 const TREE_HEIGHT: usize = SubTreeHeight::ACTUAL_HEIGHT.0 as usize;
@@ -21,7 +21,7 @@ const TREE_HEIGHT: usize = SubTreeHeight::ACTUAL_HEIGHT.0 as usize;
 fn initial_updated_skeleton(
     #[default(&[])] original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
     #[default(&[])] leaf_modifications: &[(NodeIndex, u8)],
-) -> UpdatedSkeletonTreeImpl {
+) -> UpdatedSkeletonTree {
     get_initial_updated_skeleton(original_skeleton, leaf_modifications)
 }
 
@@ -115,8 +115,7 @@ fn test_updated_skeleton_tree_impl_create(
     #[case] original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
     #[case] leaf_modifications: &[(NodeIndex, u8)],
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(original_skeleton, leaf_modifications)]
-    initial_updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(original_skeleton, leaf_modifications)] initial_updated_skeleton: UpdatedSkeletonTree,
 ) {
     let leaf_modifications: LeafModifications<SkeletonLeaf> =
         leaf_modifications.iter().map(|(index, val)| (*index, (*val).into())).collect();
@@ -127,7 +126,7 @@ fn test_updated_skeleton_tree_impl_create(
         sorted_leaf_indices,
     };
     let updated_skeleton_tree =
-        UpdatedSkeletonTreeImpl::create(&mut original_skeleton, &leaf_modifications).unwrap();
+        UpdatedSkeletonTree::create(&mut original_skeleton, &leaf_modifications).unwrap();
 
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -149,6 +148,6 @@ fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
     let skeleton_modifications =
         modifications.into_iter().map(|(idx, leaf)| (idx, leaf.0.into())).collect();
     let updated_skeleton_tree =
-        UpdatedSkeletonTreeImpl::create(&mut original_skeleton, &skeleton_modifications).unwrap();
+        UpdatedSkeletonTree::create(&mut original_skeleton, &skeleton_modifications).unwrap();
     assert!(updated_skeleton_tree.is_empty());
 }

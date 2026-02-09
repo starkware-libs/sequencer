@@ -29,13 +29,13 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
     TempSkeletonNode,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 
 #[fixture]
 fn initial_updated_skeleton(
     #[default(&[])] original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
     #[default(&[])] leaf_modifications: &[(NodeIndex, u8)],
-) -> UpdatedSkeletonTreeImpl {
+) -> UpdatedSkeletonTree {
     get_initial_updated_skeleton(original_skeleton, leaf_modifications)
 }
 
@@ -216,7 +216,7 @@ fn test_node_from_binary_data(
     #[case] _leaf_modifications: &[(NodeIndex, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(&[], _leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(&[], _leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTree,
 ) {
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -283,7 +283,7 @@ fn test_node_from_edge_data(
     #[case] _leaf_modifications: &[(NodeIndex, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(&[], _leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(&[], _leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTree,
 ) {
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -324,7 +324,7 @@ fn test_update_node_in_empty_tree(
     #[case] leaf_modifications: &[(NodeIndex, u8)],
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
-    #[with(&[], leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
+    #[with(&[], leaf_modifications)] mut initial_updated_skeleton: UpdatedSkeletonTree,
 ) {
     let mut leaf_indices: Vec<NodeIndex> =
         leaf_modifications.iter().map(|(index, _)| *index).collect();
@@ -470,7 +470,7 @@ fn test_update_node_in_nonempty_tree(
     #[case] expected_node: TempSkeletonNode,
     #[case] expected_skeleton_additions: &[(NodeIndex, UpdatedSkeletonNode)],
     #[with(&original_skeleton, leaf_modifications)]
-    mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
+    mut initial_updated_skeleton: UpdatedSkeletonTree,
 ) {
     let mut original_skeleton: OriginalSkeletonNodeMap = original_skeleton.into_iter().collect();
     let mut leaf_indices: Vec<NodeIndex> =
@@ -493,7 +493,7 @@ fn test_update_node_in_nonempty_tree(
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
     let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
     let updated =
-        UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
+        UpdatedSkeletonTree::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
     let empty_map = HashMap::new();
     let filled = MockTrie::create_with_existing_leaves::<TestTreeHashFunction>(updated, empty_map)
         .await

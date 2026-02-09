@@ -22,7 +22,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonNodeMap,
-    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonTree,
 };
 
 #[tokio::test(flavor = "multi_thread")]
@@ -34,7 +34,7 @@ async fn test_filled_tree_sanity() {
     let new_leaf_index = NodeIndex::ROOT;
     skeleton_tree.insert(new_leaf_index, UpdatedSkeletonNode::Leaf);
     let modifications = HashMap::from([(new_leaf_index, new_filled_leaf)]);
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let updated_skeleton_tree = UpdatedSkeletonTree { skeleton_tree };
     let root_hash = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
         updated_skeleton_tree,
         modifications,
@@ -123,7 +123,7 @@ async fn test_empty_leaf_modifications() {
 
     // Test `create_with_existing_leaves`.
     let filled_tree = FilledTreeImpl::create_with_existing_leaves::<TestTreeHashFunction>(
-        UpdatedSkeletonTreeImpl { skeleton_tree: unmodified_updated_skeleton_tree_map.clone() },
+        UpdatedSkeletonTree { skeleton_tree: unmodified_updated_skeleton_tree_map.clone() },
         HashMap::new(),
     )
     .await
@@ -133,7 +133,7 @@ async fn test_empty_leaf_modifications() {
 
     // Test `create`.
     let (filled_tree, leaf_index_to_leaf_output) = FilledTreeImpl::create::<TestTreeHashFunction>(
-        UpdatedSkeletonTreeImpl { skeleton_tree: unmodified_updated_skeleton_tree_map },
+        UpdatedSkeletonTree { skeleton_tree: unmodified_updated_skeleton_tree_map },
         HashMap::new(),
     )
     .await
@@ -151,7 +151,7 @@ async fn test_empty_updated_skeleton() {
 
     // Test `create`.
     let (filled_tree, leaf_index_to_leaf_output) = FilledTreeImpl::create::<TestTreeHashFunction>(
-        UpdatedSkeletonTreeImpl { skeleton_tree: HashMap::new() },
+        UpdatedSkeletonTree { skeleton_tree: HashMap::new() },
         leaf_modifications,
     )
     .await
@@ -176,7 +176,7 @@ async fn test_leaf_computation_error() {
     ]);
 
     let result = FilledTreeImpl::create::<TestTreeHashFunction>(
-        UpdatedSkeletonTreeImpl { skeleton_tree },
+        UpdatedSkeletonTree { skeleton_tree },
         leaf_input_map,
     )
     .await;
@@ -221,7 +221,7 @@ async fn test_small_tree_with_unmodified_nodes() {
     ];
     let skeleton_tree: UpdatedSkeletonNodeMap = nodes_in_skeleton_tree.into_iter().collect();
 
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let updated_skeleton_tree = UpdatedSkeletonTree { skeleton_tree };
     let modifications = HashMap::from([(
         NodeIndex::from(new_leaf_index),
         MockLeaf(Felt::from_hex(new_leaf).unwrap()),
@@ -264,7 +264,7 @@ async fn test_delete_leaf_from_empty_tree() {
     let skeleton_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, SkeletonLeaf::Zero)]);
 
     let updated_skeleton_tree =
-        UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &skeleton_modifications)
+        UpdatedSkeletonTree::create(&mut original_skeleton_tree, &skeleton_modifications)
             .unwrap();
 
     let leaf_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, MockLeaf(Felt::ZERO))]);
@@ -284,7 +284,7 @@ async fn test_delete_leaf_from_empty_tree() {
 }
 
 fn get_small_tree_updated_skeleton_and_leaf_modifications()
--> (UpdatedSkeletonTreeImpl, LeafModifications<MockLeaf>) {
+-> (UpdatedSkeletonTree, LeafModifications<MockLeaf>) {
     // Set up the updated skeleton tree.
     let new_leaves = [(35, "0x1"), (36, "0x2"), (63, "0x3")];
     let nodes_in_skeleton_tree: Vec<(NodeIndex, UpdatedSkeletonNode)> = [
@@ -302,7 +302,7 @@ fn get_small_tree_updated_skeleton_and_leaf_modifications()
     .collect();
     let skeleton_tree: UpdatedSkeletonNodeMap = nodes_in_skeleton_tree.into_iter().collect();
 
-    let updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+    let updated_skeleton_tree = UpdatedSkeletonTree { skeleton_tree };
     let modifications = new_leaves
         .iter()
         .map(|(index, value)| (NodeIndex::from(*index), MockLeaf(Felt::from_hex(value).unwrap())))

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::contract_address_into_node_index;
@@ -12,9 +12,9 @@ use crate::forest::original_skeleton_forest::OriginalSkeletonForest;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 
 pub(crate) struct UpdatedSkeletonForest {
-    pub(crate) classes_trie: UpdatedSkeletonTreeImpl,
-    pub(crate) contracts_trie: UpdatedSkeletonTreeImpl,
-    pub(crate) storage_tries: HashMap<ContractAddress, UpdatedSkeletonTreeImpl>,
+    pub(crate) classes_trie: UpdatedSkeletonTree,
+    pub(crate) contracts_trie: UpdatedSkeletonTree,
+    pub(crate) storage_tries: HashMap<ContractAddress, UpdatedSkeletonTree>,
 }
 
 impl UpdatedSkeletonForest {
@@ -30,7 +30,7 @@ impl UpdatedSkeletonForest {
         Self: std::marker::Sized,
     {
         // Classes trie.
-        let classes_trie = UpdatedSkeletonTreeImpl::create(
+        let classes_trie = UpdatedSkeletonTree::create(
             &mut original_skeleton_forest.classes_trie,
             class_hash_leaf_modifications,
         )?;
@@ -47,7 +47,7 @@ impl UpdatedSkeletonForest {
                 .ok_or(ForestError::MissingOriginalSkeleton(*address))?;
 
             let updated_storage_trie =
-                UpdatedSkeletonTreeImpl::create(original_storage_trie, updates)?;
+                UpdatedSkeletonTree::create(original_storage_trie, updates)?;
             let storage_trie_becomes_empty = updated_storage_trie.is_empty();
 
             storage_tries.insert(*address, updated_storage_trie);
@@ -66,7 +66,7 @@ impl UpdatedSkeletonForest {
         }
 
         // Contracts trie.
-        let contracts_trie = UpdatedSkeletonTreeImpl::create(
+        let contracts_trie = UpdatedSkeletonTree::create(
             &mut original_skeleton_forest.contracts_trie,
             &contracts_trie_leaves,
         )?;

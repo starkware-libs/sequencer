@@ -4,7 +4,7 @@ use starknet_patricia::patricia_merkle_tree::filled_tree::tree::{FilledTree, Fil
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 use starknet_patricia_storage::db_object::{EmptyKeyContext, HasStaticPrefix};
 use starknet_patricia_storage::storage_trait::DbKeyPrefix;
 use starknet_types_core::felt::Felt;
@@ -110,6 +110,6 @@ pub struct ContractStateInput {
     pub leaf_index: NodeIndex,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
-    pub updated_skeleton: UpdatedSkeletonTreeImpl,
+    pub updated_skeleton: UpdatedSkeletonTree,
     pub storage_updates: LeafModifications<StarknetStorageValue>,
 }

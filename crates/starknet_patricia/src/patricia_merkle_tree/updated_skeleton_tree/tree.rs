@@ -23,11 +23,11 @@ pub(crate) type UpdatedSkeletonTreeResult<T> = Result<T, UpdatedSkeletonTreeErro
 /// to the root.
 // TODO(Dori, 1/7/2024): Make this a tuple struct.
 #[derive(Debug)]
-pub struct UpdatedSkeletonTreeImpl {
+pub struct UpdatedSkeletonTree {
     pub(crate) skeleton_tree: UpdatedSkeletonNodeMap,
 }
 
-impl UpdatedSkeletonTreeImpl {
+impl UpdatedSkeletonTree {
     pub fn create<'a>(
         original_skeleton: &mut impl OriginalSkeletonTree<'a>,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
@@ -37,7 +37,7 @@ impl UpdatedSkeletonTreeImpl {
         }
         let skeleton_tree = Self::finalize_bottom_layer(original_skeleton, leaf_modifications);
 
-        let mut updated_skeleton_tree = UpdatedSkeletonTreeImpl { skeleton_tree };
+        let mut updated_skeleton_tree = UpdatedSkeletonTree { skeleton_tree };
 
         let temp_root_node = updated_skeleton_tree.finalize_middle_layers(original_skeleton);
         // Finalize root.
