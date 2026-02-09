@@ -195,6 +195,23 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("Deleting existing resources...")
         _run(["kubectl", *namespace_args, "delete", "-k", str(kustomize_dir), "--ignore-not-found"])
 
+    # Ensure the sequencer is scaled down before deploying/updating echonet.
+    logger.info("Scaling down statefulset/sequencer-node-statefulset to 0 replicas...")
+    _run(
+        [
+            "kubectl",
+            *namespace_args,
+            "scale",
+            "statefulset",
+            "sequencer-node-statefulset",
+            "--replicas=0",
+        ]
+    )
+    logger.info("Waiting for rollout status statefulset/sequencer-node-statefulset...")
+    _run(
+        ["kubectl", *namespace_args, "rollout", "status", "statefulset/sequencer-node-statefulset"]
+    )
+
     # Apply manifests
     logger.info("Applying manifests...")
     _run(["kubectl", *namespace_args, "apply", "-k", str(kustomize_dir)])
