@@ -1116,6 +1116,82 @@ async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: Conse
 
 #[rstest]
 #[tokio::test]
+async fn cache_future_vote_deduplication(consensus_config: ConsensusConfig) {
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().unwrap();
+    let mut sender = mock_network.broadcasted_messages_sender;
+    let mut reported_messages_receiver = mock_network.reported_messages_receiver;
+
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
+
+    // Send a prevote for HEIGHT_1 (future height - will be cached during HEIGHT_0 processing).
+    let original_vote = prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID);
+    send(&mut sender, original_vote.clone()).await;
+
+    // Send the exact same vote again (duplicate - should be silently ignored, no report).
+    send(&mut sender, original_vote).await;
+
+    // Send a conflicting vote: same type/round/voter but different proposal commitment
+    // (equivocation - should trigger report_peer).
+    let equivocating_vote = prevote(Some(Felt::TWO), HEIGHT_1, ROUND_0, *PROPOSER_ID);
+    send(&mut sender, equivocating_vote).await;
+
+    // Send proposal and votes for HEIGHT_0 to reach a decision.
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_0, ROUND_0, *PROPOSER_ID))],
+    )
+    .await;
+    send(&mut sender, prevote(Some(Felt::ZERO), HEIGHT_0, ROUND_0, *PROPOSER_ID)).await;
+    send(&mut sender, precommit(Some(Felt::ZERO), HEIGHT_0, ROUND_0, *PROPOSER_ID)).await;
+
+    let mut context = MockTestContext::new();
+    context.expect_try_sync().returning(|_| false);
+    expect_validate_proposal(&mut context, Felt::ZERO, 1);
+    context.expect_validators().returning(move |_| Ok(vec![*PROPOSER_ID, *VALIDATOR_ID]));
+    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
+    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
+    context.expect_set_height_and_round().returning(move |_, _| Ok(()));
+    context.expect_broadcast().returning(move |_| Ok(()));
+    context
+        .expect_decision_reached()
+        .withf(move |_, c| *c == ProposalCommitment(Felt::ZERO))
+        .return_once(move |_, _| Ok(()));
+
+    let mut manager = MultiHeightManager::new(
+        consensus_config,
+        QuorumType::Byzantine,
+        Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+    )
+    .await;
+    let mut subscriber_channels = subscriber_channels.into();
+    let decision = manager
+        .run_height(
+            &mut context,
+            HEIGHT_0,
+            &mut subscriber_channels,
+            &mut proposal_receiver_receiver,
+        )
+        .await
+        .unwrap();
+    assert_decision(decision, Felt::ZERO, ROUND_0);
+
+    // Verify that report_peer was called exactly once (for the equivocation).
+    assert!(
+        matches!(reported_messages_receiver.try_next(), Ok(Some(_))),
+        "Expected report_peer to be called for the equivocation"
+    );
+
+    // The duplicate (identical vote) should not have triggered a report.
+    assert!(
+        reported_messages_receiver.try_next().is_err(),
+        "Expected no additional report_peer calls (duplicate should be silently ignored)"
+    );
+}
+
+#[rstest]
+#[tokio::test]
 async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusConfig) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
