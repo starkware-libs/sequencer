@@ -207,7 +207,7 @@ impl DiscreteEventSimulation {
                 let validators = validators.clone();
                 move |round| {
                     let idx = get_leader_index(seed, total_nodes, round);
-                    Ok(validators[idx])
+                    validators[idx]
                 }
             }),
             Box::new({

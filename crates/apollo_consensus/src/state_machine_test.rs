@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 use apollo_protobuf::consensus::{Vote, VoteType, DEFAULT_VALIDATOR_ID};
+use apollo_staking::committee_provider::CommitteeError;
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;
@@ -10,7 +11,7 @@ use test_case::test_case;
 use super::Round;
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent, Step};
 use crate::test_utils::test_committee;
-use crate::types::{ConsensusError, ProposalCommitment, ValidatorId};
+use crate::types::{ProposalCommitment, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 lazy_static! {
@@ -24,7 +25,10 @@ const PROPOSAL_ID: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::ON
 const ROUND: Round = 0;
 const HEIGHT: BlockNumber = BlockNumber(0);
 
-type LeaderFn = fn(Round) -> Result<ValidatorId, ConsensusError>;
+/// Actual proposer: returns the leader address (no failure in tests).
+type ActualProposerFn = fn(Round) -> ValidatorId;
+/// Virtual proposer: can fail (e.g. committee lookup).
+type VirtualProposerFn = fn(Round) -> Result<ValidatorId, CommitteeError>;
 
 fn mk_vote(
     vote_type: VoteType,
@@ -65,8 +69,8 @@ impl TestWrapper {
     pub fn new(
         id: ValidatorId,
         total_weight: u64,
-        proposer: LeaderFn,
-        virtual_proposer: LeaderFn,
+        proposer: ActualProposerFn,
+        virtual_proposer: VirtualProposerFn,
         is_observer: bool,
         quorum_type: QuorumType,
     ) -> Self {
@@ -193,7 +197,7 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -244,7 +248,7 @@ fn validator_receives_votes_first() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -287,7 +291,7 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -321,7 +325,7 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -357,7 +361,7 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -396,7 +400,7 @@ fn advance_to_the_next_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -438,7 +442,7 @@ fn prevote_when_receiving_proposal_in_current_round() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -476,7 +480,7 @@ fn mixed_quorum(send_proposal: bool) {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -525,7 +529,7 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -595,7 +599,7 @@ fn return_proposal_if_locked_value_is_set() {
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         QuorumType::Byzantine,
@@ -650,7 +654,7 @@ fn observer_node_reaches_decision() {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         true,
         QuorumType::Byzantine,
@@ -679,7 +683,7 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         3,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         false,
         quorum_type,
@@ -746,7 +750,7 @@ fn observer_does_not_record_self_votes() {
     let mut wrapper = TestWrapper::new(
         id,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*PROPOSER_ID),
         true,
         QuorumType::Byzantine,
@@ -787,7 +791,7 @@ fn quorums_require_virtual_proposer_in_favor_for_value() {
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| *PROPOSER_ID,
         |_: Round| Ok(*VALIDATOR_ID_3),
         false,
         QuorumType::Byzantine,
@@ -834,30 +838,22 @@ fn quorums_require_virtual_proposer_in_favor_for_value() {
 
 #[test]
 fn advance_to_round_when_proposer_function_fails() {
-    // Test that when proposer function fails during round advancement,
+    // Test that when virtual proposer function fails during round advancement,
     // we act as a validator and schedule a timeout to prevent deadlock,
     // and can still progress via receiving 2/3 precommits.
-    fn proposer_fn(round: Round) -> Result<ValidatorId, ConsensusError> {
-        if round == 1 {
-            Err(ConsensusError::InternalNetworkError("Proposer lookup failed".to_string()))
-        } else {
-            Ok(*PROPOSER_ID)
-        }
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
     }
 
-    fn virtual_proposer_fn(round: Round) -> Result<ValidatorId, ConsensusError> {
-        if round == 1 {
-            Err(ConsensusError::InternalNetworkError("Virtual proposer lookup failed".to_string()))
-        } else {
-            Ok(*PROPOSER_ID)
-        }
+    fn virtual_proposer_fn(round: Round) -> Result<ValidatorId, CommitteeError> {
+        if round == 1 { Err(CommitteeError::EmptyCommittee) } else { Ok(*PROPOSER_ID) }
     }
 
     let round_1: Round = 1;
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        proposer_fn,
+        actual_proposer_fn,
         virtual_proposer_fn,
         false, // not observer
         QuorumType::Byzantine,

@@ -9,10 +9,8 @@ use test_case::test_case;
 use super::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::test_utils::{block_info, precommit, prevote, test_committee, TestBlock};
-use crate::types::{ConsensusError, ProposalCommitment, Round, ValidatorId};
+use crate::types::{ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
-
-type LeaderFnResult = Result<ValidatorId, ConsensusError>;
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
@@ -35,8 +33,6 @@ const REQUIRE_VIRTUAL_PROPOSER_VOTE: bool = true;
 
 #[test]
 fn proposer() {
-    let leader_fn = |_round: Round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
-
     let mut shc = SingleHeightConsensus::new(
         HEIGHT_0,
         false,
@@ -45,7 +41,11 @@ fn proposer() {
         QuorumType::Byzantine,
         TIMEOUTS.clone(),
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
-        test_committee(VALIDATORS.to_vec(), Box::new(leader_fn), Box::new(leader_fn)),
+        test_committee(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+            Box::new(|_round| Ok(*PROPOSER_ID)),
+        ),
     );
     // Start should request to build proposal.
     let start_ret = shc.start();
@@ -101,7 +101,7 @@ fn validator(repeat_proposal: bool) {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
         test_committee(
             VALIDATORS.to_vec(),
-            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| *PROPOSER_ID),
             Box::new(|_round| Ok(*PROPOSER_ID)),
         ),
     );
@@ -165,7 +165,7 @@ fn vote_twice(same_vote: bool) {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
         test_committee(
             VALIDATORS.to_vec(),
-            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| *PROPOSER_ID),
             Box::new(|_round| Ok(*PROPOSER_ID)),
         ),
     );
@@ -223,7 +223,7 @@ fn rebroadcast_votes() {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
         test_committee(
             VALIDATORS.to_vec(),
-            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| *PROPOSER_ID),
             Box::new(|_round| Ok(*PROPOSER_ID)),
         ),
     );
@@ -298,7 +298,7 @@ fn repropose() {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
         test_committee(
             VALIDATORS.to_vec(),
-            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| *PROPOSER_ID),
             Box::new(|_round| Ok(*PROPOSER_ID)),
         ),
     );
@@ -359,7 +359,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
         test_committee(
             VALIDATORS.to_vec(),
-            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| *PROPOSER_ID),
             Box::new(|_round| Ok(*PROPOSER_ID)),
         ),
     );
@@ -410,7 +410,7 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
         test_committee(
             VALIDATORS.to_vec(),
-            Box::new(|_round| Ok(*PROPOSER_ID)),
+            Box::new(|_round| *PROPOSER_ID),
             Box::new(|_round| Ok(*PROPOSER_ID)),
         ),
     );
