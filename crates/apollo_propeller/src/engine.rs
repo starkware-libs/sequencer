@@ -153,6 +153,24 @@ impl Engine {
         self.connected_peers.remove(&peer_id);
     }
 
+    /// Handle a send error from the handler.
+    pub(crate) async fn handle_send_error(&mut self, peer_id: PeerId, error: String) {
+        self.emit_event(Event::ShardSendFailed {
+            sent_from: None,
+            sent_to: Some(peer_id),
+            error: ShardPublishError::HandlerError(error),
+        })
+        .await;
+    }
+
+    async fn emit_output(&mut self, out: EngineOutput) {
+        self.output_tx.send(out).expect("Behaviour has exited");
+    }
+
+    async fn emit_event(&mut self, event: Event) {
+        self.emit_output(EngineOutput::GenerateEvent(event)).await;
+    }
+
     fn get_public_key(
         &self,
         peer_id: PeerId,
@@ -209,11 +227,16 @@ impl Engine {
                 let _ = (channel, message, response);
                 todo!()
             }
-            EngineCommand::HandleHandlerOutput { peer_id, output } => {
-                // TODO(AndrewL): Implement handler output processing
-                let _ = (peer_id, output);
-                todo!()
-            }
+            EngineCommand::HandleHandlerOutput { peer_id, output } => match output {
+                HandlerOut::Unit(unit) => {
+                    // TODO(AndrewL): Implement unit handling
+                    let _ = (peer_id, unit);
+                    todo!()
+                }
+                HandlerOut::SendError(error) => {
+                    self.handle_send_error(peer_id, error).await;
+                }
+            },
             EngineCommand::HandleConnected { peer_id } => {
                 self.handle_connected(peer_id);
             }
