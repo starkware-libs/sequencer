@@ -2149,7 +2149,7 @@ fn test_deploy_account_tx(
 
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
-    let class_hash = deploy_account.class_hash().unwrap();
+    let class_hash = account_class_hash;
     let deployed_account_address = deploy_account.sender_address();
     let user_initial_gas =
         user_initial_gas_from_bounds(default_all_resource_bounds, Some(block_context));

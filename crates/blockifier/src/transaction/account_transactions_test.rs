@@ -272,7 +272,7 @@ fn test_fee_enforcement(
     });
     let deploy_account_tx = AccountTransaction::new_for_sequencing(tx);
 
-    let enforce_fee = deploy_account_tx.enforce_fee();
+    let enforce_fee = deploy_account_tx.create_tx_info().enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
     let result = deploy_account_tx.execute(state, &block_context);
     // When fee is enforced, execution should fail because the account doesn't have sufficient
@@ -308,7 +308,7 @@ fn test_all_bounds_combinations_enforce_fee(
             },
         ),
     });
-    assert_eq!(account_tx.enforce_fee(), expected_enforce_fee);
+    assert_eq!(account_tx.create_tx_info().enforce_fee(), expected_enforce_fee);
 }
 
 #[rstest]
