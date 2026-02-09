@@ -898,7 +898,7 @@
     },
     {
       "name": "batched_transactions_stuck",
-      "title": "Batched transactions stuck",
+      "title": "Batched Transactions Stuck",
       "ruleGroup": "batcher",
       "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$batched_transactions_stuck-sampling_window_secs-expression$$$s])",
       "conditions": [
@@ -926,7 +926,7 @@
     },
     {
       "name": "batched_transactions_stuck_long_time",
-      "title": "Batched transactions stuck",
+      "title": "Batched Transactions Stuck Long Time",
       "ruleGroup": "batcher",
       "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$batched_transactions_stuck_long_time-sampling_window_secs-expression$$$s])",
       "conditions": [
@@ -1010,7 +1010,7 @@
     },
     {
       "name": "consensus_block_number_stuck",
-      "title": "Consensus block number stuck",
+      "title": "Consensus Block Number Stuck",
       "ruleGroup": "consensus",
       "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck-sampling_window_secs-expression$$$s])) or vector(0)",
       "conditions": [
@@ -1038,7 +1038,7 @@
     },
     {
       "name": "consensus_block_number_stuck_long_time",
-      "title": "Consensus block number stuck",
+      "title": "Consensus Block Number Stuck Long Time",
       "ruleGroup": "consensus",
       "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck_long_time-sampling_window_secs-expression$$$s])) or vector(0)",
       "conditions": [
@@ -1066,7 +1066,7 @@
     },
     {
       "name": "consensus_p2p_not_enough_peers_for_quorum",
-      "title": "Consensus p2p not enough peers for quorum",
+      "title": "Consensus P2P Not Enough Peers For Quorum",
       "ruleGroup": "consensus",
       "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
       "conditions": [
@@ -1094,7 +1094,7 @@
     },
     {
       "name": "consensus_p2p_not_enough_peers_for_quorum_long_time",
-      "title": "Consensus p2p not enough peers for quorum",
+      "title": "Consensus P2P Not Enough Peers For Quorum Long Time",
       "ruleGroup": "consensus",
       "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])",
       "conditions": [

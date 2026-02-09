@@ -26,21 +26,19 @@ use crate::alerts::{
 };
 
 /// Block number is stuck for more than duration minutes.
-fn get_consensus_block_number_stuck(
-    alert_name: &'static str,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_consensus_block_number_stuck(title: &'static str, alert_severity: AlertSeverity) -> Alert {
+    let name = title.to_lowercase().replace(' ', "_");
     let expr_template_string = format!(
         "sum(increase({}[{{}}s])) or vector(0)",
         CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
     );
     Alert::new(
-        alert_name,
-        "Consensus block number stuck",
+        &name,
+        title,
         AlertGroup::Consensus,
         ExpressionOrExpressionWithPlaceholder::Placeholder(
             Template::new(expr_template_string),
-            vec![format_sampling_window(alert_name)],
+            vec![format_sampling_window(&name)],
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
@@ -52,48 +50,49 @@ fn get_consensus_block_number_stuck(
 
 pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
     vec![
-        get_consensus_block_number_stuck("consensus_block_number_stuck", AlertSeverity::Sos),
+        get_consensus_block_number_stuck("Consensus Block Number Stuck", AlertSeverity::Sos),
         get_consensus_block_number_stuck(
-            "consensus_block_number_stuck_long_time",
+            "Consensus Block Number Stuck Long Time",
             AlertSeverity::Regular,
         ),
     ]
 }
 
-fn get_batched_transactions_stuck(alert_name: &'static str) -> Alert {
+fn get_batched_transactions_stuck(title: &'static str) -> Alert {
+    let name = title.to_lowercase().replace(' ', "_");
     let expr_template_string =
         format!("changes({}[{{}}s])", BATCHED_TRANSACTIONS.get_name_with_filter());
     Alert::new(
-        alert_name,
-        "Batched transactions stuck",
+        &name,
+        title,
         AlertGroup::Batcher,
         ExpressionOrExpressionWithPlaceholder::Placeholder(
             Template::new(expr_template_string),
-            vec![format_sampling_window(alert_name)],
+            vec![format_sampling_window(&name)],
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        SeverityValueOrPlaceholder::Placeholder(alert_name.to_string()),
+        SeverityValueOrPlaceholder::Placeholder(name.clone()),
         ObserverApplicability::NotApplicable,
     )
 }
 
 pub(crate) fn get_batched_transactions_stuck_vec() -> Vec<Alert> {
     vec![
-        get_batched_transactions_stuck("batched_transactions_stuck"),
-        get_batched_transactions_stuck("batched_transactions_stuck_long_time"),
+        get_batched_transactions_stuck("Batched Transactions Stuck"),
+        get_batched_transactions_stuck("Batched Transactions Stuck Long Time"),
     ]
 }
 
 fn get_consensus_p2p_not_enough_peers_for_quorum(
-    alert_name: &'static str,
+    title: &'static str,
     duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
-        alert_name,
-        "Consensus p2p not enough peers for quorum",
+        title.to_lowercase().replace(' ', "_"),
+        title,
         AlertGroup::Consensus,
         format!(
             "max_over_time({}[{}s])",
@@ -117,12 +116,12 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
 pub(crate) fn get_consensus_p2p_not_enough_peers_for_quorum_vec() -> Vec<Alert> {
     vec![
         get_consensus_p2p_not_enough_peers_for_quorum(
-            "consensus_p2p_not_enough_peers_for_quorum",
+            "Consensus P2P Not Enough Peers For Quorum",
             Duration::from_secs(2 * SECS_IN_MIN),
             AlertSeverity::Sos,
         ),
         get_consensus_p2p_not_enough_peers_for_quorum(
-            "consensus_p2p_not_enough_peers_for_quorum_long_time",
+            "Consensus P2P Not Enough Peers For Quorum Long Time",
             Duration::from_secs(30 * SECS_IN_MIN),
             AlertSeverity::Regular,
         ),
