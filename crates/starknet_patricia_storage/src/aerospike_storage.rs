@@ -4,6 +4,7 @@ use std::time::Duration;
 use aerospike::{
     as_bin,
     operations,
+    BatchDeletePolicy,
     BatchOperation,
     BatchPolicy,
     BatchReadPolicy,
@@ -28,6 +29,8 @@ use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
+    DbOperation,
+    DbOperationMap,
     DbValue,
     EmptyStorageConfig,
     NoStats,
@@ -64,6 +67,7 @@ pub struct AerospikeStorageConfig {
     pub batch_policy: BatchPolicy,
     pub batch_read_policy: BatchReadPolicy,
     pub batch_write_policy: BatchWritePolicy,
+    pub batch_delete_policy: BatchDeletePolicy,
 
     pub bin_name: String,
 }
@@ -89,6 +93,10 @@ impl AerospikeStorageConfig {
             batch_write_policy: BatchWritePolicy {
                 commit_level: CommitLevel::CommitAll,
                 ..BatchWritePolicy::default()
+            },
+            batch_delete_policy: BatchDeletePolicy {
+                commit_level: CommitLevel::CommitAll,
+                ..BatchDeletePolicy::default()
             },
             bin_name: "default_bin".to_string(),
         }
@@ -186,6 +194,43 @@ impl Storage for AerospikeStorage {
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         self.client.delete(&self.config.write_policy, &self.get_key(key.clone())?).await?;
+        Ok(())
+    }
+
+    async fn multi_set_and_delete(
+        &mut self,
+        key_to_operation: DbOperationMap,
+    ) -> PatriciaStorageResult<()> {
+        // Separate keys and bins to ensure bins live long enough for the ops vector.
+        // This avoids lifetime issues when building batch operations.
+        let (keys, bins): (Vec<DbKey>, Vec<Option<Bin>>) = key_to_operation
+            .into_iter()
+            .map(|(key, op)| match op {
+                DbOperation::Set(value) => (key, Some(as_bin!(&self.config.bin_name, value.0))),
+                DbOperation::Delete => (key, None),
+            })
+            .unzip();
+        let mut ops = Vec::new();
+        // Iterate keys by value (move) and bins by reference to avoid unnecessary cloning
+        // while keeping bins alive for the entire ops vector lifetime.
+        for (key, optional_bin) in keys.into_iter().zip(bins.iter()) {
+            match optional_bin {
+                Some(bin) => {
+                    ops.push(BatchOperation::write(
+                        &self.config.batch_write_policy,
+                        self.get_key(key)?,
+                        vec![operations::put(bin)],
+                    ));
+                }
+                None => {
+                    ops.push(BatchOperation::delete(
+                        &self.config.batch_delete_policy,
+                        self.get_key(key)?,
+                    ));
+                }
+            }
+        }
+        self.client.batch(&self.config.batch_policy, &ops).await?;
         Ok(())
     }
 
