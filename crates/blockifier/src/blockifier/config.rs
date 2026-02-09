@@ -230,6 +230,14 @@ impl Serialize for NativeClassesWhitelist {
     }
 }
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+pub enum NativeExecutionMode {
+    #[default]
+    Disabled,
+    Async,
+    Sync,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
