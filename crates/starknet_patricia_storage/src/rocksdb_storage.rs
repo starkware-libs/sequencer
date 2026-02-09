@@ -308,6 +308,21 @@ impl Storage for RocksDbStorage {
         Ok(self.db.delete_opt(&key.0, &self.options.write_options)?)
     }
 
+    async fn multi_set_and_delete(
+        &mut self,
+        key_to_value: DbHashMap,
+        keys_to_delete: &[&DbKey],
+    ) -> PatriciaStorageResult<()> {
+        let mut batch = WriteBatch::default();
+        for key in key_to_value.keys() {
+            batch.put(&key.0, &key_to_value[key].0);
+        }
+        for key in keys_to_delete {
+            batch.delete(&key.0);
+        }
+        Ok(self.db.write_opt(&batch, &self.options.write_options)?)
+    }
+
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
         Ok(RocksDbStats(
             self.options.db_options.get_statistics().ok_or(PatriciaStorageError::NoStats)?,
