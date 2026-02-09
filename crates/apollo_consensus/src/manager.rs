@@ -188,6 +188,14 @@ pub enum RunHeightRes {
 
 type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 
+// TODO(guyn): remove allow dead code once we use the duplicate vote report.
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct EquivocationVoteReport {
+    pub cached_vote: Vote,
+    pub new_vote: Vote,
+}
+
 /// Manages votes and proposals for future heights.
 #[derive(Debug)]
 struct ConsensusCache<ContextT: ConsensusContext> {
@@ -264,8 +272,29 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
     }
 
     /// Caches a vote for a future height.
-    fn cache_future_vote(&mut self, vote: Vote) {
-        self.future_votes.entry(vote.height).or_default().push(vote);
+    fn cache_future_vote(&mut self, vote: Vote) -> Result<(), Box<EquivocationVoteReport>> {
+        let votes = self.future_votes.entry(vote.height).or_default();
+        // Find a vote in the list with the same type, round, and voter. If found, do not add it to
+        // list.
+        let duplicate_vote = votes.iter().find(|v| {
+            v.vote_type == vote.vote_type && v.round == vote.round && v.voter == vote.voter
+        });
+        if let Some(duplicate_vote) = duplicate_vote {
+            // If the two votes are identical, we just ignore this.
+            if duplicate_vote == &vote {
+                Ok(())
+            } else {
+                // Otherwise, we report equivocation.
+                Err(Box::new(EquivocationVoteReport {
+                    cached_vote: duplicate_vote.clone(),
+                    new_vote: vote,
+                }))
+            }
+        } else {
+            // If no duplicate vote was found, we add the vote to the list.
+            votes.push(vote);
+            Ok(())
+        }
     }
 
     /// Caches a proposal for a future height.
@@ -814,6 +843,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc.handle_proposal(init)
     }
 
+    // TODO(guyn): send back a report with the relevant data for why we report the peer.
     async fn report_peer(
         &self,
         broadcast_channels: &mut BroadcastVoteChannel,
@@ -833,7 +863,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         vote: (Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata),
         broadcast_channels: &mut BroadcastVoteChannel,
     ) -> Result<Requests, ConsensusError> {
-        let message = match vote {
+        let (message, metadata) = match vote {
             (Ok(message), metadata) => {
                 // TODO(matan): Hold onto report_sender for use in later errors by SHC.
                 if broadcast_channels
@@ -844,7 +874,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 {
                     error!("Unable to send continue_propagation. {:?}", metadata);
                 }
-                message
+                (message, metadata)
             }
             (Err(e), metadata) => {
                 // Failed to parse consensus message. Report the peer and drop the vote.
@@ -864,7 +894,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             std::cmp::Ordering::Greater => {
                 if self.cache.should_cache_vote(&height, 0, &message) {
                     trace!("Cache message for a future height. {:?}", message);
-                    self.cache.cache_future_vote(message);
+                    let duplicate_report = self.cache.cache_future_vote(message);
+                    if let Err(duplicate_report) = duplicate_report {
+                        warn!("Duplicate vote found: {:?}", duplicate_report);
+                        self.report_peer(broadcast_channels, &metadata).await;
+                    }
                 }
                 Ok(VecDeque::new())
             }
