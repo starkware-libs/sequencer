@@ -12,6 +12,8 @@ use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
+    DbOperation,
+    DbOperationMap,
     DbValue,
     EmptyStorageConfig,
     NoStats,
@@ -49,6 +51,19 @@ impl Storage for MapStorage {
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         self.0.remove(key);
+        Ok(())
+    }
+
+    async fn multi_set_and_delete(
+        &mut self,
+        key_to_operation: DbOperationMap,
+    ) -> PatriciaStorageResult<()> {
+        for (key, operation) in key_to_operation.into_iter() {
+            match operation {
+                DbOperation::Set(value) => self.0.insert(key, value),
+                DbOperation::Delete => self.0.remove(&key),
+            };
+        }
         Ok(())
     }
 
@@ -217,6 +232,12 @@ impl<S: Storage> CachedStorage<S> {
         }
     }
 
+    fn update_cached_values(&mut self, key_to_value: &DbHashMap) {
+        key_to_value.iter().for_each(|(key, value)| {
+            self.update_cached_value(key, value);
+        });
+    }
+
     pub fn total_reads(&self) -> u128 {
         self.reads
     }
@@ -285,15 +306,33 @@ impl<S: Storage> Storage for CachedStorage<S> {
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
         self.storage.mset(key_to_value.clone()).await?;
-        key_to_value.iter().for_each(|(key, value)| {
-            self.update_cached_value(key, value);
-        });
+        self.update_cached_values(&key_to_value);
         Ok(())
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
         self.cache.pop(key);
         self.storage.delete(key).await
+    }
+
+    async fn multi_set_and_delete(
+        &mut self,
+        key_to_operation: DbOperationMap,
+    ) -> PatriciaStorageResult<()> {
+        self.storage.multi_set_and_delete(key_to_operation.clone()).await?;
+        for (key, operation) in key_to_operation.into_iter() {
+            match operation {
+                DbOperation::Set(value) => {
+                    self.writes += 1;
+                    self.update_cached_value(&key, &value);
+                }
+                DbOperation::Delete => {
+                    self.cache.pop(&key);
+                }
+            };
+        }
+
+        Ok(())
     }
 
     fn get_stats(&self) -> PatriciaStorageResult<Self::Stats> {
