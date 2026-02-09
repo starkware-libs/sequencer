@@ -1,6 +1,11 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     BLOCK_CLOSE_REASON,
+    BLOCK_COMMITMENT_EVENT_LATENCY,
+    BLOCK_COMMITMENT_PER_EVENT_LATENCY,
+    BLOCK_COMMITMENT_RECEIPT_LATENCY,
+    BLOCK_COMMITMENT_STATE_DIFF_LATENCY,
+    BLOCK_COMMITMENT_TRANSACTION_LATENCY,
     BUILDING_HEIGHT,
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
     COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
@@ -177,6 +182,51 @@ fn get_panel_commitment_manager_results_count() -> Panel {
     )
 }
 
+fn get_panel_block_commitment_transaction_latency() -> Panel {
+    Panel::from_hist(
+        &BLOCK_COMMITMENT_TRANSACTION_LATENCY,
+        "Block Commitment: Transaction Latency",
+        "Duration of transaction commitment computation",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_block_commitment_event_latency() -> Panel {
+    Panel::from_hist(
+        &BLOCK_COMMITMENT_EVENT_LATENCY,
+        "Block Commitment: Event Latency",
+        "Duration of event commitment computation",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_block_commitment_per_event_latency() -> Panel {
+    Panel::from_hist(
+        &BLOCK_COMMITMENT_PER_EVENT_LATENCY,
+        "Block Commitment: Per Event Latency",
+        "Duration of event commitment computation per event",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_block_commitment_receipt_latency() -> Panel {
+    Panel::from_hist(
+        &BLOCK_COMMITMENT_RECEIPT_LATENCY,
+        "Block Commitment: Receipt Latency",
+        "Duration of receipt commitment computation",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_block_commitment_state_diff_latency() -> Panel {
+    Panel::from_hist(
+        &BLOCK_COMMITMENT_STATE_DIFF_LATENCY,
+        "Block Commitment: State Diff Latency",
+        "Duration of state diff commitment computation",
+    )
+    .with_unit(Unit::Seconds)
+}
+
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
@@ -194,6 +244,11 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_commitment_manager_commit_block_latency(),
             get_panel_commitment_manager_results_count(),
             get_panel_commitment_manager_revert_block_latency(),
+            get_panel_block_commitment_transaction_latency(),
+            get_panel_block_commitment_event_latency(),
+            get_panel_block_commitment_per_event_latency(),
+            get_panel_block_commitment_receipt_latency(),
+            get_panel_block_commitment_state_diff_latency(),
         ],
     )
 }

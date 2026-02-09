@@ -475,6 +475,66 @@
             "unit": "s",
             "log_query": "\"Revert block latency\""
           }
+        },
+        {
+          "title": "Block Commitment: Transaction Latency",
+          "description": "Duration of transaction commitment computation",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_block_commitment_transaction_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_block_commitment_transaction_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Block Commitment: Event Latency",
+          "description": "Duration of event commitment computation",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_block_commitment_event_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_block_commitment_event_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Block Commitment: Per Event Latency",
+          "description": "Duration of event commitment computation per event",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_block_commitment_per_event_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_block_commitment_per_event_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Block Commitment: Receipt Latency",
+          "description": "Duration of receipt commitment computation",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_block_commitment_receipt_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_block_commitment_receipt_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Block Commitment: State Diff Latency",
+          "description": "Duration of state diff commitment computation",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(batcher_block_commitment_state_diff_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(batcher_block_commitment_state_diff_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
         }
       ],
       "collapsed": true
