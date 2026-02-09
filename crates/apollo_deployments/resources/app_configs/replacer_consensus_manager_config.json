@@ -30,6 +30,7 @@
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.mmap_file_config.max_size": 1099511627776,
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.scope": "StateOnly",
   "consensus_manager_config.context_config.dynamic_config.l1_data_gas_price_multiplier_ppt": 135,
+  "consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height": "$$$_CONSENSUS_MANAGER_CONFIG-CONTEXT_CONFIG-DYNAMIC_CONFIG-MIN_L2_GAS_PRICE_PER_HEIGHT_$$$",
   "consensus_manager_config.context_config.dynamic_config.l1_gas_tip_wei": 1000000000,
   "consensus_manager_config.context_config.dynamic_config.max_l1_data_gas_price_wei": 1000000000000,
   "consensus_manager_config.context_config.dynamic_config.max_l1_gas_price_wei": 1000000000000,

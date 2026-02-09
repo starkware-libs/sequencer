@@ -59,6 +59,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base",
     "consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max",
     "consensus_manager_config.context_config.static_config.build_proposal_margin_millis",
+    "consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height",
     "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate.#is_none",
     "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate",
     "consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri.#is_none",
