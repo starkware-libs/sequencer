@@ -7,7 +7,7 @@ use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
 
-use crate::{MarkerKind, StorageError, StorageResult, StorageTransaction, StorageTxnRW};
+use crate::{MarkerKind, StorageError, StorageResult, StorageTransaction, StorageTxn};
 
 /// Interface for reading global root markers.
 pub trait GlobalRootMarkerStorageReader {
@@ -35,7 +35,7 @@ impl<T: StorageTransaction> GlobalRootMarkerStorageReader for T {
     }
 }
 
-impl GlobalRootMarkerStorageWriter for StorageTxnRW<'_> {
+impl GlobalRootMarkerStorageWriter for StorageTxn<'_> {
     fn checked_increment_global_root_marker(
         self,
         expected_marker: BlockNumber,

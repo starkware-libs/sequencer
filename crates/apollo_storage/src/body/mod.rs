@@ -71,7 +71,6 @@ use crate::{
     StorageScope,
     StorageTransaction,
     StorageTxn,
-    StorageTxnRW,
     TransactionMetadata,
 };
 
@@ -333,7 +332,7 @@ impl<T: StorageTransaction + BodyStorageReaderHelpers> BodyStorageReader for T {
     }
 }
 
-impl<'env, Mode: TransactionKind> BodyStorageReaderHelpers for StorageTxn<'env, Mode> {
+impl BodyStorageReaderHelpers for StorageTxn<'_> {
     fn get_transaction_outputs_in_block(
         &self,
         block_number: BlockNumber,
@@ -391,97 +390,8 @@ impl<'env, Mode: TransactionKind> BodyStorageReaderHelpers for StorageTxn<'env, 
     }
 }
 
-impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
-    // Returns a vector with transaction objects (can be tx hash for example).
-    fn get_vector_of_transaction_objects<T>(
-        &self,
-        block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'env>,
-        tx_metadata_to_tx_object: fn(TransactionMetadata, &FileHandlers<Mode>) -> StorageResult<T>,
-    ) -> StorageResult<Option<Vec<T>>> {
-        if self.get_body_marker()? <= block_number {
-            return Ok(None);
-        }
-        let mut cursor = transaction_metadata_table.cursor(self.txn())?;
-        let mut current =
-            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
-
-        // TODO(dvir): consider initializing with capacity based on the get_block_transactions_count
-        // function.
-        let mut res = Vec::new();
-        while let Some((TransactionIndex(current_block_number, _), tx_metadata)) = current {
-            if current_block_number != block_number {
-                break;
-            }
-            let tx_output = tx_metadata_to_tx_object(tx_metadata, &self.file_handlers)?;
-            res.push(tx_output);
-            current = cursor.next()?;
-        }
-        Ok(Some(res))
-    }
-}
-
-
-impl BodyStorageReaderHelpers for StorageTxnRW<'_> {
-    fn get_transaction_outputs_in_block(
-        &self,
-        block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'_>,
-    ) -> StorageResult<Option<Vec<TransactionOutput>>> {
-        self.get_vector_of_transaction_objects(
-            block_number,
-            transaction_metadata_table,
-            |tx_metadata, file_handlers| {
-                file_handlers.get_transaction_output_unchecked(tx_metadata.tx_output_location)
-            },
-        )
-    }
-
-    fn get_transactions_in_block(
-        &self,
-        block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'_>,
-    ) -> StorageResult<Option<Vec<Transaction>>> {
-        self.get_vector_of_transaction_objects(
-            block_number,
-            transaction_metadata_table,
-            |tx_metadata, file_handlers| {
-                file_handlers.get_transaction_unchecked(tx_metadata.tx_location)
-            },
-        )
-    }
-
-    fn get_transaction_hashes_in_block(
-        &self,
-        block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'_>,
-    ) -> StorageResult<Option<Vec<TransactionHash>>> {
-        self.get_vector_of_transaction_objects(
-            block_number,
-            transaction_metadata_table,
-            |tx_metadata, _file_handlers| Ok(tx_metadata.tx_hash),
-        )
-    }
-
-    fn get_transactions_and_hashes_in_block(
-        &self,
-        block_number: BlockNumber,
-        transaction_metadata_table: TransactionMetadataTable<'_>,
-    ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
-        self.get_vector_of_transaction_objects(
-            block_number,
-            transaction_metadata_table,
-            |tx_metadata, file_handlers| {
-                let transaction =
-                    file_handlers.get_transaction_unchecked(tx_metadata.tx_location)?;
-                Ok((transaction, tx_metadata.tx_hash))
-            },
-        )
-    }
-}
-
-/// Private helper methods for StorageTxnRW body operations.
-impl StorageTxnRW<'_> {
+/// Private helper methods for  body operations.
+impl StorageTxn<'_> {
     fn get_vector_of_transaction_objects<T>(
         &self,
         block_number: BlockNumber,
@@ -563,7 +473,7 @@ impl StorageTxnRW<'_> {
     }
 }
 
-impl BodyStorageWriter for StorageTxnRW<'_> {
+impl BodyStorageWriter for StorageTxn<'_> {
     #[latency_histogram("storage_append_body_latency_seconds", false)]
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables().markers)?;

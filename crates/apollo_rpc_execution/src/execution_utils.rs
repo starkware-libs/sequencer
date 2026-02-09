@@ -51,7 +51,7 @@ impl TryFrom<PathBuf> for ExecutionConfig {
 }
 
 pub(crate) fn is_contract_class_declared(
-    txn: &StorageTxn<'_, RO>,
+    txn: &StorageTxn<'_>,
     class_hash: &ClassHash,
     state_number: StateNumber,
 ) -> Result<bool, ExecutionUtilsError> {
@@ -62,7 +62,7 @@ pub(crate) fn is_contract_class_declared(
 }
 
 pub(crate) fn get_contract_class(
-    txn: &StorageTxn<'_, RO>,
+    txn: &StorageTxn<'_>,
     class_hash: &ClassHash,
     state_number: StateNumber,
 ) -> Result<Option<RunnableCompiledClass>, ExecutionUtilsError> {
@@ -148,8 +148,8 @@ pub fn induced_state_diff(
 /// storage diffs, apply them on top of the given state.
 // TODO(shahak): If the structure of storage diffs changes, remove this function and move its code
 // into apollo_rpc.
-pub fn get_storage_at<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+pub fn get_storage_at(
+    txn: &StorageTxn<'_>,
     state_number: StateNumber,
     pending_storage_diffs: Option<&IndexMap<ContractAddress, Vec<StorageEntry>>>,
     contract_address: ContractAddress,
@@ -170,8 +170,8 @@ pub fn get_storage_at<Mode: TransactionKind>(
 
 /// Get the nonce at the given contract in the given state. If there's a given pending nonces
 /// update, apply them on top of the given state.
-pub fn get_nonce_at<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+pub fn get_nonce_at(
+    txn: &StorageTxn<'_>,
     state_number: StateNumber,
     pending_nonces: Option<&IndexMap<ContractAddress, Nonce>>,
     contract_address: ContractAddress,
@@ -187,8 +187,8 @@ pub fn get_nonce_at<Mode: TransactionKind>(
 
 /// Get the class hash of the contract at the given address, if it exists. If there's a given
 /// pending deployed contracts, search in them as well.
-pub fn get_class_hash_at<Mode: TransactionKind>(
-    txn: &StorageTxn<'_, Mode>,
+pub fn get_class_hash_at(
+    txn: &StorageTxn<'_>,
     state_number: StateNumber,
     pending_deployed_contracts_and_replaced_classes: Option<(
         &Vec<DeployedContract>,

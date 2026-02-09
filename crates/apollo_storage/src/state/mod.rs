@@ -81,7 +81,6 @@ use crate::{
     StorageError,
     StorageResult,
     StorageTxn,
-    StorageTxnRW,
     StorageTransaction,
 };
 
@@ -137,13 +136,13 @@ pub(crate) type CompiledClassHashTable<'env> = TableHandle<
 //   nonce of `contract_address` was changed to `nonce`.
 // * compiled_class_hash_table: (class_hash, block_num) -> (compiled_class_hash). Specifies that at
 //   `block_num`, the compiled class hash of `class_hash` was changed to `compiled_class_hash`.
-pub trait StateStorageReader<Mode: TransactionKind> {
+pub trait StateStorageReader {
     /// The state marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber>;
     /// Returns the state diff at a given block number.
     fn get_state_diff(&self, block_number: BlockNumber) -> StorageResult<Option<ThinStateDiff>>;
     /// Returns a state reader.
-    fn get_state_reader(&self) -> StorageResult<StateReader<'_, Mode>>;
+    fn get_state_reader(&self) -> StorageResult<StateReader<'_>>;
 }
 
 type RevertedStateDiff = (
@@ -174,7 +173,7 @@ where
     ) -> StorageResult<(Self, Option<RevertedStateDiff>)>;
 }
 
-impl<T: StorageTransaction> StateStorageReader<T::Mode> for T {
+impl<T: StorageTransaction> StateStorageReader for T {
     // The block number marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables().markers)?;
@@ -192,7 +191,7 @@ impl<T: StorageTransaction> StateStorageReader<T::Mode> for T {
         }
     }
 
-    fn get_state_reader(&self) -> StorageResult<StateReader<'_, T::Mode>> {
+    fn get_state_reader(&self) -> StorageResult<StateReader<'_>> {
         let inner_txn = self.txn();
         let compiled_class_hash_table =
             inner_txn.open_table(&self.tables().compiled_class_hash)?;
@@ -224,8 +223,8 @@ impl<T: StorageTransaction> StateStorageReader<T::Mode> for T {
 }
 
 /// A single coherent state at a single point in time,
-pub struct StateReader<'env, Mode: TransactionKind> {
-    txn: &'env DbTransaction<'env, Mode>,
+pub struct StateReader<'env> {
+    txn: &'env DbTransaction<'env, RW>,
     declared_classes_table: DeclaredClassesTable<'env>,
     declared_classes_block_table: DeclaredClassesBlockTable<'env>,
     deprecated_declared_classes_table: DeprecatedDeclaredClassesTable<'env>,
@@ -235,10 +234,10 @@ pub struct StateReader<'env, Mode: TransactionKind> {
     compiled_class_hash_table: CompiledClassHashTable<'env>,
     storage_table: ContractStorageTable<'env>,
     markers_table: MarkersTable<'env>,
-    file_handlers: &'env FileHandlers<Mode>,
+    file_handlers: &'env FileHandlers<RW>,
 }
 
-impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
+impl<'env> StateReader<'env> {
     /// Creates a new state reader from a storage transaction.
     ///
     /// Opens a handle to each table to be used when reading.
@@ -248,7 +247,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     ///
     /// # Errors
     /// Returns [`StorageError`] if there was an error opening the tables.
-    fn new(txn: &'env StorageTxn<'env, Mode>) -> StorageResult<Self> {
+    fn new(txn: &'env StorageTxn<'env>) -> StorageResult<Self> {
         let inner_txn = txn.txn();
         let compiled_class_hash_table = inner_txn.open_table(&txn.tables().compiled_class_hash)?;
         let declared_classes_table = inner_txn.open_table(&txn.tables().declared_classes)?;
@@ -276,11 +275,9 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
             file_handlers: &txn.file_handlers,
         })
     }
-}
 
-impl<'env> StateReader<'env, RW> {
-    /// Creates a new state reader from a StorageTxnRW.
-    fn new_from_rw(txn_rw: &'env StorageTxnRW<'env>) -> StorageResult<Self> {
+    /// Creates a new state reader from a StorageTxn.
+    fn new_from_rw(txn_rw: &'env StorageTxn<'env>) -> StorageResult<Self> {
         let inner_txn = txn_rw.txn();
         let compiled_class_hash_table =
             inner_txn.open_table(&txn_rw.tables().compiled_class_hash)?;
@@ -312,7 +309,7 @@ impl<'env> StateReader<'env, RW> {
     }
 }
 
-impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
+impl StateReader<'_> {
     /// Returns the class hash at a given state number.
     /// If class hash is not found, returns `None`.
     ///
@@ -581,7 +578,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
 }
 
 
-impl StateStorageWriter for StorageTxnRW<'_> {
+impl StateStorageWriter for StorageTxn<'_> {
     #[sequencer_latency_histogram(STORAGE_APPEND_THIN_STATE_DIFF_LATENCY, false)]
     fn append_state_diff(
         self,

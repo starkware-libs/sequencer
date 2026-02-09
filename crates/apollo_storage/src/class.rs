@@ -87,7 +87,7 @@ use crate::{
     StorageError,
     StorageResult,
     StorageTransaction,
-    StorageTxnRW,
+    StorageTxn,
 };
 
 /// Interface for reading data related to classes or deprecated classes.
@@ -206,7 +206,7 @@ impl<T: StorageTransaction> ClassStorageReader for T {
     }
 }
 
-impl ClassStorageWriter for StorageTxnRW<'_> {
+impl ClassStorageWriter for StorageTxn<'_> {
     #[latency_histogram("storage_append_classes_latency_seconds", false)]
     fn append_classes(
         self,

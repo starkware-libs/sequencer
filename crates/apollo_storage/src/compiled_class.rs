@@ -58,7 +58,7 @@ use crate::db::serialization::VersionZeroWrapper;
 use crate::db::table_types::{SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, RW};
 use crate::mmap_file::LocationInFile;
-use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTransaction, StorageTxn, StorageTxnRW};
+use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTransaction, StorageTxn};
 
 /// Interface for reading data related to the compiled classes.
 pub trait CasmStorageReader {
@@ -142,7 +142,7 @@ impl<T: StorageTransaction> CasmStorageReader for T {
     }
 }
 
-impl CasmStorageWriter for StorageTxnRW<'_> {
+impl CasmStorageWriter for StorageTxn<'_> {
     #[latency_histogram("storage_append_casm_latency_seconds", false)]
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self> {
         let casm_table = self.open_table(&self.tables().casms)?;

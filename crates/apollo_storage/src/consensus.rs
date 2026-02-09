@@ -40,7 +40,7 @@ use starknet_api::block::BlockNumber;
 
 use crate::db::table_types::Table;
 
-use crate::{StorageResult, StorageTransaction, StorageTxnRW};
+use crate::{StorageResult, StorageTransaction, StorageTxn};
 
 /// Information about the last vote sent out by consensus.
 #[derive(Debug, Clone, Eq, PartialEq, Copy, PartialOrd, Ord, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ impl<T: StorageTransaction> ConsensusStorageReader for T {
     }
 }
 
-impl ConsensusStorageWriter for StorageTxnRW<'_> {
+impl ConsensusStorageWriter for StorageTxn<'_> {
     fn set_last_voted_marker(self, last_voted_marker: &LastVotedMarker) -> StorageResult<Self> {
         let table = self.open_table(&self.tables().last_voted_marker)?;
         table.upsert(self.txn(), &(), last_voted_marker)?;
