@@ -53,6 +53,8 @@ async fn main() {
     if cfg!(feature = "cairo_native") {
         contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
         contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
+        contract_class_manager_config.cairo_native_run_config.execution_mode =
+            blockifier::blockifier::config::NativeExecutionMode::Sync;
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 

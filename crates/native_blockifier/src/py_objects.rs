@@ -263,6 +263,7 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
 pub struct PyCairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
+    pub execution_mode: String,
     pub channel_size: usize,
     // Determines which contracts are allowd to run Cairo Native. `None` → All.
     pub native_classes_whitelist: Option<Vec<PyFelt>>,
@@ -274,6 +275,7 @@ impl Default for PyCairoNativeRunConfig {
         Self {
             run_cairo_native: false,
             wait_on_native_compilation: false,
+            execution_mode: "Disabled".to_string(),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: None,
             panic_on_compilation_failure: false,
@@ -290,12 +292,11 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
             None => NativeClassesWhitelist::All,
         };
 
-        let execution_mode = if !py_cairo_native_run_config.run_cairo_native {
-            NativeExecutionMode::Disabled
-        } else if py_cairo_native_run_config.wait_on_native_compilation {
-            NativeExecutionMode::Sync
-        } else {
-            NativeExecutionMode::Async
+        let execution_mode = match py_cairo_native_run_config.execution_mode.as_str() {
+            "Disabled" => NativeExecutionMode::Disabled,
+            "Async" => NativeExecutionMode::Async,
+            "Sync" => NativeExecutionMode::Sync,
+            other => panic!("Invalid execution_mode: '{other}'. Expected Disabled, Async, or Sync."),
         };
 
         CairoNativeRunConfig {
