@@ -25,6 +25,14 @@ impl Debug for DbValue {
 
 pub type DbHashMap = HashMap<DbKey, DbValue>;
 
+#[derive(Clone, Eq, PartialEq, Serialize)]
+pub enum DbOperation {
+    Set(DbValue),
+    Delete,
+}
+
+pub type DbOperationMap = HashMap<DbKey, DbOperation>;
+
 /// An error that can occur when interacting with the database.
 #[derive(thiserror::Error, Debug)]
 pub enum PatriciaStorageError {
@@ -148,8 +156,7 @@ pub trait Storage: Send + Sync {
     // for details.
     fn multi_set_and_delete(
         &mut self,
-        key_to_value: DbHashMap,
-        keys_to_delete: &[&DbKey],
+        key_to_operation: DbOperationMap,
     ) -> impl Future<Output = PatriciaStorageResult<()>> + Send;
 
     /// If implemented, returns the statistics of the storage.
@@ -226,8 +233,7 @@ impl Storage for NullStorage {
 
     async fn multi_set_and_delete(
         &mut self,
-        _key_to_value: DbHashMap,
-        _keys_to_delete: &[&DbKey],
+        _key_to_operation: DbOperationMap,
     ) -> PatriciaStorageResult<()> {
         Ok(())
     }
