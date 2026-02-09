@@ -43,7 +43,7 @@ message StreamMessage {
     uint64 message_id = 4;
 }
 
-message BlockInfo {
+message ProposalInit {
     uint64 height                     = 1;
     uint32 round                      = 2;
     optional uint32 valid_round       = 3;
@@ -79,12 +79,12 @@ message ProposalFin {
 }
 
 // Network format:
-// 1. First message is BlockInfo (includes all block metadata)
+// 1. First message is ProposalInit (init, includes all block metadata)
 // 2. transactions is sent repeatedly (for non-empty blocks)
 // 3. Last message is ProposalFin
 message ProposalPart {
     oneof message {
-        BlockInfo block_info          = 1;
+        ProposalInit init             = 1;
         ProposalFin fin               = 2;
         TransactionBatch transactions = 3;
     }

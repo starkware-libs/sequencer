@@ -16,10 +16,10 @@ use super::common::{
 };
 use crate::consensus::{
     CommitmentParts,
-    ConsensusBlockInfo,
     IntoFromProto,
     ProposalCommitment,
     ProposalFin,
+    ProposalInit,
     ProposalPart,
     StreamMessage,
     StreamMessageBody,
@@ -189,9 +189,9 @@ where
     }
 }
 
-impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
+impl TryFrom<protobuf::ProposalInit> for ProposalInit {
     type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::BlockInfo) -> Result<Self, Self::Error> {
+    fn try_from(value: protobuf::ProposalInit) -> Result<Self, Self::Error> {
         let height = BlockNumber(value.height);
         let round = value.round;
         let valid_round = value.valid_round;
@@ -222,7 +222,7 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
             .version_constant_commitment
             .ok_or(missing("version_constant_commitment"))?
             .try_into()?;
-        Ok(ConsensusBlockInfo {
+        Ok(ProposalInit {
             height,
             round,
             valid_round,
@@ -241,9 +241,9 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
     }
 }
 
-impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
-    fn from(value: ConsensusBlockInfo) -> Self {
-        protobuf::BlockInfo {
+impl From<ProposalInit> for protobuf::ProposalInit {
+    fn from(value: ProposalInit) -> Self {
+        protobuf::ProposalInit {
             height: value.height.0,
             round: value.round,
             valid_round: value.valid_round,
@@ -262,7 +262,7 @@ impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
     }
 }
 
-auto_impl_into_and_try_from_vec_u8!(ConsensusBlockInfo, protobuf::BlockInfo);
+auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
 
 impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
     type Error = ProtobufConversionError;
@@ -357,7 +357,7 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
         };
 
         match part {
-            Message::BlockInfo(block_info) => Ok(ProposalPart::BlockInfo(block_info.try_into()?)),
+            Message::Init(init) => Ok(ProposalPart::Init(init.try_into()?)),
             Message::Fin(fin) => Ok(ProposalPart::Fin(fin.try_into()?)),
             Message::Transactions(content) => Ok(ProposalPart::Transactions(content.try_into()?)),
         }
@@ -367,8 +367,8 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
 impl From<ProposalPart> for protobuf::ProposalPart {
     fn from(value: ProposalPart) -> Self {
         match value {
-            ProposalPart::BlockInfo(block_info) => protobuf::ProposalPart {
-                message: Some(protobuf::proposal_part::Message::BlockInfo(block_info.into())),
+            ProposalPart::Init(init) => protobuf::ProposalPart {
+                message: Some(protobuf::proposal_part::Message::Init(init.into())),
             },
             ProposalPart::Fin(fin) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Fin(fin.into())),
