@@ -11,11 +11,13 @@ testing = []
 
 [dependencies]
 apollo_config_manager_types.workspace = true
+apollo_metrics.workspace = true
 apollo_protobuf.workspace = true
 apollo_staking_config.workspace = true
 apollo_state_sync_types.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
+metrics.workspace = true
 mockall.workspace = true
 sha2.workspace = true
 starknet-types-core.workspace = true
