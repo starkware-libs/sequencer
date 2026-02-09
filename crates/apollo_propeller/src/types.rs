@@ -9,6 +9,7 @@ use crate::MerkleHash;
 // TODO(AndrewL): reduce redundant documentation in this file
 
 /// Events emitted by the Propeller protocol to the application layer.
+#[derive(Debug)]
 pub enum Event {
     /// A complete message has been reconstructed from shards.
     MessageReceived { publisher: PeerId, message_root: MessageRoot, message: Vec<u8> },
