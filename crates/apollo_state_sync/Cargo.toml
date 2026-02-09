@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 apollo_central_sync.workspace = true
 apollo_class_manager_types.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_infra.workspace = true
 apollo_network.workspace = true
 apollo_p2p_sync.workspace = true
@@ -35,6 +36,7 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_starknet_client = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
