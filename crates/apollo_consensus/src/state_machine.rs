@@ -9,7 +9,7 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use apollo_protobuf::consensus::{BuildParam, ConsensusBlockInfo, Vote, VoteType};
+use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote, VoteType};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;
@@ -65,7 +65,7 @@ pub(crate) enum SMRequest {
     /// Request to build a proposal for a new round.
     StartBuildProposal(Round),
     /// Request to validate a received proposal from the network.
-    StartValidateProposal(ConsensusBlockInfo),
+    StartValidateProposal(ProposalInit),
     /// Request to broadcast a Prevote or Precommit vote.
     BroadcastVote(Vote),
     /// Request to schedule a timeout for a specific step and round.
