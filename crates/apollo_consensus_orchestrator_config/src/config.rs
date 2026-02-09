@@ -8,7 +8,12 @@ use apollo_config::converters::{
     deserialize_seconds_to_duration,
     serialize_optional_comma_separated,
 };
-use apollo_config::dumping::{prepend_sub_config_name, ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -78,16 +83,44 @@ impl SerializeConfig for CendeConfig {
 const GWEI_FACTOR: u128 = u128::pow(10, 9);
 const ETH_FACTOR: u128 = u128::pow(10, 18);
 
+/// Represents a minimum gas price that applies starting from a specific block height.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct PricePerHeight {
+    /// The block height at which this price becomes active.
+    pub height: u64,
+    /// The minimum gas price in fri.
+    pub price: u128,
+}
+
 /// Dynamic configuration for the consensus orchestrator context.
 /// Can be updated at runtime via the config manager.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default, Validate)]
 pub struct ContextDynamicConfig {
-    // Future fields will be added here (e.g., min_gas_price_overrides).
+    /// List of minimum L2 gas prices per block height. For a given block height h,
+    /// the minimum gas price is determined by finding the largest height in this list
+    /// where height <= h. If no such entry exists, falls back to
+    /// versioned_constants.min_gas_price.
+    #[serde(default)]
+    pub price_per_height: Vec<PricePerHeight>,
 }
 
 impl SerializeConfig for ContextDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::new() // Empty for now.
+        let mut dump = BTreeMap::new();
+
+        // Serialize price_per_height as a JSON array
+        if !self.price_per_height.is_empty() {
+            let (key, value) = ser_param(
+                "price_per_height",
+                &self.price_per_height,
+                "List of minimum L2 gas prices per block height. Each entry specifies a height \
+                 and the minimum gas price that applies from that height onwards.",
+                ParamPrivacyInput::Public,
+            );
+            dump.insert(key, value);
+        }
+
+        dump
     }
 }
 
@@ -296,15 +329,12 @@ impl SerializeConfig for ContextConfig {
             "Optional explicit set of validator IDs (comma separated).",
             ParamPrivacyInput::Public,
         ));
-        
+
         // Add dynamic config if present.
         if let Some(ref dynamic_config) = self.dynamic_config {
-            dump.extend(prepend_sub_config_name(
-                dynamic_config.dump(),
-                "dynamic_config"
-            ));
+            dump.extend(prepend_sub_config_name(dynamic_config.dump(), "dynamic_config"));
         }
-        
+
         dump
     }
 }
