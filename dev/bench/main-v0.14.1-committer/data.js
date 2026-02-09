@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770551963778,
+  "lastUpdate": 1770662489431,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2107,6 +2107,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1203.26548471,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fde6c98f2c0368352d525f92e95b6aaf80191b6f",
+          "message": "apollo_dashboard: remove duplicated per-env dashboard files (#12373)",
+          "timestamp": "2026-02-09T18:17:45Z",
+          "tree_id": "d3680014f51c5ed251387f64b3a0bf42f6a2280d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/fde6c98f2c0368352d525f92e95b6aaf80191b6f"
+        },
+        "date": 1770662489105,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 924.48856103,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1379.49321612,
             "unit": "ms"
           }
         ]
