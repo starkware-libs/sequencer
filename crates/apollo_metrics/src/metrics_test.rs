@@ -124,6 +124,34 @@ fn record_labeled_histogram_set(
 }
 
 #[test]
+fn metric_scope_display() {
+    let cases = [
+        (MetricScope::Batcher, "Batcher"),
+        (MetricScope::Blockifier, "Blockifier"),
+        (MetricScope::ClassManager, "Class Manager"),
+        (MetricScope::Committer, "Committer"),
+        (MetricScope::Consensus, "Consensus"),
+        (MetricScope::ConsensusManager, "Consensus Manager"),
+        (MetricScope::ConsensusOrchestrator, "Consensus Orchestrator"),
+        (MetricScope::Gateway, "Gateway"),
+        (MetricScope::HttpServer, "Http Server"),
+        (MetricScope::Infra, "Infra"),
+        (MetricScope::L1GasPrice, "L1 Gas Price"),
+        (MetricScope::L1Provider, "L1 Provider"),
+        (MetricScope::Mempool, "Mempool"),
+        (MetricScope::MempoolP2p, "Mempool P2P"),
+        (MetricScope::CompileToCasm, "Compile To Casm"),
+        (MetricScope::StateSync, "State Sync"),
+        (MetricScope::Storage, "Storage"),
+        (MetricScope::Tokio, "Tokio"),
+    ];
+
+    for (scope, expected) in cases {
+        assert_eq!(scope.to_string(), expected);
+    }
+}
+
+#[test]
 fn histogram_run_and_parse() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = set_default_local_recorder(&recorder);
