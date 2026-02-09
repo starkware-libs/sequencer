@@ -182,8 +182,15 @@ impl<'a> SubTreeTrait<'a> for IndexLayoutSubTree<'a> {
     }
 
     fn get_root_db_key<L: Leaf>(&self, key_context: &<L as HasStaticPrefix>::KeyContext) -> DbKey {
-        let prefix = L::get_static_prefix(key_context);
-        let suffix = self.root_index.0.to_be_bytes();
-        create_db_key(prefix, INDEX_LAYOUT_DB_KEY_SEPARATOR, &suffix)
+        get_node_index_db_key::<L>(key_context, self.root_index)
     }
+}
+
+pub(crate) fn get_node_index_db_key<L: Leaf>(
+    key_context: &<L as HasStaticPrefix>::KeyContext,
+    node_index: NodeIndex,
+) -> DbKey {
+    let prefix = L::get_static_prefix(key_context);
+    let suffix = node_index.0.to_be_bytes();
+    create_db_key(prefix, L::DB_KEY_SEPARATOR, &suffix)
 }
