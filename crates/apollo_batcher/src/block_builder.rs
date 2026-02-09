@@ -40,6 +40,7 @@ use mockall::automock;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
+    BlockCommitmentsMeasurements,
     PartialBlockHashComponents,
     TransactionHashingData,
 };
@@ -61,6 +62,11 @@ use crate::metrics::{
     record_block_close_reason,
     BlockCloseReason,
     BATCHER_CLASS_CACHE_METRICS,
+    BLOCK_COMMITMENT_EVENT_LATENCY,
+    BLOCK_COMMITMENT_PER_EVENT_LATENCY,
+    BLOCK_COMMITMENT_RECEIPT_LATENCY,
+    BLOCK_COMMITMENT_STATE_DIFF_LATENCY,
+    BLOCK_COMMITMENT_TRANSACTION_LATENCY,
     PROPOSER_DEFERRED_TXS,
     VALIDATOR_WASTED_TXS,
 };
@@ -144,13 +150,14 @@ impl BlockExecutionArtifacts {
         let starknet_version = block_info.starknet_version;
         let transactions_data =
             prepare_txs_hashing_data(&execution_data.execution_infos_and_signatures);
-        let (header_commitments, _timings) = calculate_block_commitments(
+        let (header_commitments, timings) = calculate_block_commitments(
             &transactions_data,
             commitment_state_diff_as_thin_state_diff(&commitment_state_diff),
             l1_da_mode,
             &starknet_version,
         )
         .await;
+        record_block_commitment_timings(timings);
         let partial_block_hash_components = PartialBlockHashComponents {
             header_commitments,
             block_number: block_info.block_number,
@@ -896,4 +903,19 @@ fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHas
     if let Some((idx, _)) = set.swap_remove_full(tx_hash) {
         assert_eq!(idx, set.len(), "The removed txs must be the last ones.");
     }
+}
+
+fn record_block_commitment_timings(timings: BlockCommitmentsMeasurements) {
+    BLOCK_COMMITMENT_TRANSACTION_LATENCY
+        .record_lossy(timings.transaction_commitment_duration.as_secs_f64());
+    BLOCK_COMMITMENT_EVENT_LATENCY.record_lossy(timings.event_commitment_duration.as_secs_f64());
+    if timings.n_events > 0 {
+        BLOCK_COMMITMENT_PER_EVENT_LATENCY.record_lossy(
+            timings.event_commitment_duration.as_secs_f64() / timings.n_events as f64,
+        );
+    }
+    BLOCK_COMMITMENT_RECEIPT_LATENCY
+        .record_lossy(timings.receipt_commitment_duration.as_secs_f64());
+    BLOCK_COMMITMENT_STATE_DIFF_LATENCY
+        .record_lossy(timings.state_diff_commitment_duration.as_secs_f64());
 }

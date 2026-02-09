@@ -60,6 +60,12 @@ define_metrics!(
         MetricHistogram { COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY, "batcher_commitment_manager_commit_block_latency", "The latency of commit tasks in the commitment manager in seconds" },
         MetricHistogram { COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY, "batcher_commitment_manager_revert_block_latency", "The latency of revert tasks in the commitment manager in seconds" },
         MetricHistogram { COMMITMENT_MANAGER_NUM_COMMIT_RESULTS, "batcher_commitment_manager_num_commit_results", "The number of commit results received from the commitment manager" },
+        // Block commitment components computation timings
+        MetricHistogram { BLOCK_COMMITMENT_TRANSACTION_LATENCY, "batcher_block_commitment_transaction_latency", "Duration of transaction commitment computation in seconds" },
+        MetricHistogram { BLOCK_COMMITMENT_EVENT_LATENCY, "batcher_block_commitment_event_latency", "Duration of event commitment computation in seconds" },
+        MetricHistogram { BLOCK_COMMITMENT_PER_EVENT_LATENCY, "batcher_block_commitment_per_event_latency", "Duration of event commitment computation per event in seconds" },
+        MetricHistogram { BLOCK_COMMITMENT_RECEIPT_LATENCY, "batcher_block_commitment_receipt_latency", "Duration of receipt commitment computation in seconds" },
+        MetricHistogram { BLOCK_COMMITMENT_STATE_DIFF_LATENCY, "batcher_block_commitment_state_diff_latency", "Duration of state diff commitment computation in seconds" },
     },
 );
 
@@ -121,6 +127,12 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.register();
     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.register();
     COMMITMENT_MANAGER_NUM_COMMIT_RESULTS.register();
+
+    BLOCK_COMMITMENT_TRANSACTION_LATENCY.register();
+    BLOCK_COMMITMENT_EVENT_LATENCY.register();
+    BLOCK_COMMITMENT_PER_EVENT_LATENCY.register();
+    BLOCK_COMMITMENT_RECEIPT_LATENCY.register();
+    BLOCK_COMMITMENT_STATE_DIFF_LATENCY.register();
 
     // Blockifier's metrics
     BATCHER_CLASS_CACHE_METRICS.register();
