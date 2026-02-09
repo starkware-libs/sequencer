@@ -21,6 +21,7 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
@@ -1045,3 +1046,21 @@ pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
 
 type BroadcastReceivedMessagesConverterFn<T> =
     fn((Bytes, BroadcastedMessageMetadata)) -> ReceivedBroadcastedMessage<T>;
+
+// TODO(guyn): remove allow dead code once we use the duplicate vote report.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BadPeerReport {
+    pub peer_id: PeerId,
+    pub reason: String,
+    pub penalty_card: PenaltyCard,
+}
+
+/// Represents the severity of the bad peer behavior.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PenaltyCard {
+    /// Overtly malicious behavior.
+    Red,
+    /// Possibly sent malicious data on accident, will be considered malicious on repeat offenses.
+    Yellow,
+}
