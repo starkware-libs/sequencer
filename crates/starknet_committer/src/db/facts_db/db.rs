@@ -137,10 +137,11 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
         serialize_forest::<FactsNodeLayout>(filled_forest)
     }
 
-    async fn write_updates(&mut self, updates: DbHashMap) -> usize {
+    async fn write_updates(&mut self, updates: DbHashMap, keys_to_delete: &[DbKey]) -> usize {
         let n_updates = updates.len();
+        let keys_to_delete_refs: Vec<&DbKey> = keys_to_delete.iter().collect();
         self.storage
-            .mset(updates)
+            .multi_set_and_delete(updates, &keys_to_delete_refs)
             .await
             .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
         n_updates

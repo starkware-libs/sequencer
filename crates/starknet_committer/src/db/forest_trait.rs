@@ -21,6 +21,7 @@ use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageV
 use crate::db::db_layout::DbLayout;
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
+use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -155,32 +156,35 @@ pub trait ForestWriter: Send {
     fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap>;
 
     /// Writes the updates map to storage. Returns the number of new updates written to storage.
-    async fn write_updates(&mut self, updates: DbHashMap) -> usize;
+    async fn write_updates(&mut self, updates: DbHashMap, keys_to_delete: &[DbKey]) -> usize;
 
     /// Writes the serialized filled forest to storage. Returns the number of new updates written to
     /// storage.
     async fn write(&mut self, filled_forest: &FilledForest) -> SerializationResult<usize> {
         let updates = Self::serialize_forest(filled_forest)?;
-        Ok(self.write_updates(updates).await)
+        Ok(self.write_updates(updates, &[]).await)
     }
 }
 
 #[async_trait]
 pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
+    /// Serializes deleted nodes into a vector of database keys.
+    fn serialize_deleted_nodes(deleted_nodes: &DeletedNodes) -> SerializationResult<Vec<DbKey>>;
+
     async fn write_with_metadata(
         &mut self,
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
+        deleted_nodes: &DeletedNodes,
     ) -> SerializationResult<usize> {
         let mut updates = Self::serialize_forest(filled_forest)?;
         for (metadata_type, value) in metadata {
             Self::insert_metadata(&mut updates, metadata_type, value);
         }
-        Ok(self.write_updates(updates).await)
+        let keys_to_delete = Self::serialize_deleted_nodes(deleted_nodes)?;
+        Ok(self.write_updates(updates, &keys_to_delete).await)
     }
 }
-
-impl<T: ForestWriter + ForestMetadata> ForestWriterWithMetadata for T {}
 
 pub trait StorageInitializer {
     type Storage: Storage;
