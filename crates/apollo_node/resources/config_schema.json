@@ -1894,6 +1894,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height": {
+    "description": "List of minimum L2 gas prices per block height in format 'height1:price1,height2:price2'. Each entry specifies a height and the minimum gas price that applies from that height onwards.",
+    "privacy": "Public",
+    "value": ""
+  },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
