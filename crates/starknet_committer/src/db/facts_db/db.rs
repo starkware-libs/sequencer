@@ -11,7 +11,13 @@ use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, PatriciaStorageResult, Storage};
+use starknet_patricia_storage::storage_trait::{
+    DbHashMap,
+    DbKey,
+    DbOperationMap,
+    PatriciaStorageResult,
+    Storage,
+};
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
@@ -137,10 +143,10 @@ impl<S: Storage> ForestWriter for FactsDb<S> {
         serialize_forest::<FactsNodeLayout>(filled_forest)
     }
 
-    async fn write_updates(&mut self, updates: DbHashMap) -> usize {
+    async fn write_updates(&mut self, updates: DbOperationMap) -> usize {
         let n_updates = updates.len();
         self.storage
-            .mset(updates)
+            .multi_set_and_delete(updates)
             .await
             .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
         n_updates

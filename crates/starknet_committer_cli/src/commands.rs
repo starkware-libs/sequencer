@@ -1,4 +1,5 @@
 use std::cmp::min;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::LazyLock;
@@ -27,7 +28,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::measurements_util::{Action, MeasurementsTrait};
 use starknet_committer::block_committer::state_diff_generator::generate_random_state_diff;
-use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
+use starknet_committer::db::forest_trait::{ForestWriterWithMetadata, StorageInitializer};
 use starknet_committer::db::index_db::db::{IndexDb, IndexDbReadContext};
 use starknet_patricia_storage::storage_trait::{AsyncStorage, DbKey, Storage, StorageStats};
 use starknet_types_core::felt::Felt;
@@ -476,13 +477,19 @@ pub async fn run_storage_benchmark<S: Storage>(
         };
 
         measurements.start_measurement(Action::EndToEnd);
-        let (filled_forest, _deleted_nodes) =
+        let (filled_forest, deleted_nodes) =
             CommitBlockImpl::commit_block(input, &mut index_db, &mut measurements)
                 .await
                 .expect("Failed to commit the given block.");
         measurements.start_measurement(Action::Write);
-        let n_new_facts =
-            index_db.write(&filled_forest).await.expect("failed to serialize db values");
+        let n_new_facts = ForestWriterWithMetadata::write_with_metadata(
+            &mut index_db,
+            &filled_forest,
+            HashMap::new(),
+            &deleted_nodes,
+        )
+        .await
+        .expect("failed to serialize db values");
         info!("Written {n_new_facts} new facts to storage");
         measurements.attempt_to_stop_measurement(Action::Write, n_new_facts).unwrap();
 

@@ -12,6 +12,8 @@ use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
+    DbOperation,
+    DbOperationMap,
     DbValue,
     PatriciaStorageResult,
     Storage,
@@ -21,6 +23,7 @@ use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageV
 use crate::db::db_layout::DbLayout;
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
+use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -149,38 +152,50 @@ pub(crate) fn serialize_forest<Layout: DbLayout>(
     Ok(serialized_forest)
 }
 
+pub(crate) fn updates_to_set_operations(updates: DbHashMap) -> DbOperationMap {
+    updates.into_iter().map(|(key, value)| (key, DbOperation::Set(value))).collect()
+}
+
 #[async_trait]
 pub trait ForestWriter: Send {
     /// Serializes a filled forest into a hash map.
     fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap>;
 
     /// Writes the updates map to storage. Returns the number of new updates written to storage.
-    async fn write_updates(&mut self, updates: DbHashMap) -> usize;
+    async fn write_updates(&mut self, updates: DbOperationMap) -> usize;
 
     /// Writes the serialized filled forest to storage. Returns the number of new updates written to
     /// storage.
     async fn write(&mut self, filled_forest: &FilledForest) -> SerializationResult<usize> {
         let updates = Self::serialize_forest(filled_forest)?;
-        Ok(self.write_updates(updates).await)
+        Ok(self.write_updates(updates_to_set_operations(updates)).await)
     }
 }
 
 #[async_trait]
 pub trait ForestWriterWithMetadata: ForestWriter + ForestMetadata {
+    /// Serializes deleted nodes into a vector of database keys.
+    fn serialize_deleted_nodes(deleted_nodes: &DeletedNodes) -> SerializationResult<Vec<DbKey>>;
+
     async fn write_with_metadata(
         &mut self,
         filled_forest: &FilledForest,
         metadata: HashMap<ForestMetadataType, DbValue>,
+        deleted_nodes: &DeletedNodes,
     ) -> SerializationResult<usize> {
         let mut updates = Self::serialize_forest(filled_forest)?;
         for (metadata_type, value) in metadata {
             Self::insert_metadata(&mut updates, metadata_type, value);
         }
-        Ok(self.write_updates(updates).await)
+        let keys_to_delete = Self::serialize_deleted_nodes(deleted_nodes)?;
+        let operations = keys_to_delete
+            .into_iter()
+            .map(|key| (key, DbOperation::Delete))
+            .chain(updates_to_set_operations(updates))
+            .collect();
+        Ok(self.write_updates(operations).await)
     }
 }
-
-impl<T: ForestWriter + ForestMetadata> ForestWriterWithMetadata for T {}
 
 pub trait StorageInitializer {
     type Storage: Storage;
