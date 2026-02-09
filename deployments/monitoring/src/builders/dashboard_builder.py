@@ -6,7 +6,6 @@ import time
 from urllib.parse import quote
 
 import requests
-from common.env import EnvironmentName
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
 from common.logger import get_logger
 
@@ -142,7 +141,7 @@ def dashboard_file_name(out_dir: str, dashboard_name: str) -> str:
     return f"{out_dir}/{file_name}.json"
 
 
-def create_dashboard(dashboard_name: str, dev_dashboard: json, env: EnvironmentName) -> dict:
+def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
     dashboard = empty_dashboard.copy()
     templating = templating_object.copy()
     panel_id = 1
@@ -217,7 +216,6 @@ def dashboard_builder(args: argparse.Namespace) -> None:
                 create_dashboard(
                     dashboard_name=dashboard_name,
                     dev_dashboard=dev_json[dashboard_name],
-                    env=EnvironmentName(args.env),
                 ),
             ]
         )

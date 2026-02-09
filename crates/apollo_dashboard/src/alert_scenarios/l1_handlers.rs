@@ -5,7 +5,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -14,10 +13,7 @@ use crate::alerts::{
     PENDING_DURATION_DEFAULT,
 };
 
-fn get_l1_message_scraper_no_successes_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_l1_message_scraper_no_successes_alert(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "l1_message_no_successes",
         "L1 message no successes",
@@ -28,19 +24,9 @@ fn get_l1_message_scraper_no_successes_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_l1_message_scraper_no_successes_alert_vec() -> Vec<Alert> {
-    vec![
-        get_l1_message_scraper_no_successes_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Sos,
-        ),
-        get_l1_message_scraper_no_successes_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-    ]
+    vec![get_l1_message_scraper_no_successes_alert(AlertSeverity::Sos)]
 }

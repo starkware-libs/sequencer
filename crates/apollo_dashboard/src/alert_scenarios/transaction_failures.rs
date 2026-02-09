@@ -11,7 +11,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -37,7 +36,6 @@ pub(crate) fn get_http_server_high_deprecated_transaction_failure_ratio() -> Ale
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -57,14 +55,10 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
-fn get_http_server_internal_error_ratio(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_http_server_internal_error_ratio(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "http_server_internal_error_ratio",
         "http server internal error ratio",
@@ -79,27 +73,14 @@ fn get_http_server_internal_error_ratio(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_http_server_internal_error_ratio_vec() -> Vec<Alert> {
-    vec![
-        get_http_server_internal_error_ratio(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Regular,
-        ),
-        get_http_server_internal_error_ratio(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_http_server_internal_error_ratio(AlertSeverity::Regular)]
 }
 
-fn get_mempool_transaction_drop_ratio(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_mempool_transaction_drop_ratio(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "mempool_transaction_drop_ratio",
         "Mempool transaction drop ratio",
@@ -119,21 +100,11 @@ fn get_mempool_transaction_drop_ratio(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_mempool_transaction_drop_ratio_vec() -> Vec<Alert> {
-    vec![
-        get_mempool_transaction_drop_ratio(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-        get_mempool_transaction_drop_ratio(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_mempool_transaction_drop_ratio(AlertSeverity::DayOnly)]
 }
 
 pub(crate) fn get_http_server_internal_error_once() -> Alert {
@@ -150,6 +121,5 @@ pub(crate) fn get_http_server_internal_error_once() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }

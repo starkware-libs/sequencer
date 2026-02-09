@@ -10,7 +10,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -21,10 +20,7 @@ use crate::alerts::{
 
 // TODO(shahak): add gateway latency alert
 
-fn get_mempool_p2p_peer_down(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_mempool_p2p_peer_down(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "mempool_p2p_peer_down",
         "Mempool p2p peer down",
@@ -40,26 +36,16 @@ fn get_mempool_p2p_peer_down(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_mempool_p2p_peer_down_vec() -> Vec<Alert> {
-    vec![
-        get_mempool_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Regular),
-        get_mempool_p2p_peer_down(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_mempool_p2p_peer_down(AlertSeverity::Regular)]
 }
 
 /// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 15 seconds
 /// over a 5-minute window.
-fn get_http_server_avg_add_tx_latency_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_http_server_avg_add_tx_latency_alert(alert_severity: AlertSeverity) -> Alert {
     let sum_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_sum_with_filter();
     let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_count_with_filter();
 
@@ -75,29 +61,16 @@ fn get_http_server_avg_add_tx_latency_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_http_server_avg_add_tx_latency_alert_vec() -> Vec<Alert> {
-    vec![
-        get_http_server_avg_add_tx_latency_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-        get_http_server_avg_add_tx_latency_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_http_server_avg_add_tx_latency_alert(AlertSeverity::DayOnly)]
 }
 
 /// Triggers if the latency of all `add_tx` calls, across all HTTP servers, exceeds 1 second
 /// over a 2-minute window.
-fn get_http_server_min_add_tx_latency_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_http_server_min_add_tx_latency_alert(alert_severity: AlertSeverity) -> Alert {
     const TIME_WINDOW: &str = "2m";
     let bucket_metric =
         HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filer_and_additional_fields("le=\"1.0\"");
@@ -120,29 +93,16 @@ fn get_http_server_min_add_tx_latency_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_http_server_min_add_tx_latency_alert_vec() -> Vec<Alert> {
-    vec![
-        get_http_server_min_add_tx_latency_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Sos,
-        ),
-        get_http_server_min_add_tx_latency_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::Regular,
-        ),
-    ]
+    vec![get_http_server_min_add_tx_latency_alert(AlertSeverity::Sos)]
 }
 
 /// Triggers when the slowest 5% of transactions for a specific HTTP server are taking longer than 2
 /// seconds over a 5-minute window.
-fn get_http_server_p95_add_tx_latency_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_http_server_p95_add_tx_latency_alert(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "http_server_p95_add_tx_latency",
         "High HTTP server P95 add_tx latency",
@@ -156,28 +116,14 @@ fn get_http_server_p95_add_tx_latency_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_http_server_p95_add_tx_latency_alert_vec() -> Vec<Alert> {
-    vec![
-        get_http_server_p95_add_tx_latency_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Informational,
-        ),
-        get_http_server_p95_add_tx_latency_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::Informational,
-        ),
-    ]
+    vec![get_http_server_p95_add_tx_latency_alert(AlertSeverity::Informational)]
 }
 
-fn get_high_empty_blocks_ratio_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-    ratio: f64,
-) -> Alert {
+fn get_high_empty_blocks_ratio_alert(alert_severity: AlertSeverity, ratio: f64) -> Alert {
     const ALERT_NAME: &str = "high_empty_blocks_ratio";
     // Our histogram buckets are static and the smallest bucket is 0.001.
     let lowest_histogram_bucket_value = HISTOGRAM_BUCKETS[0];
@@ -206,21 +152,9 @@ fn get_high_empty_blocks_ratio_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_high_empty_blocks_ratio_alert_vec() -> Vec<Alert> {
-    vec![
-        get_high_empty_blocks_ratio_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Sos,
-            0.3,
-        ),
-        get_high_empty_blocks_ratio_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::Regular,
-            0.6,
-        ),
-    ]
+    vec![get_high_empty_blocks_ratio_alert(AlertSeverity::Sos, 0.3)]
 }

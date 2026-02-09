@@ -16,7 +16,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -29,7 +28,6 @@ use crate::alerts::{
 /// Block number is stuck for more than duration minutes.
 fn get_consensus_block_number_stuck(
     alert_name: &'static str,
-    alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
 ) -> Alert {
     let expr_template_string = format!(
@@ -49,38 +47,20 @@ fn get_consensus_block_number_stuck(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
     vec![
-        get_consensus_block_number_stuck(
-            "consensus_block_number_stuck",
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Sos,
-        ),
-        get_consensus_block_number_stuck(
-            "consensus_block_number_stuck",
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
+        get_consensus_block_number_stuck("consensus_block_number_stuck", AlertSeverity::Sos),
         get_consensus_block_number_stuck(
             "consensus_block_number_stuck_long_time",
-            AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::Regular,
         ),
     ]
 }
 
-// TODO(Tsabary): settle all the required parameters that are different among envs using the
-// placeholder mechanism.
-// TODO(Tsabary): remove `AlertEnvFiltering` throughout and use the placeholder mechanism instead.
-
-fn get_batched_transactions_stuck(
-    alert_name: &'static str,
-    alert_env_filtering: AlertEnvFiltering,
-) -> Alert {
+fn get_batched_transactions_stuck(alert_name: &'static str) -> Alert {
     let expr_template_string =
         format!("changes({}[{{}}s])", BATCHED_TRANSACTIONS.get_name_with_filter());
     Alert::new(
@@ -96,30 +76,18 @@ fn get_batched_transactions_stuck(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         SeverityValueOrPlaceholder::Placeholder(alert_name.to_string()),
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_batched_transactions_stuck_vec() -> Vec<Alert> {
     vec![
-        get_batched_transactions_stuck(
-            "batched_transactions_stuck",
-            AlertEnvFiltering::MainnetStyleAlerts,
-        ),
-        get_batched_transactions_stuck(
-            "batched_transactions_stuck",
-            AlertEnvFiltering::TestnetStyleAlerts,
-        ),
-        get_batched_transactions_stuck(
-            "batched_transactions_stuck_long_time",
-            AlertEnvFiltering::TestnetStyleAlerts,
-        ),
+        get_batched_transactions_stuck("batched_transactions_stuck"),
+        get_batched_transactions_stuck("batched_transactions_stuck_long_time"),
     ]
 }
 
 fn get_consensus_p2p_not_enough_peers_for_quorum(
     alert_name: &'static str,
-    alert_env_filtering: AlertEnvFiltering,
     duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
@@ -143,7 +111,6 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::Applicable,
-        alert_env_filtering,
     )
 }
 
@@ -151,29 +118,18 @@ pub(crate) fn get_consensus_p2p_not_enough_peers_for_quorum_vec() -> Vec<Alert> 
     vec![
         get_consensus_p2p_not_enough_peers_for_quorum(
             "consensus_p2p_not_enough_peers_for_quorum",
-            AlertEnvFiltering::MainnetStyleAlerts,
             Duration::from_secs(2 * SECS_IN_MIN),
             AlertSeverity::Sos,
         ),
         get_consensus_p2p_not_enough_peers_for_quorum(
-            "consensus_p2p_not_enough_peers_for_quorum",
-            AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::WorkingHours,
-        ),
-        get_consensus_p2p_not_enough_peers_for_quorum(
             "consensus_p2p_not_enough_peers_for_quorum_long_time",
-            AlertEnvFiltering::TestnetStyleAlerts,
             Duration::from_secs(30 * SECS_IN_MIN),
             AlertSeverity::Regular,
         ),
     ]
 }
 
-fn get_consensus_round_high(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_consensus_round_high(alert_severity: AlertSeverity) -> Alert {
     const ALERT_NAME: &str = "consensus_round_high";
     Alert::new(
         ALERT_NAME,
@@ -189,16 +145,9 @@ fn get_consensus_round_high(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_consensus_round_high_vec() -> Vec<Alert> {
-    vec![
-        get_consensus_round_high(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Sos),
-        get_consensus_round_high(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_consensus_round_high(AlertSeverity::Sos)]
 }

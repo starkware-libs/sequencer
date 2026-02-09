@@ -12,7 +12,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -43,7 +42,6 @@ fn build_idle_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -77,10 +75,7 @@ pub(crate) fn get_mempool_add_tx_idle() -> Alert {
     )
 }
 
-fn get_gateway_low_successful_transaction_rate(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_gateway_low_successful_transaction_rate(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "gateway_low_successful_transaction_rate",
         "gateway low successful transaction rate",
@@ -94,19 +89,9 @@ fn get_gateway_low_successful_transaction_rate(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_gateway_low_successful_transaction_rate_vec() -> Vec<Alert> {
-    vec![
-        get_gateway_low_successful_transaction_rate(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-        get_gateway_low_successful_transaction_rate(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_gateway_low_successful_transaction_rate(AlertSeverity::DayOnly)]
 }
