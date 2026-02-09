@@ -75,7 +75,6 @@ use crate::utils::{make_gas_price_params, GasPriceParams, PreviousBlockInfo, Str
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
-pub(crate) const NUM_VALIDATORS: u64 = 4;
 pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
     StateDiffCommitment(PoseidonHash(Felt::ZERO));
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
@@ -299,7 +298,6 @@ impl TestDeps {
             ContextConfig {
                 static_config: ContextStaticConfig {
                     proposal_buffer_size: CHANNEL_SIZE,
-                    num_validators: NUM_VALIDATORS,
                     chain_id: CHAIN_ID,
                     ..Default::default()
                 },

@@ -358,7 +358,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     n_composed_nodes: usize,
     chain_id: &ChainId,
 ) -> Vec<ConsensusManagerConfig> {
-    let num_validators = u64::try_from(n_composed_nodes).unwrap();
     let mut timeouts = TimeoutsConfig::default();
     // Scale by 2.0 for integration runs to avoid timeouts.
     timeouts.scale_by(2.0);
@@ -410,7 +409,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             },
             context_config: ContextConfig {
                 static_config: ContextStaticConfig {
-                    num_validators,
                     chain_id: chain_id.clone(),
                     builder_address: ContractAddress::from(4_u128),
                     ..Default::default()
