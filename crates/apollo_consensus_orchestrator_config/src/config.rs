@@ -8,7 +8,12 @@ use apollo_config::converters::{
     deserialize_seconds_to_duration,
     serialize_optional_comma_separated,
 };
-use apollo_config::dumping::{prepend_sub_config_name, ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::secrets::Sensitive;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -78,16 +83,70 @@ impl SerializeConfig for CendeConfig {
 const GWEI_FACTOR: u128 = u128::pow(10, 9);
 const ETH_FACTOR: u128 = u128::pow(10, 18);
 
+/// Represents a minimum gas price that applies starting from a specific block height.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct PricePerHeight {
+    /// The block height at which this price becomes active.
+    pub height: u64,
+    /// The minimum gas price in fri.
+    pub price: u128,
+}
+
 /// Dynamic configuration for the consensus orchestrator context.
 /// Can be updated at runtime via the config manager.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default, Validate)]
+#[validate(schema(function = "validate_price_per_height"))]
 pub struct ContextDynamicConfig {
-    // Future fields will be added here (e.g., min_gas_price_overrides).
+    /// List of minimum L2 gas prices per block height.
+    pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
+}
+
+fn validate_price_per_height(
+    config: &ContextDynamicConfig,
+) -> Result<(), validator::ValidationError> {
+    // Minimum allowed price from orchestrator_versioned_constants_0_14_1.json
+    let min_allowed_price = 8_000_000_000_u128;
+
+    // Check that heights are in ascending order
+    for i in 1..config.min_l2_gas_price_per_height.len() {
+        if config.min_l2_gas_price_per_height[i].height
+            <= config.min_l2_gas_price_per_height[i - 1].height
+        {
+            return Err(validator::ValidationError::new(
+                "min_l2_gas_price_per_height heights must be in strictly ascending order",
+            ));
+        }
+    }
+
+    // Check that all prices are above the minimum
+    for entry in &config.min_l2_gas_price_per_height {
+        if entry.price < min_allowed_price {
+            return Err(validator::ValidationError::new(
+                "all prices in min_l2_gas_price_per_height must be at least 8 gwei (8000000000 \
+                 fri)",
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 impl SerializeConfig for ContextDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::new() // Empty for now.
+        let mut dump = BTreeMap::new();
+
+        if !self.min_l2_gas_price_per_height.is_empty() {
+            let (key, value) = ser_param(
+                "min_l2_gas_price_per_height",
+                &self.min_l2_gas_price_per_height,
+                "List of minimum L2 gas prices per block height. Each entry specifies a height \
+                 and the minimum gas price that applies from that height onwards.",
+                ParamPrivacyInput::Public,
+            );
+            dump.insert(key, value);
+        }
+
+        dump
     }
 }
 
@@ -296,15 +355,12 @@ impl SerializeConfig for ContextConfig {
             "Optional explicit set of validator IDs (comma separated).",
             ParamPrivacyInput::Public,
         ));
-        
+
         // Add dynamic config if present.
         if let Some(ref dynamic_config) = self.dynamic_config {
-            dump.extend(prepend_sub_config_name(
-                dynamic_config.dump(),
-                "dynamic_config"
-            ));
+            dump.extend(prepend_sub_config_name(dynamic_config.dump(), "dynamic_config"));
         }
-        
+
         dump
     }
 }
