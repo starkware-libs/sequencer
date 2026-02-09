@@ -21,6 +21,7 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;

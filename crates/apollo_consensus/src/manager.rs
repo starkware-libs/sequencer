@@ -268,17 +268,17 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
         let votes = self.future_votes.entry(vote.height).or_default();
         // Find a vote in the list with the same type, round, and voter. If found, do not add it to
         // list.
-        let duplicate_vote = votes.iter().find(|v| {
+        let existing_vote = votes.iter().find(|v| {
             v.vote_type == vote.vote_type && v.round == vote.round && v.voter == vote.voter
         });
-        if let Some(duplicate_vote) = duplicate_vote {
+        if let Some(existing_vote) = existing_vote {
             // If the two votes are identical, we just ignore this.
-            if duplicate_vote == &vote {
+            if existing_vote == &vote {
                 return None;
             }
             // Otherwise, we report a duplicate vote.
             return Some(DuplicateVoteReport {
-                cached_vote: duplicate_vote.clone(),
+                cached_vote: existing_vote.clone(),
                 new_vote: vote,
             });
         }
