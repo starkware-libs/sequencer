@@ -36,13 +36,6 @@
     "0x4d82f98134d9b03a412bd54c25aa1e92ca0261a745737ba52fd46dd25f537c0",
     "0x0"
   ],
-  "proof": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6
-  ],
+  "proof": "AAAAAQAAAAIAAAADAAAABAAAAAUAAAAG",
   "type": "INVOKE_FUNCTION"
 }

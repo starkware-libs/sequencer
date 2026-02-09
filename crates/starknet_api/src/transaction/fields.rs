@@ -753,22 +753,47 @@ impl TryFrom<ProofFacts> for SnosProofFacts {
 }
 
 /// Client-provided proof used for client-side proving.
+/// Serialized as a base64 string of big-endian u32 bytes.
 #[derive(
     Clone,
     Debug,
     Default,
-    Deserialize,
     Eq,
     Hash,
     Ord,
     PartialEq,
     PartialOrd,
-    Serialize,
     SizeOf,
     derive_more::Deref,
     derive_more::From,
 )]
 pub struct Proof(pub Arc<Vec<u32>>);
+
+impl Serialize for Proof {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let bytes: Vec<u8> = self.0.iter().flat_map(|n| n.to_be_bytes()).collect();
+        serializer.serialize_str(&base64::encode(bytes))
+    }
+}
+
+impl<'de> Deserialize<'de> for Proof {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        if s.is_empty() {
+            return Ok(Self::default());
+        }
+        let bytes = base64::decode(&s).map_err(serde::de::Error::custom)?;
+        if bytes.len() % 4 != 0 {
+            return Err(serde::de::Error::custom(format!(
+                "Proof base64 data length {} is not a multiple of 4",
+                bytes.len()
+            )));
+        }
+        let data: Vec<u32> =
+            bytes.chunks_exact(4).map(|c| u32::from_be_bytes(c.try_into().unwrap())).collect();
+        Ok(Self(Arc::new(data)))
+    }
+}
 
 impl From<Vec<u32>> for Proof {
     fn from(value: Vec<u32>) -> Self {
