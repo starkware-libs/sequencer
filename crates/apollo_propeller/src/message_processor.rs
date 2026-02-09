@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use libp2p::identity::{PeerId, PublicKey};
+use rand::seq::SliceRandom;
 use tokio::sync::{mpsc, oneshot};
 use tokio::time::sleep_until;
 
@@ -125,9 +126,7 @@ impl MessageProcessor {
 
         // Early return for validation errors
         let Err(err) = validation_result else {
-            tracing::trace!("[MSG_PROC] Unit validated successfully index={:?}", unit.index());
-            // TODO(AndrewL): Process validated units
-            return ControlFlow::Continue(());
+            return self.handle_validated_unit(unit).await;
         };
 
         tracing::trace!(
@@ -135,6 +134,20 @@ impl MessageProcessor {
             unit.index(),
             err
         );
+        ControlFlow::Continue(())
+    }
+
+    async fn handle_validated_unit(&mut self, unit: PropellerUnit) -> ControlFlow<()> {
+        tracing::trace!("[MSG_PROC] Unit validated successfully index={:?}", unit.index());
+
+        let unit_index = unit.index();
+
+        // Broadcast our shard if we just received it
+        if unit_index == self.my_shard_index {
+            self.broadcast_shard(&unit).await;
+        }
+
+        // TODO(AndrewL): Process validated units further
         ControlFlow::Continue(())
     }
 
@@ -163,5 +176,24 @@ impl MessageProcessor {
             })
             .expect("Engine task has exited");
         ControlFlow::Break(())
+    }
+
+    async fn broadcast_shard(&self, unit: &PropellerUnit) {
+        let mut peers: Vec<PeerId> = self
+            .tree_manager
+            .get_nodes()
+            .iter()
+            .map(|(p, _)| *p)
+            .filter(|p| *p != self.publisher && *p != self.local_peer_id)
+            .collect();
+        peers.shuffle(&mut rand::thread_rng());
+        tracing::trace!(
+            "[MSG_PROC] Broadcasting unit index={:?} to {} peers",
+            unit.index(),
+            peers.len()
+        );
+        self.engine_tx
+            .send(StateManagerToEngine::BroadcastUnit { unit: unit.clone(), peers })
+            .expect("Engine task has exited");
     }
 }
