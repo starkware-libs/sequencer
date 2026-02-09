@@ -56,6 +56,8 @@ enum ReconstructionPhase {
         reconstructed_message: Vec<u8>,
         /// Count when reconstruction started (to track additional shards received).
         count_at_reconstruction: usize,
+        /// Number of additional shards received after reconstruction.
+        additional_shards: usize,
         received_my_index: bool,
     },
 }
@@ -254,14 +256,19 @@ impl MessageProcessor {
             ReconstructionPhase::PostReconstruction {
                 reconstructed_message,
                 count_at_reconstruction,
+                additional_shards,
                 received_my_index,
             } => {
                 if is_my_shard {
                     *received_my_index = true;
+                } else {
+                    // Increment counter for non-my-shard units received after reconstruction
+                    *additional_shards += 1;
                 }
                 self.check_access_threshold_and_emit(
                     reconstructed_message,
                     *count_at_reconstruction,
+                    *additional_shards,
                     *received_my_index,
                 )
                 .await
@@ -309,9 +316,11 @@ impl MessageProcessor {
         &mut self,
         reconstructed_message: &mut Vec<u8>,
         count_at_reconstruction: usize,
+        additional_shards: usize,
         received_my_index: bool,
     ) -> ControlFlow<()> {
-        let access_count = count_at_reconstruction + usize::from(!received_my_index);
+        let access_count =
+            count_at_reconstruction + additional_shards + usize::from(!received_my_index);
 
         if !self.tree_manager.should_receive(access_count) {
             return ControlFlow::Continue(());
@@ -388,6 +397,7 @@ impl MessageProcessor {
             *phase = ReconstructionPhase::PostReconstruction {
                 reconstructed_message: message,
                 count_at_reconstruction,
+                additional_shards: 0,
                 received_my_index,
             };
             return ControlFlow::Continue(());
