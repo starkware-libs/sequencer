@@ -66,12 +66,38 @@ pub struct GetProposalContentResponse {
     pub content: GetProposalContent,
 }
 
+/// Artifact-derived fields for a finished proposal. Use with
+/// [`FinishedProposalInfo::from_artifacts_and_parent`] to build the full info.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FinishedProposalInfoWithoutParent {
+    pub proposal_commitment: ProposalCommitment,
+    pub final_n_executed_txs: usize,
+    pub block_header_commitments: BlockHeaderCommitments,
+}
+
 /// Information returned when block building has finished (proposer or validator).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FinishedProposalInfo {
     pub proposal_commitment: ProposalCommitment,
     pub final_n_executed_txs: usize,
     pub block_header_commitments: BlockHeaderCommitments,
+    // None for the first block
+    pub parent_proposal_commitment: Option<ProposalCommitment>,
+}
+
+impl FinishedProposalInfo {
+    /// Builds [`FinishedProposalInfo`] from artifact-derived fields and the parent commitment.
+    pub fn from_artifacts_and_parent(
+        artifact_derived: FinishedProposalInfoWithoutParent,
+        parent_proposal_commitment: Option<ProposalCommitment>,
+    ) -> Self {
+        Self {
+            proposal_commitment: artifact_derived.proposal_commitment,
+            final_n_executed_txs: artifact_derived.final_n_executed_txs,
+            block_header_commitments: artifact_derived.block_header_commitments,
+            parent_proposal_commitment,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
