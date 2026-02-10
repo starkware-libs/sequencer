@@ -89,23 +89,6 @@ pub trait ConsensusContext {
     /// - `build_param`: The consensus metadata for reproposing.
     async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam);
 
-    /// Get the set of validators for a given height. These are the nodes that can propose and vote
-    /// on blocks.
-    // TODO(matan): We expect this to change in the future to BTreeMap. Why?
-    // 1. Map - The nodes will have associated information (e.g. voting weight).
-    // 2. BTreeMap - We want a stable ordering of the nodes for deterministic leader selection.
-    async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError>;
-
-    /// Calculates the ID of the Actual Proposer based on the inputs.
-    fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
-
-    /// Calculates the ID of the Virtual Proposer based on the inputs.
-    fn virtual_proposer(
-        &self,
-        height: BlockNumber,
-        round: Round,
-    ) -> Result<ValidatorId, ConsensusError>;
-
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
     /// Update the context that a decision has been reached for a given height.

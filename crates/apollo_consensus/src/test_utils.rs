@@ -105,12 +105,6 @@ mock! {
             build_param: BuildParam,
         );
 
-        async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError>;
-
-        fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
-
-        fn virtual_proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
-
         async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
         async fn decision_reached(
