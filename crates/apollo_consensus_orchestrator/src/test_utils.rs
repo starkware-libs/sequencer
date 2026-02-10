@@ -31,11 +31,11 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_protobuf::consensus::{
+    BuildParam,
     ConsensusBlockInfo,
     HeightAndRound,
     ProposalCommitment as ProtoProposalCommitment,
     ProposalFin,
-    ProposalInit,
     ProposalPart,
     TransactionBatch,
     Vote,
@@ -415,7 +415,7 @@ pub(crate) struct NetworkDependencies {
 pub(crate) struct TestProposalBuildArguments {
     pub deps: TestDeps,
     pub batcher_deadline: DateTime,
-    pub proposal_init: ProposalInit,
+    pub build_param: BuildParam,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
     pub gas_price_params: GasPriceParams,
@@ -437,7 +437,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
         ProposalBuildArguments {
             deps: args.deps.into(),
             batcher_deadline: args.batcher_deadline,
-            proposal_init: args.proposal_init,
+            build_param: args.build_param,
             l1_da_mode: args.l1_da_mode,
             stream_sender: args.stream_sender,
             gas_price_params: args.gas_price_params,
@@ -465,7 +465,7 @@ pub(crate) fn create_proposal_build_arguments()
     let batcher_deadline = time_now + TIMEOUT;
     let retrospective_block_hash_deadline = time_now + TIMEOUT.mul_f32(0.1);
     let retrospective_block_hash_retry_interval_millis = Duration::from_millis(25);
-    let proposal_init = ProposalInit::default();
+    let build_param = BuildParam::default();
     let l1_da_mode = L1DataAvailabilityMode::Calldata;
     let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
     let stream_sender = StreamSender { proposal_sender };
@@ -486,7 +486,7 @@ pub(crate) fn create_proposal_build_arguments()
         TestProposalBuildArguments {
             deps,
             batcher_deadline,
-            proposal_init,
+            build_param,
             l1_da_mode,
             stream_sender,
             gas_price_params,

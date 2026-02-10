@@ -9,7 +9,7 @@ use apollo_network::network_manager::{
     GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote};
+use apollo_protobuf::consensus::{BuildParam, ConsensusBlockInfo, Vote};
 pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
@@ -69,7 +69,7 @@ pub trait ConsensusContext {
     /// parallel to the block being built.
     ///
     /// Params:
-    /// - `init`: The `ProposalInit` that is broadcast to the network.
+    /// - `build_param`: The `BuildParam` that is broadcast to the network.
     /// - `timeout`: The maximum time to wait for the block to be built.
     ///
     /// Returns:
@@ -78,7 +78,7 @@ pub trait ConsensusContext {
     ///   ConsensusContext.
     async fn build_proposal(
         &mut self,
-        init: ProposalInit,
+        build_param: BuildParam,
         timeout: Duration,
     ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError>;
 
@@ -108,8 +108,8 @@ pub trait ConsensusContext {
     ///
     /// Params:
     /// - `id`: The `ProposalCommitment` associated with the block's content.
-    /// - `init`: The consensus metadata for reproposing.
-    async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit);
+    /// - `build_param`: The consensus metadata for reproposing.
+    async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam);
 
     /// Get the set of validators for a given height. These are the nodes that can propose and vote
     /// on blocks.

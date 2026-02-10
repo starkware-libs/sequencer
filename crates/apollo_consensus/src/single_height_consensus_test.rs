@@ -1,5 +1,5 @@
 use apollo_consensus_config::config::TimeoutsConfig;
-use apollo_protobuf::consensus::{ProposalInit, VoteType, DEFAULT_VALIDATOR_ID};
+use apollo_protobuf::consensus::{BuildParam, VoteType, DEFAULT_VALIDATOR_ID};
 use assert_matches::assert_matches;
 use lazy_static::lazy_static;
 use starknet_api::block::BlockNumber;
@@ -29,8 +29,8 @@ lazy_static! {
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
     static ref BLOCK: TestBlock =
         TestBlock { content: vec![1, 2, 3], id: ProposalCommitment(Felt::ONE) };
-    static ref PROPOSAL_INIT: ProposalInit =
-        ProposalInit { proposer: *PROPOSER_ID, ..Default::default() };
+    static ref BUILD_PARAM: BuildParam =
+        BuildParam { proposer: *PROPOSER_ID, ..Default::default() };
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
 }
 const HEIGHT_0: BlockNumber = BlockNumber(0);
