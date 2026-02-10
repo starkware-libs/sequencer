@@ -76,7 +76,6 @@ impl Storage for MapStorage {
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
-    pub cache_on_write: bool,
     reads: AtomicU64,
     cached_reads: AtomicU64,
     writes: u128,
@@ -87,9 +86,6 @@ pub struct CachedStorage<S: Storage> {
 pub struct CachedStorageConfig<InnerStorageConfig: StorageConfigTrait> {
     // Max number of entries in the cache.
     pub cache_size: NonZeroUsize,
-
-    // If true, the cache is updated on write operations even if the value is not in the cache.
-    pub cache_on_write: bool,
 
     // If true, the inner stats are included when collecting statistics.
     pub include_inner_stats: bool,
@@ -102,7 +98,6 @@ impl<InnerStorageConfig: StorageConfigTrait> Default for CachedStorageConfig<Inn
     fn default() -> Self {
         Self {
             cache_size: NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap(),
-            cache_on_write: true,
             include_inner_stats: true,
             inner_storage_config: InnerStorageConfig::default(),
         }
@@ -124,12 +119,6 @@ impl<InnerStorageConfig: StorageConfigTrait> SerializeConfig
                 "cache_size",
                 &self.cache_size,
                 "Max number of entries in the cache",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "cache_on_write",
-                &self.cache_on_write,
-                "If true, the cache is updated on write operations",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -204,17 +193,10 @@ impl<S: Storage> CachedStorage<S> {
         Self {
             storage,
             cache: LruCache::new(config.cache_size),
-            cache_on_write: config.cache_on_write,
             reads: AtomicU64::new(0),
             cached_reads: AtomicU64::new(0),
             writes: 0,
             include_inner_stats: config.include_inner_stats,
-        }
-    }
-
-    fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
-        if self.cache_on_write || self.cache.contains(key) {
-            self.cache.put(key.clone(), Some(value.clone()));
         }
     }
 
@@ -247,7 +229,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.writes += 1;
         self.storage.set(key.clone(), value.clone()).await?;
-        self.update_cached_value(&key, &value);
+        self.cache.put(key, Some(value));
         Ok(())
     }
 
@@ -282,9 +264,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
         self.storage.mset(key_to_value.clone()).await?;
-        key_to_value.iter().for_each(|(key, value)| {
-            self.update_cached_value(key, value);
-        });
+        self.flush_to_cache(key_to_value);
         Ok(())
     }
 

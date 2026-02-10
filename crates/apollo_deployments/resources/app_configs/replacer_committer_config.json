@@ -2,7 +2,6 @@
   "committer_config.db_path": "/data/committer",
   "committer_config.reader_config.warn_on_trivial_modifications": false,
   "committer_config.reader_config.build_storage_tries_concurrently": false,
-  "committer_config.storage_config.cache_on_write": true,
   "committer_config.storage_config.cache_size": "$$$_COMMITTER_CONFIG-STORAGE_CONFIG-CACHE_SIZE_$$$",
   "committer_config.storage_config.include_inner_stats": true,
   "committer_config.storage_config.inner_storage_config.bloom_filter_bits": 10,
