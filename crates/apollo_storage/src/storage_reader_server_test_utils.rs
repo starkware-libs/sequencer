@@ -7,20 +7,18 @@ use axum::Router;
 use http_body_util::BodyExt;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tower::util::ServiceExt;
 
 /// Helper function to send a storage query request.
 pub async fn send_storage_query<T: Serialize>(app: Router, request: &T) -> Response {
-    app.oneshot(
-        Request::builder()
-            .method("POST")
-            .uri("/storage/query")
-            .header("content-type", "application/json")
-            .body(Body::from(serde_json::to_string(request).unwrap()))
-            .unwrap(),
-    )
-    .await
-    .unwrap()
+    use tower::ServiceExt;
+
+    let req: Request<Body> = Request::builder()
+        .method("POST")
+        .uri("/storage/query")
+        .header("content-type", "application/json")
+        .body(Body::from(serde_json::to_string(request).unwrap()))
+        .unwrap();
+    ServiceExt::<Request<Body>>::oneshot(app, req).await.unwrap()
 }
 
 /// Helper function to convert response body to bytes.

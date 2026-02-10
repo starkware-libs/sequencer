@@ -148,7 +148,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         available_ports_factory(instance_index).get_next_port(),
         true,
     );
-    let server = GenericStorageReaderServer::new(reader.clone(), config);
+    let server = GenericStorageReaderServer::new(reader.clone(), config, None);
     let app = server.app();
 
     TestServerSetup {

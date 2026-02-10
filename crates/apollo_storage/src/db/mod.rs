@@ -201,11 +201,43 @@ impl KeyAlreadyExistsError {
 ///  at any given moment.
 pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
     let db_file_path = config.path().join("mdbx.dat");
+    // #region agent log
+    {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/home/nadin/workspace/sequencer2/.cursor/debug.log")
+        {
+            let _ = writeln!(
+                f,
+                "{}",
+                serde_json::json!({"location":"db/mod.rs:203","message":"open_env called","data":{"path":config.path().display().to_string(),"file_exists":db_file_path.exists(),"enforce_file_exists":config.enforce_file_exists,"exclusive_flag":true},"timestamp":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64,"hypothesisId":"A,D"})
+            );
+        }
+    };
+    // #endregion
     // Checks if path exists if enforce_file_exists is true.
     if config.enforce_file_exists && !db_file_path.exists() {
         return Err(DbError::FileDoesNotExist(db_file_path));
     }
 
+    // #region agent log
+    {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/home/nadin/workspace/sequencer2/.cursor/debug.log")
+        {
+            let _ = writeln!(
+                f,
+                "{}",
+                serde_json::json!({"location":"db/mod.rs:212","message":"About to call Environment open","data":{"path":config.path().display().to_string()},"timestamp":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64,"hypothesisId":"A,D"})
+            );
+        }
+    };
+    // #endregion
     let env = Arc::new(
         Environment::new()
             .set_geometry(Geometry {
@@ -228,6 +260,22 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
             })
             .open(&config.path())?,
     );
+    // #region agent log
+    {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/home/nadin/workspace/sequencer2/.cursor/debug.log")
+        {
+            let _ = writeln!(
+                f,
+                "{}",
+                serde_json::json!({"location":"db/mod.rs:237","message":"Environment open succeeded","data":{"path":config.path().display().to_string()},"timestamp":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64,"hypothesisId":"A"})
+            );
+        }
+    };
+    // #endregion
     Ok((DbReader { env: env.clone() }, DbWriter { env }))
 }
 

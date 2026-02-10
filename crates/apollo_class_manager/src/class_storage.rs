@@ -263,6 +263,8 @@ impl ClassHashStorage {
                 storage_config,
                 &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                None, /* TODO(Nadin): Pass enable_checker once class manager supports config
+                       * manager */
             )?;
 
         let storage_reader_server_handle =

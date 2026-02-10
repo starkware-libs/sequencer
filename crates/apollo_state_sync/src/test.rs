@@ -137,7 +137,6 @@ async fn test_get_block_hash_fallback_to_starknet_client() {
         Some(Arc::new(starknet_client));
     let ((storage_reader, _storage_writer), _) = get_test_storage();
     let mut config_manager_client = MockConfigManagerClient::new();
-    // Set up expectation for get_state_sync_dynamic_config to return default config
     config_manager_client
         .expect_get_state_sync_dynamic_config()
         .returning(|| Ok(StateSyncDynamicConfig::default()));

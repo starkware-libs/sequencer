@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::io;
 use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::pin::Pin;
+use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -23,6 +26,11 @@ use crate::{StorageError, StorageReader};
 #[cfg(test)]
 #[path = "storage_reader_server_test.rs"]
 mod storage_reader_server_test;
+
+/// Type alias for a function that checks if the storage reader server is enabled.
+/// Returns `Ok(true)` if enabled, `Ok(false)` if disabled, or `Err(error_message)` on failure.
+pub type EnableChecker =
+    Arc<dyn Fn() -> Pin<Box<dyn Future<Output = Result<bool, String>> + Send>> + Send + Sync>;
 
 /// Static configuration for the storage reader server.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
@@ -148,6 +156,8 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     storage_reader: StorageReader,
+    // TODO(Nadin): Make this required once class manager supports config manager.
+    enable_checker: Option<EnableChecker>,
     _phantom: PhantomData<(RequestHandler, Request, Response)>,
 }
 
@@ -156,7 +166,11 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     fn clone(&self) -> Self {
-        Self { storage_reader: self.storage_reader.clone(), _phantom: PhantomData }
+        Self {
+            storage_reader: self.storage_reader.clone(),
+            enable_checker: self.enable_checker.clone(),
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -167,8 +181,12 @@ where
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     /// Creates a new storage reader server with the given handler and configuration.
-    pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
-        let app_state = AppState { storage_reader, _phantom: PhantomData };
+    pub fn new(
+        storage_reader: StorageReader,
+        config: ServerConfig,
+        enable_checker: Option<EnableChecker>,
+    ) -> Self {
+        let app_state = AppState { storage_reader, enable_checker, _phantom: PhantomData };
         Self { app_state, config }
     }
 
@@ -242,6 +260,22 @@ where
     Request: Send + Sync + 'static,
     Response: Send + Sync + 'static,
 {
+    // Check if the server is enabled via dynamic config, if enable checker is available.
+    if let Some(enable_checker) = &app_state.enable_checker {
+        match enable_checker().await {
+            Ok(true) => {
+                // Server is enabled, continue processing
+            }
+            Ok(false) => {
+                return Err(StorageServerError::ServiceUnavailable);
+            }
+            Err(e) => {
+                error!("Failed to check if storage reader server is enabled: {}", e);
+                return Err(StorageServerError::ConfigFetchError(e));
+            }
+        }
+    }
+
     let response = RequestHandler::handle_request(&app_state.storage_reader, request).await?;
 
     Ok(Json(response))
@@ -249,19 +283,40 @@ where
 
 /// Error type for HTTP responses.
 #[derive(Debug)]
-struct StorageServerError(StorageError);
+enum StorageServerError {
+    /// Storage error from the underlying storage layer.
+    StorageError(StorageError),
+    /// Service is unavailable (disabled via dynamic config).
+    ServiceUnavailable,
+    /// Failed to fetch dynamic config from config manager.
+    ConfigFetchError(String),
+}
 
 impl From<StorageError> for StorageServerError {
     fn from(error: StorageError) -> Self {
-        StorageServerError(error)
+        StorageServerError::StorageError(error)
     }
 }
 
 impl IntoResponse for StorageServerError {
     fn into_response(self) -> Response {
-        let error_message = format!("Storage error: {}", self.0);
-        error!("{}", error_message);
-        (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+        match self {
+            StorageServerError::StorageError(e) => {
+                let error_message = format!("Storage error: {}", e);
+                error!("{}", error_message);
+                (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+            }
+            StorageServerError::ServiceUnavailable => {
+                let error_message = "Storage reader server is disabled via dynamic config";
+                info!("{}", error_message);
+                (StatusCode::SERVICE_UNAVAILABLE, error_message).into_response()
+            }
+            StorageServerError::ConfigFetchError(e) => {
+                let error_message = format!("Config fetch error: {}", e);
+                error!("{}", error_message);
+                (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+            }
+        }
     }
 }
 
@@ -269,6 +324,7 @@ impl IntoResponse for StorageServerError {
 pub fn create_storage_reader_server<RequestHandler, Request, Response>(
     storage_reader: StorageReader,
     storage_reader_server_config: ServerConfig,
+    enable_checker: Option<EnableChecker>,
 ) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
@@ -276,7 +332,7 @@ where
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     if storage_reader_server_config.is_enabled() {
-        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
+        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config, enable_checker))
     } else {
         None
     }
