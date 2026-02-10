@@ -254,7 +254,7 @@ fn test_native_classes_whitelist(
         wait_on_native_compilation: true,
         panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,
-        native_classes_whitelist: whitelist,
+        native_classes_whitelist: whitelist.clone(),
     };
     let manager = NativeClassManager::create_for_testing(native_config);
 
@@ -264,12 +264,12 @@ fn test_native_classes_whitelist(
 
     match allow_run_native {
         true => assert_matches!(
-            manager.get_runnable(&class_hash),
+            manager.get_runnable(&class_hash, &whitelist),
             Some(RunnableCompiledClass::V1Native(_))
         ),
         false => {
             assert_matches!(
-                manager.get_runnable(&class_hash).unwrap(),
+                manager.get_runnable(&class_hash, &whitelist).unwrap(),
                 RunnableCompiledClass::V1(_)
             )
         }

@@ -33,7 +33,11 @@ pub mod trivial_class_manager {
             }
         }
 
-        pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
+        pub fn get_runnable(
+            &self,
+            class_hash: &ClassHash,
+            _native_classes_whitelist: &crate::blockifier::config::NativeClassesWhitelist,
+        ) -> Option<RunnableCompiledClass> {
             Some(self.class_cache.get(class_hash)?.to_runnable())
         }
 

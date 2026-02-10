@@ -121,7 +121,11 @@ impl NativeClassManager {
     }
 
     /// Returns the runnable compiled class for the given class hash, if it exists in class_cache.
-    pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
+    pub fn get_runnable(
+        &self,
+        class_hash: &ClassHash,
+        native_classes_whitelist: &NativeClassesWhitelist,
+    ) -> Option<RunnableCompiledClass> {
         let cached_class = self.class_cache.get(class_hash)?;
 
         let cached_class = match cached_class {
@@ -135,7 +139,10 @@ impl NativeClassManager {
                 cached_class
             }
             CompiledClasses::V1Native(CachedCairoNative::Compiled(native))
-                if !self.run_class_with_cairo_native(class_hash) =>
+                if !NativeClassManager::run_class_with_cairo_native(
+                    class_hash,
+                    native_classes_whitelist,
+                ) =>
             {
                 CompiledClasses::V1(native.casm(), Arc::new(SierraContractClass::default()))
             }
@@ -224,8 +231,11 @@ impl NativeClassManager {
     }
 
     /// Determines if a contract should run with cairo native based on the whitelist.
-    pub fn run_class_with_cairo_native(&self, class_hash: &ClassHash) -> bool {
-        match &self.cairo_native_run_config.native_classes_whitelist {
+    pub fn run_class_with_cairo_native(
+        class_hash: &ClassHash,
+        native_classes_whitelist: &NativeClassesWhitelist,
+    ) -> bool {
+        match native_classes_whitelist {
             NativeClassesWhitelist::All => true,
             NativeClassesWhitelist::Limited(contracts) => contracts.contains(class_hash),
         }
