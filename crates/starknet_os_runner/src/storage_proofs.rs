@@ -31,6 +31,7 @@ use crate::committer_utils::{
     commit_state_diff,
     create_facts_db_from_storage_proof,
     state_maps_to_committer_state_diff,
+    validate_virtual_os_state_diff,
 };
 use crate::errors::ProofProviderError;
 use crate::virtual_block_executor::VirtualBlockExecutionData;
@@ -191,8 +192,10 @@ impl RpcStorageProofsProvider {
         // Get initial state roots from RPC proof.
         let contracts_trie_root_hash = HashOutput(rpc_proof.global_roots.contracts_tree_root);
         let classes_trie_root_hash = HashOutput(rpc_proof.global_roots.classes_tree_root);
-        // Convert the blockifier state maps to committer state diff.
+        // Convert the blockifier state maps to committer state diff and validate is stands with
+        // the virtual OS assumptions.
         let committer_state_diff = state_maps_to_committer_state_diff(state_diff.clone());
+        validate_virtual_os_state_diff(&committer_state_diff)?;
 
         // Commit state diff using the committer.
         let new_roots = commit_state_diff(
