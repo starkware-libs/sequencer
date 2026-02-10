@@ -176,6 +176,7 @@ use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::storage_reader_server::{
     create_storage_reader_server,
+    EnableChecker,
     ServerConfig,
     StorageReaderServer,
     StorageReaderServerHandler,
@@ -201,6 +202,7 @@ pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response>(
     storage_config: StorageConfig,
     open_readers_metric: &'static MetricGauge,
     storage_reader_server_config: ServerConfig,
+    enable_checker: Option<EnableChecker>,
 ) -> StorageResult<StorageWithServer<RequestHandler, Request, Response>>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
@@ -210,7 +212,7 @@ where
     let (reader, writer) =
         open_storage_internal(storage_config, Some(open_readers_metric)).expect("");
     let storage_reader_server =
-        create_storage_reader_server(reader.clone(), storage_reader_server_config);
+        create_storage_reader_server(reader.clone(), storage_reader_server_config, enable_checker);
     Ok((reader, writer, storage_reader_server))
 }
 
@@ -218,6 +220,22 @@ fn open_storage_internal(
     storage_config: StorageConfig,
     open_readers_metric: Option<&'static MetricGauge>,
 ) -> StorageResult<(StorageReader, StorageWriter)> {
+    // #region agent log
+    {
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("/home/nadin/workspace/sequencer2/.cursor/debug.log")
+        {
+            let _ = writeln!(
+                f,
+                "{}",
+                serde_json::json!({"location":"lib.rs:219","message":"open_storage_internal called","data":{"path":storage_config.db_config.path_prefix.display().to_string(),"chain_id":storage_config.db_config.chain_id.to_string(),"has_metric":open_readers_metric.is_some()},"timestamp":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64,"hypothesisId":"A,C"})
+            );
+        }
+    };
+    // #endregion
     info!("Opening storage: {}", storage_config.db_config.path_prefix.display());
     register_metrics();
     if !storage_config.db_config.path_prefix.exists()

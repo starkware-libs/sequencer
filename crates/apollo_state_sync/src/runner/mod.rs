@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod test;
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use apollo_central_sync::sources::central::{CentralError, CentralSource};
@@ -11,6 +13,7 @@ use apollo_central_sync::{
     GENESIS_HASH,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_network::metrics::{NetworkMetrics, SqmrNetworkMetrics};
@@ -45,7 +48,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::SYNC_STORAGE_OPEN_READ_TRANSACTIONS;
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{EnableChecker, ServerConfig};
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
@@ -117,12 +120,17 @@ pub struct StateSyncResources {
 }
 
 impl StateSyncResources {
-    pub fn new(storage_config: &StorageConfig, storage_reader_server_config: ServerConfig) -> Self {
+    pub fn new(
+        storage_config: &StorageConfig,
+        storage_reader_server_config: ServerConfig,
+        enable_checker: Option<EnableChecker>,
+    ) -> Self {
         let (storage_reader, storage_writer, storage_reader_server) =
             open_storage_with_metric_and_server(
                 storage_config.clone(),
                 &SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                enable_checker,
             )
             .expect("StateSyncRunner failed opening storage");
         let storage_reader_server_handle =
@@ -154,6 +162,7 @@ impl StateSyncRunner {
         config: StateSyncConfig,
         new_block_receiver: Receiver<SyncBlock>,
         class_manager_client: SharedClassManagerClient,
+        config_manager_client: SharedConfigManagerClient,
     ) -> (Self, StorageReader) {
         let StateSyncConfig { static_config, dynamic_config } = config;
 
@@ -161,6 +170,23 @@ impl StateSyncRunner {
             static_config: static_config.storage_reader_server_static_config.clone(),
             dynamic_config: dynamic_config.storage_reader_server_dynamic_config.clone(),
         };
+
+        // Create enable checker closure that fetches state sync dynamic config
+        let enable_checker: Option<EnableChecker> = {
+            let client = config_manager_client.clone();
+            Some(Arc::new(move || {
+                let client = client.clone();
+                Box::pin(async move {
+                    match client.get_state_sync_dynamic_config().await {
+                        Ok(config) => Ok(config.storage_reader_server_dynamic_config.enable),
+                        Err(e) => {
+                            Err(format!("Failed to fetch state sync dynamic config: {:?}", e))
+                        }
+                    }
+                }) as Pin<Box<dyn Future<Output = Result<bool, String>> + Send>>
+            }))
+        };
+
         let StateSyncResources {
             storage_reader,
             mut storage_writer,
@@ -168,7 +194,11 @@ impl StateSyncRunner {
             pending_data,
             pending_classes,
             storage_reader_server_handle,
-        } = StateSyncResources::new(&static_config.storage_config, storage_reader_server_config);
+        } = StateSyncResources::new(
+            &static_config.storage_config,
+            storage_reader_server_config,
+            enable_checker,
+        );
 
         let StateSyncStaticConfig {
             storage_config: _,

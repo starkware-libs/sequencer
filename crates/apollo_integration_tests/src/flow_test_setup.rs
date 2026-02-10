@@ -116,6 +116,23 @@ impl FlowTestSetup {
         let [sequencer_0_mempool_p2p_config, sequencer_1_mempool_p2p_config] =
             mempool_p2p_configs.try_into().unwrap();
 
+        // #region agent log
+        {
+            use std::io::Write;
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/home/nadin/workspace/sequencer2/.cursor/debug.log")
+            {
+                let default_storage = apollo_storage::StorageConfig::default();
+                let _ = writeln!(
+                    f,
+                    "{}",
+                    serde_json::json!({"location":"flow_test_setup.rs:119","message":"Creating state_sync_configs with shared StorageConfig::default","data":{"default_path":default_storage.db_config.path_prefix.display().to_string(),"num_sequencers":NUM_OF_SEQUENCERS},"timestamp":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64,"hypothesisId":"A,C"})
+                );
+            }
+        };
+        // #endregion
         let [sequencer_0_state_sync_config, sequencer_1_state_sync_config] =
             create_state_sync_configs(
                 StorageConfig::default(),
@@ -244,9 +261,41 @@ impl FlowSequencerSetup {
         block_max_capacity_gas: GasAmount,
         allow_bootstrap_txs: bool,
     ) -> Self {
+        // #region agent log
+        {
+            use std::io::Write;
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/home/nadin/workspace/sequencer2/.cursor/debug.log")
+            {
+                let _ = writeln!(
+                    f,
+                    "{}",
+                    serde_json::json!({"location":"flow_test_setup.rs:246","message":"FlowSequencerSetup::new called","data":{"node_index":node_index},"timestamp":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64,"hypothesisId":"B,C"})
+                );
+            }
+        };
+        // #endregion
         let path = None;
         let StorageTestSetup { storage_config, storage_handles } =
             StorageTestSetup::new(accounts, &chain_info, path);
+        // #region agent log
+        {
+            use std::io::Write;
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("/home/nadin/workspace/sequencer2/.cursor/debug.log")
+            {
+                let _ = writeln!(
+                    f,
+                    "{}",
+                    serde_json::json!({"location":"flow_test_setup.rs:253","message":"StorageTestSetup created","data":{"node_index":node_index,"state_sync_path":storage_config.state_sync_storage_config.db_config.path_prefix.display().to_string()},"timestamp":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64,"hypothesisId":"C"})
+                );
+            }
+        };
+        // #endregion
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
