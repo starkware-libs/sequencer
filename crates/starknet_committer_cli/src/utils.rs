@@ -91,7 +91,7 @@ impl BenchmarkMeasurements {
             current_measurement: SingleBlockMeasurements::default(),
             total_time: 0.0,
             block_measurements: Vec::with_capacity(size),
-            block_number: 0,
+            block_number: 4_000_000,
             total_db_entry_count: 0,
             initial_db_entry_count: Vec::with_capacity(size),
             time_of_measurement: Vec::with_capacity(size),
