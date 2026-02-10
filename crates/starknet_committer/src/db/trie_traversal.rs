@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use futures::stream::{FuturesUnordered, StreamExt};
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
@@ -457,5 +458,65 @@ where
         .await?;
         storage_tries.insert(*address, original_skeleton);
     }
+    Ok(storage_tries)
+}
+
+// TODO(Nimrod): Remove the `allow(dead_code)` once we use this function.
+#[allow(dead_code)]
+async fn create_storage_tries_concurrently<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
+    storage: &impl Storage,
+    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
+    config: &ReaderConfig,
+    storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
+) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+where
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
+    let mut futures = FuturesUnordered::new();
+    let mut storage_tries = HashMap::new();
+
+    for (address, updates) in actual_storage_updates {
+        // Extract data needed for this contract.
+        let sorted_leaf_indices = *storage_tries_sorted_indices
+            .get(address)
+            .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
+        let contract_state = original_contracts_trie_leaves
+            .get(&contract_address_into_node_index(address))
+            .ok_or(ForestError::MissingContractCurrentState(*address))?;
+        let trie_config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
+            config.warn_on_trivial_modifications(),
+        );
+
+        // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
+        // iterator over borrowed data so that the conversion below is costless.
+        let leaf_modifications: HashMap<
+            NodeIndex,
+            <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf,
+        > = updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect();
+
+        // Create the future - tokio will poll all futures concurrently.
+        futures.push(async move {
+            let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+                storage,
+                contract_state.storage_root_hash,
+                sorted_leaf_indices,
+                &trie_config,
+                &leaf_modifications,
+                None,
+                address,
+            )
+            .await?;
+            Ok::<_, ForestError>((address, original_skeleton))
+        });
+    }
+
+    // Collect all results as they complete.
+    while let Some(result) = futures.next().await {
+        let (address, original_skeleton) = result?;
+        storage_tries.insert(*address, original_skeleton);
+    }
+
     Ok(storage_tries)
 }
