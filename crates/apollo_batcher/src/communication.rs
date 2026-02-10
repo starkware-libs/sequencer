@@ -11,12 +11,7 @@ pub type RemoteBatcherServer = RemoteComponentServer<BatcherRequest, BatcherResp
 #[async_trait]
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
     async fn handle_request(&mut self, request: BatcherRequest) -> BatcherResponse {
-        let dynamic_config = self
-            .config_manager_client
-            .get_batcher_dynamic_config()
-            .await
-            .expect("Should be able to get batcher dynamic config");
-        self.update_dynamic_config(dynamic_config);
+        self.update_dynamic_config().await;
 
         match request {
             BatcherRequest::ProposeBlock(input) => {

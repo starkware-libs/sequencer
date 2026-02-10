@@ -2,11 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{
-    BatcherConfig,
-    BatcherDynamicConfig,
-    FirstBlockWithPartialBlockHash,
-};
+use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
     CentralObjects,
@@ -230,8 +226,18 @@ impl Batcher {
         }
     }
 
-    pub(crate) fn update_dynamic_config(&mut self, dynamic_config: BatcherDynamicConfig) {
-        self.config.dynamic_config = dynamic_config;
+    pub(crate) async fn update_dynamic_config(&mut self) {
+        let config_result = self.config_manager_client.get_batcher_dynamic_config().await;
+        match config_result {
+            Ok(config) => {
+                self.config.dynamic_config = config;
+            }
+            Err(e) => {
+                error!(
+                    "Failed to get dynamic config for batcher. Config not updated. Error: {e:?}"
+                );
+            }
+        }
     }
 
     #[instrument(skip(self), err)]
