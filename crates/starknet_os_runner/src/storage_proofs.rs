@@ -222,7 +222,8 @@ impl RpcStorageProofsProvider {
             &mut map_storage,
             &initial_reads_keys,
         )
-        .await;
+        .await
+        .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;
 
         // The created commitment infos doesn't have the compiled class hashes,
         // as a result it doesn't have the classes trie commitment info.

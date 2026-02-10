@@ -15,10 +15,13 @@ use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::fetch_previous_and_new_patricia_paths;
 use starknet_committer::patricia_merkle_tree::types::{RootHashes, StarknetForestProofs};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::flatten_preimages;
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
+use starknet_patricia::patricia_merkle_tree::traversal::TraversalError;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::EmptyKeyContext;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
+use thiserror::Error;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
@@ -55,23 +58,35 @@ pub struct StateCommitmentInfos {
     pub storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
 }
 
+/// Error type for commitment infos creation.
+#[derive(Debug, Error)]
+pub enum CommitmentInfosError {
+    #[error("Invalid node index: {0}")]
+    InvalidNodeIndex(String),
+    #[error("Failed to get leaves: {0}")]
+    GetLeaves(#[from] OriginalSkeletonTreeError),
+    #[error("Failed to fetch storage proofs: {0}")]
+    FetchStorageProofs(#[from] TraversalError),
+}
+
 /// Creates the commitment infos for the OS.
 pub async fn create_commitment_infos(
     previous_state_roots: &StateRoots,
     new_state_roots: &StateRoots,
     commitments: &mut MapStorage,
     initial_reads_keys: &StateChangesKeys,
-) -> StateCommitmentInfos {
+) -> Result<StateCommitmentInfos, CommitmentInfosError> {
     let (previous_contract_states, new_storage_roots) = get_previous_states_and_new_storage_roots(
         initial_reads_keys.modified_contracts.iter().copied(),
         previous_state_roots.contracts_trie_root_hash,
         new_state_roots.contracts_trie_root_hash,
         commitments,
     )
-    .await;
+    .await?;
     let mut address_to_previous_storage_root_hash = HashMap::new();
     for (address, contract_state) in previous_contract_states.into_iter() {
-        let address = try_node_index_into_contract_address(&address).unwrap();
+        let address = try_node_index_into_contract_address(&address)
+            .map_err(CommitmentInfosError::InvalidNodeIndex)?;
         address_to_previous_storage_root_hash.insert(address, contract_state.storage_root_hash);
     }
 
@@ -92,10 +107,12 @@ pub async fn create_commitment_infos(
             sorted_leaf_indices,
             address,
         )
-        .await
-        .unwrap();
+        .await?;
         for (idx, v) in previous_storage_leaves {
-            let key = StorageKey(try_node_index_into_patricia_key(&idx).unwrap());
+            let key = StorageKey(
+                try_node_index_into_patricia_key(&idx)
+                    .map_err(CommitmentInfosError::InvalidNodeIndex)?,
+            );
             storage.insert((*address, key), v.0);
         }
     }
@@ -112,7 +129,7 @@ pub async fn create_commitment_infos(
             new_root_hash: new_state_roots.contracts_trie_root_hash,
         },
     )
-    .await;
+    .await?;
     let contracts_trie_commitment_info = CommitmentInfo {
         previous_root: previous_state_roots.contracts_trie_root_hash,
         updated_root: new_state_roots.contracts_trie_root_hash,
@@ -150,11 +167,11 @@ pub async fn create_commitment_infos(
         })
         .collect();
 
-    StateCommitmentInfos {
+    Ok(StateCommitmentInfos {
         contracts_trie_commitment_info,
         classes_trie_commitment_info,
         storage_tries_commitment_infos,
-    }
+    })
 }
 
 pub async fn get_previous_states_and_new_storage_roots<I: Iterator<Item = ContractAddress>>(
@@ -162,7 +179,10 @@ pub async fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contra
     previous_contract_trie_root: HashOutput,
     new_contract_trie_root: HashOutput,
     commitments: &mut MapStorage,
-) -> (HashMap<NodeIndex, ContractState>, HashMap<ContractAddress, HashOutput>) {
+) -> Result<
+    (HashMap<NodeIndex, ContractState>, HashMap<ContractAddress, HashOutput>),
+    CommitmentInfosError,
+> {
     let mut contract_leaf_indices: Vec<NodeIndex> =
         contract_addresses.map(|address| NodeIndex::from_leaf_felt(&address.0)).collect();
 
@@ -175,23 +195,25 @@ pub async fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contra
         sorted_contract_leaf_indices,
         &EmptyKeyContext,
     )
-    .await
-    .unwrap();
+    .await?;
+    let sorted_contract_leaf_indices = SortedLeafIndices::new(&mut contract_leaf_indices);
     let new_contract_states: HashMap<NodeIndex, ContractState> = get_leaves(
         commitments,
         new_contract_trie_root,
         sorted_contract_leaf_indices,
         &EmptyKeyContext,
     )
-    .await
-    .unwrap();
+    .await?;
+
     let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states
         .into_iter()
         .map(|(idx, contract_state)| {
-            (try_node_index_into_contract_address(&idx).unwrap(), contract_state.storage_root_hash)
+            let address = try_node_index_into_contract_address(&idx)
+                .map_err(|e| CommitmentInfosError::InvalidNodeIndex(e.to_string()))?;
+            Ok((address, contract_state.storage_root_hash))
         })
-        .collect();
-    (previous_contract_states, new_contract_roots)
+        .collect::<Result<HashMap<_, _>, CommitmentInfosError>>()?;
+    Ok((previous_contract_states, new_contract_roots))
 }
 
 async fn fetch_storage_proofs_from_state_changes_keys(
@@ -199,7 +221,7 @@ async fn fetch_storage_proofs_from_state_changes_keys(
     storage: &mut MapStorage,
     classes_trie_root_hashes: RootHashes,
     contracts_trie_root_hashes: RootHashes,
-) -> StarknetForestProofs {
+) -> Result<StarknetForestProofs, CommitmentInfosError> {
     let class_hashes: Vec<ClassHash> =
         initial_reads_keys.compiled_class_hash_keys.iter().cloned().collect();
     let contract_addresses =
@@ -212,7 +234,7 @@ async fn fetch_storage_proofs_from_state_changes_keys(
         },
     );
 
-    fetch_previous_and_new_patricia_paths(
+    Ok(fetch_previous_and_new_patricia_paths(
         storage,
         classes_trie_root_hashes,
         contracts_trie_root_hashes,
@@ -220,6 +242,5 @@ async fn fetch_storage_proofs_from_state_changes_keys(
         contract_addresses,
         &contract_storage_keys,
     )
-    .await
-    .unwrap()
+    .await?)
 }
