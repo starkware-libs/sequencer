@@ -66,7 +66,7 @@ message TransactionBatch {
 
 message CommitmentParts {
     Felt252 concatenated_counts = 1;
-    Hash parent_commitment = 2;
+    optional Hash parent_commitment = 2;
     Hash transaction_commitment = 3;
     Hash event_commitment = 4;
     Hash receipt_commitment = 5;
