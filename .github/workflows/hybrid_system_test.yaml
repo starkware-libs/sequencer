@@ -38,7 +38,7 @@ jobs:
     outputs:
       should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.system_check.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: github.event_name != 'workflow_dispatch'
         with:
           fetch-depth: 0
@@ -92,7 +92,7 @@ jobs:
           - svc: dummy_eth_to_strk_oracle
             dockerfile: dummy_eth_to_strk_oracle.Dockerfile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build ${{ matrix.svc }} image remotely
         uses: docker/build-push-action@v6.18.0
@@ -109,7 +109,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Create registries.yaml for nscr.io
         run: |

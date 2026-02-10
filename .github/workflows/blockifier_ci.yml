@@ -40,7 +40,7 @@ jobs:
   test-without-features:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -51,7 +51,7 @@ jobs:
   test-with-transaction-serde-feature:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -60,9 +60,9 @@ jobs:
       - run: cargo build -p blockifier --features transaction_serde
 
   test-with-cairo-native-feature:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -73,7 +73,7 @@ jobs:
   test-with-tracing-feature:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -82,11 +82,11 @@ jobs:
       - run: cargo test -p blockifier --features tracing
 
   benchmarking:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to benchmark the old code.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.base_ref }}
 
@@ -94,24 +94,26 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Restore cargo artifacts build cache.
-      - name: Restore Cargo build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: blockifier-bench
-          cache-on-failure: true
-          cache-workspace-crates: true
-
       # Benchmark the base branch code.
-      - run: cargo run -p bench_tools -- run --package blockifier --out /tmp/base_results
+      - name: Benchmark (Base Branch)
+        run: cargo run -p bench_tools -- run --package blockifier --out /tmp/base_results
 
-      # Checkout the current branch to benchmark the new code.
-      - uses: actions/checkout@v4
+      # Checkout the PR branch into a unique subdirectory to avoid overwriting
+      # the base branch's composite action files at the workspace root, and to
+      # avoid colliding with any repo folder (e.g. one named "pr").
+      - uses: actions/checkout@v6
         with:
-          clean: false
+          path: pr-${{ github.run_id }}
+
+      # Copy base branch Criterion baseline into PR dir so run-and-compare finds it.
+      - run: |
+          mkdir -p pr-${{ github.run_id }}/target
+          cp -r target/criterion pr-${{ github.run_id }}/target/
 
       # Benchmark the current branch and compare to the previous run.
-      - run: |
+      - name: Benchmark (Feature Branch)
+        working-directory: pr-${{ github.run_id }}
+        run: |
           cargo run -p bench_tools -- run-and-compare \
             --package blockifier \
             --out /tmp/new_results \

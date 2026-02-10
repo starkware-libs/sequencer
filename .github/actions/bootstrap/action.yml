@@ -12,6 +12,9 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Setup Namespace Cache
+      uses: ./.github/actions/namespace_cache
+
     - name: Install rust.
       uses: ./.github/actions/install_rust
       with:
