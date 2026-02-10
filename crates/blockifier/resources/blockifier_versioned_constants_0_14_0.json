@@ -119,6 +119,7 @@
         "syscall_base_gas_cost": {
             "step_gas_cost": 100
         },
+        "storage_write_new_cell_gas_cost": 399000,
         "transfer_entry_point_selector": "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
         "v1_bound_accounts_cairo0": [
             "0x06d706cfbac9b8262d601c38251c5fbe0497c3a96cc91a92b08d91b61d9e70c4",
@@ -402,18 +403,14 @@
                 "n_steps": 1867
             },
             "StorageRead": {
-                "builtin_instance_counter": {
-                    "range_check_builtin": 1
-                },
+                "builtin_instance_counter": {},
                 "n_memory_holes": 0,
-                "n_steps": 90
+                "n_steps": 180
             },
             "StorageWrite": {
-                "builtin_instance_counter": {
-                    "range_check_builtin": 1
-                },
+                "builtin_instance_counter": {},
                 "n_memory_holes": 0,
-                "n_steps": 96
+                "n_steps": 449
             }
         },
         "execute_txs_inner": {

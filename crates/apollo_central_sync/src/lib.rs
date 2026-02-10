@@ -18,7 +18,6 @@ use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_BASE_LAYER_MARKER,
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
-    CENTRAL_SYNC_FORKS_FROM_FEEDER,
     STATE_SYNC_BODY_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
     STATE_SYNC_COMPILED_CLASS_MARKER,
@@ -382,9 +381,9 @@ impl<
         block: Block,
         signature: BlockSignature,
     ) -> StateSyncResult {
-        // To prevent cases where central has forked under our feet, check incoming block's parent
-        // hash against the parent hash stored in the storage.
-        self.verify_parent_block_hash(block_number, &block)?;
+        // NOTE: We intentionally do *not* verify the incoming block's parent hash against the
+        // locally stored previous block hash. This allows testing scenarios where storage was
+        // manually edited and the local chain is intentionally inconsistent.
 
         debug!("Storing block number: {block_number}, block header: {:?}", block.header);
         trace!("Block data: {block:#?}, signature: {signature:?}");
@@ -681,46 +680,6 @@ impl<
             Ok(())
         })
         .await
-    }
-
-    // Compares the block's parent hash to the stored block.
-    fn verify_parent_block_hash(
-        &self,
-        block_number: BlockNumber,
-        block: &Block,
-    ) -> StateSyncResult {
-        let prev_block_number = match block_number.prev() {
-            None => return Ok(()),
-            Some(bn) => bn,
-        };
-        let prev_hash = self
-            .reader
-            .begin_ro_txn()?
-            .get_block_header(prev_block_number)?
-            .ok_or(StorageError::DBInconsistency {
-                msg: format!(
-                    "Missing block {prev_block_number} in the storage (for verifying block \
-                     {block_number}).",
-                ),
-            })?
-            .block_hash;
-
-        if prev_hash != block.header.block_header_without_hash.parent_hash {
-            // Block parent hash mismatch, log and restart sync loop.
-            warn!(
-                "Detected reorg in central. block number {block_number} had hash {prev_hash} but \
-                 the next block's parent hash is {}.",
-                block.header.block_header_without_hash.parent_hash
-            );
-            CENTRAL_SYNC_FORKS_FROM_FEEDER.increment(1);
-            return Err(StateSyncError::ParentBlockHashMismatch {
-                block_number,
-                expected_parent_block_hash: block.header.block_header_without_hash.parent_hash,
-                stored_parent_block_hash: prev_hash,
-            });
-        }
-
-        Ok(())
     }
 
     async fn perform_storage_writes<

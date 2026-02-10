@@ -1,5 +1,5 @@
 /// This file is for sharing common logic between Native and VM syscall implementations.
-use std::collections::{hash_map, HashMap};
+use std::collections::HashMap;
 use std::convert::From;
 use std::sync::Arc;
 
@@ -186,33 +186,46 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(value)
     }
 
+    /// Returns the original value for a storage key in the current execution scope.
+    /// Captures and memoizes the value (without affecting storage access tracking), so that
+    /// subsequent `storage_write` calls on the same key won't re-read it.
+    pub fn capture_original_storage_value_for_write(
+        &mut self,
+        key: StorageKey,
+    ) -> SyscallResult<Felt> {
+        let contract_address = self.call.storage_address;
+
+        if let Some(value) = self.original_values.get(&key).copied() {
+            return Ok(value);
+        }
+
+        // Check if any inner call (entries created after this handler's entry) already captured an
+        // original value for this key. If so, use that value instead of the current state, because
+        // the inner call captured the true original before any writes in this execution scope.
+        let original_value = self
+            .context
+            .revert_infos
+            .0
+            .iter()
+            .skip(self.revert_info_idx + 1)
+            .find_map(|info| {
+                if info.contract_address == contract_address {
+                    info.original_values.get(&key).copied()
+                } else {
+                    None
+                }
+            })
+            .map_or_else(|| self.state.get_storage_at(contract_address, key), Ok)?;
+
+        self.original_values.insert(key, original_value);
+        Ok(original_value)
+    }
+
     pub fn storage_write(&mut self, key: StorageKey, value: Felt) -> SyscallResult<()> {
         let contract_address = self.call.storage_address;
 
-        match self.original_values.entry(key) {
-            hash_map::Entry::Vacant(entry) => {
-                // Check if any inner call (entries created after this handler's entry) already
-                // captured an original value for this key. If so, use that value instead of the
-                // current state, because the inner call captured the true original before any
-                // writes in this execution scope.
-                let original_value = self
-                    .context
-                    .revert_infos
-                    .0
-                    .iter()
-                    .skip(self.revert_info_idx + 1)
-                    .find_map(|info| {
-                        if info.contract_address == contract_address {
-                            info.original_values.get(&key).copied()
-                        } else {
-                            None
-                        }
-                    })
-                    .map_or_else(|| self.state.get_storage_at(contract_address, key), Ok)?;
-                entry.insert(original_value);
-            }
-            hash_map::Entry::Occupied(_) => {}
-        }
+        // Capture original value for correct revert behavior (and to avoid re-reading it).
+        self.capture_original_storage_value_for_write(key)?;
 
         self.storage_access_tracker.accessed_storage_keys.insert(key);
         self.state.set_storage_at(contract_address, key, value)?;

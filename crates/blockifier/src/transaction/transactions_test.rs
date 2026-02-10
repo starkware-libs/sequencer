@@ -2824,7 +2824,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Regression-test the gas consumed, and then set to zero to compare the rest of the resources.
     let expected_gas = expect![[r#"
-        15550
+        404550
     "#]];
     expected_gas.assert_debug_eq(&actual_execution_info.receipt.resources.computation.sierra_gas.0);
     actual_execution_info.receipt.resources.computation.sierra_gas.0 = 0;
@@ -2840,7 +2840,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     160,
                 ),
                 l2_gas: GasAmount(
-                    200575,
+                    589575,
                 ),
             }
         "#]]
@@ -2854,7 +2854,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     0,
                 ),
                 l2_gas: GasAmount(
-                    149675,
+                    538675,
                 ),
             }
         "#]]

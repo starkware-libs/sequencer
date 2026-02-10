@@ -304,9 +304,7 @@ fn test_all_bounds_combinations_enforce_fee(
 #[rstest]
 #[case::positive_case_deprecated_tx(true, true)]
 #[case::positive_case_new_tx(true, false)]
-#[should_panic(expected = "exceeded bounds; max fee is")]
 #[case::negative_case_deprecated_tx(false, true)]
-#[should_panic(expected = "exceeded bounds; max possible fee is")]
 #[case::negative_case_new_tx(false, false)]
 fn test_assert_actual_fee_in_bounds(
     block_context: BlockContext,
@@ -320,7 +318,8 @@ fn test_assert_actual_fee_in_bounds(
             invoke_tx_args! { max_fee, version: TransactionVersion::ONE },
         );
         let context = Arc::new(block_context.to_tx_context(&tx));
-        AccountTransaction::assert_actual_fee_in_bounds(&context, max_fee + actual_fee_offset);
+        let result = AccountTransaction::ensure_actual_fee_in_bounds(&context, max_fee + actual_fee_offset);
+        assert_eq!(result.is_ok(), positive_flow);
     } else {
         // All resources.
         let l1_gas = ResourceBounds { max_amount: GasAmount(2), max_price_per_unit: GasPrice(3) };
@@ -347,7 +346,8 @@ fn test_assert_actual_fee_in_bounds(
                 version: TransactionVersion::THREE,
             });
             let context = Arc::new(block_context.to_tx_context(&tx));
-            AccountTransaction::assert_actual_fee_in_bounds(&context, actual_fee);
+            let result = AccountTransaction::ensure_actual_fee_in_bounds(&context, actual_fee);
+            assert_eq!(result.is_ok(), positive_flow);
         }
     }
 }

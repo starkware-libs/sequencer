@@ -535,12 +535,6 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         value: Felt,
         remaining_gas: &mut u64,
     ) -> SyscallResult<()> {
-        self.pre_execute_syscall(
-            remaining_gas,
-            self.gas_costs().syscalls.storage_write.base_syscall_cost(),
-            SyscallSelector::StorageWrite,
-        )?;
-
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
             let error = SyscallExecutorBaseError::InvalidAddressDomain { address_domain }.into();
@@ -549,6 +543,44 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let key = StorageKey::try_from(address)
             .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+        // Charge base storage write cost (treated as "existing cell" cost).
+        let existing_cell_cost = self.gas_costs().syscalls.storage_write.base_syscall_cost();
+        self.pre_execute_syscall(remaining_gas, existing_cell_cost, SyscallSelector::StorageWrite)?;
+
+        // Optionally charge an additional amount when creating a new storage cell.
+        // We consider a "new cell" write as writing a non-zero value when the **current** value is
+        // zero (i.e. creating a leaf in the storage tree). Using the current value prevents
+        // charging this cost multiple times when writing to the same key repeatedly in a single
+        // execution.
+        if let Some(new_cell_total_cost) = self
+            .base
+            .context
+            .tx_context
+            .block_context
+            .versioned_constants
+            .os_constants
+            .storage_write_new_cell_gas_cost
+        {
+            let current_value = self
+                .base
+                .state
+                .get_storage_at(self.base.call.storage_address, key)
+                .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+            let is_new_cell_write = current_value == Felt::ZERO && value != Felt::ZERO;
+
+            if is_new_cell_write && new_cell_total_cost > existing_cell_cost {
+                let extra_cost = new_cell_total_cost - existing_cell_cost;
+                if *remaining_gas < extra_cost {
+                    return Err(vec![OUT_OF_GAS_ERROR_FELT]);
+                }
+                *remaining_gas -= extra_cost;
+                self.base
+                    .context
+                    .update_revert_gas_with_next_remaining_gas(GasAmount(*remaining_gas));
+            }
+        }
+
         self.base.storage_write(key, value).map_err(|e| self.handle_error(remaining_gas, e))?;
 
         Ok(())

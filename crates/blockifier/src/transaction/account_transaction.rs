@@ -395,25 +395,16 @@ impl AccountTransaction {
         })
     }
 
-    fn assert_actual_fee_in_bounds(tx_context: &Arc<TransactionContext>, actual_fee: Fee) {
+    fn ensure_actual_fee_in_bounds(
+        tx_context: &Arc<TransactionContext>,
+        actual_fee: Fee,
+    ) -> TransactionExecutionResult<()> {
         let max_fee = tx_context.max_possible_fee();
         if actual_fee > max_fee {
-            match &tx_context.tx_info {
-                TransactionInfo::Current(context) => {
-                    panic!(
-                        "Actual fee {:#?} exceeded bounds; max possible fee is {:#?} (computed \
-                         from {:#?} with tip {:#?}).",
-                        actual_fee,
-                        max_fee,
-                        context.resource_bounds,
-                        tx_context.effective_tip()
-                    );
-                }
-                TransactionInfo::Deprecated(_) => {
-                    panic!("Actual fee {actual_fee:#?} exceeded bounds; max fee is {max_fee:#?}.");
-                }
-            }
+            return Err(Box::new(TransactionFeeError::FeeTransferError { max_fee, actual_fee }).into());
         }
+
+        Ok(())
     }
 
     fn handle_fee<S: StateReader>(
@@ -429,7 +420,7 @@ impl AccountTransaction {
             return Ok(None);
         }
 
-        Self::assert_actual_fee_in_bounds(&tx_context, actual_fee);
+        Self::ensure_actual_fee_in_bounds(&tx_context, actual_fee)?;
 
         let fee_transfer_call_info = if concurrency_mode && !tx_context.is_sequencer_the_sender() {
             Self::concurrency_execute_fee_transfer(state, tx_context, actual_fee)?
@@ -505,8 +496,23 @@ impl AccountTransaction {
             cache.set_storage_initial_value(fee_address, key, Felt::ZERO);
         }
 
-        let fee_transfer_call_info =
-            Self::execute_fee_transfer(&mut transfer_state, tx_context, actual_fee);
+        // Since we set the sequencer balance reads to zero, running fee transfer under
+        // `storage_write_new_cell_gas_cost` would incorrectly treat the sequencer balance write as a
+        // "new cell" (0 -> nonzero) and overcharge gas. Disable this override for the concurrent
+        // fee transfer simulation; the sequencer balance is handled separately at commit time.
+        let tx_context = {
+            let mut patched_block_context = (*tx_context.block_context).clone();
+            let mut patched_os_constants = (*patched_block_context.versioned_constants.os_constants)
+                .clone();
+            patched_os_constants.storage_write_new_cell_gas_cost = None;
+            patched_block_context.versioned_constants.os_constants =
+                std::sync::Arc::new(patched_os_constants);
+            let mut patched_tx_context = (*tx_context).clone();
+            patched_tx_context.block_context = Arc::new(patched_block_context);
+            Arc::new(patched_tx_context)
+        };
+
+        let fee_transfer_call_info = Self::execute_fee_transfer(&mut transfer_state, tx_context, actual_fee);
         // Commit without updating the sequencer balance.
         let storage_writes = &mut transfer_state.cache.get_mut().writes.storage;
         storage_writes.remove(&(fee_address, sequencer_balance_key_low));

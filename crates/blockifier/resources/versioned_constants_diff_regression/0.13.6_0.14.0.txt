@@ -8,6 +8,7 @@
 ~ /os_constants/l1_handler_max_amount_bounds/l1_data_gas: 20000
 ~ /os_constants/l1_handler_max_amount_bounds/l1_gas: 40000
 ~ /os_constants/l1_handler_max_amount_bounds/l2_gas: 100000000
++ /os_constants/storage_write_new_cell_gas_cost: 399000
 + /os_constants/v1_bound_accounts_cairo0/4: "0x041cb0280ebadaa75f996d8d92c6f265f6d040bb3ba442e5f86a554f1765244e"
 + /os_constants/v1_bound_accounts_cairo0/5: "0x3530cc4759d78042f1b543bf797f5f3d647cde0388c33734cf91b7f7b9314a9"
 ~ /os_resources/execute_syscalls/CallContract/builtin_instance_counter/range_check_builtin: 18
@@ -43,8 +44,10 @@
 ~ /os_resources/execute_syscalls/Secp256r1New/n_steps: 582
 ~ /os_resources/execute_syscalls/SendMessageToL1/n_steps: 144
 ~ /os_resources/execute_syscalls/Sha256ProcessBlock/n_steps: 1867
-~ /os_resources/execute_syscalls/StorageRead/n_steps: 90
-~ /os_resources/execute_syscalls/StorageWrite/n_steps: 96
+- /os_resources/execute_syscalls/StorageRead/builtin_instance_counter/range_check_builtin
+~ /os_resources/execute_syscalls/StorageRead/n_steps: 180
+- /os_resources/execute_syscalls/StorageWrite/builtin_instance_counter/range_check_builtin
+~ /os_resources/execute_syscalls/StorageWrite/n_steps: 449
 + /os_resources/execute_txs_inner/Declare/builtin_instance_counter: {"pedersen_builtin":4,"poseidon_builtin":15,"range_check_builtin":72}
 + /os_resources/execute_txs_inner/Declare/n_memory_holes: 0
 + /os_resources/execute_txs_inner/Declare/n_steps: 3523

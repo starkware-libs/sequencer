@@ -141,6 +141,11 @@ pub struct RawOsConstants {
     pub builtin_gas_costs: BuiltinGasCosts,
     pub step_gas_cost: u64,
     pub syscall_base_gas_cost: RawStepGasCost,
+    /// Optional override for charging `storage_write` differently when creating a new storage cell
+    /// (e.g. writing a non-zero value when the previous value was zero).
+    /// Used for Starknet v0.14.1 testing patches.
+    #[serde(default)]
+    pub storage_write_new_cell_gas_cost: Option<u64>,
     // Deprecated field for computation of syscall gas costs in old blocks.
     // New VCs set this to null.
     pub syscall_gas_costs: Option<SyscallGasCostsMap>,
@@ -1095,6 +1100,7 @@ impl GasCosts {
 #[derive(Debug, Default, PartialEq)]
 pub struct OsConstants {
     pub gas_costs: GasCosts,
+    pub storage_write_new_cell_gas_cost: Option<u64>,
 
     // Selectors.
     pub constructor_entry_point_selector: EntryPointSelector,
@@ -1176,6 +1182,7 @@ impl OsConstants {
 
         Self {
             gas_costs,
+            storage_write_new_cell_gas_cost: raw_constants.storage_write_new_cell_gas_cost,
             constructor_entry_point_selector: raw_constants.constructor_entry_point_selector,
             default_entry_point_selector: raw_constants.default_entry_point_selector,
             execute_entry_point_selector: raw_constants.execute_entry_point_selector,

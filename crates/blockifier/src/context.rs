@@ -52,6 +52,12 @@ impl TransactionContext {
     /// Returns the initial Sierra gas of the transaction.
     /// This value is used to limit the transaction's run.
     pub fn initial_sierra_gas(&self) -> GasAmount {
+        // Testing patch: allow executing with a higher runtime L2 gas limit than the user-provided
+        // bound, but cap at the protocol maximum (execute+validate max).
+        //
+        // Note: This can cause fee/bounds mismatches if the tx actually consumes more than its
+        // declared bounds; the tx should then fail gracefully (not panic).
+        const L2_GAS_MULTIPLIER_FOR_EXECUTION_TESTING: u64 = 1_000;
         match &self.tx_info {
             TransactionInfo::Deprecated(_)
             | TransactionInfo::Current(CurrentTransactionInfo {
@@ -61,7 +67,19 @@ impl TransactionContext {
             TransactionInfo::Current(CurrentTransactionInfo {
                 resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }),
                 ..
-            }) => l2_gas.max_amount,
+            }) => {
+                let scaled = l2_gas
+                    .max_amount
+                    .checked_factor_mul(L2_GAS_MULTIPLIER_FOR_EXECUTION_TESTING)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Multiplication overflow while multiplying gas. current gas: {}, factor: {}.",
+                            l2_gas.max_amount, L2_GAS_MULTIPLIER_FOR_EXECUTION_TESTING
+                        )
+                    });
+                let protocol_max = self.block_context.versioned_constants.initial_gas_no_user_l2_bound();
+                std::cmp::min(scaled, protocol_max)
+            }
         }
     }
 

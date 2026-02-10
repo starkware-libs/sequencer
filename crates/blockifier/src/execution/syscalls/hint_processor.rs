@@ -704,8 +704,43 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         request: StorageWriteRequest,
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
+        remaining_gas: &mut u64,
     ) -> Result<StorageWriteResponse, Self::Error> {
+        // Optionally charge an additional amount when creating a new storage cell.
+        // We consider a "new cell" write as writing a non-zero value when the **current** value is
+        // zero (i.e. creating a leaf in the storage tree). Using the current value prevents
+        // charging this cost multiple times when writing to the same key repeatedly in a single
+        // execution.
+        if let Some(new_cell_total_cost) = syscall_handler
+            .base
+            .context
+            .tx_context
+            .block_context
+            .versioned_constants
+            .os_constants
+            .storage_write_new_cell_gas_cost
+        {
+            let existing_cell_cost =
+                syscall_handler.gas_costs().syscalls.storage_write.base_syscall_cost();
+            let current_value = syscall_handler
+                .base
+                .state
+                .get_storage_at(syscall_handler.base.call.storage_address, request.address)?;
+            let is_new_cell_write = current_value == Felt::ZERO && request.value != Felt::ZERO;
+
+            if is_new_cell_write && new_cell_total_cost > existing_cell_cost {
+                let extra_cost = new_cell_total_cost - existing_cell_cost;
+                if *remaining_gas < extra_cost {
+                    return Err(SyscallExecutionError::Revert {
+                        error_data: vec![OUT_OF_GAS_ERROR_FELT],
+                    });
+                }
+
+                *remaining_gas -= extra_cost;
+                syscall_handler.update_revert_gas_with_next_remaining_gas(GasAmount(*remaining_gas));
+            }
+        }
+
         syscall_handler.base.storage_write(request.address, request.value)?;
         Ok(StorageWriteResponse {})
     }
