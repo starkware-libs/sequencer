@@ -16,13 +16,7 @@ from starkware.cairo.common.cairo_secp.signature import (
 )
 from starkware.cairo.common.dict import dict_read, dict_update
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.math import (
-    assert_le,
-    assert_lt,
-    assert_nn,
-    assert_nn_le,
-    unsigned_div_rem,
-)
+from starkware.cairo.common.math import assert_lt, assert_nn, assert_nn_le, unsigned_div_rem
 from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.secp256r1.constants import SECP_PRIME_HIGH as SECP256R1_PRIME_HIGH
 from starkware.cairo.common.secp256r1.constants import SECP_PRIME_LOW as SECP256R1_PRIME_LOW
@@ -691,6 +685,8 @@ func execute_storage_write{
     return ();
 }
 
+// Verifies that the block hash for the given block number equals the expected block hash,
+// by adding a read entry to the contract_state_changes dict with it.
 func read_block_hash_from_storage{contract_state_changes: DictAccess*}(
     block_number: felt, expected_block_hash: felt
 ) {
@@ -754,7 +750,7 @@ func execute_get_block_hash{
         return ();
     }
 
-    assert_le(request_block_number + STORED_BLOCK_HASH_BUFFER, current_block_number);
+    assert_nn_le(request_block_number, current_block_number - STORED_BLOCK_HASH_BUFFER);
 
     // Gas reduction has succeeded and the request is valid; write the response header.
     let response_header = cast(syscall_ptr, ResponseHeader*);

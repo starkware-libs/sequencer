@@ -27,19 +27,17 @@ func hash_messages_to_l1_recursive{output_ptr: felt*, poseidon_ptr: PoseidonBuil
 
     // Hash the message (header + payload).
     // The message consists of: from_address, to_address, payload_size, ...payload.
-    let message_size = MessageToL1Header.SIZE + payload_size;
+    local message_size = MessageToL1Header.SIZE + payload_size;
     let (message_hash) = poseidon_hash_many(
         n=message_size, elements=cast(messages_ptr_start, felt*)
     );
 
     // Store the hash and advance output_ptr.
-    assert [output_ptr] = message_hash;
+    assert output_ptr[0] = message_hash;
     let output_ptr = &output_ptr[1];
 
     // Move to the next message.
-    let next_message_ptr = cast(
-        messages_ptr_start + MessageToL1Header.SIZE + payload_size, MessageToL1Header*
-    );
+    let next_message_ptr = cast(messages_ptr_start + message_size, MessageToL1Header*);
 
     // Recursively process the remaining messages.
     return hash_messages_to_l1_recursive(
@@ -65,8 +63,8 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
     state_update_output: CommitmentUpdate*,
     os_global_context: OsGlobalContext*,
 ) -> OsOutputHeader* {
-    // Calculate the block hash based on the block info and the **initial** state root.
-    let (_prev_block_hash, block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
+    // Calculate the previous block hash based on the block info and the **initial** state root.
+    let (_prev_prev_block_hash, prev_block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
         block_info=block_context.block_info_for_execute, state_root=state_update_output.initial_root
     );
 
@@ -74,7 +72,7 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
         state_update_output=state_update_output,
         prev_block_number=block_context.block_info_for_execute.block_number,
         new_block_number=0,
-        prev_block_hash=block_hash,
+        prev_block_hash=prev_block_hash,
         new_block_hash=0,
         os_program_hash=0,
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
@@ -88,13 +86,7 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
 // Outputs the virtual OS header and the messages to L1.
 func process_os_output{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(
-    n_blocks: felt,
-    os_outputs: OsOutput*,
-    n_public_keys: felt,
-    public_keys: felt*,
-    os_global_context: OsGlobalContext*,
-) {
+}(n_blocks: felt, os_outputs: OsOutput*, n_public_keys: felt, public_keys: felt*) {
     alloc_locals;
     assert n_public_keys = 0;
 
@@ -123,7 +115,7 @@ func process_os_output{
         output_version=VIRTUAL_OS_OUTPUT_VERSION,
         base_block_number=header.prev_block_number,
         base_block_hash=header.prev_block_hash,
-        starknet_os_config_hash=os_global_context.starknet_os_config_hash,
+        starknet_os_config_hash=header.starknet_os_config_hash,
         n_messages_to_l1=n_messages_to_l1,
     );
 

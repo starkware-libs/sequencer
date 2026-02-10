@@ -10,7 +10,9 @@ struct BlockHeaderCommitments {
     event_commitment: felt,
     receipt_commitment: felt,
     state_diff_commitment: felt,
-    concatenated_counts: felt,
+    // Packed encoding of transaction count, event count, state diff length, and L1 data
+    // availability mode.
+    packed_lengths: felt,
 }
 
 // Calculates the block hash given the top level components.
@@ -19,9 +21,12 @@ func calculate_block_hash{poseidon_ptr: PoseidonBuiltin*}(
     header_commitments: BlockHeaderCommitments*,
     gas_prices_hash: felt,
     state_root: felt,
-    parent_hash: felt,
+    previous_block_hash: felt,
     starknet_version: felt,
 ) -> felt {
+    static_assert BlockInfo.SIZE == 3;
+    static_assert BlockHeaderCommitments.SIZE == 5;
+
     let hash_state = hash_init();
     with hash_state {
         hash_update_single(BLOCK_HASH_VERSION);
@@ -29,7 +34,7 @@ func calculate_block_hash{poseidon_ptr: PoseidonBuiltin*}(
         hash_update_single(state_root);
         hash_update_single(block_info.sequencer_address);
         hash_update_single(block_info.block_timestamp);
-        hash_update_single(header_commitments.concatenated_counts);
+        hash_update_single(header_commitments.packed_lengths);
         hash_update_single(header_commitments.state_diff_commitment);
         hash_update_single(header_commitments.transaction_commitment);
         hash_update_single(header_commitments.event_commitment);
@@ -37,7 +42,7 @@ func calculate_block_hash{poseidon_ptr: PoseidonBuiltin*}(
         hash_update_single(gas_prices_hash);
         hash_update_single(starknet_version);
         hash_update_single(0);
-        hash_update_single(parent_hash);
+        hash_update_single(previous_block_hash);
     }
 
     let block_hash = hash_finalize(hash_state=hash_state);
@@ -51,11 +56,13 @@ func get_block_hashes{poseidon_ptr: PoseidonBuiltin*}(block_info: BlockInfo*, st
     previous_block_hash: felt, new_block_hash: felt
 ) {
     alloc_locals;
-    local parent_hash;
+    local previous_block_hash;
     // Currently, the header commitments and gas prices are not computed by the OS.
     // TODO(Yoni, 1/1/2027): compute the header commitments and gas prices.
     local header_commitments: BlockHeaderCommitments*;
     local gas_prices_hash;
+    // TODO(Yoni): move to global context, and consider enforcing a specific version for the
+    // non-virtual OS.
     local starknet_version;
 
     %{ GetBlockHashes %}
@@ -65,11 +72,11 @@ func get_block_hashes{poseidon_ptr: PoseidonBuiltin*}(block_info: BlockInfo*, st
         header_commitments=header_commitments,
         gas_prices_hash=gas_prices_hash,
         state_root=state_root,
-        parent_hash=parent_hash,
+        previous_block_hash=previous_block_hash,
         starknet_version=starknet_version,
     );
 
     %{ CheckBlockHashConsistency %}
 
-    return (previous_block_hash=parent_hash, new_block_hash=block_hash);
+    return (previous_block_hash=previous_block_hash, new_block_hash=block_hash);
 }
