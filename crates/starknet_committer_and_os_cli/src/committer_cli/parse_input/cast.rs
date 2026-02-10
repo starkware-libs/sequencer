@@ -85,8 +85,6 @@ impl TryFrom<RawInput> for CommitterFactsDbInputImpl {
                 inner_map,
             )?;
         }
-        // TODO(Nimrod): Get this by adding a field to `RawInput`.
-        let build_storage_tries_concurrently = false;
         let input = Input {
             initial_read_context: FactsDbInitialRead(StateRoots {
                 contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
@@ -104,7 +102,7 @@ impl TryFrom<RawInput> for CommitterFactsDbInputImpl {
             },
             config: ReaderConfig::new(
                 raw_input.config.warn_on_trivial_modifications,
-                build_storage_tries_concurrently,
+                raw_input.config.build_storage_tries_concurrently,
             ),
         };
         Ok(Self { input, log_level: raw_input.config.log_level.into(), storage })
