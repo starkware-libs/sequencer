@@ -29,7 +29,7 @@ impl OpaquePeerId {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BadPeerReport {
     pub peer_id: OpaquePeerId,
-    pub reason: String,
+    pub reason: BadPeerReason,
     pub penalty_card: PenaltyCard,
 }
 
@@ -41,4 +41,10 @@ pub enum PenaltyCard {
     Red,
     /// Possibly sent malicious data on accident, will be considered malicious on repeat offenses.
     Yellow,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BadPeerReason {
+    ConversionError(String),
+    DuplicateVote(String),
 }
