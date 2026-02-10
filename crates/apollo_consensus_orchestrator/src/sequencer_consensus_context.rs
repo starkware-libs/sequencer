@@ -436,7 +436,7 @@ impl SequencerConsensusContext {
                 proposal_commitment: commitment,
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.state_diff_commitment.0.0)),
+                    .map(|commitment| ProposalCommitment(commitment.partial_block_hash.0)),
             })
             .await
         {

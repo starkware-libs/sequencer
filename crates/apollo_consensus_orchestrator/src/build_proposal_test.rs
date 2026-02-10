@@ -10,15 +10,12 @@ use apollo_consensus::types::ProposalCommitment as ConsensusProposalCommitment;
 use apollo_infra::component_client::ClientError;
 use apollo_transaction_converter::{MockTransactionConverterTrait, TransactionConverterError};
 use assert_matches::assert_matches;
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHash;
 use starknet_api::core::ClassHash;
 use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::{build_proposal, BuildProposalError};
-use crate::test_utils::{
-    create_proposal_build_arguments,
-    INTERNAL_TX_BATCH,
-    STATE_DIFF_COMMITMENT,
-};
+use crate::test_utils::{create_proposal_build_arguments, INTERNAL_TX_BATCH, PARTIAL_BLOCK_HASH};
 
 #[tokio::test]
 async fn build_proposal_succeed() {
@@ -28,7 +25,7 @@ async fn build_proposal_succeed() {
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished {
-                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                id: ProposalCommitment { partial_block_hash: PartialBlockHash(PARTIAL_BLOCK_HASH) },
                 final_n_executed_txs: 0,
             },
         })
@@ -37,7 +34,7 @@ async fn build_proposal_succeed() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let res = build_proposal(proposal_args.into()).await.unwrap();
-    assert_eq!(res, ConsensusProposalCommitment::default());
+    assert_eq!(res, ConsensusProposalCommitment(PARTIAL_BLOCK_HASH));
 }
 
 #[tokio::test]
@@ -112,7 +109,7 @@ async fn cende_fail() {
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished {
-                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                id: ProposalCommitment { partial_block_hash: PartialBlockHash(PARTIAL_BLOCK_HASH) },
                 final_n_executed_txs: 0,
             },
         })
