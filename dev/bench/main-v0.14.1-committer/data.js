@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770662489431,
+  "lastUpdate": 1770710897432,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2141,6 +2141,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1379.49321612,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "161198342+idan-starkware@users.noreply.github.com",
+            "name": "Idan Shamam",
+            "username": "idan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "528be8ef1b4039fe1ad979cc8c1aa8c2fd02806f",
+          "message": "deployment: create action composite for namespace cache on bootstrap (#12379)\n\n* deployment: create action composite for namespace cache on bootstrap\n\n* deployment: remove pip cache from tool chain setup action\n\n* deployment: remove swatinem rust cache\n\n* deployment: fix blockifier_ci bootstrap post job bug\n\n* deployment: stronger runners for demanding jobs\n\n* deployment: upgrade checkout action to v6",
+          "timestamp": "2026-02-10T07:48:22Z",
+          "tree_id": "1137258fa444a54af66c1fcb7c19fdd1c827dddb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/528be8ef1b4039fe1ad979cc8c1aa8c2fd02806f"
+        },
+        "date": 1770710897128,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 842.85148651,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1262.68984783,
             "unit": "ms"
           }
         ]
