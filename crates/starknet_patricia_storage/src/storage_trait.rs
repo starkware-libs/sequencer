@@ -103,7 +103,7 @@ pub trait Storage: Send + Sync {
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
     fn get(
-        &mut self,
+        &self,
         key: &DbKey,
     ) -> impl Future<Output = PatriciaStorageResult<Option<DbValue>>> + Send;
 
@@ -123,7 +123,7 @@ pub trait Storage: Send + Sync {
     // https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#async-fn-in-public-traits
     // for details.
     fn mget(
-        &mut self,
+        &self,
         keys: &[&DbKey],
     ) -> impl Future<Output = PatriciaStorageResult<Vec<Option<DbValue>>>> + Send;
 
@@ -194,7 +194,7 @@ impl Storage for NullStorage {
     type Stats = NoStats;
     type Config = EmptyStorageConfig;
 
-    async fn get(&mut self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
+    async fn get(&self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(None)
     }
 
@@ -202,7 +202,7 @@ impl Storage for NullStorage {
         Ok(())
     }
 
-    async fn mget(&mut self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
+    async fn mget(&self, keys: &[&DbKey]) -> PatriciaStorageResult<Vec<Option<DbValue>>> {
         Ok(vec![None; keys.len()])
     }
 

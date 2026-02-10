@@ -37,7 +37,7 @@ async fn test_storage_concurrent_access(#[case] mut storage: impl AsyncStorage) 
     // Parallel reads from the storage while some writes are happening.
     let mut tasks = JoinSet::new();
     for i in 0..10u8 {
-        let mut cloned_storage = storage.clone();
+        let cloned_storage = storage.clone();
         tasks.spawn(async move {
             let result = cloned_storage.get(&DbKey(vec![i])).await.unwrap().unwrap().0[0];
             // The result is either the original value or the new value.
