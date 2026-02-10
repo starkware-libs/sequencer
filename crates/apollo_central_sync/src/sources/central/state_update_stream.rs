@@ -3,9 +3,16 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::Poll;
 
-use apollo_starknet_client::reader::{ReaderClientResult, StarknetReader, StateUpdate};
+use apollo_starknet_client::reader::{
+    GenericContractClass,
+    ReaderClientResult,
+    StarknetReader,
+    StateUpdate,
+};
+use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures_util::stream::FuturesOrdered;
 use futures_util::{Future, Stream, StreamExt};
 use indexmap::IndexMap;
@@ -38,8 +45,9 @@ pub(crate) struct StateUpdateStream<TStarknetClient: StarknetReader + Send + 'st
     // Contains NumberOfClasses so we don't need to calculate it from the StateUpdate.
     downloaded_state_updates: VecDeque<(BlockNumber, NumberOfClasses, StateUpdate)>,
     classes_to_download: VecDeque<ClassHash>,
-    download_class_tasks: TasksQueue<CentralResult<Option<ApiContractClass>>>,
-    downloaded_classes: VecDeque<ApiContractClass>,
+    download_class_tasks:
+        TasksQueue<CentralResult<(Option<ApiContractClass>, Option<CasmContractClass>)>>,
+    downloaded_classes: VecDeque<(ApiContractClass, Option<CasmContractClass>)>,
     class_cache: Arc<Mutex<LruCache<ClassHash, ApiContractClass>>>,
     config: StateUpdateStreamConfig,
 }
@@ -123,10 +131,10 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
         let (block_number, n_classes, state_update) =
             self.downloaded_state_updates.pop_front().expect("Should have a value");
         let class_hashes = state_update.state_diff.class_hashes();
-        let classes = self.downloaded_classes.drain(..n_classes);
-        let classes: IndexMap<ClassHash, ApiContractClass> =
-            class_hashes.into_iter().zip(classes).collect();
-        Some(client_to_central_state_update(block_number, Ok((state_update, classes))))
+        let classes_and_casms = self.downloaded_classes.drain(..n_classes);
+        let classes_and_casms = class_hashes.into_iter().zip(classes_and_casms).collect();
+        let (classes, casms) = split_into_declared_classes_and_casms(classes_and_casms);
+        Some(client_to_central_state_update(block_number, Ok((state_update, classes, casms))))
     }
 
     // Advances scheduling logic. Propagates errors to be returned from the stream.
@@ -179,12 +187,12 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
         *should_poll_again = true;
         match maybe_class {
             // Add to downloaded classes.
-            Ok(Some(class)) => {
-                self.downloaded_classes.push_back(class);
+            Ok((Some(class), casm)) => {
+                self.downloaded_classes.push_back((class, casm));
                 Ok(())
             }
             // Class was not found.
-            Ok(None) => Err(CentralError::ClassNotFound),
+            Ok((None, _)) => Err(CentralError::ClassNotFound),
             // An error occurred while downloading the class.
             Err(err) => Err(err),
         }
@@ -247,12 +255,17 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn client_to_central_state_update(
     current_block_number: BlockNumber,
-    maybe_client_state_update: CentralResult<(StateUpdate, IndexMap<ClassHash, ApiContractClass>)>,
+    maybe_client_state_update: CentralResult<(
+        StateUpdate,
+        IndexMap<ClassHash, ApiContractClass>,
+        IndexMap<ClassHash, CasmContractClass>,
+    )>,
 ) -> CentralResult<CentralStateUpdate> {
     match maybe_client_state_update {
-        Ok((state_update, mut declared_classes)) => {
+        Ok((state_update, mut declared_classes, non_backward_compatible_casms)) => {
             // Destruct the state diff to avoid partial move.
             let apollo_starknet_client::reader::StateDiff {
                 storage_diffs,
@@ -330,7 +343,13 @@ fn client_to_central_state_update(
                 "State diff: {state_diff:?}, deployed_contract_class_definitions: \
                  {deployed_contract_class_definitions:?}."
             );
-            Ok((current_block_number, block_hash, state_diff, deployed_contract_class_definitions))
+            Ok((
+                current_block_number,
+                block_hash,
+                state_diff,
+                deployed_contract_class_definitions,
+                non_backward_compatible_casms,
+            ))
         }
         Err(err) => {
             debug!("Received error for state diff {}: {:?}.", current_block_number, err);
@@ -348,11 +367,11 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
     class_hash: ClassHash,
     apollo_starknet_client: Arc<TStarknetClient>,
     storage_reader: StorageReader,
-) -> CentralResult<Option<ApiContractClass>> {
+) -> CentralResult<(Option<ApiContractClass>, Option<CasmContractClass>)> {
     {
         let mut cache = cache.lock().expect("Failed to lock class cache.");
         if let Some(class) = cache.get(&class_hash) {
-            return Ok(Some(class.clone()));
+            return Ok((Some(class.clone()), None));
         }
     }
 
@@ -360,6 +379,8 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
     let state_reader = txn.get_state_reader()?;
     let block_number = txn.get_state_marker()?;
     let state_number = StateNumber::unchecked_right_after_block(block_number);
+    let compiler_backward_compatibility_marker =
+        txn.get_compiler_backward_compatibility_marker()?;
 
     // Check declared classes.
     if let Ok(Some(class)) = state_reader.get_class_definition_at(state_number, &class_hash) {
@@ -368,7 +389,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
             let mut cache = cache.lock().expect("Failed to lock class cache.");
             cache.put(class_hash, ApiContractClass::ContractClass(class.clone()));
         }
-        return Ok(Some(ApiContractClass::ContractClass(class)));
+        return Ok((Some(ApiContractClass::ContractClass(class)), None));
     };
 
     // Check deprecated classes.
@@ -380,7 +401,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
             let mut cache = cache.lock().expect("Failed to lock class cache.");
             cache.put(class_hash, ApiContractClass::DeprecatedContractClass(class.clone()));
         }
-        return Ok(Some(ApiContractClass::DeprecatedContractClass(class)));
+        return Ok((Some(ApiContractClass::DeprecatedContractClass(class)), None));
     }
     drop(txn); // Drop txn so we don't unnecessarily hold it open while awaiting below.
 
@@ -388,13 +409,48 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
     trace!("Downloading class {class_hash:?}.");
     let client_class = apollo_starknet_client.class_by_hash(class_hash).await.map_err(Arc::new)?;
     match client_class {
-        None => Ok(None),
+        None => Ok((None, None)),
         Some(class) => {
             {
                 let mut cache = cache.lock().expect("Failed to lock class cache.");
                 cache.put(class_hash, class.clone().into());
             }
-            Ok(Some(class.into()))
+
+            match class {
+                GenericContractClass::Cairo0ContractClass(class) => {
+                    Ok((Some(ApiContractClass::DeprecatedContractClass(class)), None))
+                }
+                GenericContractClass::Cairo1ContractClass(class) => {
+                    let casm = if compiler_backward_compatibility_marker > block_number {
+                        apollo_starknet_client
+                            .compiled_class_by_hash(class_hash)
+                            .await
+                            .map_err(Arc::new)?
+                    } else {
+                        None
+                    };
+                    Ok((Some(ApiContractClass::ContractClass(class.into())), casm))
+                }
+            }
         }
     }
+}
+
+fn split_into_declared_classes_and_casms(
+    classes_and_casms: IndexMap<ClassHash, (ApiContractClass, Option<CasmContractClass>)>,
+) -> (IndexMap<ClassHash, ApiContractClass>, IndexMap<ClassHash, CasmContractClass>) {
+    let (declared_classes, casms): (
+        IndexMap<ClassHash, ApiContractClass>,
+        IndexMap<ClassHash, CasmContractClass>,
+    ) = classes_and_casms.into_iter().fold(
+        (IndexMap::new(), IndexMap::new()),
+        |(mut class_acc, mut casm_acc), (class_hash, (api_class, casm_class_opt))| {
+            class_acc.insert(class_hash, api_class);
+            if let Some(casm) = casm_class_opt {
+                casm_acc.insert(class_hash, casm);
+            }
+            (class_acc, casm_acc)
+        },
+    );
+    (declared_classes, casms)
 }

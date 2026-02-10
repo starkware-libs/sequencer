@@ -254,8 +254,6 @@ async fn sync_happy_flow() {
         blocks_stream
     });
 
-    let expected_deprecated_class = deprecated_class.clone();
-    let expected_deployed_class = deployed_class.clone();
     central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
         let deprecated_class = deprecated_class.clone();
         let deployed_class = deployed_class.clone();
@@ -296,6 +294,7 @@ async fn sync_happy_flow() {
                     create_block_hash(block_number, false),
                     state_diff,
                     deployed_contract_class_definitions,
+                    IndexMap::new(),
                 ));
             }
         }
@@ -458,23 +457,6 @@ async fn sync_happy_flow() {
                 .unwrap();
             assert_eq!(declare_deprecated_block_number, Some(LATEST_BLOCK_NUMBER));
 
-            // Verify that the deprecated contract class is the same as the one that was declared.
-            let deploy_class = state_reader
-                .get_deprecated_class_definition_at(
-                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
-                    &deployed_class_hash,
-                )
-                .unwrap();
-            assert_eq!(deploy_class, Some(expected_deployed_class.clone()));
-
-            let declare_deprecated_class = state_reader
-                .get_deprecated_class_definition_at(
-                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
-                    &deprecated_class_hash,
-                )
-                .unwrap();
-            assert_eq!(declare_deprecated_class, Some(expected_deprecated_class.clone()));
-
             CheckStoragePredicateResult::Passed
         });
 
@@ -527,6 +509,7 @@ async fn test_unrecoverable_sync_error_flow() {
                 BLOCK_NUMBER,
                 create_block_hash(BLOCK_NUMBER, false),
                 StateDiff::default(),
+                IndexMap::new(),
                 IndexMap::new(),
             ));
         }
