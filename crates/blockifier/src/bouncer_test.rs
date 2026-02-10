@@ -16,7 +16,7 @@ use starknet_api::{class_hash, contract_address, felt, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
-    builtins_to_gas,
+    cairo_primitives_to_gas,
     get_patricia_update_resources,
     get_tx_weights,
     map_class_hash_to_casm_hash_computation_resources,
@@ -282,12 +282,12 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
 
     let range_check_count = 2;
     let max_capacity_builtin_counters =
-        BTreeMap::from([(BuiltinName::range_check, range_check_count)]);
+        cairo_primitive_counter_map([(BuiltinName::range_check, range_check_count)]);
     let builtin_counters = match scenario {
         "proving_gas_block_full" => max_capacity_builtin_counters.clone(),
         // Use a minimal or empty map.
         "ok" | "sierra_gas_block_full" => {
-            BTreeMap::from([(BuiltinName::range_check, range_check_count - 1)])
+            cairo_primitive_counter_map([(BuiltinName::range_check, range_check_count - 1)])
         }
         _ => panic!("Unexpected scenario: {scenario}"),
     };
@@ -300,7 +300,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     };
 
     let proving_gas_max_capacity =
-        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
+        cairo_primitives_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
 
     let block_max_capacity = BouncerWeights {
         l1_gas: 20,
