@@ -272,11 +272,44 @@ impl AddAssign<&ChargedResources> for ChargedResources {
     }
 }
 
+// Opcode name constants.
+const BLAKE_OPCODE_NAME: &str = "blake";
+
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
     Blake,
 }
+
+impl OpcodeName {
+    /// Converts an [`OpcodeName`] to its string representation.
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            OpcodeName::Blake => BLAKE_OPCODE_NAME,
+        }
+    }
+}
+
+impl std::fmt::Display for OpcodeName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_str())
+    }
+}
+
+impl std::str::FromStr for OpcodeName {
+    type Err = ParseCairoPrimitiveNameError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            BLAKE_OPCODE_NAME => Ok(OpcodeName::Blake),
+            _ => Err(ParseCairoPrimitiveNameError),
+        }
+    }
+}
+
+/// Error type for parsing [`OpcodeName`] or [`CairoPrimitiveName`] from a string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseCairoPrimitiveNameError;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
@@ -288,6 +321,31 @@ pub enum CairoPrimitiveName {
     Opcode(OpcodeName),
 }
 
+impl CairoPrimitiveName {
+    /// Converts a [`CairoPrimitiveName`] to its string representation.
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            CairoPrimitiveName::Builtin(builtin) => builtin.to_str(),
+            CairoPrimitiveName::Opcode(opcode) => opcode.to_str(),
+        }
+    }
+}
+
+impl std::str::FromStr for CairoPrimitiveName {
+    type Err = ParseCairoPrimitiveNameError;
+
+    /// Tries to parse as a builtin first, then as an opcode.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(builtin) = BuiltinName::from_str(s) {
+            return Ok(CairoPrimitiveName::Builtin(builtin));
+        }
+        if let Ok(opcode) = s.parse::<OpcodeName>() {
+            return Ok(CairoPrimitiveName::Opcode(opcode));
+        }
+        Err(ParseCairoPrimitiveNameError)
+    }
+}
+
 impl From<BuiltinName> for CairoPrimitiveName {
     fn from(builtin_name: BuiltinName) -> Self {
         CairoPrimitiveName::Builtin(builtin_name)
@@ -297,6 +355,12 @@ impl From<BuiltinName> for CairoPrimitiveName {
 impl From<OpcodeName> for CairoPrimitiveName {
     fn from(opcode_name: OpcodeName) -> Self {
         CairoPrimitiveName::Opcode(opcode_name)
+    }
+}
+
+impl std::fmt::Display for CairoPrimitiveName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.to_str())
     }
 }
 
