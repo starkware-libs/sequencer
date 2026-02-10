@@ -41,6 +41,7 @@ use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     BlockCommitmentsMeasurements,
+    PartialBlockHash,
     PartialBlockHashComponents,
     TransactionHashingData,
 };
@@ -206,10 +207,10 @@ impl BlockExecutionArtifacts {
 
     pub fn commitment(&self) -> ProposalCommitment {
         ProposalCommitment {
-            state_diff_commitment: self
-                .partial_block_hash_components
-                .header_commitments
-                .state_diff_commitment,
+            partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+                &self.partial_block_hash_components,
+            )
+            .expect("Unable to calculate the proposal commitment"),
         }
     }
 
