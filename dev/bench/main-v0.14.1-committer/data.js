@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770715428351,
+  "lastUpdate": 1770732598011,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2277,6 +2277,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1271.31343474,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163830216+asmaastarkware@users.noreply.github.com",
+            "name": "asmaa-starkware",
+            "username": "asmaastarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dad53154c81c35135c18e2cded488ce6da8c19c7",
+          "message": "apollo_consensus_orchestrator: delete committee provider from context deps (#12407)",
+          "timestamp": "2026-02-10T13:49:47Z",
+          "tree_id": "4a98611458a8d3d8165975a6a28c943fd9c167c3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/dad53154c81c35135c18e2cded488ce6da8c19c7"
+        },
+        "date": 1770732597684,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 915.24261907,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1349.16103627,
             "unit": "ms"
           }
         ]
