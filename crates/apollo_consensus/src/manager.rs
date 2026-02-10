@@ -19,7 +19,12 @@ use apollo_consensus_config::config::{
     FutureMsgLimitsConfig,
 };
 use apollo_infra_utils::debug_every_n_ms;
-use apollo_network::network_manager::BroadcastTopicClientTrait;
+use apollo_network::network_manager::{
+    BadPeerReason,
+    BadPeerReport,
+    BroadcastTopicClientTrait,
+    PenaltyCard,
+};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
@@ -828,14 +833,21 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &self,
         broadcast_channels: &mut BroadcastVoteChannel,
         metadata: &BroadcastedMessageMetadata,
+        reason: BadPeerReason,
+        penalty_card: PenaltyCard,
     ) {
+        let bad_peer_report = BadPeerReport {
+            peer_id: metadata.originator_id.private_get_peer_id(),
+            reason: reason.clone(),
+            penalty_card,
+        };
         if broadcast_channels
             .broadcast_topic_client
-            .report_peer(metadata.clone())
+            .report_peer(metadata.clone(), bad_peer_report)
             .now_or_never()
             .is_none()
         {
-            error!("Unable to send report_peer. {:?}", metadata);
+            error!("Unable to send report_peer. reason: {:?}, metadata: {:?}", reason, metadata);
         }
     }
 
@@ -864,7 +876,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
             (Err(e), metadata) => {
                 // Failed to parse consensus message. Report the peer and drop the vote.
-                self.report_peer(broadcast_channels, &metadata);
+                self.report_peer(
+                    broadcast_channels,
+                    &metadata,
+                    BadPeerReason::ConversionError(e.to_string()),
+                    PenaltyCard::Yellow,
+                );
                 warn!(
                     "Failed to parse incoming consensus vote, dropping vote. Error: {e}. Vote \
                      metadata: {metadata:?}"
@@ -883,7 +900,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     let duplicate_report = self.cache.cache_future_vote(message);
                     if let Some(duplicate_report) = duplicate_report {
                         warn!("Duplicate vote found: {:?}", duplicate_report);
-                        self.report_peer(broadcast_channels, &metadata);
+                        self.report_peer(
+                            broadcast_channels,
+                            &metadata,
+                            BadPeerReason::DuplicateVote(format!("{duplicate_report:?}")),
+                            PenaltyCard::Red,
+                        );
                         // TODO(guyn): send back a report with the duplicate information
                     }
                 }

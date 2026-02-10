@@ -10,10 +10,13 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_network::network_manager::{
+    BadPeerReason,
+    BadPeerReport,
     BroadcastTopicClient,
     BroadcastTopicClientTrait,
     BroadcastTopicServer,
     NetworkError,
+    PenaltyCard,
 };
 use apollo_protobuf::mempool::RpcTransactionBatch;
 use async_trait::async_trait;
@@ -84,11 +87,16 @@ impl ComponentStarter for MempoolP2pRunner {
                             // internal error. Widen GatewayError's variants if necessary.
                             if let GatewayClientError::GatewayError(
                                 GatewayError::DeprecatedGatewayError{p2p_message_metadata: Some(p2p_message_metadata), ..}
-                            ) = gateway_client_error {
+                            ) = &gateway_client_error {
+                                let report = BadPeerReport {
+                                    peer_id: p2p_message_metadata.originator_id.private_get_peer_id(),
+                                    reason: BadPeerReason::ConversionError(format!("{gateway_client_error:?}")),
+                                    penalty_card: PenaltyCard::Yellow,
+                                };
                                 warn!(
                                     "Gateway rejected transaction we received from another peer. Reporting peer: {:?}.", p2p_message_metadata
                                 );
-                                if let Err(e) = self.broadcast_topic_client.report_peer(p2p_message_metadata.clone()).await {
+                                if let Err(e) = self.broadcast_topic_client.report_peer(p2p_message_metadata.clone(), report).await {
                                     warn!("Failed to report peer: {:?}", e);
                                 }
                             } else {
@@ -119,7 +127,12 @@ impl ComponentStarter for MempoolP2pRunner {
                         }
                         Err(e) => {
                             warn!("Received a faulty transaction from network: {:?}. Attempting to report the sending peer {:?}", e, broadcasted_message_metadata);
-                            if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_metadata).await {
+                            let report = BadPeerReport {
+                                peer_id: broadcasted_message_metadata.originator_id.private_get_peer_id(),
+                                reason: BadPeerReason::ConversionError(e.to_string()),
+                                penalty_card: PenaltyCard::Yellow,
+                            };
+                            if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_metadata.clone(), report).await {
                                 warn!("Failed to report peer: {:?}", e);
                             }
                         }

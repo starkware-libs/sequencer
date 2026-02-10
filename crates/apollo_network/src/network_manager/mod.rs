@@ -972,6 +972,7 @@ pub trait BroadcastTopicClientTrait<T> {
     async fn report_peer(
         &mut self,
         broadcasted_message_metadata: BroadcastedMessageMetadata,
+        report: BadPeerReport,
     ) -> Result<(), SendError>;
     async fn continue_propagation(
         &mut self,
@@ -1012,7 +1013,10 @@ impl<T: TryFrom<Bytes> + Send> BroadcastTopicClientTrait<T> for BroadcastTopicCl
     async fn report_peer(
         &mut self,
         broadcasted_message_metadata: BroadcastedMessageMetadata,
+        report: BadPeerReport,
     ) -> Result<(), SendError> {
+        // TODO(guyn): consider sending the report, too.
+        debug!("Reporting bad peer: {:?}", report);
         self.reported_messages_sender.send(broadcasted_message_metadata).await
     }
 

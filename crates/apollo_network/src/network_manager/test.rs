@@ -26,7 +26,13 @@ use super::swarm_trait::{Event, SwarmTrait};
 use super::{BroadcastTopicChannels, GenericNetworkManager};
 use crate::gossipsub_impl::{self, Topic};
 use crate::misconduct_score::MisconductScore;
-use crate::network_manager::{BroadcastTopicClientTrait, ServerQueryManager};
+use crate::network_manager::{
+    BadPeerReason,
+    BadPeerReport,
+    BroadcastTopicClientTrait,
+    PenaltyCard,
+    ServerQueryManager,
+};
 use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{GenericEvent, InboundSessionId, OutboundSessionId};
 use crate::{mixed_behaviour, Bytes};
@@ -398,7 +404,15 @@ async fn receive_broadcasted_message_and_report_it() {
             let result = broadcasted_messages_receiver.next().await;
             let (message_result, broadcasted_message_metadata) = result.unwrap();
             assert_eq!(message, message_result.unwrap());
-            broadcast_topic_client.report_peer(broadcasted_message_metadata).await.unwrap();
+            let report = BadPeerReport {
+                peer_id: broadcasted_message_metadata.originator_id.private_get_peer_id(),
+                reason: BadPeerReason::ConversionError("test".to_string()),
+                penalty_card: PenaltyCard::Red,
+            };
+            broadcast_topic_client
+                .report_peer(broadcasted_message_metadata, report)
+                .await
+                .unwrap();
             reported_peer_receiver.next().await
         }) => {
             assert_eq!(originated_peer_id, reported_peer_result.unwrap().unwrap());
