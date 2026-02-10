@@ -397,7 +397,7 @@ async fn handle_proposal_part(
                     unreachable!("Unexpected batcher status for fin: {status:?}");
                 }
             };
-            let batcher_block_id = ProposalCommitment(response_id.state_diff_commitment.0.0);
+            let batcher_block_id = ProposalCommitment(response_id.partial_block_hash.0);
 
             info!(
                 network_block_id = ?fin.proposal_commitment,
