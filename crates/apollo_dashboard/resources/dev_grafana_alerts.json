@@ -1766,7 +1766,7 @@
     },
     {
       "name": "state_sync_stuck",
-      "title": "State sync stuck",
+      "title": "State Sync Stuck",
       "ruleGroup": "state_sync",
       "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
       "conditions": [
@@ -1794,7 +1794,7 @@
     },
     {
       "name": "state_sync_stuck_long_time",
-      "title": "State sync stuck",
+      "title": "State Sync Stuck Long Time",
       "ruleGroup": "state_sync",
       "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])",
       "conditions": [
