@@ -16,11 +16,7 @@ use starknet_api::core::ClassHash;
 use tokio_util::task::AbortOnDropHandle;
 
 use crate::build_proposal::{build_proposal, BuildProposalError};
-use crate::test_utils::{
-    create_proposal_build_arguments,
-    INTERNAL_TX_BATCH,
-    STATE_DIFF_COMMITMENT,
-};
+use crate::test_utils::{create_proposal_build_arguments, INTERNAL_TX_BATCH, PARTIAL_BLOCK_HASH};
 
 #[tokio::test]
 async fn build_proposal_succeed() {
@@ -30,9 +26,7 @@ async fn build_proposal_succeed() {
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished(FinishedProposalInfo {
-                proposal_commitment: ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                },
+                proposal_commitment: ProposalCommitment { partial_block_hash: PARTIAL_BLOCK_HASH },
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,
@@ -43,7 +37,7 @@ async fn build_proposal_succeed() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let res = build_proposal(proposal_args.into()).await.unwrap();
-    assert_eq!(res, ConsensusProposalCommitment::default());
+    assert_eq!(res, ConsensusProposalCommitment(PARTIAL_BLOCK_HASH.0));
 }
 
 #[tokio::test]
@@ -118,9 +112,7 @@ async fn cende_fail() {
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished(FinishedProposalInfo {
-                proposal_commitment: ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                },
+                proposal_commitment: ProposalCommitment { partial_block_hash: PARTIAL_BLOCK_HASH },
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,
