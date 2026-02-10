@@ -23,7 +23,7 @@ use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{BuildParam, ConsensusBlockInfo, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
-use apollo_staking::committee_provider::CommitteeProvider;
+use apollo_staking::committee_provider::{CommitteeProvider, CommitteeTrait};
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
 use futures::channel::mpsc;
 use futures::future::BoxFuture;
@@ -52,8 +52,8 @@ use crate::types::{
     ConsensusContext,
     ConsensusError,
     Decision,
-    LeaderElection,
     Round,
+    ValidatorId,
 };
 use crate::votes_threshold::QuorumType;
 
@@ -150,9 +150,13 @@ where
                 // We expect there to be under 100 validators, so this is a reasonable number of
                 // precommits to print.
                 let round = decision.precommits[0].round;
-                // virtual_proposer should never fail here, we already checked it in the state
-                // machine.
-                let proposer = context.virtual_proposer(current_height, round)?;
+                // Proposer should never fail here, we already checked it in the state machine.
+                let proposer = get_proposer_for_height(
+                    &run_consensus_args.committee_provider,
+                    current_height,
+                    round,
+                )
+                .await?;
 
                 if proposer == run_consensus_args.consensus_config.dynamic_config.validator_id {
                     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.increment(1);
@@ -453,7 +457,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         };
 
         // Cleanup after height completion.
-        self.cleanup_post_height(context, height, broadcast_channels, proposals_receiver).await?;
+        self.cleanup_post_height(height, broadcast_channels, proposals_receiver).await?;
 
         Ok(res)
     }
@@ -489,8 +493,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             return Ok(sync_result);
         }
 
-        let (mut shc, mut shc_events) =
-            self.initialize_single_height_consensus(context, height).await?;
+        let (mut shc, mut shc_events) = self.initialize_single_height_consensus(height).await?;
 
         if let Some(decision) = self
             .process_start_height(context, height, &mut shc, &mut shc_events, broadcast_channels)
@@ -543,7 +546,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Initialize consensus for a height: get validators, create SHC, and set up events.
     async fn initialize_single_height_consensus(
         &mut self,
-        context: &mut ContextT,
         height: BlockNumber,
     ) -> Result<
         (SingleHeightConsensus, FuturesUnordered<BoxFuture<'static, StateMachineEvent>>),
@@ -555,7 +557,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             .await
             .map_err(|e| ConsensusError::CommitteeError(e.to_string()))?;
 
-        let validators = context.validators(height).await?;
+        let validators: Vec<_> = committee.members().iter().map(|s| s.address).collect();
         let is_observer = !validators.contains(&self.consensus_config.dynamic_config.validator_id);
         info!(
             "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
@@ -589,24 +591,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
     ) -> Result<Option<Decision>, ConsensusError> {
         self.cache.report_cached_votes_metric(height);
-        let mut pending_requests = {
-            // TODO(Asmaa): Revisit passing leader election functions as an argument. Consider
-            // splitting Context or wrapping it in a Mutex.
-            let leader_election = make_leader_election(context, height);
-            shc.start(&leader_election)
-        };
+        let mut pending_requests = shc.start();
 
         let cached_proposals = self.cache.get_current_height_proposals(height);
         trace!("Cached proposals for height {}: {:?}", height, cached_proposals);
         for (block_info, content_receiver) in cached_proposals {
             let new_requests = self
-                .handle_proposal_known_block_info(
-                    context,
-                    height,
-                    shc,
-                    block_info,
-                    content_receiver,
-                )
+                .handle_proposal_known_block_info(height, shc, block_info, content_receiver)
                 .await;
             pending_requests.extend(new_requests);
         }
@@ -614,15 +605,21 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let cached_votes = self.cache.get_current_height_votes(height);
         trace!("Cached votes for height {}: {:?}", height, cached_votes);
         for msg in cached_votes {
-            let leader_election = make_leader_election(context, height);
-            let new_requests = shc.handle_vote(&leader_election, msg);
+            let new_requests = shc.handle_vote(msg);
             pending_requests.extend(new_requests);
         }
 
         // Reflect initial height/round to context before executing requests.
         context.set_height_and_round(height, shc.current_round()).await?;
-        self.execute_requests(context, height, pending_requests, shc_events, broadcast_channels)
-            .await
+        self.execute_requests(
+            context,
+            height,
+            shc.committee(),
+            pending_requests,
+            shc_events,
+            broadcast_channels,
+        )
+        .await
     }
 
     /// Main consensus loop: handles incoming proposals, votes, events, and sync checks.
@@ -643,12 +640,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             let requests = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
                     let message = message.ok_or_else(|| ConsensusError::InternalNetworkError("Votes channel should never be closed".to_string()))?;
-                    self.handle_vote(context, height, Some(shc), message, broadcast_channels).await?
+                    self.handle_vote(height, Some(shc), message, broadcast_channels).await?
                 },
                 content_receiver = proposals_receiver.next() => {
                     let content_receiver = content_receiver.ok_or_else(|| ConsensusError::InternalNetworkError("Proposals channel should never be closed".to_string()))?;
                     self.handle_proposal(
-                        context,
                         height,
                         Some(shc),
                         content_receiver
@@ -656,8 +652,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     .await?
                 },
                 Some(shc_event) = shc_events.next() => {
-                    let leader_election = make_leader_election(context, height);
-                    shc.handle_event(&leader_election, shc_event)
+                    shc.handle_event(shc_event)
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
@@ -672,7 +667,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             // Reflect current height/round to context.
             context.set_height_and_round(height, shc.current_round()).await?;
             if let Some(decision) = self
-                .execute_requests(context, height, requests, shc_events, broadcast_channels)
+                .execute_requests(
+                    context,
+                    height,
+                    shc.committee(),
+                    requests,
+                    shc_events,
+                    broadcast_channels,
+                )
                 .await?
             {
                 return Ok(RunHeightRes::Decision(decision));
@@ -682,7 +684,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
     async fn cleanup_post_height(
         &mut self,
-        context: &mut ContextT,
         height: BlockNumber,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
@@ -697,10 +698,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             broadcast_channels.broadcasted_messages_receiver.next().now_or_never()
         {
             // Discard any votes for this height or lower by sending a None SHC.
-            self.handle_vote(context, height, None, message, broadcast_channels).await?;
+            self.handle_vote(height, None, message, broadcast_channels).await?;
         }
         while let Ok(Some(content_receiver)) = proposals_receiver.try_next() {
-            self.handle_proposal(context, height, None, content_receiver).await?;
+            self.handle_proposal(height, None, content_receiver).await?;
         }
 
         // Height completed; clear any content streams associated with current and lower heights.
@@ -713,7 +714,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     // shc - None if the height was just completed and we should drop the message.
     async fn handle_proposal(
         &mut self,
-        context: &mut ContextT,
         height: BlockNumber,
         shc: Option<&mut SingleHeightConsensus>,
         mut content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
@@ -736,71 +736,81 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
         };
 
-        // Check that the proposer matches the virtual_proposer for this height.
-        let Some(proposer) = context.virtual_proposer(block_info.height, block_info.round).ok()
-        else {
-            warn!(
-                "VIRTUAL_PROPOSER_LOOKUP_FAILED: Failed to determine virtual proposer for height \
-                 {height} round {}. Dropping proposal.",
-                block_info.round
-            );
-            return Ok(VecDeque::new());
-        };
-        if proposer != block_info.proposer {
-            warn!(
-                "Invalid proposer for height {height} and round {}: expected {:?}, got {:?}",
-                block_info.round, proposer, block_info.proposer
-            );
-            return Ok(VecDeque::new());
-        }
-
-        match block_info.height.cmp(&height) {
-            std::cmp::Ordering::Greater => {
-                if self.cache.should_cache_proposal(&height, 0, &block_info) {
-                    debug!("Received a proposal for a future height. {:?}", block_info);
-                    // Note: new proposals with the same height/round will be ignored.
-                    //
-                    // TODO(matan): This only work for trusted peers. In the case of possibly
-                    // malicious peers this is a possible DoS attack (malicious
-                    // users can insert invalid/bad/malicious proposals before
-                    // "good" nodes can propose).
-                    //
-                    // When moving to version 1.0 make sure this is addressed.
-                    self.cache.cache_future_proposal(block_info, content_receiver);
-                }
-                Ok(VecDeque::new())
-            }
+        let ord = block_info.height.cmp(&height);
+        match ord {
             std::cmp::Ordering::Less => {
                 trace!("Drop proposal from past height. {:?}", block_info);
                 Ok(VecDeque::new())
             }
-            std::cmp::Ordering::Equal => match shc {
-                Some(shc) => {
-                    if self.cache.should_cache_proposal(&height, shc.current_round(), &block_info) {
-                        Ok(self
-                            .handle_proposal_known_block_info(
-                                context,
-                                height,
-                                shc,
-                                block_info,
-                                content_receiver,
-                            )
-                            .await)
-                    } else {
-                        Ok(VecDeque::new())
+            std::cmp::Ordering::Greater | std::cmp::Ordering::Equal => {
+                let Ok(proposer) = get_proposer_for_height(
+                    &self.committee_provider,
+                    block_info.height,
+                    block_info.round,
+                )
+                .await
+                else {
+                    warn!(
+                        "VIRTUAL_PROPOSER_LOOKUP_FAILED: Failed to determine virtual proposer for \
+                         height {} round {}. Dropping proposal.",
+                        block_info.height.0, block_info.round
+                    );
+                    return Ok(VecDeque::new());
+                };
+                if proposer != block_info.proposer {
+                    warn!(
+                        "Invalid proposer for height {} and round {}: expected {:?}, got {:?}",
+                        block_info.height.0, block_info.round, proposer, block_info.proposer
+                    );
+                    return Ok(VecDeque::new());
+                }
+                if ord == std::cmp::Ordering::Greater {
+                    if self.cache.should_cache_proposal(&height, 0, &block_info) {
+                        debug!("Received a proposal for a future height. {:?}", block_info);
+                        // Note: new proposals with the same height/round will be ignored.
+                        //
+                        // TODO(matan): This only work for trusted peers. In the case of
+                        // possibly malicious peers this is a
+                        // possible DoS attack (malicious
+                        // users can insert invalid/bad/malicious proposals before
+                        // "good" nodes can propose).
+                        //
+                        // When moving to version 1.0 make sure this is addressed.
+                        self.cache.cache_future_proposal(block_info, content_receiver);
+                    }
+                    Ok(VecDeque::new())
+                } else {
+                    match shc {
+                        Some(shc) => {
+                            if self.cache.should_cache_proposal(
+                                &height,
+                                shc.current_round(),
+                                &block_info,
+                            ) {
+                                Ok(self
+                                    .handle_proposal_known_block_info(
+                                        height,
+                                        shc,
+                                        block_info,
+                                        content_receiver,
+                                    )
+                                    .await)
+                            } else {
+                                Ok(VecDeque::new())
+                            }
+                        }
+                        None => {
+                            trace!("Drop proposal from just completed height. {:?}", block_info);
+                            Ok(VecDeque::new())
+                        }
                     }
                 }
-                None => {
-                    trace!("Drop proposal from just completed height. {:?}", block_info);
-                    Ok(VecDeque::new())
-                }
-            },
+            }
         }
     }
 
     async fn handle_proposal_known_block_info(
         &mut self,
-        context: &mut ContextT,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
         block_info: ConsensusBlockInfo,
@@ -808,15 +818,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     ) -> Requests {
         // Store the stream; requests will reference it by (height, round)
         self.current_height_proposals_streams.insert((height, block_info.round), content_receiver);
-        let leader_election = make_leader_election(context, height);
-        shc.handle_proposal(&leader_election, block_info)
+        shc.handle_proposal(block_info)
     }
 
     // Handle a single consensus message.
     // shc - None if the height was just completed and we should drop the message.
     async fn handle_vote(
         &mut self,
-        context: &mut ContextT,
         height: BlockNumber,
         shc: Option<&mut SingleHeightConsensus>,
         vote: (Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata),
@@ -871,8 +879,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             std::cmp::Ordering::Equal => match shc {
                 Some(shc) => {
                     if self.cache.should_cache_vote(&height, shc.current_round(), &message) {
-                        let leader_election = make_leader_election(context, height);
-                        Ok(shc.handle_vote(&leader_election, message))
+                        Ok(shc.handle_vote(message))
                     } else {
                         Ok(VecDeque::new())
                     }
@@ -889,6 +896,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
+        committee: Arc<dyn CommitteeTrait>,
         mut requests: VecDeque<SMRequest>,
         shc_events: &mut FuturesUnordered<BoxFuture<'static, StateMachineEvent>>,
         broadcast_channels: &mut BroadcastVoteChannel,
@@ -899,8 +907,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     return Ok(Some(decision));
                 }
                 _ => {
-                    if let Some(fut) =
-                        self.run_request(context, height, request, broadcast_channels).await?
+                    if let Some(fut) = self
+                        .run_request(context, height, &committee, request, broadcast_channels)
+                        .await?
                     {
                         shc_events.push(fut);
                     }
@@ -915,13 +924,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
+        committee: &Arc<dyn CommitteeTrait>,
         request: SMRequest,
         _broadcast_channels: &mut BroadcastVoteChannel,
     ) -> Result<Option<BoxFuture<'static, StateMachineEvent>>, ConsensusError> {
         let timeouts = &self.consensus_config.dynamic_config.timeouts;
         match request {
             SMRequest::StartBuildProposal(round) => {
-                let Some(virtual_proposer) = context.virtual_proposer(height, round).ok() else {
+                let Ok(virtual_proposer) = committee.get_proposer(height, round) else {
                     warn!(
                         "VIRTUAL_PROPOSER_LOOKUP_FAILED: Failed to determine virtual proposer for \
                          height {height} round {round}. Proposal building will fail.",
@@ -1019,13 +1029,15 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     }
 }
 
-/// Creates a LeaderElection struct that holds the proposer and virtual_proposer functions.
-fn make_leader_election<'a, ContextT: ConsensusContext>(
-    context: &'a ContextT,
+/// Fetches the committee for the given height and returns the proposer for that height and round.
+async fn get_proposer_for_height(
+    committee_provider: &Arc<dyn CommitteeProvider>,
     height: BlockNumber,
-) -> LeaderElection<'a> {
-    LeaderElection::new(
-        Box::new(move |round| context.proposer(height, round)),
-        Box::new(move |round| context.virtual_proposer(height, round)),
-    )
+    round: Round,
+) -> Result<ValidatorId, ConsensusError> {
+    let committee = committee_provider
+        .get_committee(height)
+        .await
+        .map_err(|e| ConsensusError::CommitteeError(e.to_string()))?;
+    committee.get_proposer(height, round).map_err(|e| ConsensusError::CommitteeError(e.to_string()))
 }
