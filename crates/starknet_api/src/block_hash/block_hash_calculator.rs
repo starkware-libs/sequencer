@@ -116,6 +116,8 @@ pub struct BlockHeaderCommitments {
     pub event_commitment: EventCommitment,
     pub receipt_commitment: ReceiptCommitment,
     pub state_diff_commitment: StateDiffCommitment,
+    // TODO(Yoni): rename to packed_lengths to match Cairo's BlockHeaderCommitments (make sure it
+    // doesn't break anything).
     pub concatenated_counts: Felt,
 }
 
@@ -204,7 +206,7 @@ impl PartialBlockHashComponents {
 pub fn calculate_block_hash(
     partial_block_hash_components: &PartialBlockHashComponents,
     state_root: GlobalRoot,
-    parent_hash: BlockHash,
+    previous_block_hash: BlockHash,
 ) -> StarknetApiResult<BlockHash> {
     let block_hash_version: BlockHashVersion =
         partial_block_hash_components.starknet_version.try_into()?;
@@ -235,7 +237,7 @@ pub fn calculate_block_hash(
                     .expect("Expect ASCII version"),
             )
             .chain(&Felt::ZERO)
-            .chain(&parent_hash.0)
+            .chain(&previous_block_hash.0)
             .get_poseidon_hash(),
     ))
 }

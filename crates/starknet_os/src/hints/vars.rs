@@ -253,7 +253,7 @@ define_string_enum! {
         (PackedValue),
         (PackedValues),
         (PackedValuesLen),
-        (ParentHash),
+        (PreviousBlockHash),
         (Path),
         (PaymasterDataLength),
         (PaymasterData),

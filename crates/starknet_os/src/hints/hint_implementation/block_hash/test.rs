@@ -45,7 +45,7 @@ use crate::test_utils::cairo_runner::{
 fn cairo_calculate_block_hash(
     components: &PartialBlockHashComponents,
     state_root: Felt,
-    parent_hash: Felt,
+    previous_block_hash: Felt,
 ) -> Felt {
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::starknet,
@@ -91,7 +91,7 @@ fn cairo_calculate_block_hash(
         header_commitments_arg,
         EndpointArg::from(gas_prices_hash),
         EndpointArg::from(state_root),
-        EndpointArg::from(parent_hash),
+        EndpointArg::from(previous_block_hash),
         EndpointArg::from(Felt::try_from(&components.starknet_version).unwrap()),
     ];
 
@@ -138,12 +138,12 @@ fn test_block_hash_cairo() {
         starknet_version: StarknetVersion::LATEST,
     };
     let state_root = Felt::from(16);
-    let parent_hash = Felt::from(17);
+    let previous_block_hash = Felt::from(17);
 
-    let cairo_hash = cairo_calculate_block_hash(&components, state_root, parent_hash);
+    let cairo_hash = cairo_calculate_block_hash(&components, state_root, previous_block_hash);
 
     let expected_hash =
-        calculate_block_hash(&components, GlobalRoot(state_root), BlockHash(parent_hash))
+        calculate_block_hash(&components, GlobalRoot(state_root), BlockHash(previous_block_hash))
             .unwrap()
             .0;
 
