@@ -121,7 +121,6 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             batcher: Arc::new(deps.batcher),
             cende_ambassador: Arc::new(deps.cende_ambassador),
             l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
-            committee_provider: None,
             clock: deps.clock,
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
