@@ -212,7 +212,6 @@ fn test_process_compilation_request(
         run_cairo_native: true,
         channel_size: TEST_CHANNEL_SIZE,
         panic_on_compilation_failure,
-        ..CairoNativeRunConfig::default()
     });
     let res = process_compilation_request(
         manager.clone().class_cache,
@@ -244,7 +243,7 @@ fn test_process_compilation_request(
 #[case::all_classes(NativeClassesWhitelist::All, true)]
 #[case::only_selected_class_hash(NativeClassesWhitelist::Limited(vec![get_test_contract_class_hash()]), true)]
 #[case::no_allowed_classes(NativeClassesWhitelist::Limited(vec![]), false)]
-// Test the config that allows us to run only limited selection of class hashes in native.
+// Test that get_runnable respects the whitelist parameter.
 fn test_native_classes_whitelist(
     #[case] whitelist: NativeClassesWhitelist,
     #[case] allow_run_native: bool,
@@ -254,7 +253,6 @@ fn test_native_classes_whitelist(
         wait_on_native_compilation: true,
         panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,
-        native_classes_whitelist: whitelist.clone(),
     };
     let manager = NativeClassManager::create_for_testing(native_config);
 

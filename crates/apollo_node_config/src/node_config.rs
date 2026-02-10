@@ -105,12 +105,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "Specifies whether to execute all class hashes or only specific ones using Cairo \
                 native. If limited, a specific list of class hashes is provided.",
             ),
+            // TODO(Arni): consider adding native_classes_whitelist to the gateway config.
             set_pointing_param_paths(&[
                 "batcher_config.dynamic_config.native_classes_whitelist",
-                "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.\
-                native_classes_whitelist",
-                "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.\
-                native_classes_whitelist",
             ]),
         ),
         (
