@@ -5,6 +5,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use std::vec;
 
+use apollo_network_types::network_types::{BadPeerReason, BadPeerReport, PenaltyCard};
 use apollo_network_types::test_utils::DUMMY_PEER_ID;
 use deadqueue::unlimited::Queue;
 use futures::channel::mpsc::{unbounded, UnboundedSender};
@@ -398,7 +399,15 @@ async fn receive_broadcasted_message_and_report_it() {
             let result = broadcasted_messages_receiver.next().await;
             let (message_result, broadcasted_message_metadata) = result.unwrap();
             assert_eq!(message, message_result.unwrap());
-            broadcast_topic_client.report_peer(broadcasted_message_metadata).await.unwrap();
+            let report = BadPeerReport {
+                peer_id: broadcasted_message_metadata.originator_id.clone(),
+                reason: BadPeerReason::ConversionError("test".to_string()),
+                penalty_card: PenaltyCard::Red,
+            };
+            broadcast_topic_client
+                .report_peer(broadcasted_message_metadata, report)
+                .await
+                .unwrap();
             reported_peer_receiver.next().await
         }) => {
             assert_eq!(originated_peer_id, reported_peer_result.unwrap().unwrap());

@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use apollo_consensus_config::config::StreamHandlerConfig;
 use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
-use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_network_types::network_types::{BadPeerReport, BroadcastedMessageMetadata};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart, StreamMessageBody};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_test_utils::{get_rng, GetTestInstance};
@@ -66,7 +66,11 @@ impl BroadcastTopicClientTrait<StreamMessage> for FakeBroadcastClient {
         self.sender.send(message).await
     }
 
-    async fn report_peer(&mut self, _: BroadcastedMessageMetadata) -> Result<(), SendError> {
+    async fn report_peer(
+        &mut self,
+        _: BroadcastedMessageMetadata,
+        _: BadPeerReport,
+    ) -> Result<(), SendError> {
         todo!()
     }
 
