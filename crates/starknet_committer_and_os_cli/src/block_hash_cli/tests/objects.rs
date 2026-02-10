@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use blockifier::execution::call_info::{
-    resource_counter_map,
+    cairo_primitive_counter_map,
     CallExecution,
     CallInfo,
     MessageToL1 as BlockifierMessageToL1,
@@ -212,7 +212,7 @@ fn create_call_info(
         resources: create_execution_resources(1000, 0, 10, 5),
         tracked_resource: blockifier::execution::contract_class::TrackedResource::CairoSteps,
         storage_access_tracker: Default::default(),
-        builtin_counters: resource_counter_map([
+        builtin_counters: cairo_primitive_counter_map([
             (cairo_vm::types::builtin_name::BuiltinName::range_check, 10),
             (cairo_vm::types::builtin_name::BuiltinName::pedersen, 5),
         ]),

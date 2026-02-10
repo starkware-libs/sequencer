@@ -3,7 +3,7 @@ use cairo_native::utils::BuiltinCosts;
 use cairo_vm::types::builtin_name::BuiltinName;
 
 use crate::execution::call_info::{
-    resource_counter_map,
+    cairo_primitive_counter_map,
     BuiltinCounterMap,
     CallExecution,
     CallInfo,
@@ -119,7 +119,7 @@ fn create_callinfo(
         inner_calls: syscall_handler.base.inner_calls,
         storage_access_tracker: syscall_handler.base.storage_access_tracker,
         tracked_resource: TrackedResource::SierraGas,
-        builtin_counters: resource_counter_map(builtin_counters),
+        builtin_counters: cairo_primitive_counter_map(builtin_counters),
         syscalls_usage: syscall_handler.base.syscalls_usage,
     })
 }
