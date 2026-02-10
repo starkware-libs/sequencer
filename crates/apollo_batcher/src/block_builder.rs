@@ -144,7 +144,7 @@ impl BlockExecutionArtifacts {
         let starknet_version = block_info.starknet_version;
         let transactions_data =
             prepare_txs_hashing_data(&execution_data.execution_infos_and_signatures);
-        let header_commitments = calculate_block_commitments(
+        let (header_commitments, _measurements) = calculate_block_commitments(
             &transactions_data,
             commitment_state_diff_as_thin_state_diff(&commitment_state_diff),
             l1_da_mode,
