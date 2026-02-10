@@ -204,6 +204,7 @@ impl TestDeps {
                             },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
+                            parent_proposal_commitment: None,
                         }),
                     })
                 });
@@ -267,6 +268,7 @@ impl TestDeps {
                             },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
+                            parent_proposal_commitment: None,
                         }),
                     })
                 });
