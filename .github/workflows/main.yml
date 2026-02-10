@@ -6,7 +6,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - edited
 
 env:
   CI: 1
