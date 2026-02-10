@@ -10,7 +10,7 @@ use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
+use apollo_protobuf::consensus::{ProposalInit, ProposalPart};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
@@ -117,7 +117,7 @@ pub(crate) struct L1PricesInFri {
 }
 
 /// Contains only the necessary fields from the previous block needed for building/validating
-/// proposals. This is a minimal representation to avoid storing the full ConsensusBlockInfo.
+/// proposals. This is a minimal representation to avoid storing the full ProposalInit.
 #[derive(Clone, Debug)]
 pub(crate) struct PreviousBlockInfo {
     pub timestamp: u64,
@@ -125,17 +125,17 @@ pub(crate) struct PreviousBlockInfo {
     pub l1_prices_fri: L1PricesInFri,
 }
 
-impl From<&ConsensusBlockInfo> for PreviousBlockInfo {
-    fn from(block_info: &ConsensusBlockInfo) -> Self {
+impl From<&ProposalInit> for PreviousBlockInfo {
+    fn from(init: &ProposalInit) -> Self {
         Self {
-            timestamp: block_info.timestamp,
+            timestamp: init.timestamp,
             l1_prices_wei: L1PricesInWei {
-                l1_gas_price: block_info.l1_gas_price_wei,
-                l1_data_gas_price: block_info.l1_data_gas_price_wei,
+                l1_gas_price: init.l1_gas_price_wei,
+                l1_data_gas_price: init.l1_data_gas_price_wei,
             },
             l1_prices_fri: L1PricesInFri {
-                l1_gas_price: block_info.l1_gas_price_fri,
-                l1_data_gas_price: block_info.l1_data_gas_price_fri,
+                l1_gas_price: init.l1_gas_price_fri,
+                l1_data_gas_price: init.l1_data_gas_price_fri,
             },
         }
     }
@@ -314,38 +314,37 @@ pub(crate) fn apply_fee_transformations(
 }
 
 pub(crate) fn convert_to_sn_api_block_info(
-    block_info: &ConsensusBlockInfo,
+    init: &ProposalInit,
 ) -> Result<starknet_api::block::BlockInfo, StarknetApiError> {
-    if block_info.l1_gas_price_fri.0 == 0
-        || block_info.l1_gas_price_wei.0 == 0
-        || block_info.l1_data_gas_price_fri.0 == 0
-        || block_info.l1_data_gas_price_wei.0 == 0
-        || block_info.l2_gas_price_fri.0 == 0
+    if init.l1_gas_price_fri.0 == 0
+        || init.l1_gas_price_wei.0 == 0
+        || init.l1_data_gas_price_fri.0 == 0
+        || init.l1_data_gas_price_wei.0 == 0
+        || init.l2_gas_price_fri.0 == 0
     {
-        warn!("Zero gas price detected in block info: {:?}", block_info);
+        warn!("Zero gas price detected in block info: {:?}", init);
     }
 
-    let l1_gas_price_fri = NonzeroGasPrice::new(block_info.l1_gas_price_fri)?;
-    let l1_data_gas_price_fri = NonzeroGasPrice::new(block_info.l1_data_gas_price_fri)?;
-    let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei)?;
-    let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei)?;
-    let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri)?;
-    let previous_block_info = PreviousBlockInfo::from(block_info);
+    let l1_gas_price_fri = NonzeroGasPrice::new(init.l1_gas_price_fri)?;
+    let l1_data_gas_price_fri = NonzeroGasPrice::new(init.l1_data_gas_price_fri)?;
+    let l1_gas_price_wei = NonzeroGasPrice::new(init.l1_gas_price_wei)?;
+    let l1_data_gas_price_wei = NonzeroGasPrice::new(init.l1_data_gas_price_wei)?;
+    let l2_gas_price_fri = NonzeroGasPrice::new(init.l2_gas_price_fri)?;
+    let previous_block_info = PreviousBlockInfo::from(init);
     let eth_to_fri_rate = calculate_eth_to_fri_rate(&previous_block_info)?;
 
-    let l2_gas_price_wei =
-        NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(eth_to_fri_rate)?)
-            .inspect_err(|_| {
-                warn!(
-                    "L2 gas price in wei is zero! Conversion rate: {eth_to_fri_rate}, L2 gas \
-                     price in FRI: {}",
-                    block_info.l2_gas_price_fri
-                )
-            })?;
+    let l2_gas_price_wei = NonzeroGasPrice::new(init.l2_gas_price_fri.fri_to_wei(eth_to_fri_rate)?)
+        .inspect_err(|_| {
+            warn!(
+                "L2 gas price in wei is zero! Conversion rate: {eth_to_fri_rate}, L2 gas price in \
+                 FRI: {}",
+                init.l2_gas_price_fri
+            )
+        })?;
     Ok(starknet_api::block::BlockInfo {
-        block_number: block_info.height,
-        block_timestamp: BlockTimestamp(block_info.timestamp),
-        sequencer_address: block_info.builder,
+        block_number: init.height,
+        block_timestamp: BlockTimestamp(init.timestamp),
+        sequencer_address: init.builder,
         gas_prices: GasPrices {
             strk_gas_prices: GasPriceVector {
                 l1_gas_price: l1_gas_price_fri,
@@ -358,8 +357,8 @@ pub(crate) fn convert_to_sn_api_block_info(
                 l2_gas_price: l2_gas_price_wei,
             },
         },
-        use_kzg_da: block_info.l1_da_mode.is_use_kzg_da(),
-        starknet_version: block_info.starknet_version,
+        use_kzg_da: init.l1_da_mode.is_use_kzg_da(),
+        starknet_version: init.starknet_version,
     })
 }
 
@@ -368,9 +367,9 @@ pub(crate) fn convert_to_sn_api_block_info(
 pub(crate) async fn retrospective_block_hash(
     batcher_client: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
-    block_info: &ConsensusBlockInfo,
+    init: &ProposalInit,
 ) -> RetrospectiveBlockHashResult<Option<BlockHashAndNumber>> {
-    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
+    let retrospective_block_number = init.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
 
     let Some(block_number) = retrospective_block_number else {
         info!(
@@ -407,7 +406,7 @@ pub(crate) async fn retrospective_block_hash(
 pub(crate) async fn wait_for_retrospective_block_hash(
     batcher_client: Arc<dyn BatcherClient>,
     state_sync_client: Arc<dyn StateSyncClient>,
-    block_info: &ConsensusBlockInfo,
+    init: &ProposalInit,
     clock: &dyn Clock,
     deadline: DateTime,
     retry_interval: Duration,
@@ -417,8 +416,7 @@ pub(crate) async fn wait_for_retrospective_block_hash(
     let result = loop {
         attempts += 1;
         let result =
-            retrospective_block_hash(batcher_client.clone(), state_sync_client.clone(), block_info)
-                .await;
+            retrospective_block_hash(batcher_client.clone(), state_sync_client.clone(), init).await;
 
         // If the block is not found, try again after the retry interval. In any other case, return
         // the result.

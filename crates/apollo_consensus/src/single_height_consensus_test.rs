@@ -9,10 +9,10 @@ use test_case::test_case;
 use super::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
 use crate::test_utils::{
-    block_info,
     mock_committee_virtual_equal_to_actual,
     precommit,
     prevote,
+    proposal_init,
     TestBlock,
 };
 use crate::types::{ProposalCommitment, Round, ValidatorId};
@@ -95,7 +95,7 @@ fn proposer() {
 #[test_case(false; "single_proposal")]
 #[test_case(true; "repeat_proposal")]
 fn validator(repeat_proposal: bool) {
-    let block_info = block_info(HEIGHT_0, ROUND_0, *PROPOSER_ID);
+    let init = proposal_init(HEIGHT_0, ROUND_0, *PROPOSER_ID);
     let mut shc = SingleHeightConsensus::new(
         HEIGHT_0,
         false,
@@ -110,11 +110,11 @@ fn validator(repeat_proposal: bool) {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
 
-    // Accept block info -> should request validation.
-    let round = block_info.round;
-    let ret = shc.handle_proposal(block_info.clone());
+    // Accept init -> should request validation.
+    let round = init.round;
+    let ret = shc.handle_proposal(init.clone());
     assert_matches!(ret, mut reqs => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::StartValidateProposal(info)) if info == block_info);
+        assert_matches!(reqs.pop_front(), Some(SMRequest::StartValidateProposal(info)) if info == init);
         assert!(reqs.is_empty());
     });
 
@@ -127,7 +127,7 @@ fn validator(repeat_proposal: bool) {
 
     if repeat_proposal {
         // Duplicate block info should be ignored.
-        let ret = shc.handle_proposal(block_info.clone());
+        let ret = shc.handle_proposal(init.clone());
         assert!(matches!(ret, rs if rs.is_empty()));
     }
 
@@ -158,7 +158,7 @@ fn validator(repeat_proposal: bool) {
 #[test_case(true; "repeat")]
 #[test_case(false; "equivocation")]
 fn vote_twice(same_vote: bool) {
-    let block_info = block_info(HEIGHT_0, ROUND_0, *PROPOSER_ID);
+    let init = proposal_init(HEIGHT_0, ROUND_0, *PROPOSER_ID);
     let mut shc = SingleHeightConsensus::new(
         HEIGHT_0,
         false,
@@ -173,8 +173,8 @@ fn vote_twice(same_vote: bool) {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     // Validate a proposal so the SM is ready to prevote.
-    let round = block_info.round;
-    shc.handle_proposal(block_info);
+    let round = init.round;
+    shc.handle_proposal(init);
     shc.handle_event(StateMachineEvent::FinishedValidation(Some(BLOCK.id), round, None));
 
     let _ = shc.handle_vote(prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *PROPOSER_ID));
@@ -399,7 +399,7 @@ async fn duplicate_votes_during_awaiting_finished_building_are_ignored() {
 
 #[test]
 fn broadcast_vote_before_decision_on_validation_finish() {
-    let block_info = block_info(HEIGHT_0, ROUND_0, *PROPOSER_ID);
+    let init = proposal_init(HEIGHT_0, ROUND_0, *PROPOSER_ID);
     let mut shc = SingleHeightConsensus::new(
         HEIGHT_0,
         false,
@@ -414,10 +414,10 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         REQUIRE_VIRTUAL_PROPOSER_VOTE,
     );
     // 1. Accept proposal -> should request validation
-    let round = block_info.round;
-    let ret = shc.handle_proposal(block_info);
+    let round = init.round;
+    let ret = shc.handle_proposal(init);
     assert_matches!(ret, mut reqs => {
-        assert_matches!(reqs.pop_front(), Some(SMRequest::StartValidateProposal(_block_info)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::StartValidateProposal(_init)));
         assert!(reqs.is_empty());
     });
 
