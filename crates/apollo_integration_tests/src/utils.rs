@@ -9,6 +9,8 @@ use apollo_batcher_config::config::{BatcherConfig, BatcherStaticConfig, BlockBui
 use apollo_class_manager_config::config::{
     CachedClassStorageConfig,
     ClassManagerConfig,
+    ClassManagerDynamicConfig,
+    ClassManagerStaticConfig,
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
@@ -736,7 +738,8 @@ pub fn create_class_manager_config(
         CachedClassStorageConfig { class_cache_size: 100, deprecated_class_cache_size: 100 };
     let class_manager_config =
         ClassManagerConfig { cached_class_storage_config, ..Default::default() };
-    FsClassManagerConfig { class_manager_config, class_storage_config }
+    let static_config = ClassManagerStaticConfig { class_manager_config, class_storage_config };
+    FsClassManagerConfig { static_config, dynamic_config: ClassManagerDynamicConfig::default() }
 }
 
 pub fn set_validator_id(

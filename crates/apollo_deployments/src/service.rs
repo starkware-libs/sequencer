@@ -52,7 +52,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash",
     "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
     "chain_id",
-    "class_manager_config.class_manager_config.max_compiled_contract_class_object_size",
+    "class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size",
     "committer_config.storage_config.cache_size",
     "committer_config.verify_state_diff_hash",
     "consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote",
