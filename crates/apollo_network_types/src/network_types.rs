@@ -24,12 +24,12 @@ impl OpaquePeerId {
     }
 }
 
-// TODO(guyn): remove allow dead code once we use the duplicate vote report.
+// TODO(guyn): remove allow dead code once we use this struct.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BadPeerReport {
     pub peer_id: OpaquePeerId,
-    pub reason: String,
+    pub reason: BadPeerReason,
     pub penalty_card: PenaltyCard,
 }
 
@@ -41,4 +41,13 @@ pub enum PenaltyCard {
     Red,
     /// Possibly sent malicious data on accident, will be considered malicious on repeat offenses.
     Yellow,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BadPeerReason {
+    /// Protobuf conversion has failed.
+    ConversionError(String),
+    /// Duplicate and conflicting vote was received from the same peer for the same height, round,
+    /// and phase.
+    DuplicateVote(String),
 }
