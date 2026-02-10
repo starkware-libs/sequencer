@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770646368921,
+  "lastUpdate": 1770720342226,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -305,6 +305,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1277.03511888,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "yonatan.k@starkware.co",
+            "name": "Yonatan-Starkware",
+            "username": "Yonatan-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "38f175b5666392e01021fc247accabe38447348c",
+          "message": "blockifier: rename ResourceName --> CairoPrimitiveName and ResourceCounterMap --> CairoPrimitiveCounterMap (#12307)",
+          "timestamp": "2026-02-10T10:19:42Z",
+          "tree_id": "1386ea8f4ea6bf4aa96316eb68a8ca9b30099bb2",
+          "url": "https://github.com/starkware-libs/sequencer/commit/38f175b5666392e01021fc247accabe38447348c"
+        },
+        "date": 1770720341902,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 841.31859625,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1374.84088944,
             "unit": "ms"
           }
         ]
