@@ -39,6 +39,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "batcher_config.dynamic_config.native_classes_whitelist": {
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
+    "pointer_target": "native_classes_whitelist",
+    "privacy": "Public"
+  },
   "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
