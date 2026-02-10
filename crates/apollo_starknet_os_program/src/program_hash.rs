@@ -49,14 +49,33 @@ fn compute_program_hash(program: &Program) -> Result<Felt, ProgramHashError> {
 }
 
 /// Computes the program hash using Blake2s.
+/// Hashes the full program header (bootloader_version, main, n_builtins, builtins) followed by
+/// program data, matching the bootloader's Cairo implementation.
 pub fn compute_program_hash_blake(program: &Program) -> Result<Felt, ProgramHashError> {
     let stripped_program = program.get_stripped_program()?;
+
+    let builtin_list: Vec<Felt> = stripped_program
+        .builtins
+        .iter()
+        .map(|b| Felt::from_bytes_be_slice(b.to_str().as_bytes()))
+        .collect();
+
+    let program_header = vec![
+        Felt::from(BOOTLOADER_VERSION),
+        Felt::from(stripped_program.main),
+        Felt::from(stripped_program.builtins.len()),
+    ];
+
     let program_data: Vec<Felt> = stripped_program
         .data
         .iter()
         .map(|entry| entry.get_int_ref().copied().expect("Program data must contain felts."))
         .collect();
-    Ok(Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&program_data))
+
+    let data_chain: Vec<Felt> =
+        program_header.into_iter().chain(builtin_list).chain(program_data).collect();
+
+    Ok(Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&data_chain))
 }
 
 pub fn compute_os_program_hash() -> Result<Felt, ProgramHashError> {
