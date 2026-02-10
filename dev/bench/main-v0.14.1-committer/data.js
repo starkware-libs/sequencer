@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770713120517,
+  "lastUpdate": 1770714278663,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2209,6 +2209,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1341.46197584,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ron@starkware.co",
+            "name": "ron-starkware",
+            "username": "ron-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0ff210983ca06c4ebd4829b6dba6876da5a0274e",
+          "message": "apollo_dashboard: Fix Seconds since last function for Grafana panels (#11982)",
+          "timestamp": "2026-02-10T08:28:25Z",
+          "tree_id": "aee1ac51fcbc37a7be62f0239218fe7b0fc1ec89",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0ff210983ca06c4ebd4829b6dba6876da5a0274e"
+        },
+        "date": 1770714278339,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 779.97230573,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1320.66560407,
             "unit": "ms"
           }
         ]
