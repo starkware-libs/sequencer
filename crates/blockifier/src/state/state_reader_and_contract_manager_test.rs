@@ -13,7 +13,7 @@ use starknet_api::core::ClassHash;
 
 #[cfg(not(feature = "cairo_native"))]
 use crate::blockifier::config::CairoNativeRunConfig;
-use crate::blockifier::config::ContractClassManagerConfig;
+use crate::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
 #[cfg(not(feature = "cairo_native"))]
@@ -80,7 +80,12 @@ fn test_get_compiled_class_without_native_in_cache(
         build_reader_and_declare_contract(test_contract.into(), contract_manager_config);
 
     // Sanity check - the class manager's cache is empty.
-    assert!(state_reader.contract_class_manager.get_runnable(&test_class_hash).is_none());
+    assert!(
+        state_reader
+            .contract_class_manager
+            .get_runnable(&test_class_hash, &NativeClassesWhitelist::All)
+            .is_none()
+    );
 
     let compiled_class = state_reader.get_compiled_class(test_class_hash).unwrap();
 
