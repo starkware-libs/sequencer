@@ -11,6 +11,7 @@ use apollo_committer::metrics::{
     OFFSET,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
+    TOTAL_BLOCK_DURATION_PER_MODIFICATION,
     WRITE_DURATION_PER_BLOCK,
 };
 use apollo_metrics::metrics::MetricQueryName;
@@ -35,6 +36,16 @@ fn get_total_block_duration_panel() -> Panel {
     Panel::from_hist(&TOTAL_BLOCK_DURATION, "Total Block Duration", "Total block duration")
         .with_unit(Unit::Seconds)
         .with_log_query(BLOCK_DURATIONS_LOG_QUERY)
+}
+
+fn get_total_block_duration_per_modification_panel() -> Panel {
+    Panel::from_hist(
+        &TOTAL_BLOCK_DURATION_PER_MODIFICATION,
+        "Total Block Duration per Modification",
+        "Total block duration normalized by the number of modifications",
+    )
+    .with_unit(Unit::Seconds)
+    .with_log_query(BLOCK_DURATIONS_LOG_QUERY)
 }
 
 fn get_read_duration_per_block_panel() -> Panel {
@@ -142,6 +153,7 @@ pub(crate) fn get_committer_row() -> Row {
         vec![
             get_offset_panel(),
             get_total_block_duration_panel(),
+            get_total_block_duration_per_modification_panel(),
             get_read_duration_per_block_panel(),
             get_average_read_rate_panel(),
             get_compute_duration_per_block_panel(),
