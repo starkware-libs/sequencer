@@ -35,10 +35,10 @@ USER committer_benchmark
 ENTRYPOINT [ "starknet_committer_cli", "storage-benchmark" ]
 
 CMD ["cached-rocksdb", \
-    "--n-iterations", "1000000", \
-    "--flavor", "constant", \
+    "--n-iterations", "6000000", \
+    "--flavor", "mainnet", \
     "--n-updates", "1000", \
-    "--cache-size", "1000000", \
+    "--cache-size", "40000000", \
     "--checkpoint-interval", "1000", \
     "--include-inner-stats", \
     "--log-level", "info", \
