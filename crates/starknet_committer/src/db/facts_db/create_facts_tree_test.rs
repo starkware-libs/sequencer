@@ -13,11 +13,11 @@ use crate::db::facts_db::db::FactsNodeLayout;
 #[rstest]
 #[tokio::test]
 async fn test_create_tree_facts_layout(
-    #[case] mut case: CreateTreeCase,
+    #[case] case: CreateTreeCase,
     #[values(true, false)] compare_modified_leaves: bool,
 ) {
     test_create_original_skeleton::<MockLeaf, FactsNodeLayout>(
-        &mut case.storage,
+        &case.storage,
         &case.leaf_modifications,
         case.root_hash,
         &case.expected_skeleton_nodes,
