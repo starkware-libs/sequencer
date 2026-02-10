@@ -86,6 +86,11 @@ pub enum ProgramOutputError {
     Empty,
     #[error("Expected num_tasks to be 1, got {0}")]
     InvalidNumTasks(Felt),
+    #[error(
+        "Program output too short: expected at least 3 elements (num_tasks, output_size, ...), \
+         got {0}"
+    )]
+    TooShort(usize),
 }
 
 /// Raw program output from the bootloader.
@@ -97,6 +102,12 @@ pub struct ProgramOutput(pub Arc<Vec<Felt>>);
 
 impl ProgramOutput {
     /// Tries to convert ProgramOutput into ProofFacts.
+    ///
+    /// The bootloader output for a single task is:
+    ///   `[num_tasks, output_size, program_hash, ...task_output...]`
+    ///
+    /// We replace `num_tasks` with `[PROOF_VERSION, program_variant]` and skip `output_size`,
+    /// which is a bootloader-internal field not part of the proof facts.
     pub fn try_into_proof_facts(
         &self,
         program_variant: Felt,
@@ -105,11 +116,16 @@ impl ProgramOutput {
         if *num_tasks != Felt::ONE {
             return Err(ProgramOutputError::InvalidNumTasks(*num_tasks));
         }
+        // Need at least: num_tasks, output_size, and at least one task output field.
+        if self.0.len() < 3 {
+            return Err(ProgramOutputError::TooShort(self.0.len()));
+        }
         // Add the proof version and variant markers in place of num_tasks.
         let mut facts = vec![PROOF_VERSION];
         facts.push(program_variant);
-        // Add the rest of the program output (everything after num_tasks).
-        facts.extend_from_slice(&self.0[1..]);
+        // Skip num_tasks (index 0) and output_size (index 1); add the task output
+        // (program_hash followed by the virtual OS output).
+        facts.extend_from_slice(&self.0[2..]);
         Ok(ProofFacts(Arc::new(facts)))
     }
 }
