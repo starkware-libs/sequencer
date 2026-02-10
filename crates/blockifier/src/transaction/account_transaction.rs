@@ -4,14 +4,13 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockNumber, GasPriceVector};
 use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce, OsChainInfo};
+use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce, OsChainInfo};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     Fee,
@@ -137,7 +136,8 @@ impl AccountTransaction {
         (nonce, Nonce),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
-        (paymaster_data, PaymasterData)
+        (paymaster_data, PaymasterData),
+        (tx_type, TransactionType)
     );
 
     pub fn new_with_default_flags(tx: Transaction) -> Self {
@@ -152,31 +152,6 @@ impl AccountTransaction {
             strict_nonce_check: true,
         };
         AccountTransaction { tx, execution_flags }
-    }
-
-    pub fn class_hash(&self) -> Option<ClassHash> {
-        match &self.tx {
-            Transaction::Declare(tx) => Some(tx.tx.class_hash()),
-            Transaction::DeployAccount(tx) => Some(tx.tx.class_hash()),
-            Transaction::Invoke(_) => None,
-        }
-    }
-
-    pub fn account_deployment_data(&self) -> Option<AccountDeploymentData> {
-        match &self.tx {
-            Transaction::Declare(tx) => Some(tx.tx.account_deployment_data().clone()),
-            Transaction::DeployAccount(_) => None,
-            Transaction::Invoke(tx) => Some(tx.tx.account_deployment_data().clone()),
-        }
-    }
-
-    // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
-    pub fn tx_type(&self) -> TransactionType {
-        match &self.tx {
-            Transaction::Declare(_) => TransactionType::Declare,
-            Transaction::DeployAccount(_) => TransactionType::DeployAccount,
-            Transaction::Invoke(_) => TransactionType::InvokeFunction,
-        }
     }
 
     fn validate_entry_point_selector(&self) -> EntryPointSelector {
@@ -222,10 +197,6 @@ impl AccountTransaction {
 
     pub fn proof_facts_length(&self) -> usize {
         if let Transaction::Invoke(tx) = &self.tx { tx.proof_facts_length() } else { 0 }
-    }
-
-    pub fn enforce_fee(&self) -> bool {
-        self.create_tx_info().enforce_fee()
     }
 
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
