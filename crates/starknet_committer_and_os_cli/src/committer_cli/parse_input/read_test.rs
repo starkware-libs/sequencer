@@ -220,7 +220,7 @@ fn test_simple_input_parsing() {
             contracts_trie_root_hash: expected_contracts_trie_root_hash,
             classes_trie_root_hash: expected_classes_trie_root_hash,
         }),
-        config: ReaderConfig::new(true),
+        config: ReaderConfig::new(true, false),
     };
     assert_eq!(
         parse_input(input).unwrap(),
