@@ -1,0 +1,16 @@
+signing_comparison          fastest       │ slowest       │ median        │ mean          │ samples │ iters
+├─ full_signing_flow                      │               │               │               │         │
+│  ├─ peer_id_full_flow     13.99 µs      │ 38.15 µs      │ 14.09 µs      │ 19.34 µs      │ 100     │ 100
+│  ├─ peer_id_manual_flow   13.96 µs      │ 18.74 µs      │ 14.04 µs      │ 14.67 µs      │ 100     │ 100
+│  ╰─ staker_id_full_flow   128 µs        │ 215.1 µs      │ 131.4 µs      │ 147 µs        │ 100     │ 100
+├─ full_verification_flow                 │               │               │               │         │
+│  ├─ peer_id_full_flow     25.65 µs      │ 37.41 µs      │ 25.84 µs      │ 26.45 µs      │ 100     │ 100
+│  ├─ peer_id_manual_flow   24.73 µs      │ 29.71 µs      │ 24.88 µs      │ 25.07 µs      │ 100     │ 100
+│  ╰─ staker_id_full_flow   301.3 µs      │ 753.9 µs      │ 305.2 µs      │ 315.2 µs      │ 100     │ 100
+├─ raw_signing                            │               │               │               │         │
+│  ├─ peer_id_raw_sign      13.7 µs       │ 17.92 µs      │ 13.74 µs      │ 13.83 µs      │ 100     │ 100
+│  ╰─ staker_id_raw_sign    115.8 µs      │ 138.3 µs      │ 116.4 µs      │ 117.8 µs      │ 100     │ 100
+╰─ raw_verification                       │               │               │               │         │
+   ├─ peer_id_raw_verify    25.16 µs      │ 32.1 µs       │ 25.37 µs      │ 25.61 µs      │ 100     │ 100
+   ╰─ staker_id_raw_verify  304.6 µs      │ 347.2 µs      │ 311.5 µs      │ 313.8 µs      │ 100     │ 100
+

@@ -2061,13 +2061,17 @@ dependencies = [
  "apollo_config",
  "apollo_metrics",
  "apollo_network_types",
+ "apollo_propeller",
+ "apollo_signature_manager",
  "assert_matches",
  "async-stream",
  "async-trait",
+ "blake2",
  "bytes",
  "deadqueue",
  "defaultmap",
  "derive_more 2.1.1",
+ "divan",
  "futures",
  "lazy_static",
  "libp2p",
@@ -2076,6 +2080,8 @@ dependencies = [
  "replace_with",
  "rstest",
  "serde",
+ "starknet-core",
+ "starknet-crypto 0.8.1",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
@@ -4813,6 +4819,7 @@ dependencies = [
  "anstyle",
  "clap_lex",
  "strsim 0.11.1",
+ "terminal_size",
 ]
 
 [[package]]
@@ -4899,6 +4906,12 @@ checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
 dependencies = [
  "crossbeam-utils",
 ]
+
+[[package]]
+name = "condtype"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baf0a07a401f374238ab8e2f11a104d2851bf9ce711ec69804834de8af45c7af"
 
 [[package]]
 name = "console"
@@ -5555,6 +5568,31 @@ name = "dissimilar"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8975ffdaa0ef3661bfe02dbdcc06c9f829dfafe6a3c474de366a8d5e44276921"
+
+[[package]]
+name = "divan"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a405457ec78b8fe08b0e32b4a3570ab5dff6dd16eb9e76a5ee0a9d9cbd898933"
+dependencies = [
+ "cfg-if",
+ "clap",
+ "condtype",
+ "divan-macros",
+ "libc",
+ "regex-lite",
+]
+
+[[package]]
+name = "divan-macros"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9556bc800956545d6420a640173e5ba7dfa82f38d3ea5a167eb555bc69ac3323"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
+]
 
 [[package]]
 name = "downcast"
@@ -12416,7 +12454,7 @@ dependencies = [
  "dashmap",
  "educe 0.5.11",
  "fnv",
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
  "hex",
  "indexmap 2.12.0",
  "itertools 0.12.1",
@@ -12474,7 +12512,7 @@ name = "stwo-constraint-framework"
 version = "0.1.1"
 source = "git+https://github.com/starkware-libs/stwo?rev=6b5c843#6b5c84396da9ce282dc6accb343dd7ef6d1b9966"
 dependencies = [
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",
@@ -12641,6 +12679,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2111ef44dae28680ae9752bb89409e7310ca33a8c621ebe7b106cf5c928b3ac0"
 dependencies = [
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "terminal_size"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60b8cb979cb11c32ce1603f8137b22262a9d131aaa5c37b5678025f22b8becd0"
+dependencies = [
+ "rustix",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
