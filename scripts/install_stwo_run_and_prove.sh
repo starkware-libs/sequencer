@@ -27,7 +27,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/proving_utils_env.sh"
 
 # Configuration.
-PACKAGE_NAME="stwo_run_and_prove"
+PACKAGE_NAME="stwo-run-and-prove"
+# The compiled binary name uses hyphens (matching the package name).
+COMPILED_BINARY_NAME="stwo-run-and-prove"
+# The installed binary name uses underscores (matching codebase expectations).
 BINARY_NAME="stwo_run_and_prove"
 
 # Build and install directories.
@@ -120,10 +123,10 @@ build_binary() {
     info "Building with toolchain: ${toolchain}"
     info "This may take several minutes on first build..."
 
-    cargo build --release -p "${PACKAGE_NAME}" --bin "${BINARY_NAME}"
+    cargo build --release -p "${PACKAGE_NAME}" --bin "${COMPILED_BINARY_NAME}"
 
-    if [ ! -f "target/release/${BINARY_NAME}" ]; then
-        error "Build succeeded but binary not found at target/release/${BINARY_NAME}"
+    if [ ! -f "target/release/${COMPILED_BINARY_NAME}" ]; then
+        error "Build succeeded but binary not found at target/release/${COMPILED_BINARY_NAME}"
         exit 1
     fi
 
@@ -135,7 +138,7 @@ install_binary() {
     mkdir -p "${TOOLS_DIR}"
 
     info "Installing ${BINARY_NAME} to ${BINARY_PATH}..."
-    cp "${BUILD_DIR}/target/release/${BINARY_NAME}" "${BINARY_PATH}"
+    cp "${BUILD_DIR}/target/release/${COMPILED_BINARY_NAME}" "${BINARY_PATH}"
     chmod +x "${BINARY_PATH}"
 
     success "Binary installed to ${BINARY_PATH}"

@@ -16,7 +16,7 @@
 set -euo pipefail
 
 PROVING_UTILS_REPO="https://github.com/starkware-libs/proving-utils"
-PROVING_UTILS_REV_DEFAULT="3176b4d"
+PROVING_UTILS_REV_DEFAULT="e16f9d0"
 PROVING_UTILS_REV="${PROVING_UTILS_REV:-${PROVING_UTILS_REV_DEFAULT}}"
 
 COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
