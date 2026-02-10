@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
@@ -24,6 +25,7 @@ use futures::channel::mpsc;
 use futures::SinkExt;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::PoseidonHash;
@@ -133,7 +135,11 @@ async fn validate_empty_proposal() {
     proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
         assert!(matches!(input.content, SendProposalContent::Finish(_)));
         Ok(SendProposalContentResponse {
-            response: ProposalStatus::Finished(ProposalCommitment::default()),
+            response: ProposalStatus::Finished(FinishedProposalInfo {
+                id: ProposalCommitment::default(),
+                final_n_executed_txs: 0,
+                block_header_commitments: BlockHeaderCommitments::default(),
+            }),
         })
     });
 
@@ -268,8 +274,10 @@ async fn proposal_fin_mismatch() {
         })
         .returning(move |_| {
             Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: built_block,
+                response: ProposalStatus::Finished(FinishedProposalInfo {
+                    id: ProposalCommitment { state_diff_commitment: built_block },
+                    final_n_executed_txs: n_executed,
+                    block_header_commitments: BlockHeaderCommitments::default(),
                 }),
             })
         });

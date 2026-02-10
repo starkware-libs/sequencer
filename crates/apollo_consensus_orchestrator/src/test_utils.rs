@@ -3,6 +3,7 @@ use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
@@ -52,6 +53,7 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -196,10 +198,11 @@ impl TestDeps {
                 .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
                 .returning(move |_input| {
                     Ok(GetProposalContentResponse {
-                        content: GetProposalContent::Finished {
+                        content: GetProposalContent::Finished(FinishedProposalInfo {
                             id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
                             final_n_executed_txs: args.n_executed_txs_count,
-                        },
+                            block_header_commitments: BlockHeaderCommitments::default(),
+                        }),
                     })
                 });
             block_number = block_number.unchecked_next();
@@ -256,8 +259,10 @@ impl TestDeps {
                         SendProposalContent::Finish(args.n_executed_txs_count)
                     );
                     Ok(SendProposalContentResponse {
-                        response: ProposalStatus::Finished(ProposalCommitment {
-                            state_diff_commitment: STATE_DIFF_COMMITMENT,
+                        response: ProposalStatus::Finished(FinishedProposalInfo {
+                            id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                            final_n_executed_txs: args.n_executed_txs_count,
+                            block_header_commitments: BlockHeaderCommitments::default(),
                         }),
                     })
                 });

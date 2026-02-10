@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     ProposalId,
     ProposalStatus,
     SendProposalContent,
@@ -79,7 +80,7 @@ pub(crate) struct BlockInfoValidation {
 enum HandledProposalPart {
     Continue,
     Invalid(String),
-    Finished(ProposalCommitment, ProposalFin),
+    Finished(ProposalCommitment, ProposalFin, FinishedProposalInfo),
     Failed(String),
 }
 
@@ -152,7 +153,7 @@ pub(crate) async fn validate_proposal(
     .await?;
 
     // Validating the rest of the proposal parts.
-    let (built_block, received_fin) = loop {
+    let (built_block, received_fin, finished_info) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
                 // Ignoring batcher errors, to better reflect the proposal interruption.
@@ -176,8 +177,8 @@ pub(crate) async fn validate_proposal(
                     &mut content,
                     args.deps.transaction_converter.clone(),
                 ).await {
-                    HandledProposalPart::Finished(built_block, received_fin) => {
-                        break (built_block, received_fin);
+                    HandledProposalPart::Finished(built_block, received_fin, finished_info) => {
+                        break (built_block, received_fin, finished_info);
                     }
                     HandledProposalPart::Continue => {continue;}
                     HandledProposalPart::Invalid(err) => {
@@ -206,6 +207,7 @@ pub(crate) async fn validate_proposal(
         args.init,
         content,
         &args.proposal_id,
+        finished_info,
     );
 
     // TODO(matan): Switch to signature validation.
@@ -389,14 +391,14 @@ async fn handle_proposal_part(
                     ));
                 }
             };
-            let response_id = match response.response {
-                ProposalStatus::Finished(id) => id,
+            let finished_info = match response.response {
+                ProposalStatus::Finished(info) => info,
                 ProposalStatus::InvalidProposal(err) => return HandledProposalPart::Invalid(err),
                 status => {
                     unreachable!("Unexpected batcher status for fin: {status:?}");
                 }
             };
-            let batcher_block_id = ProposalCommitment(response_id.state_diff_commitment.0.0);
+            let batcher_block_id = ProposalCommitment(finished_info.id.state_diff_commitment.0.0);
 
             info!(
                 network_block_id = ?fin.proposal_commitment,
@@ -407,7 +409,7 @@ async fn handle_proposal_part(
             if executed_txs_count == 0 {
                 warn!("Validated an empty proposal.");
             }
-            HandledProposalPart::Finished(batcher_block_id, fin)
+            HandledProposalPart::Finished(batcher_block_id, fin, finished_info)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             // TODO(guyn): check that the length of txs and the number of batches we receive is not
