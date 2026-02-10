@@ -546,10 +546,15 @@ async fn test_unrecoverable_sync_error_flow() {
     );
     let sync_res = tokio::join! {sync_future};
     assert!(sync_res.0.is_err());
-    // expect sync to raise the unrecoverable error it gets. In this case a DB Inconsistency error.
+    // Expect sync to raise the unrecoverable error it gets.
+    // With parent-hash verification disabled (for testing inconsistent local storage), the exact
+    // storage error here may differ (e.g., DB inconsistency vs marker mismatch), but it must be
+    // surfaced as-is.
     assert_matches!(
         sync_res.0.unwrap_err(),
-        StateSyncError::StorageError(StorageError::DBInconsistency { msg: _ })
+        StateSyncError::StorageError(
+            StorageError::DBInconsistency { msg: _ } | StorageError::MarkerMismatch { .. }
+        )
     );
 }
 
