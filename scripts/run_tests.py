@@ -19,15 +19,17 @@ SEQUENCER_BINARY_NAME: str = "apollo_node"
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_restart_flow",
+    "integration_test_positive_flow",
+    "integration_test_restart_service_multiple_nodes_flow",
+    "integration_test_revert_flow",
 ]
 NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
-    "integration_test_positive_flow",
-    "integration_test_restart_flow",
-    "integration_test_restart_service_multiple_nodes_flow",
+    # TODO(AndrewL): Try adding these tests to CI as well
     "integration_test_restart_service_single_node_flow",
-    "integration_test_revert_flow",
     "integration_test_central_and_p2p_sync_flow",
 ]
+# Timeout per single integration test
+INTEGRATION_TEST_TIMEOUT: str = "10m"
 
 
 # Enum of base commands.
@@ -58,10 +60,8 @@ class BaseCommand(Enum):
                 print(f"Skipping sequencer integration tests.")
                 return []
 
-            integration_test_names_to_run = (
-                NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES
-                if is_nightly
-                else SEQUENCER_INTEGRATION_TEST_NAMES
+            integration_test_names_to_run = SEQUENCER_INTEGRATION_TEST_NAMES + (
+                NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES if is_nightly else []
             )
 
             print(f"Composing sequencer integration test commands.")
@@ -77,9 +77,19 @@ class BaseCommand(Enum):
                 ]
                 return build_cmds
 
+            def make_silent_test_cmd(test_binary_name: str) -> List[str]:
+                """Runs a test binary, only showing output on failure or timeout."""
+                return [
+                    "sh",
+                    "-c",
+                    f"timeout {INTEGRATION_TEST_TIMEOUT} ./target/debug/{test_binary_name} "
+                    f"> /tmp/{test_binary_name}_output.txt 2>&1 || "
+                    f"(cat /tmp/{test_binary_name}_output.txt; exit 1)",
+                ]
+
             # Commands to run the test binaries.
             run_cmds = [
-                [f"./target/debug/{test_binary_name}"]
+                make_silent_test_cmd(test_binary_name)
                 for test_binary_name in integration_test_names_to_run
             ]
 
