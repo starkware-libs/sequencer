@@ -23,3 +23,29 @@ impl OpaquePeerId {
         self.0
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BadPeerReport {
+    pub peer_id: OpaquePeerId,
+    pub reason: BadPeerReason,
+    pub penalty_card: PenaltyCard,
+}
+
+// TODO(guyn): need to decide how much misconduct score to add when getting each yellow card.
+/// Represents the severity of the bad peer behavior.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PenaltyCard {
+    /// Overtly malicious behavior.
+    Red,
+    /// Possibly sent malicious data on accident, will be considered malicious on repeat offenses.
+    Yellow,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BadPeerReason {
+    /// Protobuf conversion has failed.
+    ConversionError(String),
+    /// Duplicate and conflicting vote was received from the same peer for the same height, round,
+    /// and phase.
+    EquivocationVote(String),
+}
