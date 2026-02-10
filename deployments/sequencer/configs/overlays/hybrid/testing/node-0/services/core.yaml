@@ -52,6 +52,7 @@ config:
     consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none: true
     consensus_manager_config.network_config.bootstrap_peer_multiaddr: ""
     consensus_manager_config.network_config.port: 53080
+    consensus_manager_config.staking_manager_config.dynamic_config.default_committee: "0,100:0x64,1,0x1,true"
     state_sync_config.static_config.central_sync_client_config.#is_none: true
     state_sync_config.static_config.network_config.#is_none: false
     state_sync_config.static_config.network_config.port: 55010
