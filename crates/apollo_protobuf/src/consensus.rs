@@ -13,6 +13,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
+use starknet_types_core::felt::Felt;
 
 use crate::converters::ProtobufConversionError;
 
@@ -165,6 +166,14 @@ pub struct TransactionBatch {
     pub transactions: Vec<ConsensusTransaction>,
 }
 
+/// Optional parts of a commitment carried in ProposalFin.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommitmentParts {
+    pub next_l2_gas_price_fri: GasPrice,
+    pub concatenated_counts: Felt,
+    pub parent_commitment: ProposalCommitment,
+}
+
 /// The proposal is done when receiving this fin message, which contains the proposal commitment.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProposalFin {
@@ -173,6 +182,8 @@ pub struct ProposalFin {
     pub proposal_commitment: ProposalCommitment,
     /// Number of executed transactions in the proposal.
     pub executed_transaction_count: u64,
+    /// Optional commitment parts.
+    pub commitment_parts: Option<CommitmentParts>,
 }
 
 /// A part of the proposal.

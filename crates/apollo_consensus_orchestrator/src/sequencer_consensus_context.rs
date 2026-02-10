@@ -970,7 +970,8 @@ async fn send_reproposal(
     }
     let executed_transaction_count: u64 =
         n_executed_txs.try_into().expect("Number of executed transactions should fit in u64");
-    let fin = ProposalFin { proposal_commitment: id, executed_transaction_count };
+    let fin =
+        ProposalFin { proposal_commitment: id, executed_transaction_count, commitment_parts: None };
     stream_sender.send(ProposalPart::Fin(fin)).await?;
 
     Ok(())
