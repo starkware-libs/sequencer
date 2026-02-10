@@ -43,6 +43,8 @@ pub enum RunnerError {
 
 #[derive(Debug, Error)]
 pub enum ProofProviderError {
+    #[error("Invalid state diff: {0}")]
+    InvalidStateDiff(String),
     #[error("RPC provider error: {0}")]
     Rpc(#[from] ProviderError),
     #[error(transparent)]
