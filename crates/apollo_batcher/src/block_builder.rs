@@ -17,6 +17,7 @@ use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
+use blockifier::blockifier::config::NativeClassesWhitelist;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
     CompiledClassHashesForMigration,
@@ -759,6 +760,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         &self,
         block_metadata: BlockMetadata,
         execution_params: BlockBuilderExecutionParams,
+        native_classes_whitelist: NativeClassesWhitelist,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
@@ -782,6 +784,7 @@ impl BlockBuilderFactory {
     fn preprocess_and_create_transaction_executor(
         &self,
         block_metadata: BlockMetadata,
+        native_classes_whitelist: NativeClassesWhitelist,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<ConcurrentTransactionExecutor<ApolloStateReaderAndContractManager>>
     {
@@ -804,9 +807,10 @@ impl BlockBuilderFactory {
         let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
         let apollo_reader =
             ApolloReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);
-        let state_reader = StateReaderAndContractManager::new(
+        let state_reader = StateReaderAndContractManager::new_with_native_classes_whitelist(
             apollo_reader,
             self.contract_class_manager.clone(),
+            native_classes_whitelist,
             Some(BATCHER_CLASS_CACHE_METRICS),
         );
 
@@ -827,6 +831,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         execution_params: BlockBuilderExecutionParams,
+        native_classes_whitelist: NativeClassesWhitelist,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
@@ -835,7 +840,11 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
-        let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;
+        let executor = self.preprocess_and_create_transaction_executor(
+            block_metadata,
+            native_classes_whitelist,
+            runtime,
+        )?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let transaction_converter = TransactionConverter::new(
             self.class_manager_client.clone(),
