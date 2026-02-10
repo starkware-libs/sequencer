@@ -16,6 +16,7 @@ use crate::blockifier::transaction_executor::{
 };
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{
+    cairo_primitive_counter_map,
     BuiltinCounterMap,
     CairoPrimitiveCounterMap,
     CairoPrimitiveName,
@@ -688,11 +689,15 @@ fn proving_gas_from_builtins_and_sierra_gas(
     proving_builtin_gas_costs: &BuiltinGasCosts,
     sierra_builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtins_proving_gas = builtins_to_gas(builtin_counters, proving_builtin_gas_costs);
+    // TODO(AvivG): To support opcodes in the computation, pass cairo_primitive_counter_map to this
+    // function
+    let cairo_primitives_counters = cairo_primitive_counter_map(builtin_counters.clone());
+    let cairo_primitives_proving_gas =
+        cairo_primitives_to_gas(&cairo_primitives_counters, proving_builtin_gas_costs);
     let steps_proving_gas =
-        sierra_gas_to_steps_gas(sierra_gas, builtin_counters, sierra_builtin_gas_costs);
+        sierra_gas_to_steps_gas(sierra_gas, &cairo_primitives_counters, sierra_builtin_gas_costs);
 
-    steps_proving_gas.checked_add_panic_on_overflow(builtins_proving_gas)
+    steps_proving_gas.checked_add_panic_on_overflow(cairo_primitives_proving_gas)
 }
 
 /// Generic function to convert VM resources to gas with configurable builtin gas calculation
@@ -701,7 +706,11 @@ pub fn vm_resources_to_gas(
     builtin_gas_cost: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_gas_cost = builtins_to_gas(&resources.prover_builtins(), builtin_gas_cost);
+    // TODO(AvivG): To support opcodes in the computation, resources should include opcode counters.
+    let builtins_gas_cost = cairo_primitives_to_gas(
+        &cairo_primitive_counter_map(resources.prover_builtins()),
+        builtin_gas_cost,
+    );
     let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
     let n_memory_holes_gas_cost =
         memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
@@ -714,38 +723,45 @@ pub fn vm_resources_to_gas(
 /// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
 pub fn sierra_gas_to_steps_gas(
     sierra_gas: GasAmount,
-    builtin_counters: &BuiltinCounterMap,
+    cairo_primitives_counters: &CairoPrimitiveCounterMap,
     sierra_builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtins_gas_cost = builtins_to_gas(builtin_counters, sierra_builtin_gas_costs);
+    let cairo_primitives_gas =
+        cairo_primitives_to_gas(cairo_primitives_counters, sierra_builtin_gas_costs);
 
-    sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
+    sierra_gas.checked_sub(cairo_primitives_gas).unwrap_or_else(|| {
         log::debug!(
-            "Sierra gas underflow: builtins gas exceeds total. Sierra gas: {sierra_gas:?}, \
-             Builtins gas: {builtins_gas_cost:?}, Builtins: {builtin_counters:?}"
+            "Sierra gas underflow: cairo primitives gas exceeds total. Sierra gas: \
+             {sierra_gas:?}, Cairo primitives gas: {cairo_primitives_gas:?}, Cairo primitives: \
+             {cairo_primitives_counters:?}"
         );
         GasAmount::ZERO
     })
 }
 
-pub fn builtins_to_gas(
-    builtin_counters: &BuiltinCounterMap,
-    builtin_gas_costs: &BuiltinGasCosts,
+pub fn cairo_primitives_to_gas(
+    cairo_primitives_counters: &CairoPrimitiveCounterMap,
+    // NOTE: 'blake' is currently the only supported opcode, by being included in the
+    // builtin_gas_costs.
+    cairo_primitives_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    let builtin_gas = builtin_counters.iter().fold(0u64, |accumulated_gas, (name, &count)| {
-        let builtin_weight = builtin_gas_costs.get_builtin_gas_cost(name).unwrap();
-        builtin_weight
-            .checked_mul(u64_from_usize(count))
-            .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
-            .unwrap_or_else(|| {
-                panic!(
-                    "Overflow while converting builtin counters to gas.\nBuiltin: {name}, Weight: \
-                     {builtin_weight}, Count: {count}, Accumulated gas: {accumulated_gas}"
-                )
-            })
-    });
+    let cairo_primitives_gas =
+        cairo_primitives_counters.iter().fold(0u64, |accumulated_gas, (name, &count)| {
+            let cairo_primitive_weight =
+                cairo_primitives_gas_costs.get_cairo_primitive_gas_cost(name).unwrap();
+            cairo_primitive_weight
+                .checked_mul(u64_from_usize(count))
+                .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Overflow while converting cairo primitives counters to gas.\nCairo \
+                         primitive: {name:?}, Weight: {cairo_primitive_weight}, Count: {count}, \
+                         Accumulated gas: {accumulated_gas}"
+                    )
+                })
+        });
 
-    GasAmount(builtin_gas)
+    GasAmount(cairo_primitives_gas)
 }
 
 fn add_casm_hash_computation_gas_cost(
