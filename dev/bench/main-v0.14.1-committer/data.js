@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770710897432,
+  "lastUpdate": 1770713120517,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2175,6 +2175,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1262.68984783,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163830216+asmaastarkware@users.noreply.github.com",
+            "name": "asmaa-starkware",
+            "username": "asmaastarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4d76e07847510065b48d0e3c0c674a08c584ba52",
+          "message": "apollo_consensus: wire CommitteeProvider into consensus and MultiHeightManager (#12397)",
+          "timestamp": "2026-02-10T08:24:43Z",
+          "tree_id": "1eb977d59eb55b4654c9ed7734ce4076adbaa349",
+          "url": "https://github.com/starkware-libs/sequencer/commit/4d76e07847510065b48d0e3c0c674a08c584ba52"
+        },
+        "date": 1770713120201,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 860.95037446,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1341.46197584,
             "unit": "ms"
           }
         ]
