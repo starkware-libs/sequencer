@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import shutil
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Set
+from typing import ClassVar, Dict, List, Mapping, Optional, Set
 
 from echonet.constants import IGNORED_REVERT_PATTERNS
 from echonet.echonet_types import (
@@ -155,6 +157,10 @@ class _ResyncTracker:
 class _BlockStore:
     """In-memory storage for echo_center outputs and raw feeder blocks."""
 
+    _MAX_BLOCKS_ARCHIVES_BYTES: ClassVar[int] = 30 * 1024 * 1024 * 1024  # 30 GiB
+    _CLEANUP_INTERVAL_SECONDS: ClassVar[int] = 5 * 60  # avoid expensive scans too frequently
+    _last_cleanup_monotonic: ClassVar[float] = 0.0
+
     blocks: Dict[int, JsonObject]  # block_number -> {blob, block, state_update}
     fgw_blocks: Dict[int, JsonObject]  # feeder-gateway block_number -> raw block object
     archive_dir: Optional[Path]  # lazily created on first eviction; reused for the run
@@ -180,6 +186,33 @@ class _BlockStore:
         candidate.mkdir(parents=True, exist_ok=True)
         self.archive_dir = candidate
         return candidate
+
+    @classmethod
+    def _enforce_blocks_archives_size_cap(cls) -> None:
+        """Delete the oldest blocks_* folder(s) in CONFIG.paths.log_dir if total size exceeds cap."""
+        now = time.monotonic()
+        if (now - cls._last_cleanup_monotonic) < cls._CLEANUP_INTERVAL_SECONDS:
+            return
+        cls._last_cleanup_monotonic = now
+
+        root_dir = CONFIG.paths.log_dir
+        archives = sorted(
+            (p for p in root_dir.iterdir() if p.is_dir() and p.name.startswith("blocks_")),
+            key=lambda p: p.name,  # blocks_YYYYmmddTHHMMSSZ sorts oldest->newest
+        )
+
+        sizes = {p: sum(f.stat().st_size for f in p.iterdir() if f.is_file()) for p in archives}
+        total_size = sum(sizes.values())
+
+        for p, size in sizes.items():
+            if total_size <= cls._MAX_BLOCKS_ARCHIVES_BYTES:
+                break
+            shutil.rmtree(p)
+            total_size -= size
+            logger.warning(
+                "Deleted old blocks archive folder to enforce cap "
+                f"({(cls._MAX_BLOCKS_ARCHIVES_BYTES / (1024**3)):.1f} GiB): {p}"
+            )
 
     @staticmethod
     def _evict_old_items(
@@ -241,6 +274,7 @@ class _BlockStore:
                     json.dumps(entry["state_update"], ensure_ascii=False),
                     encoding="utf-8",
                 )
+            _BlockStore._enforce_blocks_archives_size_cap()
         except Exception as e:
             logger.error(f"Failed to snapshot blocks to disk: {e}")
 
