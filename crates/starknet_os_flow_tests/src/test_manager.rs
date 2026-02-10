@@ -806,7 +806,8 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &mut map_storage,
                 &initial_reads.keys(),
             )
-            .await;
+            .await
+            .unwrap();
             let tx_execution_infos = execution_outputs
                 .into_iter()
                 .map(|(execution_info, _)| execution_info.into())
