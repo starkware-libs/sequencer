@@ -119,12 +119,15 @@
           ]
         },
         "resources": {
-          "builtin_instance_counter": {
-            "pedersen_builtin": 4,
-            "range_check_builtin": 31
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "pedersen_builtin": 4,
+              "range_check_builtin": 31
+            }
           },
-          "n_memory_holes": 3,
-          "n_steps": 2
+          "opcode_instance_counter": {}
         },
         "storage_access_tracker": {
           "accessed_contract_addresses": [
@@ -175,12 +178,15 @@
       }
     ],
     "resources": {
-      "builtin_instance_counter": {
-        "pedersen_builtin": 4,
-        "range_check_builtin": 31
+      "vm_resources": {
+        "n_steps": 2,
+        "n_memory_holes": 3,
+        "builtin_instance_counter": {
+          "pedersen_builtin": 4,
+          "range_check_builtin": 31
+        }
       },
-      "n_memory_holes": 3,
-      "n_steps": 2
+      "opcode_instance_counter": {}
     },
     "storage_access_tracker": {
       "accessed_contract_addresses": [
@@ -342,12 +348,15 @@
           ]
         },
         "resources": {
-          "builtin_instance_counter": {
-            "pedersen_builtin": 4,
-            "range_check_builtin": 31
+          "vm_resources": {
+            "n_steps": 2,
+            "n_memory_holes": 3,
+            "builtin_instance_counter": {
+              "pedersen_builtin": 4,
+              "range_check_builtin": 31
+            }
           },
-          "n_memory_holes": 3,
-          "n_steps": 2
+          "opcode_instance_counter": {}
         },
         "storage_access_tracker": {
           "accessed_contract_addresses": [
@@ -398,12 +407,15 @@
       }
     ],
     "resources": {
-      "builtin_instance_counter": {
-        "pedersen_builtin": 4,
-        "range_check_builtin": 31
+      "vm_resources": {
+        "n_steps": 2,
+        "n_memory_holes": 3,
+        "builtin_instance_counter": {
+          "pedersen_builtin": 4,
+          "range_check_builtin": 31
+        }
       },
-      "n_memory_holes": 3,
-      "n_steps": 2
+      "opcode_instance_counter": {}
     },
     "storage_access_tracker": {
       "accessed_contract_addresses": [

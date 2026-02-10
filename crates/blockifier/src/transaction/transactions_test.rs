@@ -92,6 +92,7 @@ use crate::execution::call_info::{
     CallExecution,
     CallInfo,
     ExecutionSummary,
+    ExtendedExecutionResources,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -254,7 +255,7 @@ fn initial_gas_amount_from_block_context(block_context: Option<&BlockContext>) -
 }
 
 struct ExpectedResultTestInvokeTx {
-    resources: ExecutionResources,
+    resources: ExtendedExecutionResources,
     validate_gas_consumed: u64,
     execute_gas_consumed: u64,
 }
@@ -295,7 +296,7 @@ fn expected_validate_call_info(
         }
     };
     let vm_resources = match tracked_resource {
-        TrackedResource::SierraGas => ExecutionResources::default(),
+        TrackedResource::SierraGas => ExtendedExecutionResources::default(),
         TrackedResource::CairoSteps => {
             let n_steps = match (entry_point_selector_name, cairo_version) {
                 (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 13_usize,
@@ -315,15 +316,17 @@ fn expected_validate_call_info(
                 ) => 100_usize,
                 (selector, _) => panic!("Selector {selector} is not a known validate selector."),
             };
-            ExecutionResources {
-                n_steps,
-                n_memory_holes: 0,
-                builtin_instance_counter: BTreeMap::from([(
-                    BuiltinName::range_check,
-                    n_range_checks,
-                )]),
-            }
-            .filter_unused_builtins()
+            ExtendedExecutionResources::from_vm_resources(
+                ExecutionResources {
+                    n_steps,
+                    n_memory_holes: 0,
+                    builtin_instance_counter: BTreeMap::from([(
+                        BuiltinName::range_check,
+                        n_range_checks,
+                    )]),
+                }
+                .filter_unused_builtins(),
+            )
         }
     };
     let initial_gas = match cairo_version {
@@ -440,7 +443,7 @@ fn expected_fee_transfer_call_info(
     };
     let expected_resources = match cairo_version {
         CairoVersion::Cairo0 => Prices::FeeTransfer(account_address, *fee_type).into(),
-        CairoVersion::Cairo1(_) => ExecutionResources::default(),
+        CairoVersion::Cairo1(_) => ExtendedExecutionResources::default(),
     };
     let mut syscalls_usage = HashMap::from([
         (SyscallSelector::StorageRead, SyscallUsage::with_call_count(4)),
@@ -498,7 +501,7 @@ fn get_expected_cairo_resources(
     let mut expected_tx_cairo_resources = ExecutionResources::default();
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
-            expected_tx_cairo_resources += &call_info.resources
+            expected_tx_cairo_resources += &call_info.resources.vm_resources
         };
     }
 
@@ -570,18 +573,20 @@ fn add_kzg_da_resources_to_resources_mapping(
 #[rstest]
 #[case::with_cairo0_account(
     ExpectedResultTestInvokeTx{
-        resources: &get_const_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
-            n_steps: 62,
-            n_memory_holes:  0,
-            builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 1)]),
-        },
+        resources: ExtendedExecutionResources::from_vm_resources(
+            &get_const_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
+                n_steps: 62,
+                n_memory_holes:  0,
+                builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 1)]),
+            },
+        ),
         validate_gas_consumed: 0,
         execute_gas_consumed: 0,
     },
     CairoVersion::Cairo0)]
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
-        resources: ExecutionResources::default(),
+        resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 8590, // The gas consumption results from parsing the input
             // arguments.
         execute_gas_consumed: 114690,
@@ -589,7 +594,7 @@ fn add_kzg_da_resources_to_resources_mapping(
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
     ExpectedResultTestInvokeTx{
-        resources: ExecutionResources::default(),
+        resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 8590, // The gas consumption results from parsing the input
             // arguments.
         execute_gas_consumed: 114690,
@@ -710,7 +715,11 @@ fn test_invoke_tx(
     };
 
     let expected_inner_call_vm_resources =
-        ExecutionResources { n_steps: 23, n_memory_holes: 0, ..Default::default() };
+        ExtendedExecutionResources::from_vm_resources(ExecutionResources {
+            n_steps: 23,
+            n_memory_holes: 0,
+            ..Default::default()
+        });
 
     let expected_return_result_call = CallEntryPoint {
         entry_point_selector: selector_from_name("return_result"),
@@ -797,15 +806,19 @@ fn test_invoke_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
-            os_vm_resources: expected_os_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_tx_cairo_resources,
+            ),
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_os_cairo_resources,
+            ),
             sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.os_vm_resources,
+        &mut expected_actual_resources.computation.os_vm_resources.vm_resources,
         &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
@@ -1988,15 +2001,19 @@ fn test_declare_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
-            os_vm_resources: expected_os_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_tx_cairo_resources,
+            ),
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_os_cairo_resources,
+            ),
             sierra_gas: expected_gas_consumed,
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.os_vm_resources,
+        &mut expected_actual_resources.computation.os_vm_resources.vm_resources,
         &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
@@ -2245,15 +2262,19 @@ fn test_deploy_account_tx(
     let mut actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
-            os_vm_resources: expected_os_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_tx_cairo_resources,
+            ),
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_os_cairo_resources,
+            ),
             sierra_gas: expected_gas_consumed.into(),
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut actual_resources.computation.os_vm_resources,
+        &mut actual_resources.computation.os_vm_resources.vm_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -2808,7 +2829,9 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let expected_tx_resources = TransactionResources {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
         computation: ComputationResources {
-            os_vm_resources: expected_os_execution_resources,
+            os_vm_resources: ExtendedExecutionResources::from_vm_resources(
+                expected_os_execution_resources,
+            ),
             sierra_gas: GasAmount(0), // Regression-tested explicitly.
             ..Default::default()
         },

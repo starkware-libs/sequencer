@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::CallInfo;
+use crate::execution::call_info::{CallInfo, ExtendedExecutionResources};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::initial_test_state::test_state;
@@ -19,7 +18,7 @@ use crate::test_utils::{trivial_external_entry_point_new, CompilerBasedVersion, 
 /// Asserts that the charged resources of a call is consistent with the inner calls in its subtree.
 fn assert_charged_resource_as_expected_rec(call_info: &CallInfo) {
     let inner_calls = &call_info.inner_calls;
-    let mut children_vm_resources = ExecutionResources::default();
+    let mut children_vm_resources = ExtendedExecutionResources::default();
     let mut children_gas = GasAmount(0);
     for child_call_info in inner_calls.iter() {
         let gas_consumed = GasAmount(child_call_info.execution.gas_consumed);
@@ -38,7 +37,7 @@ fn assert_charged_resource_as_expected_rec(call_info: &CallInfo) {
         }
         TrackedResource::CairoSteps => {
             assert_eq!(gas_consumed, children_gas);
-            assert!(vm_resources.n_steps > children_vm_resources.n_steps)
+            assert!(vm_resources.vm_resources.n_steps > children_vm_resources.vm_resources.n_steps)
         }
     }
 
