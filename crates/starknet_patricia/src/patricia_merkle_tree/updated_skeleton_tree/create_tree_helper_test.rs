@@ -20,7 +20,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToB
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonNodeMap,
-    OriginalSkeletonTreeImpl,
+    OriginalSkeletonTree,
 };
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
@@ -491,7 +491,7 @@ fn test_update_node_in_nonempty_tree(
 #[case::non_empty_tree(HashOutput(Felt::from(77_u128)))]
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
-    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
+    let mut original_skeleton_tree = OriginalSkeletonTree::create_unmodified(root_hash);
     let updated =
         UpdatedSkeletonTree::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
     let empty_map = HashMap::new();

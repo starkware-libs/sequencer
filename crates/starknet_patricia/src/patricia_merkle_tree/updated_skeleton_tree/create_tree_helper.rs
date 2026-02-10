@@ -5,7 +5,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLe
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonNodeMap,
-    OriginalSkeletonTreeImpl,
+    OriginalSkeletonTree,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -73,7 +73,7 @@ impl UpdatedSkeletonTree {
     /// original skeleton and leaf modifications, without being dependant in any descendants
     /// (i.e., modified leaves, and unmodified nodes).
     pub(crate) fn finalize_bottom_layer<'a>(
-        original_skeleton: &OriginalSkeletonTreeImpl<'a>,
+        original_skeleton: &OriginalSkeletonTree<'a>,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonNodeMap {
         leaf_modifications
@@ -92,7 +92,7 @@ impl UpdatedSkeletonTree {
     /// Finalize the tree middle layers (i.e., not the bottom layer defined above).
     pub(crate) fn finalize_middle_layers<'a>(
         &mut self,
-        original_skeleton: &mut OriginalSkeletonTreeImpl<'a>,
+        original_skeleton: &mut OriginalSkeletonTree<'a>,
     ) -> TempSkeletonNode {
         let sorted_leaf_indices = original_skeleton.get_sorted_leaf_indices();
         if original_skeleton.get_nodes().is_empty() {
@@ -397,7 +397,7 @@ impl UpdatedSkeletonTree {
     }
 
     pub(crate) fn create_unmodified<'a>(
-        original_skeleton: &OriginalSkeletonTreeImpl<'a>,
+        original_skeleton: &OriginalSkeletonTree<'a>,
     ) -> UpdatedSkeletonTreeResult<Self> {
         let original_root_node = original_skeleton
             .get_nodes()

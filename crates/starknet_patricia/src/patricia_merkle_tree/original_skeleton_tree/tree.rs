@@ -15,12 +15,12 @@ pub type OriginalSkeletonTreeResult<T> = Result<T, OriginalSkeletonTreeError>;
 /// nodes on the Merkle paths from the updated leaves to the root.
 // TODO(Dori, 1/7/2024): Make this a tuple struct.
 #[derive(Debug, PartialEq)]
-pub struct OriginalSkeletonTreeImpl<'a> {
+pub struct OriginalSkeletonTree<'a> {
     pub nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
     pub sorted_leaf_indices: SortedLeafIndices<'a>,
 }
 
-impl<'a> OriginalSkeletonTreeImpl<'a> {
+impl<'a> OriginalSkeletonTree<'a> {
     pub(crate) fn get_nodes(&self) -> &OriginalSkeletonNodeMap {
         &self.nodes
     }
