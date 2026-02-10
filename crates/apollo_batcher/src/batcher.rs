@@ -1014,26 +1014,29 @@ impl Batcher {
     // Returns a completed proposal result, either its FinishedProposalInfo or an error if the
     // proposal failed. If the proposal doesn't exist, or it's still active, returns None.
     async fn get_completed_proposal_result(
-        &self,
+        &mut self,
         proposal_id: ProposalId,
     ) -> Option<ProposalResult<FinishedProposalInfo>> {
-        let guard = self.executed_proposals.lock().await;
-        let proposal_result = guard.get(&proposal_id);
-        match proposal_result {
-            Some(Ok(artifacts)) => {
-                let info = FinishedProposalInfo {
-                    id: artifacts.commitment(),
-                    final_n_executed_txs: artifacts.final_n_executed_txs,
-                    block_header_commitments: artifacts
-                        .partial_block_hash_components()
-                        .header_commitments
-                        .clone(),
-                };
-                Some(Ok(info))
+        let (id, final_n_executed_txs, block_header_commitments) = {
+            let guard = self.executed_proposals.lock().await;
+            match guard.get(&proposal_id) {
+                Some(Ok(artifacts)) => (
+                    artifacts.commitment(),
+                    artifacts.final_n_executed_txs,
+                    artifacts.partial_block_hash_components().header_commitments.clone(),
+                ),
+                Some(Err(e)) => return Some(Err(e.clone())),
+                None => return None,
             }
-            Some(Err(e)) => Some(Err(e.clone())),
-            None => None,
-        }
+        };
+        let parent_proposal_commitment =
+            self.active_height.and_then(|h| self.get_parent_proposal_commitment(h).ok().flatten());
+        Some(Ok(FinishedProposalInfo {
+            id,
+            final_n_executed_txs,
+            block_header_commitments,
+            parent_proposal_commitment,
+        }))
     }
 
     // Ends the current active proposal.
