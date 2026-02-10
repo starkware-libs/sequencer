@@ -25,10 +25,8 @@ use futures::channel::mpsc;
 use futures::SinkExt;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
-use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
-use starknet_api::core::StateDiffCommitment;
+use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::hash::PoseidonHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
@@ -264,7 +262,7 @@ async fn proposal_fin_mismatch() {
     // Setup batcher to validate the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
     // Batcher returns a different block hash than the one received in Fin.
-    let built_block = StateDiffCommitment(PoseidonHash(Felt::ONE));
+    let built_block = PartialBlockHash(Felt::ONE);
     proposal_args
         .deps
         .batcher
@@ -276,7 +274,7 @@ async fn proposal_fin_mismatch() {
         .returning(move |_| {
             Ok(SendProposalContentResponse {
                 response: ProposalStatus::Finished(FinishedProposalInfo {
-                    proposal_commitment: ProposalCommitment { state_diff_commitment: built_block },
+                    proposal_commitment: ProposalCommitment { partial_block_hash: built_block },
                     final_n_executed_txs: n_executed,
                     block_header_commitments: BlockHeaderCommitments::default(),
                     parent_proposal_commitment: None,
