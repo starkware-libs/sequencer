@@ -91,7 +91,6 @@ impl Storage for MapStorage {
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
     pub cache: Arc<LruCache<DbKey, Option<DbValue>>>,
-    pub cache_on_write: bool,
     reads: Arc<AtomicU64>,
     cached_reads: Arc<AtomicU64>,
     writes: u128,
@@ -102,9 +101,6 @@ pub struct CachedStorage<S: Storage> {
 pub struct CachedStorageConfig<InnerStorageConfig: StorageConfigTrait> {
     // Max number of entries in the cache.
     pub cache_size: NonZeroUsize,
-
-    // If true, the cache is updated on write operations even if the value is not in the cache.
-    pub cache_on_write: bool,
 
     // If true, the inner stats are included when collecting statistics.
     pub include_inner_stats: bool,
@@ -117,7 +113,6 @@ impl<InnerStorageConfig: StorageConfigTrait> Default for CachedStorageConfig<Inn
     fn default() -> Self {
         Self {
             cache_size: NonZeroUsize::new(DEFAULT_CACHE_SIZE).unwrap(),
-            cache_on_write: true,
             include_inner_stats: true,
             inner_storage_config: InnerStorageConfig::default(),
         }
@@ -139,12 +134,6 @@ impl<InnerStorageConfig: StorageConfigTrait> SerializeConfig
                 "cache_size",
                 &self.cache_size,
                 "Max number of entries in the cache",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "cache_on_write",
-                &self.cache_on_write,
-                "If true, the cache is updated on write operations",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -219,7 +208,6 @@ impl<S: Storage> CachedStorage<S> {
         Self {
             storage,
             cache: Arc::new(LruCache::new(config.cache_size)),
-            cache_on_write: config.cache_on_write,
             reads: Arc::new(AtomicU64::new(0)),
             cached_reads: Arc::new(AtomicU64::new(0)),
             writes: 0,
@@ -229,12 +217,6 @@ impl<S: Storage> CachedStorage<S> {
 
     fn cache_mut(&mut self) -> &mut LruCache<DbKey, Option<DbValue>> {
         Arc::get_mut(&mut self.cache).expect("CachedStorage cache has multiple Arc owners.")
-    }
-
-    fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
-        if self.cache_on_write || self.cache.contains(key) {
-            self.cache_mut().put(key.clone(), Some(value.clone()));
-        }
     }
 
     pub fn total_writes(&self) -> u128 {
@@ -247,7 +229,6 @@ impl<S: Storage + Clone> Clone for CachedStorage<S> {
         Self {
             storage: self.storage.clone(),
             cache: self.cache.clone(), // This clone is cheap.
-            cache_on_write: self.cache_on_write,
             reads: self.reads.clone(),
             cached_reads: self.cached_reads.clone(),
             writes: self.writes,
@@ -356,15 +337,15 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
     async fn set(&mut self, key: DbKey, value: DbValue) -> PatriciaStorageResult<()> {
         self.writes += 1;
         self.storage.set(key.clone(), value.clone()).await?;
-        self.update_cached_value(&key, &value);
+        self.cache_mut().put(key, Some(value));
         Ok(())
     }
 
     async fn mset(&mut self, key_to_value: DbHashMap) -> PatriciaStorageResult<()> {
         self.writes += u128::try_from(key_to_value.len()).expect("usize should fit in u128");
         self.storage.mset(key_to_value.clone()).await?;
-        key_to_value.iter().for_each(|(key, value)| {
-            self.update_cached_value(key, value);
+        key_to_value.into_iter().for_each(|(key, value)| {
+            self.cache_mut().put(key, Some(value));
         });
         Ok(())
     }
@@ -401,7 +382,6 @@ impl<S: Storage + ImmutableReadOnlyStorage> Storage for CachedStorage<S> {
         Some(CachedStorage {
             storage: inner_async_storage,
             cache: self.cache.clone(), // This clone is cheap.
-            cache_on_write: self.cache_on_write,
             reads: self.reads.clone(),
             cached_reads: self.cached_reads.clone(),
             writes: self.writes,
