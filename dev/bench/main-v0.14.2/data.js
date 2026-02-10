@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770720342226,
+  "lastUpdate": 1770733543726,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -339,6 +339,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1374.84088944,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "586b07b38d87f608b632e5795071d31317faf6c4",
+          "message": "apollo_starknet_os_program: fix blake program hash calcuation (#12452)",
+          "timestamp": "2026-02-10T14:03:28Z",
+          "tree_id": "1dc83b908671a7b43fdb9d5d240da01ee304938f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/586b07b38d87f608b632e5795071d31317faf6c4"
+        },
+        "date": 1770733543353,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 913.40331714,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1411.46473129,
             "unit": "ms"
           }
         ]
