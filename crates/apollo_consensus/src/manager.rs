@@ -180,8 +180,6 @@ pub enum RunHeightRes {
 
 type ProposalReceiverTuple<T> = (ConsensusBlockInfo, mpsc::Receiver<T>);
 
-// TODO(guyn): remove allow dead code once we use the duplicate vote report.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct DuplicateVoteReport {
     pub cached_vote: Vote,
