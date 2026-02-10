@@ -348,33 +348,14 @@ where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
-    let mut storage_tries = HashMap::new();
-    for (address, updates) in actual_storage_updates {
-        let sorted_leaf_indices = storage_tries_sorted_indices
-            .get(address)
-            .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
-        let contract_state = original_contracts_trie_leaves
-            .get(&contract_address_into_node_index(address))
-            .ok_or(ForestError::MissingContractCurrentState(*address))?;
-        let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
-            config.warn_on_trivial_modifications(),
-        );
-
-        let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
-            storage,
-            contract_state.storage_root_hash,
-            *sorted_leaf_indices,
-            &config,
-            // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
-            // iterator over borrowed data so that the conversion below is costless.
-            &updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect(),
-            None,
-            address,
-        )
-        .await?;
-        storage_tries.insert(*address, original_skeleton);
-    }
-    Ok(storage_tries)
+    create_storage_tries_sequentially::<Layout>(
+        storage,
+        actual_storage_updates,
+        original_contracts_trie_leaves,
+        config,
+        storage_tries_sorted_indices,
+    )
+    .await
 }
 
 /// Creates the contracts trie original skeleton.
@@ -437,4 +418,44 @@ where
         &EmptyKeyContext,
     )
     .await?)
+}
+
+async fn create_storage_tries_sequentially<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
+    storage: &impl Storage,
+    actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
+    original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
+    config: &ReaderConfig,
+    storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
+) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+where
+    <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
+        HasStaticPrefix<KeyContext = ContractAddress>,
+{
+    let mut storage_tries = HashMap::new();
+    for (address, updates) in actual_storage_updates {
+        let sorted_leaf_indices = storage_tries_sorted_indices
+            .get(address)
+            .ok_or(ForestError::MissingSortedLeafIndices(*address))?;
+        let contract_state = original_contracts_trie_leaves
+            .get(&contract_address_into_node_index(address))
+            .ok_or(ForestError::MissingContractCurrentState(*address))?;
+        let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
+            config.warn_on_trivial_modifications(),
+        );
+
+        let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+            storage,
+            contract_state.storage_root_hash,
+            *sorted_leaf_indices,
+            &config,
+            // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
+            // iterator over borrowed data so that the conversion below is costless.
+            &updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect(),
+            None,
+            address,
+        )
+        .await?;
+        storage_tries.insert(*address, original_skeleton);
+    }
+    Ok(storage_tries)
 }
