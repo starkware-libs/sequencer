@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use tracing::warn;
+use tracing::{error, warn};
 
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
@@ -87,12 +87,17 @@ impl MempoolCommunicationWrapper {
     }
 
     async fn update_dynamic_config(&mut self) {
-        let mempool_dynamic_config = self
-            .config_manager_client
-            .get_mempool_dynamic_config()
-            .await
-            .expect("Should be able to get mempool dynamic config");
-        self.mempool.update_dynamic_config(mempool_dynamic_config);
+        let config_result = self.config_manager_client.get_mempool_dynamic_config().await;
+        match config_result {
+            Ok(config) => {
+                self.mempool.update_dynamic_config(config);
+            }
+            Err(e) => {
+                error!(
+                    "Failed to get dynamic config for mempool. Config not updated. Error: {e:?}"
+                );
+            }
+        }
     }
 
     pub(crate) async fn add_tx(
