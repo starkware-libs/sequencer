@@ -1,11 +1,12 @@
 use std::fs;
 
-use apollo_starknet_os_program::program_hash::compute_program_hash_blake;
 use apollo_transaction_converter::proof_verification::stwo_verify;
 use apollo_transaction_converter::transaction_converter::BOOTLOADER_PROGRAM_HASH;
 use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::Blake2Felt252;
 
 use crate::proving::prover::{prove, resolve_resource_path, BOOTLOADER_FILE};
 
@@ -64,8 +65,13 @@ fn test_simple_bootloader_program_hash_matches_expected() {
     let program_bytes = fs::read(&bootloader_path).expect("Failed to read bootloader file");
     let program =
         Program::from_bytes(&program_bytes, Some("main")).expect("Failed to load bootloader");
-    let program_hash =
-        compute_program_hash_blake(&program).expect("Failed to compute program hash");
+    let stripped = program.get_stripped_program().expect("Failed to strip program");
+    let program_data: Vec<Felt> = stripped
+        .data
+        .iter()
+        .map(|entry| entry.get_int_ref().copied().expect("Program data must contain felts."))
+        .collect();
+    let program_hash = Blake2Felt252::encode_felt252_data_and_calc_blake_hash(&program_data);
     assert_eq!(
         program_hash, BOOTLOADER_PROGRAM_HASH,
         "Bootloader program hash does not match expected"
