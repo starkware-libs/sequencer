@@ -399,8 +399,13 @@ async fn stream_state_updates() {
     let Some(Ok(state_diff_tuple)) = stream.next().await else {
         panic!("Match of streamed state_update failed!");
     };
-    let (current_block_num, current_block_hash, state_diff, deployed_contract_class_definitions) =
-        state_diff_tuple;
+    let (
+        current_block_num,
+        current_block_hash,
+        state_diff,
+        deployed_contract_class_definitions,
+        _non_backward_compatible_casms,
+    ) = state_diff_tuple;
 
     assert_eq!(initial_block_num, current_block_num);
     assert_eq!(block_hash1, current_block_hash);
@@ -456,7 +461,8 @@ async fn stream_state_updates() {
     let Some(Ok(state_diff_tuple)) = stream.next().await else {
         panic!("Match of streamed state_update failed!");
     };
-    let (current_block_num, current_block_hash, state_diff, _deployed_classes) = state_diff_tuple;
+    let (current_block_num, current_block_hash, state_diff, _deployed_classes, _) =
+        state_diff_tuple;
 
     assert_eq!(initial_block_num.unchecked_next(), current_block_num);
     assert_eq!(block_hash2, current_block_hash);

@@ -113,8 +113,17 @@ pub trait CentralSourceTrait {
 
 pub(crate) type BlocksStream<'a> =
     BoxStream<'a, Result<(BlockNumber, Block, BlockSignature), CentralError>>;
-type CentralStateUpdate =
-    (BlockNumber, BlockHash, StateDiff, IndexMap<ClassHash, DeprecatedContractClass>);
+// TODO(shahak): make this a struct with named fields
+type CentralStateUpdate = (
+    BlockNumber,
+    BlockHash,
+    StateDiff,
+    // Classes declared by deploy
+    IndexMap<ClassHash, DeprecatedContractClass>,
+    // Casms of classes that their compilation is non-backward-compatible. We download them from
+    // central because we can't get them from compilation.
+    IndexMap<ClassHash, CasmContractClass>,
+);
 pub(crate) type StateUpdatesStream<'a> = BoxStream<'a, CentralResult<CentralStateUpdate>>;
 type CentralCompiledClass = (BlockNumber, ClassHash, CompiledClassHash, CasmContractClass);
 pub(crate) type CompiledClassesStream<'a> = BoxStream<'a, CentralResult<CentralCompiledClass>>;
