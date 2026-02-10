@@ -25,8 +25,18 @@ lazy_static! {
         PeerId::from_public_key(&keypair.public())
     };
     #[cfg(test)]
-    pub static ref DUMMY_MULTI_ADDRESS: Multiaddr = {
+    pub static ref DUMMY_PEER_ID2: PeerId = {
+        let key = [1u8; 32];
+        let keypair = identity::Keypair::ed25519_from_bytes(key).unwrap();
+        PeerId::from_public_key(&keypair.public())
+    };
+    #[cfg(test)]
+    pub static ref DUMMY_MULTIADDR: Multiaddr = {
         make_multiaddr(Ipv4Addr::LOCALHOST, 10000, Some(*DUMMY_PEER_ID))
+    };
+    #[cfg(test)]
+    pub static ref DUMMY_MULTIADDR2: Multiaddr = {
+        make_multiaddr(Ipv4Addr::LOCALHOST, 10001, Some(*DUMMY_PEER_ID2))
     };
 }
 

@@ -250,6 +250,8 @@ pub(crate) type Bytes = Vec<u8>;
 // TODO(Shahak): add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
 #[validate(schema(function = "validate_advertised_multiaddr_peer_id"))]
+// TODO(Shahak): Reconsider this approach once we have externals running the node.
+#[validate(schema(function = "validate_advertised_multiaddr_in_bootstrap_list"))]
 pub struct NetworkConfig {
     pub port: u16,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -445,6 +447,32 @@ fn validate_advertised_multiaddr_peer_id(
         );
         error.message = Some(std::borrow::Cow::from(format!(
             "advertised peer id: {advertised_peer_id}, my peer id: {my_peer_id}"
+        )));
+        return Err(error);
+    }
+
+    Ok(())
+}
+
+/// Validates that if both advertised_multiaddr and bootstrap_peer_multiaddr are set,
+/// the advertised_multiaddr is contained in the bootstrap peer list (exact match).
+fn validate_advertised_multiaddr_in_bootstrap_list(
+    config: &NetworkConfig,
+) -> Result<(), validator::ValidationError> {
+    let Some(advertised_multiaddr) = &config.advertised_multiaddr else {
+        return Ok(());
+    };
+
+    let Some(bootstrap_peer_multiaddr) = &config.bootstrap_peer_multiaddr else {
+        return Ok(());
+    };
+
+    if !bootstrap_peer_multiaddr.contains(advertised_multiaddr) {
+        let mut error = ValidationError::new(
+            "advertised_multiaddr is not contained in bootstrap_peer_multiaddr list.",
+        );
+        error.message = Some(std::borrow::Cow::from(format!(
+            "advertised_multiaddr {advertised_multiaddr} is not in the bootstrap peer list"
         )));
         return Err(error);
     }

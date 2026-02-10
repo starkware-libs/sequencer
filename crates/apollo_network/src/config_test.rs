@@ -1,11 +1,7 @@
-use std::net::Ipv4Addr;
-
 use apollo_config::secrets::Sensitive;
-use libp2p::{identity, PeerId};
 use validator::Validate;
 
-use crate::test_utils::DUMMY_MULTI_ADDRESS;
-use crate::utils::make_multiaddr;
+use crate::test_utils::{DUMMY_MULTIADDR, DUMMY_MULTIADDR2};
 use crate::NetworkConfig;
 
 #[test]
@@ -16,16 +12,8 @@ fn test_bootstrap_peer_multiaddr_empty_is_valid() {
 
 #[test]
 fn test_bootstrap_peer_multiaddr_unique_addresses_is_valid() {
-    let key = [1u8; 32];
-    let keypair = identity::Keypair::ed25519_from_bytes(key).unwrap();
-    let second_addr = make_multiaddr(
-        Ipv4Addr::LOCALHOST,
-        12345,
-        Some(PeerId::from_public_key(&keypair.public())),
-    );
-
     let config = NetworkConfig {
-        bootstrap_peer_multiaddr: Some(vec![DUMMY_MULTI_ADDRESS.clone(), second_addr]),
+        bootstrap_peer_multiaddr: Some(vec![DUMMY_MULTIADDR.clone(), DUMMY_MULTIADDR2.clone()]),
         ..NetworkConfig::default()
     };
 
@@ -35,10 +23,7 @@ fn test_bootstrap_peer_multiaddr_unique_addresses_is_valid() {
 #[test]
 fn test_bootstrap_peer_multiaddr_duplicates_are_invalid() {
     let config = NetworkConfig {
-        bootstrap_peer_multiaddr: Some(vec![
-            DUMMY_MULTI_ADDRESS.clone(),
-            DUMMY_MULTI_ADDRESS.clone(),
-        ]),
+        bootstrap_peer_multiaddr: Some(vec![DUMMY_MULTIADDR.clone(), DUMMY_MULTIADDR.clone()]),
         ..NetworkConfig::default()
     };
 
@@ -48,7 +33,9 @@ fn test_bootstrap_peer_multiaddr_duplicates_are_invalid() {
 #[test]
 fn test_bootstrap_peer_multiaddr_missing_peer_id_is_invalid() {
     let mut config = NetworkConfig::default();
-    let mutliaddr = make_multiaddr(Ipv4Addr::LOCALHOST, 12345, None);
+    let mut mutliaddr = DUMMY_MULTIADDR.clone();
+    // Remove the trailing /p2p/<peer_id> to test a bootstrap address without peer id.
+    mutliaddr.pop();
 
     config.bootstrap_peer_multiaddr = Some(vec![mutliaddr.clone()]);
     config.validate().unwrap_err();
@@ -62,7 +49,9 @@ fn test_advertised_multiaddr_none_is_valid() {
 
 #[test]
 fn test_advertised_multiaddr_without_peer_id_is_valid() {
-    let mutliaddr = make_multiaddr(Ipv4Addr::LOCALHOST, 12345, None);
+    let mut mutliaddr = DUMMY_MULTIADDR.clone();
+    // Remove the trailing /p2p/<peer_id> to test an advertised address without peer id.
+    mutliaddr.pop();
     let config =
         NetworkConfig { advertised_multiaddr: Some(mutliaddr), ..NetworkConfig::default() };
     config.validate().unwrap();
@@ -70,12 +59,8 @@ fn test_advertised_multiaddr_without_peer_id_is_valid() {
 
 #[test]
 fn test_advertised_multiaddr_with_peer_id_but_no_secret_key_is_invalid() {
-    let key = [1u8; 32];
-    let keypair = identity::Keypair::ed25519_from_bytes(key).unwrap();
-    let peer_id = PeerId::from_public_key(&keypair.public());
-    let mutliaddr = make_multiaddr(Ipv4Addr::LOCALHOST, 12345, Some(peer_id));
     let config = NetworkConfig {
-        advertised_multiaddr: Some(mutliaddr),
+        advertised_multiaddr: Some(DUMMY_MULTIADDR.clone()),
         secret_key: None,
         ..NetworkConfig::default()
     };
@@ -84,13 +69,9 @@ fn test_advertised_multiaddr_with_peer_id_but_no_secret_key_is_invalid() {
 
 #[test]
 fn test_advertised_multiaddr_with_matching_peer_id_is_valid() {
-    let key = [1u8; 32];
-    let keypair = identity::Keypair::ed25519_from_bytes(key).unwrap();
-    let peer_id = PeerId::from_public_key(&keypair.public());
-    let mutliaddr = make_multiaddr(Ipv4Addr::LOCALHOST, 12345, Some(peer_id));
     let config = NetworkConfig {
-        advertised_multiaddr: Some(mutliaddr),
-        secret_key: Some(Sensitive::new(key.to_vec())),
+        advertised_multiaddr: Some(DUMMY_MULTIADDR.clone()),
+        secret_key: Some(Sensitive::new([0u8; 32].to_vec())),
         ..NetworkConfig::default()
     };
     config.validate().unwrap();
@@ -98,14 +79,61 @@ fn test_advertised_multiaddr_with_matching_peer_id_is_valid() {
 
 #[test]
 fn test_advertised_multiaddr_with_non_matching_peer_id_is_invalid() {
-    let key1 = [1u8; 32];
-    let key2 = [2u8; 32];
-    let keypair1 = identity::Keypair::ed25519_from_bytes(key1).unwrap();
-    let peer_id1 = PeerId::from_public_key(&keypair1.public());
-    let mutliaddr = make_multiaddr(Ipv4Addr::LOCALHOST, 12345, Some(peer_id1));
     let config = NetworkConfig {
-        advertised_multiaddr: Some(mutliaddr),
-        secret_key: Some(Sensitive::new(key2.to_vec())),
+        advertised_multiaddr: Some(DUMMY_MULTIADDR.clone()),
+        secret_key: Some(Sensitive::new([1u8; 32].to_vec())),
+        ..NetworkConfig::default()
+    };
+    config.validate().unwrap_err();
+}
+
+#[test]
+fn test_advertised_multiaddr_in_bootstrap_list_both_none_is_valid() {
+    let config = NetworkConfig {
+        advertised_multiaddr: None,
+        bootstrap_peer_multiaddr: None,
+        ..NetworkConfig::default()
+    };
+    config.validate().unwrap();
+}
+
+#[test]
+fn test_advertised_multiaddr_in_bootstrap_list_bootstrap_peer_none_is_valid() {
+    let config = NetworkConfig {
+        advertised_multiaddr: Some(DUMMY_MULTIADDR.clone()),
+        bootstrap_peer_multiaddr: None,
+        ..NetworkConfig::default()
+    };
+    config.validate().unwrap();
+}
+
+#[test]
+fn test_advertised_multiaddr_in_bootstrap_list_advertised_none_is_valid() {
+    let config = NetworkConfig {
+        advertised_multiaddr: None,
+        bootstrap_peer_multiaddr: Some(vec![DUMMY_MULTIADDR.clone()]),
+        ..NetworkConfig::default()
+    };
+    config.validate().unwrap();
+}
+
+#[test]
+fn test_advertised_multiaddr_in_bootstrap_list_is_valid() {
+    let config = NetworkConfig {
+        advertised_multiaddr: Some(DUMMY_MULTIADDR.clone()),
+        bootstrap_peer_multiaddr: Some(vec![DUMMY_MULTIADDR.clone(), DUMMY_MULTIADDR2.clone()]),
+        secret_key: Some(Sensitive::new([0u8; 32].to_vec())),
+        ..NetworkConfig::default()
+    };
+    config.validate().unwrap();
+}
+
+#[test]
+fn test_advertised_multiaddr_not_in_bootstrap_list_is_invalid() {
+    let config = NetworkConfig {
+        advertised_multiaddr: Some(DUMMY_MULTIADDR.clone()),
+        bootstrap_peer_multiaddr: Some(vec![DUMMY_MULTIADDR2.clone()]),
+        secret_key: Some(Sensitive::new([0u8; 32].to_vec())),
         ..NetworkConfig::default()
     };
     config.validate().unwrap_err();
