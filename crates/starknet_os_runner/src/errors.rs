@@ -4,6 +4,7 @@ use cairo_vm::types::errors::program_errors::ProgramError;
 use proving_utils::proof_encoding::ProofEncodingError;
 use proving_utils::stwo_run_and_prove::StwoRunAndProveError;
 use starknet_api::core::ClassHash;
+use starknet_api::transaction::TransactionHash;
 use starknet_os::errors::StarknetOsError;
 use starknet_patricia_storage::errors::SerializationError;
 use starknet_rust::providers::ProviderError;
@@ -16,6 +17,8 @@ pub enum VirtualBlockExecutorError {
     ReexecutionError(#[from] Box<ReexecutionError>),
     #[error("Transaction execution failed: {0}")]
     TransactionExecutionError(String),
+    #[error("Transaction with hash {0} reverted: {1}")]
+    TransactionReverted(TransactionHash, String),
     #[error("Block state unavailable after execution")]
     StateUnavailable,
     #[error("Failed to acquire bouncer lock: {0}")]
