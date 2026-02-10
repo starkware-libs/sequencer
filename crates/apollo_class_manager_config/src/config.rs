@@ -5,6 +5,10 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::db::DbConfig;
 use apollo_storage::mmap_file::MmapFileConfig;
+use apollo_storage::storage_reader_server::{
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerStaticConfig,
+};
 use apollo_storage::{StorageConfig, StorageScope};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -119,14 +123,30 @@ impl SerializeConfig for ClassManagerConfig {
     }
 }
 
-/// Configuration for filesystem-based class manager.
+/// Dynamic configuration for class manager.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct FsClassManagerConfig {
-    pub class_manager_config: ClassManagerConfig,
-    pub class_storage_config: FsClassStorageConfig,
+pub struct ClassManagerDynamicConfig {
+    pub storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
 }
 
-impl SerializeConfig for FsClassManagerConfig {
+impl SerializeConfig for ClassManagerDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(
+            self.storage_reader_server_dynamic_config.dump(),
+            "storage_reader_server_dynamic_config",
+        )
+    }
+}
+
+/// Static configuration for filesystem-based class manager.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct ClassManagerStaticConfig {
+    pub class_manager_config: ClassManagerConfig,
+    pub class_storage_config: FsClassStorageConfig,
+    pub storage_reader_server_static_config: StorageReaderServerStaticConfig,
+}
+
+impl SerializeConfig for ClassManagerStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::new();
         dump.append(&mut prepend_sub_config_name(
@@ -137,6 +157,28 @@ impl SerializeConfig for FsClassManagerConfig {
             self.class_storage_config.dump(),
             "class_storage_config",
         ));
+        dump.append(&mut prepend_sub_config_name(
+            self.storage_reader_server_static_config.dump(),
+            "storage_reader_server_static_config",
+        ));
         dump
+    }
+}
+
+/// Configuration for filesystem-based class manager.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct FsClassManagerConfig {
+    #[validate(nested)]
+    pub static_config: ClassManagerStaticConfig,
+    #[validate(nested)]
+    pub dynamic_config: ClassManagerDynamicConfig,
+}
+
+impl SerializeConfig for FsClassManagerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        config
     }
 }

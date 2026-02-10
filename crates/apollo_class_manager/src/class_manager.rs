@@ -169,10 +169,15 @@ pub fn create_class_manager(
     config: FsClassManagerConfig,
     compiler_client: SharedSierraCompilerClient,
 ) -> FsClassManager {
-    let FsClassManagerConfig { class_manager_config, class_storage_config } = config;
-    let fs_class_storage =
-        FsClassStorage::new(class_storage_config).expect("Failed to create class storage.");
-    let class_manager = ClassManager::new(class_manager_config, compiler_client, fs_class_storage);
+    let FsClassManagerConfig { static_config, dynamic_config } = config;
+    let fs_class_storage = FsClassStorage::new(
+        static_config.class_storage_config,
+        static_config.storage_reader_server_static_config,
+        dynamic_config.storage_reader_server_dynamic_config,
+    )
+    .expect("Failed to create class storage.");
+    let class_manager =
+        ClassManager::new(static_config.class_manager_config, compiler_client, fs_class_storage);
 
     FsClassManager(class_manager)
 }
