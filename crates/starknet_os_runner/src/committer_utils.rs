@@ -232,11 +232,15 @@ fn add_dummy_nodes_for_orphan_hashes(
 
     // Insert dummy nodes for orphan child hashes.
     for (_, node) in nodes {
-        if let MerkleNode::BinaryNode(bn) = node {
-            add_dummy_node_for_orphan_child(db_map, &bn.left, &has_preimage, &dummy_value);
-            add_dummy_node_for_orphan_child(db_map, &bn.right, &has_preimage, &dummy_value);
+        match node {
+            MerkleNode::BinaryNode(bn) => {
+                add_dummy_node_for_orphan_child(db_map, &bn.left, &has_preimage, &dummy_value);
+                add_dummy_node_for_orphan_child(db_map, &bn.right, &has_preimage, &dummy_value);
+            }
+            MerkleNode::EdgeNode(en) => {
+                add_dummy_node_for_orphan_child(db_map, &en.child, &has_preimage, &dummy_value);
+            }
         }
-        // Edge nodes: their child must be in proof or already processed, no need to check.
     }
 
     Ok(())
