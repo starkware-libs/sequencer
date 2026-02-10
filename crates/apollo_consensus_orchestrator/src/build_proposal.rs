@@ -254,7 +254,7 @@ async fn get_proposal_content(
                     })?;
             }
             GetProposalContent::Finished { id, final_n_executed_txs } => {
-                let proposal_commitment = ProposalCommitment(id.state_diff_commitment.0.0);
+                let proposal_commitment = ProposalCommitment(id.partial_block_hash.0);
                 content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
 
                 info!(

@@ -44,8 +44,10 @@ use starknet_api::block::{
     BlockNumber,
     StarknetVersion,
 };
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
-use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::block_hash::block_hash_calculator::{
+    PartialBlockHash,
+    PartialBlockHashComponents,
+};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce};
 use starknet_api::state::ThinStateDiff;
@@ -164,7 +166,12 @@ async fn proposal_commitment() -> ProposalCommitment {
 }
 
 fn parent_proposal_commitment() -> ProposalCommitment {
-    ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&test_state_diff()) }
+    ProposalCommitment {
+        partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+            &PartialBlockHashComponents::default(),
+        )
+        .expect("default partial block hash components are valid"),
+    }
 }
 
 fn validate_block_input(proposal_id: ProposalId) -> ValidateBlockInput {
@@ -1399,6 +1406,14 @@ async fn decision_reached() {
         )
         .returning(|_, _, _| Ok(()));
 
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT.prev().unwrap()))
+        .returning(|_| {
+            Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
+        });
+
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.clients.block_builder_factory,
         vec![],
@@ -1470,6 +1485,14 @@ async fn test_execution_info_order_is_kept() {
         .map(|(hash, (info, _))| (*hash, info.clone()))
         .collect();
     verify_indexed_execution_infos(&execution_infos);
+
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT.prev().unwrap()))
+        .returning(|_| {
+            Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
+        });
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.clients.block_builder_factory,
@@ -1549,6 +1572,14 @@ async fn decision_reached_return_success_when_l1_commit_block_fails(
     mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _, _| Ok(()));
 
     mock_dependencies.clients.mempool_client.expect_commit_block().returning(|_| Ok(()));
+
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT.prev().unwrap()))
+        .returning(|_| {
+            Ok((Some(BlockHash::default()), Some(PartialBlockHashComponents::default())))
+        });
 
     mock_create_builder_for_propose_block(
         &mut mock_dependencies.clients.block_builder_factory,
