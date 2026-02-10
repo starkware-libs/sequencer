@@ -16,7 +16,7 @@ use starknet_api::{class_hash, contract_address, felt, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
-    builtins_to_gas,
+    cairo_primitives_to_gas,
     get_patricia_update_resources,
     get_tx_weights,
     map_class_hash_to_casm_hash_computation_resources,
@@ -299,8 +299,10 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         _ => panic!("Unexpected scenario: {scenario}"),
     };
 
-    let proving_gas_max_capacity =
-        builtins_to_gas(&max_capacity_builtin_counters, &builtin_weights.gas_costs);
+    let proving_gas_max_capacity = cairo_primitives_to_gas(
+        &cairo_primitive_counter_map(max_capacity_builtin_counters),
+        &builtin_weights.gas_costs,
+    );
 
     let block_max_capacity = BouncerWeights {
         l1_gas: 20,
