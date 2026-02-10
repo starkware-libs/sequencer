@@ -5,7 +5,11 @@ use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 
-use crate::fee_market::{calculate_next_base_gas_price, get_min_gas_price_for_height};
+use crate::fee_market::{
+    calculate_next_base_gas_price,
+    get_min_gas_price_for_height,
+    MIN_GAS_PRICE_INCREASE_DENOMINATOR,
+};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 static VERSIONED_CONSTANTS: LazyLock<&VersionedConstants> =
@@ -188,12 +192,12 @@ fn test_calculate_with_price_below_minimum() {
     let result = calculate_next_base_gas_price(price, gas_used, gas_target, min_gas_price);
 
     // When price < min_gas_price, should apply gradual adjustment
-    // Price increases by at most 1/gas_price_max_change_denominator per block
-    let max_increase = price.0 / VERSIONED_CONSTANTS.gas_price_max_change_denominator;
+    // Price increases by at most 1/MIN_GAS_PRICE_INCREASE_DENOMINATOR per block
+    let max_increase = price.0 / MIN_GAS_PRICE_INCREASE_DENOMINATOR;
     let expected = price.0 + max_increase;
     assert_eq!(result, GasPrice(expected));
 
-    // Verify the increase is gradual (about 2.08% for denominator=48)
+    // Verify the increase is gradual (about 0.3% for denominator=333)
     assert!(result.0 > price.0);
     assert!(result.0 < min_gas_price.0); // Should not jump to minimum immediately
 }
@@ -201,7 +205,7 @@ fn test_calculate_with_price_below_minimum() {
 #[test]
 fn test_calculate_with_price_close_to_minimum() {
     let min_gas_price = GasPrice(10_000_000_000);
-    let price = GasPrice(9_900_000_000); // Very close to minimum
+    let price = GasPrice(9_971_000_000); // Very close to minimum
     let gas_used = GasAmount(1000);
     let gas_target = GasAmount(2000);
 

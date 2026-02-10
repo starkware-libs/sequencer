@@ -1285,19 +1285,19 @@ async fn test_dynamic_config_updates_min_gas_price() {
     context.update_l2_gas_price(BlockNumber(FIRST_TEST_HEIGHT), GasAmount(1000));
 
     // Gas price should have increased towards minimum (gradual adjustment)
-    // Formula: new_price = min(price + price/48, min_gas_price)
-    // Starting at INITIAL_GAS_PRICE (8 Gwei), with gas_price_max_change_denominator = 48
-    // max_increase = 8_000_000_000 / 48 = 166_666_666
-    // expected = 8_000_000_000 + 166_666_666 = 8_166_666_666
-    const GAS_PRICE_MAX_CHANGE_DENOMINATOR: u128 = 48;
+    // Formula: new_price = min(price + price/333, min_gas_price)
+    // Starting at INITIAL_GAS_PRICE (8 Gwei), with MIN_GAS_PRICE_INCREASE_DENOMINATOR = 333
+    // max_increase = 8_000_000_000 / 333 = 24_024_024
+    // expected = 8_000_000_000 + 24_024_024 = 8_024_024_024
+    const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
     let expected_price_after_first =
-        INITIAL_GAS_PRICE + (INITIAL_GAS_PRICE / GAS_PRICE_MAX_CHANGE_DENOMINATOR);
+        INITIAL_GAS_PRICE + (INITIAL_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
     let expected_price_after_first = expected_price_after_first.min(FIRST_CONFIG_MIN_PRICE);
 
     let price_after_first_update = context.l2_gas_price.0;
     assert_eq!(
         price_after_first_update, expected_price_after_first,
-        "Gas price should be exactly {} (8 Gwei + 8/48), got {}",
+        "Gas price should be exactly {} (8 Gwei + 8/333), got {}",
         expected_price_after_first, price_after_first_update
     );
 
@@ -1318,18 +1318,18 @@ async fn test_dynamic_config_updates_min_gas_price() {
     context.update_l2_gas_price(BlockNumber(SECOND_TEST_HEIGHT), GasAmount(1000));
 
     // Gas price should have increased towards new minimum
-    // Formula: new_price = min(price + price/48, min_gas_price)
+    // Formula: new_price = min(price + price/333, min_gas_price)
     // Starting at INTERMEDIATE_GAS_PRICE (15 Gwei)
-    // max_increase = 15_000_000_000 / 48 = 312_500_000
-    // expected = 15_000_000_000 + 312_500_000 = 15_312_500_000
+    // max_increase = 15_000_000_000 / 333 = 45_045_045
+    // expected = 15_000_000_000 + 45_045_045 = 15_045_045_045
     let expected_price_after_second =
-        INTERMEDIATE_GAS_PRICE + (INTERMEDIATE_GAS_PRICE / GAS_PRICE_MAX_CHANGE_DENOMINATOR);
+        INTERMEDIATE_GAS_PRICE + (INTERMEDIATE_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
     let expected_price_after_second = expected_price_after_second.min(SECOND_CONFIG_MIN_PRICE);
 
     let price_after_second_update = context.l2_gas_price.0;
     assert_eq!(
         price_after_second_update, expected_price_after_second,
-        "Gas price should be exactly {} (15 Gwei + 15/48), got {}",
+        "Gas price should be exactly {} (15 Gwei + 15/333), got {}",
         expected_price_after_second, price_after_second_update
     );
 }
