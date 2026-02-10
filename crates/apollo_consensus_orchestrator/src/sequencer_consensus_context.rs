@@ -35,7 +35,6 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -179,7 +178,6 @@ pub struct SequencerConsensusContextDeps {
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    pub committee_provider: Option<Arc<dyn CommitteeProvider>>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
     // Used to initiate new outbound proposal streams.
@@ -511,7 +509,7 @@ impl ConsensusContext for SequencerConsensusContext {
             proposal_id,
             cende_write_success,
             l2_gas_price,
-            // TODO(Asmaa): Get it from the CommitteeProvider once we have it.
+            // TODO(Asmaa): Get it from committee once we have it.
             builder_address: self.config.static_config.builder_address,
             cancel_token,
             previous_block_info: self.previous_block_info.clone(),
