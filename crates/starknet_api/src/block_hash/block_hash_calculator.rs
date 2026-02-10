@@ -30,6 +30,7 @@ use crate::core::{
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasVector;
+use crate::hash::StarkHash;
 use crate::state::ThinStateDiff;
 use crate::transaction::fields::{Fee, TransactionSignature};
 use crate::transaction::{Event, MessageToL1, TransactionExecutionStatus, TransactionHash};
@@ -165,6 +166,10 @@ impl TryFrom<&BlockHeader> for Option<BlockHeaderCommitments> {
     }
 }
 
+/// Hash of [`PartialBlockHashComponents`] only (no state root or parent hash).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PartialBlockHash(pub StarkHash);
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 /// All information required to calculate a block hash except for the state root and the parent
 /// block hash.
@@ -238,6 +243,20 @@ pub fn calculate_block_hash(
             .chain(&parent_hash.0)
             .get_poseidon_hash(),
     ))
+}
+
+/// Hash of [`PartialBlockHashComponents`] (no state root or parent hash).
+/// Uses the same formula as [`calculate_block_hash`] with fixed constants for state root and
+/// parent hash (zero).
+pub fn calculate_partial_block_hash(
+    partial_block_hash_components: &PartialBlockHashComponents,
+) -> StarknetApiResult<PartialBlockHash> {
+    let block_hash = calculate_block_hash(
+        partial_block_hash_components,
+        GlobalRoot(Felt::ZERO),
+        BlockHash(Felt::ZERO),
+    )?;
+    Ok(PartialBlockHash(block_hash.0))
 }
 
 /// Calculates the commitments of the transactions data for the block hash.
