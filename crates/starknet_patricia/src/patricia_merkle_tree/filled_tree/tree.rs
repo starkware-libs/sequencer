@@ -17,7 +17,7 @@ use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 
 #[cfg(test)]
 #[path = "tree_test.rs"]
@@ -30,14 +30,14 @@ pub(crate) type FilledTreeResult<T> = Result<T, FilledTreeError>;
 pub trait FilledTree<L: Leaf>: Sized + Send {
     /// Computes and returns the filled tree and the leaf output map.
     fn create<TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: UpdatedSkeletonTreeImpl,
+        updated_skeleton: UpdatedSkeletonTree,
         leaf_index_to_leaf_input: HashMap<NodeIndex, L::Input>,
     ) -> impl Future<Output = FilledTreeResult<(Self, HashMap<NodeIndex, L::Output>)>> + Send;
 
     /// Computes and returns the filled tree using the provided leaf modifications. Since the
     /// leaves are not computed, no leaf output will be returned.
     fn create_with_existing_leaves<TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: UpdatedSkeletonTreeImpl,
+        updated_skeleton: UpdatedSkeletonTree,
         leaf_modifications: LeafModifications<L>,
     ) -> impl Future<Output = FilledTreeResult<Self>> + Send;
 
@@ -63,7 +63,7 @@ where
 
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders(
-        updated_skeleton: &UpdatedSkeletonTreeImpl,
+        updated_skeleton: &UpdatedSkeletonTree,
     ) -> HashMap<NodeIndex, Mutex<Option<HashFilledNode<L>>>> {
         let mut filled_tree_output_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
@@ -183,7 +183,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     // leaves from the leaf modifications map and ignore the input and output maps.
     #[async_recursion]
     async fn compute_filled_tree_rec<TH>(
-        updated_skeleton: Arc<UpdatedSkeletonTreeImpl>,
+        updated_skeleton: Arc<UpdatedSkeletonTree>,
         index: NodeIndex,
         leaf_modifications: Option<Arc<LeafModifications<L>>>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, Mutex<Option<L::Input>>>>,
@@ -278,7 +278,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
     }
 
     fn create_unmodified(
-        updated_skeleton: &UpdatedSkeletonTreeImpl,
+        updated_skeleton: &UpdatedSkeletonTree,
     ) -> Result<Self, FilledTreeError> {
         let root_node = updated_skeleton.get_node(NodeIndex::ROOT)?;
         let UpdatedSkeletonNode::UnmodifiedSubTree(root_hash) = root_node else {
@@ -294,7 +294,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 
 impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
     async fn create<TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: UpdatedSkeletonTreeImpl,
+        updated_skeleton: UpdatedSkeletonTree,
         leaf_index_to_leaf_input: HashMap<NodeIndex, L::Input>,
     ) -> Result<(Self, HashMap<NodeIndex, L::Output>), FilledTreeError> {
         // Handle edge cases of no leaf modifications.
@@ -338,7 +338,7 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
     }
 
     async fn create_with_existing_leaves<TH: TreeHashFunction<L> + 'static>(
-        updated_skeleton: UpdatedSkeletonTreeImpl,
+        updated_skeleton: UpdatedSkeletonTree,
         leaf_modifications: LeafModifications<L>,
     ) -> FilledTreeResult<Self> {
         // Handle edge case of no modifications.

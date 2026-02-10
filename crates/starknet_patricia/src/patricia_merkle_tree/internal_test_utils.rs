@@ -15,7 +15,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
     TreeHashFunction,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 
 pub(crate) struct TestTreeHashFunction;
 
@@ -80,12 +80,12 @@ fn test_get_random_u256(mut random: ThreadRng, #[case] low: U256, #[case] high: 
 }
 
 /// Returns an UpdatedSkeleton instance initialized with the UpdatedSkeletonNodes immediately
-/// derived from the leaf_modifications (as done in UpdatedSkeletonTreeImpl::finalize_bottom_layer).
+/// derived from the leaf_modifications (as done in UpdatedSkeletonTree::finalize_bottom_layer).
 pub(crate) fn get_initial_updated_skeleton(
     original_skeleton: &[(NodeIndex, OriginalSkeletonNode)],
     leaf_modifications: &[(NodeIndex, u8)],
-) -> UpdatedSkeletonTreeImpl {
-    UpdatedSkeletonTreeImpl {
+) -> UpdatedSkeletonTree {
+    UpdatedSkeletonTree {
         skeleton_tree: leaf_modifications
             .iter()
             .filter(|(_, leaf_val)| *leaf_val != 0)

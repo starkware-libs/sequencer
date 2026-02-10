@@ -5,7 +5,7 @@ use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
+use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTree;
 use tracing::info;
 
 use crate::block_committer::input::{
@@ -110,7 +110,7 @@ impl FilledForest {
             ContractAddress,
             LeafModifications<StarknetStorageValue>,
         >,
-        mut contract_address_to_storage_skeleton: HashMap<ContractAddress, UpdatedSkeletonTreeImpl>,
+        mut contract_address_to_storage_skeleton: HashMap<ContractAddress, UpdatedSkeletonTree>,
         address_to_class_hash: &HashMap<ContractAddress, ClassHash>,
         address_to_nonce: &HashMap<ContractAddress, Nonce>,
     ) -> ForestResult<HashMap<NodeIndex, ContractStateInput>> {
