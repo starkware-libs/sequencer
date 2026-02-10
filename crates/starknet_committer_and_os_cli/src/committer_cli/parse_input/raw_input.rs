@@ -24,6 +24,7 @@ pub(crate) struct RawStorageEntry {
 #[derive(Deserialize, Debug)]
 pub(crate) struct RawConfigImpl {
     pub warn_on_trivial_modifications: bool,
+    pub build_storage_tries_concurrently: bool,
     pub log_level: PythonLogLevel,
 }
 
