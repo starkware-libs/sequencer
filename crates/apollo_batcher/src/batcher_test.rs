@@ -63,6 +63,7 @@ use tempfile::TempDir;
 use validator::Validate;
 
 use crate::batcher::{
+    finished_proposal_info_from_artifacts,
     Batcher,
     BatcherStorageReader,
     BatcherStorageWriter,
@@ -168,11 +169,10 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
 
 async fn finished_proposal_info() -> FinishedProposalInfo {
     let artifacts = BlockExecutionArtifacts::create_for_testing().await;
-    FinishedProposalInfo {
-        proposal_commitment: artifacts.commitment(),
-        final_n_executed_txs: artifacts.final_n_executed_txs,
-        block_header_commitments: artifacts.partial_block_hash_components().header_commitments,
-    }
+    FinishedProposalInfo::from_artifacts_and_parent(
+        finished_proposal_info_from_artifacts(&artifacts),
+        Some(parent_proposal_commitment()),
+    )
 }
 
 fn parent_proposal_commitment() -> ProposalCommitment {
@@ -614,11 +614,10 @@ async fn validate_block_full_flow() {
         proposal_id: PROPOSAL_ID,
         content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
     };
+    let expected_info = finished_proposal_info().await;
     assert_eq!(
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
-        SendProposalContentResponse {
-            response: ProposalStatus::Finished(finished_proposal_info().await)
-        }
+        SendProposalContentResponse { response: ProposalStatus::Finished(expected_info) }
     );
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 1, 0, 0);
@@ -769,11 +768,10 @@ async fn propose_block_full_flow() {
         .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
         .await
         .unwrap();
+    let expected_info = finished_proposal_info().await;
     assert_eq!(
         commitment,
-        GetProposalContentResponse {
-            content: GetProposalContent::Finished(finished_proposal_info().await)
-        }
+        GetProposalContentResponse { content: GetProposalContent::Finished(expected_info) }
     );
 
     let exhausted =

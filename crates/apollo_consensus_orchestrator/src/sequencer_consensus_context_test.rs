@@ -240,6 +240,7 @@ async fn interrupt_active_proposal() {
                 },
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
+                parent_proposal_commitment: None,
             }),
         })
     });

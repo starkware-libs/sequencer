@@ -13,6 +13,7 @@ use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
     FinishedProposalInfo,
+    FinishedProposalInfoWithoutParent,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
@@ -1003,18 +1004,17 @@ impl Batcher {
         proposal_id: ProposalId,
     ) -> Option<ProposalResult<FinishedProposalInfo>> {
         let guard = self.executed_proposals.lock().await;
-        let proposal_result = guard.get(&proposal_id);
-        match proposal_result {
-            Some(Ok(artifacts)) => Some(Ok(FinishedProposalInfo {
-                proposal_commitment: artifacts.commitment(),
-                final_n_executed_txs: artifacts.final_n_executed_txs,
-                block_header_commitments: artifacts
-                    .partial_block_hash_components()
-                    .header_commitments,
-            })),
-            Some(Err(e)) => Some(Err(e.clone())),
-            None => None,
-        }
+        let artifact_derived = match guard.get(&proposal_id) {
+            Some(Ok(artifacts)) => finished_proposal_info_from_artifacts(artifacts),
+            Some(Err(e)) => return Some(Err(e.clone())),
+            None => return None,
+        };
+        let parent_proposal_commitment =
+            self.active_height.and_then(|h| self.get_parent_proposal_commitment(h).ok().flatten());
+        Some(Ok(FinishedProposalInfo::from_artifacts_and_parent(
+            artifact_derived,
+            parent_proposal_commitment,
+        )))
     }
 
     // Ends the current active proposal.
@@ -1137,7 +1137,7 @@ impl Batcher {
     // Returns the proposal commitment of the previous height.
     // NOTE: Assumes that the previous height was committed to the storage.
     fn get_parent_proposal_commitment(
-        &mut self,
+        &self,
         height: BlockNumber,
     ) -> BatcherResult<Option<ProposalCommitment>> {
         let Some(prev_height) = height.prev() else {
@@ -1619,4 +1619,16 @@ impl ComponentStarter for Batcher {
 pub enum StorageCommitmentBlockHash {
     ParentHash(BlockHash),
     Partial(PartialBlockHashComponents),
+}
+
+/// Builds the artifact-derived part of [`FinishedProposalInfo`]. Pass the result to
+/// [`FinishedProposalInfo::from_artifacts_and_parent`] with the parent commitment.
+pub(crate) fn finished_proposal_info_from_artifacts(
+    artifacts: &BlockExecutionArtifacts,
+) -> FinishedProposalInfoWithoutParent {
+    FinishedProposalInfoWithoutParent {
+        proposal_commitment: artifacts.commitment(),
+        final_n_executed_txs: artifacts.final_n_executed_txs,
+        block_header_commitments: artifacts.partial_block_hash_components().header_commitments,
+    }
 }
