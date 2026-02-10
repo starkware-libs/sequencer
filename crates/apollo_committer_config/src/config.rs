@@ -46,6 +46,8 @@ impl<C: StorageConfigTrait> SerializeConfig for CommitterConfig<C> {
 
 impl<C: StorageConfigTrait> Default for CommitterConfig<C> {
     fn default() -> Self {
+        // TODO(Nimrod): Consider adding dynamic config and move `build_storage_tries_concurrently`
+        // to it.
         Self {
             reader_config: ReaderConfig::default(),
             db_path: "/data/committer".into(),

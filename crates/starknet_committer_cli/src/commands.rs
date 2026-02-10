@@ -465,6 +465,11 @@ pub async fn run_storage_benchmark<S: Storage>(
         info!("Committer storage benchmark iteration {}/{}", block_number + 1, n_iterations);
         // Seed is created from block number, to be independent of restarts using checkpoints.
         let mut rng = SmallRng::seed_from_u64(seed + u64::try_from(block_number).unwrap());
+        // TODO(Nimrod): Take `build_storage_tries_concurrently` from the command line arguments.
+        let build_storage_tries_concurrently = false;
+        let warn_on_trivial_modifications = false;
+        let config =
+            ReaderConfig::new(warn_on_trivial_modifications, build_storage_tries_concurrently);
         let input = InputImpl {
             state_diff: flavor.generate_state_diff(
                 n_updates_arg,
@@ -473,7 +478,7 @@ pub async fn run_storage_benchmark<S: Storage>(
                 batcher_storage_reader.as_ref(),
             ),
             initial_read_context: IndexDbReadContext,
-            config: ReaderConfig::default(),
+            config,
         };
 
         measurements.start_measurement(Action::EndToEnd);

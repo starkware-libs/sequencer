@@ -40,7 +40,7 @@ async fn commit_block(
     let input = Input {
         state_diff,
         initial_read_context: IndexDbReadContext,
-        config: ReaderConfig::new(true),
+        config: ReaderConfig::new(true, false),
     };
 
     let (filled_forest, deleted_nodes) =
