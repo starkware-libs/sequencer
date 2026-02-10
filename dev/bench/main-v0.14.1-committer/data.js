@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770714278663,
+  "lastUpdate": 1770715428351,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2243,6 +2243,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1320.66560407,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3c22a3760bca8b26be0d84f61f61957e2a4be787",
+          "message": "starknet_api: add time measurements to calculate_block_commitments (#12414)",
+          "timestamp": "2026-02-10T09:02:55Z",
+          "tree_id": "47a1c3345e7971a483605c730b55367b00528851",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3c22a3760bca8b26be0d84f61f61957e2a4be787"
+        },
+        "date": 1770715428018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 813.30527225,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1271.31343474,
             "unit": "ms"
           }
         ]
