@@ -244,7 +244,6 @@ pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
-    pub native_classes_whitelist: NativeClassesWhitelist,
     pub panic_on_compilation_failure: bool,
 }
 
@@ -257,7 +256,6 @@ impl Default for CairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
-            native_classes_whitelist: NativeClassesWhitelist::All,
             panic_on_compilation_failure: false,
         }
     }
@@ -282,13 +280,6 @@ impl SerializeConfig for CairoNativeRunConfig {
                 "channel_size",
                 &self.channel_size,
                 "The size of the compilation request channel.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "native_classes_whitelist",
-                &self.native_classes_whitelist,
-                "Specifies whether to execute all class hashes or only specific ones using Cairo \
-                 native. If limited, a specific list of class hashes is provided.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
