@@ -73,6 +73,11 @@ pub trait TransactionQueueTrait: Send + Sync {
     // Default implementation is a no-op (for queues that don't track last returned timestamp).
     fn set_last_returned_timestamp(&mut self, _timestamp: u64) {}
 
+    // Default implementation returns None (for queues that don't track last returned timestamp).
+    fn get_last_returned_timestamp(&self) -> Option<u64> {
+        None
+    }
+
     // Default implementation is a no-op (for queues that don't support timestamp updates).
     fn update_timestamps(&mut self, _mappings: HashMap<TransactionHash, u64>) {}
 }

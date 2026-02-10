@@ -79,6 +79,8 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<DecisionReachedResponse>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
+    /// Gets a timestamp sourced from the batcher (mempool-backed).
+    async fn get_ts(&self) -> BatcherClientResult<u64>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -94,6 +96,7 @@ pub enum BatcherRequest {
     SendProposalContent(SendProposalContentInput),
     StartHeight(StartHeightInput),
     GetCurrentHeight,
+    GetTimestamp,
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
@@ -111,6 +114,7 @@ generate_permutation_labels! {
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
+    GetTimestamp(BatcherResult<u64>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
@@ -200,6 +204,17 @@ where
         handle_all_response_variants!(
             BatcherResponse,
             GetCurrentHeight,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn get_ts(&self) -> BatcherClientResult<u64> {
+        let request = BatcherRequest::GetTimestamp;
+        handle_all_response_variants!(
+            BatcherResponse,
+            GetTimestamp,
             BatcherClientError,
             BatcherError,
             Direct
