@@ -19,6 +19,7 @@ use crate::patricia_merkle_tree::internal_test_utils::{
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
+    ExtendedOriginalSkeletonNodes,
     OriginalSkeletonNodeMap,
     OriginalSkeletonTreeImpl,
 };
@@ -475,14 +476,19 @@ fn test_update_node_in_nonempty_tree(
     #[with(&original_skeleton, leaf_modifications)]
     mut initial_updated_skeleton: UpdatedSkeletonTreeImpl,
 ) {
-    let mut original_skeleton: OriginalSkeletonNodeMap = original_skeleton.into_iter().collect();
+    let original_skeleton_map: OriginalSkeletonNodeMap = original_skeleton.into_iter().collect();
+    let original_skeleton_tree = OriginalSkeletonTreeImpl {
+        nodes: original_skeleton_map,
+        sorted_leaf_indices: SortedLeafIndices::default(),
+    };
     let mut leaf_indices: Vec<NodeIndex> =
         leaf_modifications.iter().map(|(index, _)| *index).collect();
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
+    let mut extended = ExtendedOriginalSkeletonNodes::new(&original_skeleton_tree);
     let temp_node = initial_updated_skeleton.update_node_in_nonempty_tree(
         root_index,
-        &mut original_skeleton,
+        &mut extended,
         &SortedLeafIndices::new(&mut leaf_indices),
     );
     assert_eq!(temp_node, expected_node);
@@ -494,9 +500,9 @@ fn test_update_node_in_nonempty_tree(
 #[case::non_empty_tree(HashOutput(Felt::from(77_u128)))]
 #[tokio::test]
 async fn test_update_non_modified_storage_tree(#[case] root_hash: HashOutput) {
-    let mut original_skeleton_tree = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
+    let original_skeleton_tree = OriginalSkeletonTreeImpl::create_unmodified(root_hash);
     let updated =
-        UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &HashMap::new()).unwrap();
+        UpdatedSkeletonTreeImpl::create(&original_skeleton_tree, &HashMap::new()).unwrap();
     let empty_map = HashMap::new();
     let filled = MockTrie::create_with_existing_leaves::<TestTreeHashFunction>(updated, empty_map)
         .await

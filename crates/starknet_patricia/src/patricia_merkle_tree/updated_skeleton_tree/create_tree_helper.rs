@@ -4,7 +4,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToB
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonNodeMap,
+    ExtendedOriginalSkeletonNodes,
     OriginalSkeletonTree,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
@@ -92,17 +92,14 @@ impl UpdatedSkeletonTreeImpl {
     /// Finalize the tree middle layers (i.e., not the bottom layer defined above).
     pub(crate) fn finalize_middle_layers<'a>(
         &mut self,
-        original_skeleton: &mut impl OriginalSkeletonTree<'a>,
+        original_skeleton: &'a impl OriginalSkeletonTree<'a>,
     ) -> TempSkeletonNode {
         let sorted_leaf_indices = original_skeleton.get_sorted_leaf_indices();
         if original_skeleton.get_nodes().is_empty() {
             self.update_node_in_empty_tree(&NodeIndex::ROOT, &sorted_leaf_indices)
         } else {
-            self.update_node_in_nonempty_tree(
-                &NodeIndex::ROOT,
-                original_skeleton.get_nodes_mut(),
-                &sorted_leaf_indices,
-            )
+            let mut extended = ExtendedOriginalSkeletonNodes::new(original_skeleton);
+            self.update_node_in_nonempty_tree(&NodeIndex::ROOT, &mut extended, &sorted_leaf_indices)
         }
     }
 
@@ -148,10 +145,10 @@ impl UpdatedSkeletonTreeImpl {
 
     /// Updates the Patricia tree rooted at the given index, with the given leaves; returns the
     /// root.
-    pub(crate) fn update_node_in_nonempty_tree(
+    pub(crate) fn update_node_in_nonempty_tree<'a>(
         &mut self,
         root_index: &NodeIndex,
-        original_skeleton: &mut OriginalSkeletonNodeMap,
+        original_skeleton: &mut ExtendedOriginalSkeletonNodes<'a>,
         leaf_indices: &SortedLeafIndices<'_>,
     ) -> TempSkeletonNode {
         if root_index.is_leaf() && leaf_indices.contains(root_index) {
@@ -306,11 +303,11 @@ impl UpdatedSkeletonTreeImpl {
     }
 
     /// Update an original subtree rooted with an edge node.
-    fn update_edge_node(
+    fn update_edge_node<'a>(
         &mut self,
         root_index: &NodeIndex,
         path_to_bottom: &PathToBottom,
-        original_skeleton: &mut OriginalSkeletonNodeMap,
+        original_skeleton: &mut ExtendedOriginalSkeletonNodes<'a>,
         leaf_indices: &SortedLeafIndices<'_>,
     ) -> TempSkeletonNode {
         let [left_child_index, right_child_index] = root_index.get_children_indices();
