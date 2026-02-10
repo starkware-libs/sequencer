@@ -65,12 +65,11 @@ message TransactionBatch {
 }
 
 message CommitmentParts {
-    Uint128 next_l2_gas_price_fri = 1;
-    Felt252 concatenated_counts = 2;
-    Hash parent_commitment = 3;
-    Hash transaction_commitment = 4;
-    Hash event_commitment = 5;
-    Hash receipt_commitment = 6;
+    Felt252 concatenated_counts = 1;
+    Hash parent_commitment = 2;
+    Hash transaction_commitment = 3;
+    Hash event_commitment = 4;
+    Hash receipt_commitment = 5;
 }
 
 message ProposalFin {
