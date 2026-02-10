@@ -13,6 +13,14 @@ use crate::orchestrator_versioned_constants;
 #[cfg(test)]
 mod test;
 
+// Denominator for the maximum gas price increase per block when price is below minimum.
+// This controls how quickly the gas price can rise towards the minimum.
+//
+// With a denominator of 333: Each block can increase by at most 0.3% of the current price, to
+// double the price takes approximately 230 blocks (at 2.6 seconds per block), this means doubling
+// in approximately 10 minutes.
+const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
+
 /// Fee market information for the next block.
 #[derive(Debug, Default, Serialize)]
 pub struct FeeMarketInfo {
@@ -70,9 +78,9 @@ pub fn calculate_next_base_gas_price(
     );
 
     // If the current price is below the minimum, apply a gradual adjustment and return early.
-    // This allows the price to increase by at most 1/gas_price_max_change_denominator per block.
+    // This allows the price to increase by at most 1/MIN_GAS_PRICE_INCREASE_DENOMINATOR per block.
     if price < min_gas_price {
-        let max_increase = price.0 / versioned_constants.gas_price_max_change_denominator;
+        let max_increase = price.0 / MIN_GAS_PRICE_INCREASE_DENOMINATOR;
         let adjusted = price.0 + max_increase;
         // Cap at min_gas_price to avoid overshooting
         let adjusted_price = adjusted.min(min_gas_price.0);
