@@ -24,6 +24,7 @@ use futures::channel::mpsc;
 use futures::SinkExt;
 use rstest::rstest;
 use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHash;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::PoseidonHash;
@@ -267,7 +268,7 @@ async fn proposal_fin_mismatch() {
         .returning(move |_| {
             Ok(SendProposalContentResponse {
                 response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: built_block,
+                    partial_block_hash: PartialBlockHash(built_block.0.0),
                 }),
             })
         });

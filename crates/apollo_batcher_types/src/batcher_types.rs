@@ -8,9 +8,8 @@ use chrono::prelude::*;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -36,9 +35,10 @@ pub struct ProposalId(pub u64);
 
 pub type Round = u32;
 
-#[derive(Clone, Debug, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
+/// Commitment identifying a proposed block (its partial block hash).
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct ProposalCommitment {
-    pub state_diff_commitment: StateDiffCommitment,
+    pub partial_block_hash: PartialBlockHash,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

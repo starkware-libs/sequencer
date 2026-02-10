@@ -41,6 +41,7 @@ use mockall::automock;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
+    calculate_partial_block_hash,
     PartialBlockHashComponents,
     TransactionHashingData,
 };
@@ -187,10 +188,8 @@ impl BlockExecutionArtifacts {
 
     pub fn commitment(&self) -> ProposalCommitment {
         ProposalCommitment {
-            state_diff_commitment: self
-                .partial_block_hash_components
-                .header_commitments
-                .state_diff_commitment,
+            partial_block_hash: calculate_partial_block_hash(&self.partial_block_hash_components)
+                .expect("partial_block_hash_components are valid for current version"),
         }
     }
 

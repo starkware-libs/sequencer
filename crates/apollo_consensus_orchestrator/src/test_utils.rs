@@ -14,6 +14,7 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentResponse,
     ValidateBlockInput,
 };
+use starknet_api::block_hash::block_hash_calculator::PartialBlockHash;
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::Round;
@@ -54,10 +55,9 @@ use starknet_api::block::{
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
-use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
@@ -77,8 +77,7 @@ use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
 pub(crate) const NUM_VALIDATORS: u64 = 4;
-pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
-    StateDiffCommitment(PoseidonHash(Felt::ZERO));
+pub(crate) const PARTIAL_BLOCK_HASH: Felt = Felt::ZERO;
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 // In order for gas price in ETH to be greater than 0 (required) we must have large enough
@@ -204,7 +203,9 @@ impl TestDeps {
                 .returning(move |_input| {
                     Ok(GetProposalContentResponse {
                         content: GetProposalContent::Finished {
-                            id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                            id: ProposalCommitment {
+                                partial_block_hash: PartialBlockHash(PARTIAL_BLOCK_HASH),
+                            },
                             final_n_executed_txs: args.n_executed_txs_count,
                         },
                     })
@@ -264,7 +265,7 @@ impl TestDeps {
                     );
                     Ok(SendProposalContentResponse {
                         response: ProposalStatus::Finished(ProposalCommitment {
-                            state_diff_commitment: STATE_DIFF_COMMITMENT,
+                            partial_block_hash: PartialBlockHash(PARTIAL_BLOCK_HASH),
                         }),
                     })
                 });
@@ -398,7 +399,7 @@ pub(crate) async fn send_proposal_to_validator_context(
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProtoProposalCommitment(PARTIAL_BLOCK_HASH),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         }))
         .await

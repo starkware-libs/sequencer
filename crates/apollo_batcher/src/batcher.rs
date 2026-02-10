@@ -63,8 +63,10 @@ use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
-use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::block_hash::block_hash_calculator::{
+    calculate_partial_block_hash,
+    PartialBlockHashComponents,
+};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
 use starknet_api::state::{StateNumber, ThinStateDiff};
@@ -823,7 +825,18 @@ impl Batcher {
         );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
-        let state_diff_commitment = calculate_state_diff_hash(&state_diff);
+        if let StorageCommitmentBlockHash::Partial(ref components) = &storage_commitment_block_hash
+        {
+            self.prev_proposal_commitment = Some((
+                height,
+                ProposalCommitment {
+                    partial_block_hash: calculate_partial_block_hash(components).map_err(|e| {
+                        error!("Failed to compute partial block hash: {}", e);
+                        BatcherError::InternalError
+                    })?,
+                },
+            ));
+        }
 
         // Commit the proposal to the storage.
         self.storage_writer
@@ -833,8 +846,6 @@ impl Batcher {
                 BatcherError::InternalError
             })?;
         info!("Successfully committed proposal for block {} to storage.", height);
-        self.prev_proposal_commitment =
-            Some((height, ProposalCommitment { state_diff_commitment }));
 
         // Notify the L1 provider of the new block.
         let rejected_l1_handler_tx_hashes = rejected_tx_hashes
@@ -1131,25 +1142,28 @@ impl Batcher {
                 Ok(Some(commitment))
             }
             None => {
-                // Parent proposal commitment is not cached. Compute it from the stored state diff.
-                let mut state_diff = self
+                // Parent proposal commitment is not cached. Read partial block hash
+                // components from storage and compute the partial block hash.
+                let (_, components) = self
                     .storage_reader
-                    .get_state_diff(prev_height)
+                    .get_parent_hash_and_partial_block_hash_components(prev_height)
                     .map_err(|err| {
                         error!(
-                            "Failed to read state diff for previous height {prev_height}: {}",
+                            "Failed to read partial block hash components for previous height \
+                             {prev_height}: {}",
                             err
                         );
                         BatcherError::InternalError
-                    })?
-                    .expect("Missing state diff for previous height.");
-
-                // Enforcing no deprecated classes (since v0.14.0).
-                // TODO(dafna): Remove once the state sync bug is fixed.
-                state_diff.deprecated_declared_classes = Vec::new();
+                    })?;
+                let components = components.expect(
+                    "Missing partial block hash components for previous height.",
+                );
 
                 Ok(Some(ProposalCommitment {
-                    state_diff_commitment: calculate_state_diff_hash(&state_diff),
+                    partial_block_hash: calculate_partial_block_hash(&components).map_err(|e| {
+                        error!("Failed to compute partial block hash: {}", e);
+                        BatcherError::InternalError
+                    })?,
                 }))
             }
         }
