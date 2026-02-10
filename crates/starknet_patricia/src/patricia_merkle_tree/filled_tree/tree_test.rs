@@ -258,15 +258,14 @@ async fn test_small_tree_with_unmodified_nodes() {
 async fn test_delete_leaf_from_empty_tree() {
     let mut indices = [NodeIndex::FIRST_LEAF];
     // Create an empty original skeleton tree with a single leaf modified.
-    let mut original_skeleton_tree =
+    let original_skeleton_tree =
         OriginalSkeletonTreeImpl::create_empty(SortedLeafIndices::new(&mut indices));
 
     // Create an updated skeleton tree with a single leaf that is deleted.
     let skeleton_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, SkeletonLeaf::Zero)]);
 
     let updated_skeleton_tree =
-        UpdatedSkeletonTreeImpl::create(&mut original_skeleton_tree, &skeleton_modifications)
-            .unwrap();
+        UpdatedSkeletonTreeImpl::create(&original_skeleton_tree, &skeleton_modifications).unwrap();
 
     let leaf_modifications = HashMap::from([(NodeIndex::FIRST_LEAF, MockLeaf(Felt::ZERO))]);
     // Compute the filled tree.
