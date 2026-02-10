@@ -24,7 +24,7 @@ pub(crate) type UpdatedSkeletonTreeResult<T> = Result<T, UpdatedSkeletonTreeErro
 pub trait UpdatedSkeletonTree<'a>: Sized + Send + Sync {
     /// Creates an updated tree from an original tree and modifications.
     fn create(
-        original_skeleton: &mut impl OriginalSkeletonTree<'a>,
+        original_skeleton: &'a impl OriginalSkeletonTree<'a>,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonTreeResult<Self>;
 
@@ -45,7 +45,7 @@ pub struct UpdatedSkeletonTreeImpl {
 
 impl<'a> UpdatedSkeletonTree<'a> for UpdatedSkeletonTreeImpl {
     fn create(
-        original_skeleton: &mut impl OriginalSkeletonTree<'a>,
+        original_skeleton: &'a impl OriginalSkeletonTree<'a>,
         leaf_modifications: &LeafModifications<SkeletonLeaf>,
     ) -> UpdatedSkeletonTreeResult<Self> {
         if leaf_modifications.is_empty() {

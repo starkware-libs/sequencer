@@ -22,7 +22,7 @@ pub(crate) struct UpdatedSkeletonForest {
 
 impl UpdatedSkeletonForest {
     pub(crate) fn create(
-        original_skeleton_forest: &mut OriginalSkeletonForest<'_>,
+        original_skeleton_forest: &OriginalSkeletonForest<'_>,
         class_hash_leaf_modifications: &LeafModifications<SkeletonLeaf>,
         storage_updates: &HashMap<ContractAddress, LeafModifications<SkeletonLeaf>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
@@ -34,7 +34,7 @@ impl UpdatedSkeletonForest {
     {
         // Classes trie.
         let classes_trie = UpdatedSkeletonTreeImpl::create(
-            &mut original_skeleton_forest.classes_trie,
+            &original_skeleton_forest.classes_trie,
             class_hash_leaf_modifications,
         )?;
 
@@ -46,7 +46,7 @@ impl UpdatedSkeletonForest {
             let address_as_node_index = contract_address_into_node_index(address);
             let original_storage_trie = original_skeleton_forest
                 .storage_tries
-                .get_mut(address)
+                .get(address)
                 .ok_or(ForestError::MissingOriginalSkeleton(*address))?;
 
             let updated_storage_trie =
@@ -70,7 +70,7 @@ impl UpdatedSkeletonForest {
 
         // Contracts trie.
         let contracts_trie = UpdatedSkeletonTreeImpl::create(
-            &mut original_skeleton_forest.contracts_trie,
+            &original_skeleton_forest.contracts_trie,
             &contracts_trie_leaves,
         )?;
 
