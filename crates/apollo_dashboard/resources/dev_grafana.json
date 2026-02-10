@@ -588,6 +588,19 @@
           }
         },
         {
+          "title": "Total Block Duration Per Modification",
+          "description": "Total block duration normalized by the number of modifications",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(total_block_duration_per_modification_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(total_block_duration_per_modification_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s",
+            "log_query": "\"Block\" AND \"durations in ms\""
+          }
+        },
+        {
           "title": "Read Duration Per Block",
           "description": "Read duration per block",
           "type": "timeseries",
