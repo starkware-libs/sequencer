@@ -54,15 +54,14 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
-use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
+use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
+use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
-use starknet_api::hash::PoseidonHash;
+use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
-use starknet_types_core::felt::Felt;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
@@ -78,8 +77,7 @@ use crate::utils::{make_gas_price_params, GasPriceParams, PreviousBlockInfo, Str
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
-pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
-    StateDiffCommitment(PoseidonHash(Felt::ZERO));
+pub(crate) const PARTIAL_BLOCK_HASH: PartialBlockHash = PartialBlockHash(StarkHash::ZERO);
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 // In order for gas price in ETH to be greater than 0 (required) we must have large enough
@@ -209,7 +207,7 @@ impl TestDeps {
                     Ok(GetProposalContentResponse {
                         content: GetProposalContent::Finished(FinishedProposalInfo {
                             proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                                partial_block_hash: PARTIAL_BLOCK_HASH,
                             },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
@@ -273,7 +271,7 @@ impl TestDeps {
                     Ok(SendProposalContentResponse {
                         response: ProposalStatus::Finished(FinishedProposalInfo {
                             proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                                partial_block_hash: PARTIAL_BLOCK_HASH,
                             },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
@@ -413,7 +411,7 @@ pub(crate) async fn send_proposal_to_validator_context(
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
+            proposal_commitment: ProtoProposalCommitment(PARTIAL_BLOCK_HASH.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
             commitment_parts: None,
         }))

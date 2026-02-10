@@ -329,7 +329,7 @@ impl From<&FinishedProposalInfo> for CommitmentParts {
             parent_commitment: info
                 .parent_proposal_commitment
                 .as_ref()
-                .map(|p| ProposalCommitment(p.state_diff_commitment.0.0)),
+                .map(|p| ProposalCommitment(p.partial_block_hash.0)),
             transaction_commitment: commitments.transaction_commitment.0,
             event_commitment: commitments.event_commitment.0,
             receipt_commitment: commitments.receipt_commitment.0,
