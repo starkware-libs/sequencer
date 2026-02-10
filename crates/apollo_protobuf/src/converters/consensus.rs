@@ -288,8 +288,6 @@ auto_impl_into_and_try_from_vec_u8!(TransactionBatch, protobuf::TransactionBatch
 impl TryFrom<protobuf::CommitmentParts> for CommitmentParts {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::CommitmentParts) -> Result<Self, Self::Error> {
-        let next_l2_gas_price_fri =
-            value.next_l2_gas_price_fri.ok_or(missing("next_l2_gas_price_fri"))?.into();
         let concatenated_counts = starknet_types_core::felt::Felt::try_from(
             value.concatenated_counts.ok_or(missing("concatenated_counts"))?,
         )?;
@@ -302,7 +300,6 @@ impl TryFrom<protobuf::CommitmentParts> for CommitmentParts {
         let receipt_commitment =
             value.receipt_commitment.ok_or(missing("receipt_commitment"))?.try_into()?;
         Ok(CommitmentParts {
-            next_l2_gas_price_fri: GasPrice(next_l2_gas_price_fri),
             concatenated_counts,
             parent_commitment,
             transaction_commitment,
@@ -315,7 +312,6 @@ impl TryFrom<protobuf::CommitmentParts> for CommitmentParts {
 impl From<CommitmentParts> for protobuf::CommitmentParts {
     fn from(value: CommitmentParts) -> Self {
         protobuf::CommitmentParts {
-            next_l2_gas_price_fri: Some(value.next_l2_gas_price_fri.0.into()),
             concatenated_counts: Some(value.concatenated_counts.into()),
             parent_commitment: Some(value.parent_commitment.into()),
             transaction_commitment: Some(value.transaction_commitment.into()),
