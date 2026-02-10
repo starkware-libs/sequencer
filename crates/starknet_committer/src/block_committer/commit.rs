@@ -61,7 +61,7 @@ pub trait CommitBlockTrait: Send {
         measurements.start_measurement(Action::Read);
         let roots =
             trie_reader.read_roots(input.initial_read_context).await.map_err(ForestError::from)?;
-        let (mut original_forest, original_contracts_trie_leaves) = trie_reader
+        let (original_forest, original_contracts_trie_leaves) = trie_reader
             .read(
                 roots,
                 &actual_storage_updates,
@@ -86,7 +86,7 @@ pub trait CommitBlockTrait: Send {
         // Compute the new topology.
         measurements.start_measurement(Action::Compute);
         let updated_forest = UpdatedSkeletonForest::create(
-            &mut original_forest,
+            &original_forest,
             &input.state_diff.skeleton_classes_updates(),
             &input.state_diff.skeleton_storage_updates(),
             &original_contracts_trie_leaves,

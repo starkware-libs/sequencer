@@ -25,7 +25,7 @@ pub trait OriginalSkeletonTree<'a>: Sized {
 // TODO(Dori, 1/7/2024): Make this a tuple struct.
 #[derive(Debug, PartialEq)]
 pub struct OriginalSkeletonTreeImpl<'a> {
-    pub nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
+    pub nodes: OriginalSkeletonNodeMap,
     pub sorted_leaf_indices: SortedLeafIndices<'a>,
 }
 
@@ -56,5 +56,26 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
 
     pub fn create_empty(sorted_leaf_indices: SortedLeafIndices<'a>) -> Self {
         Self { nodes: HashMap::new(), sorted_leaf_indices }
+    }
+}
+
+/// Wraps an original skeleton node map and allows to insert additional nodes to the non mutable
+/// map.
+pub struct OriginalSkeletonNodeMapWrapper<'a> {
+    original_nodes: &'a OriginalSkeletonNodeMap,
+    additional_nodes: OriginalSkeletonNodeMap,
+}
+
+impl<'a> OriginalSkeletonNodeMapWrapper<'a> {
+    pub fn new(tree: &'a impl OriginalSkeletonTree<'a>) -> Self {
+        Self { original_nodes: tree.get_nodes(), additional_nodes: OriginalSkeletonNodeMap::new() }
+    }
+
+    pub fn insert(&mut self, index: NodeIndex, node: OriginalSkeletonNode) {
+        self.additional_nodes.insert(index, node);
+    }
+
+    pub fn get(&self, index: &NodeIndex) -> Option<&OriginalSkeletonNode> {
+        self.additional_nodes.get(index).or_else(|| self.original_nodes.get(index))
     }
 }

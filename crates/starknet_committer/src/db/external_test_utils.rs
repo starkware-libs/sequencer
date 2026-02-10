@@ -35,7 +35,7 @@ where
 {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+    let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
         storage,
         root_hash,
         sorted_leaf_indices,
@@ -48,7 +48,7 @@ where
     .expect("Failed to create the original skeleton tree");
 
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
-        &mut original_skeleton,
+        &original_skeleton,
         &leaf_modifications
             .iter()
             .map(|(index, data)| {
