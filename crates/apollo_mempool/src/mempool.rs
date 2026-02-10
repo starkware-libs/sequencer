@@ -301,9 +301,21 @@ impl Mempool {
                 self.tx_queue.set_last_returned_timestamp(timestamp);
                 timestamp
             } else {
-                // Queue is empty, return 0
-                info!("Mempool get_ts (FIFO): queue empty, returning 0");
-                0
+                // Queue is empty. If get_ts() was never called successfully, return 0.
+                // Otherwise, return the last returned timestamp.
+                match self.tx_queue.get_last_returned_timestamp() {
+                    Some(last_timestamp) => {
+                        info!(
+                            "Mempool get_ts (FIFO): queue empty, returning last_timestamp={}",
+                            last_timestamp
+                        );
+                        last_timestamp
+                    }
+                    None => {
+                        info!("Mempool get_ts (FIFO): queue empty, no last timestamp, returning 0");
+                        0
+                    }
+                }
             }
         } else {
             let timestamp = self.clock.unix_now();

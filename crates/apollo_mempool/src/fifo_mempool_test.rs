@@ -351,6 +351,35 @@ fn test_get_ts_returns_zero_when_queue_empty(mut mempool: Mempool) {
     assert_eq!(timestamp, 0, "get_ts() should return 0 when queue is empty");
 }
 
+#[rstest]
+fn test_get_ts_returns_last_returned_when_queue_empty_after_prior_get_ts(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
+
+    // Pre-populate timestamps
+    let mut timestamps = HashMap::new();
+    timestamps.insert(tx_hash!(1), 1000);
+    timestamps.insert(tx_hash!(2), 1000);
+    mempool.update_timestamps(timestamps);
+
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+
+    // First call sets and returns timestamp threshold.
+    let first_timestamp = mempool.get_ts();
+    assert_eq!(first_timestamp, 1000, "get_ts() should return the first tx timestamp");
+
+    // Drain the queue.
+    get_txs_and_assert_expected(&mut mempool, 2, &[input1.tx, input2.tx]);
+
+    // Queue is now empty; get_ts should return the last returned timestamp.
+    let second_timestamp = mempool.get_ts();
+    assert_eq!(
+        second_timestamp, 1000,
+        "get_ts() should return last returned timestamp when queue is empty"
+    );
+}
+
 // #[rstest]
 // fn test_get_txs_returns_empty_if_get_ts_not_called() {
 //     let (mut mempool, _server) = create_mempool_with_mock_server();

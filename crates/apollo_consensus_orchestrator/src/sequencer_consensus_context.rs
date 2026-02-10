@@ -33,8 +33,8 @@ use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_deployment_mode::DeploymentMode;
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 
-/// Helper function to determine if state sync block timestamps should be used.
-fn should_use_state_sync_block_timestamp(mode: &DeploymentMode) -> bool {
+/// Helper function to determine if original timestamps should be used.
+fn should_use_original_timestamp(mode: &DeploymentMode) -> bool {
     matches!(mode, DeploymentMode::Echonet)
 }
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
@@ -511,8 +511,7 @@ impl ConsensusContext for SequencerConsensusContext {
             + total_build_proposal_time
                 .mul_f32(self.config.build_proposal_time_ratio_for_retrospective_block_hash);
 
-        let use_state_sync_block_timestamp =
-            should_use_state_sync_block_timestamp(&self.config.deployment_mode);
+        let use_original_timestamp = should_use_original_timestamp(&self.config.deployment_mode);
 
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
@@ -533,7 +532,7 @@ impl ConsensusContext for SequencerConsensusContext {
             retrospective_block_hash_retry_interval_millis: self
                 .config
                 .retrospective_block_hash_retry_interval_millis,
-            use_state_sync_block_timestamp,
+            use_original_timestamp,
         };
         let handle = tokio::spawn(
             async move {

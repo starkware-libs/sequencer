@@ -18,6 +18,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::GetCurrentHeight => {
                 BatcherResponse::GetCurrentHeight(self.get_height().await)
             }
+            BatcherRequest::GetTimestamp => {
+                BatcherResponse::GetTimestamp(self.get_ts().await)
+            }
             BatcherRequest::GetProposalContent(input) => {
                 BatcherResponse::GetProposalContent(self.get_proposal_content(input).await)
             }

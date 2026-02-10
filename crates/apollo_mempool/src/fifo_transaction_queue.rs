@@ -252,6 +252,10 @@ impl TransactionQueueTrait for FifoTransactionQueue {
         self.last_returned_timestamp = Some(timestamp);
     }
 
+    fn get_last_returned_timestamp(&self) -> Option<u64> {
+        self.last_returned_timestamp
+    }
+
     fn update_timestamps(&mut self, mappings: HashMap<TransactionHash, u64>) {
         let count = mappings.len();
         info!("FIFO update_timestamps: received {} timestamp mappings", count);
