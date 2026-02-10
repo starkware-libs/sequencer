@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Reach consensus for Starknet"
 
 [features]
-testing = ["mockall", "tempfile"]
+testing = ["apollo_staking/testing", "mockall", "tempfile"]
 
 [dependencies]
 apollo_batcher_types.workspace = true
