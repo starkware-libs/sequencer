@@ -40,7 +40,6 @@ auto_impl_get_test_instance! {
     }
     pub struct ProposalCommitment(pub StarkHash);
     pub struct CommitmentParts {
-        pub next_l2_gas_price_fri: GasPrice,
         pub concatenated_counts: Felt,
         pub parent_commitment: ProposalCommitment,
         pub transaction_commitment: StarkHash,
