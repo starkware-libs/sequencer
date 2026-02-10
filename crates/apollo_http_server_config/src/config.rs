@@ -6,7 +6,7 @@ use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 const HTTP_SERVER_PORT: u16 = 8080;
 pub const DEFAULT_MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
@@ -17,6 +17,7 @@ const DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS: u64 = 1_000; // 1 second.
 
 /// The http server connection related configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "max_size_validations"))]
 pub struct HttpServerConfig {
     pub dynamic_config: HttpServerDynamicConfig,
     pub static_config: HttpServerStaticConfig,
@@ -51,8 +52,6 @@ impl HttpServerConfig {
 pub struct HttpServerStaticConfig {
     pub ip: IpAddr,
     pub port: u16,
-    // TODO(Arni): add a validation that this size is bigger than
-    // http_server_config.dynamic_config.max_sierra_program_size.
     pub max_request_body_size: usize,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub dynamic_config_poll_interval: Duration,
@@ -121,4 +120,15 @@ impl Default for HttpServerDynamicConfig {
     fn default() -> Self {
         Self { accept_new_txs: true, max_sierra_program_size: DEFAULT_MAX_SIERRA_PROGRAM_SIZE }
     }
+}
+
+fn max_size_validations(http_server_config: &HttpServerConfig) -> Result<(), ValidationError> {
+    let max_request_body_size = http_server_config.static_config.max_request_body_size;
+    let max_sierra_program_size = http_server_config.dynamic_config.max_sierra_program_size;
+    if max_request_body_size < max_sierra_program_size {
+        return Err(ValidationError::new(
+            "max_request_body_size must be greater than max_sierra_program_size",
+        ));
+    }
+    Ok(())
 }
