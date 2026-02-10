@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::io;
 use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::time::Duration;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -14,7 +15,9 @@ use axum::{serve, Json, Router};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
+use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::task::AbortHandle;
+use tokio::time;
 use tracing::{error, info};
 use validator::Validate;
 
@@ -130,9 +133,8 @@ pub trait StorageReaderServerHandler<Request, Response> {
     ) -> Result<Response, StorageError>;
 }
 
-// TODO(Nadin): Remove #[allow(dead_code)] once the fields are used in the implementation.
-#[allow(dead_code)]
 /// A server for handling remote storage reader queries via a configurable request handler.
+/// The server monitors dynamic configuration updates and can be started/stopped at runtime.
 pub struct StorageReaderServer<RequestHandler, Request, Response>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
@@ -141,6 +143,9 @@ where
 {
     app_state: AppState<RequestHandler, Request, Response>,
     config: ServerConfig,
+    /// Receiver for dynamic configuration updates.
+    /// The server monitors the enable flag and can be started/stopped dynamically.
+    dynamic_config_rx: Receiver<StorageReaderServerDynamicConfig>,
 }
 
 struct AppState<RequestHandler, Request, Response>
@@ -167,9 +172,15 @@ where
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     /// Creates a new storage reader server with the given handler and configuration.
-    pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
+    /// The server will monitor the enable flag via the provided receiver and can be
+    /// started/stopped at runtime.
+    pub fn new(
+        storage_reader: StorageReader,
+        config: ServerConfig,
+        dynamic_config_rx: Receiver<StorageReaderServerDynamicConfig>,
+    ) -> Self {
         let app_state = AppState { storage_reader, _phantom: PhantomData };
-        Self { app_state, config }
+        Self { app_state, config, dynamic_config_rx }
     }
 
     /// Creates the axum router with configured routes and state.
@@ -188,30 +199,70 @@ where
     }
 
     /// Runs the server to handle incoming requests.
+    /// Monitors the enable flag and gracefully starts/stops the server as needed.
     pub async fn run(self) -> Result<(), StorageError>
     where
         RequestHandler: Send + Sync + 'static,
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
     {
-        if !self.config.is_enabled() {
-            info!("Storage reader server is disabled, not starting");
-            return Ok(());
-        }
-        let socket = SocketAddr::from((self.config.ip(), self.config.port()));
-        info!("Starting storage reader server on {}", socket);
-        let app = self.app();
-        info!("Storage reader server listening on {}", socket);
+        let mut config_rx = self.dynamic_config_rx;
+        let ip = self.config.ip();
+        let port = self.config.port();
+        let app_state = self.app_state;
 
-        // Start the server
-        let listener = TcpListener::bind(&socket).await.map_err(|e| {
-            error!("Storage reader server error: {}", e);
-            StorageError::IOError(io::Error::other(e))
-        })?;
-        serve(listener, app).await.map_err(|e| {
-            error!("Storage reader server error: {}", e);
-            StorageError::IOError(io::Error::other(e))
-        })
+        info!("Storage reader server running with dynamic configuration");
+        loop {
+            // Get current enable state
+            let is_enabled = config_rx.borrow().enable;
+
+            if is_enabled {
+                info!("Storage reader server is enabled, starting server");
+                let socket = SocketAddr::from((ip, port));
+                info!("Storage reader server listening on {}", socket);
+
+                let router = Router::new()
+                    .route(
+                        "/storage/query",
+                        post(handle_request_endpoint::<RequestHandler, Request, Response>),
+                    )
+                    .with_state(app_state.clone());
+                let listener = TcpListener::bind(&socket).await.map_err(|e| {
+                    error!("Storage reader server bind error: {}", e);
+                    StorageError::IOError(io::Error::other(e))
+                })?;
+
+                // Run server and monitor for config changes
+                tokio::select! {
+                    result = serve(listener, router) => {
+                        error!("Storage reader server stopped unexpectedly");
+                        return result.map_err(|e| {
+                            StorageError::IOError(io::Error::other(e))
+                        });
+                    }
+                    _ = config_rx.changed() => {
+                        let new_enabled = config_rx.borrow().enable;
+                        if !new_enabled {
+                            info!("Storage reader server disabled via config update, shutting down");
+                            // Server will gracefully shutdown when this scope ends
+                            continue;
+                        }
+                    }
+                }
+            } else {
+                info!("Storage reader server is disabled, waiting for enable");
+                // Wait for enable flag to become true
+                loop {
+                    if config_rx.changed().await.is_err() {
+                        error!("Storage reader server config channel closed");
+                        return Ok(());
+                    }
+                    if config_rx.borrow().enable {
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /// Spawns the storage reader server in a background task if it's enabled.
@@ -265,19 +316,43 @@ impl IntoResponse for StorageServerError {
     }
 }
 
-/// Creates and returns an optional StorageReaderServer based on the enable flag.
+/// Creates a watch channel for dynamic configuration and returns the server and sender.
+/// The server will always be created (even if initially disabled) and will monitor the
+/// enable flag via the watch channel.
 pub fn create_storage_reader_server<RequestHandler, Request, Response>(
     storage_reader: StorageReader,
     storage_reader_server_config: ServerConfig,
-) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
+) -> (
+    StorageReaderServer<RequestHandler, Request, Response>,
+    Sender<StorageReaderServerDynamicConfig>,
+)
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    if storage_reader_server_config.is_enabled() {
-        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
-    } else {
-        None
+    let (tx, rx) = channel(storage_reader_server_config.dynamic_config.clone());
+    let server = StorageReaderServer::new(storage_reader, storage_reader_server_config, rx);
+    (server, tx)
+}
+
+/// Generic polling function for updating storage reader server dynamic configuration.
+/// The `extract_config` function should fetch the parent config and extract the
+/// storage reader server dynamic config from it.
+pub async fn poll_dynamic_config<F, Fut>(
+    tx: Sender<StorageReaderServerDynamicConfig>,
+    extract_config: F,
+    poll_interval: Duration,
+) where
+    F: Fn() -> Fut + Send,
+    Fut: std::future::Future<Output = Option<StorageReaderServerDynamicConfig>> + Send,
+{
+    let mut interval = time::interval(poll_interval);
+    loop {
+        interval.tick().await;
+        if let Some(new_config) = extract_config().await {
+            // Ignore send errors (receiver dropped means server stopped)
+            let _ = tx.send(new_config);
+        }
     }
 }

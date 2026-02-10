@@ -9,7 +9,6 @@ use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::ServerConfig;
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
@@ -258,15 +257,27 @@ impl ClassHashStorage {
         storage_config: StorageConfig,
         storage_reader_server_config: ServerConfig,
     ) -> ClassHashStorageResult<Self> {
-        let (reader, writer, storage_reader_server) =
-            apollo_storage::open_storage_with_metric_and_server(
+        let (reader, writer, storage_reader_server, _config_tx) =
+            apollo_storage::open_storage_with_metric_and_server::<
+                apollo_storage::storage_reader_types::GenericStorageReaderServerHandler,
+                apollo_storage::storage_reader_types::StorageReaderRequest,
+                apollo_storage::storage_reader_types::StorageReaderResponse,
+            >(
                 storage_config,
                 &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
             )?;
 
-        let storage_reader_server_handle =
-            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+        // Note: Class manager doesn't have ConfigManager access, so we don't poll for updates
+        // The server will use the initial enable flag from the config
+        let storage_reader_server_handle = Some(
+            tokio::spawn(async move {
+                if let Err(e) = storage_reader_server.run().await {
+                    tracing::error!("Storage reader server error: {:?}", e);
+                }
+            })
+            .abort_handle(),
+        );
 
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)), storage_reader_server_handle })
     }
