@@ -105,7 +105,7 @@ where
             forest_sorted_indices.contracts_trie_sorted_indices,
         )
         .await?;
-    let storage_tries = create_storage_tries::<Layout::NodeLayout>(
+    let (storage_tries, _storage_tries_siblings) = create_storage_tries::<Layout::NodeLayout>(
         storage,
         storage_updates,
         &original_contracts_trie_leaves,
