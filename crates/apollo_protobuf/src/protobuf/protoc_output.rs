@@ -481,6 +481,12 @@ pub struct CommitmentParts {
     pub concatenated_counts: ::core::option::Option<Felt252>,
     #[prost(message, optional, tag = "3")]
     pub parent_commitment: ::core::option::Option<Hash>,
+    #[prost(message, optional, tag = "4")]
+    pub transaction_commitment: ::core::option::Option<Hash>,
+    #[prost(message, optional, tag = "5")]
+    pub event_commitment: ::core::option::Option<Hash>,
+    #[prost(message, optional, tag = "6")]
+    pub receipt_commitment: ::core::option::Option<Hash>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
