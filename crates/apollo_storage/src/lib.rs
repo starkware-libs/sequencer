@@ -178,6 +178,7 @@ use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
     StorageReaderServer,
+    StorageReaderServerDynamicConfig,
     StorageReaderServerHandler,
 };
 use crate::version::{VersionStorageReader, VersionStorageWriter};
@@ -196,7 +197,8 @@ pub fn open_storage(
 }
 
 /// Same as [`open_storage`], but also updates the given metric for the number of open readers and
-/// creates a storage reader server.
+/// creates a storage reader server with dynamic configuration support.
+/// Returns the storage, server, and a shared reference to the dynamic config.
 pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response>(
     storage_config: StorageConfig,
     open_readers_metric: &'static MetricGauge,
@@ -209,9 +211,9 @@ where
 {
     let (reader, writer) =
         open_storage_internal(storage_config, Some(open_readers_metric)).expect("");
-    let storage_reader_server =
+    let (server, dynamic_config) =
         create_storage_reader_server(reader.clone(), storage_reader_server_config);
-    Ok((reader, writer, storage_reader_server))
+    Ok((reader, writer, server, dynamic_config))
 }
 
 fn open_storage_internal(
@@ -773,10 +775,14 @@ pub enum StorageError {
 /// A type alias that maps to std::result::Result<T, StorageError>.
 pub type StorageResult<V> = std::result::Result<V, StorageError>;
 
-/// A type alias for the return type of storage operations that include an optional storage reader
-/// server.
-pub type StorageWithServer<RequestHandler, Request, Response> =
-    (StorageReader, StorageWriter, Option<StorageReaderServer<RequestHandler, Request, Response>>);
+/// A type alias for the return type of storage operations that include a storage reader server
+/// with dynamic configuration support and a shared config reference.
+pub type StorageWithServer<RequestHandler, Request, Response> = (
+    StorageReader,
+    StorageWriter,
+    StorageReaderServer<RequestHandler, Request, Response>,
+    std::sync::Arc<std::sync::RwLock<StorageReaderServerDynamicConfig>>,
+);
 
 /// A struct for the configuration of the storage.
 #[allow(missing_docs)]

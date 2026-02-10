@@ -148,7 +148,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         available_ports_factory(instance_index).get_next_port(),
         true,
     );
-    let server = GenericStorageReaderServer::new(reader.clone(), config);
+    let dynamic_config = std::sync::Arc::new(std::sync::RwLock::new(config.dynamic_config.clone()));
+    let server = GenericStorageReaderServer::new(reader.clone(), config, dynamic_config);
     let app = server.app();
 
     TestServerSetup {

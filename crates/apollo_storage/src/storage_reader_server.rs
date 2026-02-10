@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 use std::io;
 use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -15,6 +17,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::task::AbortHandle;
+use tokio::time;
 use tracing::{error, info};
 use validator::Validate;
 
@@ -130,9 +133,8 @@ pub trait StorageReaderServerHandler<Request, Response> {
     ) -> Result<Response, StorageError>;
 }
 
-// TODO(Nadin): Remove #[allow(dead_code)] once the fields are used in the implementation.
-#[allow(dead_code)]
 /// A server for handling remote storage reader queries via a configurable request handler.
+/// The server monitors dynamic configuration updates and can be started/stopped at runtime.
 pub struct StorageReaderServer<RequestHandler, Request, Response>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
@@ -141,6 +143,9 @@ where
 {
     app_state: AppState<RequestHandler, Request, Response>,
     config: ServerConfig,
+    /// Shared dynamic configuration that can be updated externally.
+    /// The server monitors the enable flag and can be started/stopped dynamically.
+    dynamic_config: Arc<RwLock<StorageReaderServerDynamicConfig>>,
 }
 
 struct AppState<RequestHandler, Request, Response>
@@ -167,9 +172,15 @@ where
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     /// Creates a new storage reader server with the given handler and configuration.
-    pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
+    /// The server will monitor the enable flag via the shared config and can be
+    /// started/stopped at runtime.
+    pub fn new(
+        storage_reader: StorageReader,
+        config: ServerConfig,
+        dynamic_config: Arc<RwLock<StorageReaderServerDynamicConfig>>,
+    ) -> Self {
         let app_state = AppState { storage_reader, _phantom: PhantomData };
-        Self { app_state, config }
+        Self { app_state, config, dynamic_config }
     }
 
     /// Creates the axum router with configured routes and state.
@@ -188,30 +199,73 @@ where
     }
 
     /// Runs the server to handle incoming requests.
+    /// Monitors the enable flag and gracefully starts/stops the server as needed.
     pub async fn run(self) -> Result<(), StorageError>
     where
         RequestHandler: Send + Sync + 'static,
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
     {
-        if !self.config.is_enabled() {
-            info!("Storage reader server is disabled, not starting");
-            return Ok(());
-        }
-        let socket = SocketAddr::from((self.config.ip(), self.config.port()));
-        info!("Starting storage reader server on {}", socket);
-        let app = self.app();
-        info!("Storage reader server listening on {}", socket);
+        let dynamic_config = self.dynamic_config;
+        let ip = self.config.ip();
+        let port = self.config.port();
+        let app_state = self.app_state;
+        let check_interval = Duration::from_millis(500); // Check config every 500ms
 
-        // Start the server
-        let listener = TcpListener::bind(&socket).await.map_err(|e| {
-            error!("Storage reader server error: {}", e);
-            StorageError::IOError(io::Error::other(e))
-        })?;
-        serve(listener, app).await.map_err(|e| {
-            error!("Storage reader server error: {}", e);
-            StorageError::IOError(io::Error::other(e))
-        })
+        info!("Storage reader server running with dynamic configuration");
+        loop {
+            // Get current enable state
+            let is_enabled = dynamic_config.read().unwrap().enable;
+
+            if is_enabled {
+                info!("Storage reader server is enabled, starting server");
+                let socket = SocketAddr::from((ip, port));
+                info!("Storage reader server listening on {}", socket);
+
+                let router = Router::new()
+                    .route(
+                        "/storage/query",
+                        post(handle_request_endpoint::<RequestHandler, Request, Response>),
+                    )
+                    .with_state(app_state.clone());
+                let listener = TcpListener::bind(&socket).await.map_err(|e| {
+                    error!("Storage reader server bind error: {}", e);
+                    StorageError::IOError(io::Error::other(e))
+                })?;
+
+                // Run server and monitor for config changes
+                let config_clone = dynamic_config.clone();
+                tokio::select! {
+                    result = serve(listener, router) => {
+                        error!("Storage reader server stopped unexpectedly");
+                        return result.map_err(|e| {
+                            StorageError::IOError(io::Error::other(e))
+                        });
+                    }
+                    _ = async {
+                        loop {
+                            time::sleep(check_interval).await;
+                            if !config_clone.read().unwrap().enable {
+                                info!("Storage reader server disabled via config update, shutting down");
+                                break;
+                            }
+                        }
+                    } => {
+                        // Config changed to disabled, loop will restart and wait for enable
+                        continue;
+                    }
+                }
+            } else {
+                info!("Storage reader server is disabled, waiting for enable");
+                // Wait for enable flag to become true
+                loop {
+                    time::sleep(check_interval).await;
+                    if dynamic_config.read().unwrap().enable {
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /// Spawns the storage reader server in a background task if it's enabled.
@@ -265,19 +319,47 @@ impl IntoResponse for StorageServerError {
     }
 }
 
-/// Creates and returns an optional StorageReaderServer based on the enable flag.
+/// Creates a storage reader server with shared dynamic configuration.
+/// The server will always be created (even if initially disabled) and will monitor the
+/// enable flag via the shared config reference.
+/// Returns the server and a shared reference to the config that can be updated externally.
 pub fn create_storage_reader_server<RequestHandler, Request, Response>(
     storage_reader: StorageReader,
     storage_reader_server_config: ServerConfig,
-) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
+) -> (
+    StorageReaderServer<RequestHandler, Request, Response>,
+    Arc<RwLock<StorageReaderServerDynamicConfig>>,
+)
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    if storage_reader_server_config.is_enabled() {
-        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
-    } else {
-        None
+    let dynamic_config = Arc::new(RwLock::new(storage_reader_server_config.dynamic_config.clone()));
+    let server = StorageReaderServer::new(
+        storage_reader,
+        storage_reader_server_config,
+        dynamic_config.clone(),
+    );
+    (server, dynamic_config)
+}
+
+/// Generic polling function for updating storage reader server dynamic configuration.
+/// The `extract_config` function should fetch the parent config and extract the
+/// storage reader server dynamic config from it.
+pub async fn poll_dynamic_config<F, Fut>(
+    dynamic_config: Arc<RwLock<StorageReaderServerDynamicConfig>>,
+    extract_config: F,
+    poll_interval: Duration,
+) where
+    F: Fn() -> Fut + Send,
+    Fut: std::future::Future<Output = Option<StorageReaderServerDynamicConfig>> + Send,
+{
+    let mut interval = time::interval(poll_interval);
+    loop {
+        interval.tick().await;
+        if let Some(new_config) = extract_config().await {
+            *dynamic_config.write().unwrap() = new_config;
+        }
     }
 }

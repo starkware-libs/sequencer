@@ -52,8 +52,7 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::storage_reader_server::ServerConfig;
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
+use apollo_storage::storage_reader_server::{poll_dynamic_config, ServerConfig};
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageError,
@@ -1331,16 +1330,44 @@ pub async fn create_batcher(
         static_config: config.static_config.storage_reader_server_static_config.clone(),
         dynamic_config: config.dynamic_config.storage_reader_server_dynamic_config.clone(),
     };
-    let (storage_reader, storage_writer, storage_reader_server) =
-        open_storage_with_metric_and_server(
+    let (storage_reader, storage_writer, storage_reader_server, dynamic_config) =
+        open_storage_with_metric_and_server::<
+            apollo_storage::storage_reader_types::GenericStorageReaderServerHandler,
+            apollo_storage::storage_reader_types::StorageReaderRequest,
+            apollo_storage::storage_reader_types::StorageReaderResponse,
+        >(
             config.static_config.storage.clone(),
             &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
             storage_reader_server_config,
         )
         .expect("Failed to open batcher's storage");
 
-    let storage_reader_server_handle =
-        GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+    // Spawn task to poll for dynamic config updates
+    let config_manager_client_clone = config_manager_client.clone();
+    tokio::spawn(poll_dynamic_config(
+        dynamic_config,
+        move || {
+            let client = config_manager_client_clone.clone();
+            async move {
+                client
+                    .get_batcher_dynamic_config()
+                    .await
+                    .ok()
+                    .map(|config| config.storage_reader_server_dynamic_config)
+            }
+        },
+        std::time::Duration::from_secs(5), // Poll every 5 seconds
+    ));
+
+    // Always spawn the server (it will monitor the enable flag internally)
+    let storage_reader_server_handle = Some(
+        tokio::spawn(async move {
+            if let Err(e) = storage_reader_server.run().await {
+                tracing::error!("Storage reader server error: {:?}", e);
+            }
+        })
+        .abort_handle(),
+    );
 
     let execute_config = &config.static_config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
