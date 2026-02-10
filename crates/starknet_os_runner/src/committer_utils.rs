@@ -63,6 +63,45 @@ pub fn state_maps_to_committer_state_diff(state_maps: StateMaps) -> StateDiff {
     }
 }
 
+/// Validates that the committer state diff contains only allowed state transitions.
+///
+/// This function enforces the following constraints:
+/// * **No Storage Deletions:** Storage entries cannot be updated to `Felt::ZERO`.
+/// * **No Class Declarations:** The `class_hash_to_compiled_class_hash` map must be empty.
+/// * **No Contract Deployments:** The `address_to_class_hash` map must be empty.
+pub(crate) fn validate_virtual_os_state_diff(
+    state_diff: &StateDiff,
+) -> Result<(), ProofProviderError> {
+    // validate no storage deletions.
+    for (address, storage_diffs) in &state_diff.storage_updates {
+        for (key, value) in storage_diffs {
+            if value.0 == Felt::ZERO {
+                return Err(ProofProviderError::InvalidStateDiff(format!(
+                    "Storage deletion not allowed: try to delete storage at address {address:?}, \
+                     key {key:?}"
+                )));
+            }
+        }
+    }
+    // validate no contract deployments (or replaced classes).
+    if !state_diff.address_to_class_hash.is_empty() {
+        return Err(ProofProviderError::InvalidStateDiff(format!(
+            "Contract deployments not allowed: try to deploy contracts(address to class hash): \
+             {0:?}",
+            state_diff.address_to_class_hash
+        )));
+    }
+    // validate no contract declarations (or compiled class hash updates).
+    if !state_diff.class_hash_to_compiled_class_hash.is_empty() {
+        return Err(ProofProviderError::InvalidStateDiff(format!(
+            "Contract declarations not allowed: try to declare classes(class hash to compiled \
+             class hash): {0:?}",
+            state_diff.class_hash_to_compiled_class_hash
+        )));
+    }
+    Ok(())
+}
+
 /// Builds a FactsDb from RPC storage proofs and execution initial reads.
 ///
 /// This stores:
