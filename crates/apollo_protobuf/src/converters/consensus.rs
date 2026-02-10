@@ -295,10 +295,19 @@ impl TryFrom<protobuf::CommitmentParts> for CommitmentParts {
         )?;
         let parent_commitment =
             value.parent_commitment.ok_or(missing("parent_commitment"))?.try_into()?;
+        let transaction_commitment =
+            value.transaction_commitment.ok_or(missing("transaction_commitment"))?.try_into()?;
+        let event_commitment =
+            value.event_commitment.ok_or(missing("event_commitment"))?.try_into()?;
+        let receipt_commitment =
+            value.receipt_commitment.ok_or(missing("receipt_commitment"))?.try_into()?;
         Ok(CommitmentParts {
             next_l2_gas_price_fri: GasPrice(next_l2_gas_price_fri),
             concatenated_counts,
             parent_commitment,
+            transaction_commitment,
+            event_commitment,
+            receipt_commitment,
         })
     }
 }
@@ -309,6 +318,9 @@ impl From<CommitmentParts> for protobuf::CommitmentParts {
             next_l2_gas_price_fri: Some(value.next_l2_gas_price_fri.0.into()),
             concatenated_counts: Some(value.concatenated_counts.into()),
             parent_commitment: Some(value.parent_commitment.into()),
+            transaction_commitment: Some(value.transaction_commitment.into()),
+            event_commitment: Some(value.event_commitment.into()),
+            receipt_commitment: Some(value.receipt_commitment.into()),
         }
     }
 }
