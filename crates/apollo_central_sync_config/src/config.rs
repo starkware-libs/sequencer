@@ -114,6 +114,7 @@ pub struct SyncConfig {
     pub state_updates_max_stream_size: u32,
     pub verify_blocks: bool,
     pub collect_pending_data: bool,
+    // TODO(noamsp): get rid of this config param.
     pub store_sierras_and_casms_block_threshold: u64,
 }
 

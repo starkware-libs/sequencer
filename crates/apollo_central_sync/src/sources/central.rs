@@ -113,8 +113,13 @@ pub trait CentralSourceTrait {
 
 pub(crate) type BlocksStream<'a> =
     BoxStream<'a, Result<(BlockNumber, Block, BlockSignature), CentralError>>;
-type CentralStateUpdate =
-    (BlockNumber, BlockHash, StateDiff, IndexMap<ClassHash, DeprecatedContractClass>);
+type CentralStateUpdate = (
+    BlockNumber,
+    BlockHash,
+    StateDiff,
+    IndexMap<ClassHash, DeprecatedContractClass>,
+    IndexMap<ClassHash, CasmContractClass>,
+);
 pub(crate) type StateUpdatesStream<'a> = BoxStream<'a, CentralResult<CentralStateUpdate>>;
 type CentralCompiledClass = (BlockNumber, ClassHash, CompiledClassHash, CasmContractClass);
 pub(crate) type CompiledClassesStream<'a> = BoxStream<'a, CentralResult<CentralCompiledClass>>;
