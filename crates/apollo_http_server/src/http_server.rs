@@ -16,7 +16,11 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     SUPPORTED_TRANSACTION_VERSIONS,
 };
-use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
+use apollo_http_server_config::config::{
+    validate_dynamic_config_bounds,
+    HttpServerConfig,
+    HttpServerDynamicConfig,
+};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -105,6 +109,7 @@ impl HttpServer {
             self.dynamic_config_tx.clone(),
             self.config_manager_client.clone(),
             self.config.static_config.dynamic_config_poll_interval,
+            self.config.static_config.max_request_body_size,
         ));
 
         // TODO(Tsabary): update the http server struct to hold optional fields of the
@@ -354,6 +359,7 @@ async fn dynamic_config_poll(
     tx: Sender<HttpServerDynamicConfig>,
     config_manager_client: SharedConfigManagerClient,
     poll_interval: Duration,
+    max_request_body_size: usize,
 ) {
     let mut interval = time::interval(poll_interval);
     loop {
@@ -361,6 +367,10 @@ async fn dynamic_config_poll(
         let dynamic_config_result = config_manager_client.get_http_server_dynamic_config().await;
         // Make the config available if it was successfully updated.
         if let Ok(dynamic_config) = dynamic_config_result {
+            let _ = validate_dynamic_config_bounds(&dynamic_config, max_request_body_size)
+                .inspect_err(|err| {
+                    warn!("Found invalid config when updating the dynamic config: {err}")
+                });
             let _ = tx.send(dynamic_config);
         }
     }
