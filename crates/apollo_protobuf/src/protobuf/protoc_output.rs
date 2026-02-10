@@ -476,16 +476,14 @@ pub struct TransactionBatch {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CommitmentParts {
     #[prost(message, optional, tag = "1")]
-    pub next_l2_gas_price_fri: ::core::option::Option<Uint128>,
-    #[prost(message, optional, tag = "2")]
     pub concatenated_counts: ::core::option::Option<Felt252>,
-    #[prost(message, optional, tag = "3")]
+    #[prost(message, optional, tag = "2")]
     pub parent_commitment: ::core::option::Option<Hash>,
-    #[prost(message, optional, tag = "4")]
+    #[prost(message, optional, tag = "3")]
     pub transaction_commitment: ::core::option::Option<Hash>,
-    #[prost(message, optional, tag = "5")]
+    #[prost(message, optional, tag = "4")]
     pub event_commitment: ::core::option::Option<Hash>,
-    #[prost(message, optional, tag = "6")]
+    #[prost(message, optional, tag = "5")]
     pub receipt_commitment: ::core::option::Option<Hash>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
