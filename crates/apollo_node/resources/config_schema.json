@@ -524,6 +524,11 @@
     "privacy": "Public",
     "value": false
   },
+  "committer_config.reader_config.build_storage_tries_concurrently": {
+    "description": "Whether to build the storage tries concurrently or sequentially.",
+    "privacy": "Public",
+    "value": true
+  },
   "committer_config.storage_config.cache_size": {
     "description": "Max number of entries in the cache",
     "privacy": "Public",

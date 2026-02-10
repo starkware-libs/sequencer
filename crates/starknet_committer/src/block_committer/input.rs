@@ -122,11 +122,15 @@ impl From<ThinStateDiff> for StateDiff {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ReaderConfig {
     warn_on_trivial_modifications: bool,
+    build_storage_tries_concurrently: bool,
 }
 
 impl ReaderConfig {
-    pub fn new(warn_on_trivial_modifications: bool) -> Self {
-        Self { warn_on_trivial_modifications }
+    pub fn new(
+        warn_on_trivial_modifications: bool,
+        build_storage_tries_concurrently: bool,
+    ) -> Self {
+        Self { warn_on_trivial_modifications, build_storage_tries_concurrently }
     }
 
     /// Indicates whether a warning should be given in case of a trivial state update.
@@ -135,16 +139,29 @@ impl ReaderConfig {
     pub fn warn_on_trivial_modifications(&self) -> bool {
         self.warn_on_trivial_modifications
     }
+
+    /// Indicates whether to build the storage tries concurrently or sequentially.
+    pub fn build_storage_tries_concurrently(&self) -> bool {
+        self.build_storage_tries_concurrently
+    }
 }
 
 impl SerializeConfig for ReaderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "warn_on_trivial_modifications",
-            &self.warn_on_trivial_modifications,
-            "Whether to warn on trivial state update.",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([
+            ser_param(
+                "warn_on_trivial_modifications",
+                &self.warn_on_trivial_modifications,
+                "Whether to warn on trivial state update.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "build_storage_tries_concurrently",
+                &self.build_storage_tries_concurrently,
+                "Whether to build the storage tries concurrently or sequentially.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
