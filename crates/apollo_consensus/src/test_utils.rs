@@ -1,26 +1,36 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     ProposalCommitment,
     ProposalInit,
+    Round,
     Vote,
     VoteType,
 };
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_staking::committee_provider::{
+    CommitteeError,
+    CommitteeTrait,
+    MockCommitteeTrait,
+    Staker,
+};
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ContractAddress;
 use starknet_api::crypto::utils::RawSignature;
+use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 
 use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait};
-use crate::types::{ConsensusContext, ConsensusError, Round, ValidatorId};
+use crate::types::{ConsensusContext, ConsensusError, ValidatorId};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -187,4 +197,57 @@ pub fn get_new_storage_config() -> StorageConfig {
         db_config: DbConfig { path_prefix: PathBuf::from(db_file_path), ..Default::default() },
         ..Default::default()
     }
+}
+
+// To avoid huge refactoring, we use ConsensusError instead of CommitteeError, and for actual
+// proposer we return the first validator if the function returns an error.
+pub fn test_committee(
+    validators: Vec<ValidatorId>,
+    // TODO(Asmaa): no need to return Result.
+    get_actual_proposer_fn: Box<
+        dyn Fn(Round) -> Result<ContractAddress, ConsensusError> + Send + Sync,
+    >,
+    // TODO(Asmaa): use CommitteeError instead of ConsensusError.
+    get_virtual_proposer_fn: Box<
+        dyn Fn(Round) -> Result<ContractAddress, ConsensusError> + Send + Sync,
+    >,
+) -> Arc<dyn CommitteeTrait> {
+    let first_validator = validators[0];
+    let stakers = validators
+        .into_iter()
+        .map(|address| Staker { address, weight: StakingWeight(1), public_key: Felt::ZERO })
+        .collect();
+
+    let get_actual = Arc::new(get_actual_proposer_fn);
+    let get_virtual = Arc::new(get_virtual_proposer_fn);
+
+    let mut mock = MockCommitteeTrait::new();
+    mock.expect_members().return_const(stakers);
+    mock.expect_get_proposer().returning(move |_, round| {
+        (*get_virtual)(round).map_err(|_| CommitteeError::EmptyCommittee)
+    });
+    mock.expect_get_actual_proposer()
+        .returning(move |_, round| (*get_actual)(round).unwrap_or(first_validator));
+    Arc::new(mock)
+}
+
+/// Committee where virtual proposer equals actual proposer. Takes a single function that returns
+/// the proposer address for a round (no Result). Use when both proposers are the same.
+pub fn mock_committee_virtual_equal_to_actual(
+    validators: Vec<ValidatorId>,
+    get_actual_proposer_fn: Box<dyn Fn(Round) -> ContractAddress + Send + Sync>,
+) -> Arc<dyn CommitteeTrait> {
+    let stakers = validators
+        .into_iter()
+        .map(|address| Staker { address, weight: StakingWeight(1), public_key: Felt::ZERO })
+        .collect();
+
+    let get_actual = Arc::new(get_actual_proposer_fn);
+
+    let mut mock = MockCommitteeTrait::new();
+    mock.expect_members().return_const(stakers);
+    let get_for_proposer = Arc::clone(&get_actual);
+    mock.expect_get_proposer().returning(move |_, round| Ok((*get_for_proposer)(round)));
+    mock.expect_get_actual_proposer().returning(move |_, round| (*get_actual)(round));
+    Arc::new(mock)
 }

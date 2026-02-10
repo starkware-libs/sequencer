@@ -8,8 +8,10 @@
 mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, Vote, VoteType};
+use apollo_staking::committee_provider::CommitteeTrait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::crypto::utils::RawSignature;
@@ -127,6 +129,8 @@ pub(crate) struct StateMachine {
     // Tracks the latest self votes for efficient rebroadcasts.
     last_self_prevote: Option<Vote>,
     last_self_precommit: Option<Vote>,
+    #[allow(dead_code)]
+    committee: Arc<dyn CommitteeTrait>,
 }
 
 impl StateMachine {
@@ -137,6 +141,7 @@ impl StateMachine {
         total_weight: u64,
         is_observer: bool,
         quorum_type: QuorumType,
+        committee: Arc<dyn CommitteeTrait>,
         require_virtual_proposer_vote: bool,
     ) -> Self {
         Self {
@@ -163,6 +168,7 @@ impl StateMachine {
             mixed_precommit_quorum: HashSet::new(),
             last_self_prevote: None,
             last_self_precommit: None,
+            committee,
         }
     }
 
