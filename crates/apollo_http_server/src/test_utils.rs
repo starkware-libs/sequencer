@@ -121,6 +121,11 @@ impl HttpClientServerSetupBuilder {
         Self { http_server_config, mock_config_manager_client: None, mock_gateway_client: None }
     }
 
+    pub fn with_max_request_body_size(mut self, max_request_body_size: usize) -> Self {
+        self.http_server_config.static_config.max_request_body_size = max_request_body_size;
+        self
+    }
+
     pub fn with_mock_config_manager_client(
         mut self,
         mock_config_manager_client: MockConfigManagerClient,
