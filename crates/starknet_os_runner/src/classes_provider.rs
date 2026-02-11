@@ -71,12 +71,18 @@ where
 {
     let compiled_class = state_reader_and_contract_manager.get_compiled_class(class_hash)?;
 
+    // Check for deprecated (Cairo 0) classes before computing the v2 hash, which is only
+    // defined for Cairo 1+ classes.
+    if matches!(compiled_class, RunnableCompiledClass::V0(_)) {
+        return Err(ClassesProviderError::DeprecatedContractError(class_hash));
+    }
+
     let compiled_class_hash = state_reader_and_contract_manager
         .get_compiled_class_hash_v2(class_hash, &compiled_class)?;
 
     match compiled_class {
-        RunnableCompiledClass::V0(_v0) => {
-            Err(ClassesProviderError::DeprecatedContractError(class_hash))
+        RunnableCompiledClass::V0(_) => {
+            unreachable!("V0 classes are handled above")
         }
         RunnableCompiledClass::V1(compiled_class_v1) => {
             let casm = compiled_class_v1_to_casm(&compiled_class_v1)?;
