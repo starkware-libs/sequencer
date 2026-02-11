@@ -2278,6 +2278,7 @@ dependencies = [
 name = "apollo_protobuf"
 version = "0.17.0-rc.0"
 dependencies = [
+ "apollo_batcher_types",
  "apollo_test_utils",
  "asynchronous-codec",
  "bytes",
