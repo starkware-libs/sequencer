@@ -275,9 +275,13 @@ impl AddAssign<&ChargedResources> for ChargedResources {
 
 /// Extended execution resources that include both VM execution resources and opcode counter which
 /// are retrieved separately from the Cairo runner.
-#[derive(Default)]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ExtendedExecutionResources {
+    #[serde(flatten)]
     pub vm_resources: ExecutionResources,
+    #[serde(skip_serializing_if = "OpcodeCounterMap::is_empty")]
     pub opcode_instance_counter: OpcodeCounterMap,
 }
 
@@ -378,7 +382,7 @@ pub struct CallInfo {
     pub call: CallEntryPoint,
     pub execution: CallExecution,
     pub inner_calls: Vec<CallInfo>,
-    pub resources: ExecutionResources,
+    pub resources: ExtendedExecutionResources,
     pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
@@ -456,7 +460,8 @@ impl CallInfo {
             // Note: the vm_resources and gas_consumed of a call contains the inner call resources,
             // unlike other fields such as events and messages.
             charged_resources: ChargedResources {
-                vm_resources: self.resources.clone(),
+                // TODO(AvivG): update charged_resources to use ExtendedExecutionResources.
+                vm_resources: self.resources.vm_resources.clone(),
                 gas_consumed: GasAmount(self.execution.gas_consumed),
             },
             executed_class_hashes,
@@ -476,10 +481,10 @@ impl CallInfo {
 
     pub fn summarize_vm_resources<'a>(
         call_infos: impl Iterator<Item = &'a CallInfo>,
-    ) -> ExecutionResources {
+    ) -> ExtendedExecutionResources {
         // Note: the vm resources (and entire charged resources) of a call contains the inner call
         // resources, unlike other fields such as events and messages.
-        call_infos.fold(ExecutionResources::default(), |mut acc, inner_call| {
+        call_infos.fold(ExtendedExecutionResources::default(), |mut acc, inner_call| {
             acc += &inner_call.resources;
             acc
         })
