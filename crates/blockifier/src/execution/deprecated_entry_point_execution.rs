@@ -288,6 +288,7 @@ pub fn finalize_execution(
             accessed_storage_keys: syscall_handler.accessed_keys,
             ..Default::default()
         },
+        // NOTE: Deprecated entry point execution does not track opcode counters.
         builtin_counters: cairo_primitive_counter_map(
             vm_resources_without_inner_calls.prover_builtins(),
         ),

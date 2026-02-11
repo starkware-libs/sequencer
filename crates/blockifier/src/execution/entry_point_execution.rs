@@ -498,10 +498,7 @@ pub fn finalize_execution(
         // TODO(AvivG): replace CallInfo::resources type with ExtendedExecutionResources.
         resources: vm_resources.vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
-        // TODO(AvivG): retrieve both builtins and opcode counters.
-        builtin_counters: cairo_primitive_counter_map(
-            vm_resources_without_inner_calls.vm_resources.prover_builtins(),
-        ),
+        builtin_counters: vm_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler_base.syscalls_usage,
     })
 }
