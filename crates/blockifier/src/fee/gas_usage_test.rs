@@ -398,8 +398,8 @@ fn test_gas_computation_regression_test(
     );
 
     // Test VM resources.
-    let mut tx_vm_resources = get_vm_resource_usage().vm_resources;
-    tx_vm_resources.n_memory_holes = 2;
+    let mut tx_vm_resources = get_vm_resource_usage();
+    tx_vm_resources.vm_resources.n_memory_holes = 2;
     let n_reverted_steps = 15;
     let (sierra_gas, reverted_sierra_gas) = match gas_vector_computation_mode {
         GasVectorComputationMode::NoL2Gas => (GasAmount(0), GasAmount(0)),

@@ -305,6 +305,18 @@ impl ExtendedExecutionResources {
 
         cairo_primitives
     }
+
+    pub fn filter_unused_cairo_primitives(&self) -> ExtendedExecutionResources {
+        ExtendedExecutionResources {
+            vm_resources: self.vm_resources.filter_unused_builtins(),
+            opcode_instance_counter: self
+                .opcode_instance_counter
+                .clone()
+                .into_iter()
+                .filter(|(_, count)| *count > 0)
+                .collect(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
