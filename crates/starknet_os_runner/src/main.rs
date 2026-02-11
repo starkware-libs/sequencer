@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 
 use anyhow::Context;
 use clap::Parser;
-use jsonrpsee::server::ServerBuilder;
+use jsonrpsee::server::{ServerBuilder, ServerConfig};
 use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
 use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
 use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
@@ -27,13 +27,20 @@ async fn main() -> anyhow::Result<()> {
     let rpc_impl = ProvingRpcServerImpl::from_config(&config);
     let addr = SocketAddr::new(config.ip, config.port);
 
+    let server_config = ServerConfig::builder().max_connections(config.max_connections).build();
     let server = ServerBuilder::default()
+        .set_config(server_config)
         .build(&addr)
         .await
         .context(format!("Failed to bind JSON-RPC server to {addr}"))?;
 
     let handle = server.start(rpc_impl.into_rpc());
-    info!(local_address = %addr, "JSON-RPC proving server is running.");
+    info!(
+        local_address = %addr,
+        max_concurrent_requests = config.max_concurrent_requests,
+        max_connections = config.max_connections,
+        "JSON-RPC proving server is running."
+    );
 
     handle.stopped().await;
     Ok(())
