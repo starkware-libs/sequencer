@@ -110,7 +110,7 @@ pub(crate) struct GasPriceParams {
     pub override_eth_to_fri_rate: Option<u128>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct L1PricesInFri {
     pub l1_gas_price: GasPrice,
     pub l1_data_gas_price: GasPrice,
@@ -118,7 +118,7 @@ pub(crate) struct L1PricesInFri {
 
 /// Contains only the necessary fields from the previous block needed for building/validating
 /// proposals. This is a minimal representation to avoid storing the full ProposalInit.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct PreviousBlockInfo {
     pub timestamp: u64,
     pub l1_prices_wei: L1PricesInWei,
@@ -154,7 +154,7 @@ impl L1PricesInFri {
 }
 
 // TODO(guyn): remove this once we no longer use wei anywhere
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct L1PricesInWei {
     pub l1_gas_price: GasPrice,
     pub l1_data_gas_price: GasPrice,
@@ -202,18 +202,15 @@ pub(crate) async fn get_l1_prices_in_fri_and_wei_and_conversion_rate(
         if let Ok(prices_in_fri) = l1_gas_prices_fri_result {
             return (prices_in_fri, prices_in_wei, eth_to_fri_rate);
         } else {
-            warn!(
-                "Failed to convert L1 gas prices to FRI: {:?}",
-                l1_gas_prices_fri_result.clone().err()
-            );
+            warn!("Failed to convert L1 gas prices to FRI: {:?}", l1_gas_prices_fri_result.err());
         }
     }
 
     // One or both (oracle/provider) have failed to fetch, or failure in conversion, so we need to
     // try to use the previous block info.
     if let Some(block_info) = previous_block_info {
-        let prev_l1_gas_price_wei = block_info.l1_prices_wei.clone();
-        let prev_l1_gas_price = block_info.l1_prices_fri.clone();
+        let prev_l1_gas_price_wei = block_info.l1_prices_wei;
+        let prev_l1_gas_price = block_info.l1_prices_fri;
         // This calculation can fail if gas price is too high, or zero, or if the prices cause the
         // rate to be zero.
         let eth_to_fri_rate = calculate_eth_to_fri_rate(block_info);

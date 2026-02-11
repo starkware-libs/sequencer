@@ -7,9 +7,6 @@ license.workspace = true
 description = "Dashboard and monitoring interface for the Starknet sequencer."
 
 
-[features]
-testing = []
-
 [lints]
 workspace = true
 

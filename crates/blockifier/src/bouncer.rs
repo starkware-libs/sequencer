@@ -552,7 +552,7 @@ impl Bouncer {
         &mut self.accumulated_weights.class_hashes_to_migrate
     }
 
-    pub fn get_executed_class_hashes(&self) -> HashSet<ClassHash> {
+    fn get_executed_class_hashes(&self) -> HashSet<ClassHash> {
         self.accumulated_weights
             .casm_hash_computation_data_sierra_gas
             .class_hash_to_casm_hash_computation_gas

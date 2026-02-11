@@ -6,9 +6,6 @@ repository.workspace = true
 license-file.workspace = true
 description = "Centralized state synchronization from Starknet feeder gateway."
 
-[features]
-testing = []
-
 [dependencies]
 apollo_central_sync_config.workspace = true
 apollo_class_manager_types.workspace = true

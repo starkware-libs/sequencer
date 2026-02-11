@@ -363,7 +363,6 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     // SingleHeightConsensus despite them not ever using it at the same time in a simpler way, due
     // rust limitations.
     voted_height_storage: Arc<Mutex<dyn HeightVotedStorageTrait>>,
-    #[allow(dead_code)]
     committee_provider: Arc<dyn CommitteeProvider>,
     // Proposal content streams keyed by (height, round)
     current_height_proposals_streams:

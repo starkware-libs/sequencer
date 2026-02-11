@@ -8,7 +8,6 @@ description = "Provides read access to Starknet state for transaction execution 
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
-testing = []
 
 [lints]
 workspace = true

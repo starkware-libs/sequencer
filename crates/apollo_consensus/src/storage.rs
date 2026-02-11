@@ -37,8 +37,6 @@ pub trait HeightVotedStorageTrait: Debug + Send + Sync {
 }
 
 struct HeightVotedStorage {
-    // TODO(guy.f): Remove in the following PR.
-    #[allow(dead_code)]
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
 }
