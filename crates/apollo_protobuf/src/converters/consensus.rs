@@ -291,8 +291,7 @@ impl TryFrom<protobuf::CommitmentParts> for CommitmentParts {
         let concatenated_counts = starknet_types_core::felt::Felt::try_from(
             value.concatenated_counts.ok_or(missing("concatenated_counts"))?,
         )?;
-        let parent_commitment =
-            value.parent_commitment.ok_or(missing("parent_commitment"))?.try_into()?;
+        let parent_commitment = value.parent_commitment.map(TryInto::try_into).transpose()?;
         let transaction_commitment =
             value.transaction_commitment.ok_or(missing("transaction_commitment"))?.try_into()?;
         let event_commitment =
@@ -313,7 +312,7 @@ impl From<CommitmentParts> for protobuf::CommitmentParts {
     fn from(value: CommitmentParts) -> Self {
         protobuf::CommitmentParts {
             concatenated_counts: Some(value.concatenated_counts.into()),
-            parent_commitment: Some(value.parent_commitment.into()),
+            parent_commitment: value.parent_commitment.map(Into::into),
             transaction_commitment: Some(value.transaction_commitment.into()),
             event_commitment: Some(value.event_commitment.into()),
             receipt_commitment: Some(value.receipt_commitment.into()),

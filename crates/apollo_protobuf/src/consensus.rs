@@ -171,7 +171,8 @@ pub struct TransactionBatch {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommitmentParts {
     pub concatenated_counts: Felt,
-    pub parent_commitment: ProposalCommitment,
+    // None for the first block
+    pub parent_commitment: Option<ProposalCommitment>,
     pub transaction_commitment: StarkHash,
     pub event_commitment: StarkHash,
     pub receipt_commitment: StarkHash,

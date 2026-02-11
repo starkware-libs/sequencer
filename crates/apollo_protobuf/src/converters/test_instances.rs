@@ -41,7 +41,7 @@ auto_impl_get_test_instance! {
     pub struct ProposalCommitment(pub StarkHash);
     pub struct CommitmentParts {
         pub concatenated_counts: Felt,
-        pub parent_commitment: ProposalCommitment,
+        pub parent_commitment: Option<ProposalCommitment>,
         pub transaction_commitment: StarkHash,
         pub event_commitment: StarkHash,
         pub receipt_commitment: StarkHash,
