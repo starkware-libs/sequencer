@@ -20,7 +20,6 @@ use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::StorageEntry;
 use blockifier::execution::call_info::{
-    cairo_primitive_counter_map,
     CallExecution,
     CallInfo,
     ExtendedExecutionResources,
@@ -49,11 +48,7 @@ use blockifier::state::cached_state::{
     StateChangesCount,
     StateChangesCountForFee,
 };
-use blockifier::transaction::objects::{
-    ExecutionResourcesTraits,
-    RevertError,
-    TransactionExecutionInfo,
-};
+use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
 use cairo_lang_casm::operand::{CellRef, Register};
 use cairo_lang_starknet_classes::casm_contract_class::{
@@ -495,14 +490,18 @@ fn central_casm_contract_class_default_optional_fields() -> CentralCasmContractC
     CentralCasmContractClass::from(casm_contract_class)
 }
 
-fn execution_resources() -> ExecutionResources {
-    ExecutionResources {
-        n_steps: 2,
-        n_memory_holes: 3,
-        builtin_instance_counter: BTreeMap::from([
-            (BuiltinName::range_check, 31),
-            (BuiltinName::pedersen, 4),
-        ]),
+fn execution_resources() -> ExtendedExecutionResources {
+    ExtendedExecutionResources {
+        vm_resources: ExecutionResources {
+            n_steps: 2,
+            n_memory_holes: 3,
+            builtin_instance_counter: BTreeMap::from([
+                (BuiltinName::range_check, 31),
+                (BuiltinName::pedersen, 4),
+            ]),
+        },
+        // TODO(AvivG): test with non-default opcode instance counter.
+        opcode_instance_counter: OpcodeCounterMap::default(),
     }
 }
 
@@ -547,11 +546,7 @@ fn call_info() -> CallInfo {
             cairo_native: false,
         },
         inner_calls: Vec::new(),
-        resources: ExtendedExecutionResources {
-            vm_resources: execution_resources(),
-            // TODO(AvivG): test with non-default opcode instance counter.
-            opcode_instance_counter: OpcodeCounterMap::default(),
-        },
+        resources: execution_resources(),
         tracked_resource: TrackedResource::SierraGas,
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: felt_vector(),
@@ -561,7 +556,7 @@ fn call_info() -> CallInfo {
             read_block_hash_values: vec![BlockHash(felt!("0xdeafbee"))],
             accessed_blocks: HashSet::from([BlockNumber(100)]),
         },
-        builtin_counters: cairo_primitive_counter_map(execution_resources().prover_builtins()),
+        builtin_counters: execution_resources().prover_cairo_primitives(),
         syscalls_usage: HashMap::from([
             (SyscallSelector::CallContract, SyscallUsage { call_count: 7, linear_factor: 0 }),
             (SyscallSelector::StorageRead, SyscallUsage { call_count: 4, linear_factor: 0 }),
