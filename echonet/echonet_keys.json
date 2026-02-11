@@ -1,6 +1,6 @@
 {
-    "start_block": 0,
+    "start_block": 6110000,
     "blocked_senders": "",
     "resync_error_threshold": 1,
-    "max_pending_txs_before_pausing": 15
+    "max_pending_txs_before_pausing": 25
 }

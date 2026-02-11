@@ -20,6 +20,10 @@ spec:
         role: flask
         app.kubernetes.io/name: echonet
         app.kubernetes.io/component: api
+        scaleops.sh/managed-unevictable: "true"
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+        karpenter.sh/do-not-disrupt: "true"
     spec:
       serviceAccountName: echonet
 
