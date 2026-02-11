@@ -24,6 +24,7 @@ use apollo_l1_gas_price_types::errors::{
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{
     BuildParam,
+    CommitmentParts,
     ProposalCommitment,
     ProposalFin,
     ProposalPart,
@@ -125,7 +126,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     let fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
-        commitment_parts: None,
+        commitment_parts: Some(CommitmentParts::default()),
     });
     content_sender.send(fin.clone()).await.unwrap();
     let fin_receiver = context.validate_proposal(init.clone(), TIMEOUT, content_receiver).await;
@@ -159,7 +160,7 @@ async fn proposals_from_different_rounds() {
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-        commitment_parts: None,
+        commitment_parts: Some(CommitmentParts::default()),
     });
 
     // The proposal from the past round is ignored.
@@ -280,7 +281,7 @@ async fn build_proposal() {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-            commitment_parts: None,
+            commitment_parts: Some(CommitmentParts::default()),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -716,7 +717,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-            commitment_parts: None,
+            commitment_parts: Some(CommitmentParts::default()),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -837,7 +838,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-            commitment_parts: None,
+            commitment_parts: Some(CommitmentParts::default()),
         })
     );
     assert!(receiver.next().await.is_none());
