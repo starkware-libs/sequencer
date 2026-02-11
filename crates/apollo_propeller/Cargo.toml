@@ -6,9 +6,6 @@ repository.workspace = true
 license-file.workspace = true
 description = "Implementation of the Propeller algorithm for the Starknet sequencer."
 
-[features]
-testing = []
-
 [dependencies]
 apollo_protobuf.workspace = true
 asynchronous-codec.workspace = true
