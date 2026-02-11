@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770733543726,
+  "lastUpdate": 1770826781762,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -373,6 +373,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1411.46473129,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noam.s@starkware.co",
+            "name": "noamsp-starkware",
+            "username": "noamsp-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d03faf0fe31e1c8212240afdbe406a1e725d3793",
+          "message": "apollo_reverts: yield to tokio runtime between block reverts (#12496)",
+          "timestamp": "2026-02-11T15:55:14Z",
+          "tree_id": "5021abd2a324cfed16a1762d9dac10bb1fa2a4fd",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d03faf0fe31e1c8212240afdbe406a1e725d3793"
+        },
+        "date": 1770826781448,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 930.95974297,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1383.1047495,
             "unit": "ms"
           }
         ]
