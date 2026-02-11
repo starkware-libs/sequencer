@@ -13,6 +13,7 @@ from starkware.starknet.core.os.virtual_os_output import (
     PROOF_VERSION,
     VIRTUAL_OS_OUTPUT_VERSION,
     VIRTUAL_SNOS,
+    ProofHeader,
     VirtualOsOutputHeader,
 )
 
@@ -39,15 +40,21 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
     if (proof_facts_size == 0) {
         return ();
     }
-    alloc_locals;
-    assert_le(VirtualOsOutputHeader.SIZE + 3, proof_facts_size);
-    let proof_version = proof_facts[0];
-    assert proof_version = PROOF_VERSION;
-    let proof_type = proof_facts[1];
-    assert proof_type = VIRTUAL_SNOS;
-    let program_hash = proof_facts[2];
-    assert is_program_hash_allowed(program_hash) = TRUE;
-    let os_output_header = cast(&proof_facts[3], VirtualOsOutputHeader*);
+
+    assert_le(ProofHeader.SIZE + VirtualOsOutputHeader.SIZE, proof_facts_size);
+
+    // Validate the proof header.
+    let proof_header = cast(proof_facts, ProofHeader*);
+    assert is_program_hash_allowed(proof_header.program_hash) = TRUE;
+    // Proof version and variant are for future compatibility.
+    assert [proof_header] = ProofHeader(
+        proof_version=PROOF_VERSION,
+        proof_variant=VIRTUAL_SNOS,
+        program_hash=proof_header.program_hash,
+    );
+
+    // Validate the virtual OS output header.
+    let os_output_header = cast(&proof_facts[ProofHeader.SIZE], VirtualOsOutputHeader*);
 
     with_attr error_message("Virtual OS output version is not supported") {
         assert os_output_header.output_version = VIRTUAL_OS_OUTPUT_VERSION;

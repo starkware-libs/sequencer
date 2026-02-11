@@ -11,37 +11,27 @@ from starkware.starknet.core.os.virtual_os_output import (
     VirtualOsOutputHeader,
 )
 
-// Recursively hashes each L2-to-L1 message separately and writes them.
-func hash_messages_to_l1_recursive{output_ptr: felt*, poseidon_ptr: PoseidonBuiltin*}(
-    messages_ptr_start: MessageToL1Header*, messages_ptr_end: MessageToL1Header*
+// Hashes each L2-to-L1 message separately and writes the hash to the output.
+func output_message_to_l1_hashes{output_ptr: felt*, poseidon_ptr: PoseidonBuiltin*}(
+    messages_ptr_start: felt*, messages_ptr_end: felt*
 ) {
-    alloc_locals;
-
     if (messages_ptr_start == messages_ptr_end) {
         return ();
     }
 
     // Read the message header.
-    let message_header = [messages_ptr_start];
-    let payload_size = message_header.payload_size;
+    let message_header = cast(messages_ptr_start, MessageToL1Header*);
 
     // Hash the message (header + payload).
-    // The message consists of: from_address, to_address, payload_size, ...payload.
-    local message_size = MessageToL1Header.SIZE + payload_size;
-    let (message_hash) = poseidon_hash_many(
-        n=message_size, elements=cast(messages_ptr_start, felt*)
-    );
+    let message_size = MessageToL1Header.SIZE + message_header.payload_size;
+    let (message_hash) = poseidon_hash_many(n=message_size, elements=messages_ptr_start);
 
     // Store the hash and advance output_ptr.
     assert output_ptr[0] = message_hash;
     let output_ptr = &output_ptr[1];
 
-    // Move to the next message.
-    let next_message_ptr = cast(messages_ptr_start + message_size, MessageToL1Header*);
-
-    // Recursively process the remaining messages.
-    return hash_messages_to_l1_recursive(
-        messages_ptr_start=next_message_ptr, messages_ptr_end=messages_ptr_end
+    return output_message_to_l1_hashes(
+        messages_ptr_start=&messages_ptr_start[message_size], messages_ptr_end=messages_ptr_end
     );
 }
 
@@ -102,7 +92,7 @@ func process_os_output{
     let output_ptr = output_ptr + VirtualOsOutputHeader.SIZE;
     let messages_to_l1_hashes_ptr_start: felt* = output_ptr;
 
-    hash_messages_to_l1_recursive(
+    output_message_to_l1_hashes(
         messages_ptr_start=os_output.initial_carried_outputs.messages_to_l1,
         messages_ptr_end=os_output.final_carried_outputs.messages_to_l1,
     );
