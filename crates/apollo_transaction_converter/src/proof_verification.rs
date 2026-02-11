@@ -136,6 +136,46 @@ impl From<Vec<Felt>> for ProgramOutput {
     }
 }
 
+/// Verifies a proof against the given proof facts.
+///
+/// Checks that:
+/// 1. The proof is non-empty.
+/// 2. The proof facts start with the expected proof version.
+/// 3. The stwo proof is cryptographically valid.
+/// 4. The proof facts match the verified program output.
+/// 5. The bootloader program hash matches the expected value.
+pub fn verify_proof(
+    proof_facts: ProofFacts,
+    proof: Proof,
+    expected_bootloader_hash: Felt,
+) -> Result<(), VerifyProofError> {
+    if proof.is_empty() {
+        return Err(VerifyProofError::EmptyProof);
+    }
+
+    let actual_version = proof_facts.0.first().copied().unwrap_or_default();
+    if actual_version != PROOF_VERSION {
+        return Err(VerifyProofError::InvalidProofVersion {
+            expected: PROOF_VERSION,
+            actual: actual_version,
+        });
+    }
+
+    let output = stwo_verify(proof)?;
+
+    let program_variant = proof_facts.0.get(1).copied().unwrap_or_default();
+    let expected_proof_facts = output.program_output.try_into_proof_facts(program_variant)?;
+    if expected_proof_facts != proof_facts {
+        return Err(VerifyProofError::ProofFactsMismatch);
+    }
+
+    if output.program_hash != expected_bootloader_hash {
+        return Err(VerifyProofError::BootloaderHashMismatch);
+    }
+
+    Ok(())
+}
+
 pub fn stwo_verify(proof: Proof) -> Result<StwoVerifyOutput, StwoVerifyError> {
     // Convert proof to raw bytes.
     let proof_bytes = ProofBytes::try_from(proof)?;
