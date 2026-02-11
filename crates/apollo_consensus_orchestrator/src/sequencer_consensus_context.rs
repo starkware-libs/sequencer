@@ -339,15 +339,10 @@ impl SequencerConsensusContext {
         // Accepts transactions as a vector of batches, as stored in the `BuiltProposals` map.
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         decision_reached_response: DecisionReachedResponse,
+        block_header_commitments: BlockHeaderCommitments,
     ) {
-        let DecisionReachedResponse {
-            state_diff,
-            l2_gas_used,
-            central_objects,
-            // TODO(Asmaa): Remove once the context reads it from BuiltProposals
-            // (FinishedProposalInfo) instead of DecisionReachedResponse.
-            block_header_commitments,
-        } = decision_reached_response;
+        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
+            decision_reached_response;
 
         self.update_l2_gas_price(l2_gas_used);
 
@@ -661,12 +656,12 @@ impl ConsensusContext for SequencerConsensusContext {
         info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", commitment.0);
 
         self.interrupt_active_proposal().await;
-        let (init, transactions, proposal_id) = {
+        let (init, transactions, proposal_id, finished_info) = {
             let mut proposals = self.valid_proposals.lock().unwrap();
-            let (init, transactions, proposal_id, _finished_info) =
+            let (init, transactions, proposal_id, finished_info) =
                 proposals.get_proposal(&height, &commitment).clone();
             proposals.remove_proposals_below_or_at_height(&height);
-            (init, transactions, proposal_id)
+            (init, transactions, proposal_id, finished_info)
         };
 
         let decision_reached_response =
@@ -676,8 +671,15 @@ impl ConsensusContext for SequencerConsensusContext {
         // unless the state is fully reverted, otherwise the node will be left in an
         // inconsistent state.
 
-        self.finalize_decision(height, &init, commitment, transactions, decision_reached_response)
-            .await;
+        self.finalize_decision(
+            height,
+            &init,
+            commitment,
+            transactions,
+            decision_reached_response,
+            finished_info.block_header_commitments,
+        )
+        .await;
 
         self.previous_block_info = Some(PreviousBlockInfo::from(&init));
 

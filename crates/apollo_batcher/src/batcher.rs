@@ -777,7 +777,6 @@ impl Batcher {
             block_execution_artifacts.partial_block_hash_components();
         let state_diff_commitment =
             partial_block_hash_components.header_commitments.state_diff_commitment;
-        let block_header_commitments = partial_block_hash_components.header_commitments.clone();
         let parent_proposal_commitment = self.get_parent_proposal_commitment(height)?;
         self.commit_proposal_and_block(
             height,
@@ -835,7 +834,6 @@ impl Batcher {
                     .compiled_class_hashes_for_migration,
                 parent_proposal_commitment,
             },
-            block_header_commitments,
         })
     }
 
