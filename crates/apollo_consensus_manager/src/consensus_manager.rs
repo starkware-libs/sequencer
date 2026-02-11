@@ -318,18 +318,20 @@ impl ConsensusManager {
             .expect("Failed to get batcher_height_marker from batcher")
             .height;
 
+        // Ensure voted height storage is reverted, even if no batcher revert is needed.
+        // This allows consensus to proceed at the target height after restart.
+        self.voted_height_storage
+            .lock()
+            .expect("Failed to lock voted height storage. Should never happen.")
+            .revert_height(revert_up_to_and_including)
+            .expect("Failed to revert height in the consensus manager's voted height storage");
+
         // This function will panic if the revert fails.
         let revert_blocks_fn = move |height| async move {
             self.batcher_client
                 .revert_block(RevertBlockInput { height })
                 .await
                 .expect("Failed to revert block at height {height} in the batcher");
-
-            self.voted_height_storage
-                .lock()
-                .expect("Failed to lock voted height storage. Should never happen.")
-                .revert_height(height)
-                .expect("Failed to revert height in the consensus manager's voted height storage");
         };
 
         const BATCHER_REVERT_COMPONENT_DATA: RevertComponentData = RevertComponentData {
