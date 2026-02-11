@@ -16,6 +16,11 @@ pub mod test_programs;
 #[cfg(test)]
 mod virtual_os_test;
 
+/// Path to `constants.cairo` relative to the `src/cairo` directory (i.e., a key in
+/// [`CAIRO_FILES_MAP`]).
+#[cfg(test)]
+const CONSTANTS_CAIRO_PATH: &str = "starkware/starknet/core/os/constants.cairo";
+
 pub static CAIRO_FILES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     serde_json::from_str(include_str!(concat!(env!("OUT_DIR"), "/cairo_files_map.json")))
         .unwrap_or_else(|error| panic!("Failed to deserialize cairo_files_map.json: {error:?}."))
