@@ -39,6 +39,7 @@ use tracing::{debug, info, trace, warn};
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
+    finished_info_to_commitment_parts,
     get_l1_prices_in_fri_and_wei,
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
@@ -303,11 +304,11 @@ async fn get_proposal_content(
                     .final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                // TODO(Asmaa): Pass the commitment parts.
+                let commitment_parts = finished_info_to_commitment_parts(&info);
                 let fin = ProposalFin {
                     proposal_commitment,
                     executed_transaction_count,
-                    commitment_parts: None,
+                    commitment_parts: Some(commitment_parts),
                 };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {

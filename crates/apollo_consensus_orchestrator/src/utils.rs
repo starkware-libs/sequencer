@@ -6,11 +6,12 @@ use std::cmp::min;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_batcher_types::batcher_types::FinishedProposalInfo;
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
-use apollo_protobuf::consensus::{ProposalInit, ProposalPart};
+use apollo_protobuf::consensus::{CommitmentParts, ProposalCommitment, ProposalInit, ProposalPart};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
@@ -45,6 +46,20 @@ pub(crate) struct StreamSender {
 impl StreamSender {
     pub async fn send(&mut self, proposal_part: ProposalPart) -> Result<(), mpsc::SendError> {
         self.proposal_sender.send(proposal_part).await
+    }
+}
+
+/// Builds `CommitmentParts` from the batcher's `FinishedProposalInfo`.
+pub(crate) fn finished_info_to_commitment_parts(info: &FinishedProposalInfo) -> CommitmentParts {
+    let block_header_commitments = &info.block_header_commitments;
+    CommitmentParts {
+        concatenated_counts: block_header_commitments.concatenated_counts,
+        parent_commitment: info
+            .parent_proposal_commitment
+            .map(|p| ProposalCommitment(p.state_diff_commitment.0.0)),
+        transaction_commitment: block_header_commitments.transaction_commitment.0,
+        event_commitment: block_header_commitments.event_commitment.0,
+        receipt_commitment: block_header_commitments.receipt_commitment.0,
     }
 }
 

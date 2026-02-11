@@ -168,7 +168,7 @@ pub struct TransactionBatch {
 
 /// Optional parts of a commitment carried in ProposalFin.
 // TODO(Asmaa): Send next_l2_gas_price_fri and l2_gas_used in a separate optional message.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct CommitmentParts {
     pub concatenated_counts: Felt,
     // None for the first block
