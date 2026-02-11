@@ -297,9 +297,10 @@ pub async fn commit_state_diff(
         FactsDbInitialRead(StateRoots { contracts_trie_root_hash, classes_trie_root_hash });
     let input = Input { state_diff, initial_read_context, config };
 
-    let filled_forest = CommitBlockImpl::commit_block(input, facts_db, &mut NoMeasurements)
-        .await
-        .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;
+    let (filled_forest, _deleted_nodes) =
+        CommitBlockImpl::commit_block(input, facts_db, &mut NoMeasurements)
+            .await
+            .map_err(|e| ProofProviderError::BlockCommitmentError(e.to_string()))?;
     facts_db.write(&filled_forest).await?;
 
     Ok(StateRoots {

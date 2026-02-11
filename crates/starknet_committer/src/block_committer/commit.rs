@@ -19,7 +19,7 @@ use crate::block_committer::measurements_util::{
     MeasurementsTrait,
 };
 use crate::db::forest_trait::ForestReader;
-use crate::forest::deleted_nodes;
+use crate::forest::deleted_nodes::{self, DeletedNodes};
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestError;
 use crate::forest::original_skeleton_forest::ForestSortedIndices;
@@ -37,7 +37,7 @@ pub trait CommitBlockTrait: Send {
         input: Input<Reader::InitialReadContext>,
         trie_reader: &mut Reader,
         measurements: &mut M,
-    ) -> BlockCommitmentResult<FilledForest> {
+    ) -> BlockCommitmentResult<(FilledForest, DeletedNodes)> {
         let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
             get_all_modified_indices(&input.state_diff);
         let n_contracts_trie_modifications = contracts_trie_indices.len();
@@ -97,7 +97,7 @@ pub trait CommitBlockTrait: Send {
         info!("Updated skeleton forest created successfully.");
 
         // Find deleted nodes.
-        let _deleted_nodes = deleted_nodes::find_deleted_nodes(
+        let deleted_nodes = deleted_nodes::find_deleted_nodes(
             &original_forest,
             &updated_forest,
             &actual_storage_updates,
@@ -118,7 +118,7 @@ pub trait CommitBlockTrait: Send {
         measurements.attempt_to_stop_measurement(Action::Compute, 0).ok();
         info!("Filled forest created successfully.");
 
-        Ok(filled_forest)
+        Ok((filled_forest, deleted_nodes))
     }
 }
 

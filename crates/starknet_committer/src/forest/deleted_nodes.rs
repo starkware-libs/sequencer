@@ -23,14 +23,12 @@ pub struct DeletedNodes {
 }
 
 impl DeletedNodes {
-    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.classes_trie.len()
             + self.contracts_trie.len()
             + self.storage_tries.values().map(|leaves| leaves.len()).sum::<usize>()
     }
 
-    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.classes_trie.is_empty()
             && self.contracts_trie.is_empty()

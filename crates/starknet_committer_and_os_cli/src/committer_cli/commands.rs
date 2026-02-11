@@ -35,12 +35,11 @@ pub async fn parse_and_commit(
 
 pub async fn commit(input: FactsDbInputImpl, output_path: String, storage: MapStorage) {
     let mut facts_db = FactsDb::new(storage);
-    let serialized_filled_forest = SerializedForest(
+    let (filled_forest, _deleted_nodes) =
         CommitBlockImpl::commit_block(input, &mut facts_db, &mut NoMeasurements)
             .await
-            .expect("Failed to commit the given block."),
-    );
-    let output = serialized_filled_forest
+            .expect("Failed to commit the given block.");
+    let output = SerializedForest(filled_forest)
         .forest_to_output()
         .await
         .expect("Failed to serialize filled forest");

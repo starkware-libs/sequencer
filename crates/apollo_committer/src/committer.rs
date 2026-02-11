@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -43,6 +43,7 @@ use starknet_committer::db::serde_db_utils::{
     serialize_felt_no_packing,
     DbBlockNumber,
 };
+use starknet_committer::forest::deleted_nodes::DeletedNodes;
 use starknet_committer::forest::filled_forest::FilledForest;
 #[cfg(any(feature = "testing", test))]
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
@@ -84,7 +85,7 @@ impl CommitBlockTrait for CommitBlockMock {
         input: Input<Reader::InitialReadContext>,
         _trie_reader: &mut Reader,
         _measurements: &mut M,
-    ) -> BlockCommitmentResult<FilledForest> {
+    ) -> BlockCommitmentResult<(FilledForest, DeletedNodes)> {
         // Sort class hashes deterministically to ensure all nodes get the same "first" class hash
         let mut sorted_class_hashes: Vec<_> =
             input.state_diff.class_hash_to_compiled_class_hash.keys().collect();
@@ -94,14 +95,24 @@ impl CommitBlockTrait for CommitBlockMock {
             Some(class_hash) => HashOutput(class_hash.0),
             None => HashOutput::ROOT_OF_EMPTY_TREE,
         };
-        Ok(FilledForest {
-            storage_tries: HashMap::new(),
-            contracts_trie: FilledTreeImpl {
-                tree_map: HashMap::new(),
-                root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        Ok((
+            FilledForest {
+                storage_tries: HashMap::new(),
+                contracts_trie: FilledTreeImpl {
+                    tree_map: HashMap::new(),
+                    root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+                },
+                classes_trie: FilledTreeImpl {
+                    tree_map: HashMap::new(),
+                    root_hash: root_class_hash,
+                },
             },
-            classes_trie: FilledTreeImpl { tree_map: HashMap::new(), root_hash: root_class_hash },
-        })
+            DeletedNodes {
+                classes_trie: HashSet::new(),
+                contracts_trie: HashSet::new(),
+                storage_tries: HashMap::new(),
+            },
+        ))
     }
 }
 
@@ -242,7 +253,7 @@ where
         debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
         let mut block_measurements = SingleBlockMeasurements::default();
         block_measurements.start_measurement(Action::EndToEnd);
-        let (filled_forest, global_root) =
+        let (filled_forest, global_root, deleted_nodes) =
             self.commit_state_diff(state_diff, &mut block_measurements).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
@@ -261,7 +272,8 @@ where
         ]);
         info!(
             "For block number {height}, writing filled forest to storage with metadata: \
-             {metadata:?}"
+             {metadata:?}, delete {} nodes",
+            deleted_nodes.len()
         );
         block_measurements.start_measurement(Action::Write);
         let n_write_entries = self
@@ -339,7 +351,7 @@ where
         // Happy flow. Reverts the state diff and returns the computed global root.
         let mut block_measurements = SingleBlockMeasurements::default();
         block_measurements.start_measurement(Action::EndToEnd);
-        let (filled_forest, revert_global_root) =
+        let (filled_forest, revert_global_root, _deleted_nodes) =
             self.commit_state_diff(reversed_state_diff, &mut block_measurements).await?;
 
         // The last committed block is offset-1. After the revert, the last committed block wll be
@@ -428,18 +440,18 @@ where
         &mut self,
         state_diff: ThinStateDiff,
         measurements: &mut M,
-    ) -> CommitterResult<(FilledForest, GlobalRoot)> {
+    ) -> CommitterResult<(FilledForest, GlobalRoot, DeletedNodes)> {
         let input = Input {
             state_diff: state_diff.into(),
             initial_read_context: ForestDB::InitialReadContext::create_empty(),
             config: self.config.reader_config.clone(),
         };
-        let filled_forest =
+        let (filled_forest, deleted_nodes) =
             BlockCommitter::commit_block(input, &mut self.forest_storage, measurements)
                 .await
                 .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();
-        Ok((filled_forest, global_root))
+        Ok((filled_forest, global_root, deleted_nodes))
     }
 
     fn map_internal_error<E: Error>(&self, err: E) -> CommitterError {
