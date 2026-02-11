@@ -4,7 +4,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 
 use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};
-use crate::execution::call_info::{EventSummary, ExecutionSummary};
+use crate::execution::call_info::{EventSummary, ExecutionSummary, ExtendedExecutionResources};
 #[cfg(test)]
 use crate::execution::contract_class::TrackedResource;
 use crate::fee::eth_gas_constants;
@@ -60,7 +60,7 @@ pub struct ComputationResources {
     /// Execution resources split between the transaction itself (`tx_vm_resources`) and OS
     /// overhead (`os_vm_resources`). This enables clean proving gas calculation. See usage in
     /// `get_tx_weights`.
-    pub tx_vm_resources: ExecutionResources,
+    pub tx_vm_resources: ExtendedExecutionResources,
     pub os_vm_resources: ExecutionResources,
     pub n_reverted_steps: usize,
     pub sierra_gas: GasAmount,
@@ -69,7 +69,8 @@ pub struct ComputationResources {
 
 impl ComputationResources {
     pub fn total_vm_resources(&self) -> ExecutionResources {
-        &self.tx_vm_resources + &self.os_vm_resources
+        // TODO(AvivG): update total_vm_resources to return ExtendedExecutionResources.
+        &self.tx_vm_resources.vm_resources + &self.os_vm_resources
     }
 
     pub fn to_gas_vector(

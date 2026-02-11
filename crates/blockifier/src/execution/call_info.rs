@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
+use ark_ff::Zero;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
@@ -241,18 +242,8 @@ impl ExecutionSummary {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Serialize, Eq, PartialEq)]
 pub struct ChargedResources {
-    pub vm_resources: ExecutionResources, // Counted in CairoSteps mode calls.
-    pub gas_consumed: GasAmount,          // Counted in SierraGas mode calls.
-}
-
-impl ChargedResources {
-    pub fn from_execution_resources(resources: ExecutionResources) -> Self {
-        Self { vm_resources: resources, ..Default::default() }
-    }
-
-    pub fn from_gas(gas_consumed: GasAmount) -> Self {
-        Self { gas_consumed, ..Default::default() }
-    }
+    pub vm_resources: ExtendedExecutionResources, // Counted in CairoSteps mode calls.
+    pub gas_consumed: GasAmount,                  // Counted in SierraGas mode calls.
 }
 
 impl Add<&ChargedResources> for &ChargedResources {
@@ -275,9 +266,8 @@ impl AddAssign<&ChargedResources> for ChargedResources {
 
 /// Extended execution resources that include both VM execution resources and opcode counter which
 /// are retrieved separately from the Cairo runner.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ExtendedExecutionResources {
     pub vm_resources: ExecutionResources,
     pub opcode_instance_counter: OpcodeCounterMap,
@@ -315,6 +305,18 @@ impl ExtendedExecutionResources {
         );
 
         cairo_primitives
+    }
+
+    pub fn filter_unused_cairo_primitives(&self) -> ExtendedExecutionResources {
+        ExtendedExecutionResources {
+            vm_resources: self.vm_resources.filter_unused_builtins(),
+            opcode_instance_counter: self
+                .opcode_instance_counter
+                .clone()
+                .into_iter()
+                .filter(|(_, count)| !count.is_zero())
+                .collect(),
+        }
     }
 }
 
@@ -458,8 +460,7 @@ impl CallInfo {
             // Note: the vm_resources and gas_consumed of a call contains the inner call resources,
             // unlike other fields such as events and messages.
             charged_resources: ChargedResources {
-                // TODO(AvivG): update charged_resources to use ExtendedExecutionResources.
-                vm_resources: self.resources.vm_resources.clone(),
+                vm_resources: self.resources.clone(),
                 gas_consumed: GasAmount(self.execution.gas_consumed),
             },
             executed_class_hashes,
