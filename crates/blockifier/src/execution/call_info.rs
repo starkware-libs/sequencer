@@ -280,6 +280,28 @@ pub struct ExtendedExecutionResources {
     pub opcode_instance_counter: OpcodeCounterMap,
 }
 
+impl AddAssign<&ExtendedExecutionResources> for ExtendedExecutionResources {
+    fn add_assign(&mut self, other: &ExtendedExecutionResources) {
+        self.vm_resources += &other.vm_resources;
+        for (opcode, count) in &other.opcode_instance_counter {
+            *self.opcode_instance_counter.entry(opcode.clone()).or_insert(0) += count;
+        }
+    }
+}
+
+impl Add<&ExtendedExecutionResources> for &ExtendedExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn add(self, other: &ExtendedExecutionResources) -> ExtendedExecutionResources {
+        let mut result = ExtendedExecutionResources {
+            vm_resources: self.vm_resources.clone(),
+            opcode_instance_counter: self.opcode_instance_counter.clone(),
+        };
+        result += other;
+        result
+    }
+}
+
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {

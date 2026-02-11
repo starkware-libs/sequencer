@@ -7,7 +7,7 @@ use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
-use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
+use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
@@ -442,10 +442,15 @@ pub fn extract_vm_resources(
 }
 
 pub fn total_vm_resources(
-    tracked_vm_resources_without_inner_calls: &ExecutionResources,
+    tracked_vm_resources_without_inner_calls: &ExtendedExecutionResources,
     inner_calls: &[CallInfo],
-) -> ExecutionResources {
-    tracked_vm_resources_without_inner_calls + &CallInfo::summarize_vm_resources(inner_calls.iter())
+) -> ExtendedExecutionResources {
+    tracked_vm_resources_without_inner_calls
+    // TODO(AvivG): Have CallInfo::summarize_vm_resources return ExtendedExecutionResources.
+        + &ExtendedExecutionResources {
+            vm_resources: CallInfo::summarize_vm_resources(inner_calls.iter()),
+            opcode_instance_counter: Default::default(),
+        }
 }
 
 pub fn finalize_execution(
@@ -472,8 +477,7 @@ pub fn finalize_execution(
     syscall_handler.finalize();
 
     let vm_resources = total_vm_resources(
-        // TODO(AvivG): have total_vm_resources accept ExtendedExecutionResources.
-        &tracked_vm_resources_without_inner_calls.vm_resources,
+        tracked_vm_resources_without_inner_calls,
         &syscall_handler.base.inner_calls,
     );
 
@@ -491,7 +495,8 @@ pub fn finalize_execution(
         },
         inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
-        resources: vm_resources,
+        // TODO(AvivG): replace CallInfo::resources type with ExtendedExecutionResources.
+        resources: vm_resources.vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
         // TODO(AvivG): retrieve both builtins and opcode counters.
         builtin_counters: cairo_primitive_counter_map(
