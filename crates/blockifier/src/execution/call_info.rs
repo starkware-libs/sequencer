@@ -272,6 +272,14 @@ impl AddAssign<&ChargedResources> for ChargedResources {
     }
 }
 
+/// Extended execution resources that include both VM execution resources and opcode counter which
+/// are retrieved separately from the Cairo runner.
+#[derive(Default)]
+pub struct ExtendedExecutionResources {
+    pub vm_resources: ExecutionResources,
+    pub opcode_instance_counter: OpcodeCounterMap,
+}
+
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
@@ -301,6 +309,8 @@ impl From<OpcodeName> for CairoPrimitiveName {
 }
 
 pub type CairoPrimitiveCounterMap = BTreeMap<CairoPrimitiveName, usize>;
+
+pub type OpcodeCounterMap = BTreeMap<OpcodeName, usize>;
 
 pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
 
