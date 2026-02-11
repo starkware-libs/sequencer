@@ -179,6 +179,7 @@ impl TransactionConverterTrait for TransactionConverter {
         &self,
         tx: InternalRpcTransaction,
     ) -> TransactionConverterResult<RpcTransaction> {
+        let tx_hash = tx.tx_hash;
         match tx.tx {
             InternalRpcTransactionWithoutTxHash::Invoke(tx) => {
                 // We expect the proof to be available here because it has already been verified
@@ -186,7 +187,14 @@ impl TransactionConverterTrait for TransactionConverter {
                 let proof = if tx.proof_facts.is_empty() {
                     Proof::default()
                 } else {
-                    self.get_proof(&tx.proof_facts).await?
+                    let start_time = Instant::now();
+                    let proof = self.get_proof(&tx.proof_facts).await?;
+                    let duration = start_time.elapsed();
+                    info!(
+                        "Getting the proof from the proof manager took: {duration:?} for tx hash: \
+                         {tx_hash:?}"
+                    );
+                    proof
                 };
 
                 Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
