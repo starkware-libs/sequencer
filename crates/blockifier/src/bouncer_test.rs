@@ -32,6 +32,7 @@ use crate::context::BlockContext;
 use crate::execution::call_info::{
     cairo_primitive_counter_map,
     CairoPrimitiveCounterMap,
+    CairoPrimitiveName,
     ExecutionSummary,
 };
 use crate::fee::resources::{ComputationResources, TransactionResources};
@@ -679,14 +680,14 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
                 .bouncer_config
                 .builtin_weights
                 .gas_costs
-                .get_builtin_gas_cost(name)
+                .get_cairo_primitive_gas_cost(&CairoPrimitiveName::Builtin(*name))
                 .unwrap_or_else(|_| panic!("Builtin name {:?} is not supported in the bouncer weights.", name));
             let stone_gas = block_context
                 .versioned_constants
                 .os_constants
                 .gas_costs
                 .builtins
-                .get_builtin_gas_cost(name)
+                .get_cairo_primitive_gas_cost(&CairoPrimitiveName::Builtin(*name))
                 .unwrap();
 
             let stwo_total = stwo_gas.checked_mul(u64_from_usize(*count)).expect("overflow");
