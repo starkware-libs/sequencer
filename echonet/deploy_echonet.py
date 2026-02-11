@@ -17,10 +17,15 @@ from __future__ import annotations
 import argparse
 import base64
 import logging
+import select
 import shlex
 import shutil
+import socket
 import subprocess
 import tarfile
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from constants import ECHONET_KEYS_FILENAME
@@ -139,6 +144,68 @@ def _namespace_args(namespace: str | None) -> list[str]:
     return ["-n", namespace] if namespace else []
 
 
+def _wait_for_port_forward_ready(proc: subprocess.Popen[str], timeout_seconds: float = 8.0) -> str:
+    """
+    Best-effort: wait until kubectl prints "Forwarding from ..." (or exits).
+
+    Returns a short captured snippet of kubectl output, useful for debugging failures.
+    """
+    if proc.stdout is None:
+        return ""
+
+    captured: list[str] = []
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            snippet = "\n".join(captured).strip()
+            raise RuntimeError(f"port-forward process exited early.\n{snippet}".rstrip())
+
+        # Non-blocking read: capture any available lines so kubectl errors are visible.
+        rlist, _w, _x = select.select([proc.stdout], [], [], 0.15)
+        if not rlist:
+            continue
+
+        line = proc.stdout.readline()
+        if not line:
+            continue
+
+        s = line.rstrip("\n")
+        if s:
+            captured.append(s)
+            # Keep the last N lines to avoid unbounded memory.
+            if len(captured) > 25:
+                captured = captured[-25:]
+
+        if "Forwarding from" in s:
+            return "\n".join(captured).strip()
+
+    # Timed out, but the process is still alive: allow it to run and stream output.
+    return "\n".join(captured).strip()
+
+
+def _probe_http_ok(url: str, timeout_seconds: float = 1.0) -> bool:
+    """
+    Best-effort HTTP probe using the stdlib.
+
+    Returns True on any 2xx response.
+    """
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=timeout_seconds) as resp:
+            code = getattr(resp, "status", None)
+            return bool(code) and 200 <= int(code) < 300
+    except (urllib.error.HTTPError,) as e:
+        # Endpoint exists but returned non-2xx.
+        try:
+            return 200 <= int(e.code) < 300
+        except Exception:
+            return False
+    except (urllib.error.URLError, socket.timeout, ConnectionError, OSError):
+        return False
+    except Exception:
+        return False
+
+
 def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
     """
     Copy the non-secret echonet keys JSON into the kustomize generated/ directory.
@@ -175,6 +242,23 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Delete existing resources first (kubectl delete -k).",
     )
+    parser.add_argument(
+        "-n",
+        "--namespace",
+        default=None,
+        help="Kubernetes namespace (default: current context namespace).",
+    )
+    parser.add_argument(
+        "--port-forward",
+        action="store_true",
+        help="After rollout, run `kubectl port-forward svc/echonet` and keep it in the foreground.",
+    )
+    parser.add_argument(
+        "--port-forward-local-port",
+        type=int,
+        default=18080,
+        help="Local port for --port-forward (default: 18080).",
+    )
     args = parser.parse_args(argv)
 
     # Paths
@@ -196,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
     generated_keys_path = generated_dir / ECHONET_KEYS_FILENAME
     _copy_generated_keys(keys_in_repo=keys_in_repo, generated_path=generated_keys_path)
 
-    namespace_args = _namespace_args(None)
+    namespace_args = _namespace_args(args.namespace)
 
     if args.delete_first:
         logger.info("Deleting existing resources...")
@@ -226,6 +310,89 @@ def main(argv: list[str] | None = None) -> int:
     # Wait for rollout to complete.
     logger.info("Waiting for rollout status deployment/echonet...")
     _run(["kubectl", *namespace_args, "rollout", "status", "deployment/echonet"])
+
+    if args.port_forward:
+        local_port = int(args.port_forward_local_port)
+        if local_port <= 0 or local_port > 65535:
+            raise ValueError(f"Invalid --port-forward-local-port: {local_port}")
+
+        json_url = f"http://127.0.0.1:{local_port}/echonet/report"
+        ui_url = f"http://127.0.0.1:{local_port}/echonet/report/ui"
+
+        cmd = [
+            "kubectl",
+            *namespace_args,
+            "port-forward",
+            "svc/echonet",
+            f"{local_port}:80",
+        ]
+        logger.info(f"Starting port-forward (Ctrl+C to stop): {shlex.join(cmd)}")
+        logger.info("Waiting for echonet HTTP server to accept connections...")
+
+        deadline = time.time() + 90.0
+        proc: subprocess.Popen[str] | None = None
+        captured = ""
+
+        try:
+            while True:
+                if time.time() > deadline:
+                    raise RuntimeError(
+                        "Timed out waiting for echonet HTTP to become ready. "
+                        f"Last known URL: {json_url}"
+                    )
+
+                # (Re)start port-forward.
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+
+                try:
+                    captured = _wait_for_port_forward_ready(proc)
+                except Exception as e:
+                    # Surface kubectl output and retry briefly (common: app not ready yet).
+                    logger.warning(str(e))
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                    time.sleep(0.4)
+                    continue
+
+                # Now that the tunnel is up, probe the HTTP endpoint until it responds.
+                while time.time() <= deadline:
+                    if proc.poll() is not None:
+                        # Port-forward died (e.g., because the target port wasn't listening yet).
+                        break
+                    if _probe_http_ok(json_url, timeout_seconds=1.0):
+                        # Ready!
+                        logger.info(f"Open: {ui_url}")
+                        if captured:
+                            print(captured)
+                        assert proc.stdout is not None
+                        for line in proc.stdout:
+                            print(line.rstrip())
+                        return 0
+                    time.sleep(0.5)
+
+                # Not ready yet; restart port-forward.
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=5)
+                    except Exception:
+                        proc.kill()
+                time.sleep(0.4)
+        except KeyboardInterrupt:
+            logger.info("Stopping port-forward...")
+            return 0
+        finally:
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    proc.kill()
 
     logger.info("Done.")
     return 0

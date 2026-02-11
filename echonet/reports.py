@@ -13,7 +13,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable, Sequence, TypeVar
+from typing import Callable, Literal, Sequence, TypeVar
 
 import requests
 
@@ -360,8 +360,11 @@ class RevertClassifier:
 
 
 class RevertComparisonTextReport(BaseRevertComparisonTextReport):
-    def __init__(self, classifier: RevertClassifier) -> None:
+    def __init__(
+        self, classifier: RevertClassifier, mode: Literal["grouped", "flat"] = "grouped"
+    ) -> None:
         self._classifier = classifier
+        self._mode = mode
 
     def _render_section(self, title: str, reverts: dict[str, RevertErrorInfo]) -> list[str]:
         grouped = self._classifier.group(reverts)
@@ -371,11 +374,26 @@ class RevertComparisonTextReport(BaseRevertComparisonTextReport):
             lines.append("(none)")
             return lines
 
-        for error_type, txs in sorted(grouped.items(), key=lambda kv: (-len(kv[1]), kv[0])):
-            lines.append("")
-            lines.append(f"-- {error_type} ({len(txs)} txs, {_format_percent(len(txs), total)}) --")
-            for tx_hash, src_bn, revert_reason in sorted(txs, key=lambda x: x[1]):  # src_bn
-                lines.append(f"bn={str(src_bn)} {tx_hash}: {revert_reason}")
+        if self._mode == "grouped":
+            for error_type, txs in sorted(grouped.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+                lines.append("")
+                lines.append(
+                    f"-- {error_type} ({len(txs)} txs, {_format_percent(len(txs), total)}) --"
+                )
+                for tx_hash, src_bn, revert_reason in sorted(txs, key=lambda x: x[1]):  # src_bn
+                    lines.append(f"bn={str(src_bn)} {tx_hash}: {revert_reason}")
+            return lines
+
+        # Flat view (not grouped): still include the computed group in brackets, and sort by src block.
+        flat_rows: list[tuple[str, int, str, str]] = [
+            (tx_hash, src_bn, revert_reason, error_type)
+            for error_type, txs in grouped.items()
+            for (tx_hash, src_bn, revert_reason) in txs
+        ]
+        for tx_hash, src_bn, revert_reason, error_type in sorted(
+            flat_rows, key=lambda x: (x[1], x[0])  # src_bn, tx_hash
+        ):
+            lines.append(f"bn={str(src_bn)} {tx_hash} [{error_type}]: {revert_reason}")
         return lines
 
 
@@ -383,8 +401,8 @@ class RawRevertComparisonTextReport(BaseRevertComparisonTextReport):
     """
     Render the revert comparison without classification and without shortening messages.
 
-    This is intended for `--compare-reverts`, where we want to additionally show
-    the full original revert errors after the classified summary.
+    This is intended for revert-comparison CLI commands, where we want to additionally
+    show the full original revert errors after the classified summary.
     """
 
     def _render_section(self, title: str, reverts: dict[str, RevertErrorInfo]) -> list[str]:
@@ -472,21 +490,24 @@ def print_snapshot(base_url: str) -> None:
     print(SnapshotTextReport(SnapshotModel.from_dict(data)).render(), end="")
 
 
-def compare_reverts(base_url: str) -> None:
+def compare_reverts(
+    base_url: str, classified_mode: Literal["grouped", "flat"], *, include_raw: bool = True
+) -> None:
     data = ReportHttpClient(base_url).fetch_report_snapshot()
     s = SnapshotModel.from_dict(data)
-    classified = RevertComparisonTextReport(classifier=RevertClassifier()).render(
-        mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
-    )
-    raw = RawRevertComparisonTextReport().render(
-        mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
-    )
+    classified = RevertComparisonTextReport(
+        classifier=RevertClassifier(), mode=classified_mode
+    ).render(mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet)
 
     print("=== CLASSIFIED REVERTS (shortened) ===")
     print(classified, end="")
-    print("")
-    print("=== FULL REVERTS (raw) ===")
-    print(raw, end="")
+    if include_raw:
+        raw = RawRevertComparisonTextReport().render(
+            mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
+        )
+        print("")
+        print("=== FULL REVERTS (raw) ===")
+        print(raw, end="")
 
 
 def show_block(base_url: str, block_number: int, kind: BlockDumpKind) -> None:
@@ -502,10 +523,23 @@ def main() -> None:
         action="store_true",
         help="Fetch and print the in-memory tx snapshot from the running app",
     )
-    parser.add_argument(
+    compare_reverts_group = parser.add_mutually_exclusive_group()
+    compare_reverts_group.add_argument(
         "--compare-reverts",
-        action="store_true",
-        help="Compare revert errors from in-memory state (mainnet vs echonet). Prints classified + full raw sections.",
+        "--reverts",
+        "--r",
+        dest="compare_reverts_mode",
+        action="store_const",
+        const="flat",
+        help="Compare revert errors (mainnet vs echonet). Flat view sorted by block number (still prints group in brackets) + full raw section.",
+    )
+    compare_reverts_group.add_argument(
+        "--compare-reverts-grouped",
+        "--crg",
+        dest="compare_reverts_mode",
+        action="store_const",
+        const="grouped",
+        help="Compare revert errors (mainnet vs echonet). Grouped classified view + full raw section.",
     )
     parser.add_argument(
         "--base-url",
@@ -513,7 +547,9 @@ def main() -> None:
         help="Echonet base URL (default: http://127.0.0.1).",
     )
     parser.add_argument(
-        "--all", action="store_true", help="Run both snapshot and revert comparison"
+        "--all",
+        action="store_true",
+        help="Run snapshot + classified revert comparison (shortened only; no full raw errors)",
     )
     parser.add_argument(
         "--show-block", type=int, help="Block number to fetch from the in-memory store"
@@ -527,16 +563,19 @@ def main() -> None:
     args = parser.parse_args()
 
     # If no explicit action flags provided, run --all by default.
-    if not (args.snapshot or args.compare_reverts or args.all or args.show_block):
+    if not (args.snapshot or args.compare_reverts_mode or args.all or args.show_block):
         args.all = True
 
     if args.snapshot or args.all:
         print_snapshot(args.base_url)
         if not args.all:
             return
+        # For --all, keep output concise: print only the classified (shortened) view.
+        compare_reverts(args.base_url, classified_mode="grouped", include_raw=False)
+        return
 
-    if args.compare_reverts:
-        compare_reverts(args.base_url)
+    if args.compare_reverts_mode:
+        compare_reverts(args.base_url, classified_mode=args.compare_reverts_mode)
         return
 
     if args.show_block:

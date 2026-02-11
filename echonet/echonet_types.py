@@ -104,6 +104,12 @@ class SequencerGatewayEndpoints:
     """Sequencer gateway endpoint paths (relative to the gateway base URL)."""
 
     add_transaction: str = "/gateway/add_transaction"
+    # Optional endpoint for out-of-band tx timestamp injection.
+    #
+    # Echonet can POST a JSON mapping of `{tx_hash: timestamp_seconds}` to the sequencer,
+    # using the same base URL as `add_transaction`. The sequencer side is expected to expose
+    # this route, but until then we keep it blank (disabled).
+    tx_timestamp: str = "/gateway/update_timestamps"
 
 
 @dataclass(frozen=True, slots=True)
