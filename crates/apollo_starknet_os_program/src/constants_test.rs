@@ -9,6 +9,8 @@ use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
+use crate::CONSTANTS_CAIRO_PATH;
+
 fn selector_to_hex(selector: &EntryPointSelector) -> String {
     format!("{:#?}", selector.0)
 }
@@ -243,6 +245,7 @@ fn test_os_constants() {
     // Generate `constants.cairo` from the current OS constants.
     let generated = generate_constants_file();
     let path = PathBuf::from(compile_time_cargo_manifest_dir!())
-        .join("src/cairo/starkware/starknet/core/os/constants.cairo");
+        .join("src/cairo")
+        .join(CONSTANTS_CAIRO_PATH);
     expect_file![path].assert_eq(&generated);
 }
