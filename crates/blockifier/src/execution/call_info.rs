@@ -211,7 +211,7 @@ impl ExecutionSummary {
         use crate::fee::resources::{ComputationResources, MessageResources};
 
         let computation_resources = ComputationResources {
-            tx_vm_resources: self.charged_resources.extended_vm_resources.vm_resources,
+            tx_extended_vm_resources: self.charged_resources.extended_vm_resources.vm_resources,
             os_vm_resources: ExecutionResources::default(),
             n_reverted_steps: 0,
             sierra_gas: self.charged_resources.gas_consumed,
@@ -304,6 +304,18 @@ impl ExtendedExecutionResources {
         );
 
         cairo_primitives
+    }
+
+    pub fn filter_unused_cairo_primitives(&self) -> ExtendedExecutionResources {
+        ExtendedExecutionResources {
+            vm_resources: self.vm_resources.filter_unused_builtins(),
+            opcode_instance_counter: self
+                .opcode_instance_counter
+                .clone()
+                .into_iter()
+                .filter(|(_, count)| *count > 0)
+                .collect(),
+        }
     }
 }
 
