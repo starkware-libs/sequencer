@@ -271,7 +271,7 @@ pub fn finalize_execution(
         vm_resources: vm_resources_without_inner_calls,
         opcode_instance_counter: Default::default(),
     };
-    let vm_resources = &vm_resources_without_inner_calls.vm_resources
+    let vm_resources = &vm_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
 
     Ok(CallInfo {
