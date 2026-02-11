@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use apollo_committer_config::config::CommitterConfig;
@@ -21,6 +21,7 @@ use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::MeasurementsTrait;
 use starknet_committer::db::forest_trait::ForestReader;
 use starknet_committer::db::mock_forest_storage::MockForestStorage;
+use starknet_committer::forest::deleted_nodes::DeletedNodes;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia_storage::map_storage::MapStorage;
@@ -38,7 +39,7 @@ impl CommitBlockTrait for CommitBlockMock {
         input: Input<Reader::InitialReadContext>,
         _trie_reader: &mut Reader,
         _measurements: &mut M,
-    ) -> BlockCommitmentResult<FilledForest> {
+    ) -> BlockCommitmentResult<(FilledForest, DeletedNodes)> {
         // Sort class hashes deterministically to ensure all nodes get the same "first" class hash
         let mut sorted_class_hashes: Vec<_> =
             input.state_diff.class_hash_to_compiled_class_hash.keys().collect();
@@ -48,14 +49,24 @@ impl CommitBlockTrait for CommitBlockMock {
             Some(class_hash) => HashOutput(class_hash.0),
             None => HashOutput::ROOT_OF_EMPTY_TREE,
         };
-        Ok(FilledForest {
-            storage_tries: HashMap::new(),
-            contracts_trie: FilledTreeImpl {
-                tree_map: HashMap::new(),
-                root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+        Ok((
+            FilledForest {
+                storage_tries: HashMap::new(),
+                contracts_trie: FilledTreeImpl {
+                    tree_map: HashMap::new(),
+                    root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+                },
+                classes_trie: FilledTreeImpl {
+                    tree_map: HashMap::new(),
+                    root_hash: root_class_hash,
+                },
             },
-            classes_trie: FilledTreeImpl { tree_map: HashMap::new(), root_hash: root_class_hash },
-        })
+            DeletedNodes {
+                classes_trie: HashSet::new(),
+                contracts_trie: HashSet::new(),
+                storage_tries: HashMap::new(),
+            },
+        ))
     }
 }
 

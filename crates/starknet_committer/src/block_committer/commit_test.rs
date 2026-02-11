@@ -127,7 +127,7 @@ async fn test_commit_two_consecutive_blocks<Db: ForestReader + ForestWriter>(
         initial_read_context,
         config: ReaderConfig::default(),
     };
-    let filled_forest =
+    let (filled_forest, _deleted_nodes) =
         CommitBlockImpl::commit_block(input, &mut db, &mut NoMeasurements).await.unwrap();
     db.write(&filled_forest).await.unwrap();
 
@@ -137,7 +137,7 @@ async fn test_commit_two_consecutive_blocks<Db: ForestReader + ForestWriter>(
         config: ReaderConfig::default(),
     };
 
-    let filled_forest =
+    let (filled_forest, _deleted_nodes) =
         CommitBlockImpl::commit_block(input, &mut db, &mut NoMeasurements).await.unwrap();
     db.write(&filled_forest).await.unwrap();
 
