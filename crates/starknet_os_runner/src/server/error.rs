@@ -25,6 +25,18 @@ pub fn unsupported_tx_version(data: String) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(61, "The transaction version is not supported", Some(data))
 }
 
+/// Service is busy — too many concurrent proving requests (code -32005).
+pub fn service_busy(max_concurrent: usize) -> ErrorObjectOwned {
+    ErrorObjectOwned::owned(
+        -32005,
+        "Service is busy",
+        Some(format!(
+            "The proving service is at capacity ({max_concurrent} concurrent request(s)). Please \
+             retry later."
+        )),
+    )
+}
+
 /// Creates an internal server error with the given message.
 pub fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
     ErrorObjectOwned::owned(InternalError.code(), INTERNAL_ERROR_MSG, Some(err.to_string()))
