@@ -13,12 +13,7 @@ use starknet_api::hash::StarkHash;
 
 use super::call_info::StorageAccessTracker;
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
-use crate::execution::call_info::{
-    cairo_primitive_counter_map,
-    CallExecution,
-    CallInfo,
-    ExtendedExecutionResources,
-};
+use crate::execution::call_info::{CallExecution, CallInfo, ExtendedExecutionResources};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
@@ -30,7 +25,6 @@ use crate::execution::entry_point::{
 use crate::execution::errors::{PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{read_execution_retdata, Args, ReadOnlySegments};
 use crate::state::state_api::State;
-use crate::transaction::objects::ExecutionResourcesTraits;
 
 pub struct VmExecutionContext<'a> {
     pub runner: CairoRunner,
@@ -298,9 +292,7 @@ pub fn finalize_execution(
             accessed_storage_keys: syscall_handler.accessed_keys,
             ..Default::default()
         },
-        builtin_counters: cairo_primitive_counter_map(
-            vm_resources_without_inner_calls.vm_resources.prover_builtins(),
-        ),
+        builtin_counters: vm_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler.syscalls_usage,
     })
 }
