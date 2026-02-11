@@ -13,13 +13,7 @@ use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::GasCosts;
-use crate::execution::call_info::{
-    cairo_primitive_counter_map,
-    CallExecution,
-    CallInfo,
-    ExtendedExecutionResources,
-    Retdata,
-};
+use crate::execution::call_info::{CallExecution, CallInfo, ExtendedExecutionResources, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     EntryPointExecutionContext,
@@ -37,7 +31,6 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
-use crate::transaction::objects::ExecutionResourcesTraits;
 
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]
@@ -467,17 +460,17 @@ pub fn finalize_execution(
 
     // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
-    let vm_resources_without_inner_calls = extract_vm_resources(&runner, &syscall_handler)?;
+    let extended_resources_without_inner_calls = extract_vm_resources(&runner, &syscall_handler)?;
 
-    let tracked_vm_resources_without_inner_calls = match tracked_resource {
-        TrackedResource::CairoSteps => &vm_resources_without_inner_calls,
+    let tracked_extended_resources_without_inner_calls = match tracked_resource {
+        TrackedResource::CairoSteps => &extended_resources_without_inner_calls,
         TrackedResource::SierraGas => &ExtendedExecutionResources::default(),
     };
 
     syscall_handler.finalize();
 
-    let vm_resources = total_vm_resources(
-        tracked_vm_resources_without_inner_calls,
+    let extended_resources = total_vm_resources(
+        tracked_extended_resources_without_inner_calls,
         &syscall_handler.base.inner_calls,
     );
 
@@ -496,12 +489,9 @@ pub fn finalize_execution(
         inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
         // TODO(AvivG): replace CallInfo::resources type with ExtendedExecutionResources.
-        resources: vm_resources.vm_resources,
+        resources: extended_resources.vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
-        // TODO(AvivG): retrieve both builtins and opcode counters.
-        builtin_counters: cairo_primitive_counter_map(
-            vm_resources_without_inner_calls.vm_resources.prover_builtins(),
-        ),
+        builtin_counters: extended_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler_base.syscalls_usage,
     })
 }
