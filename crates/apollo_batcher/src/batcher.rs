@@ -72,7 +72,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, GlobalRoot, Nonce};
+use starknet_api::core::{ContractAddress, GlobalRoot, Nonce, StateDiffCommitment};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
@@ -723,19 +723,12 @@ impl Batcher {
         )
         .await?;
 
-        self.commitment_manager
-            .add_commitment_task(
-                height,
-                state_diff,
-                optional_state_diff_commitment,
-                &self.config.static_config.first_block_with_partial_block_hash,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
-
-        self.get_commitment_results_and_write_to_storage().await?;
+        self.write_commitment_results_and_add_new_task(
+            height,
+            state_diff,
+            optional_state_diff_commitment,
+        )
+        .await?;
 
         LAST_SYNCED_BLOCK_HEIGHT.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(
@@ -790,19 +783,12 @@ impl Batcher {
         )
         .await?;
 
-        self.commitment_manager
-            .add_commitment_task(
-                height,
-                state_diff.clone(), // TODO(Nimrod): Remove the clone here.
-                Some(state_diff_commitment),
-                &self.config.static_config.first_block_with_partial_block_hash,
-                self.storage_reader.clone(),
-                &mut self.storage_writer,
-            )
-            .await
-            .expect("The commitment offset unexpectedly doesn't match the given block height.");
-
-        self.get_commitment_results_and_write_to_storage().await?;
+        self.write_commitment_results_and_add_new_task(
+            height,
+            state_diff.clone(), // TODO(Nimrod): Remove the clone here.
+            Some(state_diff_commitment),
+        )
+        .await?;
 
         let execution_infos = block_execution_artifacts
             .execution_data
@@ -1261,7 +1247,12 @@ impl Batcher {
             })?
             .ok_or(BatcherError::BlockHashNotFound(block_number))
     }
-    async fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
+    async fn write_commitment_results_and_add_new_task(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        optional_state_diff_commitment: Option<StateDiffCommitment>,
+    ) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
                 &self.config.static_config.first_block_with_partial_block_hash,
@@ -1272,7 +1263,19 @@ impl Batcher {
             .map_err(|err| {
                 error!("Failed to get commitment results and write to storage: {err}");
                 BatcherError::InternalError
-            })
+            })?;
+        self.commitment_manager
+            .add_commitment_task(
+                height,
+                state_diff,
+                optional_state_diff_commitment,
+                &self.config.static_config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
+            .await
+            .expect("The commitment offset unexpectedly doesn't match the given block height.");
+        Ok(())
     }
 }
 
