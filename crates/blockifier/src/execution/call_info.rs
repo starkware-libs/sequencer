@@ -274,14 +274,34 @@ impl AddAssign<&ChargedResources> for ChargedResources {
 
 /// Extended execution resources that include both VM execution resources and opcode counter which
 /// are retrieved separately from the Cairo runner.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct ExtendedExecutionResources {
     pub vm_resources: ExecutionResources,
     pub opcode_instance_counter: OpcodeCounterMap,
 }
 
+impl AddAssign<&ExtendedExecutionResources> for ExtendedExecutionResources {
+    fn add_assign(&mut self, other: &ExtendedExecutionResources) {
+        self.vm_resources += &other.vm_resources;
+        for (opcode, count) in other.opcode_instance_counter.iter() {
+            *self.opcode_instance_counter.entry(*opcode).or_insert(0) += count;
+        }
+    }
+}
+
+impl Add<&ExtendedExecutionResources> for &ExtendedExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn add(self, other: &ExtendedExecutionResources) -> ExtendedExecutionResources {
+        let mut new = self.clone();
+        new.add_assign(other);
+
+        new
+    }
+}
+
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
     Blake,
 }
