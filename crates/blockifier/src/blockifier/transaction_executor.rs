@@ -130,7 +130,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         config: TransactionExecutorConfig,
         worker_pool: Option<Arc<WorkerPool<CachedState<S>>>>,
     ) -> Self {
-        let bouncer_config = block_context.bouncer_config.clone();
+        let bouncer_config = block_context.bouncer_config;
         // Note: the state might not be empty even at this point; it is the creator's
         // responsibility to tune the bouncer according to pre and post block process.
         Self {

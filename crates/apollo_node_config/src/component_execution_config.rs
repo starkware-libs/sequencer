@@ -27,7 +27,7 @@ pub trait ExpectedComponentConfig {
     fn is_running_locally(&self) -> bool;
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReactiveComponentExecutionMode {
     Disabled,
     Remote,
@@ -47,7 +47,7 @@ impl ExpectedComponentConfig for ReactiveComponentExecutionMode {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActiveComponentExecutionMode {
     Disabled,
     Enabled,

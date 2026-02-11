@@ -20,7 +20,7 @@ pub struct BlockifierReexecutionCliArgs {
     pub command: Command,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
 pub enum SupportedChainId {
     Mainnet,
     Testnet,

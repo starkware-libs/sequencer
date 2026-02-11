@@ -138,7 +138,7 @@ impl PyBlockExecutor {
             next_block_info.try_into()?,
             self.chain_info.clone(),
             self.versioned_constants.clone(),
-            self.bouncer_config.clone(),
+            self.bouncer_config,
         );
         let next_block_number = block_context.block_info().block_number;
 

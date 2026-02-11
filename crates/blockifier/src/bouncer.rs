@@ -70,7 +70,7 @@ macro_rules! impl_field_wise_ops {
     };
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
     pub builtin_weights: BuiltinWeights,
