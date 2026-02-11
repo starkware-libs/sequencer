@@ -378,8 +378,7 @@ fn test_execute_txs_bouncing(#[case] concurrency_enabled: bool, #[case] external
     assert_eq!(remaining_tx_results.len(), 0);
 
     // Reset the bouncer and add the remaining transactions.
-    tx_executor.bouncer =
-        Mutex::new(Bouncer::new(tx_executor.block_context.bouncer_config.clone())).into();
+    tx_executor.bouncer = Mutex::new(Bouncer::new(tx_executor.block_context.bouncer_config)).into();
     let remaining_tx_results = tx_executor.execute_txs(remaining_txs, None);
 
     assert_eq!(remaining_tx_results.len(), 2);

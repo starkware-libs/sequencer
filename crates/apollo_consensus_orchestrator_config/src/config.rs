@@ -20,7 +20,7 @@ use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
 use validator::Validate;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum DeploymentMode {
     // Production mode.

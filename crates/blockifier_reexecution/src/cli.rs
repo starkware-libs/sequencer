@@ -20,7 +20,7 @@ pub struct BlockifierReexecutionCliArgs {
     pub command: Command,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(clap::ValueEnum, Clone, Copy, Debug)]
 pub enum SupportedChainId {
     Mainnet,
     Testnet,
@@ -60,7 +60,7 @@ pub struct RpcArgs {
 impl RpcArgs {
     pub fn parse_chain_id(&self) -> ChainId {
         if let Some(chain_id) = &self.chain_id {
-            return chain_id.clone().into();
+            return (*chain_id).into();
         }
         if let Some(hex_str) = &self.custom_chain_id {
             return chain_id_from_hex_str(hex_str).expect("Failed to parse hex chain id");

@@ -15,7 +15,7 @@ use crate::db::serde_db_utils::{deserialize_felt_no_packing, serialize_felt_no_p
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum CommitterLeafPrefix {
     StorageLeaf,
     StateTreeLeaf,

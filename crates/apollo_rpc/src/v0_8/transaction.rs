@@ -868,7 +868,7 @@ pub struct L1HandlerTransactionOutput {
 // Note: This is not the same as the Builtins in starknet_api, the serialization of SegmentArena is
 // different.
 // TODO(yair): remove this once a newer version of the API is published.
-#[derive(Debug, Clone, Eq, Hash, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Eq, Hash, PartialEq, Deserialize, Serialize, PartialOrd, Ord)]
 pub enum Builtin {
     #[serde(rename = "range_check_builtin_applications")]
     RangeCheck,
@@ -954,7 +954,7 @@ impl Add for ExecutionResources {
                 // and not as the trait Add.
                 Some(v_ref) => *v_ref = (*v_ref).saturating_add((*v).into()),
                 None => {
-                    self.computation_resources.builtin_instance_counter.insert(k.clone(), *v);
+                    self.computation_resources.builtin_instance_counter.insert(*k, *v);
                 }
             }
         }

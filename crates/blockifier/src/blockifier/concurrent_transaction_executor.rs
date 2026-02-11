@@ -48,7 +48,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             &block_context.versioned_constants.os_constants,
         )?;
 
-        let bouncer_config = block_context.bouncer_config.clone();
+        let bouncer_config = block_context.bouncer_config;
         let worker_executor = Arc::new(WorkerExecutor::initialize(
             block_state,
             vec![],
@@ -70,7 +70,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         worker_pool: Arc<WorkerPool<CachedState<S>>>,
         block_deadline: Option<Instant>,
     ) -> Self {
-        let bouncer_config = block_context.bouncer_config.clone();
+        let bouncer_config = block_context.bouncer_config;
         let worker_executor = Arc::new(WorkerExecutor::initialize(
             block_state,
             vec![],

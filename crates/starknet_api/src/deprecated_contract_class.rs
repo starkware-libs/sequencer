@@ -96,7 +96,7 @@ pub enum L1HandlerType {
 }
 
 /// A function state mutability.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub enum FunctionStateMutability {
     #[serde(rename = "view")]
     #[default]
