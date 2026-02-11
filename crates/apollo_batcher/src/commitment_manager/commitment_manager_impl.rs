@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{
@@ -13,12 +14,12 @@ use apollo_committer_types::committer_types::{
     RevertBlockRequest,
 };
 use apollo_committer_types::communication::{CommitterRequestLabelValue, SharedCommitterClient};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
     PartialBlockHashComponents,
 };
-use starknet_api::core::StateDiffCommitment;
+use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
@@ -59,6 +60,12 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) commitment_task_offset: BlockNumber,
     pub(crate) state_committer: S,
     pub(crate) task_timer: TaskTimer,
+    /// Global roots of blocks that were received from the state sync component. Used to verify the
+    /// correctness of new global roots produced by the committer.
+    pub(crate) synced_global_roots: HashMap<BlockNumber, GlobalRoot>,
+    /// Block hashes of blocks that were received from the state sync component. Used to verify the
+    /// correctness of the block hashes produced by the commitment manager.
+    pub(crate) synced_block_hashes: HashMap<BlockNumber, BlockHash>,
 }
 
 impl<S: StateCommitterTrait> CommitmentManager<S> {
@@ -252,12 +259,14 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             };
 
             // Get the final commitment.
-            let FinalBlockCommitment { height, block_hash, global_root } =
-                Self::finalize_commitment_output(
-                    storage_reader.clone(),
-                    commitment_task_output,
-                    should_finalize_block_hash,
-                )?;
+            let final_commitment = Self::finalize_commitment_output(
+                storage_reader.clone(),
+                commitment_task_output,
+                should_finalize_block_hash,
+            )?;
+
+            self.validate_commitment_result(&final_commitment);
+            let FinalBlockCommitment { height, block_hash, global_root } = final_commitment;
 
             // Verify the first new block hash matches the configured block hash.
             if let Some(FirstBlockWithPartialBlockHash {
@@ -298,6 +307,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         storage_writer: &mut Box<W>,
     ) -> CommitmentManagerResult<()> {
         let commitment_results = self.get_commitment_results().await;
+
         self.write_commitment_results_to_storage(
             commitment_results,
             first_block_with_partial_block_hash,
@@ -309,6 +319,43 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     }
 
     // Private methods.
+
+    /// Verifies that the new global root computed by the committer is consistent with the
+    /// global root of blocks received from the state sync component.
+    fn validate_commitment_result(&mut self, commitment_result: &FinalBlockCommitment) {
+        let global_root = commitment_result.global_root;
+
+        // We skip validation for too old blocks, as both the block hash and global root may be
+        // inconsistent with the current computation (e.g. blocks in the pre-classes era).
+        if let Some(computed_block_hash) = commitment_result.block_hash {
+            let synced_block_hash = self.synced_block_hashes.get(&commitment_result.height);
+            // If the batcher hasn't restarted since syncing on block(n+1) up to finalizing
+            // commitment for block n, then we're able to verify the block hash that originated from
+            // the state sync component.
+            if let Some(synced_block_hash) = synced_block_hash {
+                assert_eq!(
+                    computed_block_hash, *synced_block_hash,
+                    "inconsistent block hash at height {}, recieved: {}, computed: {}",
+                    commitment_result.height, *synced_block_hash, computed_block_hash,
+                );
+
+                info!("Verified block hash at height {}.", commitment_result.height);
+            }
+            // If the batcher is only synced up to block n, then we'll only be able to verify the
+            // global root.
+            else if let Some(synced_global_root) =
+                self.synced_global_roots.get(&commitment_result.height)
+            {
+                assert_eq!(
+                    commitment_result.global_root, *synced_global_root,
+                    "inconsistent global root at height {}, received: {}, computed: {}",
+                    commitment_result.height, synced_global_root, commitment_result.global_root
+                );
+
+                info!("Verified global root at height {}.", commitment_result.height);
+            }
+        }
+    }
 
     fn successfully_added_commitment_task(
         &mut self,
@@ -349,6 +396,8 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             commitment_task_offset: global_root_height,
             state_committer,
             task_timer,
+            synced_block_hashes: HashMap::new(),
+            synced_global_roots: HashMap::new(),
         }
     }
 
