@@ -6,9 +6,6 @@ license.workspace = true
 repository.workspace = true
 description = "Synchronizes Starknet state from other nodes or data sources."
 
-[features]
-testing = []
-
 [lints]
 workspace = true
 
