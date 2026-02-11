@@ -24,9 +24,8 @@ pub struct SierraToCasmCompiler {
 
 impl SierraToCasmCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        let runtime_out_dir = out_dir();
-        ensure_starknet_sierra_compile_installed(&runtime_out_dir);
-        let path_to_binary = binary_path(&runtime_out_dir, CAIRO_LANG_BINARY_NAME);
+        ensure_starknet_sierra_compile_installed();
+        let path_to_binary = binary_path(CAIRO_LANG_BINARY_NAME);
         info!("Using Sierra compiler binary at: {:?}", path_to_binary);
         Self { config, path_to_binary }
     }
@@ -55,19 +54,13 @@ impl SierraToCasmCompiler {
     }
 }
 
-fn ensure_starknet_sierra_compile_installed(out_dir: &std::path::Path) {
+fn ensure_starknet_sierra_compile_installed() {
     STARKNET_SIERRA_COMPILE_INSTALLER.call_once(|| {
         let cargo_install_args = [CAIRO_LANG_BINARY_NAME, "--version", CAIRO1_COMPILER_VERSION];
         install_compiler_binary(
             CAIRO_LANG_BINARY_NAME,
             CAIRO1_COMPILER_VERSION,
             &cargo_install_args,
-            out_dir,
         );
     });
-}
-
-// Returns the OUT_DIR. This function is only operable at run time.
-fn out_dir() -> PathBuf {
-    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
 }

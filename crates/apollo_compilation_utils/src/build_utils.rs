@@ -8,9 +8,8 @@ pub fn install_compiler_binary(
     binary_name: &str,
     required_version: &str,
     cargo_install_args: &[&str],
-    out_dir: &std::path::Path,
 ) {
-    let binary_path = binary_path(out_dir, binary_name);
+    let binary_path = binary_path(binary_name);
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
             let binary_version = String::from_utf8(binary_version.stdout)
@@ -49,7 +48,7 @@ pub fn install_compiler_binary(
     }
 
     // Move the '{binary_name}' executable to a shared location.
-    std::fs::create_dir_all(shared_folder_dir(out_dir))
+    std::fs::create_dir_all(shared_folder_dir())
         .expect("Failed to create shared executables folder");
     let move_command_status = Command::new("mv")
         .args([post_install_file_path.as_os_str(), binary_path.as_os_str()])
