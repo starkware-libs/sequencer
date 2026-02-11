@@ -1,4 +1,4 @@
-pub use apollo_batcher_config::config::PreconfirmedCendeConfig;
+use apollo_batcher_config::config::PreconfirmedCendeConfig;
 use apollo_batcher_types::batcher_types::Round;
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
