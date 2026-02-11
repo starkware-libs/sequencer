@@ -2375,6 +2375,7 @@ dependencies = [
  "futures",
  "serde",
  "starknet_api",
+ "tokio",
  "tracing",
  "validator",
 ]
