@@ -24,6 +24,7 @@ use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::vm_syscall_utils::SyscallUsageMap;
 use crate::state::cached_state::StorageEntry;
+use crate::transaction::objects::ExecutionResourcesTraits;
 use crate::utils::u64_from_usize;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -299,6 +300,19 @@ impl Add<&ExtendedExecutionResources> for &ExtendedExecutionResources {
         };
         result += other;
         result
+    }
+}
+
+impl ExtendedExecutionResources {
+    pub fn prover_cairo_primitives(&self) -> CairoPrimitiveCounterMap {
+        let mut cairo_primitives = cairo_primitive_counter_map(self.vm_resources.prover_builtins());
+        cairo_primitives.extend(
+            self.opcode_instance_counter
+                .iter()
+                .map(|(opcode, count)| (CairoPrimitiveName::Opcode(opcode.clone()), *count)),
+        );
+
+        cairo_primitives
     }
 }
 
