@@ -193,6 +193,7 @@
 //! [Starknet P2P specifications]: https://github.com/starknet-io/starknet-p2p-specs/
 //! [libp2p]: https://libp2p.io/
 
+pub mod authentication;
 #[cfg(test)]
 mod config_test;
 pub mod discovery;
