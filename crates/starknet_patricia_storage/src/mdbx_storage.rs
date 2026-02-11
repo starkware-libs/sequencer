@@ -12,7 +12,6 @@ use libmdbx::{
     WriteFlags,
     WriteMap,
 };
-use page_size;
 
 use crate::storage_trait::{
     AsyncStorage,
