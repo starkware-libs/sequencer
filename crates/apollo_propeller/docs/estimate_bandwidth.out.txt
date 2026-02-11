@@ -1,0 +1,186 @@
+==============================================================================================================
+Worst-case bandwidth sweep: N = 65, M = 5.0 MiB/s
+For each stake pool and option, every distinct node is tried as publisher.
+The row shows the publisher choice that maximises the peak upload from any node.
+==============================================================================================================
+
+--- max_stake = 1.0%  |  1×2.08%  +  64×1.53%
+                          expansion   peak node  peak Gbps  pub upload     max rcv  worst publisher
+    Option 1 (nodes)           3.05×       15.2       0.13       15.2        15.0  pub=2.08%
+    Option 2 (excl fix)        2.91×       14.5       0.12       14.5        14.3  pub=2.08%
+    Option 3 (excl prop)       2.93×       19.5       0.16       14.6        19.5  pub=1.53%
+    Option 4 (pool fix)        2.95×       29.1       0.24       29.1        14.3  pub=2.08%
+    Option 5 (pool prop)       2.97×       34.3       0.29       34.3        14.3  pub=2.08%
+
+--- max_stake = 2.0%  |  49×2.00%  +  1×1.85%  +  15×0.01%
+                          expansion   peak node  peak Gbps  pub upload     max rcv  worst publisher
+    Option 1 (nodes)           3.05×       15.2       0.13       15.2        15.0  pub=2.00%
+    Option 2 (excl fix)        3.76×       18.8       0.16       18.8        18.5  pub=2.00%
+    Option 3 (excl prop)       2.90×       18.6       0.16       14.5        18.6  pub=2.00%
+    Option 4 (pool fix)        3.82×       37.6       0.32       37.6        18.5  pub=2.00%
+    Option 5 (pool prop)       2.95×       33.4       0.28       33.4        18.6  pub=2.00%
+
+--- max_stake = 5.0%  |  19×5.00%  +  1×4.55%  +  45×0.01%
+                          expansion   peak node  peak Gbps  pub upload     max rcv  worst publisher
+    Option 1 (nodes)           3.05×       15.2       0.13       15.2        15.0  pub=5.00%
+    Option 2 (excl fix)        9.14×       45.7       0.38       45.7        45.0  pub=5.00%
+    Option 3 (excl prop)       2.75×       45.6       0.38       13.7        45.6  pub=5.00%
+    Option 4 (pool fix)        9.29×       91.4       0.77       91.4        45.0  pub=5.00%
+    Option 5 (pool prop)       2.89×       60.1       0.50       60.1        45.6  pub=5.00%
+
+--- max_stake = 10.0%  |  9×10.00%  +  1×9.45%  +  55×0.01%
+                          expansion   peak node  peak Gbps  pub upload     max rcv  worst publisher
+    Option 1 (nodes)           3.05×       15.2       0.13       15.2        15.0  pub=10.00%
+    Option 2 (excl fix)       21.33×      106.7       0.89      106.7       105.0  pub=10.00%
+    Option 3 (excl prop)       3.00×      105.0       0.88       15.0       105.0  pub=10.00%
+    Option 4 (pool fix)       16.25×      160.0       1.34      160.0        78.8  pub=10.00%
+    Option 5 (pool prop)       2.53×       92.5       0.78       92.5        79.8  pub=10.00%
+
+--- max_stake = 15.0%  |  6×15.00%  +  56×0.17%  +  3×0.16%
+                          expansion   peak node  peak Gbps  pub upload     max rcv  worst publisher
+    Option 1 (nodes)           3.05×       15.2       0.13       15.2        15.0  pub=15.00%
+    Option 2 (excl fix)       32.00×      160.0       1.34      160.0       157.5  pub=15.00%
+    Option 3 (excl prop)       2.83×      157.5       1.32       14.2       157.5  pub=15.00%
+    Option 4 (pool fix)       21.67×      213.3       1.79      213.3       105.0  pub=15.00%
+    Option 5 (pool prop)       3.00×      156.6       1.31      156.6       141.6  pub=15.00%
+
+--- max_stake = 20.0%  |  4×20.00%  +  1×19.40%  +  60×0.01%
+                          expansion   peak node  peak Gbps  pub upload     max rcv  worst publisher
+    Option 1 (nodes)           3.05×       15.2       0.13       15.2        15.0  pub=20.00%
+    Option 2 (excl fix)       32.00×      160.0       1.34      160.0       157.5  pub=20.00%
+    Option 3 (excl prop)       2.03×      159.9       1.34       10.2       159.9  pub=20.00%
+    Option 4 (pool fix)       32.50×      320.0       2.68      320.0       157.5  pub=20.00%
+    Option 5 (pool prop)       2.54×      172.6       1.45      172.6       159.9  pub=20.00%
+
+--- max_stake = 25.0%  |  3×25.00%  +  1×24.39%  +  61×0.01%
+                          expansion   peak node  peak Gbps  pub upload     max rcv  worst publisher
+    Option 1 (nodes)           3.05×       15.2       0.13       15.2        15.0  pub=25.00%
+    Option 2 (excl fix)       64.00×      320.0       2.68      320.0       315.0  pub=25.00%
+    Option 3 (excl prop)       3.00×      315.0       2.64       15.0       315.0  pub=25.00%
+    Option 4 (pool fix)       32.50×      320.0       2.68      320.0       157.5  pub=25.00%
+    Option 5 (pool prop)       2.02×      169.6       1.42      169.6       159.4  pub=25.00%
+
+--- max_stake = 32.0%  |  3×32.00%  +  28×0.07%  +  34×0.06%
+                          expansion   peak node  peak Gbps  pub upload     max rcv  worst publisher
+    Option 1 (nodes)           3.05×       15.2       0.13       15.2        15.0  pub=32.00%
+    Option 2 (excl fix)       64.00×      320.0       2.68      320.0       315.0  pub=32.00%
+    Option 3 (excl prop)       2.12×      315.0       2.64       10.6       315.0  pub=32.00%
+    Option 4 (pool fix)       32.50×      320.0       2.68      320.0       157.5  pub=32.00%
+    Option 5 (pool prop)       3.00×      317.3       2.66      317.3       302.3  pub=32.00%
+
+
+
+========================================================================================================================
+Per-validator worst-case bandwidth: N = 65, M = 5.0 MiB/s
+For each validator stake tier, shows the worst upload across ALL possible publishers.
+This is the bandwidth each validator must provision.
+Pool: [max, max, …, max, 20%, 15%, 10%, 5%, remainder] (tiers < max_stake only).
+========================================================================================================================
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+max_stake = 5.0%  |  19×5.00%  +  40×0.11%  +  6×0.10%
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                          5.00% (19)      0.11% (40)       0.10% (6)
+                     ─────────────── ─────────────── ───────────────
+       Opt 1 (nodes)   15.2 MiB/s      15.2 MiB/s      15.2 MiB/s   
+    Opt 2 (excl fix)   45.7 MiB/s      45.7 MiB/s      45.7 MiB/s   
+   Opt 3 (excl prop)   47.3 MiB/s      15.0 MiB/s      15.0 MiB/s   
+    Opt 4 (pool fix)   91.4 MiB/s      91.4 MiB/s      91.4 MiB/s   
+   Opt 5 (pool prop)   62.2 MiB/s      16.0 MiB/s      15.9 MiB/s   
+
+           (in Gbps)                                                
+       Opt 1 (nodes)   0.13 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 2 (excl fix)   0.38 Gbps       0.38 Gbps       0.38 Gbps    
+   Opt 3 (excl prop)   0.40 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 4 (pool fix)   0.77 Gbps       0.77 Gbps       0.77 Gbps    
+   Opt 5 (pool prop)   0.52 Gbps       0.13 Gbps       0.13 Gbps    
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+max_stake = 10.0%  |  9×10.00%  +  1×5.00%  +  5×0.10%  +  50×0.09%
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                          10.00% (9)       5.00% (1)       0.10% (5)      0.09% (50)
+                     ─────────────── ─────────────── ─────────────── ───────────────
+       Opt 1 (nodes)   15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s   
+    Opt 2 (excl fix)  106.7 MiB/s     105.0 MiB/s     105.0 MiB/s     105.0 MiB/s   
+   Opt 3 (excl prop)   99.5 MiB/s      52.5 MiB/s      15.0 MiB/s      15.0 MiB/s   
+    Opt 4 (pool fix)  160.0 MiB/s     160.0 MiB/s     160.0 MiB/s     160.0 MiB/s   
+   Opt 5 (pool prop)  109.5 MiB/s      62.2 MiB/s      15.9 MiB/s      15.8 MiB/s   
+
+           (in Gbps)                                                                
+       Opt 1 (nodes)   0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 2 (excl fix)   0.89 Gbps       0.88 Gbps       0.88 Gbps       0.88 Gbps    
+   Opt 3 (excl prop)   0.83 Gbps       0.44 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 4 (pool fix)   1.34 Gbps       1.34 Gbps       1.34 Gbps       1.34 Gbps    
+   Opt 5 (pool prop)   0.92 Gbps       0.52 Gbps       0.13 Gbps       0.13 Gbps    
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+max_stake = 15.0%  |  5×15.00%  +  1×10.00%  +  1×5.00%  +  14×0.18%  +  44×0.17%
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                          15.00% (5)      10.00% (1)       5.00% (1)      0.18% (14)      0.17% (44)
+                     ─────────────── ─────────────── ─────────────── ─────────────── ───────────────
+       Opt 1 (nodes)   15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s   
+    Opt 2 (excl fix)  160.0 MiB/s     160.0 MiB/s     157.5 MiB/s     157.5 MiB/s     157.5 MiB/s   
+   Opt 3 (excl prop)  157.5 MiB/s     111.2 MiB/s      55.6 MiB/s      15.0 MiB/s      15.0 MiB/s   
+    Opt 4 (pool fix)  213.3 MiB/s     213.3 MiB/s     213.3 MiB/s     213.3 MiB/s     213.3 MiB/s   
+   Opt 5 (pool prop)  156.7 MiB/s     109.5 MiB/s      62.2 MiB/s      16.7 MiB/s      16.6 MiB/s   
+
+           (in Gbps)                                                                                
+       Opt 1 (nodes)   0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 2 (excl fix)   1.34 Gbps       1.34 Gbps       1.32 Gbps       1.32 Gbps       1.32 Gbps    
+   Opt 3 (excl prop)   1.32 Gbps       0.93 Gbps       0.47 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 4 (pool fix)   1.79 Gbps       1.79 Gbps       1.79 Gbps       1.79 Gbps       1.79 Gbps    
+   Opt 5 (pool prop)   1.31 Gbps       0.92 Gbps       0.52 Gbps       0.14 Gbps       0.14 Gbps    
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+max_stake = 20.0%  |  3×20.00%  +  1×15.00%  +  1×10.00%  +  1×5.00%  +  56×0.17%  +  3×0.16%
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                          20.00% (3)      15.00% (1)      10.00% (1)       5.00% (1)      0.17% (56)       0.16% (3)
+                     ─────────────── ─────────────── ─────────────── ─────────────── ─────────────── ───────────────
+       Opt 1 (nodes)   15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s   
+    Opt 2 (excl fix)  160.0 MiB/s     160.0 MiB/s     160.0 MiB/s     160.0 MiB/s     160.0 MiB/s     160.0 MiB/s   
+   Opt 3 (excl prop)  222.1 MiB/s     177.2 MiB/s     118.1 MiB/s      59.1 MiB/s      15.0 MiB/s      15.0 MiB/s   
+    Opt 4 (pool fix)  320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s   
+   Opt 5 (pool prop)  203.8 MiB/s     156.6 MiB/s     109.4 MiB/s      62.2 MiB/s      16.6 MiB/s      16.5 MiB/s   
+
+           (in Gbps)                                                                                                
+       Opt 1 (nodes)   0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 2 (excl fix)   1.34 Gbps       1.34 Gbps       1.34 Gbps       1.34 Gbps       1.34 Gbps       1.34 Gbps    
+   Opt 3 (excl prop)   1.86 Gbps       1.49 Gbps       0.99 Gbps       0.50 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 4 (pool fix)   2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps    
+   Opt 5 (pool prop)   1.71 Gbps       1.31 Gbps       0.92 Gbps       0.52 Gbps       0.14 Gbps       0.14 Gbps    
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+max_stake = 25.0%  |  1×25.00%  +  1×20.00%  +  1×15.00%  +  1×10.00%  +  1×5.00%  +  40×0.42%  +  20×0.41%
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                          25.00% (1)      20.00% (1)      15.00% (1)      10.00% (1)       5.00% (1)      0.42% (40)      0.41% (20)
+                     ─────────────── ─────────────── ─────────────── ─────────────── ─────────────── ─────────────── ───────────────
+       Opt 1 (nodes)   15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s   
+    Opt 2 (excl fix)  160.0 MiB/s     160.0 MiB/s     160.0 MiB/s     160.0 MiB/s     160.0 MiB/s     160.0 MiB/s     160.0 MiB/s   
+   Opt 3 (excl prop)  295.3 MiB/s     252.0 MiB/s     189.0 MiB/s     126.0 MiB/s      63.0 MiB/s      15.0 MiB/s      15.0 MiB/s   
+    Opt 4 (pool fix)  320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s   
+   Opt 5 (pool prop)  251.2 MiB/s     204.0 MiB/s     156.7 MiB/s     109.5 MiB/s      62.2 MiB/s      19.0 MiB/s      18.9 MiB/s   
+
+           (in Gbps)                                                                                                                
+       Opt 1 (nodes)   0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 2 (excl fix)   1.34 Gbps       1.34 Gbps       1.34 Gbps       1.34 Gbps       1.34 Gbps       1.34 Gbps       1.34 Gbps    
+   Opt 3 (excl prop)   2.48 Gbps       2.11 Gbps       1.59 Gbps       1.06 Gbps       0.53 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 4 (pool fix)   2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps    
+   Opt 5 (pool prop)   2.11 Gbps       1.71 Gbps       1.31 Gbps       0.92 Gbps       0.52 Gbps       0.16 Gbps       0.16 Gbps    
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+max_stake = 32.0%  |  1×32.00%  +  1×20.00%  +  1×15.00%  +  1×10.00%  +  1×5.00%  +  60×0.30%
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                          32.00% (1)      20.00% (1)      15.00% (1)      10.00% (1)       5.00% (1)      0.30% (60)
+                     ─────────────── ─────────────── ─────────────── ─────────────── ─────────────── ───────────────
+       Opt 1 (nodes)   15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s      15.2 MiB/s   
+    Opt 2 (excl fix)  315.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     315.0 MiB/s   
+   Opt 3 (excl prop)  377.5 MiB/s     277.5 MiB/s     208.1 MiB/s     138.8 MiB/s      69.4 MiB/s      15.0 MiB/s   
+    Opt 4 (pool fix)  320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s     320.0 MiB/s   
+   Opt 5 (pool prop)  316.8 MiB/s     203.6 MiB/s     156.4 MiB/s     109.3 MiB/s      62.1 MiB/s      17.8 MiB/s   
+
+           (in Gbps)                                                                                                
+       Opt 1 (nodes)   0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps       0.13 Gbps    
+    Opt 2 (excl fix)   2.64 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.64 Gbps    
+   Opt 3 (excl prop)   3.17 Gbps       2.33 Gbps       1.75 Gbps       1.16 Gbps       0.58 Gbps       0.13 Gbps    
+    Opt 4 (pool fix)   2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps       2.68 Gbps    
+   Opt 5 (pool prop)   2.66 Gbps       1.71 Gbps       1.31 Gbps       0.92 Gbps       0.52 Gbps       0.15 Gbps    
