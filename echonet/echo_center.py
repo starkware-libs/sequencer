@@ -1,12 +1,15 @@
+import base64
 import json
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Union
 
 import flask  # pyright: ignore[reportMissingImports]
 import requests
 
+from echonet import report_web
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
@@ -14,6 +17,8 @@ from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
 from echonet.shared_context import SharedContext, l1_manager, shared
 from echonet.transaction_sender import start_background_sender
+
+from .reports import RevertClassifier, RevertComparisonTextReport, SnapshotTextReport
 
 BlockNumberParam = Union[int, Literal["latest"]]
 
@@ -105,8 +110,16 @@ class DeterministicChain:
 
         block = self._feeder_client.get_block(start_block - 1)
         assert block is not None, f"Block {start_block - 1} not found"
-        base_block_hash_hex = block["block_hash"]
-        base_state_root_hex = block["state_root"]
+        if start_block == 6099201:
+            base_block_hash_hex = (
+                "0x36499E1BF6F64DE94A4287FEF41E64F5110B54696A6FA1693A9D9D5280AEA9A"
+            )
+            base_state_root_hex = (
+                "0x3a59f3745fa3d868def2669e1658834bbf7ca03891635a089c4b6dfbcda414A"
+            )
+        else:
+            base_block_hash_hex = block["block_hash"]
+            base_state_root_hex = block["state_root"]
         self._base = _BaseValues(
             base_block_number=start_block,
             base_block_hash_hex=base_block_hash_hex,
@@ -556,6 +569,218 @@ class EchoCenterService:
         )
 
     @staticmethod
+    def _maybe_int(v: Any) -> Optional[int]:
+        if v is None:
+            return None
+        if isinstance(v, bool):
+            # Prevent bool-as-int surprises.
+            return None
+        if isinstance(v, int):
+            return v
+        if isinstance(v, str):
+            s = v.strip()
+            if not s:
+                return None
+            try:
+                return int(s, 16) if s.startswith("0x") else int(s)
+            except Exception:
+                return None
+        return None
+
+    def _extract_blob_timestamp_seconds(self, blob: JsonObject) -> Optional[int]:
+        """
+        Extract the timestamp (seconds) from an incoming blob.
+
+        Expected schema (per captured blobs): `state_diff.block_info.block_timestamp`.
+        """
+        # If this ever changes, we want to fail loudly rather than silently accept wrong data.
+        return int(blob["state_diff"]["block_info"]["block_timestamp"])
+
+    def _maybe_get_blob_source_block_number(self, blob: JsonObject) -> Optional[int]:
+        """
+        Best-effort: infer source feeder block number for this blob using tx tracking.
+        """
+        try:
+            tx_hashes = self._transformer.get_blob_tx_hashes(blob)
+            if not tx_hashes:
+                return None
+            bn = self.shared.get_sent_block_number(tx_hashes[0])
+            return int(bn) if bn is not None else None
+        except Exception:
+            return None
+
+    def _log_timestamp_mismatch_if_any(self, blob: JsonObject, echo_block_number: int) -> None:
+        """
+        Compare blob timestamp vs the source timestamp we recorded at send time.
+
+        If they differ, log with block numbers + both timestamps.
+        """
+        try:
+            blob_ts = self._extract_blob_timestamp_seconds(blob)
+            if blob_ts is None:
+                return
+
+            mismatches: list[dict[str, object]] = []
+            for entry in blob.get("transactions", []):
+                tx = entry.get("tx", {}) if isinstance(entry, dict) else {}
+                raw_hash = tx.get("hash_value")
+                if raw_hash is None:
+                    continue
+                tx_hash = str(raw_hash)
+                if not tx_hash:
+                    continue
+
+                # L1_HANDLER txs are allowed to have different timestamps.
+                # (Their execution/commit timing can legitimately differ from L2 txs.)
+                if str(tx.get("type")) == TxType.L1_HANDLER.value:
+                    continue
+
+                expected_ts = self.shared.get_tx_timestamp(tx_hash)
+                if expected_ts is None:
+                    continue
+                if int(blob_ts) == int(expected_ts):
+                    continue
+                source_block: Optional[int] = None
+                try:
+                    source_block = int(self.shared.get_sent_block_number(tx_hash))
+                except Exception:
+                    source_block = None
+                mismatches.append(
+                    {
+                        "tx": tx_hash,
+                        "source_block": source_block,
+                        "source_ts": int(expected_ts),
+                    }
+                )
+                # Record for UI diagnostics (best-effort).
+                try:
+                    self.shared.record_timestamp_mismatch(
+                        tx_hash=tx_hash,
+                        echo_block=int(echo_block_number),
+                        source_block=source_block,
+                        source_ts=int(expected_ts),
+                        blob_ts=int(blob_ts),
+                    )
+                except Exception:
+                    pass
+
+            if not mismatches:
+                return
+
+            # Avoid extremely verbose logs if a blob contains many txs.
+            max_items = 5
+            sample = mismatches[:max_items]
+            sample_str = " ".join(
+                f"tx={m['tx']} src_bn={m['source_block'] if m['source_block'] is not None else 'unknown'} src_ts={m['source_ts']}"
+                for m in sample
+            )
+            source_block_fallback = self._maybe_get_blob_source_block_number(blob)
+            self.logger.warning(
+                "timestamp mismatch: "
+                f"echo_block={int(echo_block_number)} "
+                f"source_block={source_block_fallback if source_block_fallback is not None else 'unknown'} "
+                f"blob_ts={int(blob_ts)} "
+                f"mismatched_txs={len(mismatches)} "
+                f"sample=[{sample_str}]" + ("" if len(mismatches) <= max_items else " ...")
+            )
+        except Exception as err:
+            # Never break write_blob on diagnostics.
+            self.logger.debug(f"timestamp mismatch check failed: {err}")
+
+    def _check_l2_gas_mismatches(self, stored_block: JsonObject, echo_block_number: int) -> None:
+        """
+        Compare L2 gas used in the written blob vs the source feeder receipt.
+
+        IMPORTANT: DO NOT REMOVE. This log is used to detect correctness regressions.
+        """
+        try:
+            ignore_calldata_marker = (
+                "0x10398fe631af9ab2311840432d507bf7ef4b959ae967f1507928f5afe888a99"
+            )
+            txs: list[JsonObject] = stored_block.get("transactions", [])
+            receipts: list[JsonObject] = stored_block.get("transaction_receipts", [])
+            if not txs or not receipts or len(txs) != len(receipts):
+                return
+
+            for tx, receipt in zip(txs, receipts):
+                tx_hash = tx.get("transaction_hash")
+                if not isinstance(tx_hash, str):
+                    continue
+
+                # Ignore noisy known pattern by calldata marker.
+                calldata = tx.get("calldata")
+                if isinstance(calldata, list) and any(
+                    str(x).lower() == ignore_calldata_marker for x in calldata
+                ):
+                    continue
+                if isinstance(calldata, str) and ignore_calldata_marker in calldata.lower():
+                    continue
+
+                # Only compare txs that originated from feeder forwarding (i.e., we know their source block).
+                if not self.shared.is_pending_tx(tx_hash):
+                    continue
+                try:
+                    source_block = int(self.shared.get_sent_block_number(tx_hash))
+                except Exception:
+                    continue
+
+                fgw_block = self.shared.get_fgw_block(source_block)
+                if not fgw_block:
+                    continue
+
+                # Find the tx index in the feeder block so we can read the matching receipt.
+                fgw_txs = fgw_block.get("transactions", [])
+                fgw_receipts = fgw_block.get("transaction_receipts", [])
+                if not fgw_txs or not fgw_receipts or len(fgw_txs) != len(fgw_receipts):
+                    continue
+
+                fgw_idx: Optional[int] = None
+                for i, fgw_tx in enumerate(fgw_txs):
+                    if fgw_tx.get("transaction_hash") == tx_hash:
+                        fgw_idx = i
+                        break
+                if fgw_idx is None:
+                    continue
+
+                blob_l2_gas = self._maybe_int(
+                    receipt.get("execution_resources", {})
+                    .get("total_gas_consumed", {})
+                    .get("l2_gas")
+                )
+                fgw_l2_gas = self._maybe_int(
+                    fgw_receipts[fgw_idx]
+                    .get("execution_resources", {})
+                    .get("total_gas_consumed", {})
+                    .get("l2_gas")
+                )
+                if blob_l2_gas is None or fgw_l2_gas is None:
+                    continue
+
+                if blob_l2_gas != fgw_l2_gas:
+                    # Record for UI diagnostics (best-effort).
+                    try:
+                        self.shared.record_l2_gas_mismatch(
+                            tx_hash=str(tx_hash),
+                            echo_block=int(echo_block_number),
+                            source_block=int(source_block),
+                            blob_total_gas_l2=int(blob_l2_gas),
+                            fgw_total_gas_consumed_l2=int(fgw_l2_gas),
+                        )
+                    except Exception:
+                        pass
+                    self.logger.warning(
+                        "l2_gas mismatch: "
+                        f"tx={tx_hash} "
+                        f"echo_block={int(echo_block_number)} "
+                        f"source_block={int(source_block)} "
+                        f"blob_total_gas_l2={int(blob_l2_gas)} "
+                        f"fgw_total_gas_consumed_l2={int(fgw_l2_gas)}"
+                    )
+        except Exception as err:
+            # Never break write_blob on diagnostics.
+            self.logger.debug(f"l2_gas mismatch check failed: {err}")
+
+    @staticmethod
     def _json_response(payload: Any, status: int = requests.codes.ok) -> flask.Response:
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         return flask.Response(raw, status=status, headers=[["Content-Type", "application/json"]])
@@ -600,6 +825,21 @@ class EchoCenterService:
         to_store = self._transformer.transform_block(blob)
         state_update = self._transformer.transform_state_update(blob, block_number)
 
+        # Keep the latest block timestamp available via /echonet/timestamp.
+        try:
+            ts = self._maybe_int(to_store.get("timestamp"))
+            if ts is not None:
+                self.shared.set_block_timestamp(int(ts))
+        except Exception:
+            # Never break write_blob on progress marker updates.
+            pass
+
+        # Diagnostic log: detect timestamp mismatches between incoming blob and upstream meta.
+        self._log_timestamp_mismatch_if_any(blob, echo_block_number=block_number)
+
+        # Critical diagnostic log: keep this check in place.
+        self._check_l2_gas_mismatches(to_store, echo_block_number=block_number)
+
         self.shared.store_block(
             block_number, blob=blob, fgw_block=to_store, state_update=state_update
         )
@@ -619,6 +859,102 @@ class EchoCenterService:
         """Return current in-memory tx tracking snapshot."""
         snap = self.shared.get_report_snapshot()
         return self._json_response(snap.to_dict(), requests.codes.ok)
+
+    def handle_report_ui(self) -> flask.Response:
+        """
+        HTML report dashboard.
+
+        Kept separate from /echonet/report (JSON) so scripts keep working.
+        """
+        snap = self.shared.get_report_snapshot()
+        diag = self.shared.get_diagnostics_snapshot()
+        vm = report_web.build_report_view_model(snap, diagnostics=diag)
+        return flask.render_template("report.html", export=False, inline_css_b64="", **vm)
+
+    def handle_report_ui_download(self) -> flask.Response:
+        """
+        Download a static, self-contained HTML snapshot of the current report.
+
+        No JS; CSS is inlined so the file can be opened offline.
+        """
+        snap = self.shared.get_report_snapshot()
+        diag = self.shared.get_diagnostics_snapshot()
+        vm = report_web.build_report_view_model(snap, diagnostics=diag)
+
+        # Inline CSS from our static file (keeps it self-contained).
+        css_path = Path(__file__).resolve().parent / "static" / "report.css"
+        inline_css_b64 = ""
+        try:
+            inline_css_b64 = base64.b64encode(css_path.read_bytes()).decode("ascii")
+        except Exception:
+            inline_css_b64 = ""
+
+        html = flask.render_template(
+            "report.html", export=True, inline_css_b64=inline_css_b64, **vm
+        )
+        ts = str(vm.get("meta", {}).get("generated_at_utc", ""))
+        safe_ts = (
+            ts.replace(":", "")
+            .replace("-", "")
+            .replace(".", "")
+            .replace("Z", "Z")
+            .replace("T", "T")
+        )
+        filename = f"echonet_report_{safe_ts or 'snapshot'}.html"
+
+        resp = flask.Response(
+            html.encode("utf-8"),
+            status=requests.codes.ok,
+            headers=[
+                ["Content-Type", "text/html; charset=utf-8"],
+                ["Content-Disposition", f'attachment; filename="{filename}"'],
+            ],
+        )
+        return resp
+
+    def handle_report_text(self) -> flask.Response:
+        """
+        Text report similar to `python reports.py --all`.
+        """
+        snap = self.shared.get_report_snapshot()
+
+        snapshot_text = SnapshotTextReport(snap).render()
+        reverts_text = RevertComparisonTextReport(
+            classifier=RevertClassifier(), mode="grouped"
+        ).render(
+            mainnet_reverts=dict(snap.revert_errors_mainnet),
+            echonet_reverts=dict(snap.revert_errors_echonet),
+        )
+        out = (
+            snapshot_text.rstrip()
+            + "\n\n"
+            + "=== CLASSIFIED REVERTS (shortened) ===\n"
+            + reverts_text
+        )
+        return flask.Response(
+            out.encode("utf-8"),
+            status=requests.codes.ok,
+            headers=[["Content-Type", "text/plain; charset=utf-8"]],
+        )
+
+    def handle_get_tx_timestamp(self) -> flask.Response:
+        """
+        GET /echonet/tx_timestamp?transactionHash=0x...
+
+        Return the source block timestamp (seconds) recorded when this tx was sent (pending).
+        """
+        args = flask.request.args.to_dict(flat=True)
+        tx_hash = args.get("transactionHash") or args.get("txHash") or args.get("tx_hash")
+        if not tx_hash:
+            return self._json_response(
+                {"error": "Missing required query param: transactionHash"},
+                requests.codes.bad_request,
+            )
+
+        ts = self.shared.get_tx_timestamp(str(tx_hash))
+        if ts is None:
+            return self._empty_response(requests.codes.not_found)
+        return self._json_response({"timestamp": int(ts)}, requests.codes.ok)
 
     def handle_block_dump(self) -> flask.Response:
         args = flask.request.args.to_dict(flat=True)
@@ -803,6 +1139,29 @@ def write_pre_confirmed_block() -> flask.Response:
 @app.route("/echonet/report", methods=["GET"])
 def report_snapshot() -> flask.Response:
     return service.handle_report_snapshot()
+
+
+@app.route("/echonet/report/ui", methods=["GET"])
+@app.route("/echonet/report_html", methods=["GET"])
+def report_ui() -> flask.Response:
+    return service.handle_report_ui()
+
+
+@app.route("/echonet/report/ui/download", methods=["GET"])
+@app.route("/echonet/report_html_download", methods=["GET"])
+def report_ui_download() -> flask.Response:
+    return service.handle_report_ui_download()
+
+
+@app.route("/echonet/report/text", methods=["GET"])
+@app.route("/echonet/report_text", methods=["GET"])
+def report_text() -> flask.Response:
+    return service.handle_report_text()
+
+
+@app.route("/echonet/tx_timestamp", methods=["GET"])
+def get_tx_timestamp() -> flask.Response:
+    return service.handle_get_tx_timestamp()
 
 
 @app.route("/echonet/block_dump", methods=["GET"])

@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Echonet report</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" />
+  {% if export %}
+  <link rel="stylesheet" href="data:text/css;base64,{{ inline_css_b64 }}" />
+  {% else %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='report.css') }}" />
+  <script defer src="{{ url_for('static', filename='report.js') }}"></script>
+  {% endif %}
+</head>
+
+<body data-echonet-revert-rate-pct="{{ meta.echonet_revert_rate_pct }}" data-echonet-revert-risk="{{ meta.echonet_revert_risk_0_1 }}">
+  <header class="topbar">
+    <div class="brand">
+      <div class="title">Echonet report</div>
+      <div class="subtitle">
+        Generated <span class="mono">{{ meta.generated_at_utc }}</span>
+        • First <span class="mono">{{ meta.first_block_timestamp_iso }}</span>
+        • Latest <span class="mono">{{ meta.latest_block_timestamp_iso }}</span>
+        • Span <span class="mono">{{ meta.span_human }}</span>
+      </div>
+    </div>
+
+    {% if not export %}
+    <div class="controls">
+      <label class="control">
+        <span>Filter</span>
+        <input id="filterInput" type="search" placeholder="tx hash / reason / status…" autocomplete="off" />
+      </label>
+
+      <label class="control">
+        <span>Auto refresh</span>
+        <select id="refreshSelect">
+          <option value="off">Off</option>
+          <option value="5">5s</option>
+          <option value="15">15s</option>
+          <option value="60">60s</option>
+        </select>
+      </label>
+
+      <button class="btn" id="refreshNowBtn" type="button">Refresh</button>
+      <button class="btn" id="themeToggleBtn" type="button" title="Toggle theme">Theme</button>
+      <a class="btn btnLink" href="/echonet/report/ui/download" title="Download static HTML snapshot">Download</a>
+      <a class="btn btnLink" href="/echonet/report" title="Raw JSON snapshot">JSON</a>
+      <a class="btn btnLink" href="/echonet/report/text" title="Text snapshot (reports.py-style)">Text</a>
+    </div>
+    {% endif %}
+  </header>
+
+  <main class="container">
+    <div class="stack">
+      <section>
+        <div class="card kpiProgress">
+          <div class="cardTitle">Progress</div>
+          <div class="progressHero">
+            <div>
+              <div class="heroLabel">Blocks processed</div>
+              <div class="heroValue mono">{{ progress.blocks_processed }}</div>
+              <div class="heroSub">
+                Current block <span class="mono">{{ progress.current_block }}</span>
+                • Forward rate <span class="mono">{{ meta.forward_rate }}</span>
+              </div>
+            </div>
+            <div class="kv kvTight">
+              <div class="k">Initial start</div>
+              <div class="v mono">{{ progress.initial_start_block }}</div>
+              <div class="k">Current start</div>
+              <div class="v mono">{{ progress.current_start_block }}</div>
+              <div class="k">Current block</div>
+              <div class="v mono">{{ progress.current_block }}</div>
+              <div class="k">First ts</div>
+              <div class="v mono">{{ meta.first_block_timestamp_iso }}</div>
+              <div class="k">Latest ts</div>
+              <div class="v mono">{{ meta.latest_block_timestamp_iso }}</div>
+              <div class="k">Span</div>
+              <div class="v mono">{{ meta.span_human }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="row2">
+        <div class="card">
+          <div class="cardTitle">Transactions</div>
+          <div class="bigNumber mono">{{ kpis.total_sent_tx_count }}</div>
+          <div class="smallMuted">Total forwarded</div>
+          <div class="pillRow">
+            <span class="pill {{ severity.committed }}">Committed: <span class="mono">{{ kpis.committed_count }}</span>
+              ({{ kpis.committed_pct_of_pending_total }})</span>
+            <span class="pill {{ severity.pending }}">Pending: <span class="mono">{{ kpis.pending_commission_count
+                }}</span> ({{ kpis.pending_pct_of_pending_total }})</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cardTitle">Alerts</div>
+          <div class="pillRow">
+            <span class="pill pillLink {{ severity.gateway_errors }}" role="button" tabindex="0" data-scroll-to="gateway-errors">Gateway errors:
+              <span class="mono">{{ kpis.gateway_errors_count }}</span></span>
+            <span class="pill pillLink {{ severity.reverts_mainnet }}" role="button" tabindex="0" data-scroll-to="reverts-mainnet">Reverts
+              (mainnet-only): <span class="mono">{{ kpis.reverts_mainnet_count }}</span></span>
+            <span class="pill pillLink {{ severity.reverts_echonet }}" role="button" tabindex="0" data-scroll-to="reverts-echonet">Reverts
+              (echonet-only): <span class="mono">{{ kpis.reverts_echonet_count }}</span></span>
+            <span class="pill pillLink {{ severity.resync_causes }}" role="button" tabindex="0" data-scroll-to="resync-triggers">Resync triggers:
+              <span class="mono">{{ kpis.resync_causes_count }}</span></span>
+            <span class="pill pillLink {{ severity.certain_failures }}" role="button" tabindex="0" data-scroll-to="certain-failures">Certain failures:
+              <span class="mono">{{ kpis.certain_failures_count }}</span></span>
+            <span class="pill pillLink {{ severity.timestamp_mismatches }}" role="button" tabindex="0" data-scroll-to="timestamp-mismatches">Timestamp
+              mismatches: <span class="mono">{{ kpis.timestamp_mismatches_count }}</span></span>
+            <span class="pill pillLink {{ severity.l2_gas_mismatches }}" role="button" tabindex="0" data-scroll-to="l2-gas-mismatches">L2 gas
+              mismatches: <span class="mono">{{ kpis.l2_gas_mismatches_count }}</span></span>
+          </div>
+          <div class="smallMuted">
+            Tip: press <span class="mono">/</span> to focus filter; <span class="mono">Esc</span> clears it.
+          </div>
+        </div>
+      </section>
+
+      <section id="pending-txs">
+        <div class="card">
+          <div class="cardTitle">Non-committed tx hashes (pending)</div>
+          {% if not pending_txs %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="pending" data-table="pending">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colHash" />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Source block</th>
+                <th>Tx hash</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx_hash, src_bn in pending_txs %}
+              <tr data-search="{{ tx_hash }} {{ src_bn }}">
+                <td class="mono">{{ src_bn }}</td>
+                <td class="mono">
+                  <span class="hash" title="{{ tx_hash }}">{{ tx_hash }}</span>
+                </td>
+                <td class="right">
+                  <button class="btn btnSmall copyBtn" type="button" data-copy="{{ tx_hash }}">Copy</button>
+                  <a class="btn btnSmall btnLink" href="/echonet/tx_timestamp?transactionHash={{ tx_hash }}"
+                    title="Recorded source timestamp (JSON)">ts</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </section>
+
+      <section id="gateway-errors">
+        <div class="card">
+          <div class="cardTitle">
+            Gateway errors
+            <span class="countPill">{{ kpis.gateway_errors_count }}</span>
+          </div>
+          {% if not gateway_errors %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="gateway" data-table="gateway">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colStatus" />
+              <col class="colHash" />
+              <col />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Block</th>
+                <th>Status</th>
+                <th>Tx hash</th>
+                <th>Response</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in gateway_errors %}
+              <tr class="sev {{ row.severity }}"
+                data-search="{{ row.tx_hash }} {{ row.status }} {{ row.block_number }} {{ row.response }}">
+                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono"><span class="status {{ row.severity }}">{{ row.status }}</span></td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">
+                  <details class="details">
+                    <summary>Show</summary>
+                    <pre class="pre">{{ row.response }}</pre>
+                  </details>
+                </td>
+                <td class="right">
+                  <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </section>
+
+      <section id="reverts-mainnet">
+        <div class="card">
+          <div class="cardTitle">
+            Reverted only on Mainnet
+            <span class="countPill">{{ reverts.mainnet_only.total }} ({{ reverts.mainnet_only.pct_of_total_sent }})</span>
+          </div>
+          {% if reverts.mainnet_only.total == 0 %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <div class="smallMuted">
+            Showing up to <span class="mono">{{ limits.max_rows_per_revert_group }}</span> rows per group. Use the
+            filter box to narrow down.
+          </div>
+          {% for group in reverts.mainnet_only.groups %}
+          <details class="details filterable" data-filter-scope="reverts" open>
+            <summary>
+              <span class="badge bad">{{ group.count }}</span>
+              <span class="mono">{{ group.name }}</span>
+              <span class="countPill">{{ group.pct_of_section }}</span>
+            </summary>
+            <table class="table" data-table="reverts">
+              <colgroup>
+                <col class="colBn" />
+                <col class="colHash" />
+                <col />
+                <col class="colActions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Source block</th>
+                  <th>Tx hash</th>
+                  <th>Reason (shortened)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in group.rows %}
+                <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.raw_error }}">
+                  <td class="mono">{{ row.block_number }}</td>
+                  <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                  <td>
+                    <div class="reason">{{ row.reason }}</div>
+                    {% if row.raw_error and row.raw_error != row.reason %}
+                    <details class="details nested">
+                      <summary>Raw</summary>
+                      <pre class="pre">{{ row.raw_error }}</pre>
+                    </details>
+                    {% endif %}
+                  </td>
+                  <td class="right">
+                    <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+          {% endfor %}
+          {% endif %}
+        </div>
+      </section>
+
+      <section id="reverts-echonet">
+        <div class="card">
+          <div class="cardTitle">
+            Reverted only on Echonet
+            <span class="countPill">{{ reverts.echonet_only.total }} ({{ reverts.echonet_only.pct_of_total_sent }})</span>
+          </div>
+          {% if reverts.echonet_only.total == 0 %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <div class="smallMuted">
+            Showing up to <span class="mono">{{ limits.max_rows_per_revert_group }}</span> rows per group. Use the
+            filter box to narrow down.
+          </div>
+          {% for group in reverts.echonet_only.groups %}
+          <details class="details filterable" data-filter-scope="reverts" open>
+            <summary>
+              <span class="badge bad">{{ group.count }}</span>
+              <span class="mono">{{ group.name }}</span>
+              <span class="countPill">{{ group.pct_of_section }}</span>
+            </summary>
+            <table class="table" data-table="reverts">
+              <colgroup>
+                <col class="colBn" />
+                <col class="colHash" />
+                <col />
+                <col class="colActions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Source block</th>
+                  <th>Tx hash</th>
+                  <th>Reason (shortened)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in group.rows %}
+                <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.raw_error }}">
+                  <td class="mono">{{ row.block_number }}</td>
+                  <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                  <td>
+                    <div class="reason">{{ row.reason }}</div>
+                    {% if row.raw_error and row.raw_error != row.reason %}
+                    <details class="details nested">
+                      <summary>Raw</summary>
+                      <pre class="pre">{{ row.raw_error }}</pre>
+                    </details>
+                    {% endif %}
+                  </td>
+                  <td class="right">
+                    <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+          {% endfor %}
+          {% endif %}
+        </div>
+      </section>
+
+      <section id="resync-triggers">
+        <div class="card">
+          <div class="cardTitle">
+            Resync triggers (first failures)
+            <span class="countPill">{{ kpis.resync_causes_count }}</span>
+          </div>
+          {% if not resync.causes %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="resync" data-table="resync">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colCount" />
+              <col class="colHash" />
+              <col />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Block</th>
+                <th>Count</th>
+                <th>Tx hash</th>
+                <th>Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in resync.causes %}
+              <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.count }}">
+                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono">{{ row.count }}</td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">{{ row.reason }}</td>
+                <td class="right">
+                  <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </section>
+
+      <section id="certain-failures">
+        <div class="card">
+          <div class="cardTitle">
+            Certain failures (repeated triggers)
+            <span class="countPill">{{ kpis.certain_failures_count }}</span>
+          </div>
+          {% if not resync.certain_failures %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="resync" data-table="resync">
+            <colgroup>
+              <col class="colCount" />
+              <col class="colBn" />
+              <col class="colHash" />
+              <col />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Count</th>
+                <th>Block</th>
+                <th>Tx hash</th>
+                <th>Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in resync.certain_failures %}
+              <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.count }}">
+                <td class="mono">{{ row.count }}</td>
+                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">{{ row.reason }}</td>
+                <td class="right">
+                  <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </section>
+
+      <section id="timestamp-mismatches">
+        <div class="card">
+          <div class="cardTitle">
+            Timestamp mismatches
+            <span class="countPill">{{ diagnostics.timestamp_mismatches_total }}</span>
+          </div>
+          {% if not diagnostics.timestamp_mismatches_recent %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <div class="smallMuted">
+            Showing the most recent timestamp mismatches (bounded).
+          </div>
+          <table class="table filterable" data-filter-scope="diag" data-table="diag">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colBn" />
+              <col class="colHash" />
+              <col class="colCount" />
+              <col class="colCount" />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Echo block</th>
+                <th>Source block</th>
+                <th>Tx hash</th>
+                <th>Source ts</th>
+                <th>Blob ts</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in diagnostics.timestamp_mismatches_recent %}
+              <tr
+                data-search="{{ row.tx_hash }} {{ row.echo_block }} {{ row.source_block }} {{ row.source_ts }} {{ row.blob_ts }}">
+                <td class="mono">{{ row.echo_block }}</td>
+                <td class="mono">{{ row.source_block }}</td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">{{ row.source_ts }}</td>
+                <td class="mono">{{ row.blob_ts }}</td>
+                <td class="right">
+                  <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </section>
+
+      <section id="l2-gas-mismatches">
+        <div class="card">
+          <div class="cardTitle">
+            L2 gas used mismatches
+            <span class="countPill">{{ diagnostics.l2_gas_mismatches_total }}</span>
+          </div>
+          {% if not diagnostics.l2_gas_mismatches_recent %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <div class="smallMuted">
+            Showing the most recent L2 gas used mismatches (bounded).
+          </div>
+          <table class="table filterable" data-filter-scope="diag" data-table="diag">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colBn" />
+              <col class="colHash" />
+              <col class="colCount" />
+              <col class="colCount" />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Echo block</th>
+                <th>Source block</th>
+                <th>Tx hash</th>
+                <th>Blob L2 gas</th>
+                <th>FGW L2 gas</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in diagnostics.l2_gas_mismatches_recent %}
+              <tr
+                data-search="{{ row.tx_hash }} {{ row.echo_block }} {{ row.source_block }} {{ row.blob_total_gas_l2 }} {{ row.fgw_total_gas_consumed_l2 }}">
+                <td class="mono">{{ row.echo_block }}</td>
+                <td class="mono">{{ row.source_block }}</td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">{{ row.blob_total_gas_l2 }}</td>
+                <td class="mono">{{ row.fgw_total_gas_consumed_l2 }}</td>
+                <td class="right">
+                  <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    <footer class="footer">
+      <div>
+        Endpoints:
+        <a href="/echonet/report/ui">UI</a>,
+        <a href="/echonet/report">JSON</a>,
+        <a href="/echonet/report/text">Text</a>,
+        <a href="/echonet/block_dump?blockNumber=0&kind=blob">Block dump</a>
+      </div>
+    </footer>
+  </main>
+</body>
+
+</html>
