@@ -17,6 +17,7 @@ use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
     BuildParam,
+    CommitmentParts,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -308,11 +309,11 @@ async fn get_proposal_content(
                     .final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                // TODO(Asmaa): Pass the commitment parts.
+                let commitment_parts = CommitmentParts::from(&info);
                 let fin = ProposalFin {
                     proposal_commitment,
                     executed_transaction_count,
-                    commitment_parts: None,
+                    commitment_parts: Some(commitment_parts),
                 };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
