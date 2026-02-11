@@ -232,7 +232,7 @@ fn create_transaction_resources() -> TransactionResources {
     TransactionResources {
         starknet_resources: StarknetResources::default(),
         computation: ComputationResources {
-            tx_vm_resources: create_execution_resources(2000, 5, 20, 10).vm_resources,
+            tx_vm_resources: create_execution_resources(2000, 5, 20, 10),
             os_vm_resources: create_execution_resources(500, 1, 5, 2).vm_resources,
             n_reverted_steps: 0,
             sierra_gas: GasAmount(1000),
