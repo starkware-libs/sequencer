@@ -37,6 +37,7 @@ use crate::execution::call_info::{
     cairo_primitive_counter_map,
     CallExecution,
     CallInfo,
+    ExtendedExecutionResources,
     OrderedEvent,
     StorageAccessTracker,
 };
@@ -167,7 +168,11 @@ fn test_nested_library_call() {
     let nested_storage_call_info = CallInfo {
         call: nested_storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
-        resources: storage_entry_point_resources.clone(),
+        resources: ExtendedExecutionResources {
+            vm_resources: storage_entry_point_resources.clone(),
+            // TODO(AvivG): interesting to test here with non-default opcode instance counter?
+            opcode_instance_counter: Default::default(),
+        },
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(value + 1)],
             accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
@@ -188,7 +193,11 @@ fn test_nested_library_call() {
     let library_call_info = CallInfo {
         call: library_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
-        resources: library_call_resources.clone(),
+        resources: ExtendedExecutionResources {
+            vm_resources: library_call_resources.clone(),
+            // TODO(AvivG): interesting to test here with non-default opcode instance counter?
+            opcode_instance_counter: Default::default(),
+        },
         inner_calls: vec![nested_storage_call_info],
         builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 19)]),
         syscalls_usage: HashMap::from([(
@@ -200,7 +209,11 @@ fn test_nested_library_call() {
     let storage_call_info = CallInfo {
         call: storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value)]),
-        resources: storage_entry_point_resources.clone(),
+        resources: ExtendedExecutionResources {
+            vm_resources: storage_entry_point_resources.clone(),
+            // TODO(AvivG): interesting to test here with non-default opcode instance counter?
+            opcode_instance_counter: Default::default(),
+        },
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(value)],
             accessed_storage_keys: HashSet::from([storage_key!(key)]),
@@ -223,7 +236,11 @@ fn test_nested_library_call() {
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
         execution: CallExecution::from_retdata(retdata![felt!(0_u8)]),
-        resources: main_call_resources,
+        resources: ExtendedExecutionResources {
+            vm_resources: main_call_resources,
+            // TODO(AvivG): interesting to test here with non-default opcode instance counter?
+            opcode_instance_counter: Default::default(),
+        },
         inner_calls: vec![library_call_info, storage_call_info],
         builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 37)]),
         syscalls_usage: HashMap::from([(
@@ -320,10 +337,14 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution.clone(),
-        resources: ExecutionResources {
-            n_steps: 228,
-            n_memory_holes: 0,
-            builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
+        resources: ExtendedExecutionResources {
+            vm_resources: ExecutionResources {
+                n_steps: 228,
+                n_memory_holes: 0,
+                builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
+            },
+            // TODO(AvivG): interesting to test here with non-default opcode instance counter?
+            opcode_instance_counter: Default::default(),
         },
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![value],
@@ -346,12 +367,16 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution,
-        resources: &get_const_syscall_resources(DeprecatedSyscallSelector::CallContract)
-            + &ExecutionResources {
-                n_steps: 267,
-                n_memory_holes: 0,
-                builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 3)]),
-            },
+        resources: ExtendedExecutionResources {
+            vm_resources: &get_const_syscall_resources(DeprecatedSyscallSelector::CallContract)
+                + &ExecutionResources {
+                    n_steps: 267,
+                    n_memory_holes: 0,
+                    builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 3)]),
+                },
+            // TODO(AvivG): interesting to test here with non-default opcode instance counter?
+            opcode_instance_counter: Default::default(),
+        },
         builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 19)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::CallContract,
