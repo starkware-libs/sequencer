@@ -744,7 +744,6 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
             state_diff: ThinStateDiff::default(),
             l2_gas_used: GasAmount::default(),
             central_objects: CentralObjects::default(),
-            block_header_commitments: BlockHeaderCommitments::default(),
         })
     });
 
@@ -929,7 +928,6 @@ async fn override_prices_behavior(
             state_diff: ThinStateDiff::default(),
             l2_gas_used: mock_l2_gas_used,
             central_objects: CentralObjects::default(),
-            block_header_commitments: BlockHeaderCommitments::default(),
         })
     });
 
@@ -1082,7 +1080,6 @@ async fn change_gas_price_overrides() {
             state_diff: ThinStateDiff::default(),
             l2_gas_used: GasAmount::default(),
             central_objects: CentralObjects::default(),
-            block_header_commitments: BlockHeaderCommitments::default(),
         })
     });
 
