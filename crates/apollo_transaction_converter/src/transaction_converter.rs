@@ -126,10 +126,19 @@ impl TransactionConverter {
     }
 
     async fn get_proof(&self, proof_facts: &ProofFacts) -> TransactionConverterResult<Proof> {
-        self.proof_manager_client
+        let start_time = Instant::now();
+        let proof_facts_hash = proof_facts.hash();
+        let proof = self
+            .proof_manager_client
             .get_proof(proof_facts.clone())
             .await?
-            .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts.hash() })
+            .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts_hash });
+        let duration = start_time.elapsed();
+        info!(
+            "Getting the proof from the proof manager took: {duration:?} for proof facts hash: \
+             {proof_facts_hash:?}"
+        );
+        proof
     }
     async fn get_executable(
         &self,
