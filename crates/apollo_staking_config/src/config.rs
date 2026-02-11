@@ -225,21 +225,31 @@ impl SerializeConfig for StakingManagerDynamicConfig {
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct StakingManagerStaticConfig {
     pub max_cached_epochs: usize,
+    pub use_only_actual_proposer_selection: bool,
 }
 
 impl Default for StakingManagerStaticConfig {
     fn default() -> Self {
-        Self { max_cached_epochs: 10 }
+        Self { max_cached_epochs: 10, use_only_actual_proposer_selection: false }
     }
 }
 
 impl SerializeConfig for StakingManagerStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "max_cached_epochs",
-            &self.max_cached_epochs,
-            "The maximum number of epochs to cache",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([
+            ser_param(
+                "max_cached_epochs",
+                &self.max_cached_epochs,
+                "The maximum number of epochs to cache.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "use_only_actual_proposer_selection",
+                &self.use_only_actual_proposer_selection,
+                "If true, get_proposer will use the same deterministic round-robin selection as \
+                 get_actual_proposer.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }

@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Echonet report</title>
+  <title>Echonet Report</title>
   <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" />
   {% if export %}
   <link rel="stylesheet" href="data:text/css;base64,{{ inline_css_b64 }}" />
@@ -14,15 +14,13 @@
   {% endif %}
 </head>
 
-<body data-echonet-revert-rate-pct="{{ meta.echonet_revert_rate_pct }}" data-echonet-revert-risk="{{ meta.echonet_revert_risk_0_1 }}">
+<body data-echonet-revert-rate-pct="{{ meta.echonet_revert_rate_pct }}"
+  data-echonet-revert-risk="{{ meta.echonet_revert_risk_0_1 }}">
   <header class="topbar">
     <div class="brand">
-      <div class="title">Echonet report</div>
+      <div class="title">Echonet Report</div>
       <div class="subtitle">
         Generated <span class="mono">{{ meta.generated_at_utc }}</span>
-        • First <span class="mono">{{ meta.first_block_timestamp_iso }}</span>
-        • Latest <span class="mono">{{ meta.latest_block_timestamp_iso }}</span>
-        • Span <span class="mono">{{ meta.span_human }}</span>
       </div>
     </div>
 
@@ -100,19 +98,26 @@
         <div class="card">
           <div class="cardTitle">Alerts</div>
           <div class="pillRow">
-            <span class="pill pillLink {{ severity.gateway_errors }}" role="button" tabindex="0" data-scroll-to="gateway-errors">Gateway errors:
+            <span class="pill pillLink {{ severity.gateway_errors }}" role="button" tabindex="0"
+              data-scroll-to="gateway-errors">Gateway errors:
               <span class="mono">{{ kpis.gateway_errors_count }}</span></span>
-            <span class="pill pillLink {{ severity.reverts_mainnet }}" role="button" tabindex="0" data-scroll-to="reverts-mainnet">Reverts
+            <span class="pill pillLink {{ severity.reverts_mainnet }}" role="button" tabindex="0"
+              data-scroll-to="reverts-mainnet">Reverts
               (mainnet-only): <span class="mono">{{ kpis.reverts_mainnet_count }}</span></span>
-            <span class="pill pillLink {{ severity.reverts_echonet }}" role="button" tabindex="0" data-scroll-to="reverts-echonet">Reverts
+            <span class="pill pillLink {{ severity.reverts_echonet }}" role="button" tabindex="0"
+              data-scroll-to="reverts-echonet">Reverts
               (echonet-only): <span class="mono">{{ kpis.reverts_echonet_count }}</span></span>
-            <span class="pill pillLink {{ severity.resync_causes }}" role="button" tabindex="0" data-scroll-to="resync-triggers">Resync triggers:
+            <span class="pill pillLink {{ severity.resync_causes }}" role="button" tabindex="0"
+              data-scroll-to="resync-triggers">Resync triggers:
               <span class="mono">{{ kpis.resync_causes_count }}</span></span>
-            <span class="pill pillLink {{ severity.certain_failures }}" role="button" tabindex="0" data-scroll-to="certain-failures">Certain failures:
+            <span class="pill pillLink {{ severity.certain_failures }}" role="button" tabindex="0"
+              data-scroll-to="certain-failures">Certain failures:
               <span class="mono">{{ kpis.certain_failures_count }}</span></span>
-            <span class="pill pillLink {{ severity.timestamp_mismatches }}" role="button" tabindex="0" data-scroll-to="timestamp-mismatches">Timestamp
+            <span class="pill pillLink {{ severity.timestamp_mismatches }}" role="button" tabindex="0"
+              data-scroll-to="timestamp-mismatches">Timestamp
               mismatches: <span class="mono">{{ kpis.timestamp_mismatches_count }}</span></span>
-            <span class="pill pillLink {{ severity.l2_gas_mismatches }}" role="button" tabindex="0" data-scroll-to="l2-gas-mismatches">L2 gas
+            <span class="pill pillLink {{ severity.l2_gas_mismatches }}" role="button" tabindex="0"
+              data-scroll-to="l2-gas-mismatches">L2 gas
               mismatches: <span class="mono">{{ kpis.l2_gas_mismatches_count }}</span></span>
           </div>
           <div class="smallMuted">
@@ -214,7 +219,8 @@
         <div class="card">
           <div class="cardTitle">
             Reverted only on Mainnet
-            <span class="countPill">{{ reverts.mainnet_only.total }} ({{ reverts.mainnet_only.pct_of_total_sent }})</span>
+            <span class="countPill">{{ reverts.mainnet_only.total }} ({{ reverts.mainnet_only.pct_of_total_sent
+              }})</span>
           </div>
           {% if reverts.mainnet_only.total == 0 %}
           <div class="empty">(none)</div>
@@ -276,7 +282,8 @@
         <div class="card">
           <div class="cardTitle">
             Reverted only on Echonet
-            <span class="countPill">{{ reverts.echonet_only.total }} ({{ reverts.echonet_only.pct_of_total_sent }})</span>
+            <span class="countPill">{{ reverts.echonet_only.total }} ({{ reverts.echonet_only.pct_of_total_sent
+              }})</span>
           </div>
           {% if reverts.echonet_only.total == 0 %}
           <div class="empty">(none)</div>

@@ -73,6 +73,7 @@
   "consensus_manager_config.staking_manager_config.dynamic_config.default_committee": "$$$_CONSENSUS_MANAGER_CONFIG-STAKING_MANAGER_CONFIG-DYNAMIC_CONFIG-DEFAULT_COMMITTEE_$$$",
   "consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none": true,
   "consensus_manager_config.staking_manager_config.static_config.max_cached_epochs": 10,
+  "consensus_manager_config.staking_manager_config.static_config.use_only_actual_proposer_selection": true,
   "consensus_manager_config.stream_handler_config.channel_buffer_capacity": 1000,
   "consensus_manager_config.stream_handler_config.max_streams": 100,
   "consensus_manager_config.votes_topic": "consensus_votes"

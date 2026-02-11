@@ -108,7 +108,7 @@ class SenderConfig:
     max_retry_sleep_seconds: float = 30.0
     sleep_between_blocks_seconds: float = CONFIG.sleep.sleep_between_blocks_seconds
 
-    queue_size: int = 100
+    queue_size: int = 50
     blocks_to_wait_before_failing_tx: int = 35
 
 
