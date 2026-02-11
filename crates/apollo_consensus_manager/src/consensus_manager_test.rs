@@ -34,6 +34,12 @@ async fn revert_batcher_blocks() {
 
     let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
 
+    mock_voted_height_storage
+        .expect_revert_height()
+        .times(1)
+        .with(eq(REVERT_UP_TO_AND_INCLUDING_HEIGHT))
+        .returning(|_| Ok(()));
+
     let expected_revert_heights =
         (REVERT_UP_TO_AND_INCLUDING_HEIGHT.0..BATCHER_HEIGHT.0).rev().map(BlockNumber);
     for height in expected_revert_heights {
@@ -41,13 +47,6 @@ async fn revert_batcher_blocks() {
             .expect_revert_block()
             .times(1)
             .with(eq(RevertBlockInput { height }))
-            .in_sequence(&mut revert_sequence)
-            .returning(|_| Ok(()));
-
-        mock_voted_height_storage
-            .expect_revert_height()
-            .times(1)
-            .with(eq(height))
             .in_sequence(&mut revert_sequence)
             .returning(|_| Ok(()));
     }
@@ -78,7 +77,56 @@ async fn revert_batcher_blocks() {
         Arc::new(Mutex::new(mock_voted_height_storage)),
     );
 
-    // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).
+    // TODO(Shahak): try to solve this better (the test will take 100 milliseconds to run).
+    timeout(Duration::from_millis(100), consensus_manager.run()).await.unwrap_err();
+}
+
+#[tokio::test]
+async fn revert_voted_height_when_batcher_already_at_target() {
+    const TARGET_HEIGHT: BlockNumber = BlockNumber(7);
+
+    let mut mock_batcher_client = MockBatcherClient::new();
+    // Batcher is already at the target height — no blocks to revert.
+    mock_batcher_client
+        .expect_get_height()
+        .returning(|| Ok(GetHeightResponse { height: TARGET_HEIGHT }));
+    mock_batcher_client.expect_revert_block().times(0).returning(|_| Ok(()));
+
+    let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
+    // Checking we're still reverting the consensus manager's voted height storage.
+    mock_voted_height_storage
+        .expect_revert_height()
+        .times(1)
+        .with(eq(TARGET_HEIGHT))
+        .returning(|_| Ok(()));
+
+    let manager_config = ConsensusManagerConfig {
+        revert_config: RevertConfig {
+            revert_up_to_and_including: TARGET_HEIGHT,
+            should_revert: true,
+        },
+        ..Default::default()
+    };
+
+    let state_sync = Arc::new(MockStateSyncClient::new());
+    let config_manager = Arc::new(MockConfigManagerClient::new());
+    let committee_provider =
+        create_committee_provider(&manager_config, state_sync.clone(), config_manager.clone());
+    let consensus_manager = ConsensusManager::new_with_storage(
+        ConsensusManagerArgs {
+            config: manager_config,
+            batcher_client: Arc::new(mock_batcher_client),
+            state_sync_client: state_sync,
+            class_manager_client: Arc::new(MockClassManagerClient::new()),
+            signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
+            config_manager_client: config_manager,
+            l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+            committee_provider,
+        },
+        Arc::new(Mutex::new(mock_voted_height_storage)),
+    );
+
+    // TODO(Shahak): try to solve this better (the test will take 100 milliseconds to run).
     timeout(Duration::from_millis(100), consensus_manager.run()).await.unwrap_err();
 }
 
@@ -113,6 +161,6 @@ async fn no_reverts_without_config() {
         committee_provider,
     });
 
-    // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).
+    // TODO(Shahak): try to solve this better (the test will take 100 milliseconds to run).
     timeout(Duration::from_millis(100), consensus_manager.run()).await.unwrap_err();
 }
