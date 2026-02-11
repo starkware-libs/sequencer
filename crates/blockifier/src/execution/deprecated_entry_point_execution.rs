@@ -13,7 +13,12 @@ use starknet_api::hash::StarkHash;
 
 use super::call_info::StorageAccessTracker;
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
-use crate::execution::call_info::{cairo_primitive_counter_map, CallExecution, CallInfo};
+use crate::execution::call_info::{
+    cairo_primitive_counter_map,
+    CallExecution,
+    CallInfo,
+    ExtendedExecutionResources,
+};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
@@ -267,7 +272,12 @@ pub fn finalize_execution(
     vm_resources_without_inner_calls +=
         &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
 
-    let vm_resources = &vm_resources_without_inner_calls
+    // NOTE: Deprecated entry point execution does not support tracking opcode counters.
+    let vm_resources_without_inner_calls = ExtendedExecutionResources {
+        vm_resources: vm_resources_without_inner_calls,
+        opcode_instance_counter: Default::default(),
+    };
+    let vm_resources = &vm_resources_without_inner_calls.vm_resources
         + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
 
     Ok(CallInfo {
@@ -289,7 +299,7 @@ pub fn finalize_execution(
             ..Default::default()
         },
         builtin_counters: cairo_primitive_counter_map(
-            vm_resources_without_inner_calls.prover_builtins(),
+            vm_resources_without_inner_calls.vm_resources.prover_builtins(),
         ),
         syscalls_usage: syscall_handler.syscalls_usage,
     })
