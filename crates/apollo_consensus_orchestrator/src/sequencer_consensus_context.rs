@@ -25,6 +25,7 @@ use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     BuildParam,
+    CommitmentParts,
     HeightAndRound,
     ProposalFin,
     ProposalInit,
@@ -623,7 +624,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam) {
         info!(?id, ?build_param, "Reproposing.");
         let height = build_param.height;
-        let (init, txs, _, _) = self
+        let (init, txs, _, finished_info) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
@@ -635,8 +636,15 @@ impl ConsensusContext for SequencerConsensusContext {
             self.start_stream(HeightAndRound(height.0, build_param.round)).await;
         let handle = tokio::spawn(
             async move {
-                let res =
-                    send_reproposal(id, init, txs, &mut stream_sender, transaction_converter).await;
+                let res = send_reproposal(
+                    id,
+                    init,
+                    txs,
+                    finished_info,
+                    &mut stream_sender,
+                    transaction_converter,
+                )
+                .await;
                 match res {
                     Ok(()) => {
                         info!(?id, ?build_param, "Reproposal succeeded.");
@@ -923,11 +931,11 @@ async fn send_reproposal(
     id: ProposalCommitment,
     init: ProposalInit,
     txs: Vec<Vec<InternalConsensusTransaction>>,
+    finished_info: FinishedProposalInfo,
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
     stream_sender.send(ProposalPart::Init(init)).await?;
-    let mut n_executed_txs: usize = 0;
     for batch in txs.iter() {
         let transactions = futures::future::join_all(batch.iter().map(|tx| {
             // transaction_converter is an external dependency (class manager) and so
@@ -938,12 +946,17 @@ async fn send_reproposal(
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
         stream_sender.send(ProposalPart::Transactions(TransactionBatch { transactions })).await?;
-        n_executed_txs += batch.len();
     }
-    let executed_transaction_count: u64 =
-        n_executed_txs.try_into().expect("Number of executed transactions should fit in u64");
-    let fin =
-        ProposalFin { proposal_commitment: id, executed_transaction_count, commitment_parts: None };
+    let executed_transaction_count: u64 = finished_info
+        .final_n_executed_txs
+        .try_into()
+        .expect("Number of executed transactions should fit in u64");
+    let commitment_parts = CommitmentParts::from(&finished_info);
+    let fin = ProposalFin {
+        proposal_commitment: id,
+        executed_transaction_count,
+        commitment_parts: Some(commitment_parts),
+    };
     stream_sender.send(ProposalPart::Fin(fin)).await?;
 
     Ok(())
