@@ -26,6 +26,7 @@ use apollo_protobuf::consensus::{
     ProposalCommitment,
     ProposalFin,
     ProposalPart,
+    SignedProposalPart,
     TransactionBatch,
 };
 use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClientError};
@@ -119,9 +120,9 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     let init = block_info(BlockNumber(0), 0);
     let transactions =
-        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
+        SignedProposalPart::transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
-    let fin = ProposalPart::Fin(ProposalFin {
+    let fin = SignedProposalPart::fin(ProposalFin {
         proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
         commitment_parts: None,
@@ -134,9 +135,9 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     let build_param = BuildParam { round: 1, ..Default::default() };
     context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), build_param).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
+    assert_eq!(receiver.next().await.unwrap().part, ProposalPart::Init(init));
     assert_eq!(
-        receiver.next().await.unwrap(),
+        receiver.next().await.unwrap().part,
         ProposalPart::Transactions(TransactionBatch { transactions: executed_transactions })
     );
     assert_eq!(receiver.next().await.unwrap(), fin);
@@ -154,8 +155,8 @@ async fn proposals_from_different_rounds() {
 
     // Proposal parts sent in the proposals.
     let prop_part_txs =
-        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
-    let prop_part_fin = ProposalPart::Fin(ProposalFin {
+        SignedProposalPart::transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
+    let prop_part_fin = SignedProposalPart::fin(ProposalFin {
         proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
         commitment_parts: None,
@@ -263,16 +264,16 @@ async fn build_proposal() {
     let part = receiver.next().await.unwrap();
     let after: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
-    let ProposalPart::Init(info) = part else {
+    let ProposalPart::Init(info) = part.part else {
         panic!("Expected ProposalPart::Init");
     };
     assert!(info.timestamp >= before && info.timestamp <= after);
     assert_eq!(
-        receiver.next().await.unwrap(),
+        receiver.next().await.unwrap().part,
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
     );
     assert_eq!(
-        receiver.next().await.unwrap(),
+        receiver.next().await.unwrap().part,
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
@@ -491,7 +492,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), part);
 
-    let reproposed_txs = ProposalPart::Transactions(TransactionBatch { transactions });
+    let reproposed_txs = SignedProposalPart::transactions(TransactionBatch { transactions });
     assert_eq!(receiver.next().await.unwrap(), reproposed_txs);
 
     assert_eq!(receiver.next().await.unwrap(), fin);
@@ -525,7 +526,7 @@ async fn gas_price_fri_out_of_range() {
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     let mut init_2 = block_info(BlockNumber(0), 0);
     init_2.l1_data_gas_price_fri = init_2.l1_data_gas_price_fri.checked_mul_u128(2).unwrap();
-    content_sender.send(ProposalPart::Init(init_2).clone()).await.unwrap();
+    content_sender.send(SignedProposalPart::init(init_2.clone())).await.unwrap();
     // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
     let fin_receiver = context
@@ -693,7 +694,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
     let part = receiver.next().await.unwrap();
-    let ProposalPart::Init(info) = part else {
+    let ProposalPart::Init(info) = part.part else {
         panic!("Expected ProposalPart::Init");
     };
 
@@ -704,11 +705,11 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     assert_eq!(info.l1_data_gas_price_wei.0, default_context_config.min_l1_data_gas_price_wei);
 
     assert_eq!(
-        receiver.next().await.unwrap(),
+        receiver.next().await.unwrap().part,
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
     );
     assert_eq!(
-        receiver.next().await.unwrap(),
+        receiver.next().await.unwrap().part,
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
@@ -812,7 +813,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
     let part = receiver.next().await.unwrap();
-    let ProposalPart::Init(info) = part else {
+    let ProposalPart::Init(info) = part.part else {
         panic!("Expected ProposalPart::Init");
     };
     assert_eq!(info.height, BlockNumber(1));
@@ -825,11 +826,11 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     assert_eq!(info.l1_data_gas_price_fri, previous_init.l1_data_gas_price_fri);
 
     assert_eq!(
-        receiver.next().await.unwrap(),
+        receiver.next().await.unwrap().part,
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
     );
     assert_eq!(
-        receiver.next().await.unwrap(),
+        receiver.next().await.unwrap().part,
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
@@ -1177,7 +1178,7 @@ async fn change_gas_price_overrides() {
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
     let part = receiver.next().await.unwrap();
-    let ProposalPart::Init(_) = part else {
+    let ProposalPart::Init(_) = part.part else {
         panic!("Expected ProposalPart::Init");
     };
 }

@@ -197,16 +197,43 @@ pub enum ProposalPart {
     Transactions(TransactionBatch),
 }
 
-impl TryInto<ProposalInit> for ProposalPart {
+/// A proposal part with a signature (wire format).
+#[derive(Debug, Clone, PartialEq)]
+pub struct SignedProposalPart {
+    pub part: ProposalPart,
+    pub signature: RawSignature,
+}
+// TODO(Asmaa): Delete this once we sign the proposal parts.
+impl SignedProposalPart {
+    /// Creates a signed init part with default (empty) signature.
+    pub fn init(init: ProposalInit) -> Self {
+        SignedProposalPart { part: ProposalPart::Init(init), signature: RawSignature::default() }
+    }
+
+    /// Creates a signed fin part with default (empty) signature.
+    pub fn fin(fin: ProposalFin) -> Self {
+        SignedProposalPart { part: ProposalPart::Fin(fin), signature: RawSignature::default() }
+    }
+
+    /// Creates a signed transactions part with default (empty) signature.
+    pub fn transactions(batch: TransactionBatch) -> Self {
+        SignedProposalPart {
+            part: ProposalPart::Transactions(batch),
+            signature: RawSignature::default(),
+        }
+    }
+}
+
+impl TryInto<ProposalInit> for SignedProposalPart {
     type Error = ProtobufConversionError;
 
-    fn try_into(self: ProposalPart) -> Result<ProposalInit, Self::Error> {
-        match self {
+    fn try_into(self: SignedProposalPart) -> Result<ProposalInit, Self::Error> {
+        match self.part {
             ProposalPart::Init(init) => Ok(init),
             _ => Err(ProtobufConversionError::WrongEnumVariant {
-                type_description: "ProposalPart",
+                type_description: "SignedProposalPart",
                 expected: "Init",
-                value_as_str: format!("{self:?}"),
+                value_as_str: format!("{:?}", self.part),
             }),
         }
     }
@@ -215,6 +242,12 @@ impl TryInto<ProposalInit> for ProposalPart {
 impl From<ProposalInit> for ProposalPart {
     fn from(value: ProposalInit) -> Self {
         ProposalPart::Init(value)
+    }
+}
+
+impl From<ProposalInit> for SignedProposalPart {
+    fn from(value: ProposalInit) -> Self {
+        SignedProposalPart::init(value)
     }
 }
 

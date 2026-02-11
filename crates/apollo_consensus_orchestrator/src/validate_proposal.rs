@@ -18,7 +18,13 @@ use apollo_class_manager_types::transaction_converter::TransactionConverterTrait
 use apollo_consensus::types::ProposalCommitment;
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
-use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch};
+use apollo_protobuf::consensus::{
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    SignedProposalPart,
+    TransactionBatch,
+};
 use apollo_state_sync_types::communication::StateSyncClient;
 use apollo_time::time::{Clock, ClockExt, DateTime};
 use futures::channel::mpsc;
@@ -61,7 +67,7 @@ pub(crate) struct ProposalValidateArguments {
     pub timeout: Duration,
     pub batcher_timeout_margin: Duration,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
-    pub content_receiver: mpsc::Receiver<ProposalPart>,
+    pub content_receiver: mpsc::Receiver<SignedProposalPart>,
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
 }
@@ -114,7 +120,7 @@ pub(crate) enum ValidateProposalError {
     #[error("Batcher returned Invalid status: {0}.")]
     InvalidProposal(String),
     #[error("Proposal part {1:?} failed validation: {0}.")]
-    ProposalPartFailed(String, Option<ProposalPart>),
+    ProposalPartFailed(String, Option<SignedProposalPart>),
     #[error("proposal_commitment built by the batcher does not match the proposal fin.")]
     ProposalFinMismatch,
     #[error("Cannot calculate deadline. timeout: {timeout:?}, now: {now:?}")]
@@ -351,7 +357,7 @@ async fn initiate_validation(
 async fn handle_proposal_part(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
-    proposal_part: Option<ProposalPart>,
+    proposal_part: Option<SignedProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
@@ -366,7 +372,7 @@ async fn handle_proposal_part(
                 "Proposal content stream was closed before receiving fin".to_string(),
             )
         }
-        Some(ProposalPart::Fin(fin)) => {
+        Some(SignedProposalPart { part: ProposalPart::Fin(fin), .. }) => {
             info!("Received fin={fin:?}");
             let Ok(executed_txs_count) = fin.executed_transaction_count.try_into() else {
                 return HandledProposalPart::Failed(
@@ -409,7 +415,10 @@ async fn handle_proposal_part(
             }
             HandledProposalPart::Finished(batcher_block_id, fin)
         }
-        Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
+        Some(SignedProposalPart {
+            part: ProposalPart::Transactions(TransactionBatch { transactions: txs }),
+            ..
+        }) => {
             // TODO(guyn): check that the length of txs and the number of batches we receive is not
             // so big it would fill up the memory (in case of a malicious proposal)
             debug!("Received transaction batch with {} txs", txs.len());

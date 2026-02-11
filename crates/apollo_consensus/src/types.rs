@@ -9,7 +9,7 @@ use apollo_network::network_manager::{
     GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote};
+use apollo_protobuf::consensus::{BuildParam, ProposalInit, SignedProposalPart, Vote};
 pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
@@ -30,11 +30,11 @@ pub type ValidatorId = ContractAddress;
 #[async_trait]
 pub trait ConsensusContext {
     /// The parts of the proposal that are streamed in.
-    /// Must contain at least the ProposalInit and ProposalFin.
-    type ProposalPart: TryFrom<Vec<u8>, Error = ProtobufConversionError>
+    /// Must contain at least the SignedProposalPart and ProposalFin.
+    type SignedProposalPart: TryFrom<Vec<u8>, Error = ProtobufConversionError>
         + Into<Vec<u8>>
-        + TryInto<ProposalInit, Error = ProtobufConversionError>
-        + From<ProposalInit>
+        + TryInto<SignedProposalPart>
+        + From<SignedProposalPart>
         + Clone
         + Send
         + Debug;
@@ -78,7 +78,7 @@ pub trait ConsensusContext {
         &mut self,
         init: ProposalInit,
         timeout: Duration,
-        content: mpsc::Receiver<Self::ProposalPart>,
+        content: mpsc::Receiver<Self::SignedProposalPart>,
     ) -> oneshot::Receiver<ProposalCommitment>;
 
     /// This function is called by consensus to retrieve the content of a previously built or

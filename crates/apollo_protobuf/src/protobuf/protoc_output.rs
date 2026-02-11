@@ -501,6 +501,8 @@ pub struct ProposalFin {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProposalPart {
+    #[prost(message, optional, tag = "4")]
+    pub signature: ::core::option::Option<Hashes>,
     #[prost(oneof = "proposal_part::Message", tags = "1, 2, 3")]
     pub message: ::core::option::Option<proposal_part::Message>,
 }

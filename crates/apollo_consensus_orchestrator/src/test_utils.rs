@@ -36,7 +36,7 @@ use apollo_protobuf::consensus::{
     ProposalCommitment as ProtoProposalCommitment,
     ProposalFin,
     ProposalInit,
-    ProposalPart,
+    SignedProposalPart,
     TransactionBatch,
     Vote,
 };
@@ -109,7 +109,8 @@ pub(crate) struct TestDeps {
     pub cende_ambassador: MockCendeContext,
     pub l1_gas_price_provider: MockL1GasPriceProviderClient,
     pub clock: Arc<dyn Clock>,
-    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+    pub outbound_proposal_sender:
+        mpsc::Sender<(HeightAndRound, mpsc::Receiver<SignedProposalPart>)>,
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
 }
 
@@ -309,7 +310,7 @@ impl TestDeps {
 
 pub(crate) fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) {
     let (outbound_proposal_sender, outbound_proposal_receiver) =
-        mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
+        mpsc::channel::<(HeightAndRound, mpsc::Receiver<SignedProposalPart>)>(CHANNEL_SIZE);
 
     let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
@@ -383,15 +384,17 @@ pub(crate) fn block_info(height: BlockNumber, round: u32) -> ProposalInit {
 // content_receiver.
 pub(crate) async fn send_proposal_to_validator_context(
     context: &mut SequencerConsensusContext,
-) -> mpsc::Receiver<ProposalPart> {
+) -> mpsc::Receiver<SignedProposalPart> {
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.get_config().static_config.proposal_buffer_size);
     content_sender
-        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .send(SignedProposalPart::transactions(TransactionBatch {
+            transactions: TX_BATCH.to_vec(),
+        }))
         .await
         .unwrap();
     content_sender
-        .send(ProposalPart::Fin(ProposalFin {
+        .send(SignedProposalPart::fin(ProposalFin {
             proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
             commitment_parts: None,
@@ -405,7 +408,8 @@ pub(crate) async fn send_proposal_to_validator_context(
 // Structs which aren't utilized but should not be dropped.
 pub(crate) struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
-    pub outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+    pub outbound_proposal_receiver:
+        mpsc::Receiver<(HeightAndRound, mpsc::Receiver<SignedProposalPart>)>,
 }
 
 // TODO(Dafna): Remove this struct and use ProposalBuildArguments directly.
@@ -455,7 +459,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
 }
 
 pub(crate) fn create_proposal_build_arguments()
--> (TestProposalBuildArguments, mpsc::Receiver<ProposalPart>) {
+-> (TestProposalBuildArguments, mpsc::Receiver<SignedProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
     let time_now = deps.clock.now();
@@ -464,7 +468,7 @@ pub(crate) fn create_proposal_build_arguments()
     let retrospective_block_hash_retry_interval_millis = Duration::from_millis(25);
     let build_param = BuildParam::default();
     let l1_da_mode = L1DataAvailabilityMode::Calldata;
-    let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
+    let (proposal_sender, proposal_receiver) = mpsc::channel::<SignedProposalPart>(CHANNEL_SIZE);
     let stream_sender = StreamSender { proposal_sender };
     let context_config = ContextConfig::default();
 

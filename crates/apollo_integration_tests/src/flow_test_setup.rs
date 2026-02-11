@@ -23,7 +23,13 @@ use apollo_node::servers::run_component_servers;
 use apollo_node::utils::create_node_modules;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::node_config::SequencerNodeConfig;
-use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
+use apollo_protobuf::consensus::{
+    HeightAndRound,
+    ProposalPart,
+    SignedProposalPart,
+    StreamMessage,
+    StreamMessageBody,
+};
 use apollo_state_sync_config::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
@@ -328,7 +334,7 @@ pub fn create_consensus_manager_configs_and_channels(
     chain_id: &ChainId,
 ) -> (
     Vec<ConsensusManagerConfig>,
-    BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
+    BroadcastTopicChannels<StreamMessage<SignedProposalPart, HeightAndRound>>,
 ) {
     let mut network_configs = create_connected_network_configs(ports);
 
@@ -357,7 +363,7 @@ pub fn create_consensus_manager_configs_and_channels(
 // Collects batched transactions.
 struct TxCollector {
     pub consensus_proposals_channels:
-        BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
+        BroadcastTopicChannels<StreamMessage<SignedProposalPart, HeightAndRound>>,
     pub accumulated_txs: Arc<Mutex<AccumulatedTransactions>>,
     pub chain_id: ChainId,
 }
@@ -402,7 +408,11 @@ impl TxCollector {
             incoming_message_id, 0,
             "Expected the first message in the stream to have id 0, got {incoming_message_id}"
         );
-        let StreamMessageBody::Content(ProposalPart::Init(incoming_init)) = init_message else {
+        let StreamMessageBody::Content(SignedProposalPart {
+            part: ProposalPart::Init(incoming_init),
+            ..
+        }) = init_message
+        else {
             panic!("Expected a init message. Got: {init_message:?}")
         };
 
@@ -415,13 +425,22 @@ impl TxCollector {
                 messages_cache.remove(&i).expect("Stream should have all consecutive messages");
             assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
             match message {
-                StreamMessageBody::Content(ProposalPart::Init(incoming_init)) => {
+                StreamMessageBody::Content(SignedProposalPart {
+                    part: ProposalPart::Init(incoming_init),
+                    ..
+                }) => {
                     panic!("Unexpected init: {incoming_init:?}")
                 }
-                StreamMessageBody::Content(ProposalPart::Fin(..)) => {
+                StreamMessageBody::Content(SignedProposalPart {
+                    part: ProposalPart::Fin(..),
+                    ..
+                }) => {
                     got_proposal_fin = true;
                 }
-                StreamMessageBody::Content(ProposalPart::Transactions(transactions)) => {
+                StreamMessageBody::Content(SignedProposalPart {
+                    part: ProposalPart::Transactions(transactions),
+                    ..
+                }) => {
                     // TODO(Arni): add calculate_transaction_hash to consensus transaction and use
                     // it here.
                     let received_tx_hashes: Vec<_> = transactions

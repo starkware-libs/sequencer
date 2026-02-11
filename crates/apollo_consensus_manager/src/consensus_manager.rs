@@ -37,7 +37,7 @@ use apollo_network::network_manager::{
     BroadcastTopicServer,
     NetworkManager,
 };
-use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
+use apollo_protobuf::consensus::{HeightAndRound, SignedProposalPart, StreamMessage, Vote};
 use apollo_reverts::{revert_blocks_and_eternal_pending, RevertComponentData};
 use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_staking::committee_provider::CommitteeProvider;
@@ -73,9 +73,9 @@ use crate::metrics::{
     CONSENSUS_VOTES_SENT_MESSAGE_SIZE,
 };
 
-type ProposalStreamMessage = StreamMessage<ProposalPart, HeightAndRound>;
+type ProposalStreamMessage = StreamMessage<SignedProposalPart, HeightAndRound>;
 type ProposalStreamHandler = StreamHandler<
-    ProposalPart,
+    SignedProposalPart,
     HeightAndRound,
     BroadcastTopicServer<ProposalStreamMessage>,
     BroadcastTopicClient<ProposalStreamMessage>,
@@ -232,8 +232,11 @@ impl ConsensusManager {
     fn create_stream_handler(
         &self,
         proposals_broadcast_channels: BroadcastTopicChannels<ProposalStreamMessage>,
-        inbound_internal_sender: mpsc::Sender<mpsc::Receiver<ProposalPart>>,
-        outbound_internal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+        inbound_internal_sender: mpsc::Sender<mpsc::Receiver<SignedProposalPart>>,
+        outbound_internal_receiver: mpsc::Receiver<(
+            HeightAndRound,
+            mpsc::Receiver<SignedProposalPart>,
+        )>,
     ) -> ProposalStreamHandler {
         let BroadcastTopicChannels {
             broadcasted_messages_receiver: inbound_network_receiver,
@@ -273,7 +276,10 @@ impl ConsensusManager {
     fn create_sequencer_consensus_context(
         &self,
         votes_broadcast_channels: &BroadcastTopicChannels<Vote>,
-        outbound_internal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+        outbound_internal_sender: mpsc::Sender<(
+            HeightAndRound,
+            mpsc::Receiver<SignedProposalPart>,
+        )>,
         config_manager_client: SharedConfigManagerClient,
     ) -> SequencerConsensusContext {
         SequencerConsensusContext::new(
