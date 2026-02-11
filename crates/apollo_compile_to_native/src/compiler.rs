@@ -61,13 +61,11 @@ impl SierraToNativeCompiler {
 }
 
 fn default_compiler_binary_path() -> PathBuf {
-    let runtime_out_dir = out_dir();
-    ensure_starknet_native_compile_installed(&runtime_out_dir);
-
-    binary_path(&runtime_out_dir, CAIRO_NATIVE_BINARY_NAME)
+    ensure_starknet_native_compile_installed();
+    binary_path(CAIRO_NATIVE_BINARY_NAME)
 }
 
-fn ensure_starknet_native_compile_installed(out_dir: &Path) {
+fn ensure_starknet_native_compile_installed() {
     STARKNET_NATIVE_COMPILE_INSTALLER.call_once(|| {
         let cargo_install_args =
             [CAIRO_NATIVE_BINARY_NAME, "--version", REQUIRED_CAIRO_NATIVE_VERSION];
@@ -75,12 +73,6 @@ fn ensure_starknet_native_compile_installed(out_dir: &Path) {
             CAIRO_NATIVE_BINARY_NAME,
             REQUIRED_CAIRO_NATIVE_VERSION,
             &cargo_install_args,
-            out_dir,
         );
     });
-}
-
-// Returns the OUT_DIR. This function is only operable at run time.
-fn out_dir() -> PathBuf {
-    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
 }

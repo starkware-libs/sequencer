@@ -1,19 +1,51 @@
-// Note: This module includes path resolution functions that are needed during build and run times.
-// It must not contain functionality that is available in only in one of these modes. Specifically,
-// it must avoid relying on env variables such as 'CARGO_*' or 'OUT_DIR'.
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 
-fn target_dir(out_dir: &std::path::Path) -> std::path::PathBuf {
-    out_dir
-        .ancestors()
-        .nth(3)
-        .expect("Failed to navigate up three levels from OUT_DIR")
-        .to_path_buf()
+fn profile_dir_from_executable(executable_path: &Path) -> PathBuf {
+    let executable_dir =
+        executable_path.parent().expect("Current executable path has no parent directory");
+    if executable_dir.file_name() == Some(OsStr::new("deps")) {
+        executable_dir
+            .parent()
+            .expect("Failed to navigate from deps to profile directory")
+            .to_path_buf()
+    } else {
+        executable_dir.to_path_buf()
+    }
 }
 
-pub fn shared_folder_dir(out_dir: &std::path::Path) -> std::path::PathBuf {
-    target_dir(out_dir).join("shared_executables")
+fn profile_dir() -> PathBuf {
+    let executable_path = std::env::current_exe().expect("Failed to resolve current executable.");
+    profile_dir_from_executable(&executable_path)
 }
 
-pub fn binary_path(out_dir: &std::path::Path, binary_name: &str) -> std::path::PathBuf {
-    shared_folder_dir(out_dir).join(binary_name)
+pub fn shared_folder_dir() -> PathBuf {
+    profile_dir().join("shared_executables")
+}
+
+pub fn binary_path(binary_name: &str) -> PathBuf {
+    shared_folder_dir().join(binary_name)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::profile_dir_from_executable;
+
+    #[test]
+    fn resolve_profile_dir_for_test_binary() {
+        let executable_path = PathBuf::from("/tmp/target/debug/deps/test_binary");
+        let profile_dir = profile_dir_from_executable(&executable_path);
+
+        assert_eq!(profile_dir, PathBuf::from("/tmp/target/debug"));
+    }
+
+    #[test]
+    fn resolve_profile_dir_for_regular_binary() {
+        let executable_path = PathBuf::from("/tmp/target/release/install_binary");
+        let profile_dir = profile_dir_from_executable(&executable_path);
+
+        assert_eq!(profile_dir, PathBuf::from("/tmp/target/release"));
+    }
 }
