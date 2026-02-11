@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use cairo_vm::Felt252;
 use expect_test::expect;
 use starknet_api::abi::abi_utils::{selector_from_name, starknet_keccak};
@@ -25,6 +24,7 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use test_case::test_case;
 
 use crate::context::{BlockContext, ChainInfo};
+use crate::execution::call_info::ExtendedExecutionResources;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::syscall_tests::DeterministicExecutionResources;
@@ -184,7 +184,7 @@ fn test_meta_tx_v0(
                 },
             }
         "#]]
-        .assert_debug_eq(&DeterministicExecutionResources::from(&call_info.resources));
+        .assert_debug_eq(&DeterministicExecutionResources::from(&call_info.resources.vm_resources));
     } else {
         assert_eq!(call_info.execution.cairo_native, runnable_version.is_cairo_native());
         call_info.execution.cairo_native = false;
@@ -201,7 +201,7 @@ fn test_meta_tx_v0(
             }
         "#]]
         .assert_debug_eq(&call_info.execution);
-        assert_eq!(call_info.resources, ExecutionResources::default());
+        assert_eq!(call_info.resources, ExtendedExecutionResources::default());
     }
 
     let check_value = |key: Felt252, value: Felt252| {
