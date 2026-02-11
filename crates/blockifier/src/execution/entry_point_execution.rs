@@ -438,12 +438,7 @@ pub fn total_vm_resources(
     tracked_vm_resources_without_inner_calls: &ExtendedExecutionResources,
     inner_calls: &[CallInfo],
 ) -> ExtendedExecutionResources {
-    tracked_vm_resources_without_inner_calls
-    // TODO(AvivG): Have CallInfo::summarize_vm_resources return ExtendedExecutionResources.
-        + &ExtendedExecutionResources {
-            vm_resources: CallInfo::summarize_vm_resources(inner_calls.iter()),
-            opcode_instance_counter: Default::default(),
-        }
+    tracked_vm_resources_without_inner_calls + &CallInfo::summarize_vm_resources(inner_calls.iter())
 }
 
 pub fn finalize_execution(
@@ -488,8 +483,7 @@ pub fn finalize_execution(
         },
         inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
-        // TODO(AvivG): replace CallInfo::resources type with ExtendedExecutionResources.
-        resources: vm_resources.vm_resources,
+        resources: vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
         builtin_counters: vm_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler_base.syscalls_usage,

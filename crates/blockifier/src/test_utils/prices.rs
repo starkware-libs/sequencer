@@ -40,6 +40,7 @@ impl From<Prices> for ExecutionResources {
 }
 
 /// Returns the expected VM resource consumption for a fee transfer call from the given address.
+// TODO(AvivG): update to return ExtendedExecutionResources?
 #[cached]
 fn fee_transfer_resources(
     account_contract_address: ContractAddress,
@@ -89,4 +90,5 @@ fn fee_transfer_resources(
         )
         .unwrap()
         .resources
+        .vm_resources
 }
