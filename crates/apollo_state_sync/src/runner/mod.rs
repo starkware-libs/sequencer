@@ -5,11 +5,7 @@ use std::sync::Arc;
 
 use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
-use apollo_central_sync::{
-    StateSync as CentralStateSync,
-    StateSyncError as CentralStateSyncError,
-    GENESIS_HASH,
-};
+use apollo_central_sync::{StateSync as CentralStateSync, StateSyncError as CentralStateSyncError};
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
@@ -56,7 +52,6 @@ use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
-use starknet_api::felt;
 use tokio::sync::RwLock;
 use tracing::instrument::Instrument;
 use tracing::{debug, info_span};
@@ -123,7 +118,7 @@ impl StateSyncResources {
             // The pending data might change later to DeprecatedPendingBlock, depending on the
             // response from the feeder gateway.
             block: PendingBlockOrDeprecated::Current(PendingBlock {
-                parent_block_hash: BlockHash(felt!(GENESIS_HASH)),
+                parent_block_hash: BlockHash::GENESIS_PARENT_HASH,
                 ..Default::default()
             }),
             ..Default::default()
