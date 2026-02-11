@@ -20,7 +20,6 @@ use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::StorageEntry;
 use blockifier::execution::call_info::{
-    cairo_primitive_counter_map,
     CallExecution,
     CallInfo,
     ExtendedExecutionResources,
@@ -49,11 +48,7 @@ use blockifier::state::cached_state::{
     StateChangesCount,
     StateChangesCountForFee,
 };
-use blockifier::transaction::objects::{
-    ExecutionResourcesTraits,
-    RevertError,
-    TransactionExecutionInfo,
-};
+use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
 use cairo_lang_casm::operand::{CellRef, Register};
 use cairo_lang_starknet_classes::casm_contract_class::{
@@ -615,7 +610,7 @@ fn transaction_execution_info() -> TransactionExecutionInfo {
                     },
                 },
                 computation: ComputationResources {
-                    tx_vm_resources: execution_resources().vm_resources,
+                    tx_vm_resources: execution_resources(),
                     os_vm_resources: ExecutionResources::default(),
                     n_reverted_steps: 2,
                     sierra_gas: GasAmount(0x128140),
