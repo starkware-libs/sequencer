@@ -72,6 +72,7 @@ pub struct FinishedProposalInfo {
     pub id: ProposalCommitment,
     pub final_n_executed_txs: usize,
     pub block_header_commitments: BlockHeaderCommitments,
+    pub parent_proposal_commitment: Option<ProposalCommitment>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

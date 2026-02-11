@@ -227,6 +227,7 @@ async fn interrupt_active_proposal() {
                 id: BatcherProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
+                parent_proposal_commitment: None,
             }),
         })
     });

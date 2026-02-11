@@ -202,6 +202,7 @@ impl TestDeps {
                             id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
+                            parent_proposal_commitment: None,
                         }),
                     })
                 });
@@ -263,6 +264,7 @@ impl TestDeps {
                             id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
+                            parent_proposal_commitment: None,
                         }),
                     })
                 });
