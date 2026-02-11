@@ -94,6 +94,7 @@ use crate::execution::call_info::{
     ExecutionSummary,
     ExtendedExecutionResources,
     MessageToL1,
+    OpcodeCounterMap,
     OrderedEvent,
     OrderedL2ToL1Message,
     Retdata,
@@ -816,7 +817,11 @@ fn test_invoke_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources {
+                vm_resources: expected_tx_cairo_resources,
+                // TODO(AvivG): test with non-default opcode instance counter?
+                opcode_instance_counter: OpcodeCounterMap::default(),
+            },
             os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
             ..Default::default()
@@ -2007,7 +2012,11 @@ fn test_declare_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources {
+                vm_resources: expected_tx_cairo_resources,
+                // TODO(AvivG): test with non-default opcode instance counter?
+                opcode_instance_counter: OpcodeCounterMap::default(),
+            },
             os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_gas_consumed,
             ..Default::default()
@@ -2264,7 +2273,11 @@ fn test_deploy_account_tx(
     let mut actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            tx_vm_resources: expected_tx_cairo_resources,
+            tx_vm_resources: ExtendedExecutionResources {
+                vm_resources: expected_tx_cairo_resources,
+                // TODO(AvivG): test with non-default opcode instance counter?
+                opcode_instance_counter: OpcodeCounterMap::default(),
+            },
             os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_gas_consumed.into(),
             ..Default::default()

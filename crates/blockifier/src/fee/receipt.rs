@@ -91,7 +91,7 @@ impl TransactionReceipt {
         let tx_resources = TransactionResources {
             starknet_resources,
             computation: ComputationResources {
-                tx_vm_resources: charged_resources.vm_resources.filter_unused_builtins(),
+                tx_vm_resources: charged_resources.vm_resources.filter_unused_cairo_primitives(),
                 os_vm_resources,
                 n_reverted_steps: reverted_steps,
                 sierra_gas: charged_resources.gas_consumed,
