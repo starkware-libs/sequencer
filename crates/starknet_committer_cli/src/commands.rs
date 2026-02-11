@@ -476,9 +476,10 @@ pub async fn run_storage_benchmark<S: Storage>(
         };
 
         measurements.start_measurement(Action::EndToEnd);
-        let filled_forest = CommitBlockImpl::commit_block(input, &mut index_db, &mut measurements)
-            .await
-            .expect("Failed to commit the given block.");
+        let (filled_forest, _deleted_nodes) =
+            CommitBlockImpl::commit_block(input, &mut index_db, &mut measurements)
+                .await
+                .expect("Failed to commit the given block.");
         measurements.start_measurement(Action::Write);
         let n_new_facts =
             index_db.write(&filled_forest).await.expect("failed to serialize db values");
