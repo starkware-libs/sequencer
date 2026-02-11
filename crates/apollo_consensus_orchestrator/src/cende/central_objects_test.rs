@@ -23,7 +23,9 @@ use blockifier::execution::call_info::{
     cairo_primitive_counter_map,
     CallExecution,
     CallInfo,
+    ExtendedExecutionResources,
     MessageToL1,
+    OpcodeCounterMap,
     OrderedEvent,
     OrderedL2ToL1Message,
     Retdata,
@@ -545,7 +547,11 @@ fn call_info() -> CallInfo {
             cairo_native: false,
         },
         inner_calls: Vec::new(),
-        resources: execution_resources(),
+        resources: ExtendedExecutionResources {
+            vm_resources: execution_resources(),
+            // TODO(AvivG): test with non-default opcode instance counter.
+            opcode_instance_counter: OpcodeCounterMap::default(),
+        },
         tracked_resource: TrackedResource::SierraGas,
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: felt_vector(),
