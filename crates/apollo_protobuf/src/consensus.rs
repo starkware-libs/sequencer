@@ -172,6 +172,9 @@ pub struct CommitmentParts {
     pub next_l2_gas_price_fri: GasPrice,
     pub concatenated_counts: Felt,
     pub parent_commitment: ProposalCommitment,
+    pub transaction_commitment: StarkHash,
+    pub event_commitment: StarkHash,
+    pub receipt_commitment: StarkHash,
 }
 
 /// The proposal is done when receiving this fin message, which contains the proposal commitment.
