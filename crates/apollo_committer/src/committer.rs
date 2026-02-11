@@ -39,6 +39,7 @@ use starknet_committer::db::serde_db_utils::{
     serialize_felt_no_packing,
     DbBlockNumber,
 };
+use starknet_committer::forest::deleted_nodes::DeletedNodes;
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
@@ -86,6 +87,12 @@ impl StorageConstructor for ApolloStorage {
                 .unwrap();
         CachedStorage::new(rocksdb_storage, storage_config)
     }
+}
+
+struct CommitStateDiffOutput {
+    pub filled_forest: FilledForest,
+    pub deleted_nodes: DeletedNodes,
+    pub global_root: GlobalRoot,
 }
 
 /// Apollo committer. Maintains the Starknet state tries in persistent storage.
@@ -204,7 +211,7 @@ where
         debug!("Committing block number {height} with state diff {state_diff_commitment:?}");
         let mut block_measurements = SingleBlockMeasurements::default();
         block_measurements.start_measurement(Action::EndToEnd);
-        let (filled_forest, global_root) =
+        let CommitStateDiffOutput { filled_forest, global_root, deleted_nodes } =
             self.commit_state_diff(state_diff, &mut block_measurements).await?;
         let next_offset = height.unchecked_next();
         let metadata = HashMap::from([
@@ -301,7 +308,7 @@ where
         // Happy flow. Reverts the state diff and returns the computed global root.
         let mut block_measurements = SingleBlockMeasurements::default();
         block_measurements.start_measurement(Action::EndToEnd);
-        let (filled_forest, revert_global_root) =
+        let CommitStateDiffOutput { filled_forest, global_root: revert_global_root, .. } =
             self.commit_state_diff(reversed_state_diff, &mut block_measurements).await?;
 
         // The last committed block is offset-1. After the revert, the last committed block wll be
@@ -390,18 +397,18 @@ where
         &mut self,
         state_diff: ThinStateDiff,
         measurements: &mut M,
-    ) -> CommitterResult<(FilledForest, GlobalRoot)> {
+    ) -> CommitterResult<CommitStateDiffOutput> {
         let input = Input {
             state_diff: state_diff.into(),
             initial_read_context: ForestDB::InitialReadContext::create_empty(),
             config: self.config.reader_config.clone(),
         };
-        let filled_forest =
+        let (filled_forest, deleted_nodes) =
             BlockCommitter::commit_block(input, &mut self.forest_storage, measurements)
                 .await
                 .map_err(|err| self.map_internal_error(err))?;
         let global_root = filled_forest.state_roots().global_root();
-        Ok((filled_forest, global_root))
+        Ok(CommitStateDiffOutput { filled_forest, global_root, deleted_nodes })
     }
 
     fn map_internal_error<E: Error>(&self, err: E) -> CommitterError {
