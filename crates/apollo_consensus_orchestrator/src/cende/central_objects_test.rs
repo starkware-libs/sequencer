@@ -613,7 +613,7 @@ fn transaction_execution_info() -> TransactionExecutionInfo {
                     },
                 },
                 computation: ComputationResources {
-                    tx_vm_resources: extended_execution_resources().vm_resources,
+                    tx_extended_vm_resources: extended_execution_resources(),
                     os_vm_resources: ExecutionResources::default(),
                     n_reverted_steps: 2,
                     sierra_gas: GasAmount(0x128140),
