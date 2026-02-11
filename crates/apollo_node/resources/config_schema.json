@@ -2345,9 +2345,14 @@
     "value": true
   },
   "consensus_manager_config.staking_manager_config.static_config.max_cached_epochs": {
-    "description": "The maximum number of epochs to cache",
+    "description": "The maximum number of epochs to cache.",
     "privacy": "Public",
     "value": 10
+  },
+  "consensus_manager_config.staking_manager_config.static_config.use_only_actual_proposer_selection": {
+    "description": "If true, get_proposer will use the same deterministic round-robin selection as get_actual_proposer.",
+    "privacy": "Public",
+    "value": false
   },
   "consensus_manager_config.stream_handler_config.channel_buffer_capacity": {
     "description": "The capacity of the channel buffer for stream messages.",

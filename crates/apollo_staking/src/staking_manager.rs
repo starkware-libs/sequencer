@@ -56,6 +56,9 @@ struct Committee {
     random_generator: Arc<dyn BlockRandomGenerator>,
     // Stores the most recently requested proposer address, keyed by height and round.
     proposer_cache: std::sync::Mutex<Option<(BlockNumber, Round, ContractAddress)>>,
+    // If true, get_proposer will use the same deterministic round-robin selection as
+    // get_actual_proposer.
+    use_only_actual_proposer_selection: bool,
 }
 
 // Holds committee data for the highest known epochs, limited in size by `capacity``.
@@ -167,6 +170,7 @@ pub struct StakingManager {
     random_generator: Arc<dyn BlockRandomGenerator>,
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
     config_manager_client: Option<SharedConfigManagerClient>,
+    use_only_actual_proposer_selection: bool,
 }
 
 impl CommitteeCache {
@@ -204,6 +208,9 @@ impl StakingManager {
             random_generator,
             dynamic_config: RwLock::new(config.dynamic_config),
             config_manager_client,
+            use_only_actual_proposer_selection: config
+                .static_config
+                .use_only_actual_proposer_selection,
         }
     }
 
@@ -295,6 +302,7 @@ impl StakingManager {
             randomness_block_hash,
             random_generator: self.random_generator.clone(),
             proposer_cache: std::sync::Mutex::new(None),
+            use_only_actual_proposer_selection: self.use_only_actual_proposer_selection,
         })
     }
 
@@ -382,6 +390,10 @@ impl StakingManager {
 
 impl CommitteeTrait for Committee {
     fn get_proposer(&self, height: BlockNumber, round: Round) -> CommitteeResult<ContractAddress> {
+        if self.use_only_actual_proposer_selection {
+            return Ok(self.get_actual_proposer(height, round));
+        }
+
         if self.committee_members.is_empty() {
             return Err(CommitteeError::EmptyCommittee);
         }
