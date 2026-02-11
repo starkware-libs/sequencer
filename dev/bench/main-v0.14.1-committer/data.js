@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770732598011,
+  "lastUpdate": 1770837888476,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2311,6 +2311,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1349.16103627,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arnon@starkware.co",
+            "name": "Arnon Hod",
+            "username": "ArniStarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8ce160afea0a2fac160890349df9a1eb462db5bd",
+          "message": "apollo_http_server: add dynamic config size validation (#12438)",
+          "timestamp": "2026-02-11T19:03:40Z",
+          "tree_id": "c0ff1030e92bfc9f3c8cc9d6a5dbf5bb58b33aea",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8ce160afea0a2fac160890349df9a1eb462db5bd"
+        },
+        "date": 1770837888127,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 900.66674985,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1367.61755978,
             "unit": "ms"
           }
         ]
