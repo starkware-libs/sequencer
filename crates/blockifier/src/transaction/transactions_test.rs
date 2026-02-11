@@ -92,6 +92,7 @@ use crate::execution::call_info::{
     CallExecution,
     CallInfo,
     ExecutionSummary,
+    ExtendedExecutionResources,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
@@ -254,6 +255,7 @@ fn initial_gas_amount_from_block_context(block_context: Option<&BlockContext>) -
 }
 
 struct ExpectedResultTestInvokeTx {
+    // TODO(AvivG): consider changing this to ExtendedExecutionResources.
     resources: ExecutionResources,
     validate_gas_consumed: u64,
     execute_gas_consumed: u64,
@@ -295,7 +297,7 @@ fn expected_validate_call_info(
         }
     };
     let vm_resources = match tracked_resource {
-        TrackedResource::SierraGas => ExecutionResources::default(),
+        TrackedResource::SierraGas => ExtendedExecutionResources::default(),
         TrackedResource::CairoSteps => {
             let n_steps = match (entry_point_selector_name, cairo_version) {
                 (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 13_usize,
@@ -315,15 +317,19 @@ fn expected_validate_call_info(
                 ) => 100_usize,
                 (selector, _) => panic!("Selector {selector} is not a known validate selector."),
             };
-            ExecutionResources {
-                n_steps,
-                n_memory_holes: 0,
-                builtin_instance_counter: BTreeMap::from([(
-                    BuiltinName::range_check,
-                    n_range_checks,
-                )]),
+            ExtendedExecutionResources {
+                vm_resources: ExecutionResources {
+                    n_steps,
+                    n_memory_holes: 0,
+                    builtin_instance_counter: BTreeMap::from([(
+                        BuiltinName::range_check,
+                        n_range_checks,
+                    )]),
+                }
+                .filter_unused_builtins(),
+                // TODO(AvivG): consider testing here with non-default opcode instance counter.
+                opcode_instance_counter: Default::default(),
             }
-            .filter_unused_builtins()
         }
     };
     let initial_gas = match cairo_version {
@@ -470,7 +476,7 @@ fn expected_fee_transfer_call_info(
             gas_consumed: expected_gas_consumed,
             ..Default::default()
         },
-        resources: expected_resources,
+        resources: expected_resources.into(),
         // We read sender and recipient balance - Uint256(BALANCE, 0) then Uint256(0, 0).
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
@@ -489,6 +495,7 @@ fn expected_fee_transfer_call_info(
     })
 }
 
+// TODO(AvivG): update to return ExtendedExecutionResources.
 fn get_expected_cairo_resources(
     versioned_constants: &VersionedConstants,
     tx_type: TransactionType,
@@ -500,7 +507,7 @@ fn get_expected_cairo_resources(
     let mut expected_tx_cairo_resources = ExecutionResources::default();
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
-            expected_tx_cairo_resources += &call_info.resources
+            expected_tx_cairo_resources += &call_info.resources.vm_resources
         };
     }
 
@@ -711,8 +718,10 @@ fn test_invoke_tx(
         ..expected_validated_call
     };
 
-    let expected_inner_call_vm_resources =
-        ExecutionResources { n_steps: 23, n_memory_holes: 0, ..Default::default() };
+    let expected_inner_call_vm_resources = ExtendedExecutionResources {
+        vm_resources: ExecutionResources { n_steps: 23, n_memory_holes: 0, ..Default::default() },
+        opcode_instance_counter: Default::default(),
+    };
 
     let expected_return_result_call = CallEntryPoint {
         entry_point_selector: selector_from_name("return_result"),
@@ -739,7 +748,7 @@ fn test_invoke_tx(
     let (expected_validate_gas_for_fee, expected_execute_gas_for_fee) = match tracked_resource {
         TrackedResource::CairoSteps => (GasAmount::default(), GasAmount::default()),
         TrackedResource::SierraGas => {
-            expected_arguments.resources = expected_inner_call_vm_resources;
+            expected_arguments.resources = expected_inner_call_vm_resources.vm_resources;
             (
                 expected_arguments.validate_gas_consumed.into(),
                 expected_arguments.execute_gas_consumed.into(),
@@ -768,7 +777,10 @@ fn test_invoke_tx(
             cairo_native,
             ..Default::default()
         },
-        resources: expected_arguments.resources,
+        resources: ExtendedExecutionResources {
+            vm_resources: expected_arguments.resources,
+            opcode_instance_counter: Default::default(),
+        },
         inner_calls: expected_inner_calls,
         tracked_resource,
         builtin_counters: cairo_primitive_counter_map(builtin_counters),

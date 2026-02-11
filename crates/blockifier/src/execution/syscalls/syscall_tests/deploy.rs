@@ -256,6 +256,7 @@ fn calldata_length(cairo_version: CairoVersion) {
     // Extract pedersen counter from each call.
     let deploy_empty_call_pedersen = deploy_empty_call_info
         .resources
+        .vm_resources
         .builtin_instance_counter
         .get(&BuiltinName::pedersen)
         .copied()
@@ -263,12 +264,14 @@ fn calldata_length(cairo_version: CairoVersion) {
 
     let deploy_account_pedersen = deploy_account_call_info
         .resources
+        .vm_resources
         .builtin_instance_counter
         .get(&BuiltinName::pedersen)
         .copied()
         .unwrap();
     let deploy_test_pedersen = deploy_test_call_info
         .resources
+        .vm_resources
         .builtin_instance_counter
         .get(&BuiltinName::pedersen)
         .copied()
