@@ -130,7 +130,6 @@ pub struct DecisionReachedResponse {
     pub state_diff: ThinStateDiff,
     pub l2_gas_used: GasAmount,
     pub central_objects: CentralObjects,
-    pub block_header_commitments: BlockHeaderCommitments,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
