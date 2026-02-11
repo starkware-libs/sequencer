@@ -12,6 +12,8 @@ use crate::config::ProverConfig;
 
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
+const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 1;
+const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 
 /// Configuration for the HTTP proving service.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -24,11 +26,21 @@ pub struct ServiceConfig {
     pub ip: IpAddr,
     /// Port to bind the server to.
     pub port: u16,
+    /// Maximum number of concurrent proving requests.
+    pub max_concurrent_requests: usize,
+    /// Maximum number of simultaneous JSON-RPC connections (safety net).
+    pub max_connections: u32,
 }
 
 impl Default for ServiceConfig {
     fn default() -> Self {
-        Self { prover_config: ProverConfig::default(), ip: DEFAULT_IP, port: DEFAULT_PORT }
+        Self {
+            prover_config: ProverConfig::default(),
+            ip: DEFAULT_IP,
+            port: DEFAULT_PORT,
+            max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
+            max_connections: DEFAULT_MAX_CONNECTIONS,
+        }
     }
 }
 
@@ -89,11 +101,36 @@ impl ServiceConfig {
                 config.ip = new_ip;
             }
         }
+        if let Some(max) = args.max_concurrent_requests {
+            if max != config.max_concurrent_requests {
+                info!(
+                    "CLI override: max_concurrent_requests: {} -> {}",
+                    config.max_concurrent_requests, max
+                );
+                config.max_concurrent_requests = max;
+            }
+        }
+        if let Some(max) = args.max_connections {
+            if max != config.max_connections {
+                info!("CLI override: max_connections: {} -> {}", config.max_connections, max);
+                config.max_connections = max;
+            }
+        }
 
         // Validate required fields.
         if config.prover_config.rpc_node_url.is_empty() {
             return Err(ConfigError::MissingRequiredField(
                 "rpc_node_url is required (provide via --rpc-url or config file)".to_string(),
+            ));
+        }
+        if config.max_concurrent_requests == 0 {
+            return Err(ConfigError::InvalidArgument(
+                "max_concurrent_requests must be at least 1".to_string(),
+            ));
+        }
+        if config.max_connections == 0 {
+            return Err(ConfigError::InvalidArgument(
+                "max_connections must be at least 1".to_string(),
             ));
         }
 
@@ -125,6 +162,14 @@ pub struct CliArgs {
     /// IP address to bind the server to.
     #[arg(long, value_name = "IP")]
     pub ip: Option<String>,
+
+    /// Maximum number of concurrent proving requests (default: 1).
+    #[arg(long, value_name = "N")]
+    pub max_concurrent_requests: Option<usize>,
+
+    /// Maximum number of simultaneous JSON-RPC connections (default: 10).
+    #[arg(long, value_name = "N")]
+    pub max_connections: Option<u32>,
 }
 
 /// Errors that can occur during configuration.
