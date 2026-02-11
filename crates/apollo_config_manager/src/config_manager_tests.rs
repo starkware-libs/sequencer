@@ -1,5 +1,11 @@
 use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_config_manager_config::config::ConfigManagerConfig;
+use apollo_config_manager_types::communication::{
+    ConfigManagerClient,
+    ConfigManagerRequest,
+    ConfigManagerResponse,
+    LocalConfigManagerClient,
+};
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_config::ValidatorId;
 use apollo_consensus_orchestrator_config::config::{
@@ -7,10 +13,19 @@ use apollo_consensus_orchestrator_config::config::{
     ContextDynamicConfig,
     PricePerHeight,
 };
+use apollo_infra::component_definitions::RequestWrapper;
+use apollo_infra::component_server::{
+    ComponentServerStarter,
+    ConcurrentLocalComponentServer,
+    LocalServerConfig,
+};
 use apollo_node_config::node_config::NodeDynamicConfig;
+use tokio::sync::mpsc::channel;
+use tokio::task;
 use validator::Validate;
 
 use crate::config_manager::ConfigManager;
+use crate::metrics::CONFIG_MANAGER_INFRA_METRICS;
 
 #[tokio::test]
 async fn config_manager_update_config() {
@@ -22,11 +37,12 @@ async fn config_manager_update_config() {
         consensus_dynamic_config: Some(consensus_dynamic_config),
         ..Default::default()
     };
-    let mut config_manager = ConfigManager::new(config, node_dynamic_config.clone());
+    let config_manager = ConfigManager::new(config, node_dynamic_config.clone());
 
     // Get the consensus dynamic config and assert it is the expected one.
     let consensus_dynamic_config = config_manager
         .get_consensus_dynamic_config()
+        .await
         .expect("Failed to get consensus dynamic config");
     assert_eq!(
         &consensus_dynamic_config,
@@ -49,11 +65,13 @@ async fn config_manager_update_config() {
             consensus_dynamic_config: Some(new_consensus_dynamic_config.clone()),
             ..Default::default()
         })
+        .await
         .expect("Failed to set node dynamic config");
 
     // Get the post-change consensus dynamic config and assert it is the expected one.
     let consensus_dynamic_config = config_manager
         .get_consensus_dynamic_config()
+        .await
         .expect("Failed to get consensus dynamic config");
     assert_eq!(
         consensus_dynamic_config, new_consensus_dynamic_config,
@@ -183,4 +201,66 @@ fn test_context_dynamic_config_validation_price_at_minimum() {
     };
 
     assert!(config.validate().is_ok());
+}
+
+async fn setup_concurrent_config_manager_test() -> LocalConfigManagerClient {
+    let config = ConfigManagerConfig::default();
+    let node_dynamic_config = NodeDynamicConfig {
+        consensus_dynamic_config: Some(ConsensusDynamicConfig::default()),
+        ..Default::default()
+    };
+    let component = ConfigManager::new(config, node_dynamic_config);
+
+    let (tx, rx) = channel::<RequestWrapper<ConfigManagerRequest, ConfigManagerResponse>>(32);
+
+    let local_client =
+        LocalConfigManagerClient::new(tx, CONFIG_MANAGER_INFRA_METRICS.get_local_client_metrics());
+    let local_server_config = LocalServerConfig::default();
+    let max_concurrency = 10;
+
+    let mut server = ConcurrentLocalComponentServer::new(
+        component,
+        &local_server_config,
+        rx,
+        max_concurrency,
+        CONFIG_MANAGER_INFRA_METRICS.get_local_server_metrics(),
+    );
+
+    task::spawn(async move {
+        server.start().await;
+    });
+
+    local_client
+}
+
+#[tokio::test]
+async fn config_manager_concurrent_server_state_loss_bug() {
+    // Setup: Create ConfigManager with ConcurrentLocalComponentServer.
+    let client = setup_concurrent_config_manager_test().await;
+
+    // Get initial config.
+    let initial_config =
+        client.get_consensus_dynamic_config().await.expect("Failed to get initial config");
+
+    // Create a new, different config.
+    let new_consensus_config =
+        ConsensusDynamicConfig { validator_id: ValidatorId::from(42_u8), ..Default::default() };
+    assert_ne!(initial_config, new_consensus_config, "New config should be different from initial");
+
+    // Set the new config.
+    let new_node_config = NodeDynamicConfig {
+        consensus_dynamic_config: Some(new_consensus_config.clone()),
+        ..Default::default()
+    };
+    client.set_node_dynamic_config(new_node_config).await.expect("Failed to set new config");
+
+    // Get the config again - it should reflect the change.
+    let retrieved_config =
+        client.get_consensus_dynamic_config().await.expect("Failed to get config after update");
+
+    assert_eq!(
+        retrieved_config, new_consensus_config,
+        "Retrieved config should match the newly set config, but due to the bug it doesn't. Got: \
+         {retrieved_config:?}, Expected: {new_consensus_config:?}"
+    );
 }
