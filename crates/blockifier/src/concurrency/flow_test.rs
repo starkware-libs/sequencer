@@ -61,6 +61,7 @@ fn scheduler_flow_test(
                             transaction_committer.uncommit();
                             break;
                         }
+                        transaction_committer.commit();
                         if tx_index == DEFAULT_CHUNK_SIZE - 1 {
                             scheduler.halt();
                             break;
@@ -99,7 +100,6 @@ fn scheduler_flow_test(
     // variable.
     assert!(scheduler.execution_index.load(Ordering::Acquire) >= DEFAULT_CHUNK_SIZE);
     // There is no guarantee about the validation index because of the use of the commit index.
-    assert!(*scheduler.commit_index.lock().unwrap() == DEFAULT_CHUNK_SIZE);
     assert!(scheduler.get_n_committed_txs() == DEFAULT_CHUNK_SIZE);
     assert!(scheduler.done_marker.load(Ordering::Acquire));
     let inner_versioned_state = versioned_state.into_inner_state();

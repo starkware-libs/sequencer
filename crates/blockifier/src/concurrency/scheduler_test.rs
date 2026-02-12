@@ -13,7 +13,7 @@ fn test_new(#[values(0, 1, 32)] chunk_size: usize) {
     let scheduler = Scheduler::new(chunk_size);
     assert_eq!(scheduler.execution_index.load(Ordering::Acquire), 0);
     assert_eq!(scheduler.validation_index.load(Ordering::Acquire), 0);
-    assert_eq!(*scheduler.commit_index.lock().unwrap(), 0);
+    assert_eq!(scheduler.get_n_committed_txs(), 0);
     assert_eq!(scheduler.tx_statuses.len(), chunk_size);
     for i in 0..chunk_size {
         assert_eq!(scheduler.get_tx_status(i), TransactionStatus::ReadyToExecute);
@@ -92,21 +92,25 @@ fn test_commit_flow(
     assert!(scheduler.try_enter_commit_phase().is_none());
     if let Some(index) = tx_committer.try_commit() {
         assert_eq!(index, commit_index);
+        if should_halt {
+            tx_committer.uncommit();
+        } else {
+            tx_committer.commit();
+        }
     }
     if should_halt {
-        tx_committer.uncommit();
         scheduler.halt();
     }
     drop(tx_committer);
     if commit_index_tx_status == TransactionStatus::Executed {
         assert_eq!(*scheduler.lock_tx_status(commit_index), TransactionStatus::Committed);
         assert_eq!(
-            *scheduler.commit_index.lock().unwrap(),
+            scheduler.get_n_committed_txs(),
             if should_halt { commit_index } else { commit_index + 1 }
         );
     } else {
         assert_eq!(*scheduler.lock_tx_status(commit_index), commit_index_tx_status);
-        assert_eq!(*scheduler.commit_index.lock().unwrap(), commit_index);
+        assert_eq!(scheduler.get_n_committed_txs(), commit_index);
     }
 }
 

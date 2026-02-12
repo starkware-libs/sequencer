@@ -17,35 +17,57 @@ pub mod flow_test;
 
 pub struct TransactionCommitter<'a> {
     scheduler: &'a Scheduler,
-    commit_index_guard: MutexGuard<'a, usize>,
+    _commit_lock_guard: MutexGuard<'a, ()>,
+    /// True between calling `try_commit` and `finalize_commit/uncommit`.
+    in_progress: bool,
 }
 
 impl<'a> TransactionCommitter<'a> {
-    pub fn new(scheduler: &'a Scheduler, commit_index_guard: MutexGuard<'a, usize>) -> Self {
-        Self { scheduler, commit_index_guard }
+    pub fn new(scheduler: &'a Scheduler, commit_index_guard: MutexGuard<'a, ()>) -> Self {
+        Self { scheduler, _commit_lock_guard: commit_index_guard, in_progress: false }
     }
 
     /// Tries to commit the next uncommitted transaction in the chunk. Returns the index of the
     /// transaction to commit if successful, or None if the transaction is not yet executed.
     pub fn try_commit(&mut self) -> Option<usize> {
+        assert!(!self.in_progress, "No transaction in progress");
+
         if self.scheduler.done() {
             return None;
         };
 
-        let mut status = self.scheduler.lock_tx_status(*self.commit_index_guard);
+        let index = self.scheduler.commit_index.load(Ordering::Acquire);
+        let mut status = self.scheduler.lock_tx_status(index);
         if *status != TransactionStatus::Executed {
             return None;
         }
         *status = TransactionStatus::Committed;
-        *self.commit_index_guard += 1;
-        Some(*self.commit_index_guard - 1)
+        self.in_progress = true;
+        Some(index)
     }
 
-    /// Decrements the commit index to indicate that the final transaction to commit has been
-    /// excluded from the block.
+    /// Marks the transaction returned by `try_commit` as not committed.
+    ///
+    /// Note that `uncommit` does not change the status of the transaction.
+    /// In the case of `ValidationFailed`, the status will be changed to `ReadyToExecute`
+    /// by `commit_tx` in `worker_logic.rs`.
+    /// In the case of `NoRoomInBlock`, the status will stay `Committed`.
     pub fn uncommit(&mut self) {
-        assert!(*self.commit_index_guard > 0, "Commit index underflow.");
-        *self.commit_index_guard -= 1;
+        assert!(self.in_progress, "No transaction in progress");
+        self.in_progress = false;
+    }
+
+    /// Marks the transaction returned by `try_commit` as committed.
+    pub fn commit(&mut self) {
+        assert!(self.in_progress, "No transaction in progress");
+        self.in_progress = false;
+        self.scheduler.commit_index.fetch_add(1, Ordering::Release);
+    }
+}
+
+impl Drop for TransactionCommitter<'_> {
+    fn drop(&mut self) {
+        assert!(!self.in_progress, "Transaction state not finalized");
     }
 }
 
@@ -53,8 +75,10 @@ impl<'a> TransactionCommitter<'a> {
 pub struct Scheduler {
     execution_index: AtomicUsize,
     validation_index: AtomicUsize,
-    /// The index of the next transaction to commit.
-    commit_index: Mutex<usize>,
+    /// A lock for the commit process.
+    commit_lock: Mutex<()>,
+    /// The number of committed transactions.
+    commit_index: AtomicUsize,
     tx_statuses: DashMap<TxIndex, TransactionStatus>,
     /// Set to true when calling `halt()`. This will cause all threads to exit their main loops.
     done_marker: AtomicBool,
@@ -69,7 +93,8 @@ impl Scheduler {
         Scheduler {
             execution_index: AtomicUsize::new(0),
             validation_index: AtomicUsize::new(0),
-            commit_index: Mutex::new(0),
+            commit_lock: Mutex::new(()),
+            commit_index: AtomicUsize::new(0),
             tx_statuses,
             done_marker: AtomicBool::new(false),
         }
@@ -155,7 +180,7 @@ impl Scheduler {
     /// Tries to takes the lock on the commit index. Returns a `TransactionCommitter` if successful,
     /// or None if the lock is already taken.
     pub fn try_enter_commit_phase(&self) -> Option<TransactionCommitter<'_>> {
-        match self.commit_index.try_lock() {
+        match self.commit_lock.try_lock() {
             Ok(guard) => Some(TransactionCommitter::new(self, guard)),
             Err(TryLockError::WouldBlock) => None,
             Err(TryLockError::Poisoned(error)) => {
@@ -165,7 +190,7 @@ impl Scheduler {
     }
 
     pub fn get_n_committed_txs(&self) -> usize {
-        *self.commit_index.lock().unwrap()
+        self.commit_index.load(Ordering::Acquire)
     }
 
     pub fn halt(&self) {
@@ -248,10 +273,6 @@ impl Scheduler {
     /// Sleeps until the scheduler is done or the requested number of committed transactions is
     /// reached.
     pub fn wait_for_completion(&self, target_n_txs: usize) {
-        // TODO(lior): Consider splitting n_committed_txs from the commit lock, so that the
-        //   following line will not wait for the commit lock and vice versa.
-        //   Note that such a change requires updating n_committed_txs only after the tx is
-        //   finalized (currently it's updated before the tx is really committed).
         while !(self.done() || self.get_n_committed_txs() >= target_n_txs) {
             std::thread::sleep(std::time::Duration::from_micros(1));
         }
@@ -259,7 +280,7 @@ impl Scheduler {
         // Lock and release the commit index to ensure that no commit phase is in progress.
         // Future calls to `try_commit` (which is under the same lock) will exit immediately since
         // the done marker is set.
-        drop(self.commit_index.lock());
+        drop(self.commit_lock.lock());
     }
 
     #[cfg(any(feature = "testing", test))]

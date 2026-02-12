@@ -129,6 +129,9 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         let worker_executor = &self.worker_executor;
         worker_executor.scheduler.halt();
 
+        // Check that at least `final_n_executed_txs` transactions were committed.
+        // Note that the value of `get_n_committed_txs()` may change later (increase), but it
+        // doesn't affect the correctness of the check.
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
         assert!(
             final_n_executed_txs <= n_committed_txs,
