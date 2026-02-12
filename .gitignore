@@ -50,3 +50,7 @@ deployments/papyrus/helm/config/*
 !deployments/papyrus/helm/config/example.json
 
 integration_test_temporary_logs
+
+# Claude Code local config
+.claude*.local*
+.claude/*.local*
