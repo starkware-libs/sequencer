@@ -46,12 +46,18 @@ pub fn contract_class_to_compiled_classes(
     }
 }
 
-/// Returns the fee token addresses of mainnet.
-pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
+/// Returns the fee token addresses for the given chain.
+/// If `strk_fee_token_address_override` is provided, it overrides the default STRK fee token
+/// address.
+pub fn get_fee_token_addresses(
+    chain_id: &ChainId,
+    strk_fee_token_address_override: Option<ContractAddress>,
+) -> FeeTokenAddresses {
     match chain_id {
         // Mainnet, testnet and integration systems have the same fee token addresses.
         ChainId::Mainnet | ChainId::Sepolia | ChainId::IntegrationSepolia => FeeTokenAddresses {
-            strk_fee_token_address: *STRK_FEE_CONTRACT_ADDRESS,
+            strk_fee_token_address: strk_fee_token_address_override
+                .unwrap_or(*STRK_FEE_CONTRACT_ADDRESS),
             eth_fee_token_address: *ETH_FEE_CONTRACT_ADDRESS,
         },
         unknown_chain => unimplemented!("Unknown chain ID {unknown_chain}."),
@@ -63,11 +69,16 @@ pub fn get_rpc_state_reader_config() -> RpcStateReaderConfig {
     RpcStateReaderConfig::from_url(RPC_NODE_URL.clone())
 }
 
-/// Returns the chain info of mainnet.
-pub fn get_chain_info(chain_id: &ChainId) -> ChainInfo {
+/// Returns the chain info for the given chain.
+/// If `strk_fee_token_address_override` is provided, it overrides the default STRK fee token
+/// address.
+pub fn get_chain_info(
+    chain_id: &ChainId,
+    strk_fee_token_address_override: Option<ContractAddress>,
+) -> ChainInfo {
     ChainInfo {
         chain_id: chain_id.clone(),
-        fee_token_addresses: get_fee_token_addresses(chain_id),
+        fee_token_addresses: get_fee_token_addresses(chain_id, strk_fee_token_address_override),
         is_l3: false,
     }
 }
