@@ -118,7 +118,7 @@ pub struct RunnerConfig {
     pub(crate) storage_proof_config: StorageProofConfig,
 }
 
-pub(crate) struct RunnerOutput {
+pub struct RunnerOutput {
     pub cairo_pie: CairoPie,
     pub l2_to_l1_messages: Vec<MessageToL1>,
 }
@@ -330,7 +330,7 @@ where
 /// allowing different runner implementations (RPC-based, mock, etc.) to be used
 /// interchangeably.
 #[async_trait]
-pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
+pub trait VirtualSnosRunner: Clone + Send + Sync {
     /// Runs the Starknet virtual OS with the given transactions on top of the specified block.
     async fn run_virtual_os(
         &self,
