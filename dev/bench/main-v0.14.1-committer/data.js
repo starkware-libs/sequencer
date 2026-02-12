@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770837888476,
+  "lastUpdate": 1770890369625,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2345,6 +2345,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1367.61755978,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rotem@starkware.co",
+            "name": "rotem-starkware",
+            "username": "rotem-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3d1f0ffead7e67bee8e8e89f344e724167ae2b7d",
+          "message": "apollo_committer: add TOTAL_BLOCK_DURATION_PER_MODIFICATION metric and panel (#12449)",
+          "timestamp": "2026-02-12T09:41:04Z",
+          "tree_id": "7d42ed8107d8d5cee041f7d9e838f07d0088a823",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3d1f0ffead7e67bee8e8e89f344e724167ae2b7d"
+        },
+        "date": 1770890369309,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 812.09331351,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1290.77002465,
             "unit": "ms"
           }
         ]
