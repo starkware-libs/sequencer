@@ -83,8 +83,7 @@ impl ComputationResources {
     ) -> GasVector {
         let vm_cost = get_vm_resources_cost(
             versioned_constants,
-            // TODO(AvivG): update get_vm_resources_cost to accept ExtendedExecutionResources.
-            &self.total_vm_resources().vm_resources,
+            &self.total_vm_resources(),
             self.n_reverted_steps,
             computation_mode,
         );
