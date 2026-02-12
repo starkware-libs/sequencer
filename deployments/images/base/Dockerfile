@@ -10,6 +10,7 @@ COPY scripts/install_build_tools.sh scripts/install_build_tools.sh
 COPY scripts/install_cargo_tools.sh scripts/install_cargo_tools.sh
 COPY scripts/dependencies.sh scripts/dependencies.sh
 COPY scripts/apt_utils.sh scripts/apt_utils.sh
+COPY scripts/cargo_tool_utils.sh scripts/cargo_tool_utils.sh
 COPY scripts/requirements.txt scripts/requirements.txt
 COPY rust-toolchain.toml .
 
@@ -38,4 +39,4 @@ RUN ${VIRTUAL_ENV}/bin/pip install -r scripts/requirements.txt
 ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 
 # Cleanup.
-RUN rm -f scripts/install_build_tools.sh scripts/install_cargo_tools.sh scripts/dependencies.sh scripts/apt_utils.sh scripts/requirements.txt
+RUN rm -f scripts/install_build_tools.sh scripts/install_cargo_tools.sh scripts/cargo_tool_utils.sh scripts/dependencies.sh scripts/apt_utils.sh scripts/requirements.txt
