@@ -40,14 +40,30 @@ use crate::state_reader::{GatewayStateReaderWithCompiledClasses, StateReaderFact
 #[path = "stateful_transaction_validator_test.rs"]
 mod stateful_transaction_validator_test;
 
-#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
+    type Validator: StatefulTransactionValidatorTrait;
+
     async fn instantiate_validator(
         &self,
-    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
+    ) -> StatefulTransactionValidatorResult<Box<Self::Validator>>;
 }
 
+#[cfg(test)]
+mockall::mock! {
+    pub StatefulTransactionValidatorFactoryTrait {}
+
+    #[async_trait]
+    impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactoryTrait {
+        type Validator = MockStatefulTransactionValidatorTrait;
+
+        async fn instantiate_validator(
+            &self,
+        ) -> StatefulTransactionValidatorResult<Box<MockStatefulTransactionValidatorTrait>>;
+    }
+}
+
+#[derive(Clone)]
 pub struct StatefulTransactionValidatorFactory<TStateReaderFactory: StateReaderFactory> {
     pub config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
@@ -59,9 +75,14 @@ pub struct StatefulTransactionValidatorFactory<TStateReaderFactory: StateReaderF
 impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactoryTrait
     for StatefulTransactionValidatorFactory<TStateReaderFactory>
 {
+    type Validator = StatefulTransactionValidator<
+        <TStateReaderFactory as StateReaderFactory>::TGatewayStateReaderWithCompiledClasses,
+        <TStateReaderFactory as StateReaderFactory>::TGatewayFixedBlockStateReader,
+    >;
+
     async fn instantiate_validator(
         &self,
-    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
+    ) -> StatefulTransactionValidatorResult<Box<Self::Validator>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
         let (blockifier_state_reader, gateway_fixed_block_state_reader) = self
