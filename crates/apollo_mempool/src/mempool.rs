@@ -67,9 +67,9 @@ impl CommitHistory {
     }
 
     fn push(&mut self, commit: AddressToNonce) -> AddressToNonce {
-        let removed = self.commits.pop_front();
+        let removed_commit = self.commits.pop_front();
         self.commits.push_back(commit);
-        removed.expect("Commit history should be initialized with capacity.")
+        removed_commit.expect("Commit history should be initialized with capacity.")
     }
 }
 
