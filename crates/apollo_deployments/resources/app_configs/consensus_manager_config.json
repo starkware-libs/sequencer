@@ -33,6 +33,7 @@
   "consensus_manager_config.context_config.static_config.build_proposal_margin_millis": 1000,
   "consensus_manager_config.context_config.static_config.build_proposal_time_ratio_for_retrospective_block_hash": 0.7,
   "consensus_manager_config.context_config.static_config.builder_address": "0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8",
+  "consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height": "",
   "consensus_manager_config.context_config.static_config.l1_da_mode": true,
   "consensus_manager_config.context_config.dynamic_config.l1_data_gas_price_multiplier_ppt": 135,
   "consensus_manager_config.context_config.dynamic_config.l1_gas_tip_wei": 1000000000,

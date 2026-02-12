@@ -14,6 +14,7 @@ use validator::Validate;
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ConsensusManagerConfig {
     pub consensus_manager_config: ConsensusConfig,
+    #[validate(nested)]
     pub context_config: ContextConfig,
     pub stream_handler_config: StreamHandlerConfig,
     #[validate(nested)]
