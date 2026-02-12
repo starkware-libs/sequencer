@@ -392,7 +392,7 @@ fn assert_proposal_metrics(
     assert!(n_expected_active_proposals <= 1);
     let started = PROPOSAL_STARTED.parse_numeric_metric::<u64>(metrics);
     let succeeded = PROPOSAL_SUCCEEDED.parse_numeric_metric::<u64>(metrics);
-    let failed = PROPOSAL_FAILED.parse_numeric_metric::<u64>(metrics);
+    let failed_count = PROPOSAL_FAILED.parse_numeric_metric::<u64>(metrics);
     let aborted = PROPOSAL_ABORTED.parse_numeric_metric::<u64>(metrics);
 
     assert_eq!(
@@ -406,9 +406,9 @@ fn assert_proposal_metrics(
         "unexpected value proposal_succeeded, expected {expected_succeeded} got {succeeded:?}",
     );
     assert_eq!(
-        failed,
+        failed_count,
         Some(expected_failed),
-        "unexpected value proposal_failed, expected {expected_failed} got {failed:?}",
+        "unexpected value proposal_failed, expected {expected_failed} got {failed_count:?}",
     );
     assert_eq!(
         aborted,

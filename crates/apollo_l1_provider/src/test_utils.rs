@@ -183,9 +183,9 @@ impl L1ProviderContentBuilder {
         mut self,
         committed: impl IntoIterator<Item = (L1HandlerTransaction, u64)>,
     ) -> Self {
-        let committed = committed.into_iter().map(Into::into);
+        let committed_txs = committed.into_iter().map(Into::into);
         self.tx_manager_content_builder =
-            self.tx_manager_content_builder.with_timed_committed(committed);
+            self.tx_manager_content_builder.with_timed_committed(committed_txs);
         self
     }
 
@@ -366,22 +366,22 @@ impl TransactionManagerContent {
 
 impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
-        let pending: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
-        let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
-        let committed: Vec<_> = mem::take(&mut content.committed).unwrap_or_default();
+        let pending_txs: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
+        let rejected_txs: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
+        let committed_txs: Vec<_> = mem::take(&mut content.committed).unwrap_or_default();
         let consumed: Vec<_> = mem::take(&mut content.consumed).unwrap_or_default();
         let cancel_requested: Vec<_> = mem::take(&mut content.cancel_requested).unwrap_or_default();
 
         let mut records = IndexMap::with_capacity(
-            pending.len()
-                + rejected.len()
-                + committed.len()
+            pending_txs.len()
+                + rejected_txs.len()
+                + committed_txs.len()
                 + cancel_requested.len()
                 + consumed.len(),
         );
 
         let mut proposable_index: BTreeMap<UnixTimestamp, Vec<TransactionHash>> = BTreeMap::new();
-        for timed_tx in pending {
+        for timed_tx in pending_txs {
             let tx_hash = timed_tx.tx.tx_hash;
             let block_timestamp = timed_tx.timestamp;
             let record = TransactionRecord::from(timed_tx);
@@ -389,7 +389,7 @@ impl From<TransactionManagerContent> for TransactionManager {
             proposable_index.entry(block_timestamp.0).or_default().push(tx_hash);
         }
 
-        for rejected_tx in rejected {
+        for rejected_tx in rejected_txs {
             let tx_hash = rejected_tx.tx_hash;
             let mut record = TransactionRecord::new(TransactionPayload::Full {
                 tx: rejected_tx,
@@ -401,7 +401,7 @@ impl From<TransactionManagerContent> for TransactionManager {
             assert_eq!(records.insert(tx_hash, record), None);
         }
 
-        for committed_tx in committed {
+        for committed_tx in committed_txs {
             let mut record = TransactionRecord::from(committed_tx);
             record.mark_committed();
             assert_eq!(records.insert(record.tx.tx_hash(), record), None);
