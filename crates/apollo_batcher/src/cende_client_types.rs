@@ -244,7 +244,11 @@ fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> 
 
 fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
     let receipt = &execution_info.receipt;
-    let resources = &receipt.resources.computation.total_vm_resources();
+    let resources = &receipt.resources.computation.total_vm_resources().vm_resources;
+    // NOTE: The opcode instance counter is dropped here and not reported via
+    // StarknetClientTransactionReceipt. This is because similar resources,
+    // such as steps and builtins, are no longer part of the full-node
+    // specification requirements.
     let builtin_instance_counter = resources
         .builtin_instance_counter
         .iter()
