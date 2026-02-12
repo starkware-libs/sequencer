@@ -2,9 +2,6 @@ name: Bootstrap rust installation
 description: Setup rust environment and its components, also caching the build results.
 
 inputs:
-  extra_rust_toolchains:
-    description: "Extra toolchains to install, but aren't used by default"
-    required: false
   github_token:
     description: "Github token to use for authentication"
     required: false
@@ -22,8 +19,6 @@ runs:
       with:
         cache: false
         inherit-toolchain: true
-        # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
-        channel: ${{ inputs.extra_rust_toolchains }}
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
