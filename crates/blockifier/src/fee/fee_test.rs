@@ -29,7 +29,7 @@ use crate::blockifier::block::validated_gas_prices;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::BlockContext;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
-use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
+use crate::fee::fee_utils::{get_extended_vm_resources_cost, get_fee_by_gas_vector};
 use crate::fee::receipt::TransactionReceipt;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{gas_vector_from_vm_usage, get_extended_vm_resource_usage, BALANCE};
@@ -47,14 +47,13 @@ fn test_simple_get_vm_resource_usage(
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
     let versioned_constants = VersionedConstants::create_for_account_testing();
-    // TODO(AvivG): update to test ExtendedExecutionResources.
-    let mut vm_resource_usage = get_extended_vm_resource_usage().vm_resources;
+    let mut vm_resource_usage = get_extended_vm_resource_usage();
     let n_reverted_steps = 15;
 
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
-        * (u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
+        * (u64_from_usize(vm_resource_usage.vm_resources.n_steps + n_reverted_steps)))
     .ceil()
     .to_integer()
     .into();
@@ -65,7 +64,7 @@ fn test_simple_get_vm_resource_usage(
     );
     assert_eq!(
         expected_gas_vector,
-        get_vm_resources_cost(
+        get_extended_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
@@ -75,10 +74,18 @@ fn test_simple_get_vm_resource_usage(
 
     // Another positive flow, this time the heaviest resource is range_check_builtin.
     let n_reverted_steps = 0;
-    vm_resource_usage.n_steps =
-        vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap() - 1;
+    vm_resource_usage.vm_resources.n_steps = vm_resource_usage
+        .vm_resources
+        .builtin_instance_counter
+        .get(&BuiltinName::range_check)
+        .unwrap()
+        - 1;
     let vm_usage_in_l1_gas = u64_from_usize(
-        *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap(),
+        *vm_resource_usage
+            .vm_resources
+            .builtin_instance_counter
+            .get(&BuiltinName::range_check)
+            .unwrap(),
     )
     .into();
     let expected_gas_vector = gas_vector_from_vm_usage(
@@ -88,7 +95,7 @@ fn test_simple_get_vm_resource_usage(
     );
     assert_eq!(
         expected_gas_vector,
-        get_vm_resources_cost(
+        get_extended_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
@@ -103,14 +110,13 @@ fn test_float_get_vm_resource_usage(
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
     let versioned_constants = VersionedConstants::create_for_testing();
-    // TODO(AvivG): update to test ExtendedExecutionResources.
-    let mut vm_resource_usage = get_extended_vm_resource_usage().vm_resources;
+    let mut vm_resource_usage = get_extended_vm_resource_usage();
 
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let n_reverted_steps = 300;
     let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
-        * u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
+        * u64_from_usize(vm_resource_usage.vm_resources.n_steps + n_reverted_steps))
     .ceil()
     .to_integer()
     .into();
@@ -121,7 +127,7 @@ fn test_float_get_vm_resource_usage(
     );
     assert_eq!(
         expected_gas_vector,
-        get_vm_resources_cost(
+        get_extended_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
@@ -130,11 +136,15 @@ fn test_float_get_vm_resource_usage(
     );
 
     // Another positive flow, this time the heaviest resource is ecdsa_builtin.
-    vm_resource_usage.n_steps = 200;
+    vm_resource_usage.vm_resources.n_steps = 200;
     let vm_usage_in_l1_gas =
         ((*versioned_constants.vm_resource_fee_cost().builtins.get(&BuiltinName::ecdsa).unwrap())
             * u64_from_usize(
-                *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
+                *vm_resource_usage
+                    .vm_resources
+                    .builtin_instance_counter
+                    .get(&BuiltinName::ecdsa)
+                    .unwrap(),
             ))
         .ceil()
         .to_integer()
@@ -146,7 +156,7 @@ fn test_float_get_vm_resource_usage(
     );
     assert_eq!(
         expected_gas_vector,
-        get_vm_resources_cost(
+        get_extended_vm_resources_cost(
             &versioned_constants,
             &vm_resource_usage,
             n_reverted_steps,
