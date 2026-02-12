@@ -447,14 +447,14 @@ pub(crate) fn truncate_to_executed_txs(
     // Truncate `content` to keep only the first `final_n_executed_txs`, preserving batch
     // structure.
     let mut executed_content: Vec<Vec<InternalConsensusTransaction>> = Vec::new();
-    let mut remaining = final_n_executed_txs;
+    let mut remaining_tx_count = final_n_executed_txs;
 
     for batch in content {
-        if remaining < batch.len() {
-            executed_content.push(batch.into_iter().take(remaining).collect());
+        if remaining_tx_count < batch.len() {
+            executed_content.push(batch.into_iter().take(remaining_tx_count).collect());
             break;
         } else {
-            remaining -= batch.len();
+            remaining_tx_count -= batch.len();
             executed_content.push(batch);
         }
     }
