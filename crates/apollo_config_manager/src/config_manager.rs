@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherDynamicConfig;
+use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
@@ -49,6 +50,13 @@ impl ConfigManager {
     ) -> ConfigManagerResult<ConsensusDynamicConfig> {
         let config = self.latest_node_dynamic_config.read().await;
         Ok(config.consensus_dynamic_config.as_ref().unwrap().clone())
+    }
+
+    pub(crate) async fn get_class_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerResult<ClassManagerDynamicConfig> {
+        let config = self.latest_node_dynamic_config.read().await;
+        Ok(config.class_manager_dynamic_config.as_ref().unwrap().clone())
     }
 
     pub(crate) async fn get_context_dynamic_config(
@@ -103,6 +111,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             ConfigManagerRequest::GetConsensusDynamicConfig => {
                 ConfigManagerResponse::GetConsensusDynamicConfig(
                     self.get_consensus_dynamic_config().await,
+                )
+            }
+            ConfigManagerRequest::GetClassManagerDynamicConfig => {
+                ConfigManagerResponse::GetClassManagerDynamicConfig(
+                    self.get_class_manager_dynamic_config().await,
                 )
             }
             ConfigManagerRequest::GetMempoolDynamicConfig => {
