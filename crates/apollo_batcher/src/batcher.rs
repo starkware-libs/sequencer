@@ -1197,7 +1197,6 @@ impl Batcher {
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
-            .await
             .expect("Failed to write commitment results to storage.");
 
         info!("Revert task result: {revert_task_result:?}");
@@ -1259,7 +1258,6 @@ impl Batcher {
                 self.storage_reader.clone(),
                 &mut self.storage_writer,
             )
-            .await
             .map_err(|err| {
                 error!("Failed to get commitment results and write to storage: {err}");
                 BatcherError::InternalError

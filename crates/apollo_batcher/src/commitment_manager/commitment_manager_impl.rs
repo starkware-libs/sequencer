@@ -167,8 +167,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                             first_block_with_partial_block_hash,
                             storage_reader.clone(),
                             storage_writer,
-                        )
-                        .await?;
+                        )?;
                         sleep(TASK_SEND_RETRY_DELAY).await;
                     }
                 }
@@ -179,7 +178,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
     /// Fetches all ready commitment results from the state committer. Panics if any task is a
     /// revert.
-    pub(crate) async fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
+    pub(crate) fn get_commitment_results(&mut self) -> Vec<CommitmentTaskOutput> {
         let mut results = Vec::new();
         loop {
             match self.results_receiver.try_recv() {
@@ -229,7 +228,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         }
     }
 
-    pub(crate) async fn write_commitment_results_to_storage<
+    pub(crate) fn write_commitment_results_to_storage<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
     >(
@@ -288,7 +287,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     }
 
     /// Writes the ready commitment results to storage.
-    pub(crate) async fn get_commitment_results_and_write_to_storage<
+    pub(crate) fn get_commitment_results_and_write_to_storage<
         R: BatcherStorageReader + ?Sized,
         W: BatcherStorageWriter + ?Sized,
     >(
@@ -297,14 +296,13 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         storage_reader: Arc<R>,
         storage_writer: &mut Box<W>,
     ) -> CommitmentManagerResult<()> {
-        let commitment_results = self.get_commitment_results().await;
+        let commitment_results = self.get_commitment_results();
         self.write_commitment_results_to_storage(
             commitment_results,
             first_block_with_partial_block_hash,
             storage_reader.clone(),
             storage_writer,
-        )
-        .await?;
+        )?;
         Ok(())
     }
 
