@@ -1237,21 +1237,24 @@ impl Batcher {
         }
     }
 
-    pub fn get_block_hash(&self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
-        self.storage_reader
-            .get_block_hash(block_number)
-            .map_err(|err| {
-                error!("Failed to get block hash from storage: {err}");
-                BatcherError::InternalError
-            })?
-            .ok_or(BatcherError::BlockHashNotFound(block_number))
+    pub fn get_block_hash(&mut self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
+        let mut result = self.storage_reader.get_block_hash(block_number).map_err(|err| {
+            error!("Failed to get block hash from storage: {err}");
+            BatcherError::InternalError
+        })?;
+        if let Some(block_hash) = result {
+            return Ok(block_hash);
+        }
+
+        self.get_commitment_results_and_write_to_storage()?;
+        result = self.storage_reader.get_block_hash(block_number).map_err(|err| {
+            error!("Failed to get block hash from storage: {err}");
+            BatcherError::InternalError
+        })?;
+        result.ok_or(BatcherError::BlockHashNotFound(block_number))
     }
-    async fn write_commitment_results_and_add_new_task(
-        &mut self,
-        height: BlockNumber,
-        state_diff: ThinStateDiff,
-        optional_state_diff_commitment: Option<StateDiffCommitment>,
-    ) -> BatcherResult<()> {
+
+    fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
                 &self.config.static_config.first_block_with_partial_block_hash,
@@ -1262,6 +1265,16 @@ impl Batcher {
                 error!("Failed to get commitment results and write to storage: {err}");
                 BatcherError::InternalError
             })?;
+        Ok(())
+    }
+
+    async fn write_commitment_results_and_add_new_task(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        optional_state_diff_commitment: Option<StateDiffCommitment>,
+    ) -> BatcherResult<()> {
+        self.get_commitment_results_and_write_to_storage()?;
         self.commitment_manager
             .add_commitment_task(
                 height,
