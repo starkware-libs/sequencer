@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherDynamicConfig;
+use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
@@ -39,6 +40,10 @@ pub trait ConfigManagerClient: Send + Sync {
         &self,
     ) -> ConfigManagerClientResult<ConsensusDynamicConfig>;
 
+    async fn get_class_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<ClassManagerDynamicConfig>;
+
     async fn get_context_dynamic_config(&self) -> ConfigManagerClientResult<ContextDynamicConfig>;
     async fn get_http_server_dynamic_config(
         &self,
@@ -64,6 +69,7 @@ pub trait ConfigManagerClient: Send + Sync {
 )]
 pub enum ConfigManagerRequest {
     GetConsensusDynamicConfig,
+    GetClassManagerDynamicConfig,
     GetContextDynamicConfig,
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
@@ -85,6 +91,7 @@ generate_permutation_labels! {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ConfigManagerResponse {
     GetConsensusDynamicConfig(ConfigManagerResult<ConsensusDynamicConfig>),
+    GetClassManagerDynamicConfig(ConfigManagerResult<ClassManagerDynamicConfig>),
     GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
@@ -116,6 +123,21 @@ where
             request,
             ConfigManagerResponse,
             GetConsensusDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
+    async fn get_class_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerClientResult<ClassManagerDynamicConfig> {
+        let request = ConfigManagerRequest::GetClassManagerDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetClassManagerDynamicConfig,
             ConfigManagerClientError,
             ConfigManagerError,
             Direct
