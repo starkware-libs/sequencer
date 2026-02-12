@@ -2,13 +2,11 @@
 
 set -euo pipefail
 
-if [[ -n "${CI:-}" ]]; then
-  echo "This script should not be run in a CI environment, as it installs toolchains out of cache."
-  exit 1
-fi
-
-SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-TOOLCHAIN=$(grep "EXTRA_RUST_TOOLCHAINS:" "${SCRIPT_DIR}"/../.github/workflows/main.yml  | awk '{print $2}')
+# TODO: Since it is not possible to specify multiple toolchains in a single rust-toolchain.toml
+#   file (and directing that specific cargo commands should run with the nightly toolchain), we need
+#   to find a nice way to cache the nightly toolchain installation in the CI, without defining the
+#   specific nightly version in multiple places.
+TOOLCHAIN=nightly-2024-04-29
 
 function install_rustfmt() {
     rustup toolchain install "${TOOLCHAIN}"
