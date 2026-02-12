@@ -49,6 +49,11 @@ define_metrics!(
             "Duration of the block commit in seconds"
         },
         MetricHistogram {
+            TOTAL_BLOCK_DURATION_PER_MODIFICATION,
+            "total_block_duration_per_modification",
+            "Duration of the block commit normalized by the number of modifications in seconds"
+        },
+        MetricHistogram {
             READ_DURATION_PER_BLOCK,
             "read_duration_per_block",
             "Duration of the read operation per block in seconds"
@@ -90,6 +95,7 @@ pub fn register_metrics(offset: BlockNumber) {
     COUNT_EMPTIED_LEAVES_PER_BLOCK.register();
     EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.register();
     TOTAL_BLOCK_DURATION.register();
+    TOTAL_BLOCK_DURATION_PER_MODIFICATION.register();
     READ_DURATION_PER_BLOCK.register();
     AVERAGE_READ_RATE.register();
     WRITE_DURATION_PER_BLOCK.register();

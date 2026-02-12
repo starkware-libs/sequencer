@@ -61,6 +61,7 @@ use crate::metrics::{
     OFFSET,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
+    TOTAL_BLOCK_DURATION_PER_MODIFICATION,
     WRITE_DURATION_PER_BLOCK,
 };
 
@@ -458,6 +459,14 @@ fn update_metrics(
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
     TOTAL_BLOCK_DURATION.record_lossy(durations.block);
+    let n_modifications = modifications_counts.total();
+    let total_block_duration_per_modification = if n_modifications > 0 {
+        let total_block_duration_per_modification = durations.block / n_modifications as f64;
+        TOTAL_BLOCK_DURATION_PER_MODIFICATION.record_lossy(total_block_duration_per_modification);
+        Some(total_block_duration_per_modification)
+    } else {
+        None
+    };
     READ_DURATION_PER_BLOCK.record_lossy(durations.read);
     COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
     WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
@@ -501,6 +510,7 @@ fn update_metrics(
     log_block_measurements(
         height,
         durations,
+        total_block_duration_per_modification,
         read_rate,
         compute_rate,
         write_rate,
@@ -509,9 +519,11 @@ fn update_metrics(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn log_block_measurements(
     height: BlockNumber,
     durations: &BlockDurations,
+    total_block_duration_per_modification: Option<f64>,
     read_rate: Option<f64>,
     compute_rate: Option<f64>,
     write_rate: Option<f64>,
@@ -520,12 +532,14 @@ fn log_block_measurements(
 ) {
     info!(
         "Block {height} stats: durations in ms (total/read/compute/write): \
-         {:.0}/{:.0}/{:.0}/{:.0}, rates (read/compute/write): {}/{}/{}, modifications count \
+         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification: {}, rates \
+         (read/compute/write): {}/{}/{}, modifications count \
          (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}",
         durations.block * 1000.0,
         durations.read * 1000.0,
         durations.compute * 1000.0,
         durations.write * 1000.0,
+        total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.2}s")),
         read_rate.map_or(String::new(), |r| format!("{r:.2}")),
         compute_rate.map_or(String::new(), |r| format!("{r:.2}")),
         write_rate.map_or(String::new(), |r| format!("{r:.2}")),
