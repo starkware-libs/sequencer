@@ -6,7 +6,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - edited # for when the PR title is edited
     paths:
       - ".github/workflows/papyrus_ci.yml"
       - "deployments/images/base/Dockerfile"

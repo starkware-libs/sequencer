@@ -13,7 +13,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - edited
     paths:
       - ".github/workflows/committer_and_os_cli_push.yml"
       - "build_native_in_docker.sh"
