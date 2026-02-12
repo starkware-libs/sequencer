@@ -283,6 +283,12 @@ impl AddAssign<&ExtendedExecutionResources> for ExtendedExecutionResources {
     }
 }
 
+impl AddAssign<&ExecutionResources> for ExtendedExecutionResources {
+    fn add_assign(&mut self, other: &ExecutionResources) {
+        self.vm_resources += other;
+    }
+}
+
 impl Add<&ExtendedExecutionResources> for &ExtendedExecutionResources {
     type Output = ExtendedExecutionResources;
 
@@ -291,6 +297,16 @@ impl Add<&ExtendedExecutionResources> for &ExtendedExecutionResources {
         new.add_assign(other);
 
         new
+    }
+}
+
+impl Add<&ExecutionResources> for &ExtendedExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn add(self, other: &ExecutionResources) -> ExtendedExecutionResources {
+        let mut result = self.clone();
+        result += other;
+        result
     }
 }
 

@@ -68,9 +68,13 @@ pub struct ComputationResources {
 }
 
 impl ComputationResources {
-    pub fn total_vm_resources(&self) -> ExecutionResources {
-        // TODO(AvivG): update total_vm_resources to return ExtendedExecutionResources.
-        &self.tx_extended_vm_resources.vm_resources + &self.os_vm_resources
+    pub fn total_extended_vm_resources(&self) -> ExtendedExecutionResources {
+        let execution_resources =
+            &self.tx_extended_vm_resources.vm_resources + &self.os_vm_resources;
+        ExtendedExecutionResources {
+            vm_resources: execution_resources,
+            opcode_instance_counter: self.tx_extended_vm_resources.opcode_instance_counter.clone(),
+        }
     }
 
     pub fn to_gas_vector(
@@ -80,7 +84,8 @@ impl ComputationResources {
     ) -> GasVector {
         let vm_cost = get_vm_resources_cost(
             versioned_constants,
-            &self.total_vm_resources(),
+            // TODO(AvivG): update get_vm_resources_cost to accept ExtendedExecutionResources.
+            &self.total_extended_vm_resources().vm_resources,
             self.n_reverted_steps,
             computation_mode,
         );
@@ -112,7 +117,7 @@ impl ComputationResources {
     pub fn total_charged_computation_units(&self, resource: TrackedResource) -> usize {
         match resource {
             TrackedResource::CairoSteps => {
-                self.total_vm_resources().n_steps + self.n_reverted_steps
+                self.total_extended_vm_resources().vm_resources.n_steps + self.n_reverted_steps
             }
             TrackedResource::SierraGas => {
                 usize::try_from(self.sierra_gas.0 + self.reverted_sierra_gas.0).unwrap()
