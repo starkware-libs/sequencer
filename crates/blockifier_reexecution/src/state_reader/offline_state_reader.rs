@@ -118,7 +118,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             offline_state_reader_prev_block,
             block_context_next_block: BlockContext::new(
                 block_info_next_block,
-                get_chain_info(&chain_id),
+                get_chain_info(&chain_id, None),
                 versioned_constants,
                 BouncerConfig::max(),
             ),

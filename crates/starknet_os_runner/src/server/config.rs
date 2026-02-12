@@ -2,10 +2,11 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
 use tracing::info;
 
 use crate::config::ProverConfig;
@@ -117,6 +118,19 @@ impl ServiceConfig {
             }
         }
 
+        if let Some(hex_str) = args.strk_fee_token_address {
+            let strk_fee_token_address = ContractAddress::from_str(&hex_str).map_err(|e| {
+                ConfigError::InvalidArgument(format!("Invalid strk_fee_token_address: {}", e))
+            })?;
+            if Some(strk_fee_token_address) != config.prover_config.strk_fee_token_address {
+                info!(
+                    "CLI override: strk_fee_token_address: {:?} -> {:?}",
+                    config.prover_config.strk_fee_token_address, strk_fee_token_address
+                );
+                config.prover_config.strk_fee_token_address = Some(strk_fee_token_address);
+            }
+        }
+
         // Validate required fields.
         if config.prover_config.rpc_node_url.is_empty() {
             return Err(ConfigError::MissingRequiredField(
@@ -170,6 +184,10 @@ pub struct CliArgs {
     /// Maximum number of simultaneous JSON-RPC connections (default: 10).
     #[arg(long, value_name = "N")]
     pub max_connections: Option<u32>,
+
+    /// Override STRK fee token address (hex, e.g. for custom environments that share a chain ID).
+    #[arg(long, value_name = "ADDRESS")]
+    pub strk_fee_token_address: Option<String>,
 }
 
 /// Errors that can occur during configuration.
