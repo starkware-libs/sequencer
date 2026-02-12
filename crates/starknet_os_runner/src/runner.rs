@@ -23,7 +23,8 @@ use starknet_api::transaction::{
 use starknet_os::commitment_infos::CommitmentInfo;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::runner::run_virtual_os;
-use tracing::info;
+use tracing::field::display;
+use tracing::{info, Span};
 use url::Url;
 
 use crate::classes_provider::ClassesProvider;
@@ -279,11 +280,10 @@ where
                 let tx_hash = tx
                     .calculate_transaction_hash(&chain_id, &version)
                     .map_err(|e| RunnerError::TransactionHashError(e.to_string()))?;
-                info!(
-                    block_id = ?block_id,
-                    tx_hash = %tx_hash,
-                    "Starting transaction proving"
-                );
+                // Record tx_hash on the parent span (`prove_transaction`) so all
+                // subsequent logs carry it as a prefix.
+                Span::current().record("tx_hash", display(&tx_hash));
+                info!(transaction = ?tx, "Starting transaction proving");
                 Ok((tx, tx_hash))
             })
             .collect::<Result<Vec<_>, RunnerError>>()?;
