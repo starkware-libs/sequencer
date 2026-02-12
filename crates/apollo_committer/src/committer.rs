@@ -52,13 +52,13 @@ use crate::metrics::{
     AVERAGE_COMPUTE_RATE,
     AVERAGE_READ_RATE,
     AVERAGE_WRITE_RATE,
+    COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_EMPTIED_LEAVES_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
     EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
-    OFFSET,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
     TOTAL_BLOCK_DURATION_PER_MODIFICATION,
@@ -154,7 +154,7 @@ where
 
     fn update_offset(&mut self, offset: BlockNumber) {
         self.offset = offset;
-        OFFSET.set_lossy(offset.0);
+        COMMITTER_OFFSET.set_lossy(offset.0);
     }
 
     /// Commits a block to the forest.
