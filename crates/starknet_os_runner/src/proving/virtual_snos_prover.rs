@@ -76,7 +76,7 @@ pub struct VirtualSnosProverOutput {
 /// The prover is generic over the runner, allowing different implementations
 /// (RPC-based, mock, etc.) to be used interchangeably.
 #[derive(Clone)]
-pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
+pub struct VirtualSnosProver<R: VirtualSnosRunner> {
     /// Runner for executing the virtual OS.
     runner: R,
 }

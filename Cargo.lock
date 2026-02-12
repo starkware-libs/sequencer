@@ -12244,7 +12244,9 @@ dependencies = [
 name = "starknet_os_flow_tests"
 version = "0.18.0-dev.0"
 dependencies = [
+ "apollo_transaction_converter",
  "assert_matches",
+ "async-trait",
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
