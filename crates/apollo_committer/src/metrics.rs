@@ -18,6 +18,12 @@ define_metrics!(
             "committer_offset",
             "The next block number to commit"
         },
+        MetricCounter {
+            BLOCKS_COMMITTED,
+            "blocks_committed",
+            "Number of blocks committed, in commit and revert",
+            init = 0
+        },
         MetricHistogram {
             COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
             "count_storage_tries_modifications_per_block",
@@ -89,6 +95,7 @@ define_metrics!(
 pub fn register_metrics(offset: BlockNumber) {
     COMMITTER_OFFSET.register();
     COMMITTER_OFFSET.set_lossy(offset.0);
+    BLOCKS_COMMITTED.register();
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.register();
