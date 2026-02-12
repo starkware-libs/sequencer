@@ -56,7 +56,6 @@ impl From<VirtualSnosProverError> for ErrorObjectOwned {
                     validation_failure(msg.clone())
                 }
             }
-            VirtualSnosProverError::TransactionHashError(e) => internal_server_error(e),
             VirtualSnosProverError::RunnerError(e) => internal_server_error(e),
             VirtualSnosProverError::ProvingError(e) => internal_server_error(e),
             VirtualSnosProverError::OutputParseError(e) => internal_server_error(e),

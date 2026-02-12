@@ -14,10 +14,16 @@ use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, OsChainInfo};
-use starknet_api::transaction::{InvokeTransaction, MessageToL1, TransactionHash};
+use starknet_api::transaction::{
+    InvokeTransaction,
+    MessageToL1,
+    TransactionHash,
+    TransactionHasher,
+};
 use starknet_os::commitment_infos::CommitmentInfo;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::runner::run_virtual_os;
+use tracing::info;
 use url::Url;
 
 use crate::classes_provider::ClassesProvider;
@@ -135,6 +141,7 @@ where
     pub(crate) config: RunnerConfig,
     pub(crate) contract_class_manager: ContractClassManager,
     pub(crate) block_id: BlockId,
+    pub(crate) chain_id: ChainId,
 }
 
 #[allow(dead_code)]
@@ -151,6 +158,7 @@ where
         config: RunnerConfig,
         contract_class_manager: ContractClassManager,
         block_id: BlockId,
+        chain_id: ChainId,
     ) -> Self {
         Self {
             classes_provider,
@@ -159,6 +167,7 @@ where
             config,
             contract_class_manager,
             block_id,
+            chain_id,
         }
     }
 
@@ -249,7 +258,7 @@ where
     /// Consumes the runner since the virtual block executor is single-use per block.
     pub async fn run_virtual_os(
         self,
-        txs: Vec<(InvokeTransaction, TransactionHash)>,
+        txs: Vec<InvokeTransaction>,
     ) -> Result<RunnerOutput, RunnerError> {
         // Extract providers and executor before self is consumed.
         let Self {
@@ -259,16 +268,34 @@ where
             config,
             contract_class_manager,
             block_id,
+            chain_id,
         } = self;
 
+        // Compute transaction hashes.
+        let txs_with_hashes: Vec<(InvokeTransaction, TransactionHash)> = txs
+            .into_iter()
+            .map(|tx| {
+                let version = tx.version();
+                let tx_hash = tx
+                    .calculate_transaction_hash(&chain_id, &version)
+                    .map_err(|e| RunnerError::TransactionHashError(e.to_string()))?;
+                info!(
+                    block_id = ?block_id,
+                    tx_hash = %tx_hash,
+                    "Starting transaction proving"
+                );
+                Ok((tx, tx_hash))
+            })
+            .collect::<Result<Vec<_>, RunnerError>>()?;
+
         // Clone txs since we need them after execution for VirtualOsBlockInput.
-        let txs_for_hints = txs.clone();
+        let txs_for_hints = txs_with_hashes.clone();
 
         // Execute virtual block to get execution data including L2 to L1 messages.
         // Execute in a blocking thread pool to avoid blocking the async runtime.
         // The RPC state reader uses request::blocking which would block the tokio runtime.
         let execution_data = tokio::task::spawn_blocking(move || {
-            virtual_block_executor.execute(block_id, contract_class_manager, txs)
+            virtual_block_executor.execute(block_id, contract_class_manager, txs_with_hashes)
         })
         .await??;
 
@@ -308,7 +335,7 @@ pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
     async fn run_virtual_os(
         &self,
         block_id: BlockId,
-        txs: Vec<(InvokeTransaction, TransactionHash)>,
+        txs: Vec<InvokeTransaction>,
     ) -> Result<RunnerOutput, RunnerError>;
 }
 
@@ -403,6 +430,7 @@ impl RpcRunnerFactory {
             self.runner_config.clone(),
             self.contract_class_manager.clone(),
             block_id,
+            self.chain_id.clone(),
         )
     }
 }
@@ -412,7 +440,7 @@ impl VirtualSnosRunner for RpcRunnerFactory {
     async fn run_virtual_os(
         &self,
         block_id: BlockId,
-        txs: Vec<(InvokeTransaction, TransactionHash)>,
+        txs: Vec<InvokeTransaction>,
     ) -> Result<RunnerOutput, RunnerError> {
         let runner = self.create_runner(block_id);
         runner.run_virtual_os(txs).await
