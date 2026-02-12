@@ -2,7 +2,7 @@
 
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
 
 use crate::runner::RunnerConfig;
 
@@ -18,6 +18,8 @@ pub struct ProverConfig {
     pub rpc_node_url: String,
     /// Configuration for the runner.
     pub runner_config: RunnerConfig,
+    /// Optional override for the STRK fee token address (e.g., for custom environments).
+    pub strk_fee_token_address: Option<ContractAddress>,
 }
 
 impl Default for ProverConfig {
@@ -27,6 +29,7 @@ impl Default for ProverConfig {
             chain_id: ChainId::Mainnet,
             rpc_node_url: String::new(),
             runner_config: RunnerConfig::default(),
+            strk_fee_token_address: None,
         }
     }
 }

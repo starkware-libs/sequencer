@@ -70,6 +70,7 @@ pub fn rpc_state_reader() -> RpcStateReader {
         node_url,
         ChainId::Mainnet,
         BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
+        None,
     )
 }
 

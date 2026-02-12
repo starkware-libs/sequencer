@@ -387,6 +387,8 @@ pub(crate) struct RpcRunnerFactory {
     contract_class_manager: ContractClassManager,
     /// Configuration for the runner.
     runner_config: RunnerConfig,
+    /// Optional override for the STRK fee token address (e.g., for custom environments).
+    strk_fee_token_address: Option<ContractAddress>,
 }
 
 impl RpcRunnerFactory {
@@ -396,8 +398,9 @@ impl RpcRunnerFactory {
         chain_id: ChainId,
         contract_class_manager: ContractClassManager,
         runner_config: RunnerConfig,
+        strk_fee_token_address: Option<ContractAddress>,
     ) -> Self {
-        Self { node_url, chain_id, contract_class_manager, runner_config }
+        Self { node_url, chain_id, contract_class_manager, runner_config, strk_fee_token_address }
     }
 
     /// Creates a runner configured for the given block ID.
@@ -407,6 +410,7 @@ impl RpcRunnerFactory {
             self.node_url.to_string(),
             self.chain_id.clone(),
             block_id,
+            self.strk_fee_token_address,
         );
 
         // Create the storage proofs provider.
@@ -417,6 +421,7 @@ impl RpcRunnerFactory {
             self.node_url.to_string(),
             self.chain_id.clone(),
             block_id,
+            self.strk_fee_token_address,
         );
 
         // Wrap in StateReaderAndContractManager for class resolution.
