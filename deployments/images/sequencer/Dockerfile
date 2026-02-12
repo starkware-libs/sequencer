@@ -33,7 +33,9 @@ RUN BUILD_FLAGS=""; \
     if [ "$BUILD_MODE" = "release" ]; then \
     BUILD_FLAGS="--release"; \
     fi; \
-    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
+    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native && \
+    cargo run $BUILD_FLAGS -p apollo_compile_to_casm --bin install_starknet_sierra_compile && \
+    cargo run $BUILD_FLAGS -p apollo_compile_to_native --bin install_starknet_native_compile
 
 
 FROM ubuntu:24.04 AS final_stage
