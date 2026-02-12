@@ -118,7 +118,7 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
     /// 2. Calculates the transaction hash.
     /// 3. Runs the Starknet OS.
     /// 4. Generates a proof.
-    #[instrument(skip(self), fields(block_id, tx_hash))]
+    #[instrument(skip(self, transaction), fields(block_id = ?block_id, tx_hash))]
     pub async fn prove_transaction(
         &self,
         block_id: BlockId,
