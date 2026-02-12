@@ -22,7 +22,7 @@ use blockifier_reexecution::utils::get_chain_info;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
@@ -46,10 +46,12 @@ pub(crate) struct BaseBlockInfo {
     pub(crate) prev_base_block_hash: BlockHash,
 }
 
-impl TryFrom<(BlockHeader, ChainId)> for BaseBlockInfo {
+impl TryFrom<(BlockHeader, ChainId, Option<ContractAddress>)> for BaseBlockInfo {
     type Error = VirtualBlockExecutorError;
 
-    fn try_from((header, chain_id): (BlockHeader, ChainId)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (header, chain_id, strk_fee_token_address): (BlockHeader, ChainId, Option<ContractAddress>),
+    ) -> Result<Self, Self::Error> {
         let base_block_hash = header.block_hash;
         let prev_base_block_hash = header.parent_hash;
         let base_block_header_commitments = BlockHeaderCommitments {
@@ -70,7 +72,7 @@ impl TryFrom<(BlockHeader, ChainId)> for BaseBlockInfo {
                 "Failed to convert block header to block info: {e}"
             ))
         })?;
-        let chain_info = get_chain_info(&chain_id);
+        let chain_info = get_chain_info(&chain_id, strk_fee_token_address);
         let mut versioned_constants = VersionedConstants::get(&block_info.starknet_version)
             .map_err(|e| {
                 VirtualBlockExecutorError::TransactionExecutionError(format!(
@@ -316,10 +318,18 @@ pub(crate) struct RpcVirtualBlockExecutor {
 
 #[allow(dead_code)]
 impl RpcVirtualBlockExecutor {
-    pub(crate) fn new(node_url: String, chain_id: ChainId, block_id: BlockId) -> Self {
+    pub(crate) fn new(
+        node_url: String,
+        chain_id: ChainId,
+        block_id: BlockId,
+        strk_fee_token_address: Option<ContractAddress>,
+    ) -> Self {
         Self {
             rpc_state_reader: RpcStateReader::new_with_config_from_url(
-                node_url, chain_id, block_id,
+                node_url,
+                chain_id,
+                block_id,
+                strk_fee_token_address,
             ),
             validate_txs: true,
         }
@@ -340,7 +350,11 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
             .rpc_state_reader
             .get_block_header()
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))?;
-        BaseBlockInfo::try_from((block_header, self.rpc_state_reader.chain_id.clone()))
+        BaseBlockInfo::try_from((
+            block_header,
+            self.rpc_state_reader.chain_id.clone(),
+            self.rpc_state_reader.strk_fee_token_address,
+        ))
     }
 
     fn state_reader(
