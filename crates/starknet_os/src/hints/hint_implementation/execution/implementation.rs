@@ -744,9 +744,9 @@ pub(crate) fn check_retdata_for_debug(ctx: HintContext<'_>) -> OsHintResult {
     let retdata_size = felt_to_usize(&ctx.get_integer(Ids::RetdataSize)?)?;
     let result = ctx.vm.get_range(retdata, min(retdata_size, 100_usize));
 
-    let validated = MaybeRelocatable::from(ctx.fetch_const(Const::Validated)?);
+    let validate_succeeded = MaybeRelocatable::from(ctx.fetch_const(Const::Validated)?);
 
-    if retdata_size != 1 || result[0] != Some(Cow::Borrowed(&validated)) {
+    if retdata_size != 1 || result[0] != Some(Cow::Borrowed(&validate_succeeded)) {
         log::info!("Invalid return value from __validate__:");
         log::info!("  Size: {retdata_size}");
         log::info!("  Result (at most 100 elements): {result:?}");
