@@ -1,0 +1,274 @@
+# Sequencer Node Configuration - Storage Batching Test
+# Syncing Mainnet with batching enabled to verify correctness and performance
+# NOTE: Batching config will be added post-deployment via configmap editing,
+# since the deployment config JSONs don't have batch_config placeholders yet.
+
+name: node
+
+replicas: 1
+
+imagePullSecrets: []
+
+## Base labels to attach to all resources
+metaLabels:
+  app: sequencer
+
+image:
+  repository: ghcr.io/starkware-libs/sequencer/sequencer
+  tag: "dean-storage-batching-unsafe-code-removal-b97fa83"
+  digest: ""
+  imagePullPolicy: IfNotPresent
+
+# StatefulSet Configuration
+statefulSet:
+  enabled: true
+  annotations: {}
+  labels: {}
+  updateStrategy:
+    type: "RollingUpdate"
+
+# Service Configuration
+service:
+  enabled: true
+  type: "ClusterIP"
+  ports:
+    - name: http-server
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: monitoring-endpoint
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+    - name: consensus-p2p
+      port: 53080
+      targetPort: 53080
+      protocol: TCP
+    - name: batcher
+      port: 55000
+      targetPort: 55000
+      protocol: TCP
+    - name: class-manager
+      port: 55001
+      targetPort: 55001
+      protocol: TCP
+    - name: gateway
+      port: 55002
+      targetPort: 55002
+      protocol: TCP
+    - name: l1-gas-price-provider
+      port: 55003
+      targetPort: 55003
+      protocol: TCP
+    - name: l1-provider
+      port: 55004
+      targetPort: 55004
+      protocol: TCP
+    - name: l1-endpoint-monitoring
+      port: 55005
+      targetPort: 55005
+      protocol: TCP
+    - name: mempool
+      port: 55006
+      targetPort: 55006
+      protocol: TCP
+    - name: sierra-compiler
+      port: 55007
+      targetPort: 55007
+      protocol: TCP
+    - name: signature-manager
+      port: 55008
+      targetPort: 55008
+      protocol: TCP
+    - name: state-sync-rpc
+      port: 55009
+      targetPort: 55009
+      protocol: TCP
+    - name: state-sync-network
+      port: 55010
+      targetPort: 55010
+      protocol: TCP
+    - name: batcher-storage-reader
+      port: 55011
+      targetPort: 55011
+      protocol: TCP
+    - name: state-sync-storage-reader
+      port: 55012
+      targetPort: 55012
+      protocol: TCP
+
+# GCP PodMonitoring Configuration
+gcpPodMonitoring:
+  enabled: true
+  spec:
+    selector:
+      matchLabels:
+        app: sequencer
+    endpoints:
+      - port: monitoring-endpoint
+        path: "/monitoring/metrics"
+        interval: "10s"
+
+# Volume Configuration
+persistentVolume:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  mountPath: "/data"
+  size: "1000Gi"
+  labels: {}
+  annotations: {}
+  storageClass: "hyperdisk-balanced"
+
+env:
+  - name: RUST_LOG
+    value: "debug"
+  - name: RUST_BACKTRACE
+    value: "full"
+  - name: NO_COLOR
+    value: "1"
+
+nodeSelector:
+  role: "apollo-core-service-c4d-standard-8"
+
+tolerations:
+  - key: key
+    operator: "Equal"
+    value: "apollo-core-service-c4d-standard-8"
+    effect: "NoSchedule"
+
+resources:
+  requests:
+    cpu: "4"
+    memory: "16Gi"
+  limits:
+    cpu: "7"
+    memory: "30Gi"
+
+startupProbe:
+  enabled: true
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 30
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+readinessProbe:
+  enabled: true
+  path: /monitoring/ready
+  successThreshold: 2
+  failureThreshold: 3
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+livenessProbe:
+  enabled: true
+  path: /monitoring/alive
+  successThreshold: 1
+  failureThreshold: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+securityContext:
+  fsGroup: 1000
+
+# Config Configuration
+config:
+  configList: crates/apollo_deployments/resources/services/consolidated/replacer_deployment_node.json
+
+  sequencerConfig:
+    # --- Mainnet Sync Configuration ---
+    chain_id: "SN_MAIN"
+    eth_fee_token_address: "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
+    strk_fee_token_address: "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+    starknet_url: "https://feeder.alpha-mainnet.starknet.io/"
+    state_sync_config_central_sync_client_config_is_none: false
+    state_sync_config_p2p_sync_client_config_is_none: true
+
+    # --- Base Layer ---
+    base_layer_config_bpo1_start_block_number: 9456501
+    base_layer_config_bpo2_start_block_number: 9504747
+    base_layer_config_fusaka_no_bpo_start_block_number: 9408577
+    base_layer_config_starknet_contract_address: "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+
+    # --- Batcher ---
+    batcher_config_block_builder_config_bouncer_config_block_max_capacity_n_events: 5000
+    batcher_config_block_builder_config_bouncer_config_block_max_capacity_state_diff_size: 4000
+    batcher_config_first_block_with_partial_block_hash_is_none: false
+    batcher_config_first_block_with_partial_block_hash_block_number: 671813
+    batcher_config_first_block_with_partial_block_hash_block_hash: "0x12889b177c93baa28b5ee3afc80cb6f4836adac086af4bef25ae1ac762e8a62"
+    batcher_config_first_block_with_partial_block_hash_parent_block_hash: "0x1e68b0d22b14688dc97afa3006a53cf4e62ebcb02102e80f55e8b48f9a28b97"
+    batcher_config_block_builder_config_execute_config_n_workers: 28
+    batcher_config_block_builder_config_proposer_idle_detection_delay_millis: 2000
+    batcher_config_contract_class_manager_config_native_compiler_config_max_cpu_time: 600
+    batcher_config_storage_reader_server_config_port: 55011
+
+    # --- Class Manager ---
+    class_manager_config_class_manager_config_max_compiled_contract_class_object_size: 14089446
+
+    # --- Consensus ---
+    consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_base: 9.1
+    consensus_manager_config_consensus_manager_config_dynamic_config_timeouts_proposal_max: 15.0
+    consensus_manager_config_context_config_static_config_build_proposal_margin_millis: 1000
+    consensus_manager_config_context_config_static_config_num_validators: 1
+    consensus_manager_config_context_config_dynamic_config_override_eth_to_fri_rate: 0
+    consensus_manager_config_context_config_dynamic_config_override_eth_to_fri_rate_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l1_data_gas_price_fri: 0
+    consensus_manager_config_context_config_dynamic_config_override_l1_data_gas_price_fri_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l1_gas_price_fri: 0
+    consensus_manager_config_context_config_dynamic_config_override_l1_gas_price_fri_is_none: true
+    consensus_manager_config_context_config_dynamic_config_override_l2_gas_price_fri: 0
+    consensus_manager_config_context_config_dynamic_config_override_l2_gas_price_fri_is_none: true
+    consensus_manager_config_network_config_advertised_multiaddr: ""
+    consensus_manager_config_network_config_advertised_multiaddr_is_none: true
+    consensus_manager_config_network_config_bootstrap_peer_multiaddr: ""
+    consensus_manager_config_network_config_bootstrap_peer_multiaddr_is_none: true
+    consensus_manager_config_network_config_port: 53080
+
+    # --- Gateway ---
+    gateway_config_authorized_declarer_accounts: ""
+    gateway_config_authorized_declarer_accounts_is_none: true
+    gateway_config_contract_class_manager_config_native_compiler_config_max_cpu_time: 600
+    gateway_config_stateful_tx_validator_config_max_allowed_nonce_gap: 200
+    gateway_config_stateless_tx_validator_config_min_gas_price: 3000000000
+
+    # --- HTTP Server ---
+    http_server_config_static_config_port: 8080
+
+    # --- Mempool ---
+    mempool_config_dynamic_config_transaction_ttl: 300
+    mempool_p2p_config_network_config_advertised_multiaddr: ""
+    mempool_p2p_config_network_config_advertised_multiaddr_is_none: true
+    mempool_p2p_config_network_config_bootstrap_peer_multiaddr: ""
+    mempool_p2p_config_network_config_bootstrap_peer_multiaddr_is_none: true
+    mempool_p2p_config_network_config_port: 55006
+
+    # --- Monitoring ---
+    monitoring_endpoint_config_port: 8082
+
+    # --- Sierra Compiler ---
+    sierra_compiler_config_audited_libfuncs_only: false
+    sierra_compiler_config_max_bytecode_size: 4089446
+
+    # --- State Sync ---
+    state_sync_config_network_config_is_none: false
+    state_sync_config_network_config_port: 55010
+    state_sync_config_rpc_config_port: 55009
+    state_sync_config_storage_reader_server_config_port: 55012
+
+    # --- Committer ---
+    committer_config_verify_state_diff_hash: true
+
+    # --- Native ---
+    native_classes_whitelist: "All"
+
+    # --- Validator ---
+    validator_id: "0x64"
+    versioned_constants_overrides_max_n_events: 1000
+    recorder_url: ""
+
+# Secret Configuration
+secret:
+  enabled: true
+  type: "Opaque"
+  file: "crates/apollo_deployments/resources/testing_secrets.json"
