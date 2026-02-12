@@ -11,6 +11,7 @@ workspace = true
 
 [dependencies]
 apollo_batcher_config.workspace = true
+apollo_class_manager_config.workspace = true
 apollo_consensus_config.workspace = true
 apollo_consensus_orchestrator_config.workspace = true
 apollo_http_server_config.workspace = true
