@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, Dict, List, Mapping, Optional, Set
+from typing import ClassVar, Dict, List, Mapping, Optional, Set, TypedDict
 
 from echonet.constants import IGNORED_REVERT_PATTERNS
 from echonet.echonet_types import (
@@ -16,6 +16,7 @@ from echonet.echonet_types import (
     JsonObject,
     ResyncTriggerMap,
     RevertErrorInfo,
+    TxType,
     create_revert_error_info,
 )
 from echonet.l1_logic.l1_client import L1Client
@@ -26,11 +27,68 @@ from echonet.report_models import SnapshotModel
 logger = get_logger("shared_context")
 
 
+class TimestampMismatchRow(TypedDict):
+    tx_hash: str
+    echo_block: int
+    source_block: int | None
+    source_ts: int | None
+    blob_ts: int | None
+
+
+class L2GasMismatchRow(TypedDict):
+    tx_hash: str
+    echo_block: int
+    source_block: int
+    blob_total_gas_l2: int
+    fgw_total_gas_consumed_l2: int
+
+
+@dataclass(slots=True)
+class _DiagnosticsTracker:
+    """
+    Diagnostics surfaced in the report UI.
+
+    Keep bounded "recent" lists to avoid unbounded memory usage.
+    """
+
+    timestamp_mismatches_total: int
+    l2_gas_mismatches_total: int
+    timestamp_mismatches_recent: List[TimestampMismatchRow]
+    l2_gas_mismatches_recent: List[L2GasMismatchRow]
+    max_recent: int
+
+    @classmethod
+    def empty(cls) -> "_DiagnosticsTracker":
+        return cls(
+            timestamp_mismatches_total=0,
+            l2_gas_mismatches_total=0,
+            timestamp_mismatches_recent=[],
+            l2_gas_mismatches_recent=[],
+            max_recent=200,
+        )
+
+    def record_timestamp_mismatch(self, row: TimestampMismatchRow) -> None:
+        self.timestamp_mismatches_total += 1
+        self.timestamp_mismatches_recent.append(row)
+        if len(self.timestamp_mismatches_recent) > self.max_recent:
+            self.timestamp_mismatches_recent = self.timestamp_mismatches_recent[-self.max_recent :]
+
+    def record_l2_gas_mismatch(self, row: L2GasMismatchRow) -> None:
+        self.l2_gas_mismatches_total += 1
+        self.l2_gas_mismatches_recent.append(row)
+        if len(self.l2_gas_mismatches_recent) > self.max_recent:
+            self.l2_gas_mismatches_recent = self.l2_gas_mismatches_recent[-self.max_recent :]
+
+    def clear_live(self) -> None:
+        self.timestamp_mismatches_recent.clear()
+
+
 @dataclass(slots=True)
 class _TxTracker:
     """Transaction lifecycle and counters used by reporting."""
 
     currently_pending: Dict[str, int]  # tx_hash -> source block number
+    tx_timestamps: Dict[str, int]  # tx_hash -> source timestamp seconds (recorded when sent)
     ever_seen_pending: Set[str]  # cumulative set of tx hashes ever observed pending
     committed: Dict[str, int]  # cumulative map: tx_hash -> commit block number
     total_forwarded_tx_count: int  # count of forwarded txs (counted once per block)
@@ -40,17 +98,23 @@ class _TxTracker:
     def empty(cls) -> "_TxTracker":
         return cls(
             currently_pending={},
+            tx_timestamps={},
             ever_seen_pending=set(),
             committed={},
             total_forwarded_tx_count=0,
             max_forwarded_block=0,
         )
 
-    def record_sent(self, tx_hash: str, source_block_number: int) -> None:
+    def record_sent(
+        self, tx_hash: str, source_block_number: int, source_timestamp: int | None = None
+    ) -> None:
         """Record a transaction as sent - add to the pending set (transactions sent but not committed yet)"""
         self.currently_pending[tx_hash] = source_block_number
         if tx_hash not in self.ever_seen_pending and tx_hash not in self.committed:
             self.ever_seen_pending.add(tx_hash)
+        if source_timestamp is not None:
+            # Keep the source timestamp even after commit (used for diagnostics/reporting).
+            self.tx_timestamps[tx_hash] = int(source_timestamp)
 
     def record_committed(self, tx_hash: str, block_number: int) -> None:
         """Record a transaction as committed - add to the committed set (transactions that have been committed) and remove from the pending set"""
@@ -361,11 +425,14 @@ class SharedContext:
         self._resync = _ResyncTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
+        self._diag = _DiagnosticsTracker.empty()
 
     # --- Tx lifecycle ---
-    def record_sent_tx(self, tx_hash: str, source_block_number: int) -> None:
+    def record_sent_tx(
+        self, tx_hash: str, source_block_number: int, *, source_timestamp: int | None = None
+    ) -> None:
         with self._lock:
-            self._tx.record_sent(tx_hash, source_block_number)
+            self._tx.record_sent(tx_hash, source_block_number, source_timestamp=source_timestamp)
 
     def record_forwarded_block(self, block_number: int, tx_count: int) -> None:
         with self._lock:
@@ -386,6 +453,26 @@ class SharedContext:
     def get_sent_block_number(self, tx_hash: str) -> int:
         with self._lock:
             return self._tx.currently_pending[tx_hash]
+
+    def get_tx_timestamp(self, tx_hash: str) -> Optional[int]:
+        """
+        Return the source timestamp (seconds) recorded when this tx was forwarded.
+        """
+        with self._lock:
+            return self._tx.tx_timestamps.get(tx_hash)
+
+    def forget_pending_tx(self, tx_hash: str) -> None:
+        """
+        Drop an *optimistic* pending entry for a tx that failed to forward.
+
+        This is used by the sender when the node rejects the tx or the request fails.
+        """
+        with self._lock:
+            self._tx.currently_pending.pop(tx_hash, None)
+            if tx_hash not in self._tx.committed:
+                self._tx.ever_seen_pending.discard(tx_hash)
+                # Best-effort: also drop timestamp to keep diagnostics meaningful.
+                self._tx.tx_timestamps.pop(tx_hash, None)
 
     def get_resync_evaluation_inputs(self) -> tuple[Dict[str, JsonObject], Dict[str, int]]:
         """
@@ -430,6 +517,7 @@ class SharedContext:
             archive_dir = self._blocks._ensure_archive_dir()
             self._tx.currently_pending.clear()
             self._errors.clear_live()
+            self._diag.clear_live()
             self._blocks.clear_live()
             self._progress.last_echo_center_block = None
             self._progress.sender_current_block = None
@@ -513,6 +601,115 @@ class SharedContext:
                 resync_causes=dict(self._resync.resync_causes),
                 certain_failures=dict(self._resync.certain_failures),
             )
+
+    # --- Diagnostics (UI only; not part of /echonet/report JSON) ---
+    def record_timestamp_mismatch(
+        self,
+        *,
+        tx_hash: str,
+        echo_block: int,
+        source_block: int | None,
+        source_ts: int | None,
+        blob_ts: int | None,
+    ) -> None:
+        with self._lock:
+            self._diag.record_timestamp_mismatch(
+                {
+                    "tx_hash": str(tx_hash),
+                    "echo_block": int(echo_block),
+                    "source_block": int(source_block) if source_block is not None else None,
+                    "source_ts": int(source_ts) if source_ts is not None else None,
+                    "blob_ts": int(blob_ts) if blob_ts is not None else None,
+                }
+            )
+
+    def record_l2_gas_mismatch(
+        self,
+        *,
+        tx_hash: str,
+        echo_block: int,
+        source_block: int,
+        blob_total_gas_l2: int,
+        fgw_total_gas_consumed_l2: int,
+    ) -> None:
+        with self._lock:
+            self._diag.record_l2_gas_mismatch(
+                {
+                    "tx_hash": str(tx_hash),
+                    "echo_block": int(echo_block),
+                    "source_block": int(source_block),
+                    "blob_total_gas_l2": int(blob_total_gas_l2),
+                    "fgw_total_gas_consumed_l2": int(fgw_total_gas_consumed_l2),
+                }
+            )
+
+    def get_diagnostics_snapshot(self) -> JsonObject:
+        """
+        Return a JSON-serializable snapshot of recent diagnostics.
+        """
+        with self._lock:
+
+            def _is_l1_handler_tx(*, echo_block: int | None, tx_hash: str) -> bool:
+                """
+                Best-effort classification for filtering UI-only diagnostics.
+
+                We look up the stored echo_block and try to find the transaction by hash
+                in either the raw blob or the transformed feeder-style block.
+                """
+                if echo_block is None:
+                    return False
+                entry = self._blocks.blocks.get(int(echo_block))
+                if not entry:
+                    return False
+
+                # Prefer the raw blob schema: transactions[i].tx.{hash_value,type}
+                blob = entry.get("blob") if isinstance(entry, dict) else None
+                if isinstance(blob, dict):
+                    for tx_entry in blob.get("transactions", []) or []:
+                        if not isinstance(tx_entry, dict):
+                            continue
+                        tx = tx_entry.get("tx")
+                        if not isinstance(tx, dict):
+                            continue
+                        if str(tx.get("hash_value")) == str(tx_hash):
+                            return str(tx.get("type")) == TxType.L1_HANDLER.value
+
+                # Fallback: transformed block schema: transactions[i].{transaction_hash,type}
+                block = entry.get("block") if isinstance(entry, dict) else None
+                if isinstance(block, dict):
+                    for tx in block.get("transactions", []) or []:
+                        if not isinstance(tx, dict):
+                            continue
+                        if str(tx.get("transaction_hash")) == str(tx_hash):
+                            return str(tx.get("type")) == TxType.L1_HANDLER.value
+
+                return False
+
+            ts_recent_raw = list(self._diag.timestamp_mismatches_recent)
+            ts_recent_filtered: list[TimestampMismatchRow] = []
+            excluded = 0
+            for row in ts_recent_raw:
+                try:
+                    if _is_l1_handler_tx(
+                        echo_block=row.get("echo_block"), tx_hash=str(row.get("tx_hash"))
+                    ):
+                        excluded += 1
+                        continue
+                except Exception:
+                    # Never break the UI snapshot due to a best-effort filter.
+                    pass
+                ts_recent_filtered.append(row)
+
+            return {
+                # Best-effort: exclude L1_HANDLER txs from the UI count.
+                # Note this only corrects for rows still present in the bounded "recent" list.
+                "timestamp_mismatches_total": max(
+                    0, int(self._diag.timestamp_mismatches_total) - int(excluded)
+                ),
+                "l2_gas_mismatches_total": int(self._diag.l2_gas_mismatches_total),
+                "timestamp_mismatches_recent": ts_recent_filtered,
+                "l2_gas_mismatches_recent": list(self._diag.l2_gas_mismatches_recent),
+            }
 
     # --- Progress markers ---
     def set_last_block(self, block_number: int) -> None:

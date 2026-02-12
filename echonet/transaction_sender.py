@@ -5,6 +5,7 @@ import base64
 import gzip
 import json
 import threading
+import time
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, Optional, Sequence, Set
 
@@ -108,7 +109,7 @@ class SenderConfig:
     sleep_between_blocks_seconds: float = CONFIG.sleep.sleep_between_blocks_seconds
 
     queue_size: int = 100
-    blocks_to_wait_before_failing_tx: int = 30
+    blocks_to_wait_before_failing_tx: int = 35
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,7 +155,11 @@ class TxTransformer:
                 f"src_bn={tx_data.source_block_number} src_ts={tx_data.source_timestamp}"
             )
             l1_manager.set_new_tx(tx, tx_data.source_timestamp)
-            shared.record_sent_tx(tx["transaction_hash"], tx_data.source_block_number)
+            shared.record_sent_tx(
+                tx["transaction_hash"],
+                tx_data.source_block_number,
+                source_timestamp=tx_data.source_timestamp,
+            )
             return None
 
         if tx_type == TxType.DECLARE:
@@ -178,24 +183,100 @@ class HttpForwarder:
         self._session = session
         self._sequencer_url = sequencer_url.rstrip("/")
 
-    async def forward(self, tx: JsonObject, source_block_number: int) -> None:
+    @staticmethod
+    def _is_connection_error(err: BaseException) -> bool:
+        """
+        True for errors that indicate the sequencer is unreachable (e.g. connect refused).
+        """
+        return isinstance(
+            err,
+            (
+                aiohttp.ClientConnectorError,
+                aiohttp.ClientConnectionError,
+                aiohttp.ServerTimeoutError,
+                asyncio.TimeoutError,
+                ConnectionRefusedError,
+                OSError,
+            ),
+        )
+
+    async def _post_tx_timestamp(self, tx_hash: str, source_timestamp: Optional[int]) -> None:
+        """
+        Best-effort: send `{tx_hash: timestamp_seconds}` to an optional sequencer endpoint.
+        """
+        if source_timestamp is None:
+            return
+        endpoint = getattr(CONFIG.sequencer.endpoints, "tx_timestamp", "") or ""
+        if not endpoint.strip():
+            # Endpoint intentionally left blank until the sequencer implements it.
+            return
+
+        url = f"{self._sequencer_url}{endpoint}"
+        headers = {"Content-Type": "application/json"}
+        payload = {tx_hash: int(source_timestamp)}
+        try:
+            async with self._session.post(url, json=payload, headers=headers) as response:
+                if response.status != requests.codes.ok:
+                    text = await response.text()
+                    logger.warning(
+                        f"Failed to post tx timestamp (status={response.status}) tx={tx_hash}: {text}"
+                    )
+        except Exception as err:
+            logger.warning(f"Failed to post tx timestamp tx={tx_hash}: {err}")
+
+    async def forward(
+        self, tx: JsonObject, source_block_number: int, source_timestamp: Optional[int]
+    ) -> bool:
         url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.add_transaction}"
         headers = {"Content-Type": "application/json"}
+        tx_hash = tx.get("transaction_hash")
+        tx_hash_str = str(tx_hash) if tx_hash is not None else "<missing-transaction_hash>"
 
-        async with self._session.post(url, json=tx, headers=headers) as response:
-            text = await response.text()
-            tx_hash = tx["transaction_hash"]
-            if response.status != requests.codes.ok:
-                logger.warning(f"Forward failed ({response.status}): {text}")
-                shared.record_gateway_error(
-                    tx_hash, response.status, text, block_number=source_block_number
-                )
-            else:
-                logger.info(f"Forwarded tx: {tx_hash}")
-                shared.record_sent_tx(tx_hash, source_block_number)
+        # IMPORTANT: record the source timestamp before forwarding.
+        #
+        # We also best-effort POST `{tx_hash: timestamp}` to the sequencer (if configured)
+        # before `add_transaction`, so the node can consult local state rather than calling
+        # back into echonet.
+        if isinstance(tx_hash, str):
+            shared.record_sent_tx(
+                tx_hash,
+                source_block_number,
+                source_timestamp=source_timestamp,
+            )
+            await self._post_tx_timestamp(tx_hash, source_timestamp)
 
-        if tx["type"] == TxType.DEPLOY_ACCOUNT:
-            await asyncio.sleep(CONFIG.sleep.deploy_account_sleep_time_seconds)
+        # Log before the request so we can detect hangs/timeouts.
+        logger.debug(f"Forwarding tx: {tx_hash_str} -> {url}")
+
+        try:
+            async with self._session.post(url, json=tx, headers=headers) as response:
+                text = await response.text()
+                if response.status != requests.codes.ok:
+                    logger.warning(f"Forward failed ({response.status}): {text}")
+                    if isinstance(tx_hash, str):
+                        # If the node rejected the tx, drop the optimistic pending entry.
+                        shared.forget_pending_tx(tx_hash)
+                        shared.record_gateway_error(
+                            tx_hash, response.status, text, block_number=source_block_number
+                        )
+                    return False
+
+                logger.info(f"Forwarded tx: {tx_hash_str}")
+                if isinstance(tx_hash, str):
+                    shared.record_sent_tx(
+                        tx_hash,
+                        source_block_number,
+                        source_timestamp=source_timestamp,
+                    )
+                if tx.get("type") == TxType.DEPLOY_ACCOUNT:
+                    await asyncio.sleep(CONFIG.sleep.deploy_account_sleep_time_seconds)
+                return True
+        except Exception as err:
+            # If request didn't complete, remove optimistic pending entry.
+            if isinstance(tx_hash, str):
+                shared.forget_pending_tx(tx_hash)
+            # Let the consumer decide whether to retry / block on this tx.
+            raise err
 
 
 class TransactionSenderService:
@@ -238,6 +319,7 @@ class TransactionSenderService:
             async def producer() -> None:
                 block_number = config.start_block
                 current_start_block = config.start_block
+                time.sleep(10)
                 while not self._stop_event.is_set():
                     if config.end_block and block_number > config.end_block:
                         return
@@ -320,9 +402,47 @@ class TransactionSenderService:
                         ):
                             await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
 
-                        await forwarder.forward(
-                            prepared, source_block_number=item.source_block_number
-                        )
+                        attempt = 0
+                        while not self._stop_event.is_set():
+                            try:
+                                await forwarder.forward(
+                                    prepared,
+                                    source_block_number=item.source_block_number,
+                                    source_timestamp=item.source_timestamp,
+                                )
+                                break
+                            except Exception as err:
+                                tx_hash = prepared.get("transaction_hash")
+                                tx_hash_str = (
+                                    tx_hash
+                                    if isinstance(tx_hash, str)
+                                    else "<missing-transaction_hash>"
+                                )
+
+                                if HttpForwarder._is_connection_error(err):
+                                    sleep_seconds = min(
+                                        config.retry_backoff_seconds * (2**attempt),
+                                        config.max_retry_sleep_seconds,
+                                    )
+                                    logger.warning(
+                                        f"Sequencer unreachable while forwarding tx={tx_hash_str}: {err}. "
+                                        f"Retrying in {sleep_seconds:.2f}s"
+                                    )
+                                    await asyncio.sleep(sleep_seconds)
+                                    attempt += 1
+                                    continue
+
+                                logger.warning(
+                                    f"Forward exception (non-connection) for tx={tx_hash_str}: {err}"
+                                )
+                                if isinstance(tx_hash, str):
+                                    shared.record_gateway_error(
+                                        tx_hash,
+                                        status=0,
+                                        response=repr(err),
+                                        block_number=item.source_block_number,
+                                    )
+                                break
                     finally:
                         tx_queue.task_done()
 
