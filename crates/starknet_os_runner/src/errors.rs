@@ -37,6 +37,8 @@ pub enum RunnerError {
     OsExecution(#[from] StarknetOsError),
     #[error("OS Input generation failed: {0}")]
     InputGenerationError(String),
+    #[error("Failed to calculate transaction hash: {0}")]
+    TransactionHashError(String),
     #[error(transparent)]
     TaskJoin(#[from] tokio::task::JoinError),
 }
