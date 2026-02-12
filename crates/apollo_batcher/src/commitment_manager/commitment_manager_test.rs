@@ -436,7 +436,7 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
         create_commitment_manager(mock_dependencies).await;
 
     // Verify the commitment manager doesn't wait if there are no results.
-    let results = commitment_manager.get_commitment_results().await;
+    let results = commitment_manager.get_commitment_results();
     assert!(results.is_empty(), "There should be no commitment results initially.");
 
     // Add two tasks and simulate their completion by the mock state committer.
@@ -548,5 +548,5 @@ async fn test_revert_result_at_getting_commitments(mut mock_dependencies: MockDe
     )
     .await;
     wait_for_n_items(&mut commitment_manager.results_receiver, 3).await;
-    commitment_manager.get_commitment_results().await;
+    commitment_manager.get_commitment_results();
 }
