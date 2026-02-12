@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use std::vec::Vec;
 
 use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
-use apollo_class_manager_config::config::FsClassManagerConfig;
+use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassManagerConfig};
 use apollo_committer_config::config::ApolloCommitterConfig;
 use apollo_config::dumping::{
     generate_optional_struct_pointer,
@@ -311,6 +311,8 @@ pub struct NodeDynamicConfig {
     #[validate(nested)]
     pub batcher_dynamic_config: Option<BatcherDynamicConfig>,
     #[validate(nested)]
+    pub class_manager_dynamic_config: Option<ClassManagerDynamicConfig>,
+    #[validate(nested)]
     pub consensus_dynamic_config: Option<ConsensusDynamicConfig>,
     #[validate(nested)]
     pub context_dynamic_config: Option<ContextDynamicConfig>,
@@ -328,6 +330,10 @@ impl SerializeConfig for NodeDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = [
             ser_optional_sub_config(&self.batcher_dynamic_config, "batcher_dynamic_config"),
+            ser_optional_sub_config(
+                &self.class_manager_dynamic_config,
+                "class_manager_dynamic_config",
+            ),
             ser_optional_sub_config(&self.consensus_dynamic_config, "consensus_dynamic_config"),
             ser_optional_sub_config(&self.context_dynamic_config, "context_dynamic_config"),
             ser_optional_sub_config(&self.http_server_dynamic_config, "http_server_dynamic_config"),
@@ -349,6 +355,10 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .batcher_config
             .as_ref()
             .map(|batcher_config| batcher_config.dynamic_config.clone());
+        let class_manager_dynamic_config = sequencer_node_config
+            .class_manager_config
+            .as_ref()
+            .map(|class_manager_config| class_manager_config.dynamic_config.clone());
         let consensus_dynamic_config = sequencer_node_config.consensus_manager_config.as_ref().map(
             |consensus_manager_config| {
                 consensus_manager_config.consensus_manager_config.dynamic_config.clone()
@@ -379,6 +389,7 @@ impl From<&SequencerNodeConfig> for NodeDynamicConfig {
             .map(|state_sync_config| state_sync_config.dynamic_config.clone());
         Self {
             batcher_dynamic_config,
+            class_manager_dynamic_config,
             consensus_dynamic_config,
             context_dynamic_config,
             http_server_dynamic_config,
