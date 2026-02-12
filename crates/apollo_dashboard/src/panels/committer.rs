@@ -35,7 +35,6 @@ fn get_offset_panel() -> Panel {
 }
 
 /// Returns a panel that shows the average of a counter per block over a 1m window.
-#[allow(dead_code)]
 fn average_per_block_panel(
     name: impl ToString,
     description: impl ToString,
@@ -58,9 +57,15 @@ fn average_per_block_panel(
 }
 
 fn get_total_block_duration_panel() -> Panel {
-    Panel::from_hist(&TOTAL_BLOCK_DURATION, "Total Block Duration", "Total block duration")
-        .with_unit(Unit::Seconds)
-        .with_log_query(BLOCK_DURATIONS_LOG_QUERY)
+    // Divide by 1000 to display in seconds.
+    average_per_block_panel(
+        "Total Block Duration",
+        "Average total block duration over a 1m window",
+        &TOTAL_BLOCK_DURATION,
+        Some(1000),
+        Some(BLOCK_DURATIONS_LOG_QUERY),
+        Unit::Seconds,
+    )
 }
 
 fn get_total_block_duration_per_modification_panel() -> Panel {
@@ -74,29 +79,38 @@ fn get_total_block_duration_per_modification_panel() -> Panel {
 }
 
 fn get_read_duration_per_block_panel() -> Panel {
-    Panel::from_hist(&READ_DURATION_PER_BLOCK, "Read Duration per Block", "Read duration per block")
-        .with_unit(Unit::Seconds)
-        .with_log_query(BLOCK_DURATIONS_LOG_QUERY)
+    // Divide by 1000 to display in seconds.
+    average_per_block_panel(
+        "Read Duration per Block",
+        "Average read duration per block over a 1m window",
+        &READ_DURATION_PER_BLOCK,
+        Some(1000),
+        Some(BLOCK_DURATIONS_LOG_QUERY),
+        Unit::Seconds,
+    )
 }
 
 fn get_compute_duration_per_block_panel() -> Panel {
-    Panel::from_hist(
-        &COMPUTE_DURATION_PER_BLOCK,
+    average_per_block_panel(
         "Compute Duration per Block",
-        "Compute duration per block",
+        "Average compute duration per block over a 1m window",
+        &COMPUTE_DURATION_PER_BLOCK,
+        Some(1000),
+        Some(BLOCK_DURATIONS_LOG_QUERY),
+        Unit::Seconds,
     )
-    .with_unit(Unit::Seconds)
-    .with_log_query(BLOCK_DURATIONS_LOG_QUERY)
 }
 
 fn get_write_duration_per_block_panel() -> Panel {
-    Panel::from_hist(
-        &WRITE_DURATION_PER_BLOCK,
+    // Divide by 1000 to display in milliseconds.
+    average_per_block_panel(
         "Write Duration per Block",
-        "Write duration per block",
+        "Average write duration per block over a 1m window",
+        &WRITE_DURATION_PER_BLOCK,
+        Some(1000),
+        Some(BLOCK_DURATIONS_LOG_QUERY),
+        Unit::Seconds,
     )
-    .with_unit(Unit::Seconds)
-    .with_log_query(BLOCK_DURATIONS_LOG_QUERY)
 }
 
 fn get_average_read_rate_panel() -> Panel {

@@ -49,40 +49,44 @@ define_metrics!(
             "emptied_leaves_percentage_per_block",
             "Percentage of storage tries leaves emptied over the total number of storage tries leaves per block"
         },
-        MetricHistogram{
+        MetricCounter {
             TOTAL_BLOCK_DURATION,
             "total_block_duration",
-            "Duration of the block commit in seconds"
+            "Total block commit duration in milliseconds (cumulative)",
+            init = 0
         },
         MetricHistogram {
             TOTAL_BLOCK_DURATION_PER_MODIFICATION,
             "total_block_duration_per_modification",
-            "Duration of the block commit normalized by the number of modifications in seconds"
+            "Duration of the block commit normalized by the number of modifications in milliseconds"
         },
-        MetricHistogram {
+        MetricCounter {
             READ_DURATION_PER_BLOCK,
             "read_duration_per_block",
-            "Duration of the read operation per block in seconds"
+            "Duration of the read operation per block in milliseconds (cumulative)",
+            init = 0
         },
         MetricHistogram {
             AVERAGE_READ_RATE,
             "average_read_rate",
             "Reads per second average over a block"
         },
-        MetricHistogram {
+        MetricCounter {
             WRITE_DURATION_PER_BLOCK,
             "write_duration_per_block",
-            "Duration of the write operation per block in seconds"
+            "Duration of the write operation per block in milliseconds (cumulative)",
+            init = 0
         },
         MetricHistogram {
             AVERAGE_WRITE_RATE,
             "average_write_rate",
             "Writes per second average over a block"
         },
-        MetricHistogram {
+        MetricCounter {
             COMPUTE_DURATION_PER_BLOCK,
             "compute_duration_per_block",
-            "Duration of the compute operation per block in seconds"
+            "Duration of the compute operation per block in milliseconds (cumulative)",
+            init = 0
         },
         MetricHistogram {
             AVERAGE_COMPUTE_RATE,
