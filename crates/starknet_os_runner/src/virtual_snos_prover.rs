@@ -9,15 +9,9 @@ use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, VIRTUAL_SNOS};
-use starknet_api::transaction::{
-    InvokeTransaction,
-    MessageToL1,
-    TransactionHash,
-    TransactionHasher,
-};
+use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use starknet_os::io::os_output::OsOutputError;
 use tracing::{info, instrument};
 use url::Url;
@@ -86,8 +80,6 @@ pub struct VirtualSnosProverOutput {
 pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
     /// Runner for executing the virtual OS.
     runner: R,
-    /// Chain ID for transaction hash calculation.
-    chain_id: ChainId,
 }
 
 /// Type alias for the RPC-based virtual SNOS prover.
@@ -108,7 +100,7 @@ impl VirtualSnosProver<RpcRunnerFactory> {
             contract_class_manager,
             prover_config.runner_config.clone(),
         );
-        Self { runner, chain_id: prover_config.chain_id.clone() }
+        Self { runner }
     }
 }
 
@@ -117,8 +109,8 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
     ///
     /// This constructor allows using any runner implementation.
     #[allow(dead_code)]
-    pub(crate) fn from_runner(runner: R, chain_id: ChainId) -> Self {
-        Self { runner, chain_id }
+    pub(crate) fn from_runner(runner: R) -> Self {
+        Self { runner }
     }
 
     /// Proves a transaction on top of the specified block.
@@ -145,18 +137,11 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
         }
 
         let invoke_tx = extract_invoke_tx(transaction)?;
-        let tx_hash = calculate_tx_hash(&invoke_tx, &self.chain_id)?;
-
-        info!(
-            block_id = ?block_id,
-            tx_hash = %tx_hash,
-            "Starting transaction proving"
-        );
 
         // Run OS and get output.
         let os_start = Instant::now();
 
-        let txs = vec![(invoke_tx, tx_hash)];
+        let txs = vec![invoke_tx];
         let runner_output = self
             .runner
             .run_virtual_os(block_id, txs)
@@ -209,15 +194,4 @@ pub fn extract_invoke_tx(tx: RpcTransaction) -> Result<InvokeTransaction, Virtua
                 .to_string(),
         )),
     }
-}
-
-/// Calculates the transaction hash for an invoke transaction.
-pub fn calculate_tx_hash(
-    invoke_tx: &InvokeTransaction,
-    chain_id: &ChainId,
-) -> Result<TransactionHash, VirtualSnosProverError> {
-    let version = invoke_tx.version();
-    invoke_tx
-        .calculate_transaction_hash(chain_id, &version)
-        .map_err(|e| VirtualSnosProverError::TransactionHashError(e.to_string()))
 }
