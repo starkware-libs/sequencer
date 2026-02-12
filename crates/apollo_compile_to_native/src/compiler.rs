@@ -1,7 +1,5 @@
 use std::path::PathBuf;
-use std::sync::Once;
 
-use apollo_compilation_utils::build_utils::install_compiler_binary;
 use apollo_compilation_utils::compiler_utils::compile_with_args;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::paths::binary_path;
@@ -11,9 +9,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
-use crate::constants::{CAIRO_NATIVE_BINARY_NAME, REQUIRED_CAIRO_NATIVE_VERSION};
-
-static STARKNET_NATIVE_COMPILE_INSTALLER: Once = Once::new();
+use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 
 #[derive(Clone)]
 pub struct SierraToNativeCompiler {
@@ -25,7 +21,7 @@ impl SierraToNativeCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         let path_to_binary = match &config.compiler_binary_path {
             Some(path) => path.clone(),
-            None => default_compiler_binary_path(),
+            None => binary_path(CAIRO_NATIVE_BINARY_NAME),
         };
         Self { config, path_to_binary }
     }
@@ -63,21 +59,4 @@ impl SierraToNativeCompiler {
                 )
             })
     }
-}
-
-fn default_compiler_binary_path() -> PathBuf {
-    ensure_starknet_native_compile_installed();
-    binary_path(CAIRO_NATIVE_BINARY_NAME)
-}
-
-fn ensure_starknet_native_compile_installed() {
-    STARKNET_NATIVE_COMPILE_INSTALLER.call_once(|| {
-        let cargo_install_args =
-            [CAIRO_NATIVE_BINARY_NAME, "--version", REQUIRED_CAIRO_NATIVE_VERSION];
-        install_compiler_binary(
-            CAIRO_NATIVE_BINARY_NAME,
-            REQUIRED_CAIRO_NATIVE_VERSION,
-            &cargo_install_args,
-        );
-    });
 }
