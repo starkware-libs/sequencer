@@ -1,8 +1,16 @@
 use std::sync::Arc;
 
-use apollo_class_manager_config::config::{CachedClassStorageConfig, ClassManagerConfig};
+use apollo_class_manager_config::config::{
+    CachedClassStorageConfig,
+    ClassManagerConfig,
+    ClassManagerDynamicConfig,
+    ClassManagerStaticConfig,
+    FsClassManagerConfig,
+    FsClassStorageConfig,
+};
 use apollo_class_manager_types::{ClassHashes, ClassManagerError};
 use apollo_compile_to_casm_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use starknet_api::contract_class::ContractClass;
@@ -23,7 +31,22 @@ impl ClassManager<FsClassStorage> {
         let storage =
             FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
 
-        ClassManager::new(config, Arc::new(compiler), storage)
+        let fs_class_manager_config = FsClassManagerConfig {
+            static_config: ClassManagerStaticConfig {
+                class_manager_config: config,
+                class_storage_config: FsClassStorageConfig::default(),
+            },
+            dynamic_config: ClassManagerDynamicConfig::default(),
+        };
+
+        let mock_config_manager_client = Arc::new(MockConfigManagerClient::new());
+
+        ClassManager::new(
+            fs_class_manager_config,
+            Arc::new(compiler),
+            storage,
+            mock_config_manager_client,
+        )
     }
 }
 
