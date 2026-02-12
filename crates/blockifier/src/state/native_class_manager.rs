@@ -119,23 +119,24 @@ impl NativeClassManager {
     /// Returns the runnable compiled class for the given class hash, if it exists in class_cache.
     pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
         let cached_class = self.class_cache.get(class_hash)?;
+        if let CompiledClasses::V1(..) = cached_class {
+            // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
+            // `run_cairo_native` is false.
+            assert!(
+                !self.wait_on_native_compilation(),
+                "Manager did not wait on native compilation."
+            );
+        }
 
         let cached_class = match cached_class {
-            CompiledClasses::V1(_, _) => {
-                // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
-                // `run_cairo_native` is false.
-                assert!(
-                    !self.wait_on_native_compilation(),
-                    "Manager did not wait on native compilation."
-                );
-                cached_class
-            }
             CompiledClasses::V1Native(CachedCairoNative::Compiled(native))
                 if !self.run_class_with_cairo_native(class_hash) =>
             {
-                CompiledClasses::V1(native.casm(), Arc::new(SierraContractClass::default()))
+                CompiledClasses::into_non_native_class(native)
             }
-            _ => cached_class,
+            CompiledClasses::V1Native(..) | CompiledClasses::V1(..) | CompiledClasses::V0(..) => {
+                cached_class
+            }
         };
 
         Some(cached_class.to_runnable())
