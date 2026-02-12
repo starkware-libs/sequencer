@@ -16,6 +16,16 @@ else
     exit 1
 fi
 
+# Source common cargo utilities.
+if [ -f "${SCRIPT_DIR}/cargo_tool_utils.sh" ]; then
+    source "${SCRIPT_DIR}/cargo_tool_utils.sh"
+elif [ -f "./cargo_tool_utils.sh" ]; then
+    source "./cargo_tool_utils.sh"
+else
+    echo "Error: cargo_tool_utils.sh not found in ${SCRIPT_DIR} or current directory" >&2
+    exit 1
+fi
+
 # Install a cargo tool only if needed (not installed or different version)
 # Args: version_cmd, crate_name, version
 function install_cargo_tool_if_needed() {
@@ -38,6 +48,10 @@ function install_cargo_tool_if_needed() {
 }
 
 function install_cargo_tools() {
+    echo "Installing cargo rustfmt toolchain..."
+    verify_and_return_fmt_toolchain
+    echo "Cargo rustfmt toolchain installed successfully"
+
     log_step "install_build_tools" "Installing cargo-insta..."
     curl --proto '=https' --tlsv1.2 -LsSf https://github.com/mitsuhiko/insta/releases/download/1.42.0/cargo-insta-installer.sh | sh
     log_step "install_build_tools" "cargo-insta installed successfully"
