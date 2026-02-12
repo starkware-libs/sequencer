@@ -77,12 +77,13 @@ log_step "install_build_tools" "Starting build tools installation..."
 
 install_common_packages
 
-log_step "install_build_tools" "Starting parallel installations (PyPy, Rust, cargo tools)..."
+log_step "install_build_tools" "Starting parallel installations (PyPy, Rust)..."
 install_pypy &
 install_rust &
-./install_cargo_tools.sh &
 wait
-log_step "install_build_tools" "Parallel installations completed"
+log_step "install_build_tools" "Parallel installations complete. Starting installation of cargo tools..."
+./install_cargo_tools.sh
+wait
 
 log_step "install_build_tools" "Running dependencies.sh..."
 ./dependencies.sh
