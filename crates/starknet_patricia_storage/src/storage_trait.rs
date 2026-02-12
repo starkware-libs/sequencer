@@ -37,13 +37,13 @@ pub enum PatriciaStorageError {
     AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
     #[error(transparent)]
     Deserialization(#[from] DeserializationError),
-    #[cfg(feature = "mdbx_storage")]
+    #[cfg(any(test, feature = "mdbx_storage"))]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
-    #[cfg(feature = "rocksdb_storage")]
+    #[cfg(any(test, feature = "rocksdb_storage"))]
     #[error(transparent)]
     Rocksdb(#[from] rust_rocksdb::Error),
-    #[cfg(feature = "rocksdb_storage")]
+    #[cfg(any(test, feature = "rocksdb_storage"))]
     #[error("Failed to fetch RocksDb stats.")]
     NoStats,
 }

@@ -35,6 +35,7 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 libmdbx.workspace = true
+page_size.workspace = true
 rstest.workspace = true
 rust-rocksdb.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }
