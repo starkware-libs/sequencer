@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770826781762,
+  "lastUpdate": 1770886874426,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -407,6 +407,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1383.1047495,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97383386+yoavGrs@users.noreply.github.com",
+            "name": "yoavGrs",
+            "username": "yoavGrs"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a3497657d2b1c23ee00bbbdcd51ad74444beab99",
+          "message": "starknet_patricia_storage: fix feature flags (#12508)",
+          "timestamp": "2026-02-12T08:40:23Z",
+          "tree_id": "53538dd2fb737aa09156b2fa9c5b9aa52fb06f64",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a3497657d2b1c23ee00bbbdcd51ad74444beab99"
+        },
+        "date": 1770886874086,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 853.2024253,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1251.9128832200001,
             "unit": "ms"
           }
         ]
