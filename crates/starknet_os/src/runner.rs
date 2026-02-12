@@ -198,11 +198,9 @@ pub fn run_aggregator(
 /// Validates that all tracked resources in all execution infos are SierraGas.
 /// Called before execution to provide informative error message.
 fn validate_tracked_resources(os_block_inputs: &[OsBlockInput]) -> Result<(), StarknetOsError> {
-    for block_input in os_block_inputs.iter() {
-        for (tx, tx_execution_info) in
-            block_input.transactions.iter().zip(&block_input.tx_execution_infos)
-        {
-            for call_info in tx_execution_info.call_info_iter(tx.tx_type()) {
+    for block_input in os_block_inputs {
+        for tx_execution_info in block_input.tx_execution_infos.iter() {
+            for call_info in tx_execution_info.call_info_iter() {
                 if call_info.tracked_resource != TrackedResource::SierraGas {
                     return Err(StarknetOsError::InvalidTrackedResource {
                         expected: TrackedResource::SierraGas,
