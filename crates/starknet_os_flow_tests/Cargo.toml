@@ -7,8 +7,11 @@ license-file.workspace = true
 description = "Integration tests for Starknet OS execution and state commitment flow."
 
 [dev-dependencies]
+apollo_transaction_converter.workspace = true
 assert_matches.workspace = true
+async-trait.workspace = true
 blockifier = { workspace = true, features = ["reexecution", "testing"] }
+blockifier_reexecution.workspace = true
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
