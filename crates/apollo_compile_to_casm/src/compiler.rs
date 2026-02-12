@@ -1,20 +1,15 @@
 use std::path::PathBuf;
-use std::sync::Once;
 
-use apollo_compilation_utils::build_utils::install_compiler_binary;
 use apollo_compilation_utils::compiler_utils::compile_with_args;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::paths::binary_path;
 use apollo_compilation_utils::resource_limits::ResourceLimits;
-use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 use tracing::info;
 
 use crate::constants::CAIRO_LANG_BINARY_NAME;
-
-static STARKNET_SIERRA_COMPILE_INSTALLER: Once = Once::new();
 
 #[derive(Clone)]
 pub struct SierraToCasmCompiler {
@@ -24,7 +19,6 @@ pub struct SierraToCasmCompiler {
 
 impl SierraToCasmCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        ensure_starknet_sierra_compile_installed();
         let path_to_binary = binary_path(CAIRO_LANG_BINARY_NAME);
         info!("Using Sierra compiler binary at: {:?}", path_to_binary);
         Self { config, path_to_binary }
@@ -52,15 +46,4 @@ impl SierraToCasmCompiler {
         )?;
         Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
     }
-}
-
-fn ensure_starknet_sierra_compile_installed() {
-    STARKNET_SIERRA_COMPILE_INSTALLER.call_once(|| {
-        let cargo_install_args = [CAIRO_LANG_BINARY_NAME, "--version", CAIRO1_COMPILER_VERSION];
-        install_compiler_binary(
-            CAIRO_LANG_BINARY_NAME,
-            CAIRO1_COMPILER_VERSION,
-            &cargo_install_args,
-        );
-    });
 }
