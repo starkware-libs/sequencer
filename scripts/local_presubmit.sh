@@ -88,19 +88,6 @@ install_dependencies() {
     fi
   done
 
-  # Rust env needed. Should be imported from main.yml
-  if [[ -z "$EXTRA_RUST_TOOLCHAINS" ]]; then
-    echo "Error: EXTRA_RUST_TOOLCHAINS is not set or is empty" >&2
-    exit 1
-  fi
-  if rustup toolchain list | grep -q "${EXTRA_RUST_TOOLCHAINS}"; then
-    log_debug "Rust toolchain ${EXTRA_RUST_TOOLCHAINS} is already installed ✅."
-  else
-    echo "Rust toolchain ${EXTRA_RUST_TOOLCHAINS} not found ❌. Installing..."
-    rustup toolchain install "${EXTRA_RUST_TOOLCHAINS}"
-    rustup component add --toolchain "${EXTRA_RUST_TOOLCHAINS}" rustfmt
-  fi
-
   # Install GitPython if not already installed.
   if ! python3 -c "import git" &> /dev/null; then
     echo "GitPython is not installed. Installing..."
@@ -223,7 +210,7 @@ if [ -z "$ancestor_commit" ]; then
   exit 1
 fi
 
-cmd="python3 ${REPO_LOCATION}/scripts/presubmit_fast_checks.py all --extra_rust_toolchains ${EXTRA_RUST_TOOLCHAINS} --from_commit_hash \"$ancestor_commit\" --to_commit_hash HEAD"
+cmd="python3 ${REPO_LOCATION}/scripts/presubmit_fast_checks.py all --from_commit_hash \"$ancestor_commit\" --to_commit_hash HEAD"
 
 echo $cmd
 

@@ -27,8 +27,6 @@ class PresubmitArg(Enum):
         "The commit hash of the top change, i.e. the most recent commit to be checked."
     )
 
-    EXTRA_RUST_TOOLCHAINS = "Extra rust toolchains to use. Required for the rust formatting checks."
-
     def add_args(self, parser: argparse.ArgumentParser):
         parser.add_argument(f"--{self.name.lower()}", required=True, type=str, help=self.value)
 
@@ -134,30 +132,16 @@ class CargoLockCheck(ExternalCommandCheck):
 # TODO(guy.f): There already exists a rust_fmt.sh script which is used locally. See if we can change
 # the code in main.yml to use it. If so, replace this with the rust_fmt.sh script.
 class RustFormatCheck(ExternalCommandCheck):
-    def __init__(self, extra_rust_toolchains: str):
-        assert (
-            extra_rust_toolchains
-        ), "extra_rust_toolchains is required for rust formatting checks."
-        super().__init__(
-            commands=[
-                [
-                    "cargo",
-                    f"+{extra_rust_toolchains}",
-                    "fmt",
-                    "--all",
-                    "--",
-                    "--check",
-                ]
-            ]
-        )
+    def __init__(self):
+        super().__init__(commands=[["scripts/rust_fmt.sh", "--check"]])
 
     @classmethod
     def required_args(cls: type[TCheck]) -> set[PresubmitArg]:
-        return {PresubmitArg.EXTRA_RUST_TOOLCHAINS}
+        return set()
 
     @classmethod
     def from_args(cls, args: argparse.Namespace):
-        return RustFormatCheck(extra_rust_toolchains=args.extra_rust_toolchains)
+        return RustFormatCheck()
 
 
 class TaploCheck(ExternalCommandCheck):

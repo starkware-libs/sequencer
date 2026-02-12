@@ -7,8 +7,7 @@ if [[ -n "${CI:-}" ]]; then
   exit 1
 fi
 
-SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-TOOLCHAIN=$(grep "EXTRA_RUST_TOOLCHAINS:" "${SCRIPT_DIR}"/../.github/workflows/main.yml  | awk '{print $2}')
+TOOLCHAIN=nightly-2024-04-29
 
 function install_rustfmt() {
     rustup toolchain install "${TOOLCHAIN}"
