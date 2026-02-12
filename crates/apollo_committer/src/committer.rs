@@ -460,7 +460,7 @@ fn update_metrics(
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
     BLOCKS_COMMITTED.increment(1);
-    TOTAL_BLOCK_DURATION.record_lossy(durations.block);
+    TOTAL_BLOCK_DURATION.increment((durations.block * 1000.0) as u64);
     let n_modifications = modifications_counts.total();
     let total_block_duration_per_modification = if n_modifications > 0 {
         let total_block_duration_per_modification = durations.block / n_modifications as f64;
@@ -469,9 +469,9 @@ fn update_metrics(
     } else {
         None
     };
-    READ_DURATION_PER_BLOCK.record_lossy(durations.read);
-    COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
-    WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
+    READ_DURATION_PER_BLOCK.increment((durations.read * 1000.0) as u64);
+    COMPUTE_DURATION_PER_BLOCK.increment((durations.compute * 1000.0) as u64);
+    WRITE_DURATION_PER_BLOCK.increment((durations.write * 1000.0) as u64);
 
     let read_rate = if durations.read > 0.0 {
         let rate = *n_reads as f64 / durations.read;

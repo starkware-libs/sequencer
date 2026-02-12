@@ -33,7 +33,6 @@ pub enum Unit {
     PercentUnit,
     MB,
     Microseconds,
-    #[allow(dead_code)]
     Milliseconds,
 }
 

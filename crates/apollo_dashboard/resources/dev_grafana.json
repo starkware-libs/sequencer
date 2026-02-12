@@ -576,14 +576,13 @@
         },
         {
           "title": "Total Block Duration",
-          "description": "Total block duration",
+          "description": "Average total block duration over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(total_block_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(total_block_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(total_block_duration{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
-            "unit": "s",
+            "unit": "ms",
             "log_query": "\"Block\" AND \"durations in ms\""
           }
         },
@@ -601,15 +600,14 @@
           }
         },
         {
-          "title": "Read Duration Per Block",
-          "description": "Read duration per block",
+          "title": "Read Duration per Block",
+          "description": "Average read duration per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(read_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(read_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(read_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
-            "unit": "s",
+            "unit": "ms",
             "log_query": "\"Block\" AND \"durations in ms\""
           }
         },
@@ -626,15 +624,14 @@
           }
         },
         {
-          "title": "Compute Duration Per Block",
-          "description": "Compute duration per block",
+          "title": "Compute Duration per Block",
+          "description": "Average compute duration per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(compute_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(compute_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(compute_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
-            "unit": "s",
+            "unit": "ms",
             "log_query": "\"Block\" AND \"durations in ms\""
           }
         },
@@ -651,15 +648,14 @@
           }
         },
         {
-          "title": "Write Duration Per Block",
-          "description": "Write duration per block",
+          "title": "Write Duration per Block",
+          "description": "Average write duration per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(write_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(write_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(write_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
-            "unit": "s",
+            "unit": "ms",
             "log_query": "\"Block\" AND \"durations in ms\""
           }
         },
