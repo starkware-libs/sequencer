@@ -230,6 +230,15 @@ impl Serialize for NativeClassesWhitelist {
     }
 }
 
+impl NativeClassesWhitelist {
+    pub fn contains(&self, class_hash: &ClassHash) -> bool {
+        match self {
+            NativeClassesWhitelist::All => true,
+            NativeClassesWhitelist::Limited(contracts) => contracts.contains(class_hash),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
