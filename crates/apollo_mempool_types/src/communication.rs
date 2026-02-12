@@ -25,11 +25,16 @@ use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::MempoolError;
-use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs, MempoolSnapshot, ValidationArgs};
+use crate::mempool_types::{
+    AddTransactionArgs,
+    CommitBlockArgs,
+    MempoolResult,
+    MempoolSnapshot,
+    ValidationArgs,
+};
 
 pub type LocalMempoolClient = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolClient = RemoteComponentClient<MempoolRequest, MempoolResponse>;
-pub type MempoolResult<T> = Result<T, MempoolError>;
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
 pub type MempoolRequestWrapper = RequestWrapper<MempoolRequest, MempoolResponse>;
 pub type SharedMempoolClient = Arc<dyn MempoolClient>;
