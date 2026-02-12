@@ -13,11 +13,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 use thiserror::Error;
 
-use crate::blockifier::config::{
-    CairoNativeRunConfig,
-    ContractClassManagerConfig,
-    NativeClassesWhitelist,
-};
+use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::metrics::NATIVE_COMPILATION_ERROR;
@@ -225,10 +221,7 @@ impl NativeClassManager {
 
     /// Determines if a contract should run with cairo native based on the whitelist.
     pub fn run_class_with_cairo_native(&self, class_hash: &ClassHash) -> bool {
-        match &self.cairo_native_run_config.native_classes_whitelist {
-            NativeClassesWhitelist::All => true,
-            NativeClassesWhitelist::Limited(contracts) => contracts.contains(class_hash),
-        }
+        self.cairo_native_run_config.native_classes_whitelist.contains(class_hash)
     }
 
     /// Clears the contract class_cache.
