@@ -16,6 +16,16 @@ else
     exit 1
 fi
 
+# Source common cargo utilities.
+if [ -f "${SCRIPT_DIR}/cargo_tool_utils.sh" ]; then
+    source "${SCRIPT_DIR}/cargo_tool_utils.sh"
+elif [ -f "./cargo_tool_utils.sh" ]; then
+    source "./cargo_tool_utils.sh"
+else
+    echo "Error: cargo_tool_utils.sh not found in ${SCRIPT_DIR} or current directory" >&2
+    exit 1
+fi
+
 function install_common_packages() {
     log_step "install_build_tools" "Installing common packages (build-essential, clang, curl, etc.)..."
     $SUDO  bash -c "$(declare -f apt_update_with_retry); $(declare -f apt_install_with_retry)"'
@@ -69,6 +79,10 @@ function install_rust() {
     log_step "install_build_tools" "Installing Rust via rustup..."
     curl https://sh.rustup.rs -sSf | sh -s -- -y
     log_step "install_build_tools" "Rust installed successfully"
+    # Now that rustup is installed, we can install the cargo rustfmt toolchain.
+    echo "Installing cargo rustfmt toolchain..."
+    verify_and_return_fmt_toolchain
+    echo "Cargo rustfmt toolchain installed successfully"
 }
 
 cd "$(dirname "$0")"
