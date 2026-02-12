@@ -38,7 +38,7 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
@@ -175,7 +175,7 @@ pub struct SequencerConsensusContext {
 #[derive(Clone)]
 pub struct SequencerConsensusContextDeps {
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
-    pub state_sync_client: Arc<dyn StateSyncClient>,
+    pub state_sync_client: SharedStateSyncClient,
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,

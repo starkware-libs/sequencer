@@ -18,7 +18,7 @@ use apollo_consensus::types::ProposalCommitment;
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
-use apollo_state_sync_types::communication::StateSyncClient;
+use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, ClockExt, DateTime};
 use apollo_transaction_converter::TransactionConverterTrait;
 use futures::channel::mpsc;
@@ -371,7 +371,7 @@ async fn await_second_proposal_part(
 
 async fn initiate_validation(
     batcher: Arc<dyn BatcherClient>,
-    state_sync_client: Arc<dyn StateSyncClient>,
+    state_sync_client: SharedStateSyncClient,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
