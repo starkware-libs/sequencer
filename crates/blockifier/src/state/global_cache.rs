@@ -52,6 +52,13 @@ impl CompiledClasses {
             }
         }
     }
+
+    #[cfg(feature = "cairo_native")]
+    /// Converts a [NativeCompiledClassV1] to a [CompiledClasses::V1].
+    /// Used when a non-native class is requested and the class is cached as a native class.
+    pub fn into_non_native_class(native: NativeCompiledClassV1) -> Self {
+        Self::V1(native.casm(), Arc::new(SierraContractClass::default()))
+    }
 }
 
 pub type RawClassCache = GlobalContractCache<CompiledClasses>;
