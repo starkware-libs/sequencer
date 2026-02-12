@@ -92,13 +92,10 @@ pub struct TransactionExecutionInfoReference<'a> {
 }
 
 impl<'a> TransactionExecutionInfoReference<'a> {
-    pub fn new(
-        tx_execution_info: &'a CentralTransactionExecutionInfo,
-        tx_type: TransactionType,
-    ) -> Self {
+    pub fn new(tx_execution_info: &'a CentralTransactionExecutionInfo) -> Self {
         Self {
             tx_execution_info,
-            call_info_iter: tx_execution_info.call_info_iter(tx_type),
+            call_info_iter: tx_execution_info.call_info_iter(),
             call_info_tracker: None,
         }
     }
@@ -149,7 +146,7 @@ impl<'a> TransactionExecutionIter<'a> {
         Self { tx_execution_info_iter: tx_execution_infos.iter(), tx_execution_info_ref: None }
     }
 
-    pub fn start_tx(&mut self, tx_type: TransactionType) -> Result<(), ExecutionHelperError> {
+    pub fn start_tx(&mut self) -> Result<(), ExecutionHelperError> {
         if self.tx_execution_info_ref.is_some() {
             return Err(ExecutionHelperError::ContextOverwrite {
                 context: "transaction execution info".to_string(),
@@ -160,7 +157,7 @@ impl<'a> TransactionExecutionIter<'a> {
             .next()
             .ok_or(ExecutionHelperError::MissingTxExecutionInfo)?;
         self.tx_execution_info_ref =
-            Some(TransactionExecutionInfoReference::new(next_tx_execution_info, tx_type));
+            Some(TransactionExecutionInfoReference::new(next_tx_execution_info));
         Ok(())
     }
 
@@ -185,10 +182,7 @@ impl<'a> TransactionExecutionIter<'a> {
     }
 
     pub fn skip_tx(&mut self) -> Result<(), ExecutionHelperError> {
-        // The transaction type determines in which order the inner calls were executed.
-        // Since the transaction is skipped, the transaction's type doesn't matter.
-        let dummy_tx_type = TransactionType::Declare;
-        self.start_tx(dummy_tx_type)?;
+        self.start_tx()?;
         self.end_tx()?;
         Ok(())
     }
