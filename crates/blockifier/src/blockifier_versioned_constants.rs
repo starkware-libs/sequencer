@@ -24,6 +24,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
+use crate::execution::call_info::{CairoPrimitiveName, OpcodeName};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsageMap};
@@ -926,6 +927,7 @@ pub struct BaseGasCosts {
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+// TODO(AvivG): Consider renaming to CairoPrimitiveGasCosts to match with its usage in the bouncer.
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.
@@ -964,6 +966,23 @@ impl BuiltinGasCosts {
         };
 
         Ok(gas_cost)
+    }
+
+    fn get_opcode_gas_cost(&self, opcode: &OpcodeName) -> u64 {
+        match opcode {
+            OpcodeName::Blake => self.blake,
+        }
+    }
+
+    /// Returns the gas cost for any Cairo primitive (builtin or opcode).
+    pub fn get_cairo_primitive_gas_cost(
+        &self,
+        primitive: &CairoPrimitiveName,
+    ) -> Result<u64, GasCostsError> {
+        match primitive {
+            CairoPrimitiveName::Builtin(builtin) => self.get_builtin_gas_cost(builtin),
+            CairoPrimitiveName::Opcode(opcode) => Ok(self.get_opcode_gas_cost(opcode)),
+        }
     }
 }
 
