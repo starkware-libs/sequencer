@@ -97,6 +97,7 @@ impl VirtualSnosProver<RpcRunnerFactory> {
             prover_config.chain_id.clone(),
             contract_class_manager,
             prover_config.runner_config.clone(),
+            prover_config.strk_fee_token_address,
         );
         Self { runner }
     }

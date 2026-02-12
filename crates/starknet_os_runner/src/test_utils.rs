@@ -70,6 +70,7 @@ pub fn rpc_state_reader() -> RpcStateReader {
         node_url,
         ChainId::Mainnet,
         BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
+        None,
     )
 }
 
@@ -108,7 +109,7 @@ pub fn sepolia_runner_factory() -> RpcRunnerFactory {
     let runner_config =
         RunnerConfig { storage_proof_config: StorageProofConfig { include_state_changes: true } };
 
-    RpcRunnerFactory::new(rpc_url, ChainId::Sepolia, contract_class_manager, runner_config)
+    RpcRunnerFactory::new(rpc_url, ChainId::Sepolia, contract_class_manager, runner_config, None)
 }
 
 // ================================================================================================
