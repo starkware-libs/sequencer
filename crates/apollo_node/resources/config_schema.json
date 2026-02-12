@@ -2647,7 +2647,7 @@
   "gateway_config.stateless_tx_validator_config.allow_client_side_proving": {
     "description": "If true, allows transactions with non-empty proof_facts or proof fields.",
     "privacy": "Public",
-    "value": false
+    "value": true
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
