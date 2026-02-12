@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770890369625,
+  "lastUpdate": 1770895124442,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2379,6 +2379,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1290.77002465,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "138376632+ayeletstarkware@users.noreply.github.com",
+            "name": "Ayelet Zilber",
+            "username": "ayeletstarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d5830cfa888eeb53620512bbdd4d58dfe04c2e3a",
+          "message": "apollo_consensus_orchestrator: add min gas price to fee market calculation (#12522)",
+          "timestamp": "2026-02-12T10:59:46Z",
+          "tree_id": "29a6de0a384c7a981f03cffbbac12a9f5ccd6b05",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d5830cfa888eeb53620512bbdd4d58dfe04c2e3a"
+        },
+        "date": 1770895124139,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 790.59533989,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1159.4549684,
             "unit": "ms"
           }
         ]
