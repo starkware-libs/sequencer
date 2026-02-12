@@ -11,7 +11,6 @@ env:
   CI: 1
   RUSTFLAGS: "-D warnings"
   RUSTDOCFLAGS: "-D warnings"
-  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
 
 # Cancel existing CI runs on this same PR when new commits are pushed.
 concurrency:
@@ -33,7 +32,6 @@ jobs:
       # Install rust components + lld.
       - uses: ./.github/actions/bootstrap
         with:
-          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
@@ -66,9 +64,7 @@ jobs:
         run: scripts/py_code_style.py
 
       - name: "Run rustfmt"
-        # The nightly here is coupled with the one in install_rust/action.yml.
-        # If we move the install here we can use a const.
-        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
+        run: scripts/rust_fmt.sh --check
 
       - name: "Run taplo"
         run: scripts/taplo.sh
