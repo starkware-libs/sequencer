@@ -52,6 +52,7 @@ use crate::metrics::{
     AVERAGE_COMPUTE_RATE,
     AVERAGE_READ_RATE,
     AVERAGE_WRITE_RATE,
+    BLOCKS_COMMITTED,
     COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -458,6 +459,7 @@ fn update_metrics(
     height: BlockNumber,
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
+    BLOCKS_COMMITTED.increment(1);
     TOTAL_BLOCK_DURATION.record_lossy(durations.block);
     let n_modifications = modifications_counts.total();
     let total_block_duration_per_modification = if n_modifications > 0 {
