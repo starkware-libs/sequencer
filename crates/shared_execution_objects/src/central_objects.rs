@@ -16,7 +16,8 @@ pub struct ResourcesMapping(pub HashMap<String, usize>);
 
 impl From<TransactionReceipt> for ResourcesMapping {
     fn from(receipt: TransactionReceipt) -> ResourcesMapping {
-        let vm_resources = &receipt.resources.computation.total_vm_resources();
+        // TODO(AvivG): Consider reporting opcode instance counter in ResourcesMapping.
+        let vm_resources = &receipt.resources.computation.total_vm_resources().vm_resources;
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
             vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
