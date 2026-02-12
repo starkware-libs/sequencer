@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770886874426,
+  "lastUpdate": 1770895033117,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -441,6 +441,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1251.9128832200001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "161198342+idan-starkware@users.noreply.github.com",
+            "name": "Idan Shamam",
+            "username": "idan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a5179f9959ce7dc16cd73f4119b882068e509fe7",
+          "message": "deployment: remove edited event from pull_request trigger to avoid cursor bugbot double trigger on checks (#12471)",
+          "timestamp": "2026-02-12T10:57:17Z",
+          "tree_id": "8c20d141cd6ffb8efb938a44763c6c0d754e0eb4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a5179f9959ce7dc16cd73f4119b882068e509fe7"
+        },
+        "date": 1770895032783,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 745.06130236,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1172.45247973,
             "unit": "ms"
           }
         ]
