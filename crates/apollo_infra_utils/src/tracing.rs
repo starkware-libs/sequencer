@@ -137,7 +137,7 @@ macro_rules! trace_every_n {
 ///
 /// # Arguments
 ///
-/// * `$n`: Number of milliseconds (e.g., `2` for not logging a message again for `2`` milliseconds
+/// * `$n`: Number of milliseconds (e.g., `2` for not logging a message again for `2` milliseconds
 ///   from when it last logged).
 /// * `$($arg:tt)*`: The arguments to pass to `tracing::info!`, e.g., a format string and its
 ///   corresponding values.

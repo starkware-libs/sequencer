@@ -183,7 +183,7 @@ impl PeerManager {
             // TODO(shahak): remove this code block, since we check that peer has connection id
             } else {
                 // In case we have a race condition where the connection is closed after we added to
-                // the pending list, the reciever will get an error and will need to ask for
+                // the pending list, the receiver will get an error and will need to ask for
                 // re-assignment
                 if let Some(sessions) = self.peers_pending_dial_with_sessions.get_mut(peer_id) {
                     sessions.push(outbound_session_id);
