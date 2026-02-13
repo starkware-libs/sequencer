@@ -84,7 +84,7 @@ Alternatively, to download only files of specific blocks, run
 cargo run --bin blockifier_reexecution download-files -b <block_number_1> ... <block_number_n>
 ```
 
-### Uploading Offline Reexecution Files from the GC Bucket
+### Uploading Offline Reexecution Files to the GC Bucket
 Uploading files to the GC bucket requires authentication, by typing in the terminal
 `gcloud auth application-default login`
 
