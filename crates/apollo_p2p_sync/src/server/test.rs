@@ -359,7 +359,7 @@ async fn run_test<T, F, TQuery>(
         step: 1,
     };
     let query = TQuery::from(query);
-    let (server_query_manager, _report_sender, response_reciever) =
+    let (server_query_manager, _report_sender, response_receiver) =
         create_test_server_query_manager(query);
 
     register_query::<T, TQuery>(
@@ -374,7 +374,7 @@ async fn run_test<T, F, TQuery>(
         _never = p2p_sync_server.run() => {
             unreachable!("Return type Never should never be constructed");
         },
-        mut res = response_reciever.collect::<Vec<_>>() => {
+        mut res = response_receiver.collect::<Vec<_>>() => {
             assert_eq!(DataOrFin(None), res.pop().unwrap());
             let filtered_res: Vec<T> = res.into_iter()
                     .map(|data| data.0.expect("P2pSyncServer returned Fin and then returned another response"))
