@@ -2,10 +2,10 @@
 
 ## Description
 
-The blockier reexecution crate is intended to verify blockifier changes do not break backwards compatibility when executing old blocks. Reexecution of old blocks with the blockifier should output the same expected state-diff as when originally run.
+The blockifier reexecution crate is intended to verify blockifier changes do not break backwards compatibility when executing old blocks. Reexecution of old blocks with the blockifier should output the same expected state-diff as when originally run.
 
 ## CLI Commands
-Using the different CLI commands, it is possible to run reexecution tests in different modes, to download (permisionless) files for offline reexecution from the GC bucket, and to upload (permissioned) files for offline reexecution to the GC bucket.
+Using the different CLI commands, it is possible to run reexecution tests in different modes, to download (permissionless) files for offline reexecution from the GC bucket, and to upload (permissioned) files for offline reexecution to the GC bucket.
 
 ### Chain ID Option
 Commands that use RPC (`rpc-test`, `reexecute-single-tx`, `write-to-file`) accept optional chain ID arguments. If not provided, the chain ID is guessed from the node URL.
@@ -77,14 +77,14 @@ Downloading files from the GC bucket requires authentication, by typing in the t
 
 Then, to download the offline reexecution files required for the tests from the gc bucket, in the same shell session run
 ```
-cargo run --bin blockifier_reexecution dowload-files
+cargo run --bin blockifier_reexecution download-files
 ```
 Alternatively, to download only files of specific blocks, run
 ```
 cargo run --bin blockifier_reexecution download-files -b <block_number_1> ... <block_number_n>
 ```
 
-### Uploading Offline Reexecution Files from the GC Bucket
+### Uploading Offline Reexecution Files to the GC Bucket
 Uploading files to the GC bucket requires authentication, by typing in the terminal
 `gcloud auth application-default login`
 
@@ -153,7 +153,7 @@ Therefore, when changing the files format, do these 4 steps in order:
 ```
 cargo run --bin blockifier_reexecution write-to-file -n <node_url>
 ```
-Make sure reexecution of all the blocks succeeded; if neccessary, rerun the command with the block numbers that failed.
+Make sure reexecution of all the blocks succeeded; if necessary, rerun the command with the block numbers that failed.
 
 - 3. Verify that offline reexecution succeeds by running
 ```

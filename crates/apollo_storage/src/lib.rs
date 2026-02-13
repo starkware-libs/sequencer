@@ -520,7 +520,7 @@ impl StorageReader {
 }
 
 /// A struct for starting RW transactions ([`StorageTxn`]) to the storage.
-/// There is a single non clonable writer instance, to make sure there is only one write transaction
+/// There is a single non-clonable writer instance, to make sure there is only one write transaction
 /// at any given moment.
 pub struct StorageWriter {
     db_writer: DbWriter,
@@ -568,7 +568,7 @@ impl Drop for MetricsHandler {
 }
 
 /// A struct for interacting with the storage.
-/// The actually functionality is implemented on the transaction in multiple traits.
+/// The actual functionality is implemented on the transaction in multiple traits.
 pub struct StorageTxn<'env, Mode: TransactionKind> {
     txn: DbTransaction<'env, Mode>,
     file_handlers: FileHandlers<Mode>,

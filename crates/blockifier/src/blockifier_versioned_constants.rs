@@ -559,7 +559,7 @@ pub struct OsResources {
     // Mapping from every syscall to its execution resources in the OS (e.g., amount of Cairo
     // steps).
     // TODO(Arni, 14/6/2023): Update `GetBlockHash` values.
-    // TODO(ilya): Consider moving the resources of a keccak round to a seperate dict.
+    // TODO(ilya): Consider moving the resources of a keccak round to a separate dict.
     execute_syscalls: HashMap<SyscallSelector, ResourcesParams>,
     // Mapping from every transaction to its extra execution resources in the OS,
     // i.e., resources that don't count during the execution itself.
