@@ -5,8 +5,8 @@ use blockifier::execution::call_info::{CallInfo, CallInfoIter};
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use serde::Serialize;
-use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::GasVector;
+use starknet_api::transaction::constants::VALIDATE_DEPLOY_ENTRY_POINT_SELECTOR;
 use starknet_api::transaction::fields::Fee;
 
 /// A mapping from a transaction execution resource to its actual usage.
@@ -62,14 +62,21 @@ impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
 }
 
 impl CentralTransactionExecutionInfo {
-    pub fn call_info_iter(&self, tx_type: TransactionType) -> CallInfoIter<'_> {
-        let ordered_call_infos = match tx_type {
-            TransactionType::DeployAccount => {
-                [&self.execute_call_info, &self.validate_call_info, &self.fee_transfer_call_info]
-            }
-            _ => [&self.validate_call_info, &self.execute_call_info, &self.fee_transfer_call_info],
+    pub fn call_info_iter(&self) -> CallInfoIter<'_> {
+        let ordered_call_infos = if self.is_deploy_account() {
+            [&self.execute_call_info, &self.validate_call_info, &self.fee_transfer_call_info]
+        } else {
+            [&self.validate_call_info, &self.execute_call_info, &self.fee_transfer_call_info]
         };
         CallInfoIter::new(ordered_call_infos.into_iter().filter_map(|call| call.as_ref()).collect())
+    }
+
+    fn is_deploy_account(&self) -> bool {
+        if let Some(call_info) = self.validate_call_info.as_ref() {
+            call_info.call.entry_point_selector == *VALIDATE_DEPLOY_ENTRY_POINT_SELECTOR
+        } else {
+            false
+        }
     }
 
     pub fn is_reverted(&self) -> bool {
