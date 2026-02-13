@@ -629,7 +629,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
-        tokio::spawn(
+        let handle = tokio::spawn(
             async move {
                 let res = send_reproposal(
                     id,
@@ -651,6 +651,13 @@ impl ConsensusContext for SequencerConsensusContext {
             }
             .instrument(error_span!("consensus_repropose", round = init.round)),
         );
+        // Spawn a follow-up task to detect panics. Without this, if the reproposal
+        // task panics, the JoinError is silently swallowed when the handle is dropped.
+        tokio::spawn(async move {
+            if let Err(e) = handle.await {
+                error!("Reproposal task panicked: {e:?}");
+            }
+        });
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
