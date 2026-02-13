@@ -157,7 +157,7 @@ fn chain_param_paths(param_paths: &[&str]) -> ParamPath {
 pub trait SerializeConfig {
     /// Conversion of a configuration to a mapping of flattened parameters to their descriptions and
     /// values.
-    /// Note, in the case of a None sub configs, its elements will not included in the flatten map.
+    /// Note, in the case of a None sub configs, its elements will not be included in the flatten map.
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam>;
 
     /// Serialization of a configuration into a JSON file.
@@ -196,7 +196,7 @@ pub trait SerializeConfig {
     /// let file_path = dir.path().join("config.json");
     /// ConfigExample { key: 42 }.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap());
     /// ```
-    /// Note, in the case of a None sub configs, its elements will not be included in the file.
+    /// Note, in the case of None sub configs, their elements will not be included in the file.
     fn dump_to_file(
         &self,
         config_pointers: &ConfigPointers,
