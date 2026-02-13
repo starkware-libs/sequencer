@@ -26,14 +26,14 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_api::transaction::fields::{Fee, Proof, ProofFacts, PROOF_VERSION};
+use starknet_api::transaction::fields::{Fee, Proof, ProofFacts};
 use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 use tracing::info;
 
-use crate::proof_verification::{stwo_verify, VerifyProofError};
+use crate::proof_verification::{verify_proof, VerifyProofError};
 
 /// The expected bootloader program hash for proof verification.
 pub const BOOTLOADER_PROGRAM_HASH: Felt =
@@ -413,35 +413,6 @@ impl TransactionConverter {
     /// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
     /// program hash to the expected value.
     fn verify_proof(&self, proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
-        // Reject empty proof payloads before running the verifier.
-        if proof.is_empty() {
-            return Err(VerifyProofError::EmptyProof);
-        }
-
-        // Validate that the first element of proof facts is PROOF_VERSION.
-        let expected_proof_version = PROOF_VERSION;
-        let actual_first = proof_facts.0.first().copied().unwrap_or_default();
-        if actual_first != expected_proof_version {
-            return Err(VerifyProofError::InvalidProofVersion {
-                expected: expected_proof_version,
-                actual: actual_first,
-            });
-        }
-
-        // Verify proof and extract program output and program hash.
-        let output = stwo_verify(proof)?;
-
-        let program_variant = proof_facts.0.get(1).copied().unwrap_or_default();
-        let expected_proof_facts = output.program_output.try_into_proof_facts(program_variant)?;
-        if expected_proof_facts != proof_facts {
-            return Err(VerifyProofError::ProofFactsMismatch);
-        }
-
-        // Validate the bootloader program hash output against the expected bootloader hash.
-        if output.program_hash != BOOTLOADER_PROGRAM_HASH {
-            return Err(VerifyProofError::BootloaderHashMismatch);
-        }
-
-        Ok(())
+        verify_proof(proof_facts, proof, BOOTLOADER_PROGRAM_HASH)
     }
 }

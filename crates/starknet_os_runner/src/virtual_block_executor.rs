@@ -316,12 +316,17 @@ pub(crate) struct RpcVirtualBlockExecutor {
 
 #[allow(dead_code)]
 impl RpcVirtualBlockExecutor {
-    pub(crate) fn new(node_url: String, chain_id: ChainId, block_id: BlockId) -> Self {
+    pub(crate) fn new(
+        node_url: String,
+        chain_id: ChainId,
+        block_id: BlockId,
+        validate_txs: bool,
+    ) -> Self {
         Self {
             rpc_state_reader: RpcStateReader::new_with_config_from_url(
                 node_url, chain_id, block_id,
             ),
-            validate_txs: true,
+            validate_txs,
         }
     }
 }

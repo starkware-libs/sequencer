@@ -112,10 +112,23 @@ impl From<VirtualOsBlockInput> for OsHints {
 // Runner
 // ================================================================================================
 
-#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct RunnerConfig {
     /// Configuration for storage proof provider.
     pub(crate) storage_proof_config: StorageProofConfig,
+    /// Whether to run transaction validation during execution (default: true).
+    #[serde(default = "default_validate_txs")]
+    pub validate_txs: bool,
+}
+
+fn default_validate_txs() -> bool {
+    true
+}
+
+impl Default for RunnerConfig {
+    fn default() -> Self {
+        Self { storage_proof_config: StorageProofConfig::default(), validate_txs: true }
+    }
 }
 
 pub(crate) struct RunnerOutput {
@@ -404,6 +417,7 @@ impl RpcRunnerFactory {
             self.node_url.to_string(),
             self.chain_id.clone(),
             block_id,
+            self.runner_config.validate_txs,
         );
 
         // Create the storage proofs provider.
