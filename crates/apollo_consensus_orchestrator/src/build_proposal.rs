@@ -269,11 +269,16 @@ async fn get_proposal_content(
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal. Must wait for it at least until batcher_timeout is
                 // reached.
-                let remaining = (args.batcher_deadline - args.deps.clock.now())
+                let remaining_duration = (args.batcher_deadline - args.deps.clock.now())
                     .to_std()
                     .unwrap_or_default()
-                    .max(MIN_WAIT_DURATION); // Ensure we wait at least 1 ms to avoid immediate timeout. 
-                match tokio::time::timeout(remaining, args.cende_write_success.borrow_mut()).await {
+                    .max(MIN_WAIT_DURATION); // Ensure we wait at least 1 ms to avoid immediate timeout.
+                match tokio::time::timeout(
+                    remaining_duration,
+                    args.cende_write_success.borrow_mut(),
+                )
+                .await
+                {
                     Err(_) => {
                         return Err(BuildProposalError::CendeWriteError(
                             "Writing blob to Aerospike didn't return in time.".to_string(),
