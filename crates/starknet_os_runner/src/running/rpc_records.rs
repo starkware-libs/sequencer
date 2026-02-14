@@ -23,6 +23,7 @@ use std::sync::{Arc, Mutex};
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use axum::body::Bytes;
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::routing::post;
 use axum::Router;
@@ -260,6 +261,7 @@ impl RecordingProxy {
 /// Axum handler that forwards POST requests to the real RPC node and records the interaction.
 async fn proxy_handler(
     State(state): State<Arc<RecordingProxyState>>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> impl IntoResponse {
     let request: Value =
@@ -269,23 +271,31 @@ async fn proxy_handler(
     // Normalize params when recording so that replay matching is deterministic.
     let sorted_params = normalize_json(&request.get("params").cloned().unwrap_or(Value::Null));
 
-    // Forward to the real RPC node.
-    let response = state
-        .client
-        .post(&state.target_url)
-        .header("content-type", "application/json")
+    // Forward to the real RPC node, preserving incoming headers.
+    let mut upstream_request = state.client.post(&state.target_url);
+    for (name, value) in headers.iter() {
+        // Skip hop-by-hop headers that shouldn't be forwarded.
+        if matches!(name.as_str(), "host" | "content-length" | "transfer-encoding" | "connection")
+        {
+            continue;
+        }
+        upstream_request = upstream_request.header(name, value);
+    }
+    let response = upstream_request
         .body(body.to_vec())
         .send()
         .await
         .expect("Recording proxy: failed to forward request");
 
+    let status = axum::http::StatusCode::from_u16(response.status().as_u16())
+        .unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
     let response_body: Value =
         response.json().await.expect("Recording proxy: failed to parse response as JSON");
 
     // Record the interaction with normalized params.
     let interaction =
-        RpcInteraction { method, sorted_params: params, response: response_body.clone() };
+        RpcInteraction { method, sorted_params, response: response_body.clone() };
     state.interactions.lock().unwrap().push(interaction);
 
-    axum::Json(response_body)
+    (status, axum::Json(response_body))
 }

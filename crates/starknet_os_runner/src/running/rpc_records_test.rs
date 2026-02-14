@@ -104,7 +104,7 @@ async fn test_mock_server_matches_rpc_request() {
 async fn test_recording_proxy_captures_interactions() {
     // Start a mockito server as the "real" RPC backend.
     let mut backend = mockito::Server::new_async().await;
-    backend
+    let _mock = backend
         .mock("POST", "/")
         .match_body(mockito::Matcher::PartialJson(serde_json::json!({
             "method": "starknet_blockNumber"
@@ -149,7 +149,7 @@ async fn test_recording_proxy_captures_interactions() {
 async fn test_record_save_load_replay_round_trip() {
     // 1. Set up a mock backend.
     let mut backend = mockito::Server::new_async().await;
-    backend
+    let _mock = backend
         .mock("POST", "/")
         .match_body(mockito::Matcher::PartialJson(serde_json::json!({
             "method": "starknet_getNonce"
