@@ -500,7 +500,7 @@ pub fn get_call_result(
     let [failure_flag, retdata_start, retdata_end]: &[MaybeRelocatable; 3] =
         (&return_result[2..]).try_into().expect("Return values must be of size 3.");
 
-    let failed = if *failure_flag == MaybeRelocatable::from(0) {
+    let execution_failed = if *failure_flag == MaybeRelocatable::from(0) {
         false
     } else if *failure_flag == MaybeRelocatable::from(1) {
         true
@@ -535,7 +535,7 @@ pub fn get_call_result(
         TrackedResource::SierraGas => syscall_handler.base.call.initial_gas - gas,
     };
     Ok(CallResult {
-        failed,
+        failed: execution_failed,
         retdata: read_execution_retdata(runner, retdata_size, retdata_start)?,
         gas_consumed,
     })
