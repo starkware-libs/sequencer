@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770895033117,
+  "lastUpdate": 1771075242801,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -475,6 +475,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1172.45247973,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "56217775+dan-starkware@users.noreply.github.com",
+            "name": "dan-starkware",
+            "username": "dan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cf00e34110e6f256732126d21e1892aa09fb9a7d",
+          "message": "starknet_patricia: rename standalone adjective variable (#12549)\n\n* apollo_consensus_orchestrator: rename standalone adjective variables\n\n* blockifier: rename standalone adjective variables\n\n* starknet_patricia: rename standalone adjective variable",
+          "timestamp": "2026-02-14T13:01:09Z",
+          "tree_id": "3adbf17c5e94486f6f9c9fc41c0f0a4a382af19f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/cf00e34110e6f256732126d21e1892aa09fb9a7d"
+        },
+        "date": 1771075242524,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 746.80023904,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1149.04825152,
             "unit": "ms"
           }
         ]
