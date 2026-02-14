@@ -15,7 +15,11 @@ use apollo_storage::storage_reader_server::{
     StorageReaderServerStaticConfig,
 };
 use apollo_storage::{StorageConfig, StorageScope};
-use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
+use blockifier::blockifier::config::{
+    ContractClassManagerConfig,
+    NativeClassesWhitelist,
+    WorkerPoolConfig,
+};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::ChainInfo;
@@ -334,17 +338,35 @@ impl Default for BatcherStaticConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct BatcherDynamicConfig {
+    pub native_classes_whitelist: NativeClassesWhitelist,
     pub storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
+}
+
+impl Default for BatcherDynamicConfig {
+    fn default() -> Self {
+        Self {
+            native_classes_whitelist: NativeClassesWhitelist::All,
+            storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig::default(),
+        }
+    }
 }
 
 impl SerializeConfig for BatcherDynamicConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(
+        let mut dump = BTreeMap::from([ser_param(
+            "native_classes_whitelist",
+            &self.native_classes_whitelist,
+            "Specifies whether to execute all class hashes or only specific ones using Cairo \
+             native. If limited, a specific list of class hashes is provided.",
+            ParamPrivacyInput::Public,
+        )]);
+        dump.append(&mut prepend_sub_config_name(
             self.storage_reader_server_dynamic_config.dump(),
             "storage_reader_server_dynamic_config",
-        )
+        ));
+        dump
     }
 }
 

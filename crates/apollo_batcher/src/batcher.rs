@@ -354,12 +354,7 @@ impl Batcher {
                         .block_builder_config
                         .proposer_idle_detection_delay_millis,
                 },
-                self.config
-                    .static_config
-                    .contract_class_manager_config
-                    .cairo_native_run_config
-                    .native_classes_whitelist
-                    .clone(),
+                self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),
                 Some(output_tx_sender),
                 Some(candidate_tx_sender),
@@ -448,12 +443,7 @@ impl Batcher {
                         .block_builder_config
                         .proposer_idle_detection_delay_millis,
                 },
-                self.config
-                    .static_config
-                    .contract_class_manager_config
-                    .cairo_native_run_config
-                    .native_classes_whitelist
-                    .clone(),
+                self.config.dynamic_config.native_classes_whitelist.clone(),
                 Box::new(tx_provider),
                 None,
                 None,
