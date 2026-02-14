@@ -24,7 +24,7 @@ starknet_committer = { workspace = true, features = ["testing"] }
 starknet_os = { workspace = true, features = ["include_program_output", "testing"] }
 starknet_os_runner.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
-starknet_patricia_storage = { workspace = true, features = ["testing"] }
+starknet_patricia_storage.workspace = true
 tokio.workspace = true
 
 [lints]
