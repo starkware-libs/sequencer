@@ -19,7 +19,3 @@ mod transaction_provider;
 #[cfg(test)]
 mod transaction_provider_test;
 mod utils;
-
-// Re-export so it can be used in the general config of the sequencer node without depending on
-// blockifier.
-pub use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
