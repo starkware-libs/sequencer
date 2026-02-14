@@ -103,6 +103,7 @@ pub fn test_state_reader() -> RpcStateReader {
         block_id: get_test_block_id(),
         retry_config: RetryConfig::default(),
         chain_id: ChainId::Mainnet,
+        strk_fee_token_address: None,
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
     }
 }

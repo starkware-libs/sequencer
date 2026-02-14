@@ -120,6 +120,8 @@ pub struct RpcStateReader {
     pub block_id: BlockId,
     pub(crate) retry_config: RetryConfig,
     pub chain_id: ChainId,
+    /// Optional override for the STRK fee token address.
+    pub strk_fee_token_address: Option<ContractAddress>,
     #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
@@ -132,6 +134,7 @@ impl Default for RpcStateReader {
             block_id: BlockId::Latest,
             retry_config: RetryConfig::default(),
             chain_id: ChainId::Mainnet,
+            strk_fee_token_address: None,
             contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
         }
     }
@@ -153,15 +156,18 @@ impl RpcStateReader {
             block_id: BlockId::Number(block_number),
             retry_config: RetryConfig::default(),
             chain_id,
+            strk_fee_token_address: None,
             contract_class_mapping_dumper,
         }
     }
 
     /// Creates an RpcStateReader from a node URL, chain ID, and block ID.
+    /// Optionally accepts a STRK fee token address override for custom environments.
     pub fn new_with_config_from_url(
         node_url: String,
         chain_id: ChainId,
         block_id: BlockId,
+        strk_fee_token_address: Option<ContractAddress>,
     ) -> Self {
         let config = RpcStateReaderConfig::from_url(node_url);
         let contract_class_mapping_dumper = Arc::new(Mutex::new(None));
@@ -170,6 +176,7 @@ impl RpcStateReader {
             block_id,
             retry_config: RetryConfig::default(),
             chain_id,
+            strk_fee_token_address,
             contract_class_mapping_dumper,
         }
     }
@@ -301,7 +308,7 @@ impl RpcStateReader {
     pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
         Ok(BlockContext::new(
             self.get_block_info()?,
-            get_chain_info(&self.chain_id),
+            get_chain_info(&self.chain_id, self.strk_fee_token_address),
             self.get_versioned_constants()?,
             BouncerConfig::max(),
         ))
