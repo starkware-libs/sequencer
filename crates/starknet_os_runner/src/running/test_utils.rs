@@ -2,13 +2,20 @@ use std::env;
 
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier_test_utils::calldata::create_calldata;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
+use expect_test::{expect, Expect};
 use rstest::fixture;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::ChainId;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
+use starknet_api::core::ContractAddress;
+use starknet_api::test_utils::invoke::invoke_tx;
+use starknet_api::transaction::InvokeTransaction;
+use starknet_api::{invoke_tx_args};
+use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
@@ -43,6 +50,13 @@ pub const STRK_TOKEN_ADDRESS_SEPOLIA: Felt =
 /// This account uses the `account_with_dummy_validate` contract which always returns VALIDATED.
 pub const DUMMY_ACCOUNT_ADDRESS: Felt =
     Felt::from_hex_unchecked("0x0786ed7d8dcbf1489241d65a4dd55f18b984c078558ce12def69802526fa918e");
+
+/// Privacy pool contract address on Sepolia.
+pub const PRIVACY_POOL_CONTRACT_ADDRESS: Felt =
+    Felt::from_hex_unchecked("0x712391ff6487c9232582442ea7eb4a10cad4892c3bcde3516e2a3955bf4f0da");
+
+/// Privacy pool contract nonce on Sepolia (update if the contract nonce changes).
+pub(crate) static PRIVACY_POOL_CONTRACT_NONCE: Expect = expect!["0x7"];
 
 // ================================================================================================
 // RPC URL Helpers
@@ -111,6 +125,18 @@ pub fn sepolia_runner_factory() -> RpcRunnerFactory {
     RpcRunnerFactory::new(rpc_url, ChainId::Sepolia, contract_class_manager, runner_config)
 }
 
+/// Fetches the latest block number from Sepolia (async).
+pub async fn fetch_sepolia_block_number() -> BlockId {
+    fetch_block_number_from(&get_sepolia_rpc_url()).await
+}
+
+/// Fetches the latest block number from the given RPC URL.
+pub async fn fetch_block_number_from(rpc_url: &str) -> BlockId {
+    let rpc_url = Url::parse(rpc_url).expect("Invalid RPC URL");
+    let provider = RpcStorageProofsProvider::new(rpc_url);
+    let block_number = provider.0.block_number().await.expect("Failed to fetch block number");
+    BlockId::Number(BlockNumber(block_number))
+}
 // ================================================================================================
 // Transaction Helpers
 // ================================================================================================
@@ -123,5 +149,20 @@ pub(crate) fn default_resource_bounds_for_client_side_tx() -> ValidResourceBound
             max_price_per_unit: GasPrice(0),
         },
         l1_data_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
+    })
+}
+
+/// Creates a balance_of invoke transaction for testing.
+pub(crate) fn strk_balance_of_invoke() -> InvokeTransaction {
+    let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS_SEPOLIA).unwrap();
+    let account = ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap();
+
+    let calldata = create_calldata(strk_token, "balanceOf", &[account.into()]);
+    let resource_bounds = default_resource_bounds_for_client_side_tx();
+
+    invoke_tx(invoke_tx_args! {
+        sender_address: account,
+        calldata,
+        resource_bounds,
     })
 }

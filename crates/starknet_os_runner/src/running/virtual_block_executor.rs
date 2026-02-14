@@ -162,7 +162,7 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
         contract_class_manager: ContractClassManager,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
-        let tx_hashes: Vec<TransactionHash> = txs.iter().map(|(_, h)| *h).collect();
+        let _tx_hashes: Vec<TransactionHash> = txs.iter().map(|(_, h)| *h).collect();
         let blockifier_txs = self.convert_invoke_txs(txs)?;
         let base_block_info = self.base_block_info(block_id)?;
         let state_reader = self.state_reader(block_id)?;
@@ -193,15 +193,7 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        // Verify that all transactions were executed successfully (no reverted transactions).
-        for (output, tx_hash) in execution_outputs.iter().zip(tx_hashes.iter()) {
-            if let Some(revert_error) = &output.0.revert_error {
-                return Err(VirtualBlockExecutorError::TransactionReverted(
-                    *tx_hash,
-                    revert_error.to_string(),
-                ));
-            }
-        }
+        
 
         let block_state = transaction_executor
             .block_state

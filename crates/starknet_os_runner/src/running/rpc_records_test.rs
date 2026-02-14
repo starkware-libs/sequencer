@@ -1,11 +1,20 @@
 //! Tests for the RPC records infrastructure.
 
+use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::core::ChainId;
+use url::Url;
+
 use crate::running::rpc_records::{
+    finalize_recording,
     setup_mock_rpc_server,
-    RecordingProxy,
+    setup_test_rpc,
     RpcInteraction,
     RpcRecords,
 };
+use crate::running::runner::{RpcRunnerFactory, RunnerConfig, VirtualSnosRunner};
+use crate::running::storage_proofs::StorageProofConfig;
+use crate::running::test_utils::{fetch_block_number_from, strk_balance_of_invoke};
 
 #[test]
 fn test_rpc_records_round_trip_serialization() {
@@ -100,103 +109,34 @@ async fn test_mock_server_matches_rpc_request() {
     assert_eq!(body["result"], 42);
 }
 
-#[tokio::test]
-async fn test_recording_proxy_captures_interactions() {
-    // Start a mockito server as the "real" RPC backend.
-    let mut backend = mockito::Server::new_async().await;
-    let _mock = backend
-        .mock("POST", "/")
-        .match_body(mockito::Matcher::PartialJson(serde_json::json!({
-            "method": "starknet_blockNumber"
-        })))
-        .with_status(200)
-        .with_header("content-type", "application/json")
-        .with_body(r#"{"jsonrpc":"2.0","id":0,"result":12345}"#)
-        .create_async()
-        .await;
+/// Integration test: run balance_of through recording proxy or mock replay.
+///
+/// # Modes
+///
+/// - **Record**: `RECORD_RPC_RECORDS=1 SEPOLIA_NODE_URL=... cargo test -p starknet_os_runner
+///   test_balance_of_record_replay -- --ignored`
+/// - **Replay**: `cargo test -p starknet_os_runner test_balance_of_record_replay -- --ignored`
+///   (requires `resources/fixtures/balance_of.json`)
+#[tokio::test(flavor = "multi_thread")]
+#[ignore] // Requires RPC access or pre-recorded fixtures.
+async fn test_balance_of_record_replay() {
+    let test_name = "balance_of";
+    let (rpc_url, proxy, _server) = setup_test_rpc(test_name).await;
 
-    // Start the recording proxy, forwarding to the mock backend.
-    let proxy = RecordingProxy::start(&backend.url()).await;
-    let proxy_url = proxy.url.clone();
+    let rpc_url_parsed = Url::parse(&rpc_url).expect("Invalid RPC URL");
+    let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
+    let config =
+        RunnerConfig { storage_proof_config: StorageProofConfig { include_state_changes: true } };
+    let factory =
+        RpcRunnerFactory::new(rpc_url_parsed, ChainId::Sepolia, contract_class_manager, config);
 
-    // Send a request through the proxy.
-    let client = reqwest::Client::new();
-    let response = client
-        .post(&proxy_url)
-        .json(&serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "starknet_blockNumber",
-            "params": []
-        }))
-        .send()
+    let block_id = fetch_block_number_from(&rpc_url).await;
+    let tx = strk_balance_of_invoke();
+
+    factory
+        .run_virtual_os(block_id, vec![tx])
         .await
-        .unwrap();
+        .expect("run_virtual_os should succeed");
 
-    assert_eq!(response.status(), 200);
-    let body: serde_json::Value = response.json().await.unwrap();
-    assert_eq!(body["result"], 12345);
-
-    // Collect recorded data.
-    let records = proxy.into_records();
-    assert_eq!(records.interactions.len(), 1);
-    assert_eq!(records.interactions[0].method, "starknet_blockNumber");
-    assert_eq!(records.interactions[0].response["result"], 12345);
-}
-
-/// End-to-end test: record interactions through proxy, save to file, load, and replay.
-#[tokio::test]
-async fn test_record_save_load_replay_round_trip() {
-    // 1. Set up a mock backend.
-    let mut backend = mockito::Server::new_async().await;
-    let _mock = backend
-        .mock("POST", "/")
-        .match_body(mockito::Matcher::PartialJson(serde_json::json!({
-            "method": "starknet_getNonce"
-        })))
-        .with_status(200)
-        .with_header("content-type", "application/json")
-        .with_body(r#"{"jsonrpc":"2.0","id":0,"result":"0x42"}"#)
-        .create_async()
-        .await;
-
-    // 2. Record through proxy.
-    let proxy = RecordingProxy::start(&backend.url()).await;
-    let client = reqwest::Client::new();
-    client
-        .post(&proxy.url)
-        .json(&serde_json::json!({
-            "jsonrpc": "0.7",
-            "id": 0,
-            "method": "starknet_getNonce",
-            "params": {"block_id": "latest", "contract_address": "0x1"}
-        }))
-        .send()
-        .await
-        .unwrap();
-
-    let records = proxy.into_records();
-
-    // 3. Save and reload.
-    let temp_dir = tempfile::tempdir().unwrap();
-    let path = temp_dir.path().join("recorded.json");
-    records.save(&path);
-    let loaded = RpcRecords::load(&path);
-
-    // 4. Replay using mock server.
-    let mock_server = setup_mock_rpc_server(&loaded).await;
-    let response = client
-        .post(mock_server.url())
-        .json(&serde_json::json!({
-            "jsonrpc": "0.7",
-            "id": 0,
-            "method": "starknet_getNonce",
-            "params": {"block_id": "latest", "contract_address": "0x1"}
-        }))
-        .send()
-        .await
-        .unwrap();
-
-    let body: serde_json::Value = response.json().await.unwrap();
-    assert_eq!(body["result"], "0x42");
+    finalize_recording(proxy, test_name);
 }
