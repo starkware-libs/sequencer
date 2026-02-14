@@ -224,11 +224,6 @@
     "privacy": "Public",
     "value": 2000
   },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
-    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
-    "pointer_target": "native_classes_whitelist",
-    "privacy": "Public"
-  },
   "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
     "privacy": "Public",
@@ -2423,11 +2418,6 @@
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
     "value": 2000
-  },
-  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
-    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
-    "pointer_target": "native_classes_whitelist",
-    "privacy": "Public"
   },
   "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
