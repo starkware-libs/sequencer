@@ -240,7 +240,7 @@ impl UpdatedSkeletonTreeImpl {
                         }
                     }
                 };
-                let updated = match original_node {
+                let updated_node = match original_node {
                     OriginalSkeletonNode::Binary => UpdatedSkeletonNode::Binary,
                     OriginalSkeletonNode::Edge(path_to_bottom) => {
                         UpdatedSkeletonNode::Edge(*path_to_bottom)
@@ -251,7 +251,7 @@ impl UpdatedSkeletonTreeImpl {
                         continue;
                     }
                 };
-                self.skeleton_tree.insert(index, updated);
+                self.skeleton_tree.insert(index, updated_node);
             }
 
             return TempSkeletonNode::Original(OriginalSkeletonNode::Binary);
