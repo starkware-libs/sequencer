@@ -261,9 +261,6 @@ pub struct PyCairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
-    // Determines which contracts are allowd to run Cairo Native. `None` → All.
-    // TODO(Arni): remove this field and update the pythonic struct.
-    pub native_classes_whitelist: Option<Vec<PyFelt>>,
     pub panic_on_compilation_failure: bool,
 }
 
@@ -273,7 +270,6 @@ impl Default for PyCairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
-            native_classes_whitelist: None,
             panic_on_compilation_failure: false,
         }
     }
@@ -281,8 +277,6 @@ impl Default for PyCairoNativeRunConfig {
 
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
-        // NOTE: native_classes_whitelist is ignored here for cross-repo compatibility until the
-        // pythonic struct is updated.
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
