@@ -13,7 +13,11 @@ use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 use thiserror::Error;
 
-use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+use crate::blockifier::config::{
+    CairoNativeRunConfig,
+    ContractClassManagerConfig,
+    NativeClassesWhitelist,
+};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::metrics::NATIVE_COMPILATION_ERROR;
@@ -117,7 +121,11 @@ impl NativeClassManager {
     }
 
     /// Returns the runnable compiled class for the given class hash, if it exists in class_cache.
-    pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
+    pub fn get_runnable(
+        &self,
+        class_hash: &ClassHash,
+        native_classes_whitelist: &NativeClassesWhitelist,
+    ) -> Option<RunnableCompiledClass> {
         let cached_class = self.class_cache.get(class_hash)?;
 
         let cached_class = match cached_class {
@@ -131,7 +139,7 @@ impl NativeClassManager {
                 cached_class
             }
             CompiledClasses::V1Native(CachedCairoNative::Compiled(native))
-                if !self.run_class_with_cairo_native(class_hash) =>
+                if !native_classes_whitelist.contains(class_hash) =>
             {
                 CompiledClasses::V1(native.casm(), Arc::new(SierraContractClass::default()))
             }
@@ -217,11 +225,6 @@ impl NativeClassManager {
 
     fn wait_on_native_compilation(&self) -> bool {
         self.cairo_native_run_config.wait_on_native_compilation
-    }
-
-    /// Determines if a contract should run with cairo native based on the whitelist.
-    pub fn run_class_with_cairo_native(&self, class_hash: &ClassHash) -> bool {
-        self.cairo_native_run_config.native_classes_whitelist.contains(class_hash)
     }
 
     /// Clears the contract class_cache.

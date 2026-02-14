@@ -10,7 +10,7 @@ pub mod trivial_class_manager {
     use starknet_api::class_cache::GlobalContractCache;
     use starknet_api::core::{ClassHash, CompiledClassHash};
 
-    use crate::blockifier::config::ContractClassManagerConfig;
+    use crate::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
     use crate::execution::contract_class::RunnableCompiledClass;
     use crate::state::global_cache::{CompiledClasses, RawClassCache};
 
@@ -33,7 +33,11 @@ pub mod trivial_class_manager {
             }
         }
 
-        pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
+        pub fn get_runnable(
+            &self,
+            class_hash: &ClassHash,
+            _native_classes_whitelist: &NativeClassesWhitelist,
+        ) -> Option<RunnableCompiledClass> {
             Some(self.class_cache.get(class_hash)?.to_runnable())
         }
 
