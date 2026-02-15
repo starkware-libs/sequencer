@@ -1,6 +1,9 @@
+use std::fs::OpenOptions;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
+use fs2::FileExt;
 use num_enum::IntoPrimitive;
 use serde::Serialize;
 use socket2::{Domain, Socket, Type};
@@ -22,6 +25,62 @@ const _: () = {
         "Port numbers potentially exceeding u16::MAX"
     );
 };
+
+pub type Port = u16;
+const PORT_FILE_PATH: &str = "/tmp/apollo_infra_port_allocator_offset";
+const INITIAL_PORT_OFFSET: Port = 11000;
+
+#[derive(Debug, thiserror::Error)]
+pub enum PortFactoryError {
+    #[error("Failed to lock file: {0}")]
+    LockError(std::io::Error),
+    #[error("Failed to open port file: {0}")]
+    OpenFileError(std::io::Error),
+    #[error("Failed to read file: {0}")]
+    ReadError(std::io::Error),
+    #[error("Failed to seek file: {0}")]
+    SeekError(std::io::Error),
+    #[error("Failed to set length: {0}")]
+    SetLenError(std::io::Error),
+    #[error("Failed to unlock file: {0}")]
+    UnlockError(std::io::Error),
+    #[error("Failed to write file: {0}")]
+    WriteError(std::io::Error),
+}
+
+pub struct PortFactory;
+
+impl PortFactory {
+    pub fn alloc() -> Result<Port, PortFactoryError> {
+        // Open with read/write/create.
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            // Do not overwrite the file if it already exists.
+            .truncate(false)
+            .open(PORT_FILE_PATH)
+            .map_err(PortFactoryError::OpenFileError)?;
+
+        // 1. Lock the file.
+        file.lock_exclusive().map_err(PortFactoryError::LockError)?;
+
+        // 2 & 3. Read contents to P (treat empty/missing as 0).
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).map_err(PortFactoryError::ReadError)?;
+        let p: u16 = contents.trim().parse().unwrap_or(0);
+
+        // 4. Increment the file contents.
+        file.seek(SeekFrom::Start(0)).map_err(PortFactoryError::SeekError)?;
+        file.set_len(0).map_err(PortFactoryError::SetLenError)?;
+        write!(file, "{}", p + 1).map_err(PortFactoryError::WriteError)?;
+
+        // 5. Release the lock.
+        file.unlock().map_err(PortFactoryError::UnlockError)?;
+
+        Ok(INITIAL_PORT_OFFSET + p)
+    }
+}
 
 #[repr(u16)]
 #[derive(Debug, Copy, Clone, IntoPrimitive, EnumCountMacro)]
