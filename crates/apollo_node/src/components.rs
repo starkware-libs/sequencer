@@ -491,8 +491,14 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager client should be available");
-            let (state_sync, state_sync_runner) =
-                create_state_sync_and_runner(state_sync_config.clone(), class_manager_client);
+            let config_manager_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
+            let (state_sync, state_sync_runner) = create_state_sync_and_runner(
+                state_sync_config.clone(),
+                class_manager_client,
+                config_manager_client,
+            );
             (Some(state_sync), Some(state_sync_runner))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
