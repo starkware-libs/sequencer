@@ -227,10 +227,11 @@ impl ConsensusManager {
             latency_metrics: Some(LatencyMetrics { ping_latency_seconds: CONSENSUS_PING_LATENCY }),
         });
 
-        // TODO(noam.s): make num_active_epochs configurable via ConsensusManagerConfig.
         // TODO(noam.s): add the committee manager to propeller once it's implemented.
         let (_committee_manager, handles) =
-            apollo_network::committee_manager::behaviour::CommitteeManagerBehaviour::new(2);
+            apollo_network::committee_manager::behaviour::CommitteeManagerBehaviour::new(
+                self.config.num_active_committee_epochs,
+            );
 
         // TODO(noam.s): fix this dummy staker address.
         let stark_auth_negotiator = StarkAuthNegotiator::new(
