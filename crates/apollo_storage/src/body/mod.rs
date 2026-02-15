@@ -316,19 +316,19 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
             return Ok(None);
         }
         let mut cursor = transaction_metadata_table.cursor(&self.txn)?;
-        let mut current =
+        let mut current_entry =
             cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
 
         // TODO(dvir): consider initializing with capacity based on the get_block_transactions_count
         // function.
         let mut res = Vec::new();
-        while let Some((TransactionIndex(current_block_number, _), tx_metadata)) = current {
+        while let Some((TransactionIndex(current_block_number, _), tx_metadata)) = current_entry {
             if current_block_number != block_number {
                 break;
             }
             let tx_output = tx_metadata_to_tx_object(tx_metadata, &self.file_handlers)?;
             res.push(tx_output);
-            current = cursor.next()?;
+            current_entry = cursor.next()?;
         }
         Ok(Some(res))
     }
