@@ -24,8 +24,6 @@ impl OpaquePeerId {
     }
 }
 
-// TODO(guyn): remove allow dead code once we use this struct.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BadPeerReport {
     pub peer_id: OpaquePeerId,
