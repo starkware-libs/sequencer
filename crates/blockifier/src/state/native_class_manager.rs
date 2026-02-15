@@ -121,7 +121,7 @@ impl NativeClassManager {
         let cached_class = self.class_cache.get(class_hash)?;
 
         let cached_class = match cached_class {
-            CompiledClasses::V1(_, _) => {
+            CompiledClasses::V1(..) => {
                 // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
                 // `run_cairo_native` is false.
                 assert!(
@@ -133,7 +133,7 @@ impl NativeClassManager {
             CompiledClasses::V1Native(CachedCairoNative::Compiled(native))
                 if !self.run_class_with_cairo_native(class_hash) =>
             {
-                CompiledClasses::V1(native.casm(), Arc::new(SierraContractClass::default()))
+                CompiledClasses::into_non_native_class(native)
             }
             _ => cached_class,
         };
