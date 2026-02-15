@@ -24,12 +24,13 @@ use crate::fee::gas_usage::{
     get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
+use crate::fee::receipt::TransactionReceipt;
 use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
-use crate::transaction::objects::HasRelatedFeeType;
+use crate::transaction::objects::{HasRelatedFeeType, TransactionExecutionInfo};
 use crate::transaction::test_utils::{
     calculate_class_info_for_testing,
     create_resource_bounds,
@@ -399,6 +400,23 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     assert_eq!(expected_gas_vector, gas_usage_vector);
 }
 
+fn assert_starknet_gas_matches_execution(
+    starknet_resources: &StarknetResources,
+    tx_receipt: &TransactionReceipt,
+    versioned_constants: &VersionedConstants,
+    use_kzg_da: bool,
+    mode: &GasVectorComputationMode,
+) {
+    assert_eq!(
+        starknet_resources.to_gas_vector(versioned_constants, use_kzg_da, mode),
+        tx_receipt.resources.starknet_resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            mode
+        )
+    );
+}
+
 // Test that we exclude the fee token contract modification and adds the account’s balance change
 // in the state changes.
 #[rstest]
@@ -407,39 +425,35 @@ fn test_calculate_tx_gas_usage(
     #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
-    let max_resource_bounds = create_resource_bounds(&gas_vector_computation_mode);
-    let account_cairo_version = CairoVersion::Cairo0;
-    let test_contract_cairo_version = CairoVersion::Cairo0;
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
     let chain_info = &block_context.chain_info;
+    let account_cairo_version = CairoVersion::Cairo0;
+    let test_contract_cairo_version = CairoVersion::Cairo0;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
-    let test_contract = FeatureContract::TestContract(test_contract_cairo_version);
     let account_contract_address = account_contract.get_instance_address(0);
+    let test_contract = FeatureContract::TestContract(test_contract_cairo_version);
     let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
+    let max_resource_bounds = create_resource_bounds(&gas_vector_computation_mode);
 
-    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
+    let trivial_tx = invoke_tx_with_default_flags(invoke_tx_args! {
             sender_address: account_contract_address,
             calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
             resource_bounds: max_resource_bounds,
     });
-    let calldata_length = account_tx.calldata_length();
-    let signature_length = account_tx.signature_length();
-    let fee_token_address = chain_info.fee_token_address(&account_tx.fee_type());
-    let tx_execution_info = account_tx.execute(state, block_context).unwrap();
+    let fee_token_address = chain_info.fee_token_address(&trivial_tx.fee_type());
+    let trivial_tx_execution_info = trivial_tx.execute(state, block_context).unwrap();
 
-    let n_storage_updates = 1; // For the account balance update.
-    let n_modified_contracts = 1;
     let state_changes_count = StateChangesCount {
-        n_storage_updates,
+        n_storage_updates: 1, // For the account balance update.
         n_class_hash_updates: 0,
-        n_modified_contracts,
+        n_modified_contracts: 1,
         n_compiled_class_hash_updates: 0,
     };
     let n_allocated_keys = 0; // This tx doesn't allocate the account balance.
-    let starknet_resources = StarknetResources::new(
-        calldata_length,
-        signature_length,
+    let starknet_trivial_tx_resources = StarknetResources::new(
+        trivial_tx.calldata_length(),
+        trivial_tx.signature_length(),
         0,
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
@@ -447,17 +461,12 @@ fn test_calculate_tx_gas_usage(
         0,
     );
 
-    assert_eq!(
-        starknet_resources.to_gas_vector(
-            versioned_constants,
-            use_kzg_da,
-            &gas_vector_computation_mode
-        ),
-        tx_execution_info.receipt.resources.starknet_resources.to_gas_vector(
-            versioned_constants,
-            use_kzg_da,
-            &gas_vector_computation_mode
-        )
+    assert_starknet_gas_matches_execution(
+        &starknet_trivial_tx_resources,
+        &trivial_tx_execution_info.receipt,
+        &versioned_constants,
+        use_kzg_da,
+        &gas_vector_computation_mode,
     );
 
     // A tx that changes the account and some other balance in execute.
@@ -471,17 +480,14 @@ fn test_calculate_tx_gas_usage(
             Felt::ZERO,                          // Calldata: msb amount.
         ],
     );
-
-    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
+    let transfer_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: max_resource_bounds,
         sender_address: account_contract_address,
         calldata: execute_calldata,
         nonce: nonce!(1_u8),
     });
 
-    let calldata_length = account_tx.calldata_length();
-    let signature_length = account_tx.signature_length();
-    let tx_execution_info = account_tx.execute(state, block_context).unwrap();
+    let transfer_tx_execution_info = transfer_tx.execute(state, block_context).unwrap();
     // For the balance update of the sender and the recipient.
     let n_storage_updates = 2;
     // Only the account contract modification (nonce update) excluding the fee token contract.
@@ -494,12 +500,12 @@ fn test_calculate_tx_gas_usage(
     };
     let n_allocated_keys = 1; // Only for the recipient.
     let execution_call_info =
-        &tx_execution_info.execute_call_info.expect("Execution call info should exist.");
+        &transfer_tx_execution_info.execute_call_info.expect("Execution call info should exist.");
     let execution_summary =
         CallInfo::summarize_many(vec![execution_call_info].into_iter(), versioned_constants);
-    let starknet_resources = StarknetResources::new(
-        calldata_length,
-        signature_length,
+    let starknet_transfer_resources = StarknetResources::new(
+        transfer_tx.calldata_length(),
+        transfer_tx.signature_length(),
         0,
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
@@ -508,16 +514,59 @@ fn test_calculate_tx_gas_usage(
         0,
     );
 
-    assert_eq!(
-        starknet_resources.to_gas_vector(
-            versioned_constants,
-            use_kzg_da,
-            &gas_vector_computation_mode
+    assert_starknet_gas_matches_execution(
+        &starknet_transfer_resources,
+        &transfer_tx_execution_info.receipt,
+        &block_context.versioned_constants,
+        use_kzg_da,
+        &gas_vector_computation_mode,
+    );
+}
+
+/// Test that proof_facts_length is included in OS resource calculation.
+#[rstest]
+fn test_proof_facts_included_in_os_resources(#[values(false, true)] use_kzg_da: bool) {
+    use crate::test_utils::create_valid_proof_facts_for_testing;
+
+    let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let state = &mut test_state(
+        &block_context.chain_info,
+        BALANCE,
+        &[(account_contract, 1), (test_contract, 1)],
+    );
+
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
+        sender_address: account_contract.get_instance_address(0),
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        resource_bounds: create_resource_bounds(&GasVectorComputationMode::All),
+        proof_facts: create_valid_proof_facts_for_testing(),
+    });
+    let tx_execution_info = account_tx.execute(state, block_context).unwrap();
+
+    let starknet_resources = StarknetResources::new(
+        account_tx.calldata_length(),
+        account_tx.signature_length(),
+        0,
+        StateResources::new_for_testing(
+            StateChangesCount {
+                n_storage_updates: 1,
+                n_modified_contracts: 1,
+                ..Default::default()
+            },
+            0,
         ),
-        tx_execution_info.receipt.resources.starknet_resources.to_gas_vector(
-            versioned_constants,
-            use_kzg_da,
-            &gas_vector_computation_mode
-        )
+        None,
+        ExecutionSummary::default(),
+        account_tx.proof_facts_length(),
+    );
+
+    assert_starknet_gas_matches_execution(
+        &starknet_resources,
+        &tx_execution_info.receipt,
+        &block_context.versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::All,
     );
 }
