@@ -14,6 +14,7 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC,
 };
+use apollo_gateway::metrics::GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE;
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
@@ -473,6 +474,24 @@ fn get_class_manager_storage_open_read_transactions_alert() -> Alert {
     )
 }
 
+fn get_gateway_proof_archive_write_failure() -> Alert {
+    Alert::new(
+        "gateway_proof_archive_write_failure",
+        "Gateway proof archive (GCS) write failure",
+        AlertGroup::Gateway,
+        format!(
+            "sum(increase({}[1h])) or vector(0)",
+            GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.get_name_with_filter()
+        ),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
+        ObserverApplicability::NotApplicable,
+        AlertEnvFiltering::All,
+    )
+}
+
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let mut alerts = vec![
         get_batcher_storage_open_read_transactions_alert(),
@@ -491,6 +510,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_consensus_votes_num_sent_messages_alert(),
         get_eth_to_strk_error_count_alert(),
         get_gateway_add_tx_idle(),
+        get_gateway_proof_archive_write_failure(),
         get_general_pod_state_not_ready(),
         get_general_pod_state_crashloopbackoff(),
         get_general_pod_high_cpu_utilization(),

@@ -1,6 +1,6 @@
 use std::clone::Clone;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_config::config::GatewayConfig;
@@ -37,6 +37,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
+use tokio::time::timeout;
 use tracing::{debug, error, info, warn};
 
 use crate::errors::{
@@ -44,7 +45,12 @@ use crate::errors::{
     transaction_converter_err_to_deprecated_gw_err,
     GatewayResult,
 };
-use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
+use crate::metrics::{
+    register_metrics,
+    GatewayMetricHandle,
+    GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE,
+};
 use crate::proof_archive_writer::{
     GcsProofArchiveWriter,
     NoOpProofArchiveWriter,
@@ -64,6 +70,8 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 #[cfg(test)]
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
+
+const PROOF_ARCHIVE_WRITE_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone)]
 pub struct Gateway(GenericGateway<StatelessTransactionValidator, TransactionConverter>);
@@ -195,6 +203,7 @@ impl<
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
+        let mut proof_archive_handle = None;
         if let Some((proof_facts, proof)) = proof_data {
             let tx_hash = internal_tx.tx_hash;
             // Proof is verified during conversion to internal tx. It is stored here, after
@@ -215,17 +224,18 @@ impl<
                 }
             }
             let proof_archive_writer = self.proof_archive_writer.clone();
-            tokio::spawn(async move {
+            let handle = tokio::spawn(async move {
+                let proof_facts_hash = proof_facts.hash();
                 let proof_archive_writer_start = Instant::now();
-                if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
-                    error!("Failed to archive proof to GCS: {}", e);
-                }
+                let result = proof_archive_writer.set_proof(proof_facts, proof).await;
                 let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
                 info!(
                     "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
                      {tx_hash:?}"
                 );
+                (proof_facts_hash, result)
             });
+            proof_archive_handle = Some((handle, tx_hash));
         }
         let gateway_output = create_gateway_output(&internal_tx);
 
@@ -243,6 +253,36 @@ impl<
         };
 
         metric_counters.transaction_sent_to_mempool();
+
+        // Await the proof archiving only after the transaction is sent to mempool.
+        if let Some((handle, tx_hash)) = proof_archive_handle {
+            match timeout(PROOF_ARCHIVE_WRITE_TIMEOUT, handle).await {
+                Ok(Ok((proof_facts_hash, Ok(())))) => {
+                    info!(
+                        "Proof archived successfully. proof_facts_hash: {proof_facts_hash:?}, \
+                         tx_hash: {tx_hash:?}"
+                    );
+                }
+                Ok(Ok((proof_facts_hash, Err(e)))) => {
+                    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                    error!(
+                        "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
+                         tx_hash: {tx_hash:?}, error: {e}"
+                    );
+                }
+                Ok(Err(e)) => {
+                    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                    error!("Proof archive writer task panicked. tx_hash: {tx_hash:?}, error: {e}");
+                }
+                Err(_) => {
+                    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                    error!(
+                        "Proof archive writer timed out after {PROOF_ARCHIVE_WRITE_TIMEOUT:?}. \
+                         tx_hash: {tx_hash:?}"
+                    );
+                }
+            }
+        }
 
         Ok(gateway_output)
     }
