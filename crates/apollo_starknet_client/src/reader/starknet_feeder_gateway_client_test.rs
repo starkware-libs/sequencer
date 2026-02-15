@@ -62,7 +62,13 @@ fn get_block_url(block_number_or_latest: Option<u64>) -> String {
 }
 
 fn apollo_starknet_client(server: &ServerGuard) -> StarknetFeederGatewayClient {
-    StarknetFeederGatewayClient::new(&server.url(), None, NODE_VERSION, get_test_config()).unwrap()
+    StarknetFeederGatewayClient::new(&server.url(), None, NODE_VERSION, get_test_config(), false)
+        .unwrap()
+}
+
+fn apollo_starknet_client_with_compression(server: &ServerGuard) -> StarknetFeederGatewayClient {
+    StarknetFeederGatewayClient::new(&server.url(), None, NODE_VERSION, get_test_config(), true)
+        .unwrap()
 }
 
 // TODO(Ayelet): Consider making this function generic for all successful mock responses in this
@@ -105,9 +111,14 @@ fn block_not_found_error(block_number: i64) -> String {
 #[test]
 fn new_urls() {
     let url_base_str = "https://url";
-    let apollo_starknet_client =
-        StarknetFeederGatewayClient::new(url_base_str, None, NODE_VERSION, get_test_config())
-            .unwrap();
+    let apollo_starknet_client = StarknetFeederGatewayClient::new(
+        url_base_str,
+        None,
+        NODE_VERSION,
+        get_test_config(),
+        false,
+    )
+    .unwrap();
     assert_eq!(
         apollo_starknet_client.urls.get_block.as_str(),
         url_base_str.to_string() + "/" + GET_BLOCK_URL
@@ -660,4 +671,48 @@ async fn get_sequencer_public_key() {
     let pub_key = apollo_starknet_client.sequencer_pub_key().await.unwrap();
     mock_key.assert_async().await;
     assert_eq!(pub_key, expected_sequencer_pub_key);
+}
+
+#[tokio::test]
+async fn get_block_compressed_and_uncompressed_are_equal() {
+    use std::io::Write;
+
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+
+    let raw_block = read_resource_file("reader/block_post_0_14_0.json");
+
+    // Gzip-compress the response body.
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(raw_block.as_bytes()).unwrap();
+    let compressed_body = encoder.finish().unwrap();
+
+    // Fetch with compression enabled (gzip-encoded response).
+    let mut compressed_server = mockito::Server::new_async().await;
+    let compressed_client = apollo_starknet_client_with_compression(&compressed_server);
+    let mock_compressed = compressed_server
+        .mock("GET", get_block_url(Some(20)).as_str())
+        .match_header("accept-encoding", mockito::Matcher::Regex("gzip".to_string()))
+        .with_status(200)
+        .with_header("content-encoding", "gzip")
+        .with_body(compressed_body)
+        .create_async()
+        .await;
+    let block_from_compressed = compressed_client.block(BlockNumber(20)).await.unwrap().unwrap();
+    mock_compressed.assert_async().await;
+
+    // Fetch without compression (plain JSON response).
+    let mut plain_server = mockito::Server::new_async().await;
+    let plain_client = apollo_starknet_client(&plain_server);
+    let mock_plain = plain_server
+        .mock("GET", get_block_url(Some(20)).as_str())
+        .with_status(200)
+        .with_body(&raw_block)
+        .create_async()
+        .await;
+    let block_from_plain = plain_client.block(BlockNumber(20)).await.unwrap().unwrap();
+    mock_plain.assert_async().await;
+
+    // Both paths must produce the same result.
+    assert_eq!(block_from_compressed, block_from_plain);
 }

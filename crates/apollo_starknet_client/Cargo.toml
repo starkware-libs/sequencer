@@ -21,7 +21,7 @@ os_info.workspace = true
 papyrus_common.workspace = true
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
-reqwest = { workspace = true, features = ["blocking", "json"] }
+reqwest = { workspace = true, features = ["blocking", "gzip", "json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 serde_repr.workspace = true
@@ -39,6 +39,7 @@ url.workspace = true
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
 enum-iterator.workspace = true
+flate2.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 pretty_assertions.workspace = true
