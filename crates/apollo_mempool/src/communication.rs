@@ -138,6 +138,10 @@ impl MempoolCommunicationWrapper {
     fn mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
         self.mempool.mempool_snapshot()
     }
+
+    fn get_timestamp(&self) -> MempoolResult<u64> {
+        Ok(self.mempool.get_timestamp())
+    }
 }
 
 #[async_trait]
@@ -169,6 +173,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetMempoolSnapshot() => {
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
+            MempoolRequest::GetTimestamp => MempoolResponse::GetTimestamp(self.get_timestamp()),
         }
     }
 }
