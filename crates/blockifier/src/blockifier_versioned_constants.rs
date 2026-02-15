@@ -947,8 +947,7 @@ pub struct BuiltinGasCosts {
 }
 
 impl BuiltinGasCosts {
-    // TODO(AvivG): Make this function private and use get_cairo_primitive_gas_cost instead.
-    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
+    fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
         let gas_cost = match *builtin {
             BuiltinName::range_check => self.range_check,
             BuiltinName::pedersen => self.pedersen,
