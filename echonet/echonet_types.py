@@ -104,6 +104,7 @@ class SequencerGatewayEndpoints:
     """Sequencer gateway endpoint paths (relative to the gateway base URL)."""
 
     add_transaction: str = "/gateway/add_transaction"
+    update_timestamps: str = "/gateway/update_timestamps"
 
 
 @dataclass(frozen=True, slots=True)
