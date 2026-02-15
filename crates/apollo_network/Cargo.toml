@@ -48,15 +48,26 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 apollo_network_types = { workspace = true, features = ["testing"] }
+apollo_propeller.workspace = true
+apollo_signature_manager.workspace = true
 assert_matches.workspace = true
+blake2.workspace = true
 deadqueue = { workspace = true, features = ["unlimited"] }
 defaultmap.workspace = true
+divan.workspace = true
 libp2p-swarm-test.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+starknet-core.workspace = true
+starknet-crypto.workspace = true
+starknet_api.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
 waker-fn.workspace = true
+
+[[bench]]
+name = "signing_comparison"
+harness = false
 
 [lints]
 workspace = true
