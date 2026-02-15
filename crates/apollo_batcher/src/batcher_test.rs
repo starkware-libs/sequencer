@@ -26,13 +26,7 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
-<<<<<<< HEAD
-||||||| 63dac1e8a4
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
-=======
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
->>>>>>> origin/main-v0.14.1-committer
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
@@ -265,13 +259,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         committer_client,
         Arc::new(clients.l1_provider_client),
         Arc::new(clients.mempool_client),
-<<<<<<< HEAD
-||||||| 63dac1e8a4
-        TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
-=======
-        TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
         Arc::new(mock_config_manager),
->>>>>>> origin/main-v0.14.1-committer
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
         commitment_manager,

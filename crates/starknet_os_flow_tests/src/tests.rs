@@ -1212,24 +1212,12 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-<<<<<<< HEAD
             64
-||||||| 63dac1e8a4
-            58
-=======
-            59
->>>>>>> origin/main-v0.14.1-committer
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-<<<<<<< HEAD
             55
-||||||| 63dac1e8a4
-            49
-=======
-            50
->>>>>>> origin/main-v0.14.1-committer
         "#]]
         .assert_debug_eq(&poseidons);
     }

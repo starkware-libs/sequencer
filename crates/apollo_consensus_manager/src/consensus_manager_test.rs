@@ -73,12 +73,8 @@ async fn revert_batcher_blocks() {
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
             config_manager_client: config_manager,
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
-<<<<<<< HEAD
             proof_manager_client: Arc::new(MockProofManagerClient::new()),
-||||||| 63dac1e8a4
-=======
             committee_provider,
->>>>>>> origin/main-v0.14.1-committer
         },
         Arc::new(Mutex::new(mock_voted_height_storage)),
     );
@@ -164,12 +160,8 @@ async fn no_reverts_without_config() {
         signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
         config_manager_client: config_manager,
         l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
-<<<<<<< HEAD
         proof_manager_client: Arc::new(MockProofManagerClient::new()),
-||||||| 63dac1e8a4
-=======
         committee_provider,
->>>>>>> origin/main-v0.14.1-committer
     });
 
     // TODO(Shahak): try to solve this better (the test will take 100 milliseconds to run).

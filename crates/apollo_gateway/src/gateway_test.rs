@@ -6,12 +6,8 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
     GatewayConfig,
-<<<<<<< HEAD
     ProofArchiveWriterConfig,
-||||||| 63dac1e8a4
-=======
     GatewayStaticConfig,
->>>>>>> origin/main-v0.14.1-committer
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
@@ -133,22 +129,6 @@ fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTr
 #[fixture]
 fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
-<<<<<<< HEAD
-        stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
-        stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
-        contract_class_manager_config: ContractClassManagerConfig::default(),
-        chain_info: ChainInfo::create_for_testing(),
-        block_declare: false,
-        authorized_declarer_accounts: None,
-        proof_archive_writer_config: ProofArchiveWriterConfig::default(),
-||||||| 63dac1e8a4
-        stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
-        stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
-        contract_class_manager_config: ContractClassManagerConfig::default(),
-        chain_info: ChainInfo::create_for_testing(),
-        block_declare: false,
-        authorized_declarer_accounts: None,
-=======
         static_config: GatewayStaticConfig {
             stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
             stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
@@ -156,8 +136,8 @@ fn mock_dependencies() -> MockDependencies {
             chain_info: ChainInfo::create_for_testing(),
             block_declare: false,
             authorized_declarer_accounts: None,
+            proof_archive_writer_config: ProofArchiveWriterConfig::default(),
         },
->>>>>>> origin/main-v0.14.1-committer
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);

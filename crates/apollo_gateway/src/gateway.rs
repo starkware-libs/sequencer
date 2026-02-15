@@ -321,14 +321,8 @@ pub fn create_gateway(
     });
     let transaction_converter = Arc::new(TransactionConverter::new(
         class_manager_client,
-<<<<<<< HEAD
         proof_manager_client,
-        config.chain_info.chain_id.clone(),
-||||||| 63dac1e8a4
-        config.chain_info.chain_id.clone(),
-=======
         config.static_config.chain_info.chain_id.clone(),
->>>>>>> origin/main-v0.14.1-committer
     ));
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
         config: config.static_config.stateless_tx_validator_config.clone(),

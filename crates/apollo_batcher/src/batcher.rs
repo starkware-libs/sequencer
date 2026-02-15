@@ -142,13 +142,7 @@ pub struct Batcher {
     pub committer_client: SharedCommitterClient,
     pub l1_provider_client: SharedL1ProviderClient,
     pub mempool_client: SharedMempoolClient,
-<<<<<<< HEAD
-||||||| 63dac1e8a4
-    pub transaction_converter: TransactionConverter,
-=======
-    pub transaction_converter: TransactionConverter,
     pub config_manager_client: SharedConfigManagerClient,
->>>>>>> origin/main-v0.14.1-committer
 
     /// Used to create block builders.
     /// Using the factory pattern to allow for easier testing.
@@ -203,13 +197,7 @@ impl Batcher {
         committer_client: SharedCommitterClient,
         l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
-<<<<<<< HEAD
-||||||| 63dac1e8a4
-        transaction_converter: TransactionConverter,
-=======
-        transaction_converter: TransactionConverter,
         config_manager_client: SharedConfigManagerClient,
->>>>>>> origin/main-v0.14.1-committer
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
@@ -222,13 +210,7 @@ impl Batcher {
             committer_client,
             l1_provider_client,
             mempool_client,
-<<<<<<< HEAD
-||||||| 63dac1e8a4
-            transaction_converter,
-=======
-            transaction_converter,
             config_manager_client,
->>>>>>> origin/main-v0.14.1-committer
             block_builder_factory,
             pre_confirmed_block_writer_factory,
             active_height: None,
@@ -1341,12 +1323,8 @@ pub async fn create_batcher(
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
-<<<<<<< HEAD
     proof_manager_client: SharedProofManagerClient,
-||||||| 63dac1e8a4
-=======
     config_manager_client: SharedConfigManagerClient,
->>>>>>> origin/main-v0.14.1-committer
 ) -> Batcher {
     let storage_reader_server_config = ServerConfig {
         static_config: config.static_config.storage_reader_server_static_config.clone(),
@@ -1380,19 +1358,7 @@ pub async fn create_batcher(
         worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
-<<<<<<< HEAD
-    let storage_writer = Box::new(storage_writer);
-||||||| 63dac1e8a4
-    let storage_writer = Box::new(storage_writer);
-    let transaction_converter =
-        TransactionConverter::new(class_manager_client, config.storage.db_config.chain_id.clone());
-=======
     let mut storage_writer = Box::new(storage_writer);
-    let transaction_converter = TransactionConverter::new(
-        class_manager_client,
-        config.static_config.storage.db_config.chain_id.clone(),
-    );
->>>>>>> origin/main-v0.14.1-committer
 
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config.static_config.commitment_manager_config,
@@ -1409,13 +1375,7 @@ pub async fn create_batcher(
         committer_client,
         l1_provider_client,
         mempool_client,
-<<<<<<< HEAD
-||||||| 63dac1e8a4
-        transaction_converter,
-=======
-        transaction_converter,
         config_manager_client,
->>>>>>> origin/main-v0.14.1-committer
         block_builder_factory,
         pre_confirmed_block_writer_factory,
         commitment_manager,
