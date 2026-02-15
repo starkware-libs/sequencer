@@ -5,11 +5,11 @@ runs:
   using: "composite"
   steps:
     - name: Mount namespace cache volume for rust
-      uses: namespacelabs/namespace-profile-yoav-cache-testing-profile@v1
+      uses: namespacelabs/nscloud-cache-action@yoav/ci/caching/use_sccache
       with:
         path: /home/runner/.cargo
 
     - name: Mount namespace cache volume for python
-      uses: namespacelabs/namespace-profile-yoav-cache-testing-profile@v1
+      uses: namespacelabs/nscloud-cache-action@yoav/ci/caching/use_sccache
       with:
         cache: python
