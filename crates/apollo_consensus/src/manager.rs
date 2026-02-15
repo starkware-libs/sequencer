@@ -188,7 +188,7 @@ pub enum RunHeightRes {
 
 type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 
-// TODO(guyn): remove allow dead code once we use the duplicate vote report.
+// TODO(guyn): remove allow(dead_code) once we use this struct.
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct EquivocationVoteReport {
