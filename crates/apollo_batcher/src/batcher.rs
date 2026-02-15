@@ -1272,13 +1272,26 @@ impl Batcher {
 
     pub fn get_block_hash(&mut self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
         self.get_commitment_results_and_write_to_storage()?;
-        self.storage_reader
+        let cache = &mut self.commitment_manager.recent_block_hashes_cache;
+
+        // Try to get the block hash from the cache.
+        if let Some(block_hash) = cache.get(&block_number) {
+            return Ok(*block_hash);
+        }
+
+        // If the block hash is not in the cache, fetch it from storage.
+        info!("Block hash of block {block_number} not found in cache, fetching from storage.");
+        // TODO(Nimrod): Consider adding block-hashes cache misses metric.
+        let block_hash = self
+            .storage_reader
             .get_block_hash(block_number)
             .map_err(|err| {
                 error!("Failed to get block hash from storage: {err}");
                 BatcherError::InternalError
             })?
-            .ok_or(BatcherError::BlockHashNotFound(block_number))
+            .ok_or(BatcherError::BlockHashNotFound(block_number))?;
+        cache.put(block_number, block_hash);
+        Ok(block_hash)
     }
 
     fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {

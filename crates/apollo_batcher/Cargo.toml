@@ -36,6 +36,7 @@ cairo-vm.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+lru.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
 starknet_api.workspace = true
