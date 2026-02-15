@@ -17,6 +17,7 @@ use proving_utils::stwo_run_and_prove::{
 };
 use starknet_api::transaction::fields::Proof;
 use tempfile::NamedTempFile;
+use tracing::info;
 
 use crate::errors::ProvingError;
 
@@ -91,7 +92,13 @@ pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingEr
     let config = StwoRunAndProveConfig { proof_format: ProofFormat::Binary, ..Default::default() };
 
     // Run the prover.
-    run_stwo_run_and_prove(&input, &config).await?;
+    let prover_output = run_stwo_run_and_prove(&input, &config).await?;
+
+    // Log the bootloader execution resources from the prover's stderr.
+    // The stwo adapter logs step counts, builtin segments, and opcode counts there.
+    if !prover_output.stderr.is_empty() {
+        info!(stderr = %prover_output.stderr, "Bootloader execution output");
+    }
 
     // Read and decompress the proof.
     let proof_bytes = ProofBytes::from_file(&proof_path).map_err(ProvingError::ReadProof)?;
