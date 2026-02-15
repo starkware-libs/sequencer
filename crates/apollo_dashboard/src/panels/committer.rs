@@ -40,14 +40,17 @@ fn average_per_block_panel(
     description: impl ToString,
     numerator: &dyn MetricQueryName,
     log_query: Option<&str>,
-    unit: Unit,
+    unit: Option<Unit>,
 ) -> Panel {
     let expr = format!(
         "{} / clamp_min({}, 1)",
         increase(numerator, "1m"),
         increase(&BLOCKS_COMMITTED, "1m"),
     );
-    let mut panel = Panel::new(name, description, expr, PanelType::TimeSeries).with_unit(unit);
+    let mut panel = Panel::new(name, description, expr, PanelType::TimeSeries);
+    if let Some(u) = unit {
+        panel = panel.with_unit(u);
+    }
     if let Some(q) = log_query {
         panel = panel.with_log_query(q);
     }
@@ -60,7 +63,7 @@ fn get_total_block_duration_panel() -> Panel {
         "Average total block duration over a 1m window",
         &TOTAL_BLOCK_DURATION,
         Some(BLOCK_DURATIONS_LOG_QUERY),
-        Unit::Milliseconds,
+        Some(Unit::Milliseconds),
     )
 }
 
@@ -70,7 +73,7 @@ fn get_total_block_duration_per_modification_panel() -> Panel {
         "Average total block duration per modification over a 1m window",
         &TOTAL_BLOCK_DURATION_PER_MODIFICATION,
         Some("total block duration per modification"),
-        Unit::Microseconds,
+        Some(Unit::Microseconds),
     )
 }
 
@@ -80,7 +83,7 @@ fn get_read_duration_per_block_panel() -> Panel {
         "Average read duration per block over a 1m window",
         &READ_DURATION_PER_BLOCK,
         Some(BLOCK_DURATIONS_LOG_QUERY),
-        Unit::Milliseconds,
+        Some(Unit::Milliseconds),
     )
 }
 
@@ -90,7 +93,7 @@ fn get_compute_duration_per_block_panel() -> Panel {
         "Average compute duration per block over a 1m window",
         &COMPUTE_DURATION_PER_BLOCK,
         Some(BLOCK_DURATIONS_LOG_QUERY),
-        Unit::Milliseconds,
+        Some(Unit::Milliseconds),
     )
 }
 
@@ -100,35 +103,38 @@ fn get_write_duration_per_block_panel() -> Panel {
         "Average write duration per block over a 1m window",
         &WRITE_DURATION_PER_BLOCK,
         Some(BLOCK_DURATIONS_LOG_QUERY),
-        Unit::Milliseconds,
+        Some(Unit::Milliseconds),
     )
 }
 
 fn get_average_read_rate_panel() -> Panel {
-    Panel::from_hist(
-        &AVERAGE_READ_RATE,
+    average_per_block_panel(
         "Average Read Rate (entries/sec)",
-        "Average read rate over a block",
+        "Average read rate over a 1m window (per block)",
+        &AVERAGE_READ_RATE,
+        Some(RATES_LOG_QUERY),
+        None,
     )
-    .with_log_query(RATES_LOG_QUERY)
 }
 
 fn get_average_compute_rate_panel() -> Panel {
-    Panel::from_hist(
-        &AVERAGE_COMPUTE_RATE,
+    average_per_block_panel(
         "Average Compute Rate (entries/sec)",
-        "Average compute rate over a block",
+        "Average compute rate over a 1m window (per block)",
+        &AVERAGE_COMPUTE_RATE,
+        Some(RATES_LOG_QUERY),
+        None,
     )
-    .with_log_query(RATES_LOG_QUERY)
 }
 
 fn get_average_write_rate_panel() -> Panel {
-    Panel::from_hist(
-        &AVERAGE_WRITE_RATE,
+    average_per_block_panel(
         "Average Write Rate (entries/sec)",
-        "Average write rate over a block",
+        "Average write rate over a 1m window (per block)",
+        &AVERAGE_WRITE_RATE,
+        Some(RATES_LOG_QUERY),
+        None,
     )
-    .with_log_query(RATES_LOG_QUERY)
 }
 
 fn get_count_storage_tries_modifications_per_block_panel() -> Panel {
