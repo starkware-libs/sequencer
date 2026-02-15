@@ -1,6 +1,6 @@
 //! Tests for the RPC records infrastructure.
 
-use crate::running::rpc_records::{MockRpcServer, RpcInteraction, RpcRecords};
+use crate::running::rpc_records::{MockRpcServer, RecordingProxy, RpcInteraction, RpcRecords};
 
 #[test]
 fn test_rpc_records_round_trip_serialization() {
@@ -93,4 +93,61 @@ async fn test_mock_server_matches_rpc_request() {
     assert_eq!(response.status(), 200);
     let body: serde_json::Value = response.json().await.unwrap();
     assert_eq!(body["result"], 42);
+}
+
+/// End-to-end test: record interactions through proxy, save to file, load, and replay.
+#[tokio::test]
+async fn test_record_save_load_replay_round_trip() {
+    // 1. Set up a mock backend.
+    let mut backend = mockito::Server::new_async().await;
+    let _mock = backend
+        .mock("POST", "/")
+        .match_body(mockito::Matcher::PartialJson(serde_json::json!({
+            "method": "starknet_getNonce"
+        })))
+        .with_status(200)
+        .with_header("content-type", "application/json")
+        .with_body(r#"{"jsonrpc":"2.0","id":0,"result":"0x42"}"#)
+        .create_async()
+        .await;
+
+    // 2. Record through proxy.
+    let proxy = RecordingProxy::new(&backend.url()).await;
+    let client = reqwest::Client::new();
+    client
+        .post(&proxy.url)
+        .json(&serde_json::json!({
+            "jsonrpc": "0.7",
+            "id": 0,
+            "method": "starknet_getNonce",
+            "params": {"block_id": "latest", "contract_address": "0x1"}
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    let records = proxy.into_records();
+
+    // 3. Save and reload.
+    let temp_dir = tempfile::tempdir().unwrap();
+    let path = temp_dir.path().join("recorded.json");
+    records.save(&path);
+    let loaded = RpcRecords::load(&path);
+
+    // 4. Replay using mock server.
+    let mock_server = MockRpcServer::new(&loaded).await;
+    let response = client
+        .post(mock_server.url())
+        .json(&serde_json::json!({
+            "jsonrpc": "0.7",
+            "id": 0,
+            "method": "starknet_getNonce",
+            "params": {"block_id": "latest", "contract_address": "0x1"}
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    let body: serde_json::Value = response.json().await.unwrap();
+    assert_eq!(body["result"], "0x42");
 }
