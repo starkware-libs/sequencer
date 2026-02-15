@@ -1,6 +1,7 @@
 name: Nightly Latest Dependencies Check
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "0 0 * * *" # Runs at 00:00 UTC every day
 
@@ -16,6 +17,19 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      # Python + requirements are needed to compile the OS.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
+      
       - name: Update Dependencies
         run: cargo update --verbose
       - name: Build
