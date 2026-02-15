@@ -16,12 +16,8 @@ use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
-#[cfg(any(feature = "testing", test))]
-use starknet_api::hash::HashOutput;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
-#[cfg(any(feature = "testing", test))]
-use starknet_committer::block_committer::commit::BlockCommitmentResult;
 use starknet_committer::block_committer::commit::CommitBlockTrait;
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
@@ -30,8 +26,6 @@ use starknet_committer::block_committer::measurements_util::{
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
-#[cfg(any(feature = "testing", test))]
-use starknet_committer::db::forest_trait::ForestReader;
 use starknet_committer::db::forest_trait::{
     EmptyInitialReadContext,
     ForestMetadataType,
@@ -44,8 +38,6 @@ use starknet_committer::db::serde_db_utils::{
     DbBlockNumber,
 };
 use starknet_committer::forest::filled_forest::FilledForest;
-#[cfg(any(feature = "testing", test))]
-use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
@@ -70,40 +62,6 @@ use crate::metrics::{
 #[cfg(test)]
 #[path = "committer_test.rs"]
 mod committer_test;
-
-// TODO(Yoav): Move this to committer_test.rs.
-#[cfg(any(feature = "testing", test))]
-pub struct CommitBlockMock;
-
-#[cfg(any(feature = "testing", test))]
-#[async_trait]
-impl CommitBlockTrait for CommitBlockMock {
-    /// Sets the class trie root hash to the first class hash in the state diff (sorted
-    /// deterministically).
-    async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Send>(
-        input: Input<Reader::InitialReadContext>,
-        _trie_reader: &mut Reader,
-        _measurements: &mut M,
-    ) -> BlockCommitmentResult<FilledForest> {
-        // Sort class hashes deterministically to ensure all nodes get the same "first" class hash
-        let mut sorted_class_hashes: Vec<_> =
-            input.state_diff.class_hash_to_compiled_class_hash.keys().collect();
-        sorted_class_hashes.sort();
-
-        let root_class_hash = match sorted_class_hashes.first() {
-            Some(class_hash) => HashOutput(class_hash.0),
-            None => HashOutput::ROOT_OF_EMPTY_TREE,
-        };
-        Ok(FilledForest {
-            storage_tries: HashMap::new(),
-            contracts_trie: FilledTreeImpl {
-                tree_map: HashMap::new(),
-                root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
-            },
-            classes_trie: FilledTreeImpl { tree_map: HashMap::new(), root_hash: root_class_hash },
-        })
-    }
-}
 
 pub type ApolloCommitterDb = IndexDb<ApolloStorage>;
 
