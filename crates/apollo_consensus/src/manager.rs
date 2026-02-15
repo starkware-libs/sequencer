@@ -21,7 +21,7 @@ use apollo_consensus_config::config::{
 use apollo_infra_utils::debug_every_n_ms;
 use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote, VoteType};
+use apollo_protobuf::consensus::{BuildParam, ProposalInit, SignedProposalPart, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_staking::committee_provider::{CommitteeProvider, CommitteeTrait};
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
@@ -110,7 +110,7 @@ pub async fn run_consensus<ContextT>(
     run_consensus_args: RunConsensusArguments,
     mut context: ContextT,
     mut vote_receiver: BroadcastVoteChannel,
-    mut proposals_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+    mut proposals_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::SignedProposalPart>>,
 ) -> Result<(), ConsensusError>
 where
     ContextT: ConsensusContext,
@@ -195,7 +195,7 @@ struct ConsensusCache<ContextT: ConsensusContext> {
     future_votes: BTreeMap<BlockNumber, Vec<Vote>>,
     // Mapping: { Height : { Round : (BlockInfo, Receiver)}}
     future_proposals_cache:
-        BTreeMap<BlockNumber, BTreeMap<Round, ProposalReceiverTuple<ContextT::ProposalPart>>>,
+        BTreeMap<BlockNumber, BTreeMap<Round, ProposalReceiverTuple<ContextT::SignedProposalPart>>>,
     /// Configuration for determining which messages should be cached.
     future_msg_limit: FutureMsgLimitsConfig,
 }
@@ -239,7 +239,7 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
     fn get_current_height_proposals(
         &mut self,
         height: BlockNumber,
-    ) -> Vec<(ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)> {
+    ) -> Vec<(ProposalInit, mpsc::Receiver<ContextT::SignedProposalPart>)> {
         loop {
             let Some(entry) = self.future_proposals_cache.first_entry() else {
                 return Vec::new();
@@ -272,7 +272,7 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
     fn cache_future_proposal(
         &mut self,
         init: ProposalInit,
-        content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+        content_receiver: mpsc::Receiver<ContextT::SignedProposalPart>,
     ) {
         self.future_proposals_cache
             .entry(init.height)
@@ -367,7 +367,7 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     committee_provider: Arc<dyn CommitteeProvider>,
     // Proposal content streams keyed by (height, round)
     current_height_proposals_streams:
-        BTreeMap<(BlockNumber, Round), mpsc::Receiver<ContextT::ProposalPart>>,
+        BTreeMap<(BlockNumber, Round), mpsc::Receiver<ContextT::SignedProposalPart>>,
     cache: ConsensusCache<ContextT>,
 }
 
@@ -423,7 +423,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         broadcast_channels: &mut BroadcastVoteChannel,
-        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::SignedProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         info!("Running consensus for height {}.", height);
 
@@ -484,7 +484,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         broadcast_channels: &mut BroadcastVoteChannel,
-        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::SignedProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
         self.cache.report_max_cached_block_number_metric(height);
@@ -629,7 +629,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: &mut SingleHeightConsensus,
         shc_events: &mut FuturesUnordered<BoxFuture<'static, StateMachineEvent>>,
         broadcast_channels: &mut BroadcastVoteChannel,
-        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::SignedProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         let clock = DefaultClock;
         let sync_retry_interval = self.consensus_config.dynamic_config.sync_retry_interval;
@@ -685,7 +685,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &mut self,
         height: BlockNumber,
         broadcast_channels: &mut BroadcastVoteChannel,
-        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::SignedProposalPart>>,
     ) -> Result<(), ConsensusError> {
         // Clear any existing votes and proposals for previous heights as well as the current just
         // completed height using the dedicated cache manager.
@@ -715,7 +715,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &mut self,
         height: BlockNumber,
         shc: Option<&mut SingleHeightConsensus>,
-        mut content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+        mut content_receiver: mpsc::Receiver<ContextT::SignedProposalPart>,
     ) -> Result<Requests, ConsensusError> {
         CONSENSUS_PROPOSALS_RECEIVED.increment(1);
         // Get the first message to verify the init was sent.
@@ -727,7 +727,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             return Ok(VecDeque::new());
         };
 
-        let init: ProposalInit = match first_part.try_into() {
+        let signed: SignedProposalPart = match first_part.try_into() {
+            Ok(s) => s,
+            Err(_) => {
+                warn!("Failed to parse incoming proposal part. Dropping proposal.");
+                return Ok(VecDeque::new());
+            }
+        };
+        let init: ProposalInit = match signed.try_into() {
             Ok(init) => init,
             Err(e) => {
                 warn!("Failed to parse incoming init. Dropping proposal: {e}");
@@ -807,7 +814,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
         init: ProposalInit,
-        content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+        content_receiver: mpsc::Receiver<ContextT::SignedProposalPart>,
     ) -> Requests {
         // Store the stream; requests will reference it by (height, round)
         self.current_height_proposals_streams.insert((height, init.round), content_receiver);

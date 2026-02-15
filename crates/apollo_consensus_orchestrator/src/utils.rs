@@ -10,7 +10,7 @@ use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
-use apollo_protobuf::consensus::{ProposalInit, ProposalPart};
+use apollo_protobuf::consensus::{ProposalInit, SignedProposalPart};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
@@ -39,11 +39,11 @@ use crate::metrics::{
 };
 
 pub(crate) struct StreamSender {
-    pub proposal_sender: mpsc::Sender<ProposalPart>,
+    pub proposal_sender: mpsc::Sender<SignedProposalPart>,
 }
 
 impl StreamSender {
-    pub async fn send(&mut self, proposal_part: ProposalPart) -> Result<(), mpsc::SendError> {
+    pub async fn send(&mut self, proposal_part: SignedProposalPart) -> Result<(), mpsc::SendError> {
         self.proposal_sender.send(proposal_part).await
     }
 }

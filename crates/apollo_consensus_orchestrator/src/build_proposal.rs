@@ -20,7 +20,7 @@ use apollo_protobuf::consensus::{
     BuildParam,
     ProposalFin,
     ProposalInit,
-    ProposalPart,
+    SignedProposalPart,
     TransactionBatch,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
@@ -110,7 +110,7 @@ pub(crate) async fn build_proposal(
     let height = init.height;
 
     args.stream_sender
-        .send(ProposalPart::Init(init.clone()))
+        .send(SignedProposalPart::init(init.clone()))
         .await
         .map_err(|e| BuildProposalError::SendError(format!("Failed to send init: {e:?}")))?;
 
@@ -247,7 +247,7 @@ async fn get_proposal_content(
 
                 trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
                 args.stream_sender
-                    .send(ProposalPart::Transactions(TransactionBatch { transactions }))
+                    .send(SignedProposalPart::transactions(TransactionBatch { transactions }))
                     .await
                     .map_err(|e| {
                         BuildProposalError::SendError(format!(
@@ -303,7 +303,7 @@ async fn get_proposal_content(
                     commitment_parts: None,
                 };
                 info!("Sending fin={fin:?}");
-                args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
+                args.stream_sender.send(SignedProposalPart::fin(fin)).await.map_err(|e| {
                     BuildProposalError::SendError(format!("Failed to send proposal fin: {e:?}"))
                 })?;
                 return Ok((proposal_commitment, content));

@@ -7,7 +7,9 @@ use apollo_protobuf::consensus::{
     BuildParam,
     ProposalCommitment,
     ProposalInit,
+    ProposalPart,
     Round,
+    SignedProposalPart,
     Vote,
     VoteType,
 };
@@ -40,43 +42,68 @@ pub struct TestBlock {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum TestProposalPart {
+pub enum TestSignedProposalPart {
     Init(ProposalInit),
     Invalid,
 }
 
-impl From<ProposalInit> for TestProposalPart {
+impl From<ProposalInit> for TestSignedProposalPart {
     fn from(init: ProposalInit) -> Self {
-        TestProposalPart::Init(init)
+        TestSignedProposalPart::Init(init)
     }
 }
 
-impl TryFrom<TestProposalPart> for ProposalInit {
+impl TryFrom<TestSignedProposalPart> for ProposalInit {
     type Error = ProtobufConversionError;
-    fn try_from(part: TestProposalPart) -> Result<Self, Self::Error> {
-        if let TestProposalPart::Init(init) = part {
+    fn try_from(part: TestSignedProposalPart) -> Result<Self, Self::Error> {
+        if let TestSignedProposalPart::Init(init) = part {
             return Ok(init);
         }
         Err(ProtobufConversionError::SerdeJsonError("Invalid proposal part".to_string()))
     }
 }
 
-impl From<TestProposalPart> for Vec<u8> {
-    fn from(part: TestProposalPart) -> Vec<u8> {
-        if let TestProposalPart::Init(init) = part {
+impl From<TestSignedProposalPart> for Vec<u8> {
+    fn from(part: TestSignedProposalPart) -> Vec<u8> {
+        if let TestSignedProposalPart::Init(init) = part {
             return init.into();
         }
         vec![]
     }
 }
 
-impl TryFrom<Vec<u8>> for TestProposalPart {
+impl TryFrom<Vec<u8>> for TestSignedProposalPart {
     type Error = ProtobufConversionError;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(TestProposalPart::Init(value.try_into()?))
+        Ok(TestSignedProposalPart::Init(value.try_into()?))
     }
 }
+
+impl TryFrom<TestSignedProposalPart> for SignedProposalPart {
+    type Error = ProtobufConversionError;
+
+    fn try_from(part: TestSignedProposalPart) -> Result<Self, Self::Error> {
+        match part {
+            TestSignedProposalPart::Init(init) => Ok(SignedProposalPart::init(init)),
+            TestSignedProposalPart::Invalid => {
+                Err(ProtobufConversionError::SerdeJsonError("Invalid proposal part".to_string()))
+            }
+        }
+    }
+}
+
+impl From<SignedProposalPart> for TestSignedProposalPart {
+    fn from(signed: SignedProposalPart) -> Self {
+        match signed.part {
+            ProposalPart::Init(init) => TestSignedProposalPart::Init(init),
+            _ => TestSignedProposalPart::Invalid,
+        }
+    }
+}
+
+/// Alias for tests that use the legacy name.
+pub type TestProposalPart = TestSignedProposalPart;
 
 // TODO(matan): When QSelf is supported, switch to automocking `ConsensusContext`.
 mock! {
@@ -84,7 +111,7 @@ mock! {
 
     #[async_trait]
     impl ConsensusContext for TestContext {
-        type ProposalPart = TestProposalPart;
+        type SignedProposalPart = TestSignedProposalPart;
 
         async fn build_proposal(
             &mut self,
@@ -96,7 +123,7 @@ mock! {
             &mut self,
             init: ProposalInit,
             timeout: Duration,
-            content: mpsc::Receiver<TestProposalPart>
+            content: mpsc::Receiver<TestSignedProposalPart>
         ) -> oneshot::Receiver<ProposalCommitment>;
 
         async fn repropose(

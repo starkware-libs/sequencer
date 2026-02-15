@@ -88,4 +88,5 @@ message ProposalPart {
         ProposalFin fin               = 2;
         TransactionBatch transactions = 3;
     }
+    Hashes signature = 4;
 }

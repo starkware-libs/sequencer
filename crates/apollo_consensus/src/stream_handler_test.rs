@@ -4,7 +4,12 @@ use std::fmt::Display;
 use apollo_consensus_config::config::StreamHandlerConfig;
 use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
+use apollo_protobuf::consensus::{
+    ProposalInit,
+    ProposalPart,
+    SignedProposalPart,
+    StreamMessageBody,
+};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::mpsc::{self, Receiver, SendError, Sender};
@@ -54,7 +59,7 @@ impl Display for TestStreamId {
     }
 }
 
-type StreamMessage = apollo_protobuf::consensus::StreamMessage<ProposalPart, TestStreamId>;
+type StreamMessage = apollo_protobuf::consensus::StreamMessage<SignedProposalPart, TestStreamId>;
 
 struct FakeBroadcastClient {
     sender: Sender<StreamMessage>,
@@ -81,14 +86,14 @@ impl BroadcastTopicClientTrait<StreamMessage> for FakeBroadcastClient {
 #[allow(clippy::type_complexity)]
 fn setup() -> (
     StreamHandler<
-        ProposalPart,
+        SignedProposalPart,
         TestStreamId,
         Receiver<ReceivedBroadcastedMessage<StreamMessage>>,
         FakeBroadcastClient,
     >,
     Sender<ReceivedBroadcastedMessage<StreamMessage>>,
-    Receiver<Receiver<ProposalPart>>,
-    Sender<(TestStreamId, Receiver<ProposalPart>)>,
+    Receiver<Receiver<SignedProposalPart>>,
+    Sender<(TestStreamId, Receiver<SignedProposalPart>)>,
     Receiver<StreamMessage>,
 ) {
     let (inbound_internal_sender, streamhandler_to_client_receiver) =
@@ -119,7 +124,7 @@ fn setup() -> (
 
 fn build_init_message(round: u32, stream_id: u64, message_id: u32) -> StreamMessage {
     StreamMessage {
-        message: StreamMessageBody::Content(ProposalPart::Init(ProposalInit {
+        message: StreamMessageBody::Content(SignedProposalPart::init(ProposalInit {
             round,
             ..Default::default()
         })),
@@ -162,7 +167,7 @@ async fn outbound_single() {
 
     // Send the content of the stream.
     for i in 0..num_messages {
-        let block_info = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
+        let block_info = SignedProposalPart::init(ProposalInit { round: i, ..Default::default() });
         sender.send(block_info).await.unwrap();
     }
 
@@ -210,7 +215,8 @@ async fn outbound_multiple() {
     for stream_id in 0..num_streams {
         let sender = stream_senders.get_mut(as_usize(stream_id)).unwrap();
         for i in 0..num_messages {
-            let block_info = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
+            let block_info =
+                SignedProposalPart::init(ProposalInit { round: i, ..Default::default() });
             sender.send(block_info).await.unwrap();
         }
     }
@@ -267,7 +273,10 @@ async fn inbound_in_order() {
     let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
     for i in 0..num_messages {
         let message = receiver.next().await.unwrap();
-        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+        assert_eq!(
+            message.part,
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
+        );
     }
     // Check that the receiver was closed:
     assert!(matches!(receiver.try_next(), Ok(None)));
@@ -302,7 +311,10 @@ async fn lru_cache_for_inbound_streams() {
         let message = receiver.next().await.unwrap();
         assert_eq!(
             message,
-            ProposalPart::Init(ProposalInit { round: i.try_into().unwrap(), ..Default::default() })
+            SignedProposalPart::init(ProposalInit {
+                round: i.try_into().unwrap(),
+                ..Default::default()
+            })
         );
         if i == 0 {
             // This stream was reopened, but it should only have one message, and left open.
@@ -351,7 +363,7 @@ async fn inbound_multiple() {
             expected_msgs
                 .get_mut(as_usize(sid))
                 .unwrap()
-                .push(ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+                .push(SignedProposalPart::init(ProposalInit { round: i, ..Default::default() }));
         }
         // Check that the receiver was closed:
         assert!(matches!(receiver.try_next(), Ok(None)));
@@ -396,7 +408,10 @@ async fn inbound_delayed_first() {
     // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
     for i in 0..num_messages {
         let message = receiver.next().await.unwrap();
-        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+        assert_eq!(
+            message.part,
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
+        );
     }
     // Check that the receiver was closed:
     assert!(matches!(receiver.try_next(), Ok(None)));
@@ -433,7 +448,10 @@ async fn inbound_delayed_middle() {
     let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
     for i in 0..missing_message_id {
         let message = receiver.next().await.unwrap();
-        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+        assert_eq!(
+            message.part,
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
+        );
     }
 
     // Send the missing message now.
@@ -446,7 +464,10 @@ async fn inbound_delayed_middle() {
     // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
     for i in missing_message_id..num_messages {
         let message = receiver.next().await.unwrap();
-        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+        assert_eq!(
+            message.part,
+            ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
+        );
     }
     // Check that the receiver was closed:
     assert!(matches!(receiver.try_next(), Ok(None)));

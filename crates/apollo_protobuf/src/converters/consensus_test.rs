@@ -15,6 +15,7 @@ use crate::consensus::{
     ProposalFin,
     ProposalInit,
     ProposalPart,
+    SignedProposalPart,
     StreamMessage,
     StreamMessageBody,
     TransactionBatch,
@@ -50,14 +51,14 @@ fn add_gas_values_to_transaction(transactions: &mut [ConsensusTransaction]) {
 fn convert_stream_message_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
-    // Test that we can convert a StreamMessage with a ProposalPart message to bytes and back.
-    let mut stream_message: StreamMessage<ProposalPart, TestStreamId> =
+    // Test that we can convert a StreamMessage with a SignedProposalPart message to bytes and back.
+    let mut stream_message: StreamMessage<SignedProposalPart, TestStreamId> =
         StreamMessage::get_test_instance(&mut rng);
 
-    if let StreamMessageBody::Content(ProposalPart::Transactions(proposal)) =
-        &mut stream_message.message
-    {
-        add_gas_values_to_transaction(&mut proposal.transactions);
+    if let StreamMessageBody::Content(signed) = &mut stream_message.message {
+        if let ProposalPart::Transactions(ref mut batch) = signed.part {
+            add_gas_values_to_transaction(&mut batch.transactions);
+        }
     }
 
     let bytes_data: Vec<u8> = stream_message.clone().into();
@@ -115,14 +116,14 @@ fn convert_proposal_fin_to_vec_u8_and_back() {
 fn convert_proposal_part_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
-    let mut proposal_part = ProposalPart::get_test_instance(&mut rng);
+    let mut proposal_part = SignedProposalPart::get_test_instance(&mut rng);
 
-    if let ProposalPart::Transactions(ref mut transaction_batch) = proposal_part {
+    if let ProposalPart::Transactions(ref mut transaction_batch) = proposal_part.part {
         add_gas_values_to_transaction(&mut transaction_batch.transactions);
     }
 
     let bytes_data: Vec<u8> = proposal_part.clone().into();
-    let res_data = ProposalPart::try_from(bytes_data).unwrap();
+    let res_data = SignedProposalPart::try_from(bytes_data).unwrap();
     assert_eq!(proposal_part, res_data);
 }
 
@@ -131,7 +132,7 @@ fn stream_message_display() {
     let mut rng = get_rng();
     let stream_id = TestStreamId(42);
     let message_id = 127;
-    let proposal = ProposalPart::get_test_instance(&mut rng);
+    let proposal = SignedProposalPart::get_test_instance(&mut rng);
     let proposal_bytes: Vec<u8> = proposal.clone().into();
     let proposal_length = proposal_bytes.len();
     let content = StreamMessageBody::Content(proposal);
@@ -146,7 +147,7 @@ fn stream_message_display() {
         )
     );
 
-    let content: StreamMessageBody<ProposalPart> = StreamMessageBody::Fin;
+    let content: StreamMessageBody<SignedProposalPart> = StreamMessageBody::Fin;
     let message = StreamMessage { message: content, stream_id, message_id };
     let txt = message.to_string();
     assert_eq!(

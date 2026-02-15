@@ -18,6 +18,7 @@ use crate::consensus::{
     ProposalFin,
     ProposalInit,
     ProposalPart,
+    SignedProposalPart,
     StreamMessage,
     StreamMessageBody,
     TransactionBatch,
@@ -115,15 +116,27 @@ impl Display for TestStreamId {
     }
 }
 
+impl GetTestInstance for SignedProposalPart {
+    fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
+        SignedProposalPart {
+            part: ProposalPart::get_test_instance(rng),
+            signature: RawSignature::default(),
+        }
+    }
+}
+
 // The auto_impl_get_test_instance macro does not work for StreamMessage because it has
 // a generic type.
 // TODO(guyn): try to make the macro work with generic types.
-impl GetTestInstance for StreamMessage<ProposalPart, TestStreamId> {
+impl GetTestInstance for StreamMessage<SignedProposalPart, TestStreamId> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
         let message = if rng.gen_bool(0.5) {
-            StreamMessageBody::Content(ProposalPart::Transactions(TransactionBatch {
-                transactions: vec![ConsensusTransaction::get_test_instance(rng)],
-            }))
+            StreamMessageBody::Content(SignedProposalPart {
+                part: ProposalPart::Transactions(TransactionBatch {
+                    transactions: vec![ConsensusTransaction::get_test_instance(rng)],
+                }),
+                signature: RawSignature::default(),
+            })
         } else {
             StreamMessageBody::Fin
         };

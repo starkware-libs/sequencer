@@ -31,7 +31,7 @@ use apollo_protobuf::consensus::{
     HeightAndRound,
     ProposalFin,
     ProposalInit,
-    ProposalPart,
+    SignedProposalPart,
     TransactionBatch,
     Vote,
 };
@@ -93,7 +93,7 @@ use crate::validate_proposal::{
     ValidateProposalError,
 };
 
-type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<ProposalPart>);
+type ValidationParams = (ProposalInit, Duration, mpsc::Receiver<SignedProposalPart>);
 
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
@@ -185,7 +185,8 @@ pub struct SequencerConsensusContextDeps {
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
     // Used to initiate new outbound proposal streams.
-    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+    pub outbound_proposal_sender:
+        mpsc::Sender<(HeightAndRound, mpsc::Receiver<SignedProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
     pub config_manager_client: Option<SharedConfigManagerClient>,
@@ -451,7 +452,7 @@ impl SequencerConsensusContext {
 
 #[async_trait]
 impl ConsensusContext for SequencerConsensusContext {
-    type ProposalPart = ProposalPart;
+    type SignedProposalPart = SignedProposalPart;
 
     #[instrument(skip_all)]
     async fn build_proposal(
@@ -569,7 +570,7 @@ impl ConsensusContext for SequencerConsensusContext {
         &mut self,
         init: ProposalInit,
         timeout: Duration,
-        content_receiver: mpsc::Receiver<Self::ProposalPart>,
+        content_receiver: mpsc::Receiver<Self::SignedProposalPart>,
     ) -> oneshot::Receiver<ProposalCommitment> {
         assert_eq!(Some(init.height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
@@ -829,7 +830,7 @@ impl SequencerConsensusContext {
         block_info_validation: BlockInfoValidation,
         timeout: Duration,
         batcher_timeout_margin: Duration,
-        content_receiver: mpsc::Receiver<ProposalPart>,
+        content_receiver: mpsc::Receiver<SignedProposalPart>,
         fin_sender: oneshot::Sender<ProposalCommitment>,
     ) {
         let proposal_id = ProposalId(self.proposal_id);
@@ -916,7 +917,7 @@ async fn send_reproposal(
     stream_sender: &mut StreamSender,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> Result<(), ReproposeError> {
-    stream_sender.send(ProposalPart::Init(init)).await?;
+    stream_sender.send(SignedProposalPart::init(init)).await?;
     let mut n_executed_txs: usize = 0;
     for batch in txs.iter() {
         let transactions = futures::future::join_all(batch.iter().map(|tx| {
@@ -927,14 +928,16 @@ async fn send_reproposal(
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
-        stream_sender.send(ProposalPart::Transactions(TransactionBatch { transactions })).await?;
+        stream_sender
+            .send(SignedProposalPart::transactions(TransactionBatch { transactions }))
+            .await?;
         n_executed_txs += batch.len();
     }
     let executed_transaction_count: u64 =
         n_executed_txs.try_into().expect("Number of executed transactions should fit in u64");
     let fin =
         ProposalFin { proposal_commitment: id, executed_transaction_count, commitment_parts: None };
-    stream_sender.send(ProposalPart::Fin(fin)).await?;
+    stream_sender.send(SignedProposalPart::fin(fin)).await?;
 
     Ok(())
 }

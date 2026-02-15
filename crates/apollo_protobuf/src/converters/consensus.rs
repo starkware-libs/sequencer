@@ -21,6 +21,7 @@ use crate::consensus::{
     ProposalFin,
     ProposalInit,
     ProposalPart,
+    SignedProposalPart,
     StreamMessage,
     StreamMessageBody,
     TransactionBatch,
@@ -336,7 +337,7 @@ impl From<ProposalFin> for protobuf::ProposalFin {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalFin, protobuf::ProposalFin);
 
-impl TryFrom<protobuf::ProposalPart> for ProposalPart {
+impl TryFrom<protobuf::ProposalPart> for SignedProposalPart {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::ProposalPart) -> Result<Self, Self::Error> {
         use protobuf::proposal_part::Message;
@@ -345,28 +346,29 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
             return Err(missing("part"));
         };
 
-        match part {
-            Message::Init(init) => Ok(ProposalPart::Init(init.try_into()?)),
-            Message::Fin(fin) => Ok(ProposalPart::Fin(fin.try_into()?)),
-            Message::Transactions(content) => Ok(ProposalPart::Transactions(content.try_into()?)),
-        }
+        let signature = value.signature.map(|h| h.try_into()).transpose()?.unwrap_or_default();
+
+        let part = match part {
+            Message::Init(init) => ProposalPart::Init(init.try_into()?),
+            Message::Fin(fin) => ProposalPart::Fin(fin.try_into()?),
+            Message::Transactions(content) => ProposalPart::Transactions(content.try_into()?),
+        };
+
+        Ok(SignedProposalPart { part, signature })
     }
 }
 
-impl From<ProposalPart> for protobuf::ProposalPart {
-    fn from(value: ProposalPart) -> Self {
-        match value {
-            ProposalPart::Init(init) => protobuf::ProposalPart {
-                message: Some(protobuf::proposal_part::Message::Init(init.into())),
-            },
-            ProposalPart::Fin(fin) => protobuf::ProposalPart {
-                message: Some(protobuf::proposal_part::Message::Fin(fin.into())),
-            },
-            ProposalPart::Transactions(content) => protobuf::ProposalPart {
-                message: Some(protobuf::proposal_part::Message::Transactions(content.into())),
-            },
-        }
+impl From<SignedProposalPart> for protobuf::ProposalPart {
+    fn from(value: SignedProposalPart) -> Self {
+        let message = match value.part {
+            ProposalPart::Init(init) => Some(protobuf::proposal_part::Message::Init(init.into())),
+            ProposalPart::Fin(fin) => Some(protobuf::proposal_part::Message::Fin(fin.into())),
+            ProposalPart::Transactions(content) => {
+                Some(protobuf::proposal_part::Message::Transactions(content.into()))
+            }
+        };
+        protobuf::ProposalPart { message, signature: Some(value.signature.into()) }
     }
 }
 
-auto_impl_into_and_try_from_vec_u8!(ProposalPart, protobuf::ProposalPart);
+auto_impl_into_and_try_from_vec_u8!(SignedProposalPart, protobuf::ProposalPart);
