@@ -17,6 +17,8 @@ use starknet_patricia_storage::storage_trait::{
     create_db_key,
     DbHashMap,
     DbKey,
+    DbKeyPrefix,
+    DbOperationMap,
     DbValue,
     PatriciaStorageResult,
     Storage,
@@ -33,12 +35,14 @@ use crate::db::forest_trait::{
     ForestMetadataType,
     ForestReader,
     ForestWriter,
+    ForestWriterWithMetadata,
     StorageInitializer,
 };
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
     IndexLayoutContractState,
     IndexLayoutStarknetStorageValue,
+    INDEX_LAYOUT_DB_KEY_SEPARATOR,
 };
 use crate::db::index_db::types::{
     EmptyNodeData,
@@ -46,6 +50,7 @@ use crate::db::index_db::types::{
     IndexLayoutSubTree,
     IndexNodeContext,
 };
+use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -165,6 +170,11 @@ impl DbLayout for IndexNodeLayout {
     type NodeLayout = IndexNodeLayout;
 }
 
+fn create_index_layout_db_key(prefix: DbKeyPrefix, node_index: NodeIndex) -> DbKey {
+    let suffix = node_index.0.to_be_bytes();
+    create_db_key(prefix, INDEX_LAYOUT_DB_KEY_SEPARATOR, &suffix)
+}
+
 // TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
 // create_xxx_trie.
 #[async_trait]
@@ -197,15 +207,13 @@ impl<S: Storage> ForestReader for IndexDb<S> {
         &mut self,
         _initial_read_context: Self::InitialReadContext,
     ) -> PatriciaStorageResult<StateRoots> {
-        let contracts_trie_root_key = create_db_key(
+        let contracts_trie_root_key = create_index_layout_db_key(
             IndexLayoutContractState::get_static_prefix(&EmptyKeyContext),
-            IndexLayoutContractState::DB_KEY_SEPARATOR,
-            &NodeIndex::ROOT.0.to_be_bytes(),
+            NodeIndex::ROOT,
         );
-        let classes_trie_root_key = create_db_key(
+        let classes_trie_root_key = create_index_layout_db_key(
             IndexLayoutCompiledClassHash::get_static_prefix(&EmptyKeyContext),
-            IndexLayoutCompiledClassHash::DB_KEY_SEPARATOR,
-            &NodeIndex::ROOT.0.to_be_bytes(),
+            NodeIndex::ROOT,
         );
 
         let roots = self.storage.mget(&[&contracts_trie_root_key, &classes_trie_root_key]).await?;
@@ -222,10 +230,10 @@ impl<S: Storage> ForestWriter for IndexDb<S> {
         serialize_forest::<IndexNodeLayout>(filled_forest)
     }
 
-    async fn write_updates(&mut self, updates: DbHashMap) -> usize {
+    async fn write_updates(&mut self, updates: DbOperationMap) -> usize {
         let n_updates = updates.len();
         self.storage
-            .mset(updates)
+            .multi_set_and_delete(updates)
             .await
             .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
         n_updates
@@ -261,6 +269,34 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
 
     async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
         Ok(self.storage.get(&db_key).await?)
+    }
+}
+
+impl<S: Storage> ForestWriterWithMetadata for IndexDb<S> {
+    fn serialize_deleted_nodes(deleted_nodes: &DeletedNodes) -> SerializationResult<Vec<DbKey>> {
+        let mut keys_to_delete = Vec::new();
+
+        // Classes trie deleted nodes.
+        for node_index in &deleted_nodes.classes_trie {
+            let prefix = IndexLayoutCompiledClassHash::get_static_prefix(&EmptyKeyContext);
+            keys_to_delete.push(create_index_layout_db_key(prefix, *node_index));
+        }
+
+        // Contracts trie deleted nodes.
+        for node_index in &deleted_nodes.contracts_trie {
+            let prefix = IndexLayoutContractState::get_static_prefix(&EmptyKeyContext);
+            keys_to_delete.push(create_index_layout_db_key(prefix, *node_index));
+        }
+
+        // Storage tries deleted nodes.
+        for (contract_address, node_indices) in &deleted_nodes.storage_tries {
+            for node_index in node_indices {
+                let prefix = IndexLayoutStarknetStorageValue::get_static_prefix(contract_address);
+                keys_to_delete.push(create_index_layout_db_key(prefix, *node_index));
+            }
+        }
+
+        Ok(keys_to_delete)
     }
 }
 
