@@ -96,16 +96,12 @@ pub async fn create_node_components(
             let pre_confirmed_cende_client = Arc::new(PreconfirmedCendeClient::new(
                 batcher_config.static_config.pre_confirmed_cende_config.clone(),
             ));
-<<<<<<< HEAD
             let proof_manager_client = clients
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
-||||||| 63dac1e8a4
-=======
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
->>>>>>> origin/main-v0.14.1-committer
             Some(
                 create_batcher(
                     batcher_config.clone(),
@@ -114,12 +110,8 @@ pub async fn create_node_components(
                     l1_provider_client,
                     class_manager_client,
                     pre_confirmed_cende_client,
-<<<<<<< HEAD
                     proof_manager_client,
-||||||| 63dac1e8a4
-=======
                     config_manager_client,
->>>>>>> origin/main-v0.14.1-committer
                 )
                 .await,
             )
@@ -206,18 +198,14 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
-<<<<<<< HEAD
             let proof_manager_client = clients
                 .get_proof_manager_shared_client()
                 .expect("Proof Manager client should be available");
-||||||| 63dac1e8a4
-=======
             let committee_provider = create_committee_provider(
                 consensus_manager_config,
                 state_sync_client.clone(),
                 config_manager_client.clone(),
             );
->>>>>>> origin/main-v0.14.1-committer
             Some(ConsensusManager::new(ConsensusManagerArgs {
                 config: consensus_manager_config.clone(),
                 batcher_client,
@@ -226,12 +214,8 @@ pub async fn create_node_components(
                 signature_manager_client,
                 config_manager_client,
                 l1_gas_price_provider: l1_gas_price_client,
-<<<<<<< HEAD
                 proof_manager_client,
-||||||| 63dac1e8a4
-=======
                 committee_provider,
->>>>>>> origin/main-v0.14.1-committer
             }))
         }
         ActiveComponentExecutionMode::Disabled => None,

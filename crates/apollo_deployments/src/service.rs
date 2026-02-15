@@ -75,26 +75,12 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "consensus_manager_config.network_config.port",
     "consensus_manager_config.staking_manager_config.dynamic_config.default_committee",
     "eth_fee_token_address",
-<<<<<<< HEAD
-    "gateway_config.authorized_declarer_accounts.#is_none",
-    "gateway_config.authorized_declarer_accounts",
-    "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
-    "gateway_config.proof_archive_writer_config.bucket_name",
-    "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap",
-    "gateway_config.stateless_tx_validator_config.min_gas_price",
-||||||| 63dac1e8a4
-    "gateway_config.authorized_declarer_accounts.#is_none",
-    "gateway_config.authorized_declarer_accounts",
-    "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
-    "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap",
-    "gateway_config.stateless_tx_validator_config.min_gas_price",
-=======
     "gateway_config.static_config.authorized_declarer_accounts.#is_none",
     "gateway_config.static_config.authorized_declarer_accounts",
     "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time",
+    "gateway_config.static_config.proof_archive_writer_config.bucket_name",
     "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap",
     "gateway_config.static_config.stateless_tx_validator_config.min_gas_price",
->>>>>>> origin/main-v0.14.1-committer
     "http_server_config.static_config.port",
     "mempool_config.dynamic_config.transaction_ttl",
     "mempool_p2p_config.network_config.advertised_multiaddr.#is_none",
