@@ -377,9 +377,9 @@ impl VersionedConstants {
     pub fn os_resources_for_tx_type(
         &self,
         tx_type: &TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
     ) -> ExecutionResources {
-        self.os_resources.resources_for_tx_type(tx_type, calldata_length)
+        self.os_resources.resources_for_tx_type(tx_type, extended_calldata_length)
     }
 
     pub fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
@@ -392,9 +392,11 @@ impl VersionedConstants {
         starknet_resources: &StarknetResources,
         use_kzg_da: bool,
     ) -> ExecutionResources {
+        let extended_calldata_length = starknet_resources.archival_data.calldata_length
+            + starknet_resources.archival_data.proof_facts_length;
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
-            starknet_resources.archival_data.calldata_length,
+            extended_calldata_length,
             starknet_resources.state.get_onchain_data_segment_length(),
             use_kzg_da,
         )
@@ -648,11 +650,12 @@ impl OsResources {
     fn get_additional_os_tx_resources(
         &self,
         tx_type: TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
         data_segment_length: usize,
         use_kzg_da: bool,
     ) -> ExecutionResources {
-        let mut os_additional_vm_resources = self.resources_for_tx_type(&tx_type, calldata_length);
+        let mut os_additional_vm_resources =
+            self.resources_for_tx_type(&tx_type, extended_calldata_length);
 
         if use_kzg_da {
             os_additional_vm_resources += &self.os_kzg_da_resources(data_segment_length);
@@ -702,12 +705,12 @@ impl OsResources {
     fn resources_for_tx_type(
         &self,
         tx_type: &TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
     ) -> ExecutionResources {
         let resources_vector = self.resources_params_for_tx_type(tx_type);
         &resources_vector.constant
             + &CallDataFactor::from(&resources_vector.calldata_factor)
-                .calculate_resources(calldata_length)
+                .calculate_resources(extended_calldata_length)
     }
 
     fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {

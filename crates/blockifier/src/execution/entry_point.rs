@@ -478,15 +478,17 @@ impl EntryPointExecutionContext {
         &mut self,
         validate_call_info: &Option<CallInfo>,
         tx_type: &TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
     ) -> usize {
         let validate_steps = validate_call_info
             .as_ref()
             .map(|call_info| call_info.resources.n_steps)
             .unwrap_or_default();
 
-        let overhead_steps =
-            self.versioned_constants().os_resources_for_tx_type(tx_type, calldata_length).n_steps;
+        let overhead_steps = self
+            .versioned_constants()
+            .os_resources_for_tx_type(tx_type, extended_calldata_length)
+            .n_steps;
         self.subtract_steps(validate_steps + overhead_steps)
     }
 
