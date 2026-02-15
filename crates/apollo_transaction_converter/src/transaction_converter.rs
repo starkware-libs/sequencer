@@ -85,7 +85,7 @@ pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
         tx: ConsensusTransaction,
-    ) -> TransactionConverterResult<InternalConsensusTransaction>;
+    ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerificationHandle>)>;
 
     async fn convert_internal_rpc_tx_to_rpc_tx(
         &self,
@@ -95,7 +95,7 @@ pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
-    ) -> TransactionConverterResult<InternalRpcTransaction>;
+    ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)>;
 
     async fn convert_internal_rpc_tx_to_executable_tx(
         &self,
@@ -182,16 +182,18 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
         tx: ConsensusTransaction,
-    ) -> TransactionConverterResult<InternalConsensusTransaction> {
+    ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerificationHandle>)>
+    {
         match tx {
             ConsensusTransaction::RpcTransaction(tx) => {
-                let internal_tx =
+                let (internal_tx, verification_handle) =
                     self.extract_proof_and_convert_rpc_tx_to_internal_rpc_tx(tx).await?;
-                Ok(InternalConsensusTransaction::RpcTransaction(internal_tx))
+                Ok((InternalConsensusTransaction::RpcTransaction(internal_tx), verification_handle))
             }
-            ConsensusTransaction::L1Handler(tx) => self
-                .convert_consensus_l1_handler_to_internal_l1_handler(tx)
-                .map(InternalConsensusTransaction::L1Handler),
+            ConsensusTransaction::L1Handler(tx) => {
+                let internal_tx = self.convert_consensus_l1_handler_to_internal_l1_handler(tx)?;
+                Ok((InternalConsensusTransaction::L1Handler(internal_tx), None))
+            }
         }
     }
 
@@ -250,17 +252,14 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
-    ) -> TransactionConverterResult<InternalRpcTransaction> {
-        let tx_without_hash = match tx {
+    ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)> {
+        let (tx_without_hash, verification_handle) = match tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
                 // Spawn proof verification task; storage happens in the caller after successful
                 // conversion/validation.
                 let verification_handle =
                     self.spawn_proof_verification(&tx.proof_facts, &tx.proof)?;
-                if let Some(handle) = verification_handle {
-                    handle.verification_task.await.unwrap()?;
-                }
-                InternalRpcTransactionWithoutTxHash::Invoke(tx.into())
+                (InternalRpcTransactionWithoutTxHash::Invoke(tx.into()), verification_handle)
             }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
                 let ClassHashes { class_hash, executable_class_hash_v2 } =
@@ -276,33 +275,39 @@ impl TransactionConverterTrait for TransactionConverter {
                         },
                     ));
                 }
-                InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
-                    sender_address: tx.sender_address,
-                    compiled_class_hash: tx.compiled_class_hash,
-                    signature: tx.signature,
-                    nonce: tx.nonce,
-                    class_hash,
-                    resource_bounds: tx.resource_bounds,
-                    tip: tx.tip,
-                    paymaster_data: tx.paymaster_data,
-                    account_deployment_data: tx.account_deployment_data,
-                    nonce_data_availability_mode: tx.nonce_data_availability_mode,
-                    fee_data_availability_mode: tx.fee_data_availability_mode,
-                })
+                (
+                    InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
+                        sender_address: tx.sender_address,
+                        compiled_class_hash: tx.compiled_class_hash,
+                        signature: tx.signature,
+                        nonce: tx.nonce,
+                        class_hash,
+                        resource_bounds: tx.resource_bounds,
+                        tip: tx.tip,
+                        paymaster_data: tx.paymaster_data,
+                        account_deployment_data: tx.account_deployment_data,
+                        nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                        fee_data_availability_mode: tx.fee_data_availability_mode,
+                    }),
+                    None,
+                )
             }
             RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
                 let contract_address = tx.calculate_contract_address()?;
-                InternalRpcTransactionWithoutTxHash::DeployAccount(
-                    InternalRpcDeployAccountTransaction {
-                        tx: RpcDeployAccountTransaction::V3(tx),
-                        contract_address,
-                    },
+                (
+                    InternalRpcTransactionWithoutTxHash::DeployAccount(
+                        InternalRpcDeployAccountTransaction {
+                            tx: RpcDeployAccountTransaction::V3(tx),
+                            contract_address,
+                        },
+                    ),
+                    None,
                 )
             }
         };
         let tx_hash = tx_without_hash.calculate_transaction_hash(&self.chain_id)?;
 
-        Ok(InternalRpcTransaction { tx: tx_without_hash, tx_hash })
+        Ok((InternalRpcTransaction { tx: tx_without_hash, tx_hash }, verification_handle))
     }
 
     async fn convert_internal_rpc_tx_to_executable_tx(
@@ -379,7 +384,7 @@ impl TransactionConverter {
     async fn extract_proof_and_convert_rpc_tx_to_internal_rpc_tx(
         &self,
         tx: RpcTransaction,
-    ) -> TransactionConverterResult<InternalRpcTransaction> {
+    ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)> {
         // Extract proof and proof facts from v3 invoke transaction before conversion.
         let proof_data = match &tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
@@ -391,7 +396,7 @@ impl TransactionConverter {
             }
             _ => None,
         };
-        let internal_tx = self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
+        let (internal_tx, verification_handle) = self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
         if let Some((proof_facts, proof)) = proof_data {
             let proof_manager_store_start = Instant::now();
             self.proof_manager_client.set_proof(proof_facts, proof).await?;
@@ -402,7 +407,7 @@ impl TransactionConverter {
                  tx hash: {tx_hash:?}"
             );
         }
-        Ok(internal_tx)
+        Ok((internal_tx, verification_handle))
     }
     fn spawn_proof_verification(
         &self,
