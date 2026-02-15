@@ -6,7 +6,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - edited
     paths:
       - ".github/actions/bootstrap/action.yml"
       - ".github/workflows/blockifier_ci.yml"
