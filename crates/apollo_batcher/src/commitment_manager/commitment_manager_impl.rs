@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{
@@ -49,7 +47,6 @@ const TASK_SEND_RETRY_DELAY: Duration = Duration::from_millis(100);
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
 pub(crate) type ApolloCommitmentManager = CommitmentManager<StateCommitter>;
 
-#[allow(dead_code)]
 /// Encapsulates the block hash calculation logic.
 // TODO(Amos): Add storage reader & storage writer fields.
 pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
@@ -57,6 +54,7 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) results_receiver: Receiver<CommitterTaskOutput>,
     pub(crate) config: CommitmentManagerConfig,
     pub(crate) commitment_task_offset: BlockNumber,
+    #[allow(dead_code)]
     pub(crate) state_committer: S,
     pub(crate) task_timer: TaskTimer,
 }
@@ -65,13 +63,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     // Public methods.
 
     /// Creates and initializes the commitment manager.
-    pub(crate) async fn create_commitment_manager<
-        R: BatcherStorageReader + ?Sized,
-        W: BatcherStorageWriter + ?Sized,
-    >(
+    pub(crate) async fn create_commitment_manager<R: BatcherStorageReader + ?Sized>(
         commitment_manager_config: &CommitmentManagerConfig,
         storage_reader: Arc<R>,
-        storage_writer: &mut Box<W>,
         committer_client: SharedCommitterClient,
     ) -> Self {
         let global_root_height = storage_reader

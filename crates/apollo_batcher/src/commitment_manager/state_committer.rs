@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables, unused_mut)]
-
 use std::time::Duration;
 
 use apollo_committer_types::committer_types::{CommitBlockRequest, RevertBlockRequest};
@@ -24,11 +22,14 @@ pub(crate) trait StateCommitterTrait {
         results_sender: Sender<CommitterTaskOutput>,
         committer_client: SharedCommitterClient,
     ) -> Self;
+
+    #[allow(dead_code)]
     /// Returns a handle to the thread performing commitment tasks.
     fn get_handle(&self) -> &JoinHandle<()>;
 }
 
 pub(crate) struct StateCommitter {
+    #[allow(dead_code)]
     task_performer_handle: JoinHandle<()>,
 }
 
@@ -52,7 +53,7 @@ impl StateCommitter {
     /// Performs the tasks in the channel. Retries at recoverable errors.
     pub(crate) async fn perform_tasks(
         mut tasks_receiver: Receiver<CommitterTaskInput>,
-        mut results_sender: Sender<CommitterTaskOutput>,
+        results_sender: Sender<CommitterTaskOutput>,
         committer_client: SharedCommitterClient,
     ) {
         // TODO(Yoav): Test this function.
