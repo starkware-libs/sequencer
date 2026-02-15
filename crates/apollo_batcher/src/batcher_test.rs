@@ -27,6 +27,7 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
+use apollo_committer_types::committer_types::CommitBlockRequest;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
@@ -42,7 +43,7 @@ use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use indexmap::{indexmap, IndexMap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
-use mockall::predicate::eq;
+use mockall::predicate::{always, eq};
 use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
@@ -79,6 +80,7 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::commitment_manager::commitment_manager_impl::CommitmentManager;
+use crate::commitment_manager::types::CommitterTaskInput;
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
     BUILDING_HEIGHT,
@@ -93,12 +95,14 @@ use crate::metrics::{
     SYNCED_TRANSACTIONS,
 };
 use crate::test_utils::{
+    get_number_of_items_in_channel_from_receiver,
     propose_block_input,
     test_contract_nonces,
     test_l1_handler_txs,
     test_state_diff,
     test_txs,
     verify_indexed_execution_infos,
+    wait_for_n_items,
     FakeProposeBlockBuilder,
     FakeValidateBlockBuilder,
     MockClients,
@@ -1616,7 +1620,7 @@ async fn get_block_hash() {
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Ok(Some(BlockHash::default())));
 
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Ok(BlockHash::default()));
 }
@@ -1629,9 +1633,57 @@ async fn get_block_hash_not_found() {
         .expect_get_block_hash()
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Ok(None));
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Err(BatcherError::BlockHashNotFound(INITIAL_HEIGHT)));
+}
+
+#[tokio::test]
+async fn get_block_hash_after_reading_commitment_results() {
+    let mut mock_dependencies = MockDependencies::default();
+    let block_hash = BlockHash::default();
+
+    // Should be called by the commitment manager when finalizing results and writing them to
+    // storage.
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT))
+        .returning(|height| {
+            let partial = PartialBlockHashComponents { block_number: height, ..Default::default() };
+            Ok((Some(BlockHash::default()), Some(partial)))
+        });
+    mock_dependencies
+        .storage_writer
+        .expect_set_global_root_and_block_hash()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT), eq(GlobalRoot::default()), always())
+        .returning(|_, _, _| Ok(()));
+
+    mock_dependencies
+        .storage_reader
+        .expect_get_block_hash()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT))
+        .returning(move |_| Ok(Some(block_hash)));
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+
+    // Send a commitment task directly to the state committer so a result will be available.
+    let task = CommitterTaskInput::Commit(CommitBlockRequest {
+        height: INITIAL_HEIGHT,
+        state_diff: ThinStateDiff::default(),
+        state_diff_commitment: None,
+    });
+    batcher.commitment_manager.tasks_sender.send(task).await.unwrap();
+    wait_for_n_items(&mut batcher.commitment_manager.results_receiver, 1).await;
+
+    let result = batcher.get_block_hash(INITIAL_HEIGHT);
+    assert_eq!(result, Ok(block_hash));
+    assert_eq!(
+        get_number_of_items_in_channel_from_receiver(&batcher.commitment_manager.results_receiver),
+        0
+    );
 }
 
 #[tokio::test]
@@ -1642,7 +1694,7 @@ async fn get_block_hash_error() {
         .expect_get_block_hash()
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Err(StorageError::InnerError(DbError::InnerDeserialization)));
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Err(BatcherError::InternalError));
 }

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -33,7 +34,8 @@ use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::{Receiver, Sender, UnboundedSender};
+use tokio::time::sleep;
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::block_builder::{
@@ -321,4 +323,35 @@ impl Default for MockDependencies {
             batcher_config,
         }
     }
+}
+
+pub async fn wait_for_condition<F>(mut condition: F, error_message: &str)
+where
+    F: FnMut() -> bool,
+{
+    let max_n_retries = 3;
+    let mut n_retries = 0;
+    while !condition() {
+        sleep(Duration::from_millis(500)).await;
+        n_retries += 1;
+        if n_retries >= max_n_retries {
+            panic!("{} after {} retries.", error_message, max_n_retries);
+        }
+    }
+}
+
+pub async fn wait_for_n_items<T>(receiver: &mut Receiver<T>, expected_n_results: usize) {
+    wait_for_condition(
+        || get_number_of_items_in_channel_from_receiver(receiver) >= expected_n_results,
+        &format!("Timed out waiting for {} items in channel.", expected_n_results),
+    )
+    .await;
+}
+
+pub fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
+    sender.max_capacity() - sender.capacity()
+}
+
+pub fn get_number_of_items_in_channel_from_receiver<T>(receiver: &Receiver<T>) -> usize {
+    receiver.max_capacity() - receiver.capacity()
 }
