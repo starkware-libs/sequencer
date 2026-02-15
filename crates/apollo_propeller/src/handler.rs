@@ -5,6 +5,7 @@ use std::ops::ControlFlow;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use apollo_infra_utils::warn_every_n_ms;
 use apollo_protobuf::protobuf::{PropellerUnit as ProtoUnit, PropellerUnitBatch as ProtoBatch};
 use asynchronous_codec::Framed;
 use futures::prelude::*;
@@ -39,6 +40,11 @@ pub enum HandlerIn {
 }
 
 const CONCURRENT_STREAMS: usize = 1;
+
+/// Queue length threshold for logging warnings.
+const QUEUE_WARNING_THRESHOLD: usize = 100;
+/// Interval in milliseconds for logging queue warnings.
+const QUEUE_WARNING_INTERVAL_MS: u64 = 1000;
 
 /// Protocol Handler that manages substreams with a peer.
 ///
@@ -218,13 +224,13 @@ impl Handler {
         }
 
         let mut batch = ProtoBatch { batch: vec![send_queue.pop_front().unwrap()] };
-        if batch.encoded_len() > max_wire_message_size {
+        if batch.encoded_len() >= max_wire_message_size {
             warn!("Propeller unit size exceeds max wire message size, sending will fail");
         }
 
         while let Some(msg) = send_queue.front() {
             batch.batch.push(msg.clone());
-            if batch.encoded_len() <= max_wire_message_size {
+            if batch.encoded_len() < max_wire_message_size {
                 send_queue.pop_front();
             } else {
                 batch.batch.pop();
@@ -392,6 +398,19 @@ impl Handler {
             <Handler as ConnectionHandler>::ToBehaviour,
         >,
     > {
+        if self.send_queue.len() > QUEUE_WARNING_THRESHOLD
+            || self.receive_queue.len() > QUEUE_WARNING_THRESHOLD
+        {
+            warn_every_n_ms!(
+                QUEUE_WARNING_INTERVAL_MS,
+                "Backlog in propeller handler. This indicates the peer is not consuming messages \
+                 fast enough or the network is congested. Send queue length: {}, Receive queue \
+                 length: {}",
+                self.send_queue.len(),
+                self.receive_queue.len()
+            );
+        }
+
         // First, emit any queued received messages
         if let Some(message) = self.receive_queue.pop_front() {
             return Poll::Ready(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::Unit(message)));
