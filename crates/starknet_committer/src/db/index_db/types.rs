@@ -37,6 +37,12 @@ impl From<HashOutput> for EmptyNodeData {
     }
 }
 
+impl From<EmptyNodeData> for HashOutput {
+    fn from(_empty_node_data: EmptyNodeData) -> Self {
+        HashOutput::ROOT_OF_EMPTY_TREE
+    }
+}
+
 #[derive(PartialEq, Debug, derive_more::Into)]
 pub struct IndexFilledNode<L: Leaf>(pub FilledNode<L, EmptyNodeData>);
 

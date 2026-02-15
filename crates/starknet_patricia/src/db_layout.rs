@@ -9,7 +9,7 @@ use crate::patricia_merkle_tree::traversal::SubTreeTrait;
 use crate::patricia_merkle_tree::types::NodeIndex;
 
 /// Specifies the trie db layout.
-pub trait NodeLayout<'a, L: Leaf> {
+pub trait NodeLayout<'a, L: Leaf + std::fmt::Debug> {
     /// Additional data that a node stores about its children.
     ///
     /// NodeData is empty for index layout, and HashOutput for facts layout. The `From<HashOutput>`

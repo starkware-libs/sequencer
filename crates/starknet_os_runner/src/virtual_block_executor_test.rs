@@ -10,10 +10,10 @@ use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash}
 use starknet_api::{calldata, felt, invoke_tx_args};
 
 use crate::test_utils::{
+    latest_block_number,
     rpc_virtual_block_executor,
     SENDER_ADDRESS,
     STRK_TOKEN_ADDRESS,
-    TEST_BLOCK_NUMBER,
 };
 use crate::virtual_block_executor::{RpcVirtualBlockExecutor, VirtualBlockExecutor};
 
@@ -72,7 +72,10 @@ fn construct_balance_of_invoke() -> (InvokeTransaction, TransactionHash) {
 #[ignore] // Requires RPC access 
 fn test_execute_constructed_balance_of_transaction(
     rpc_virtual_block_executor: RpcVirtualBlockExecutor,
+    latest_block_number: BlockNumber,
 ) {
+    println!("Using block number: {}", latest_block_number.0);
+
     // Construct a balanceOf transaction (with execution flags set).
     let (tx, tx_hash) = construct_balance_of_invoke();
 
@@ -81,11 +84,7 @@ fn test_execute_constructed_balance_of_transaction(
 
     // Execute the transaction.
     let result = rpc_virtual_block_executor
-        .execute(
-            BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
-            contract_class_manager,
-            vec![(tx, tx_hash)],
-        )
+        .execute(BlockId::Number(latest_block_number), contract_class_manager, vec![(tx, tx_hash)])
         .unwrap();
 
     // Verify execution produced output.
@@ -130,7 +129,7 @@ fn test_execute_constructed_balance_of_transaction(
     // Verify block context was captured.
     assert_eq!(
         result.base_block_info.block_context.block_info().block_number,
-        BlockNumber(TEST_BLOCK_NUMBER),
+        latest_block_number,
         "Block context should have the correct block number"
     );
 

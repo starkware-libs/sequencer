@@ -176,7 +176,7 @@ impl RpcStorageProofsProvider {
         Ok(StorageProofs { proof_state, commitment_infos })
     }
 
-    fn build_commitment_infos(
+    pub fn build_commitment_infos(
         rpc_proof: &RpcStorageProof,
         query: &RpcStorageProofsQuery,
     ) -> Result<StateCommitmentInfos, ProofProviderError> {
