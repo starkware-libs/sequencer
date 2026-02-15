@@ -15,6 +15,7 @@ use cairo_vm::vm::runners::cairo_pie::CairoPie;
 // Re-export types from stwo_run_and_prove library.
 pub use stwo_run_and_prove_lib::{
     ProveConfig,
+    RunConfig,
     StwoProverEntryPoint,
     StwoRunAndProveError,
     stwo_run_and_prove,
@@ -51,13 +52,14 @@ pub fn prove_pie_in_memory(
     let bootloader_input = create_bootloader_input_from_pie(cairo_pie);
     let program_input = ProgramInput::from_value(bootloader_input);
 
-    stwo_run_and_prove(
-        bootloader_program_path,
-        Some(program_input),
-        program_output_path,
-        prove_config,
-        Box::new(StwoProverEntryPoint),
-        None,  // debug_data_dir
-        false, // save_debug_data
-    )
+    let run_config = RunConfig {
+        program_path: bootloader_program_path,
+        program_input: Some(program_input),
+        program_output: program_output_path,
+        debug_data_dir: None,
+        save_debug_data: false,
+        extra_hint_processor: None,
+    };
+
+    stwo_run_and_prove(run_config, prove_config, Box::new(StwoProverEntryPoint))
 }

@@ -27,7 +27,7 @@ Use the `proving-utils` library directly with in-memory CairoPie passing:
 ### 1. Added workspace dependencies to proving repos in `Cargo.toml`
 
 ```toml
-cairo-air = { path = "../stwo-cairo/stwo_cairo_prover/crates/cairo-air" }
+cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "f83137b28420" }
 cairo-program-runner-lib = { path = "../proving-utils/crates/cairo-program-runner-lib" }
 stwo-cairo-adapter = { path = "../stwo-cairo/stwo_cairo_prover/crates/adapter" }
 stwo_cairo_prover = { path = "../stwo-cairo/stwo_cairo_prover/crates/prover" }

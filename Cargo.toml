@@ -245,7 +245,8 @@ bzip2 = { version = "0.5.0", default-features = false }
 c-kzg = "2.1.5"
 cached = "0.44.0"
 # Keep sibling proving repos synced; `proving-utils` main tip used here is 316344a31891.
-cairo-air = { path = "../stwo-cairo/stwo_cairo_prover/crates/cairo-air" }
+# `cairo-air` uses the same git revision as `stwo_run_and_prove_lib` to avoid duplicate crate types.
+cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "f83137b28420" }
 cairo-program-runner-lib = { path ="../proving-utils/crates/cairo-program-runner-lib" }
 stwo-cairo-adapter = { path = "../stwo-cairo/stwo_cairo_prover/crates/adapter" }
 stwo_cairo_prover = { path = "../stwo-cairo/stwo_cairo_prover/crates/prover" }
@@ -384,6 +385,7 @@ static_assertions = "1.1.0"
 strum = "0.25.0"
 strum_macros = "0.25.2"
 stwo = { git = "https://github.com/starkware-libs/stwo", rev = "6b5c843" }
+stwo_v2 = { package = "stwo", git = "https://github.com/starkware-libs/stwo", rev = "b0ba0c4" }
 syn = "2.0.39"
 tempfile = "3.7.0"
 test-case = "3.2.1"
