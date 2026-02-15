@@ -76,17 +76,26 @@ ARG CAIRO_LANG_VERSION=0.14.1a0
 RUN pip install --no-cache-dir cairo-lang==${CAIRO_LANG_VERSION}
 
 # =============================================================================
-# Stage 2: Planner - prepare cargo-chef recipe
+# Stage 2: Starknet OS Runner Planner - prepare cargo-chef recipe
 # =============================================================================
-FROM base AS planner
+FROM base AS starknet-os-runner-planner
 WORKDIR /app
 COPY . .
 RUN cargo chef prepare --recipe-path recipe.json
 
 # =============================================================================
-# Stage 3: Builder - compile the binary
+# Stage 3: Proving Utils Planner - prepare cargo-chef recipe
 # =============================================================================
-FROM base AS builder
+FROM base AS proving-utils-planner
+WORKDIR /app
+ARG PROVING_UTILS_DIR=build/proving-utils
+COPY ${PROVING_UTILS_DIR} .
+RUN cargo chef prepare --recipe-path recipe.json
+
+# =============================================================================
+# Stage 4: Starknet OS Runner Builder - compile the binary
+# =============================================================================
+FROM base AS starknet-os-runner-builder
 WORKDIR /app
 
 ARG BUILD_MODE=release
@@ -100,33 +109,38 @@ RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
 
 # Cache dependencies with cargo-chef.
 # Use -p starknet_os_runner to avoid building LLVM-dependent crates (e.g., cairo_native).
-COPY --from=planner /app/recipe.json recipe.json
-RUN BUILD_FLAGS=""; \
-    if [ "$BUILD_MODE" = "release" ]; then \
-        BUILD_FLAGS="--release"; \
-    fi; \
+COPY --from=starknet-os-runner-planner /app/recipe.json recipe.json
+RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
     cargo chef cook $BUILD_FLAGS -p starknet_os_runner --recipe-path recipe.json
 
 # Copy source and build starknet_os_runner (without cairo_native feature).
 COPY . .
-RUN BUILD_FLAGS=""; \
-    if [ "$BUILD_MODE" = "release" ]; then \
-        BUILD_FLAGS="--release"; \
-    fi; \
+RUN BUILD_FLAGS=$([ "$BUILD_MODE" = "release" ] && echo "--release" || true); \
     cargo build $BUILD_FLAGS -p starknet_os_runner
 
-# Build stwo_run_and_prove from proving-utils (pre-cloned by the wrapper script).
+# =============================================================================
+# Stage 5: Proving Utils Builder - compile the binary
+# =============================================================================
+# Proving-utils (and its dependency stwo) require a specific nightly Rust for
+# #![feature(...)]. We copy rust-toolchain.toml from the planner so that cargo
+# uses the pinned nightly version before the full source is copied.
+FROM base AS proving-utils-builder
+WORKDIR /app
 ARG PROVING_UTILS_DIR=build/proving-utils
-COPY ${PROVING_UTILS_DIR} /tmp/proving-utils
-RUN cd /tmp/proving-utils \
-    && cargo build --release -p stwo-run-and-prove --bin stwo-run-and-prove \
+COPY --from=proving-utils-planner /app/rust-toolchain.toml rust-toolchain.toml
+RUN rustup toolchain install
+COPY --from=proving-utils-planner /app/recipe.json recipe.json
+RUN cargo chef cook -p stwo-run-and-prove --recipe-path recipe.json
+
+COPY ${PROVING_UTILS_DIR} .
+RUN cargo build --release -p stwo-run-and-prove --bin stwo-run-and-prove \
     && mkdir -p /app/target/tools \
     && cp target/release/stwo-run-and-prove /app/target/tools/stwo_run_and_prove \
     && cp crates/cairo-program-runner-lib/resources/compiled_programs/bootloaders/simple_bootloader_compiled.json \
-       /app/crates/starknet_os_runner/resources/simple_bootloader_compiled.json
+       /app/target/tools/simple_bootloader_compiled.json
 
 # =============================================================================
-# Stage 4: Final runtime image
+# Stage 6: Final runtime image
 # =============================================================================
 FROM ubuntu:24.04 AS final_stage
 
@@ -142,19 +156,22 @@ ENV ID=1001
 WORKDIR /app
 
 # Copy the binary.
-COPY --from=builder /app/target/${BUILD_MODE}/starknet_os_runner ./target/${BUILD_MODE}/starknet_os_runner
+COPY --from=starknet-os-runner-builder /app/target/${BUILD_MODE}/starknet_os_runner ./target/${BUILD_MODE}/starknet_os_runner
 
 # Copy resources needed by the service.
-COPY --from=builder /app/crates/starknet_os_runner/resources ./crates/starknet_os_runner/resources
+COPY --from=starknet-os-runner-builder /app/crates/starknet_os_runner/resources ./crates/starknet_os_runner/resources
+
+# Copy bootloader from proving-utils (overwrites or adds to resources).
+COPY --from=proving-utils-builder /app/target/tools/simple_bootloader_compiled.json ./crates/starknet_os_runner/resources/simple_bootloader_compiled.json
 
 # Copy stwo_run_and_prove binary (resolved via target/tools/ by the proving_utils crate).
-COPY --from=builder /app/target/tools/stwo_run_and_prove ./target/tools/stwo_run_and_prove
+COPY --from=proving-utils-builder /app/target/tools/stwo_run_and_prove ./target/tools/stwo_run_and_prove
 
 # Copy starknet-sierra-compile binary required for Sierra to Casm compilation.
-COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
+COPY --from=starknet-os-runner-builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
 
 # Copy tini for proper init handling.
-COPY --from=builder /usr/bin/tini /usr/bin/tini
+COPY --from=starknet-os-runner-builder /usr/bin/tini /usr/bin/tini
 
 # Create a non-root user.
 RUN set -ex; \
