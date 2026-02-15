@@ -13,7 +13,8 @@ use apollo_mempool_p2p::metrics::{
 use apollo_metrics::metrics::{MetricDetails, MetricQueryName};
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {

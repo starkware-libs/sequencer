@@ -16,6 +16,7 @@ workspace = true
 [dependencies]
 apollo_batcher.workspace = true
 apollo_class_manager.workspace = true
+apollo_committer.workspace = true
 apollo_compile_to_casm.workspace = true
 apollo_config_manager.workspace = true
 apollo_consensus.workspace = true
@@ -39,8 +40,6 @@ indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 serde_with.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
 
 [dev-dependencies]
 apollo_batcher = { workspace = true, features = ["testing"] }

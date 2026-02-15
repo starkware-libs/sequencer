@@ -19,10 +19,13 @@ use apollo_gateway_types::gateway_types::{
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
+use apollo_metrics::metrics::set_unix_now_seconds;
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
+use axum::extract::DefaultBodyLimit;
+use axum::handler::Handler;
 use axum::http::HeaderMap;
-use axum::routing::{get, post};
+use axum::routing::{get, post, MethodRouter};
 use axum::{serve, Extension, Json, Router};
 use blockifier_reexecution::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use serde::de::Error;
@@ -44,6 +47,7 @@ use crate::metrics::{
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
     HTTP_SERVER_ADD_TX_LATENCY,
+    LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS,
 };
 
 #[cfg(test)]
@@ -118,9 +122,15 @@ impl HttpServer {
     pub fn app(&self) -> Router {
         Router::new()
             // Json Rpc endpoint
-            .route("/gateway/add_rpc_transaction", post(add_rpc_tx))
+            .route(
+                "/gateway/add_rpc_transaction",
+                self.post_method_router(add_rpc_tx),
+            )
             // Rest api endpoint
-            .route("/gateway/add_transaction", post(add_tx))
+            .route(
+                "/gateway/add_transaction",
+                self.post_method_router(add_tx),
+            )
             // TODO(shahak): Remove this once we fix the centralized simulator to not use is_alive
             // and is_ready.
             .route(
@@ -132,6 +142,15 @@ impl HttpServer {
                 get(|| futures::future::ready("Gateway is ready".to_owned()))
             )
             .layer(Extension(self.app_state.clone()))
+    }
+
+    fn post_method_router<H, T, S>(&self, handler: H) -> MethodRouter<S>
+    where
+        H: Handler<T, S> + Send + Sync + 'static,
+        T: Send + 'static,
+        S: Clone + Send + Sync + 'static,
+    {
+        post(handler).layer(DefaultBodyLimit::max(self.config.static_config.max_request_body_size))
     }
 }
 
@@ -149,6 +168,7 @@ async fn add_rpc_tx(
     check_new_transactions_are_allowed(accept_new_txs)?;
 
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    set_unix_now_seconds(&LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS);
     add_tx_inner(app_state, headers, tx).await
 }
 
@@ -166,6 +186,7 @@ async fn add_tx(
     check_new_transactions_are_allowed(accept_new_txs)?;
 
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    set_unix_now_seconds(&LAST_RECEIVED_TRANSACTION_TIMESTAMP_SECONDS);
     let tx: DeprecatedGatewayTransactionV3 = match serde_json::from_str(&tx) {
         Ok(value) => value,
         Err(e) => {

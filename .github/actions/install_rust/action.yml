@@ -12,11 +12,21 @@ inputs:
 runs:
   using: "composite"
   steps:
+<<<<<<< HEAD
     - name: Mount Namespace cache volume
       uses: namespacelabs/nscloud-cache-action@v1
       with:
         path: /home/runner/.cargo
 
+||||||| 63dac1e8a4
+    - name: Mount Namespace cache volume
+      uses: namespacelabs/nscloud-cache-action@v1
+      with:
+        cache: rust
+        path: /home/runner/.cargo
+
+=======
+>>>>>>> origin/main-v0.14.1-committer
     - uses: moonrepo/setup-rust@v1
       name: Install Rust toolchain and binaries
       with:

@@ -1,4 +1,4 @@
-use apollo_consensus::types::Round;
+use apollo_protobuf::consensus::Round;
 #[cfg(test)]
 use mockall::automock;
 use sha2::{Digest, Sha256};

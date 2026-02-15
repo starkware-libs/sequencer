@@ -738,7 +738,10 @@ impl IntegrationTestManager {
 
         let state_sync_config =
             node_setup.get_state_sync().get_config().clone().state_sync_config.unwrap();
-        SocketAddr::from((state_sync_config.rpc_config.ip, state_sync_config.rpc_config.port))
+        SocketAddr::from((
+            state_sync_config.static_config.rpc_config.ip,
+            state_sync_config.static_config.rpc_config.port,
+        ))
     }
 
     // Verify with JSON RPC server if the last block is the expected one.
@@ -938,6 +941,7 @@ impl IntegrationTestManager {
             .batcher_config
             .as_ref()
             .expect("No executable with a set batcher.")
+            .static_config
             .block_builder_config
             .chain_info
             .chain_id

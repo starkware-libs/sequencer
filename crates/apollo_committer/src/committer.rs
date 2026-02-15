@@ -26,7 +26,9 @@ use starknet_committer::block_committer::commit::CommitBlockTrait;
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
     Action,
+    BlockDurations,
     BlockMeasurement,
+    BlockModificationsCounts,
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
@@ -37,7 +39,7 @@ use starknet_committer::db::forest_trait::{
     ForestMetadataType,
     ForestStorageWithEmptyReadContext,
 };
-use starknet_committer::db::index_db::db::IndexDb;
+use starknet_committer::db::index_db::IndexDb;
 use starknet_committer::db::serde_db_utils::{
     deserialize_felt_no_packing,
     serialize_felt_no_packing,
@@ -53,18 +55,20 @@ use tracing::{debug, error, info, warn};
 
 use crate::metrics::{
     register_metrics,
+    AVERAGE_COMPUTE_RATE,
+    AVERAGE_READ_RATE,
+    AVERAGE_WRITE_RATE,
+    COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
-    COMPUTE_DURATION_PER_BLOCK_HIST,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
+    COUNT_EMPTIED_LEAVES_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
-    OFFSET,
-    READ_DB_ENTRIES_PER_BLOCK,
+    EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
-    READ_DURATION_PER_BLOCK_HIST,
-    WRITE_DB_ENTRIES_PER_BLOCK,
+    TOTAL_BLOCK_DURATION,
+    TOTAL_BLOCK_DURATION_PER_MODIFICATION,
     WRITE_DURATION_PER_BLOCK,
-    WRITE_DURATION_PER_BLOCK_HIST,
 };
 
 #[cfg(test)]
@@ -158,7 +162,7 @@ where
 
     fn update_offset(&mut self, offset: BlockNumber) {
         self.offset = offset;
-        OFFSET.set_lossy(offset.0);
+        COMMITTER_OFFSET.set_lossy(offset.0);
     }
 
     /// Commits a block to the forest.
@@ -271,7 +275,7 @@ where
             .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(&block_measurements.block_measurement);
+        update_metrics(height, &block_measurements.block_measurement);
         self.update_offset(next_offset);
         Ok(CommitBlockResponse { global_root })
     }
@@ -377,7 +381,7 @@ where
             .map_err(|err| self.map_internal_error(err))?;
         block_measurements.attempt_to_stop_measurement(Action::Write, n_write_entries).ok();
         block_measurements.attempt_to_stop_measurement(Action::EndToEnd, 0).ok();
-        update_metrics(&block_measurements.block_measurement);
+        update_metrics(height, &block_measurements.block_measurement);
         self.update_offset(last_committed_block);
         Ok(RevertBlockResponse::RevertedTo(revert_global_root))
     }
@@ -457,18 +461,100 @@ impl ComponentStarter for ApolloCommitter {
     }
 }
 
+#[allow(clippy::as_conversions)]
 fn update_metrics(
+    height: BlockNumber,
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
-    READ_DURATION_PER_BLOCK.set_lossy(durations.read);
-    READ_DURATION_PER_BLOCK_HIST.record_lossy(durations.read);
-    READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
-    COMPUTE_DURATION_PER_BLOCK.set_lossy(durations.compute);
-    COMPUTE_DURATION_PER_BLOCK_HIST.record_lossy(durations.compute);
-    WRITE_DURATION_PER_BLOCK.set_lossy(durations.write);
-    WRITE_DURATION_PER_BLOCK_HIST.record_lossy(durations.write);
-    WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
-    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.storage_tries);
-    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.contracts_trie);
-    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.set_lossy(modifications_counts.classes_trie);
+    TOTAL_BLOCK_DURATION.record_lossy(durations.block);
+    let n_modifications = modifications_counts.total();
+    let total_block_duration_per_modification = if n_modifications > 0 {
+        let total_block_duration_per_modification = durations.block / n_modifications as f64;
+        TOTAL_BLOCK_DURATION_PER_MODIFICATION.record_lossy(total_block_duration_per_modification);
+        Some(total_block_duration_per_modification)
+    } else {
+        None
+    };
+    READ_DURATION_PER_BLOCK.record_lossy(durations.read);
+    COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
+    WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
+
+    let read_rate = if durations.read > 0.0 {
+        let rate = *n_reads as f64 / durations.read;
+        AVERAGE_READ_RATE.record_lossy(rate);
+        Some(rate)
+    } else {
+        None
+    };
+    let compute_rate = if durations.compute > 0.0 {
+        let rate = *n_writes as f64 / durations.compute;
+        AVERAGE_COMPUTE_RATE.record_lossy(rate);
+        Some(rate)
+    } else {
+        None
+    };
+    let write_rate = if durations.write > 0.0 {
+        let rate = *n_writes as f64 / durations.write;
+        AVERAGE_WRITE_RATE.record_lossy(rate);
+        Some(rate)
+    } else {
+        None
+    };
+
+    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
+    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.contracts_trie);
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.classes_trie);
+    COUNT_EMPTIED_LEAVES_PER_BLOCK.record_lossy(modifications_counts.emptied_storage_leaves);
+
+    let emptied_leaves_percentage = if modifications_counts.storage_tries > 0 {
+        let percentage = modifications_counts.emptied_storage_leaves as f64
+            / modifications_counts.storage_tries as f64;
+        EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.record_lossy(percentage);
+        Some(percentage * 100.0)
+    } else {
+        None
+    };
+
+    log_block_measurements(
+        height,
+        durations,
+        total_block_duration_per_modification,
+        read_rate,
+        compute_rate,
+        write_rate,
+        modifications_counts,
+        emptied_leaves_percentage,
+    );
+}
+
+#[allow(clippy::too_many_arguments)]
+fn log_block_measurements(
+    height: BlockNumber,
+    durations: &BlockDurations,
+    total_block_duration_per_modification: Option<f64>,
+    read_rate: Option<f64>,
+    compute_rate: Option<f64>,
+    write_rate: Option<f64>,
+    modifications_counts: &BlockModificationsCounts,
+    emptied_leaves_percentage: Option<f64>,
+) {
+    info!(
+        "Block {height} stats: durations in ms (total/read/compute/write): \
+         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification: {}, rates \
+         (read/compute/write): {}/{}/{}, modifications count \
+         (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}",
+        durations.block * 1000.0,
+        durations.read * 1000.0,
+        durations.compute * 1000.0,
+        durations.write * 1000.0,
+        total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.2}s")),
+        read_rate.map_or(String::new(), |r| format!("{r:.2}")),
+        compute_rate.map_or(String::new(), |r| format!("{r:.2}")),
+        write_rate.map_or(String::new(), |r| format!("{r:.2}")),
+        modifications_counts.storage_tries,
+        modifications_counts.contracts_trie,
+        modifications_counts.classes_trie,
+        modifications_counts.emptied_storage_leaves,
+        emptied_leaves_percentage.map_or(String::new(), |p| format!(" ({p:.2}%)"))
+    );
 }

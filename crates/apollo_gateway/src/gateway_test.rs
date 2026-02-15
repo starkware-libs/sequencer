@@ -6,6 +6,7 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
     GatewayConfig,
+    GatewayStaticConfig,
     ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
@@ -128,13 +129,15 @@ fn mock_stateless_transaction_validator() -> MockStatelessTransactionValidatorTr
 #[fixture]
 fn mock_dependencies() -> MockDependencies {
     let config = GatewayConfig {
-        stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
-        stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
-        contract_class_manager_config: ContractClassManagerConfig::default(),
-        chain_info: ChainInfo::create_for_testing(),
-        block_declare: false,
-        authorized_declarer_accounts: None,
-        proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+        static_config: GatewayStaticConfig {
+            stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
+            stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
+            contract_class_manager_config: ContractClassManagerConfig::default(),
+            chain_info: ChainInfo::create_for_testing(),
+            block_declare: false,
+            authorized_declarer_accounts: None,
+            proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+        },
     };
     let state_reader_factory =
         local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true);
@@ -324,7 +327,7 @@ async fn setup_mock_state(
         &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader;
     let address = expected_internal_tx.contract_address();
     fund_account(
-        &mock_dependencies.config.chain_info,
+        &mock_dependencies.config.static_config.chain_info,
         address,
         VALID_ACCOUNT_BALANCE,
         state_reader,
@@ -494,7 +497,7 @@ async fn test_transaction_converter_error(
 #[rstest]
 #[tokio::test]
 async fn test_block_declare_config(mut mock_dependencies: MockDependencies) {
-    mock_dependencies.config.block_declare = true;
+    mock_dependencies.config.static_config.block_declare = true;
     let gateway = mock_dependencies.gateway();
 
     let result = gateway.add_tx(declare_tx(), None).await;
@@ -541,7 +544,8 @@ fn test_register_metrics() {
 #[tokio::test]
 async fn test_unauthorized_declare_config(mut mock_dependencies: MockDependencies) {
     let authorized_address = contract_address!("0x1");
-    mock_dependencies.config.authorized_declarer_accounts = Some(vec![authorized_address]);
+    mock_dependencies.config.static_config.authorized_declarer_accounts =
+        Some(vec![authorized_address]);
 
     let gateway = mock_dependencies.gateway();
     let rpc_declare_tx = declare_tx();
@@ -576,7 +580,9 @@ async fn test_unauthorized_declare_config(mut mock_dependencies: MockDependencie
 fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     #[case] authorized_declarer_accounts: Option<Vec<ContractAddress>>,
 ) {
-    let original_config = GatewayConfig { authorized_declarer_accounts, ..Default::default() };
+    let original_config = GatewayConfig {
+        static_config: GatewayStaticConfig { authorized_declarer_accounts, ..Default::default() },
+    };
 
     // Create a temporary file to dump the config.
     let file_path = TempDir::new().unwrap().path().join("config.json");

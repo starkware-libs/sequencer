@@ -875,6 +875,7 @@ dependencies = [
  "apollo_batcher_types",
  "apollo_class_manager_types",
  "apollo_committer_types",
+ "apollo_config_manager_types",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_provider_types",
@@ -1217,6 +1218,7 @@ dependencies = [
 name = "apollo_config_manager"
 version = "0.18.0-dev.0"
 dependencies = [
+ "apollo_batcher_config",
  "apollo_config",
  "apollo_config_manager_config",
  "apollo_config_manager_types",
@@ -1236,6 +1238,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-test",
+ "validator",
 ]
 
 [[package]]
@@ -1251,6 +1254,7 @@ dependencies = [
 name = "apollo_config_manager_types"
 version = "0.18.0-dev.0"
 dependencies = [
+ "apollo_batcher_config",
  "apollo_consensus_config",
  "apollo_consensus_orchestrator_config",
  "apollo_http_server_config",
@@ -1279,6 +1283,7 @@ dependencies = [
  "apollo_network",
  "apollo_network_types",
  "apollo_protobuf",
+ "apollo_staking",
  "apollo_storage",
  "apollo_test_utils",
  "apollo_time",
@@ -1336,6 +1341,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_reverts",
  "apollo_signature_manager_types",
+ "apollo_staking",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_time",
@@ -1359,6 +1365,7 @@ dependencies = [
  "apollo_consensus_orchestrator_config",
  "apollo_network",
  "apollo_reverts",
+ "apollo_staking_config",
  "serde",
  "validator",
 ]
@@ -1382,7 +1389,6 @@ dependencies = [
  "apollo_proof_manager_types",
  "apollo_protobuf",
  "apollo_sizeof",
- "apollo_staking",
  "apollo_starknet_client",
  "apollo_state_sync_types",
  "apollo_storage",
@@ -1443,6 +1449,7 @@ version = "0.18.0-dev.0"
 dependencies = [
  "apollo_batcher",
  "apollo_class_manager",
+ "apollo_committer",
  "apollo_compile_to_casm",
  "apollo_config_manager",
  "apollo_consensus",
@@ -1468,8 +1475,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with",
- "strum 0.25.0",
- "strum_macros 0.25.3",
 ]
 
 [[package]]
@@ -1614,6 +1619,7 @@ name = "apollo_http_server_config"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config",
+ "rstest",
  "serde",
  "validator",
 ]
@@ -1725,6 +1731,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_rpc",
  "apollo_sierra_compilation_config",
+ "apollo_staking_config",
  "apollo_state_sync_config",
  "apollo_state_sync_metrics",
  "apollo_storage",
@@ -2005,6 +2012,7 @@ dependencies = [
 name = "apollo_metrics"
 version = "0.18.0-dev.0"
 dependencies = [
+ "apollo_time",
  "indexmap 2.12.0",
  "metrics",
  "metrics-exporter-prometheus",
@@ -2533,7 +2541,7 @@ name = "apollo_staking"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config_manager_types",
- "apollo_consensus",
+ "apollo_protobuf",
  "apollo_staking_config",
  "apollo_state_sync_types",
  "assert_matches",
@@ -2557,6 +2565,7 @@ version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config",
  "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "validator",
@@ -12084,6 +12093,7 @@ dependencies = [
  "async-trait",
  "derive_more 2.1.1",
  "ethnum",
+ "expect-test",
  "hex",
  "pretty_assertions",
  "rand 0.8.5",

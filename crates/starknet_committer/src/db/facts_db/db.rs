@@ -4,8 +4,7 @@ use async_trait::async_trait;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
@@ -15,6 +14,7 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, PatriciaStorage
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
+use crate::db::facts_db::node_serde::FactNodeDeserializationContext;
 use crate::db::facts_db::types::{FactsDbInitialRead, FactsSubTree};
 use crate::db::forest_trait::{
     read_forest,
@@ -28,6 +28,10 @@ use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
+
+/// DB representation of a trie node in facts layout.
+#[derive(PartialEq, Debug, derive_more::Into)]
+pub struct FactDbFilledNode<L: Leaf>(pub FilledNode<L, HashOutput>);
 
 /// Facts DB node layout.
 ///
@@ -50,12 +54,13 @@ impl<'a, L: Leaf> NodeLayout<'a, L> for FactsNodeLayout {
         key_context: &<L as HasStaticPrefix>::KeyContext,
         filled_node: FilledNode<LeafBase, HashOutput>,
     ) -> (DbKey, Self::NodeDbObject) {
-        let db_filled_node = Self::convert_node_data_and_leaf(filled_node);
+        let hash_filled_node = Self::convert_node_data_and_leaf(filled_node);
 
-        let suffix = &db_filled_node.hash.0.to_bytes_be();
-        let key = db_filled_node.get_db_key(key_context, suffix);
+        let suffix = &hash_filled_node.hash.0.to_bytes_be();
+        let db_node = FactDbFilledNode(hash_filled_node);
+        let key = db_node.get_db_key(key_context, suffix);
 
-        (key, db_filled_node)
+        (key, db_node)
     }
 }
 
@@ -79,9 +84,7 @@ impl DbLayout for FactsNodeLayout {
 }
 
 pub struct FactsDb<S: Storage> {
-    // TODO(Yoav): Define StorageStats trait and impl it here. Then, make the storage field
-    // private.
-    pub storage: S,
+    storage: S,
 }
 
 impl<S: Storage> StorageInitializer for FactsDb<S> {

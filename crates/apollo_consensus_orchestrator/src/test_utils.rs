@@ -27,7 +27,7 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
+    BuildParam,
     HeightAndRound,
     ProposalCommitment as ProtoProposalCommitment,
     ProposalFin,
@@ -72,11 +72,10 @@ use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
+use crate::utils::{make_gas_price_params, GasPriceParams, PreviousBlockInfo, StreamSender};
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
-pub(crate) const NUM_VALIDATORS: u64 = 4;
 pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
     StateDiffCommitment(PoseidonHash(Felt::ZERO));
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
@@ -127,7 +126,6 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             batcher: Arc::new(deps.batcher),
             cende_ambassador: Arc::new(deps.cende_ambassador),
             l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
-            committee_provider: None,
             clock: deps.clock,
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
@@ -304,7 +302,6 @@ impl TestDeps {
             ContextConfig {
                 static_config: ContextStaticConfig {
                     proposal_buffer_size: CHANNEL_SIZE,
-                    num_validators: NUM_VALIDATORS,
                     chain_id: CHAIN_ID,
                     ..Default::default()
                 },
@@ -355,7 +352,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo {
+pub(crate) fn block_info(height: BlockNumber, round: u32) -> ProposalInit {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
@@ -369,7 +366,7 @@ pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo 
     let l1_data_gas_price_fri = l1_data_gas_price_wei
         .wei_to_fri(ETH_TO_FRI_RATE)
         .expect("L1 data gas price must be non-zero");
-    ConsensusBlockInfo {
+    ProposalInit {
         height,
         round,
         valid_round: None,
@@ -382,6 +379,8 @@ pub(crate) fn block_info(height: BlockNumber, round: u32) -> ConsensusBlockInfo 
         l1_data_gas_price_fri,
         l1_gas_price_wei,
         l1_data_gas_price_wei,
+        starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        version_constant_commitment: Default::default(),
     }
 }
 
@@ -400,6 +399,7 @@ pub(crate) async fn send_proposal_to_validator_context(
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+            commitment_parts: None,
         }))
         .await
         .unwrap();
@@ -417,7 +417,7 @@ pub(crate) struct NetworkDependencies {
 pub(crate) struct TestProposalBuildArguments {
     pub deps: TestDeps,
     pub batcher_deadline: DateTime,
-    pub proposal_init: ProposalInit,
+    pub build_param: BuildParam,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
     pub gas_price_params: GasPriceParams,
@@ -427,7 +427,7 @@ pub(crate) struct TestProposalBuildArguments {
     pub l2_gas_price: GasPrice,
     pub builder_address: ContractAddress,
     pub cancel_token: CancellationToken,
-    pub previous_block_info: Option<ConsensusBlockInfo>,
+    pub previous_block_info: Option<PreviousBlockInfo>,
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
@@ -439,7 +439,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
         ProposalBuildArguments {
             deps: args.deps.into(),
             batcher_deadline: args.batcher_deadline,
-            proposal_init: args.proposal_init,
+            build_param: args.build_param,
             l1_da_mode: args.l1_da_mode,
             stream_sender: args.stream_sender,
             gas_price_params: args.gas_price_params,
@@ -467,7 +467,7 @@ pub(crate) fn create_proposal_build_arguments()
     let batcher_deadline = time_now + TIMEOUT;
     let retrospective_block_hash_deadline = time_now + TIMEOUT.mul_f32(0.1);
     let retrospective_block_hash_retry_interval_millis = Duration::from_millis(25);
-    let proposal_init = ProposalInit::default();
+    let build_param = BuildParam::default();
     let l1_da_mode = L1DataAvailabilityMode::Calldata;
     let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
     let stream_sender = StreamSender { proposal_sender };
@@ -488,7 +488,7 @@ pub(crate) fn create_proposal_build_arguments()
         TestProposalBuildArguments {
             deps,
             batcher_deadline,
-            proposal_init,
+            build_param,
             l1_da_mode,
             stream_sender,
             gas_price_params,

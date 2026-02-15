@@ -12,11 +12,10 @@ use crate::metrics::{
     ADDED_TRANSACTIONS_TOTAL,
 };
 use crate::test_utils::{
-    add_tx_http_client,
     deprecated_gateway_invoke_tx,
-    get_mock_config_manager_client,
     rpc_invoke_tx,
     GatewayTransaction,
+    HttpClientServerSetupBuilder,
 };
 
 type InvalidTransaction = &'static str;
@@ -56,15 +55,15 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
         )))
     });
 
-    let mock_config_manager_client = get_mock_config_manager_client(true);
-
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, index).await;
+    let http_client = HttpClientServerSetupBuilder::new(index)
+        .with_mock_gateway_client(mock_gateway_client)
+        .build()
+        .await;
 
     // Send transactions to the server.
     for _ in std::iter::repeat_n((), SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
@@ -83,16 +82,12 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
 
 #[tokio::test]
 async fn add_tx_serde_failure_metrics_test() {
-    let mock_gateway_client = MockGatewayClient::new();
-    let mock_config_manager_client = get_mock_config_manager_client(true);
-
     // Initialize the metrics directly instead of spawning a monitoring endpoint task.
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client =
-        add_tx_http_client(mock_config_manager_client, mock_gateway_client, unique_u16!()).await;
+    let http_client = HttpClientServerSetupBuilder::new(unique_u16!()).build().await;
 
     // Send a transaction that fails deserialization.
     let tx: InvalidTransaction = "invalid transaction";

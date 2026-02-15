@@ -1,7 +1,8 @@
 use apollo_class_manager::metrics::{CLASS_SIZES, N_CLASSES};
 use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 // Class compilation is a rare event, so we use a longer histogram range to capture enough data

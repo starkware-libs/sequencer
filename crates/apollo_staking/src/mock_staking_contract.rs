@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_staking_config::config::{find_config_for_epoch, ConfiguredStaker, StakersConfig};
+use apollo_staking_config::config::{get_config_for_epoch, CommitteeConfig, ConfiguredStaker};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
@@ -30,10 +30,11 @@ impl From<&ConfiguredStaker> for Staker {
 pub struct MockStakingContract {
     state_sync_client: SharedStateSyncClient,
 
-    // A dynamically updateable timeline of staker configurations.
-    // Each config entry applies from its defined start_epoch until the start epoch of another
-    // entry overrides it.
-    stakers_config: Arc<Mutex<Vec<StakersConfig>>>,
+    // A dynamically updateable committee configuration with default and optional override.
+    // The default applies to all epochs, while the override takes precedence
+    // for epochs >= override.start_epoch.
+    default_committee: Arc<Mutex<CommitteeConfig>>,
+    override_committee: Arc<Mutex<Option<CommitteeConfig>>>,
     config_manager_client: Option<SharedConfigManagerClient>,
 }
 
@@ -43,28 +44,35 @@ impl MockStakingContract {
 
     pub fn new(
         state_sync_client: SharedStateSyncClient,
-        stakers_config: Vec<StakersConfig>,
+        default_committee: CommitteeConfig,
+        override_committee: Option<CommitteeConfig>,
         config_manager_client: Option<SharedConfigManagerClient>,
     ) -> Self {
         Self {
             state_sync_client,
-            stakers_config: Arc::new(Mutex::new(stakers_config)),
+            default_committee: Arc::new(Mutex::new(default_committee)),
+            override_committee: Arc::new(Mutex::new(override_committee)),
             config_manager_client,
         }
     }
 
-    /// Updates the stakers config from the config manager if available.
-    async fn update_stakers_config(&self, stakers_config: &mut Vec<StakersConfig>) {
+    /// Updates the committee config from the config manager if available.
+    async fn update_committee_config(
+        &self,
+        default_committee: &mut CommitteeConfig,
+        override_committee: &mut Option<CommitteeConfig>,
+    ) {
         let Some(client) = &self.config_manager_client else {
             return;
         };
         let dynamic_config = client.get_staking_manager_dynamic_config().await;
         match dynamic_config {
             Ok(dynamic_config) => {
-                *stakers_config = dynamic_config.stakers_config;
+                *default_committee = dynamic_config.default_committee;
+                *override_committee = dynamic_config.override_committee;
             }
             Err(e) => {
-                warn!("Failed to get stakers config from config manager: {e}");
+                warn!("Failed to get committee config from config manager: {e}");
             }
         }
     }
@@ -73,16 +81,13 @@ impl MockStakingContract {
 #[async_trait]
 impl StakingContract for MockStakingContract {
     async fn get_stakers(&self, epoch: u64) -> StakingContractResult<Vec<Staker>> {
-        let mut stakers_config = self.stakers_config.lock().await;
-        self.update_stakers_config(&mut stakers_config).await;
+        let mut default_committee = self.default_committee.lock().await;
+        let mut override_committee = self.override_committee.lock().await;
+        self.update_committee_config(&mut default_committee, &mut override_committee).await;
 
-        let config_entry = find_config_for_epoch(&stakers_config, epoch);
+        let config = get_config_for_epoch(&default_committee, &override_committee, epoch);
 
-        if config_entry.is_none() {
-            warn!("No stakers config available for epoch {epoch}");
-            return Ok(vec![]);
-        }
-        Ok(config_entry.unwrap().stakers.iter().map(Staker::from).collect())
+        Ok(config.stakers.iter().map(Staker::from).collect())
     }
 
     async fn get_current_epoch(&self) -> StakingContractResult<Epoch> {
@@ -93,5 +98,22 @@ impl StakingContract for MockStakingContract {
         let start_block = BlockNumber(epoch_id * Self::EPOCH_LENGTH);
 
         Ok(Epoch { epoch_id, start_block, epoch_length: Self::EPOCH_LENGTH })
+    }
+
+    async fn get_previous_epoch(&self) -> StakingContractResult<Option<Epoch>> {
+        let current_epoch = self.get_current_epoch().await?;
+
+        if current_epoch.epoch_id == 0 {
+            return Ok(None);
+        }
+
+        let previous_epoch_id = current_epoch.epoch_id - 1;
+        let start_block = BlockNumber(previous_epoch_id * Self::EPOCH_LENGTH);
+
+        Ok(Some(Epoch {
+            epoch_id: previous_epoch_id,
+            start_block,
+            epoch_length: Self::EPOCH_LENGTH,
+        }))
     }
 }

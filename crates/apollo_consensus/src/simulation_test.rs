@@ -10,7 +10,7 @@ use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::ops::Range;
 
 use apollo_consensus_config::config::TimeoutsConfig;
-use apollo_protobuf::consensus::{ConsensusBlockInfo, Vote, VoteType};
+use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 use lazy_static::lazy_static;
 use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
@@ -23,14 +23,8 @@ use test_case::test_case;
 
 use crate::single_height_consensus::SingleHeightConsensus;
 use crate::state_machine::{SMRequest, StateMachineEvent, Step};
-use crate::types::{
-    ConsensusError,
-    Decision,
-    LeaderElection,
-    ProposalCommitment,
-    Round,
-    ValidatorId,
-};
+use crate::test_utils::mock_committee_virtual_equal_to_actual;
+use crate::types::{Decision, ProposalCommitment, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 
 const HEIGHT_0: BlockNumber = BlockNumber(0);
@@ -91,7 +85,7 @@ enum InputEvent {
     /// A vote message from peer node.
     Vote(Vote),
     /// A proposal message.
-    Proposal(ConsensusBlockInfo),
+    Proposal(ProposalInit),
     /// An internal event.
     Internal(StateMachineEvent),
 }
@@ -207,6 +201,17 @@ impl DiscreteEventSimulation {
         let validators: Vec<ValidatorId> =
             (0..total_nodes).map(|i| ValidatorId::from(u64::try_from(i).unwrap())).collect();
 
+        let committee = mock_committee_virtual_equal_to_actual(
+            validators.clone(),
+            Box::new({
+                let validators = validators.clone();
+                move |round| {
+                    let idx = get_leader_index(seed, total_nodes, round);
+                    validators[idx]
+                }
+            }),
+        );
+
         let shc = SingleHeightConsensus::new(
             HEIGHT_0,
             false,
@@ -214,6 +219,8 @@ impl DiscreteEventSimulation {
             validators.clone(),
             QuorumType::Byzantine,
             TimeoutsConfig::default(),
+            committee,
+            true,
         );
 
         let quorum_threshold = (2 * total_nodes / 3) + 1;
@@ -336,7 +343,7 @@ impl DiscreteEventSimulation {
                 .min(round_start_tick + ROUND_DURATION);
                 self.schedule_at_tick(
                     proposal_tick,
-                    InputEvent::Proposal(ConsensusBlockInfo {
+                    InputEvent::Proposal(ProposalInit {
                         height: HEIGHT_0,
                         round,
                         proposer: leader_id,
@@ -414,7 +421,7 @@ impl DiscreteEventSimulation {
                 // Send a proposal even when not the leader
                 self.schedule_at_tick(
                     round_start_tick + 1,
-                    InputEvent::Proposal(ConsensusBlockInfo {
+                    InputEvent::Proposal(ProposalInit {
                         height: HEIGHT_0,
                         round,
                         proposer: node_id,
@@ -475,30 +482,9 @@ impl DiscreteEventSimulation {
     fn run(&mut self, deadline_ticks: u64) -> Option<Decision> {
         // Pre-generate all rounds events
         self.pre_generate_all_rounds();
-
-        let validators = self.validators.clone();
-        let seed = self.seed;
-        let total_nodes = self.total_nodes;
         // Create two separate closures with the same logic (for proposer and virtual_proposer)
-        let proposer_fn = {
-            let validators = validators.clone();
-            move |r: Round| -> Result<ValidatorId, ConsensusError> {
-                let idx = get_leader_index(seed, total_nodes, r);
-                Ok(validators[idx])
-            }
-        };
-        let virtual_proposer_fn = {
-            let validators = validators.clone();
-            move |r: Round| -> Result<ValidatorId, ConsensusError> {
-                let idx = get_leader_index(seed, total_nodes, r);
-                Ok(validators[idx])
-            }
-        };
-        let leader_election =
-            LeaderElection::new(Box::new(proposer_fn), Box::new(virtual_proposer_fn));
-
         // Start the single height consensus
-        let requests = self.shc.start(&leader_election);
+        let requests = self.shc.start();
         if let Some(decision) = self.handle_requests(requests) {
             return Some(decision);
         }
@@ -516,28 +502,24 @@ impl DiscreteEventSimulation {
             let requests = match timed_event.event {
                 InputEvent::Vote(v) => {
                     self.track_precommit(&v);
-                    self.shc.handle_vote(&leader_election, v)
+                    self.shc.handle_vote(v)
                 }
-                InputEvent::Proposal(p) => self.shc.handle_proposal(&leader_election, p),
+                InputEvent::Proposal(p) => self.shc.handle_proposal(p),
                 InputEvent::Internal(StateMachineEvent::FinishedValidation(
                     commitment,
                     round,
                     _,
                 )) => {
                     self.track_finished_proposal(round, commitment);
-                    self.shc.handle_event(
-                        &leader_election,
-                        StateMachineEvent::FinishedValidation(commitment, round, None),
-                    )
+                    self.shc.handle_event(StateMachineEvent::FinishedValidation(
+                        commitment, round, None,
+                    ))
                 }
                 InputEvent::Internal(StateMachineEvent::FinishedBuilding(commitment, round)) => {
                     self.track_finished_proposal(round, commitment);
-                    self.shc.handle_event(
-                        &leader_election,
-                        StateMachineEvent::FinishedBuilding(commitment, round),
-                    )
+                    self.shc.handle_event(StateMachineEvent::FinishedBuilding(commitment, round))
                 }
-                InputEvent::Internal(e) => self.shc.handle_event(&leader_election, e),
+                InputEvent::Internal(e) => self.shc.handle_event(e),
             };
 
             if let Some(decision) = self.handle_requests(requests) {
@@ -556,14 +538,14 @@ impl DiscreteEventSimulation {
     fn handle_requests(&mut self, reqs: VecDeque<SMRequest>) -> Option<Decision> {
         for req in reqs {
             match req {
-                SMRequest::StartValidateProposal(block_info) => {
+                SMRequest::StartValidateProposal(init) => {
                     let delay = self.rng.gen_range(VALIDATION_DELAY_RANGE);
                     let validate_finish_tick = self.current_tick + delay;
                     let proposal_commitment =
-                        Some(proposal_commitment_for_round(block_info.round, false));
+                        Some(proposal_commitment_for_round(init.round, false));
                     let result = StateMachineEvent::FinishedValidation(
                         proposal_commitment,
-                        block_info.round,
+                        init.round,
                         None,
                     );
                     self.schedule_at_tick(validate_finish_tick, InputEvent::Internal(result));
@@ -635,7 +617,7 @@ fn verify_result(sim: &DiscreteEventSimulation, result: Option<&Decision>) {
                 .iter()
                 .count();
             let total_precommits = peer_precommits + self_vote;
-            // Match the state machine's `virtual_leader_in_favor` gating for decision.
+            // Match the state machine's `virtual_proposer_in_favor` gating for decision.
             // In this simulation the virtual leader function is the same as the leader function.
             let virtual_proposer = {
                 let idx = get_leader_index(sim.seed, sim.total_nodes, *r);

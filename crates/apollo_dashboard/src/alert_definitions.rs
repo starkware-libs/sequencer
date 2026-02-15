@@ -90,7 +90,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -100,11 +99,8 @@ use crate::alerts::{
     PENDING_DURATION_DEFAULT,
 };
 
-/// Alerts that depend on block time can use this value to define their rule.
-pub(crate) const BLOCK_TIME_SEC: f64 = 9.0;
-
-pub fn get_dev_alerts_json_path(alert_env_filtering: AlertEnvFiltering) -> String {
-    format!("crates/apollo_dashboard/resources/dev_grafana_alerts_{alert_env_filtering}.json")
+pub fn get_dev_alerts_json_path() -> String {
+    "crates/apollo_dashboard/resources/dev_grafana_alerts.json".to_string()
 }
 
 // TODO(guy.f): Can we have spaces in the alert names? If so, do we want to make the alert name and
@@ -130,7 +126,6 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -148,7 +143,6 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -166,7 +160,6 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -186,7 +179,6 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -204,7 +196,6 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -222,7 +213,6 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -240,7 +230,6 @@ fn get_consensus_proposal_fin_mismatch_once() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -259,7 +248,6 @@ fn get_consensus_conflicting_votes() -> Alert {
         // TODO(matan): Increase severity once slashing is supported.
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -277,7 +265,6 @@ fn get_consensus_retrospective_block_hash_from_state_sync() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::Applicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -295,7 +282,6 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
         20,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -313,7 +299,6 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -331,7 +316,6 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -349,7 +333,6 @@ fn get_l1_message_scraper_baselayer_error_count_alert() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -367,7 +350,6 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Sos,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -385,7 +367,6 @@ fn get_native_compilation_error_increase() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -406,7 +387,6 @@ fn get_consensus_p2p_disconnections() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::Applicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -427,7 +407,6 @@ fn get_mempool_p2p_disconnections() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -448,7 +427,6 @@ fn create_storage_open_read_transactions_alert(storage_type: &str, metric_name: 
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::WorkingHours,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -473,7 +451,7 @@ fn get_class_manager_storage_open_read_transactions_alert() -> Alert {
     )
 }
 
-pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
+pub fn get_apollo_alerts() -> Alerts {
     let mut alerts = vec![
         get_batcher_storage_open_read_transactions_alert(),
         get_class_manager_storage_open_read_transactions_alert(),
@@ -537,5 +515,5 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     alerts.append(&mut get_state_sync_lag_vec());
     alerts.append(&mut get_state_sync_stuck_vec());
 
-    Alerts::new(alerts, alert_env_filtering)
+    Alerts::new(alerts)
 }

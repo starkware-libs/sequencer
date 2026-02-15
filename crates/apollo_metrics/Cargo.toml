@@ -13,6 +13,7 @@ testing = ["tracing"]
 workspace = true
 
 [dependencies]
+apollo_time.workspace = true
 indexmap.workspace = true
 metrics.workspace = true
 num-traits.workspace = true

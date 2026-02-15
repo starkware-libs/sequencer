@@ -10,7 +10,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -20,10 +19,7 @@ use crate::alerts::{
     SECS_IN_MIN,
 };
 
-fn get_state_sync_lag(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_state_sync_lag(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "state_sync_lag",
         "State sync lag",
@@ -38,26 +34,21 @@ fn get_state_sync_lag(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_state_sync_lag_vec() -> Vec<Alert> {
-    vec![
-        get_state_sync_lag(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Regular),
-        get_state_sync_lag(AlertEnvFiltering::TestnetStyleAlerts, AlertSeverity::DayOnly),
-    ]
+    vec![get_state_sync_lag(AlertSeverity::Regular)]
 }
 
 fn get_state_sync_stuck(
     alert_name: &'static str,
-    alert_env_filtering: AlertEnvFiltering,
     duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
+        alert_name.to_lowercase().replace(' ', "_"),
         alert_name,
-        "State sync stuck",
         AlertGroup::StateSync,
         format!(
             "increase({}[{}s])",
@@ -69,27 +60,18 @@ fn get_state_sync_stuck(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::Applicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_state_sync_stuck_vec() -> Vec<Alert> {
     vec![
         get_state_sync_stuck(
-            "state_sync_stuck",
-            AlertEnvFiltering::MainnetStyleAlerts,
+            "State Sync Stuck",
             Duration::from_secs(2 * SECS_IN_MIN),
             AlertSeverity::Regular,
         ),
         get_state_sync_stuck(
-            "state_sync_stuck",
-            AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::DayOnly,
-        ),
-        get_state_sync_stuck(
-            "state_sync_stuck_long_time",
-            AlertEnvFiltering::TestnetStyleAlerts,
+            "State Sync Stuck Long Time",
             Duration::from_secs(30 * SECS_IN_MIN),
             AlertSeverity::Regular,
         ),

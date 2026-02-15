@@ -15,6 +15,7 @@ jobs:
     steps:
       - name: Define branches for nightly run.
         id: branches
+<<<<<<< HEAD
         run: echo 'branches=["main", "main-v0.14.1-committer"]' >> "$GITHUB_OUTPUT"
 
   codecov:
@@ -65,6 +66,51 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
+||||||| 63dac1e8a4
+        run: echo 'branches=["main", "main-v0.14.0"]' >> "$GITHUB_OUTPUT"
+
+  codecov:
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    needs: define_branches
+    strategy:
+      matrix:
+        branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      # Python + requirements are needed to compile the OS.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: "pip"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
+
+      - name: "Run codecov"
+        run: cargo llvm-cov --codecov --output-path codecov.json
+        env:
+          SEED: 0
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+=======
+        run: echo 'branches=["main", "main-v0.14.1-committer", "main-v0.14.2"]' >> "$GITHUB_OUTPUT"
+>>>>>>> origin/main-v0.14.1-committer
 
   feature_combos:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64;ephemeral-storage.size-multiplier=2
@@ -73,6 +119,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
+<<<<<<< HEAD
       - name: Free disk space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
@@ -83,6 +130,11 @@ jobs:
           tool-cache: false
 
       - uses: actions/checkout@v4
+||||||| 63dac1e8a4
+      - uses: actions/checkout@v4
+=======
+      - uses: actions/checkout@v6
+>>>>>>> origin/main-v0.14.1-committer
         with:
           ref: ${{ matrix.branch }}
 
@@ -114,6 +166,7 @@ jobs:
       matrix:
         branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
+<<<<<<< HEAD
       - name: Free disk space
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
@@ -124,6 +177,11 @@ jobs:
           tool-cache: false
 
       - uses: actions/checkout@v4
+||||||| 63dac1e8a4
+      - uses: actions/checkout@v4
+=======
+      - uses: actions/checkout@v6
+>>>>>>> origin/main-v0.14.1-committer
         with:
           ref: ${{ matrix.branch }}
 

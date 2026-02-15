@@ -2,11 +2,21 @@ use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     BLOCK_CLOSE_REASON,
     BUILDING_HEIGHT,
+    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
+    COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
+    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
+    EVENT_COMMITMENT_LATENCY,
+    EVENT_COMMITMENT_PER_EVENT_LATENCY,
     GLOBAL_ROOT_HEIGHT,
     LABEL_NAME_BLOCK_CLOSE_REASON,
     PROPOSER_DEFERRED_TXS,
+    RECEIPT_COMMITMENT_LATENCY,
     REJECTED_TRANSACTIONS,
     REVERTED_TRANSACTIONS,
+    STATE_DIFF_COMMITMENT_LATENCY,
+    STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY,
+    TX_COMMITMENT_LATENCY,
+    TX_COMMITMENT_PER_TX_LATENCY,
     VALIDATOR_WASTED_TXS,
 };
 use apollo_consensus::metrics::CONSENSUS_BLOCK_NUMBER;
@@ -16,7 +26,8 @@ use apollo_consensus_orchestrator::metrics::{
 };
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
 pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
@@ -145,6 +156,97 @@ fn get_panel_num_txs_in_proposal() -> Panel {
     .with_log_query("BATCHER_FIN_PROPOSER")
 }
 
+fn get_panel_commitment_manager_commit_block_latency() -> Panel {
+    Panel::from_hist(
+        &COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
+        "Commit Block Latency",
+        "The latency of commit tasks in the commitment manager",
+    )
+    .with_unit(Unit::Seconds)
+    .with_log_query("Commit block latency")
+}
+
+fn get_panel_commitment_manager_revert_block_latency() -> Panel {
+    Panel::from_hist(
+        &COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
+        "Revert Block Latency",
+        "The latency of revert tasks in the commitment manager",
+    )
+    .with_unit(Unit::Seconds)
+    .with_log_query("Revert block latency")
+}
+
+fn get_panel_commitment_manager_results_count() -> Panel {
+    Panel::from_hist(
+        &COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
+        "Commitment Manager Results Count",
+        "The number of commit results received from the commitment manager",
+    )
+}
+
+fn get_panel_txs_commitment_latency() -> Panel {
+    Panel::from_hist(
+        &TX_COMMITMENT_LATENCY,
+        "Transaction Commitment Latency",
+        "Duration of transactions commitment computation",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_txs_commitment_per_tx_latency() -> Panel {
+    Panel::from_hist(
+        &TX_COMMITMENT_PER_TX_LATENCY,
+        "Transaction Commitment Per Transaction Latency",
+        "Duration of transactions commitment computation per transaction",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_events_commitment_latency() -> Panel {
+    Panel::from_hist(
+        &EVENT_COMMITMENT_LATENCY,
+        "Event Commitment Latency",
+        "Duration of event commitment computation",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_events_commitment_per_event_latency() -> Panel {
+    Panel::from_hist(
+        &EVENT_COMMITMENT_PER_EVENT_LATENCY,
+        "Event Commitment Per Event Latency",
+        "Duration of event commitment computation per event",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_receipts_commitment_latency() -> Panel {
+    Panel::from_hist(
+        &RECEIPT_COMMITMENT_LATENCY,
+        "Receipt Commitment Latency",
+        "Duration of receipt commitment computation",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_state_diff_commitment_latency() -> Panel {
+    Panel::from_hist(
+        &STATE_DIFF_COMMITMENT_LATENCY,
+        "State Diff Commitment Latency",
+        "Duration of state diff commitment computation",
+    )
+    .with_unit(Unit::Seconds)
+}
+
+fn get_panel_state_diff_commitment_per_state_diff_length() -> Panel {
+    Panel::from_hist(
+        &STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY,
+        "State Diff Commitment Per State Diff Length",
+        "Duration of state diff commitment computation per state diff length",
+    )
+    .with_unit(Unit::Seconds)
+}
+
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
@@ -159,6 +261,16 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_block_close_reasons(),
             get_panel_num_batches_in_proposal(),
             get_panel_num_txs_in_proposal(),
+            get_panel_commitment_manager_commit_block_latency(),
+            get_panel_commitment_manager_results_count(),
+            get_panel_commitment_manager_revert_block_latency(),
+            get_panel_txs_commitment_latency(),
+            get_panel_txs_commitment_per_tx_latency(),
+            get_panel_events_commitment_latency(),
+            get_panel_events_commitment_per_event_latency(),
+            get_panel_receipts_commitment_latency(),
+            get_panel_state_diff_commitment_latency(),
+            get_panel_state_diff_commitment_per_state_diff_length(),
         ],
     )
 }

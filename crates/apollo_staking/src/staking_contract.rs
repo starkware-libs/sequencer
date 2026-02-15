@@ -35,4 +35,8 @@ pub trait StakingContract: Send + Sync {
 
     /// Fetches the current epoch.
     async fn get_current_epoch(&self) -> StakingContractResult<Epoch>;
+
+    /// Fetches the previous epoch.
+    /// Returns None if there is no previous epoch (i.e., we are in the first epoch).
+    async fn get_previous_epoch(&self) -> StakingContractResult<Option<Epoch>>;
 }

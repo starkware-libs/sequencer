@@ -1,7 +1,8 @@
 use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
 use crate::infra_panels::POD_LEGEND;
+use crate::panel::{Panel, PanelType, Unit};
 
 // TODO(Tsabary): replace query building with relevant functions and templates.
 

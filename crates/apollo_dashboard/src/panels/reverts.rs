@@ -1,7 +1,8 @@
 use apollo_consensus_manager::metrics::CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING;
 use apollo_state_sync_metrics::metrics::STATE_SYNC_REVERTED_UP_TO_AND_INCLUDING;
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType};
 
 fn get_panel_consensus_reverts() -> Panel {
     Panel::from_gauge(&CONSENSUS_REVERTED_BATCHER_UP_TO_AND_INCLUDING, PanelType::Stat)

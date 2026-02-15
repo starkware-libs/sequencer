@@ -24,8 +24,8 @@ use crate::compiler_version::VersionId;
 
 const DEFAULT_BUCKET_NAME: &str = "proof-archive";
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct GatewayConfig {
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+pub struct GatewayStaticConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
     pub contract_class_manager_config: ContractClassManagerConfig,
@@ -36,7 +36,7 @@ pub struct GatewayConfig {
     pub proof_archive_writer_config: ProofArchiveWriterConfig,
 }
 
-impl Default for GatewayConfig {
+impl Default for GatewayStaticConfig {
     fn default() -> Self {
         Self {
             stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
@@ -53,7 +53,7 @@ impl Default for GatewayConfig {
     }
 }
 
-impl SerializeConfig for GatewayConfig {
+impl SerializeConfig for GatewayStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([ser_param(
             "block_declare",
@@ -90,16 +90,28 @@ impl SerializeConfig for GatewayConfig {
     }
 }
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Validate)]
+pub struct GatewayConfig {
+    #[validate(nested)]
+    pub static_config: GatewayStaticConfig,
+}
+
+impl SerializeConfig for GatewayConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(self.static_config.dump(), "static_config")
+    }
+}
+
 impl GatewayConfig {
     pub fn is_authorized_declarer(&self, declarer_address: &ContractAddress) -> bool {
-        match &self.authorized_declarer_accounts {
+        match &self.static_config.authorized_declarer_accounts {
             Some(allowed_accounts) => allowed_accounts.contains(declarer_address),
             None => true,
         }
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct StatelessTransactionValidatorConfig {
     // If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.
     pub validate_resource_bounds: bool,

@@ -9,7 +9,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -19,10 +18,7 @@ use crate::alerts::{
 };
 
 /// Alert if we have no successful eth to strk rates data from the last hour.
-fn get_eth_to_strk_success_count_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_eth_to_strk_success_count_alert(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "eth_to_strk_success_count",
         "Eth to Strk success count",
@@ -33,28 +29,15 @@ fn get_eth_to_strk_success_count_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_eth_to_strk_success_count_alert_vec() -> Vec<Alert> {
-    vec![
-        get_eth_to_strk_success_count_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-        get_eth_to_strk_success_count_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_eth_to_strk_success_count_alert(AlertSeverity::DayOnly)]
 }
 
 /// Alert if had no successful l1 gas price scrape in the last hour.
-fn get_l1_gas_price_scraper_success_count_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_l1_gas_price_scraper_success_count_alert(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "l1_gas_price_scraper_success_count",
         "L1 gas price scraper success count",
@@ -65,27 +48,14 @@ fn get_l1_gas_price_scraper_success_count_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_l1_gas_price_scraper_success_count_alert_vec() -> Vec<Alert> {
-    vec![
-        get_l1_gas_price_scraper_success_count_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-        get_l1_gas_price_scraper_success_count_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_l1_gas_price_scraper_success_count_alert(AlertSeverity::DayOnly)]
 }
 
-fn get_l1_gas_price_provider_insufficient_history_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_l1_gas_price_provider_insufficient_history_alert(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "l1_gas_price_provider_insufficient_history",
         "L1 gas price provider insufficient history",
@@ -99,19 +69,9 @@ fn get_l1_gas_price_provider_insufficient_history_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_l1_gas_price_provider_insufficient_history_alert_vec() -> Vec<Alert> {
-    vec![
-        get_l1_gas_price_provider_insufficient_history_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-        get_l1_gas_price_provider_insufficient_history_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_l1_gas_price_provider_insufficient_history_alert(AlertSeverity::DayOnly)]
 }
