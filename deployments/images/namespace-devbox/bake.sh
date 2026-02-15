@@ -26,6 +26,35 @@ find_repo_root() {
   return 1
 }
 
+# Check for required tools.
+check_requirements() {
+  local missing=()
+
+  if ! command -v nsc &> /dev/null; then
+    missing+=("nsc")
+  fi
+
+  if ! command -v devbox &> /dev/null; then
+    missing+=("devbox")
+  fi
+
+  if ! command -v rsync &> /dev/null; then
+    missing+=("rsync")
+  fi
+
+  if ! command -v jq &> /dev/null; then
+    missing+=("jq")
+  fi
+
+  if [ ${#missing[@]} -ne 0 ]; then
+    echo "Error: Missing required tools: ${missing[*]}" >&2
+    echo "Please install them and try again." >&2
+    exit 1
+  fi
+}
+
+check_requirements
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(find_repo_root "$SCRIPT_DIR")"
 if [ -z "$REPO_ROOT" ]; then
@@ -115,9 +144,38 @@ pushd "$BUILD_CONTEXT"
 
 echo "Building devbox image..."
 devbox image build . --name "$IMAGE_NAME"
+exit_code=$?
+if [ $exit_code -ne 0 ]; then
+  echo "Error: Failed to build devbox image" >&2
+  exit 1
+fi
 popd
 
-# Cleanup
+# Fetch image reference from the registry.
+echo "Fetching image reference from registry..."
+IMAGE_REFERENCE=$(nsc registry list --repository "$IMAGE_NAME" -o json \
+  | jq -r '.[] | select(.tags != null and (.tags[] == "devbox-latest")) | .image_ref')
+
+if [ -z "$IMAGE_REFERENCE" ] || [ "$IMAGE_REFERENCE" = "null" ]; then
+  echo "Warning: Could not find image with tag 'devbox-latest' in repository '$IMAGE_NAME'" >&2
+fi
+
+# Extend image expiration to 10 years from now.
+EXPIRE_AT=$(date -u -d "+10 years" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+  || date -u -v+10y '+%Y-%m-%dT%H:%M:%SZ')
+nsc registry update-image-expiration "$IMAGE_REFERENCE" --expire-at "$EXPIRE_AT"
+
+exit_code=$?
+if [ $exit_code -ne 0 ]; then
+  echo "Warning: Failed to update image expiration" >&2
+  echo "The image will expire in 7 days." >&2
+  echo "To extend the expiration, run the following command:" >&2
+  echo "nsc registry update-image-expiration <IMAGE_REFERENCE> --expire-at <EXPIRE_AT>" >&2
+fi
+
 echo "Build complete!"
+echo "Image reference: $IMAGE_REFERENCE"
+
+# Cleanup
 echo "Cleaning up build context..."
 rm -rf "$BUILD_CONTEXT"
