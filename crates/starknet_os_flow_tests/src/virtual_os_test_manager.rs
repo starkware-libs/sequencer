@@ -1,10 +1,20 @@
+use std::sync::{Arc, Mutex};
+
+use async_trait::async_trait;
+use blockifier_reexecution::state_reader::rpc_objects::BlockId;
+use starknet_api::invoke_tx_args;
+use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::VIRTUAL_OS_OUTPUT_VERSION;
+use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use starknet_os::io::virtual_os_output::{
     compute_messages_to_l1_hashes,
     VirtualOsOutput,
     VirtualOsRunnerOutput,
 };
 use starknet_os::runner::run_virtual_os;
+use starknet_os_runner::errors::RunnerError;
+use starknet_os_runner::runner::{RunnerOutput, VirtualSnosRunner};
+use starknet_os_runner::virtual_snos_prover::{VirtualSnosProver, VirtualSnosProverOutput};
 
 use crate::initial_state::FlowTestState;
 use crate::test_manager::TestRunner;
@@ -15,6 +25,8 @@ pub(crate) struct VirtualOsTestOutput {
     pub(crate) runner_output: VirtualOsRunnerOutput,
     /// The expected values computed from the OS hints.
     pub(crate) expected_virtual_os_output: VirtualOsOutput,
+    /// The L2-to-L1 messages produced by the executed transactions.
+    pub(crate) messages_to_l1: Vec<MessageToL1>,
     // TODO(Yoni): consider adding more data for sanity checks, such as the expected state diff.
 }
 
@@ -25,6 +37,23 @@ impl VirtualOsTestOutput {
             .expect("Parsing virtual OS output should not fail.");
 
         assert_eq!(virtual_os_output, self.expected_virtual_os_output);
+    }
+
+    /// Validates the output and proves the result.
+    pub(crate) async fn prove(self) -> VirtualSnosProverOutput {
+        self.validate();
+
+        let runner_output = RunnerOutput {
+            cairo_pie: self.runner_output.cairo_pie,
+            l2_to_l1_messages: self.messages_to_l1,
+        };
+        let runner = PrecomputedRunner { output: Arc::new(Mutex::new(Some(runner_output))) };
+        let prover = VirtualSnosProver::from_runner(runner);
+        // Send a dummy transaction to the prover.
+        prover
+            .prove_transaction(BlockId::Latest, rpc_invoke_tx(invoke_tx_args! {}))
+            .await
+            .expect("prove_transaction should succeed")
     }
 }
 
@@ -38,6 +67,7 @@ impl<S: FlowTestState> TestRunner<S> {
             self.os_hints.os_hints_config.chain_info.compute_virtual_os_config_hash().unwrap();
 
         let messages_to_l1_hashes = compute_messages_to_l1_hashes(&self.messages_to_l1);
+        let messages_to_l1 = self.messages_to_l1;
         let expected_virtual_os_output = VirtualOsOutput {
             version: VIRTUAL_OS_OUTPUT_VERSION,
             base_block_number: first_block.block_info.block_number,
@@ -50,7 +80,7 @@ impl<S: FlowTestState> TestRunner<S> {
         let runner_output =
             run_virtual_os(self.os_hints).expect("Running virtual OS should not fail.");
 
-        VirtualOsTestOutput { runner_output, expected_virtual_os_output }
+        VirtualOsTestOutput { runner_output, expected_virtual_os_output, messages_to_l1 }
     }
 
     /// Runs the virtual OS and validates the output against expected values.
@@ -68,5 +98,22 @@ impl<S: FlowTestState> TestRunner<S> {
             expected_error,
             err_string
         );
+    }
+}
+
+/// A runner that returns pre-computed data from a previous virtual OS execution.
+#[derive(Clone)]
+struct PrecomputedRunner {
+    output: Arc<Mutex<Option<RunnerOutput>>>,
+}
+
+#[async_trait]
+impl VirtualSnosRunner for PrecomputedRunner {
+    async fn run_virtual_os(
+        &self,
+        _block_id: BlockId,
+        _txs: Vec<InvokeTransaction>,
+    ) -> Result<RunnerOutput, RunnerError> {
+        Ok(self.output.lock().unwrap().take().expect("PrecomputedRunner already consumed"))
     }
 }

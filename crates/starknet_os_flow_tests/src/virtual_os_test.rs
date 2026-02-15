@@ -1,3 +1,4 @@
+use apollo_transaction_converter::transaction_converter::verify_proof;
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::get_valid_virtual_os_program_hash;
@@ -23,9 +24,13 @@ use starknet_types_core::felt::Felt;
 use crate::test_manager::{TestBuilder, TestBuilderConfig, FUNDED_ACCOUNT_ADDRESS};
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 
+/// End-to-end test: executes a message-to-L1 transaction through the virtual OS, generates a
+/// proof, and verifies both the L2-to-L1 messages and the proof.
+///
+/// Note: running the prover is heavy; this should be the only test that does so.
 #[rstest]
 #[tokio::test]
-async fn test_basic_happy_flow() {
+async fn test_end_to_end_happy_flow() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
     let (mut test_builder, [contract_address]) =
@@ -34,19 +39,28 @@ async fn test_basic_happy_flow() {
 
     let to_address = Felt::from(85);
     let payload = vec![Felt::from(12), Felt::from(34)];
+    let message = MessageToL1 {
+        from_address: contract_address,
+        to_address: EthAddress::try_from(to_address).unwrap(),
+        payload: L2ToL1Payload(payload.clone()),
+    };
     let calldata = create_calldata(
         contract_address,
         "test_send_message_to_l1",
         &[to_address, Felt::from(payload.len()), payload[0], payload[1]],
     );
     test_builder.add_funded_account_invoke(invoke_tx_args! { calldata });
-    test_builder.messages_to_l1.push(MessageToL1 {
-        from_address: contract_address,
-        to_address: EthAddress::try_from(to_address).unwrap(),
-        payload: L2ToL1Payload(payload),
-    });
+    test_builder.messages_to_l1.push(message.clone());
 
-    test_builder.build().await.run_virtual_and_validate();
+    // Run the virtual OS, validate, and prove.
+    let prover_output = test_builder.build().await.run_virtual().prove().await;
+    let result = prover_output.result;
+
+    // Validate messages.
+    assert_eq!(result.l2_to_l1_messages, [message]);
+
+    // Validate proof.
+    verify_proof(result.proof_facts, result.proof).expect("Proof verification should succeed");
 }
 
 /// Security tests.
