@@ -63,5 +63,6 @@
   "state_sync_config.static_config.storage_config.mmap_file_config.max_size": 1099511627776,
   "state_sync_config.static_config.storage_config.scope": "FullArchive",
   "state_sync_config.static_config.storage_reader_server_static_config.ip": "0.0.0.0",
-  "state_sync_config.static_config.storage_reader_server_static_config.port": "$$$_STATE_SYNC_CONFIG-STATIC_CONFIG-STORAGE_READER_SERVER_STATIC_CONFIG-PORT_$$$"
+  "state_sync_config.static_config.storage_reader_server_static_config.port": "$$$_STATE_SYNC_CONFIG-STATIC_CONFIG-STORAGE_READER_SERVER_STATIC_CONFIG-PORT_$$$",
+  "state_sync_config.static_config.storage_reader_server_static_config.component_type": "StateSync"
 }

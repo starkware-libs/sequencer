@@ -24,6 +24,17 @@ use crate::{StorageError, StorageReader};
 #[path = "storage_reader_server_test.rs"]
 mod storage_reader_server_test;
 
+/// Identifies which component owns this storage reader server.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ComponentType {
+    /// Batcher component.
+    Batcher,
+    /// State sync component.
+    StateSync,
+    /// Class manager component.
+    ClassManager,
+}
+
 /// Static configuration for the storage reader server.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct StorageReaderServerStaticConfig {
@@ -31,11 +42,15 @@ pub struct StorageReaderServerStaticConfig {
     pub ip: IpAddr,
     /// The port for the server.
     pub port: u16,
+    /// The component type that owns this server.
+    pub component_type: ComponentType,
 }
 
-impl Default for StorageReaderServerStaticConfig {
-    fn default() -> Self {
-        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8091 }
+impl StorageReaderServerStaticConfig {
+    /// Creates a new storage reader server static config with default IP (0.0.0.0) and port
+    /// (8091).
+    pub fn new(component_type: ComponentType) -> Self {
+        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8091, component_type }
     }
 }
 
@@ -52,6 +67,12 @@ impl SerializeConfig for StorageReaderServerStaticConfig {
                 "port",
                 &self.port,
                 "The port for the storage reader HTTP server.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "component_type",
+                &format!("{:?}", self.component_type),
+                "The component type that owns this storage reader server.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -77,7 +98,7 @@ impl SerializeConfig for StorageReaderServerDynamicConfig {
 }
 
 /// Configuration for the storage reader server (wrapper of static + dynamic).
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Validate)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct ServerConfig {
     /// Static configuration.
     #[validate(nested)]
@@ -89,9 +110,9 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     /// Creates a new server configuration.
-    pub fn new(ip: IpAddr, port: u16, enable: bool) -> Self {
+    pub fn new(ip: IpAddr, port: u16, enable: bool, component_type: ComponentType) -> Self {
         Self {
-            static_config: StorageReaderServerStaticConfig { ip, port },
+            static_config: StorageReaderServerStaticConfig { ip, port, component_type },
             dynamic_config: StorageReaderServerDynamicConfig { enable },
         }
     }
@@ -104,6 +125,11 @@ impl ServerConfig {
     /// Returns the server port.
     pub fn port(&self) -> u16 {
         self.static_config.port
+    }
+
+    /// Returns the component type.
+    pub fn component_type(&self) -> &ComponentType {
+        &self.static_config.component_type
     }
 
     /// Returns whether the server is enabled.

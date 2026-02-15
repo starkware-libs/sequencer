@@ -15,5 +15,6 @@
   "class_manager_config.static_config.class_storage_config.class_hash_storage_config.scope": "StateOnly",
   "class_manager_config.static_config.class_storage_config.persistent_root": "/data/class_manager/classes",
   "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.ip": "0.0.0.0",
-  "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port": "$$$_CLASS_MANAGER_CONFIG-STATIC_CONFIG-CLASS_STORAGE_CONFIG-STORAGE_READER_SERVER_STATIC_CONFIG-PORT_$$$"
+  "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port": "$$$_CLASS_MANAGER_CONFIG-STATIC_CONFIG-CLASS_STORAGE_CONFIG-STORAGE_READER_SERVER_STATIC_CONFIG-PORT_$$$",
+  "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.component_type": "ClassManager"
 }

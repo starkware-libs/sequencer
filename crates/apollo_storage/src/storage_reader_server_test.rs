@@ -9,7 +9,12 @@ use starknet_api::block::{BlockHeader, BlockNumber};
 use tower::util::ServiceExt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
-use crate::storage_reader_server::{ServerConfig, StorageReaderServer, StorageReaderServerHandler};
+use crate::storage_reader_server::{
+    ComponentType,
+    ServerConfig,
+    StorageReaderServer,
+    StorageReaderServerHandler,
+};
 use crate::storage_reader_server_test_utils::{get_response, send_storage_query, to_bytes};
 use crate::test_utils::get_test_storage;
 use crate::{StorageError, StorageReader};
@@ -71,8 +76,12 @@ async fn endpoint_successful_query() {
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 0);
 
-    let config =
-        ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
+    let config = ServerConfig::new(
+        IpAddr::from(Ipv4Addr::LOCALHOST),
+        available_ports.get_next_port(),
+        true,
+        ComponentType::Batcher,
+    );
 
     let server =
         StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
@@ -92,8 +101,12 @@ async fn endpoint_query_nonexistent_block() {
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 1);
 
-    let config =
-        ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
+    let config = ServerConfig::new(
+        IpAddr::from(Ipv4Addr::LOCALHOST),
+        available_ports.get_next_port(),
+        true,
+        ComponentType::Batcher,
+    );
 
     let server =
         StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
@@ -113,8 +126,12 @@ async fn endpoint_handler_error() {
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 2);
 
-    let config =
-        ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
+    let config = ServerConfig::new(
+        IpAddr::from(Ipv4Addr::LOCALHOST),
+        available_ports.get_next_port(),
+        true,
+        ComponentType::Batcher,
+    );
 
     let server =
         StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(reader.clone(), config);
@@ -137,8 +154,12 @@ async fn endpoint_invalid_json() {
 
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 3);
-    let config =
-        ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
+    let config = ServerConfig::new(
+        IpAddr::from(Ipv4Addr::LOCALHOST),
+        available_ports.get_next_port(),
+        true,
+        ComponentType::Batcher,
+    );
 
     let server =
         StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);

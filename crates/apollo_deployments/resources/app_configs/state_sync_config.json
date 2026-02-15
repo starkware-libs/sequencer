@@ -63,5 +63,6 @@
   "state_sync_config.static_config.storage_config.scope": "FullArchive",
   "state_sync_config.dynamic_config.storage_reader_server_dynamic_config.enable": false,
   "state_sync_config.static_config.storage_reader_server_static_config.ip": "0.0.0.0",
-  "state_sync_config.static_config.storage_reader_server_static_config.port": 8091
+  "state_sync_config.static_config.storage_reader_server_static_config.port": 8091,
+  "state_sync_config.static_config.storage_reader_server_static_config.component_type": "StateSync"
 }

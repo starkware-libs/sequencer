@@ -59,5 +59,6 @@
   "batcher_config.static_config.storage.mmap_file_config.max_size": 1099511627776,
   "batcher_config.static_config.storage.scope": "StateOnly",
   "batcher_config.static_config.storage_reader_server_static_config.ip": "0.0.0.0",
-  "batcher_config.static_config.storage_reader_server_static_config.port": 8091
+  "batcher_config.static_config.storage_reader_server_static_config.port": 8091,
+  "batcher_config.static_config.storage_reader_server_static_config.component_type": "Batcher"
 }

@@ -389,6 +389,11 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
+  "batcher_config.static_config.storage_reader_server_static_config.component_type": {
+    "description": "The component type that owns this storage reader server.",
+    "privacy": "Public",
+    "value": "Batcher"
+  },
   "batcher_config.static_config.storage_reader_server_static_config.ip": {
     "description": "The IP address for the storage reader HTTP server.",
     "privacy": "Public",
@@ -488,6 +493,11 @@
     "description": "Path to the node's class storage directory.",
     "privacy": "Public",
     "value": "/data/classes"
+  },
+  "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.component_type": {
+    "description": "The component type that owns this storage reader server.",
+    "privacy": "Public",
+    "value": "ClassManager"
   },
   "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.ip": {
     "description": "The IP address for the storage reader HTTP server.",
@@ -3403,6 +3413,11 @@
     "description": "The categories of data saved in storage.",
     "privacy": "Public",
     "value": "FullArchive"
+  },
+  "state_sync_config.static_config.storage_reader_server_static_config.component_type": {
+    "description": "The component type that owns this storage reader server.",
+    "privacy": "Public",
+    "value": "StateSync"
   },
   "state_sync_config.static_config.storage_reader_server_static_config.ip": {
     "description": "The IP address for the storage reader HTTP server.",

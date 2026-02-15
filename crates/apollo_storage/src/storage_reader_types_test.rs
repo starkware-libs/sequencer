@@ -27,7 +27,7 @@ use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::consensus::{ConsensusStorageWriter, LastVotedMarker};
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
-use crate::storage_reader_server::ServerConfig;
+use crate::storage_reader_server::{ComponentType, ServerConfig};
 use crate::storage_reader_server_test_utils::get_response;
 use crate::storage_reader_types::{
     GenericStorageReaderServer,
@@ -147,6 +147,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         IpAddr::from(Ipv4Addr::LOCALHOST),
         available_ports_factory(instance_index).get_next_port(),
         true,
+        ComponentType::Batcher,
     );
     let server = GenericStorageReaderServer::new(reader.clone(), config);
     let app = server.app();

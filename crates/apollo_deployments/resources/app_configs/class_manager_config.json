@@ -15,5 +15,6 @@
   "class_manager_config.static_config.class_storage_config.persistent_root": "/data/class_manager/classes",
   "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.ip": "0.0.0.0",
   "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port": 8091,
+  "class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.component_type": "ClassManager",
   "class_manager_config.dynamic_config.storage_reader_server_dynamic_config.enable": false
 }

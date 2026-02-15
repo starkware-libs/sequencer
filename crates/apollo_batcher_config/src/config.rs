@@ -11,6 +11,7 @@ use apollo_config::dumping::{
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::{
+    ComponentType,
     StorageReaderServerDynamicConfig,
     StorageReaderServerStaticConfig,
 };
@@ -329,7 +330,9 @@ impl Default for BatcherStaticConfig {
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             first_block_with_partial_block_hash: None,
-            storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
+            storage_reader_server_static_config: StorageReaderServerStaticConfig::new(
+                ComponentType::Batcher,
+            ),
         }
     }
 }
