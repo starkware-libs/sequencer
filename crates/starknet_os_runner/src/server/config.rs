@@ -12,6 +12,10 @@ use url::Url;
 
 use crate::config::ProverConfig;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
+
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
 const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
