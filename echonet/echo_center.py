@@ -7,6 +7,7 @@ from typing import Any, List, Literal, Optional, Tuple, Union
 import flask  # pyright: ignore[reportMissingImports]
 import requests
 
+from echonet.constants import IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
@@ -555,6 +556,50 @@ class EchoCenterService:
             logger_obj=self.logger,
         )
 
+    def _check_l2_gas_mismatches(self, stored_block: JsonObject, echo_block_number: int) -> None:
+        try:
+            txs = stored_block.get("transactions", [])
+            receipts = stored_block.get("transaction_receipts", [])
+            if not txs:
+                return
+
+            fgw_l2_cache: dict[int, dict[str, int]] = {}
+            for tx, receipt in zip(txs, receipts):
+                tx_hash: str = tx["transaction_hash"]
+                if any(
+                    str(x) == IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
+                    for x in (tx.get("calldata", []))
+                ):
+                    continue
+
+                source_block = self.shared.get_sent_block_number(tx_hash)
+                fgw_l2_by_hash = fgw_l2_cache.get(source_block)
+                if fgw_l2_by_hash is None:
+                    fgw_block = self.shared.get_fgw_block(source_block)
+                    fgw_l2_by_hash = {
+                        t["transaction_hash"]: r["execution_resources"]["total_gas_consumed"][
+                            "l2_gas"
+                        ]
+                        for t, r in zip(
+                            fgw_block["transactions"], fgw_block["transaction_receipts"]
+                        )
+                    }
+                    fgw_l2_cache[source_block] = fgw_l2_by_hash
+
+                blob_l2_gas: int = receipt["execution_resources"]["total_gas_consumed"]["l2_gas"]
+                fgw_l2_gas = fgw_l2_by_hash.get(tx_hash)
+                if blob_l2_gas != fgw_l2_gas:
+                    self.logger.warning(
+                        "l2_gas mismatch: "
+                        f"tx={tx_hash} "
+                        f"echo_block={int(echo_block_number)} "
+                        f"source_block={source_block} "
+                        f"blob_total_gas_l2={blob_l2_gas} "
+                        f"fgw_total_gas_consumed_l2={fgw_l2_gas}"
+                    )
+        except Exception as err:
+            self.logger.debug(f"l2_gas mismatch check failed: {err}")
+
     @staticmethod
     def _json_response(payload: Any, status: int = requests.codes.ok) -> flask.Response:
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -599,6 +644,8 @@ class EchoCenterService:
 
         to_store = self._transformer.transform_block(blob)
         state_update = self._transformer.transform_state_update(blob, block_number)
+
+        self._check_l2_gas_mismatches(to_store, echo_block_number=block_number)
 
         self.shared.store_block(
             block_number, blob=blob, fgw_block=to_store, state_update=state_update
