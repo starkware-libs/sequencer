@@ -8,7 +8,7 @@ use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableCla
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderServerDynamicConfig};
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
@@ -326,9 +326,16 @@ impl From<FsClassStorageError> for CachedClassStorageError<FsClassStorageError> 
 }
 
 impl FsClassStorage {
-    pub fn new(config: FsClassStorageConfig) -> FsClassStorageResult<Self> {
+    pub fn new(
+        config: FsClassStorageConfig,
+        storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
+    ) -> FsClassStorageResult<Self> {
+        let storage_reader_server_config = ServerConfig {
+            static_config: config.storage_reader_server_static_config.clone(),
+            dynamic_config: storage_reader_server_dynamic_config,
+        };
         let class_hash_storage =
-            ClassHashStorage::new(config.class_hash_storage_config, ServerConfig::default())?;
+            ClassHashStorage::new(config.class_hash_storage_config, storage_reader_server_config)?;
         std::fs::create_dir_all(&config.persistent_root)?;
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
