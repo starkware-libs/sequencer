@@ -6,6 +6,7 @@ use starknet_api::transaction::fields::GasVectorComputationMode;
 use super::fee_utils::get_vm_resources_cost;
 use crate::abi::constants;
 use crate::context::BlockContext;
+use crate::execution::call_info::ExtendedExecutionResources;
 use crate::fee::eth_gas_constants;
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
@@ -187,7 +188,10 @@ pub fn estimate_minimal_gas_vector(
         versioned_constants.os_resources_for_tx_type(&tx.tx_type(), tx.calldata_length()).n_steps
             + versioned_constants.os_kzg_da_resources(data_segment_length).n_steps;
 
-    let resources = ExecutionResources { n_steps: os_steps_for_type, ..Default::default() };
+    let resources = ExtendedExecutionResources {
+        vm_resources: ExecutionResources { n_steps: os_steps_for_type, ..Default::default() },
+        ..Default::default()
+    };
     let da_gas_cost = get_da_gas_cost(&state_changes_by_account_tx, block_info.use_kzg_da);
     let vm_resources_cost = get_vm_resources_cost(
         versioned_constants,
