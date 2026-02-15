@@ -97,18 +97,15 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
-            Some(
-                create_batcher(
-                    batcher_config.clone(),
-                    committer_client,
-                    mempool_client,
-                    l1_provider_client,
-                    class_manager_client,
-                    pre_confirmed_cende_client,
-                    config_manager_client,
-                )
-                .await,
-            )
+            Some(create_batcher(
+                batcher_config.clone(),
+                committer_client,
+                mempool_client,
+                l1_provider_client,
+                class_manager_client,
+                pre_confirmed_cende_client,
+                config_manager_client,
+            ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };

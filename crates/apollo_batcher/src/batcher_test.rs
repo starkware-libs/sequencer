@@ -246,8 +246,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         storage_reader.clone(),
         &mut storage_writer,
         committer_client.clone(),
-    )
-    .await;
+    );
 
     let mut mock_config_manager = MockConfigManagerClient::new();
     mock_config_manager

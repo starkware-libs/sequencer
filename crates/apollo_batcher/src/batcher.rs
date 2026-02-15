@@ -1319,7 +1319,7 @@ fn log_txs_execution_result(
     }
 }
 
-pub async fn create_batcher(
+pub fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,
     mempool_client: SharedMempoolClient,
@@ -1370,8 +1370,7 @@ pub async fn create_batcher(
         storage_reader.clone(),
         &mut storage_writer,
         committer_client.clone(),
-    )
-    .await;
+    );
 
     Batcher::new(
         config,

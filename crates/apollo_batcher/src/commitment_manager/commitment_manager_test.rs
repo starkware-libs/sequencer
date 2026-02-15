@@ -82,7 +82,7 @@ fn get_number_of_items_in_channel_from_receiver<T>(receiver: &Receiver<T>) -> us
     receiver.max_capacity() - receiver.capacity()
 }
 
-async fn create_commitment_manager(
+fn create_commitment_manager(
     mut mock_dependencies: MockDependencies,
 ) -> (ApolloCommitmentManager, Arc<MockBatcherStorageReader>, Box<MockBatcherStorageWriter>) {
     let storage_reader = Arc::new(mock_dependencies.storage_reader);
@@ -91,8 +91,7 @@ async fn create_commitment_manager(
         storage_reader.clone(),
         &mut mock_dependencies.storage_writer,
         Arc::new(mock_dependencies.committer_client),
-    )
-    .await;
+    );
     (commitment_manager, storage_reader, mock_dependencies.storage_writer)
 }
 
@@ -210,11 +209,10 @@ async fn fill_channels(
 }
 
 #[rstest]
-#[tokio::test]
-async fn test_create_commitment_manager(mut mock_dependencies: MockDependencies) {
+fn test_create_commitment_manager(mut mock_dependencies: MockDependencies) {
     add_initial_heights(&mut mock_dependencies);
     let (commitment_manager, _storage_reader, _storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
 
     assert_eq!(
         commitment_manager.get_commitment_task_offset(),
@@ -249,7 +247,7 @@ async fn test_add_missing_commitment_tasks(mut mock_dependencies: MockDependenci
 
     let batcher_config = mock_dependencies.batcher_config.clone();
     let (mut commitment_manager, storage_reader, mut storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
 
     commitment_manager
         .add_missing_commitment_tasks(
@@ -274,7 +272,7 @@ async fn test_add_commitment_task(mut mock_dependencies: MockDependencies) {
     let state_diff_commitment = Some(StateDiffCommitment::default());
 
     let (mut commitment_manager, storage_reader, mut storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
 
     // Verify incorrect height results in error.
     let incorrect_height = INITIAL_HEIGHT.next().unwrap();
@@ -340,7 +338,7 @@ async fn test_add_task_wait_for_full_channel(mut mock_dependencies: MockDependen
     }
 
     let (mut commitment_manager, storage_reader, mut storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
     commitment_manager.config.panic_if_task_channel_full = false;
 
     let next_height =
@@ -372,7 +370,7 @@ async fn test_add_revert_task_wrong_height(mut mock_dependencies: MockDependenci
     add_initial_heights(&mut mock_dependencies);
 
     let (mut commitment_manager, storage_reader, mut storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
 
     // Verify adding a revert task at the wrong height results in an error.
     let err = commitment_manager
@@ -395,7 +393,7 @@ async fn test_add_revert_task_wrong_height(mut mock_dependencies: MockDependenci
 async fn test_add_task_panic_on_full_channel(mut mock_dependencies: MockDependencies) {
     add_initial_heights(&mut mock_dependencies);
     let (mut commitment_manager, storage_reader, mut storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
     assert!(
         commitment_manager.config.panic_if_task_channel_full,
         "Panic on full channel should be true for this test."
@@ -433,7 +431,7 @@ async fn test_get_commitment_results(mut mock_dependencies: MockDependencies) {
             panic_if_task_channel_full: true,
         };
     let (mut commitment_manager, storage_reader, mut storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
 
     // Verify the commitment manager doesn't wait if there are no results.
     let results = commitment_manager.get_commitment_results();
@@ -512,7 +510,7 @@ async fn test_wait_for_revert(mut mock_dependencies: MockDependencies) {
             panic_if_task_channel_full: true,
         };
     let (mut commitment_manager, storage_reader, mut storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
 
     let height = add_commitments_and_revert_tasks(
         &mut commitment_manager,
@@ -538,7 +536,7 @@ async fn test_revert_result_at_getting_commitments(mut mock_dependencies: MockDe
             panic_if_task_channel_full: true,
         };
     let (mut commitment_manager, storage_reader, mut storage_writer) =
-        create_commitment_manager(mock_dependencies).await;
+        create_commitment_manager(mock_dependencies);
 
     add_commitments_and_revert_tasks(
         &mut commitment_manager,
