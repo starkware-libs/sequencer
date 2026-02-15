@@ -19,8 +19,8 @@ Our choice of using Gossipsub might change in the future if we encounter perform
 
 ## Transaction
 The object that we're passing is a [MempoolTransaction](./transaction.proto). A few notes about it:
-* It contains support only for V3 transactions. Transaction prior to V3 can't be a part of a mempool
-because they don't have the required fields to  enter the fee market
+* It contains support only for V3 transactions. Transactions prior to V3 can't be a part of a mempool
+because they don't have the required fields to enter the fee market
 * It doesn't contain a variant for L1Handler transactions. The reason is that mempools can learn
 about existing L1Handler transactions by simply looking at L1
 * In Declare, it contains the SIERRA of the class being declared. The reason it doesn't contain the

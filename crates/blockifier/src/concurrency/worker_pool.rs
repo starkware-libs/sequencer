@@ -141,7 +141,7 @@ impl<S: StateReader> WorkerThread<S> {
             panic!("Another thread panicked. Aborting.");
         }
 
-        // Making sure that the program will abort if a panic occured while halting
+        // Making sure that the program will abort if a panic occurred while halting
         // the scheduler.
         let abort_guard = AbortIfPanic;
         // If a panic is not handled or the handling logic itself panics, then we
