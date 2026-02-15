@@ -210,9 +210,14 @@ fn handle_child_subtree<'a, SubTree: SubTreeTrait<'a>>(
 ) {
     let is_modified = !subtree.is_unmodified();
 
-    // Internal node → always traverse.
+    // Internal node.
     if !subtree.is_leaf() {
-        next_subtrees.push(subtree);
+        if is_modified {
+            // Traversing the subtree.
+            next_subtrees.push(subtree);
+            return;
+        }
+        handle_unmodified_child_subtree(skeleton_tree, next_subtrees, subtree, subtree_data);
         return;
     }
 
@@ -225,6 +230,15 @@ fn handle_child_subtree<'a, SubTree: SubTreeTrait<'a>>(
     }
 
     // Unmodified leaf sibling.
+    handle_unmodified_child_subtree(skeleton_tree, next_subtrees, subtree, subtree_data);
+}
+
+fn handle_unmodified_child_subtree<'a, SubTree: SubTreeTrait<'a>>(
+    skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
+    next_subtrees: &mut Vec<SubTree>,
+    subtree: SubTree,
+    subtree_data: SubTree::NodeData,
+) {
     match SubTree::should_traverse_unmodified_child(subtree_data) {
         UnmodifiedChildTraversal::Traverse => {
             next_subtrees.push(subtree);
