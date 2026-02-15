@@ -38,6 +38,7 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
+    ChainId,
     ClassHash,
     ContractAddress,
     EventCommitment,
@@ -211,6 +212,57 @@ impl StorageTestSetup {
             storage_exec_paths.as_ref().map(|p| p.get_committer_path_with_db_suffix());
         let (committer_db_path, committer_storage_handle) =
             create_dir_for_testing(committer_db_path);
+        Self {
+            storage_config: StorageTestConfig::new(
+                batcher_storage_config,
+                state_sync_storage_config,
+                class_manager_storage_config,
+                consensus_storage_config,
+                committer_db_path,
+            ),
+            storage_handles: StorageTestHandles::new(
+                batcher_storage_handle,
+                state_sync_storage_handle,
+                class_manager_storage_handles,
+                consensus_storage_handle,
+                committer_storage_handle,
+            ),
+        }
+    }
+
+    /// Create empty storage for bootstrap testing.
+    ///
+    /// This creates storage without any pre-populated accounts or contracts.
+    /// Use this when testing the bootstrap flow that creates everything from scratch.
+    pub fn new_empty_for_bootstrap(chain_id: ChainId) -> Self {
+        // Create batcher storage (empty)
+        let ((_, _batcher_storage_writer), batcher_storage_config, batcher_storage_handle) =
+            TestStorageBuilder::new(None)
+                .scope(StorageScope::StateOnly)
+                .chain_id(chain_id.clone())
+                .build();
+        // Note: We don't call initialize_papyrus_test_state - storage stays empty
+
+        // Create state sync storage (empty)
+        let ((_, _state_sync_storage_writer), state_sync_storage_config, state_sync_storage_handle) =
+            TestStorageBuilder::new(None)
+                .scope(StorageScope::FullArchive)
+                .chain_id(chain_id.clone())
+                .build();
+        // Note: We don't call initialize_papyrus_test_state - storage stays empty
+
+        // Create class manager storage (empty)
+        let (_class_manager_storage, class_manager_storage_config, class_manager_storage_handles) =
+            FsClassStorageBuilderForTesting::default().with_chain_id(chain_id.clone()).build();
+        // Note: We don't call initialize_class_manager_test_state - storage stays empty
+
+        // Create consensus storage (empty)
+        let (_, consensus_storage_config, consensus_storage_handle) =
+            TestStorageBuilder::new(None).scope(StorageScope::StateOnly).chain_id(chain_id).build();
+
+        // Create committer path
+        let (committer_db_path, committer_storage_handle) = create_dir_for_testing(None);
+
         Self {
             storage_config: StorageTestConfig::new(
                 batcher_storage_config,

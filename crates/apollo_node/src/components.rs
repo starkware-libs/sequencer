@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_batcher::batcher::{create_batcher, Batcher};
+use apollo_batcher::batcher::{create_batcher, Batcher, BootstrapState};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
@@ -40,6 +40,7 @@ use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use metrics_exporter_prometheus::PrometheusHandle;
 use papyrus_base_layer::cyclic_base_layer_wrapper::CyclicBaseLayerWrapper;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use tracing::info;
 
 use crate::clients::SequencerNodeClients;
@@ -73,6 +74,7 @@ pub async fn create_node_components(
     clients: &SequencerNodeClients,
     prometheus_handle: Option<PrometheusHandle>,
     cli_args: Vec<String>,
+    bootstrap_txs: Vec<InternalConsensusTransaction>,
 ) -> SequencerNodeComponents {
     info!("Creating node components.");
     let batcher = match config.components.batcher.execution_mode {
@@ -97,18 +99,26 @@ pub async fn create_node_components(
             let config_manager_client = clients
                 .get_config_manager_shared_client()
                 .expect("Config Manager client should be available");
-            Some(
-                create_batcher(
-                    batcher_config.clone(),
-                    committer_client,
-                    mempool_client,
-                    l1_provider_client,
-                    class_manager_client,
-                    pre_confirmed_cende_client,
-                    config_manager_client,
-                )
-                .await,
+            let mut batcher = create_batcher(
+                batcher_config.clone(),
+                committer_client,
+                mempool_client,
+                l1_provider_client,
+                class_manager_client,
+                pre_confirmed_cende_client,
+                config_manager_client,
+                bootstrap_txs,
             )
+            .await;
+
+            // Run bootstrap phase if active (before consensus starts)
+            if batcher.bootstrap_state() == BootstrapState::Active {
+                info!("Running bootstrap phase before consensus starts...");
+                run_bootstrap_phase(&mut batcher).await;
+                info!("Bootstrap phase completed");
+            }
+
+            Some(batcher)
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
@@ -522,4 +532,37 @@ pub async fn create_node_components(
         state_sync,
         state_sync_runner,
     }
+}
+
+/// Run the bootstrap phase by executing bootstrap blocks until complete.
+///
+/// This function loops, building and committing bootstrap blocks directly
+/// without consensus involvement. All nodes execute the same hardcoded
+/// bootstrap transactions, so they arrive at the same deterministic state.
+///
+/// # Arguments
+/// * `batcher` - The batcher instance to run bootstrap on
+async fn run_bootstrap_phase(batcher: &mut Batcher) {
+    const MAX_TXS_PER_BLOCK: usize = 100;
+    const MAX_BLOCKS: usize = 100; // Safety limit
+
+    for block_num in 0..MAX_BLOCKS {
+        match batcher.execute_bootstrap_block(MAX_TXS_PER_BLOCK).await {
+            Ok(true) => {
+                // More work to do, continue
+                info!("Bootstrap: block {} executed, continuing...", block_num);
+            }
+            Ok(false) => {
+                // Bootstrap complete
+                info!("Bootstrap: completed after {} blocks", block_num + 1);
+                return;
+            }
+            Err(err) => {
+                // Error during bootstrap - this is fatal
+                panic!("Bootstrap failed at block {}: {:?}", block_num, err);
+            }
+        }
+    }
+
+    panic!("Bootstrap exceeded maximum block limit ({})", MAX_BLOCKS);
 }

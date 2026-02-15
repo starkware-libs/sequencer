@@ -68,7 +68,14 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{
+    BlockHash,
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrices,
+    StarknetVersion,
+};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -120,6 +127,7 @@ use crate::pre_confirmed_block_writer::{
 };
 use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
 use crate::transaction_provider::{
+    BootstrapOnlyTransactionProvider,
     ProposeTransactionProvider,
     TxProviderPhase,
     ValidateTransactionProvider,
@@ -134,6 +142,20 @@ use crate::utils::{
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
+
+/// The state of the bootstrap process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BootstrapState {
+    /// Bootstrap mode is disabled or storage is not empty.
+    #[default]
+    Disabled,
+    /// Bootstrap mode is active - bootstrap transactions will be included in blocks.
+    Active,
+    /// All bootstrap transactions have been provided, waiting for balance check.
+    Monitoring,
+    /// Bootstrap has completed successfully.
+    Completed,
+}
 
 pub struct Batcher {
     pub config: BatcherConfig,
@@ -191,6 +213,13 @@ pub struct Batcher {
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
     storage_reader_server_handle: Option<AbortHandle>,
+
+    /// The current state of the bootstrap process.
+    bootstrap_state: BootstrapState,
+
+    /// Bootstrap transactions to be included in blocks.
+    /// These are provided at batcher creation if bootstrap mode is enabled.
+    bootstrap_txs: Vec<InternalConsensusTransaction>,
 }
 
 impl Batcher {
@@ -208,6 +237,8 @@ impl Batcher {
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
         storage_reader_server_handle: Option<AbortHandle>,
+        bootstrap_state: BootstrapState,
+        bootstrap_txs: Vec<InternalConsensusTransaction>,
     ) -> Self {
         Self {
             config,
@@ -231,6 +262,8 @@ impl Batcher {
             prev_proposal_commitment: None,
             commitment_manager,
             storage_reader_server_handle,
+            bootstrap_state,
+            bootstrap_txs,
         }
     }
 
@@ -315,21 +348,37 @@ impl Batcher {
                 BATCHER_L1_PROVIDER_ERRORS.increment(1);
             });
 
-        let start_phase = if self
-            .proposals_counter
-            .is_multiple_of(self.config.static_config.propose_l1_txs_every)
-        {
-            TxProviderPhase::L1
+        // Determine the transaction provider to use.
+        // In bootstrap mode, we inject bootstrap transactions first.
+        let tx_provider = if self.bootstrap_state == BootstrapState::Active {
+            debug!(
+                "Creating transaction provider with {} bootstrap transactions",
+                self.bootstrap_txs.len()
+            );
+            ProposeTransactionProvider::new_with_bootstrap(
+                self.mempool_client.clone(),
+                self.l1_provider_client.clone(),
+                self.config.static_config.max_l1_handler_txs_per_block_proposal,
+                propose_block_input.block_info.block_number,
+                self.bootstrap_txs.clone(),
+            )
         } else {
-            TxProviderPhase::Mempool
+            let start_phase = if self
+                .proposals_counter
+                .is_multiple_of(self.config.static_config.propose_l1_txs_every)
+            {
+                TxProviderPhase::L1
+            } else {
+                TxProviderPhase::Mempool
+            };
+            ProposeTransactionProvider::new(
+                self.mempool_client.clone(),
+                self.l1_provider_client.clone(),
+                self.config.static_config.max_l1_handler_txs_per_block_proposal,
+                propose_block_input.block_info.block_number,
+                start_phase,
+            )
         };
-        let tx_provider = ProposeTransactionProvider::new(
-            self.mempool_client.clone(),
-            self.l1_provider_client.clone(),
-            self.config.static_config.max_l1_handler_txs_per_block_proposal,
-            propose_block_input.block_info.block_number,
-            start_phase,
-        );
 
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
@@ -741,6 +790,155 @@ impl Batcher {
         Ok(())
     }
 
+    /// Execute a bootstrap block directly without consensus.
+    ///
+    /// This method is called during node startup to process bootstrap transactions
+    /// before consensus begins. Each node executes the same hardcoded bootstrap
+    /// transactions independently to arrive at the same deterministic state.
+    ///
+    /// # Arguments
+    /// * `n_txs` - Maximum number of transactions to include in this block
+    ///
+    /// # Returns
+    /// * `Ok(true)` - Block was executed and there may be more transactions remaining
+    /// * `Ok(false)` - Bootstrap is complete (all txs consumed and balance check passes)
+    /// * `Err(_)` - An error occurred during execution
+    #[instrument(skip(self), err)]
+    pub async fn execute_bootstrap_block(&mut self, n_txs: usize) -> BatcherResult<bool> {
+        if self.bootstrap_state != BootstrapState::Active {
+            info!("Bootstrap: not in Active state, nothing to execute");
+            return Ok(false);
+        }
+
+        if self.bootstrap_txs.is_empty() {
+            info!("Bootstrap: no transactions to execute");
+            self.bootstrap_state = BootstrapState::Monitoring;
+            if self.check_bootstrap_completion() {
+                self.bootstrap_state = BootstrapState::Completed;
+                return Ok(false);
+            }
+            return Ok(true); // Still monitoring
+        }
+
+        let height = self.get_height_from_storage()?;
+        info!("Bootstrap: executing block at height {} with up to {} transactions", height, n_txs);
+
+        // Take the transactions for this block
+        let txs_for_block: Vec<_> =
+            self.bootstrap_txs.drain(..n_txs.min(self.bootstrap_txs.len())).collect();
+        let n_txs_in_block = txs_for_block.len();
+        info!(
+            "Bootstrap: executing {} transactions, {} remaining",
+            n_txs_in_block,
+            self.bootstrap_txs.len()
+        );
+
+        // Create a minimal BlockInfo for the bootstrap block
+        let block_info = BlockInfo {
+            block_number: height,
+            block_timestamp: BlockTimestamp(0), // Bootstrap blocks use timestamp 0
+            sequencer_address: ContractAddress::default(),
+            gas_prices: GasPrices::default(),
+            use_kzg_da: false,
+            starknet_version: StarknetVersion::default(),
+        };
+
+        // Create a transaction provider with just the bootstrap transactions
+        let tx_provider = BootstrapOnlyTransactionProvider::new(txs_for_block);
+
+        // Create block builder
+        let (mut block_builder, _abort_signal_sender) = self
+            .block_builder_factory
+            .create_block_builder(
+                BlockMetadata {
+                    block_info: block_info.clone(),
+                    retrospective_block_hash: None, // No parent hash for bootstrap
+                },
+                BlockBuilderExecutionParams {
+                    deadline: tokio::time::Instant::now() + std::time::Duration::from_secs(300),
+                    is_validator: false,
+                    proposer_idle_detection_delay: std::time::Duration::from_secs(60),
+                },
+                Box::new(tx_provider),
+                None, // No output stream
+                None, // No candidate tx sender
+                None, // No pre-confirmed tx sender
+                tokio::runtime::Handle::current(),
+            )
+            .map_err(|err| {
+                error!("Bootstrap: failed to create block builder: {}", err);
+                BatcherError::InternalError
+            })?;
+
+        // Build the block
+        let block_execution_artifacts = block_builder.build_block().await.map_err(|err| {
+            error!("Bootstrap: failed to build block: {}", err);
+            BatcherError::InternalError
+        })?;
+
+        let state_diff = block_execution_artifacts.thin_state_diff();
+        let partial_block_hash_components =
+            block_execution_artifacts.partial_block_hash_components();
+        let state_diff_commitment =
+            partial_block_hash_components.header_commitments.state_diff_commitment;
+
+        info!(
+            "Bootstrap: block {} built with {} transactions",
+            height,
+            block_execution_artifacts.tx_hashes().len()
+        );
+
+        // Commit the block directly to storage
+        self.commit_proposal_and_block(
+            height,
+            state_diff.clone(),
+            block_execution_artifacts.address_to_nonce(),
+            block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
+            block_execution_artifacts.execution_data.rejected_tx_hashes,
+            StorageCommitmentBlockHash::Partial(partial_block_hash_components),
+        )
+        .await?;
+
+        // Handle commitment manager
+        self.commitment_manager
+            .add_commitment_task(
+                height,
+                state_diff,
+                Some(state_diff_commitment),
+                &self.config.static_config.first_block_with_partial_block_hash,
+                self.storage_reader.clone(),
+                &mut self.storage_writer,
+            )
+            .await
+            .expect("The commitment offset unexpectedly doesn't match the given block height.");
+
+        self.get_commitment_results_and_write_to_storage().await?;
+
+        info!("Bootstrap: block {} committed successfully", height);
+
+        // Update state and check for completion
+        if self.bootstrap_txs.is_empty() {
+            self.bootstrap_state = BootstrapState::Monitoring;
+            if self.check_bootstrap_completion() {
+                info!("Bootstrap: completed successfully");
+                self.bootstrap_state = BootstrapState::Completed;
+                return Ok(false);
+            }
+        }
+
+        Ok(true) // More work to do
+    }
+
+    /// Returns the current bootstrap state.
+    pub fn bootstrap_state(&self) -> BootstrapState {
+        self.bootstrap_state
+    }
+
+    /// Returns true if bootstrap is complete or disabled.
+    pub fn is_bootstrap_complete(&self) -> bool {
+        matches!(self.bootstrap_state, BootstrapState::Completed | BootstrapState::Disabled)
+    }
+
     #[instrument(skip(self), err)]
     pub async fn decision_reached(
         &mut self,
@@ -810,6 +1008,9 @@ impl Batcher {
         PROVING_GAS_IN_LAST_BLOCK
             .set_lossy(block_execution_artifacts.bouncer_weights.proving_gas.0);
         L2_GAS_IN_LAST_BLOCK.set_lossy(block_execution_artifacts.l2_gas_used.0);
+
+        // Update bootstrap state after block commit.
+        self.update_bootstrap_state_after_block_commit();
 
         Ok(DecisionReachedResponse {
             state_diff,
@@ -1286,6 +1487,59 @@ impl Batcher {
             .expect("The commitment offset unexpectedly doesn't match the given block height.");
         Ok(())
     }
+
+    /// Update bootstrap state after a block is committed.
+    ///
+    /// State transitions:
+    /// - Active -> Monitoring: When we've committed at least one block with bootstrap txs
+    /// - Monitoring -> Completed: When ERC20 balances are sufficient
+    fn update_bootstrap_state_after_block_commit(&mut self) {
+        match self.bootstrap_state {
+            BootstrapState::Disabled | BootstrapState::Completed => {
+                // Nothing to do
+            }
+            BootstrapState::Active => {
+                // After first block with bootstrap txs is committed, transition to Monitoring.
+                // The bootstrap txs are provided once per proposal, so after any block is
+                // committed in Active state, we should start monitoring for completion.
+                info!("Bootstrap: transitioning from Active to Monitoring state");
+                self.bootstrap_state = BootstrapState::Monitoring;
+            }
+            BootstrapState::Monitoring => {
+                // Check if bootstrap is complete by verifying ERC20 balances.
+                if self.check_bootstrap_completion() {
+                    info!("Bootstrap: transitioning from Monitoring to Completed state");
+                    self.bootstrap_state = BootstrapState::Completed;
+                }
+            }
+        }
+    }
+
+    /// Check if bootstrap has completed by verifying ERC20 balances.
+    ///
+    /// Returns true if the funded account has sufficient balance in both ETH and STRK.
+    fn check_bootstrap_completion(&self) -> bool {
+        let config = &self.config.static_config.bootstrap_config;
+
+        // Check ETH balance
+        let eth_balance = self.storage_reader.get_erc20_balance_at_latest(
+            config.eth_fee_token_address,
+            config.funded_account_address,
+        );
+
+        // Check STRK balance
+        let strk_balance = self.storage_reader.get_erc20_balance_at_latest(
+            config.strk_fee_token_address,
+            config.funded_account_address,
+        );
+
+        debug!(
+            "Bootstrap: checking balances - ETH: {}, STRK: {}, required: {}",
+            eth_balance, strk_balance, config.required_balance
+        );
+
+        eth_balance >= config.required_balance && strk_balance >= config.required_balance
+    }
 }
 
 /// Logs the result of the transactions execution in the proposal.
@@ -1330,6 +1584,17 @@ fn log_txs_execution_result(
     }
 }
 
+/// Creates a new batcher instance.
+///
+/// # Arguments
+/// * `config` - The batcher configuration
+/// * `committer_client` - Client for the committer service
+/// * `mempool_client` - Client for the mempool service
+/// * `l1_provider_client` - Client for the L1 provider service
+/// * `class_manager_client` - Client for the class manager service
+/// * `pre_confirmed_cende_client` - Client for the pre-confirmed cende service
+/// * `bootstrap_txs` - Bootstrap transactions to include in initial blocks (for bootstrap mode)
+#[allow(clippy::too_many_arguments)]
 pub async fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,
@@ -1338,6 +1603,7 @@ pub async fn create_batcher(
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     config_manager_client: SharedConfigManagerClient,
+    bootstrap_txs: Vec<InternalConsensusTransaction>,
 ) -> Batcher {
     let storage_reader_server_config = ServerConfig {
         static_config: config.static_config.storage_reader_server_static_config.clone(),
@@ -1353,6 +1619,15 @@ pub async fn create_batcher(
 
     let storage_reader_server_handle =
         GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+
+    // Determine bootstrap state based on config, storage, and provided transactions.
+    let bootstrap_state = determine_bootstrap_state(&config, &storage_reader, &bootstrap_txs);
+    if bootstrap_state == BootstrapState::Active {
+        info!(
+            "Bootstrap mode active: {} transactions will be included in initial blocks",
+            bootstrap_txs.len()
+        );
+    }
 
     let execute_config = &config.static_config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
@@ -1396,7 +1671,43 @@ pub async fn create_batcher(
         pre_confirmed_block_writer_factory,
         commitment_manager,
         storage_reader_server_handle,
+        bootstrap_state,
+        bootstrap_txs,
     )
+}
+
+/// Determines whether bootstrap mode should be active.
+///
+/// Bootstrap mode is active when:
+/// 1. `enable_bootstrap_mode` is true in config
+/// 2. Storage is empty (state_diff_height == 0)
+/// 3. Bootstrap transactions are provided
+fn determine_bootstrap_state(
+    config: &BatcherConfig,
+    storage_reader: &StorageReader,
+    bootstrap_txs: &[InternalConsensusTransaction],
+) -> BootstrapState {
+    if !config.static_config.bootstrap_config.enable_bootstrap_mode {
+        return BootstrapState::Disabled;
+    }
+
+    if bootstrap_txs.is_empty() {
+        info!("Bootstrap mode enabled but no transactions provided");
+        return BootstrapState::Disabled;
+    }
+
+    // Check if storage is empty
+    let storage_height = storage_reader
+        .begin_ro_txn()
+        .and_then(|txn| txn.get_state_marker())
+        .unwrap_or(BlockNumber(1)); // Assume non-empty on error
+
+    if storage_height == BlockNumber(0) {
+        BootstrapState::Active
+    } else {
+        info!("Bootstrap mode enabled but storage is not empty (height={})", storage_height);
+        BootstrapState::Disabled
+    }
 }
 
 #[cfg_attr(test, automock)]
@@ -1425,6 +1736,14 @@ pub trait BatcherStorageReader: Send + Sync {
         &self,
         height: BlockNumber,
     ) -> StorageResult<(Option<BlockHash>, Option<PartialBlockHashComponents>)>;
+
+    /// Get the ERC20 balance for a given account at the latest state.
+    /// Returns 0 if the balance cannot be read.
+    fn get_erc20_balance_at_latest(
+        &self,
+        token_address: ContractAddress,
+        account_address: ContractAddress,
+    ) -> u128;
 }
 
 impl BatcherStorageReader for StorageReader {
@@ -1521,6 +1840,50 @@ impl BatcherStorageReader for StorageReader {
         };
         let partial_block_hash_components = txn.get_partial_block_hash_components(&height)?;
         Ok((parent_hash, partial_block_hash_components))
+    }
+
+    fn get_erc20_balance_at_latest(
+        &self,
+        token_address: ContractAddress,
+        account_address: ContractAddress,
+    ) -> u128 {
+        use starknet_api::abi::abi_utils::get_fee_token_var_address;
+
+        let txn = match self.begin_ro_txn() {
+            Ok(txn) => txn,
+            Err(_) => return 0,
+        };
+
+        let state_marker = match txn.get_state_marker() {
+            Ok(marker) => marker,
+            Err(_) => return 0,
+        };
+
+        if state_marker == BlockNumber(0) {
+            return 0; // No blocks committed yet
+        }
+
+        // State number is the block before the marker
+        let state_number =
+            StateNumber::unchecked_right_after_block(BlockNumber(state_marker.0.saturating_sub(1)));
+
+        let state_reader = match txn.get_state_reader() {
+            Ok(reader) => reader,
+            Err(_) => return 0,
+        };
+
+        let balance_key = get_fee_token_var_address(account_address);
+
+        match state_reader.get_storage_at(state_number, &token_address, &balance_key) {
+            Ok(balance) => {
+                // Convert Felt to u128 (takes lower 128 bits)
+                let bytes = balance.to_bytes_le();
+                let mut arr = [0u8; 16];
+                arr.copy_from_slice(&bytes[..16]);
+                u128::from_le_bytes(arr)
+            }
+            Err(_) => 0,
+        }
     }
 }
 

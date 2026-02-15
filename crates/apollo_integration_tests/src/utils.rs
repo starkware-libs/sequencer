@@ -52,6 +52,7 @@ use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
+use apollo_node_config::bootstrap_config::BootstrapConfig;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::ExpectedComponentConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
@@ -333,6 +334,7 @@ pub fn create_node_config(
     let sequencer_node_config = SequencerNodeConfig {
         base_layer_config,
         batcher_config,
+        bootstrap_config: BootstrapConfig::default(),
         class_manager_config,
         committer_config,
         components,

@@ -62,13 +62,24 @@ pub struct ProposeTransactionProvider {
     pub height: BlockNumber,
     phase: TxProviderPhase,
     n_l1handler_txs_so_far: usize,
+    /// Bootstrap transactions to be provided before L1/mempool transactions.
+    /// These are drained as they are returned.
+    bootstrap_txs: Vec<InternalConsensusTransaction>,
+    /// Index of the next bootstrap transaction to return.
+    bootstrap_tx_index: usize,
 }
 
-// Keeps track of whether we need to fetch L1 handler transactions or mempool transactions.
+// Keeps track of which phase we're in for fetching transactions.
+// The order is: Bootstrap -> L1 -> Mempool
 // TODO(guyn): make the phase pub(crate) after refactoring the batcher tests.
 #[derive(Clone, Debug, PartialEq)]
 pub enum TxProviderPhase {
+    /// Bootstrap phase: returns hardcoded bootstrap transactions.
+    /// This phase only runs when the node starts with empty storage and bootstrap mode is enabled.
+    Bootstrap,
+    /// L1 phase: fetches L1 handler transactions.
     L1,
+    /// Mempool phase: fetches transactions from the mempool.
     Mempool,
 }
 
@@ -87,7 +98,51 @@ impl ProposeTransactionProvider {
             height,
             phase: start_phase,
             n_l1handler_txs_so_far: 0,
+            bootstrap_txs: vec![],
+            bootstrap_tx_index: 0,
         }
+    }
+
+    /// Create a new ProposeTransactionProvider with bootstrap transactions.
+    ///
+    /// The provider will first return bootstrap transactions, then transition to
+    /// L1 and mempool phases.
+    pub fn new_with_bootstrap(
+        mempool_client: SharedMempoolClient,
+        l1_provider_client: SharedL1ProviderClient,
+        max_l1_handler_txs_per_block: usize,
+        height: BlockNumber,
+        bootstrap_txs: Vec<InternalConsensusTransaction>,
+    ) -> Self {
+        let start_phase =
+            if bootstrap_txs.is_empty() { TxProviderPhase::L1 } else { TxProviderPhase::Bootstrap };
+        Self {
+            mempool_client,
+            l1_provider_client,
+            max_l1_handler_txs_per_block,
+            height,
+            phase: start_phase,
+            n_l1handler_txs_so_far: 0,
+            bootstrap_txs,
+            bootstrap_tx_index: 0,
+        }
+    }
+
+    /// Get bootstrap transactions for this block.
+    ///
+    /// Returns up to n_txs bootstrap transactions, advancing the internal index.
+    fn get_bootstrap_txs(&mut self, n_txs: usize) -> Vec<InternalConsensusTransaction> {
+        let remaining = self.bootstrap_txs.len() - self.bootstrap_tx_index;
+        let to_take = std::cmp::min(n_txs, remaining);
+        let result: Vec<_> =
+            self.bootstrap_txs[self.bootstrap_tx_index..self.bootstrap_tx_index + to_take].to_vec();
+        self.bootstrap_tx_index += to_take;
+        result
+    }
+
+    /// Check if all bootstrap transactions have been provided.
+    fn bootstrap_exhausted(&self) -> bool {
+        self.bootstrap_tx_index >= self.bootstrap_txs.len()
     }
 
     async fn get_l1_handler_txs(
@@ -126,9 +181,28 @@ impl TransactionProvider for ProposeTransactionProvider {
     async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs> {
         assert!(n_txs > 0, "The number of transactions requested must be greater than zero.");
         let mut txs = vec![];
+
+        // Phase 1: Bootstrap transactions (if any)
+        if self.phase == TxProviderPhase::Bootstrap {
+            let mut bootstrap_txs = self.get_bootstrap_txs(n_txs);
+            txs.append(&mut bootstrap_txs);
+
+            // Transition to L1 phase when bootstrap is exhausted
+            if self.bootstrap_exhausted() {
+                self.phase = TxProviderPhase::L1;
+            }
+
+            if txs.len() == n_txs {
+                return Ok(txs);
+            }
+        }
+
+        // Phase 2: L1 handler transactions
         if self.phase == TxProviderPhase::L1 {
-            let n_l1handler_txs_to_get =
-                min(self.max_l1_handler_txs_per_block - self.n_l1handler_txs_so_far, n_txs);
+            let n_l1handler_txs_to_get = min(
+                self.max_l1_handler_txs_per_block - self.n_l1handler_txs_so_far,
+                n_txs - txs.len(),
+            );
             let mut l1handler_txs = self.get_l1_handler_txs(n_l1handler_txs_to_get).await?;
             self.n_l1handler_txs_so_far += l1handler_txs.len();
 
@@ -146,6 +220,7 @@ impl TransactionProvider for ProposeTransactionProvider {
             }
         }
 
+        // Phase 3: Mempool transactions
         let mut mempool_txs = self.get_mempool_txs(n_txs - txs.len()).await?;
         txs.append(&mut mempool_txs);
         Ok(txs)
@@ -225,5 +300,38 @@ impl TransactionProvider for ValidateTransactionProvider {
     #[cfg(test)]
     fn phase(&self) -> TxProviderPhase {
         panic!("Phase is only relevant to proposing transactions.")
+    }
+}
+
+/// A simple transaction provider that only returns bootstrap transactions.
+/// Used during the bootstrap phase before consensus starts.
+pub struct BootstrapOnlyTransactionProvider {
+    txs: Vec<InternalConsensusTransaction>,
+    index: usize,
+}
+
+impl BootstrapOnlyTransactionProvider {
+    pub fn new(txs: Vec<InternalConsensusTransaction>) -> Self {
+        Self { txs, index: 0 }
+    }
+}
+
+#[async_trait]
+impl TransactionProvider for BootstrapOnlyTransactionProvider {
+    async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs> {
+        let remaining = self.txs.len() - self.index;
+        let to_take = min(n_txs, remaining);
+        let result: Vec<_> = self.txs[self.index..self.index + to_take].to_vec();
+        self.index += to_take;
+        Ok(result)
+    }
+
+    async fn get_final_n_executed_txs(&mut self) -> Option<usize> {
+        None
+    }
+
+    #[cfg(test)]
+    fn phase(&self) -> TxProviderPhase {
+        TxProviderPhase::Bootstrap
     }
 }
