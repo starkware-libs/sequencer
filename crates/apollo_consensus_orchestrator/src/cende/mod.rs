@@ -34,7 +34,7 @@ use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
 use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
-use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
@@ -63,6 +63,9 @@ pub enum CendeAmbassadorError {
     StarknetApiError(#[from] starknet_api::StarknetApiError),
 }
 
+/// Number of recent block hashes to include in the blob.
+pub(crate) const N_RECENT_BLOCK_HASHES_IN_BLOB: u64 = 12;
+
 pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 
 /// A chunk of all the data to write to Aersopike.
@@ -84,6 +87,7 @@ pub(crate) struct AerospikeBlob {
     compiled_class_hashes_for_migration: CentralCompiledClassHashesForMigration,
     proposal_commitment: ProposalCommitment,
     parent_proposal_commitment: Option<ProposalCommitment>,
+    recent_block_hashes: Vec<BlockHashAndNumber>,
 }
 
 #[cfg_attr(test, automock)]
@@ -270,6 +274,7 @@ pub struct BlobParameters {
     pub(crate) compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
     pub(crate) proposal_commitment: ProposalCommitment,
     pub(crate) parent_proposal_commitment: Option<ProposalCommitment>,
+    pub(crate) recent_block_hashes: Vec<BlockHashAndNumber>,
 }
 
 impl AerospikeBlob {
@@ -323,6 +328,7 @@ impl AerospikeBlob {
                 .compiled_class_hashes_for_migration,
             proposal_commitment: blob_parameters.proposal_commitment,
             parent_proposal_commitment: blob_parameters.parent_proposal_commitment,
+            recent_block_hashes: blob_parameters.recent_block_hashes,
         })
     }
 }

@@ -72,5 +72,6 @@
   },
   "compiled_class_hashes_for_migration": [],
   "proposal_commitment": "0x80020000",
-  "parent_proposal_commitment": null
+  "parent_proposal_commitment": null,
+  "recent_block_hashes": []
 }
