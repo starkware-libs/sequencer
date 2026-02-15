@@ -18,6 +18,10 @@ STATE_BLOCK_HASH_SELECTOR = "0x382d83e3"  # stateBlockHash()
 # Value to use as the end block number if none is given, large enough to not stop in the middle.
 MAX_BLOCK_NUMBER: int = 1 << 200
 
+# Calldata marker to ignore for l2_gas mismatch diagnostics.
+IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA = (
+    "0x10398fe631af9ab2311840432d507bf7ef4b959ae967f1507928f5afe888a99"
+)
 # ---------------------------------------------------------------------------
 # Echonet config file locations / names
 # ---------------------------------------------------------------------------
