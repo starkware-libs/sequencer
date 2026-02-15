@@ -8,8 +8,13 @@ use clap::Parser;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use tracing::info;
+use url::Url;
 
 use crate::config::ProverConfig;
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
 
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
@@ -31,6 +36,8 @@ pub struct ServiceConfig {
     pub max_concurrent_requests: usize,
     /// Maximum number of simultaneous JSON-RPC connections (safety net).
     pub max_connections: u32,
+    /// CORS allow-origin values for HTTP responses (for example `http://localhost:5173` or `*`).
+    pub cors_allow_origin: Vec<String>,
 }
 
 impl Default for ServiceConfig {
@@ -41,6 +48,7 @@ impl Default for ServiceConfig {
             port: DEFAULT_PORT,
             max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
             max_connections: DEFAULT_MAX_CONNECTIONS,
+            cors_allow_origin: Vec::new(),
         }
     }
 }
@@ -117,6 +125,15 @@ impl ServiceConfig {
                 config.max_connections = max;
             }
         }
+        if !args.cors_allow_origin.is_empty() {
+            if args.cors_allow_origin != config.cors_allow_origin {
+                info!(
+                    "CLI override: cors_allow_origin: {:?} -> {:?}",
+                    config.cors_allow_origin, args.cors_allow_origin
+                );
+            }
+            config.cors_allow_origin = args.cors_allow_origin;
+        }
 
         if let Some(hex_str) = args.strk_fee_token_address {
             let strk_fee_token_address = ContractAddress::from_str(&hex_str).map_err(|e| {
@@ -147,9 +164,80 @@ impl ServiceConfig {
                 "max_connections must be at least 1".to_string(),
             ));
         }
+        config.cors_allow_origin = normalize_cors_allow_origins(config.cors_allow_origin)?;
+        if config.cors_allow_origin == ["*"] {
+            info!("CORS allow-origin configured as wildcard '*'.");
+        }
 
         Ok(config)
     }
+}
+
+fn normalize_cors_allow_origins(
+    cors_allow_origins: Vec<String>,
+) -> Result<Vec<String>, ConfigError> {
+    if cors_allow_origins.iter().any(|origin| origin == "*") {
+        return Ok(vec!["*".to_string()]);
+    }
+
+    let mut normalized_allow_origins = Vec::new();
+
+    for cors_allow_origin in cors_allow_origins {
+        let normalized_allow_origin = normalize_cors_allow_origin(&cors_allow_origin)?;
+        if !normalized_allow_origins.contains(&normalized_allow_origin) {
+            normalized_allow_origins.push(normalized_allow_origin);
+        }
+    }
+
+    Ok(normalized_allow_origins)
+}
+
+fn normalize_cors_allow_origin(cors_allow_origin: &str) -> Result<String, ConfigError> {
+    let parsed = Url::parse(cors_allow_origin).map_err(|e| {
+        ConfigError::InvalidArgument(format!(
+            "Invalid cors_allow_origin '{cors_allow_origin}': {e}"
+        ))
+    })?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(ConfigError::InvalidArgument(format!(
+            "Invalid cors_allow_origin '{cors_allow_origin}': only http:// and https:// are \
+             supported."
+        )));
+    }
+    if parsed.host().is_none() {
+        return Err(ConfigError::InvalidArgument(format!(
+            "Invalid cors_allow_origin '{cors_allow_origin}': host is required."
+        )));
+    }
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err(ConfigError::InvalidArgument(format!(
+            "Invalid cors_allow_origin '{cors_allow_origin}': userinfo is not supported."
+        )));
+    }
+    if parsed.path() != "/" || parsed.query().is_some() || parsed.fragment().is_some() {
+        return Err(ConfigError::InvalidArgument(format!(
+            "Invalid cors_allow_origin '{cors_allow_origin}': must be '*' or \
+             '<scheme>://<host>[:port]' without a path, query, or fragment."
+        )));
+    }
+
+    let host = parsed.host().ok_or_else(|| {
+        ConfigError::InvalidArgument(format!(
+            "Invalid cors_allow_origin '{cors_allow_origin}': host is required."
+        ))
+    })?;
+    let mut normalized = format!("{}://{}", parsed.scheme(), host);
+
+    if let Some(port) = parsed.port() {
+        let is_default_port = (parsed.scheme() == "http" && port == 80)
+            || (parsed.scheme() == "https" && port == 443);
+        if !is_default_port {
+            normalized.push(':');
+            normalized.push_str(&port.to_string());
+        }
+    }
+
+    Ok(normalized)
 }
 
 /// CLI arguments for the proving service.
@@ -188,6 +276,25 @@ pub struct CliArgs {
     /// Override STRK fee token address (hex, e.g. for custom environments that share a chain ID).
     #[arg(long, value_name = "ADDRESS")]
     pub strk_fee_token_address: Option<String>,
+
+    /// CORS allow-origin values (`*` or one or more origins such as `http://localhost:5173`).
+    #[arg(
+        long,
+        value_name = "ORIGIN",
+        long_help = "CORS allow-origin values ('*' or one or more origins).\n\n\
+            Repeat the flag for multiple origins:\n  \
+            --cors-allow-origin http://localhost:5173 \\\n  \
+            --cors-allow-origin https://app.example.com\n\n\
+            Rules:\n  \
+            - Omitted or empty: CORS is disabled (no Access-Control-Allow-Origin header).\n  \
+            - '*': allow all origins (wildcard mode).\n  \
+            - If '*' appears alongside other values, wildcard mode is used and the rest are \
+            ignored.\n  \
+            - Only http:// and https:// origins are accepted.\n  \
+            - Paths, query strings, fragments, and userinfo are rejected.\n  \
+            - Origins are normalized and deduplicated."
+    )]
+    pub cors_allow_origin: Vec<String>,
 }
 
 /// Errors that can occur during configuration.
