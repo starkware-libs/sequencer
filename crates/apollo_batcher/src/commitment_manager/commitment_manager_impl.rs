@@ -399,9 +399,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             }
             true => {
                 info!("Finalizing commitment for block {height} with calculating block hash.");
-                let (parent_hash, partial_block_hash_components) =
+                let (previous_block_hash, partial_block_hash_components) =
                     storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
-                let parent_hash = parent_hash.ok_or_else(|| {
+                let previous_block_hash = previous_block_hash.ok_or_else(|| {
                     CommitmentManagerError::MissingBlockHash(height.prev().expect(
                         "For the genesis block, the block hash is constant and should not be \
                          fetched from storage.",
@@ -409,8 +409,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 })?;
                 let partial_block_hash_components = partial_block_hash_components
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
-                let block_hash =
-                    calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
+                let block_hash = calculate_block_hash(
+                    &partial_block_hash_components,
+                    global_root,
+                    previous_block_hash,
+                )?;
                 Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })
             }
         }

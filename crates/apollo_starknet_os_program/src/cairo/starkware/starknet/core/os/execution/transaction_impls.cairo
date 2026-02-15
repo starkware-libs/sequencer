@@ -170,13 +170,14 @@ func charge_fee{
 func get_account_tx_common_fields(
     block_context: BlockContext*, tx_hash_prefix: felt, sender_address: felt
 ) -> CommonTxFields* {
-    tempvar resource_bounds: ResourceBounds*;
-    tempvar tip;
-    tempvar paymaster_data_length;
-    tempvar paymaster_data: felt*;
-    tempvar nonce_data_availability_mode;
-    tempvar fee_data_availability_mode;
-    tempvar nonce;
+    alloc_locals;
+    local resource_bounds: ResourceBounds*;
+    local tip;
+    local paymaster_data_length;
+    local paymaster_data: felt*;
+    local nonce_data_availability_mode;
+    local fee_data_availability_mode;
+    local nonce;
     %{ LoadCommonTxFields %}
     %{ LoadTxNonceAccount %}
     tempvar common_tx_fields = new CommonTxFields(

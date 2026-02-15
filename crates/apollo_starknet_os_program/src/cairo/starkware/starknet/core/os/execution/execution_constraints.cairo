@@ -2,7 +2,7 @@
 
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.dict_access import DictAccess
-from starkware.cairo.common.math import assert_le, assert_not_zero
+from starkware.cairo.common.math import assert_le, assert_nn_le, assert_not_zero
 from starkware.starknet.core.os.constants import (
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0,
     ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_LEN,
@@ -53,10 +53,12 @@ func check_proof_facts{range_check_ptr, contract_state_changes: DictAccess*}(
         assert os_output_header.output_version = VIRTUAL_OS_OUTPUT_VERSION;
     }
 
-    // validate that the proof facts block number is not too recent
-    // (the first check is to avoid underflow in the second one).
-    assert_le(STORED_BLOCK_HASH_BUFFER, current_block_number);
-    assert_le(os_output_header.base_block_number, current_block_number - STORED_BLOCK_HASH_BUFFER);
+    // Validate that the proof facts block number is not too recent.
+    // (This is a sanity check - the following non-zero check ensures that the block hash is
+    // not trivial).
+    assert_nn_le(
+        os_output_header.base_block_number, current_block_number - STORED_BLOCK_HASH_BUFFER
+    );
     // Not all block hashes are stored in the contract; Make sure the requested one is not trivial.
     assert_not_zero(os_output_header.base_block_hash);
 
