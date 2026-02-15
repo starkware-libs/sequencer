@@ -135,6 +135,7 @@ async fn run(test_env_data: TestEnvData) {
         None,
         "",
         RetryConfig { retry_base_millis: 30, retry_max_delay_millis: 30000, max_retries: 10 },
+        false,
     )
     .expect("Create new client");
 

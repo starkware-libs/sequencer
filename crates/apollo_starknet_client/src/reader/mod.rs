@@ -204,10 +204,11 @@ impl StarknetFeederGatewayClient {
         http_headers: Option<Sensitive<HashMap<String, String>>>,
         node_version: &'static str,
         retry_config: RetryConfig,
+        use_compression: bool,
     ) -> Result<Self, ClientCreationError> {
         Ok(StarknetFeederGatewayClient {
             urls: StarknetUrls::new(url_str)?,
-            client: StarknetClient::new(http_headers, node_version, retry_config)?,
+            client: StarknetClient::new(http_headers, node_version, retry_config, use_compression)?,
         })
     }
 

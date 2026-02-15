@@ -360,6 +360,7 @@ impl CentralSource {
             config.http_headers,
             node_version,
             config.retry_config,
+            false,
         )?;
 
         Ok(CentralSource {

@@ -128,7 +128,7 @@ impl StarknetGatewayClient {
         Ok(StarknetGatewayClient {
             add_transaction_url: Url::parse(starknet_url)?.join(ADD_TRANSACTION_URL_SUFFIX)?,
             is_alive_url: Url::parse(starknet_url)?.join(GATEWAY_IS_ALIVE)?,
-            client: StarknetClient::new(None, node_version, retry_config)?,
+            client: StarknetClient::new(None, node_version, retry_config, false)?,
         })
     }
 
