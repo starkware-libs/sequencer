@@ -20,6 +20,7 @@ use apollo_infra::component_server::{
     LocalServerConfig,
 };
 use apollo_node_config::node_config::NodeDynamicConfig;
+use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use tokio::sync::mpsc::channel;
 use tokio::task;
 use validator::Validate;
@@ -270,5 +271,25 @@ async fn config_manager_concurrent_server_state_loss_bug() {
         retrieved_config, new_consensus_config,
         "Retrieved config should match the newly set config, but due to the bug it doesn't. Got: \
          {retrieved_config:?}, Expected: {new_consensus_config:?}"
+    );
+}
+
+#[tokio::test]
+async fn config_manager_get_state_sync_dynamic_config() {
+    let config = ConfigManagerConfig::default();
+    let state_sync_dynamic_config = StateSyncDynamicConfig::default();
+    let node_dynamic_config = NodeDynamicConfig {
+        state_sync_dynamic_config: Some(state_sync_dynamic_config.clone()),
+        ..Default::default()
+    };
+    let config_manager = ConfigManager::new(config, node_dynamic_config);
+
+    let retrieved = config_manager
+        .get_state_sync_dynamic_config()
+        .await
+        .expect("Failed to get state sync dynamic config");
+    assert_eq!(
+        retrieved, state_sync_dynamic_config,
+        "State sync dynamic config mismatch: {retrieved:#?} != {state_sync_dynamic_config:#?}",
     );
 }
