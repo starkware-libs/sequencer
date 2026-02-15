@@ -426,3 +426,5 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 
 [workspace.lints.clippy]
 as_conversions = "warn"
+await_holding_lock = "warn"
+await_holding_refcell_ref = "warn"
