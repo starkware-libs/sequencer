@@ -264,6 +264,46 @@
       ],
       "collapsed": true
     },
+    "Staking": {
+      "panels": [
+        {
+          "title": "Epoch Information",
+          "description": "Current epoch ID, current epoch start height, and next epoch start height",
+          "type": "stat",
+          "exprs": [
+            "staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
+            "staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
+            "staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} + staking_current_epoch_length{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {
+            "legends": [
+              "Epoch ID",
+              "Start Height",
+              "Next Epoch Start Height"
+            ]
+          }
+        },
+        {
+          "title": "Stake Distribution by Staker",
+          "description": "The distribution of stake across committee members, showing each staker's address and their staking power",
+          "type": "piechart",
+          "exprs": [
+            "staking_committee_member_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Eligible Proposers Stake %",
+          "description": "The percentage of total stake held by eligible proposers",
+          "type": "stat",
+          "exprs": [
+            "(staking_committee_eligible_proposers_total_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / staking_committee_total_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) * 100"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
     "Cende": {
       "panels": [
         {
