@@ -52,7 +52,10 @@ use starknet_api::block::{
     BlockNumber,
     StarknetVersion,
 };
-use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
+use starknet_api::block_hash::block_hash_calculator::{
+    BlockHeaderCommitments,
+    PartialBlockHashComponents,
+};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce};
@@ -1027,12 +1030,21 @@ async fn add_sync_block(
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let l1_transaction_hashes = test_tx_hashes();
+    let test_state_diff = test_state_diff();
+    let state_diff_commitment = calculate_state_diff_hash(&test_state_diff);
+    let test_state_diff_clone = test_state_diff.clone();
     let (starknet_version, block_header_commitments, storage_commitment_block_hash) =
         if let Some(ref partial_block_hash_components) = partial_block_hash_components {
+            let mut header_commitments = partial_block_hash_components.header_commitments.clone();
+            header_commitments.state_diff_commitment = state_diff_commitment;
+            let updated_partial = PartialBlockHashComponents {
+                header_commitments,
+                ..partial_block_hash_components.clone()
+            };
             (
                 StarknetVersion::LATEST,
-                Some(Default::default()),
-                StorageCommitmentBlockHash::Partial(partial_block_hash_components.clone()),
+                Some(updated_partial.header_commitments.clone()),
+                StorageCommitmentBlockHash::Partial(updated_partial),
             )
         } else {
             (
@@ -1047,12 +1059,13 @@ async fn add_sync_block(
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_state_diff_height().returning(move || Ok(block_number));
     storage_reader.expect_global_root_height().returning(move || Ok(block_number));
+    storage_reader.expect_get_state_diff().returning(|_| Ok(None));
 
     let mut storage_writer = MockBatcherStorageWriter::new();
     storage_writer
         .expect_commit_proposal()
         .times(1)
-        .with(eq(block_number), eq(test_state_diff()), eq(storage_commitment_block_hash))
+        .with(eq(block_number), eq(test_state_diff_clone), eq(storage_commitment_block_hash))
         .returning(|_, _, _| Ok(()));
 
     mock_clients
@@ -1089,7 +1102,7 @@ async fn add_sync_block(
             starknet_version,
             ..Default::default()
         },
-        state_diff: test_state_diff(),
+        state_diff: test_state_diff,
         l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
         block_header_commitments,
         ..Default::default()
@@ -1197,7 +1210,33 @@ async fn add_sync_block_for_first_new_block() {
     storage_reader
         .expect_global_root_height()
         .returning(|| Ok(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH));
+    storage_reader.expect_get_state_diff().returning(|_| Ok(None));
     let mut mock_dependencies = MockDependencies { storage_reader, ..Default::default() };
+
+    // Calculate the correct state diff commitment for the default state diff
+    let default_state_diff = ThinStateDiff::default();
+    let state_diff_commitment = calculate_state_diff_hash(&default_state_diff);
+    let header_commitments = BlockHeaderCommitments { state_diff_commitment, ..Default::default() };
+
+    // Create the block_header_without_hash that will be used in the sync_block
+    let block_header_without_hash = BlockHeaderWithoutHash {
+        block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+        starknet_version: StarknetVersion::LATEST,
+        parent_hash: DUMMY_BLOCK_HASH,
+        ..Default::default()
+    };
+
+    // The expected PartialBlockHashComponents should match what add_sync_block creates
+    let expected_partial_block_hash = PartialBlockHashComponents {
+        header_commitments: header_commitments.clone(),
+        block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+        l1_gas_price: block_header_without_hash.l1_gas_price,
+        l1_data_gas_price: block_header_without_hash.l1_data_gas_price,
+        l2_gas_price: block_header_without_hash.l2_gas_price,
+        sequencer: block_header_without_hash.sequencer,
+        timestamp: block_header_without_hash.timestamp,
+        starknet_version: block_header_without_hash.starknet_version,
+    };
 
     // Expect setting the block hash for the last old block (i.e the parent of the first new block).
     mock_dependencies
@@ -1213,10 +1252,7 @@ async fn add_sync_block_for_first_new_block() {
         .with(
             eq(FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH),
             eq(ThinStateDiff::default()),
-            eq(StorageCommitmentBlockHash::Partial(PartialBlockHashComponents {
-                block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-                ..Default::default()
-            })),
+            eq(StorageCommitmentBlockHash::Partial(expected_partial_block_hash)),
         )
         .returning(|_, _, _| Ok(()));
 
@@ -1235,13 +1271,8 @@ async fn add_sync_block_for_first_new_block() {
     let mut batcher = create_batcher(mock_dependencies).await;
 
     let sync_block = SyncBlock {
-        block_header_without_hash: BlockHeaderWithoutHash {
-            block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-            starknet_version: StarknetVersion::LATEST,
-            parent_hash: DUMMY_BLOCK_HASH,
-            ..Default::default()
-        },
-        block_header_commitments: Some(Default::default()),
+        block_header_without_hash,
+        block_header_commitments: Some(header_commitments),
         ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
