@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771166409014,
+  "lastUpdate": 1771186928447,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -543,6 +543,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1148.28421894,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "56217775+dan-starkware@users.noreply.github.com",
+            "name": "dan-starkware",
+            "username": "dan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ba1d3f69eaf5e08e197facc39887efcb65644975",
+          "message": "Add clippy async-safety lints to catch Mutex held across .await (#12567)\n\nAdd workspace-level clippy lints:\n- `await_holding_lock`: warns when a std::sync::Mutex (or RwLock) guard\n  is held across an .await point, which can cause deadlocks or block the\n  tokio runtime.\n- `await_holding_refcell_ref`: warns when a RefCell borrow is held across\n  an .await point, which will panic if the future is polled from a\n  different context.\n\nThese lints pass cleanly on the existing codebase - all current\nstd::sync::Mutex usage correctly drops guards before .await points.\n\nhttps://claude.ai/code/session_0133EbxcuGyrYJNCtfpKRjyR\n\nCo-authored-by: Claude <noreply@anthropic.com>",
+          "timestamp": "2026-02-15T19:58:24Z",
+          "tree_id": "3bf1594b86474ec0a7928b97806d839fafa3e50f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ba1d3f69eaf5e08e197facc39887efcb65644975"
+        },
+        "date": 1771186928183,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 743.5308029199999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1144.58110098,
             "unit": "ms"
           }
         ]
