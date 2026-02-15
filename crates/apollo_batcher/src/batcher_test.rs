@@ -53,6 +53,7 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::block_hash::block_hash_calculator::{
+    calculate_block_hash,
     PartialBlockHash,
     PartialBlockHashComponents,
 };
@@ -1671,7 +1672,12 @@ async fn get_block_hash_not_found() {
 #[tokio::test]
 async fn get_block_hash_after_reading_commitment_results() {
     let mut mock_dependencies = MockDependencies::default();
-    let block_hash = BlockHash::default();
+    let global_root = GlobalRoot::default();
+    let partial_components =
+        PartialBlockHashComponents { block_number: INITIAL_HEIGHT, ..Default::default() };
+    let parent_hash = BlockHash::default();
+    let expected_block_hash =
+        calculate_block_hash(&partial_components, global_root, parent_hash).unwrap();
 
     // Should be called by the commitment manager when finalizing results and writing them to
     // storage.
@@ -1679,23 +1685,13 @@ async fn get_block_hash_after_reading_commitment_results() {
         .storage_reader
         .expect_get_parent_hash_and_partial_block_hash_components()
         .with(eq(INITIAL_HEIGHT))
-        .returning(|height| {
-            let partial = PartialBlockHashComponents { block_number: height, ..Default::default() };
-            Ok((Some(BlockHash::default()), Some(partial)))
-        });
+        .returning(move |_| Ok((Some(parent_hash), Some(partial_components.clone()))));
     mock_dependencies
         .storage_writer
         .expect_set_global_root_and_block_hash()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(GlobalRoot::default()), always())
+        .with(eq(INITIAL_HEIGHT), eq(global_root), always())
         .returning(|_, _, _| Ok(()));
-
-    mock_dependencies
-        .storage_reader
-        .expect_get_block_hash()
-        .times(1)
-        .with(eq(INITIAL_HEIGHT))
-        .returning(move |_| Ok(Some(block_hash)));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -1709,7 +1705,7 @@ async fn get_block_hash_after_reading_commitment_results() {
     wait_for_n_items(&mut batcher.commitment_manager.results_receiver, 1).await;
 
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
-    assert_eq!(result, Ok(block_hash));
+    assert_eq!(result, Ok(expected_block_hash));
     assert_eq!(
         get_number_of_items_in_channel_from_receiver(&batcher.commitment_manager.results_receiver),
         0
