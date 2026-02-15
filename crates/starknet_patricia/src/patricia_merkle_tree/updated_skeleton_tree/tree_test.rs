@@ -125,12 +125,12 @@ fn test_updated_skeleton_tree_impl_create(
         leaf_modifications.iter().map(|(index, val)| (*index, (*val).into())).collect();
     let mut leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut leaf_indices);
-    let mut original_skeleton = OriginalSkeletonTreeImpl {
+    let original_skeleton = OriginalSkeletonTreeImpl {
         nodes: original_skeleton.iter().cloned().collect(),
         sorted_leaf_indices,
     };
     let updated_skeleton_tree =
-        UpdatedSkeletonTreeImpl::create(&mut original_skeleton, &leaf_modifications).unwrap();
+        UpdatedSkeletonTreeImpl::create(&original_skeleton, &leaf_modifications).unwrap();
 
     let mut expected_skeleton_tree = initial_updated_skeleton.skeleton_tree.clone();
     expected_skeleton_tree.extend(expected_skeleton_additions.iter().cloned());
@@ -143,7 +143,7 @@ fn test_updated_skeleton_tree_impl_create(
 #[case::non_empty_modifications(HashMap::from([(NodeIndex::FIRST_LEAF + NodeIndex::from(7), MockLeaf::default())]))]
 fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
     let mut indices: Vec<NodeIndex> = modifications.keys().copied().collect();
-    let mut original_skeleton = if modifications.is_empty() {
+    let original_skeleton = if modifications.is_empty() {
         OriginalSkeletonTreeImpl::create_unmodified(HashOutput::ROOT_OF_EMPTY_TREE)
     } else {
         OriginalSkeletonTreeImpl::create_empty(SortedLeafIndices::new(&mut indices))
@@ -152,6 +152,6 @@ fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
     let skeleton_modifications =
         modifications.into_iter().map(|(idx, leaf)| (idx, leaf.0.into())).collect();
     let updated_skeleton_tree =
-        UpdatedSkeletonTreeImpl::create(&mut original_skeleton, &skeleton_modifications).unwrap();
+        UpdatedSkeletonTreeImpl::create(&original_skeleton, &skeleton_modifications).unwrap();
     assert!(updated_skeleton_tree.is_empty());
 }
