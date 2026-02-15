@@ -748,7 +748,11 @@ async fn get_header_marker_rw(
     spawn_blocking(move || {
         let mut writer_guard = writer.blocking_lock();
         let txn = writer_guard.begin_rw_txn()?;
-        Ok(txn.get_header_marker()?)
+        let marker = txn.get_header_marker()?;
+        // Must call commit() even for read-only operations to properly release the transaction.
+        // Without commit(), Drop would panic if there are pending batched writes.
+        txn.commit()?;
+        Ok(marker)
     })
     .await?
 }
@@ -762,7 +766,11 @@ async fn get_state_marker_rw(
     spawn_blocking(move || {
         let mut writer_guard = writer.blocking_lock();
         let txn = writer_guard.begin_rw_txn()?;
-        Ok(txn.get_state_marker()?)
+        let marker = txn.get_state_marker()?;
+        // Must call commit() even for read-only operations to properly release the transaction.
+        // Without commit(), Drop would panic if there are pending batched writes.
+        txn.commit()?;
+        Ok(marker)
     })
     .await?
 }
@@ -791,6 +799,9 @@ async fn get_compiled_class_markers_rw(
                 break;
             }
         }
+        // Must call commit() even for read-only operations to properly release the transaction.
+        // Without commit(), Drop would panic if there are pending batched writes.
+        txn.commit()?;
         Ok((from, state_marker, compiler_backward_compatibility_marker))
     })
     .await?

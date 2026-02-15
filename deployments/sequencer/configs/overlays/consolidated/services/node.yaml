@@ -15,7 +15,7 @@ metaLabels:
 
 image:
   repository: ghcr.io/starkware-libs/sequencer/sequencer
-  tag: "dean-storage-batching-ro-fixes-81c3da1"
+  tag: "dean-storage-batching-k8s-4d85ea7"
   digest: ""
   imagePullPolicy: IfNotPresent
 

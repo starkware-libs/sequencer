@@ -631,6 +631,7 @@ impl StorageWriter {
             file_handlers: self.file_writers.clone(),
             scope: self.scope,
             _metric_updater: MetricsHandler::new(None),
+            commit_called: false,
         })
     }
 }
@@ -703,6 +704,9 @@ pub struct StorageTxnRW<'a> {
     file_handlers: FileHandlers<RW>,
     scope: StorageScope,
     _metric_updater: MetricsHandler,
+    /// Flag to track if commit() was called on this transaction.
+    /// Used by Drop to distinguish between forgotten commits and proper batched commits.
+    commit_called: bool,
 }
 
 impl StorageTransaction for StorageTxnRW<'_> {
@@ -805,6 +809,10 @@ impl<'a> StorageTxnRW<'a> {
     /// when the commit is empty.
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(mut self) -> StorageResult<()> {
+        // Mark that commit was called - this prevents Drop from panicking
+        // when batch_size hasn't been reached yet.
+        self.commit_called = true;
+
         // Always flush files so readers can access the data immediately.
         self.file_handlers.flush();
 
@@ -830,20 +838,27 @@ impl<'a> StorageTxnRW<'a> {
 impl Drop for StorageTxnRW<'_> {
     /// Safety mechanism for RW transactions dropped without commit.
     ///
-    /// Two scenarios:
-    /// 1. Forgotten commit with pending writes (commit_counter > 0) - panic.
-    /// 2. Failed operation (commit_counter = 0) - abort transaction to discard partial writes.
+    /// Three scenarios:
+    /// 1. commit() was called (commit_called = true) - normal exit, don't panic.
+    ///    The batching logic handles when to actually commit to MDBX.
+    /// 2. Forgotten commit with pending writes (commit_called = false, commit_counter > 0) - panic.
+    /// 3. Failed operation (commit_called = false, commit_counter = 0) - abort transaction.
     fn drop(&mut self) {
-        // Note: commit() consumes self, so Drop only runs for uncommitted transactions.
+        if self.commit_called {
+            // Scenario 1: commit() was called properly. This is normal operation.
+            // Don't panic - the batching logic handles when to actually commit to MDBX.
+            return;
+        }
+
         if self.guard.commit_counter > 0 {
-            // Scenario 1: Pending writes exist.
+            // Scenario 2: Pending writes exist but commit() was never called.
             panic!(
                 "StorageTxnRW dropped without commit() while {} pending writes exist! \
                  This would cause data loss. Always call commit() or handle errors properly.",
                 self.guard.commit_counter
             );
         } else {
-            // Scenario 2: No pending writes, but there might be partial writes from a failed
+            // Scenario 3: No pending writes, but there might be partial writes from a failed
             // operation. Abort the transaction to discard them.
             self.guard.active_txn = None;
         }
