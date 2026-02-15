@@ -4,7 +4,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::contract_class::ContractClass;
 
-use crate::classes_provider::compiled_class_v1_to_casm;
+use crate::running::classes_provider::compiled_class_v1_to_casm;
 
 /// Tests the round-trip conversion: CasmContractClass -> CompiledClassV1 -> CasmContractClass
 /// Verifies that all relevant fields are preserved (except compiler_version and pythonic_hints

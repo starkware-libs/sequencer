@@ -34,7 +34,7 @@ use starknet_patricia_storage::storage_trait::{create_db_key, DbHashMap, DbKeyPr
 use starknet_rust_core::types::{Felt, MerkleNode, StorageProof as RpcStorageProof};
 
 use crate::errors::ProofProviderError;
-use crate::storage_proofs::RpcStorageProofsQuery;
+use crate::running::storage_proofs::RpcStorageProofsQuery;
 
 /// Converts blockifier's StateMaps to committer's StateDiff format.
 pub fn state_maps_to_committer_state_diff(state_maps: StateMaps) -> StateDiff {

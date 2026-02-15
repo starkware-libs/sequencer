@@ -7,8 +7,8 @@ use starknet_api::core::ContractAddress;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::{contract_address, felt, invoke_tx_args};
 
-use crate::runner::VirtualSnosRunner;
-use crate::test_utils::{
+use crate::running::runner::VirtualSnosRunner;
+use crate::running::test_utils::{
     default_resource_bounds_for_client_side_tx,
     sepolia_runner_factory,
     DUMMY_ACCOUNT_ADDRESS,
@@ -65,7 +65,6 @@ async fn test_run_os_with_transfer_transaction() {
     let account = ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap();
     let recipient = contract_address!("0x123");
 
-    // Transfer amount: 1 wei (u256 = low + high * 2^128).
     let amount_low = felt!("1");
     let amount_high = felt!("0");
 
@@ -85,7 +84,6 @@ async fn test_run_os_with_transfer_transaction() {
     let factory = sepolia_runner_factory();
     let block_id = BlockId::Latest;
 
-    // Verify execution succeeds.
     factory
         .run_virtual_os(block_id, vec![(invoke_tx)])
         .await
