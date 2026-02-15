@@ -857,7 +857,7 @@ pub fn get_tx_weights<S: StateReader>(
         // TODO(Yoni): consider counting here the global contract tree and the aliases as well.
         state_changes_keys.storage_keys.len(),
     );
-    let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
+    let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources().vm_resources;
 
     // Builtin gas costs for stone and for stwo.
     let sierra_builtin_gas_costs = &versioned_constants.os_constants.gas_costs.builtins;

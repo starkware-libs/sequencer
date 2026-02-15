@@ -4,7 +4,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 
 use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};
-use crate::execution::call_info::{EventSummary, ExecutionSummary};
+use crate::execution::call_info::{EventSummary, ExecutionSummary, ExtendedExecutionResources};
 #[cfg(test)]
 use crate::execution::contract_class::TrackedResource;
 use crate::fee::eth_gas_constants;
@@ -60,7 +60,7 @@ pub struct ComputationResources {
     /// Execution resources split between the transaction itself (`tx_vm_resources`) and OS
     /// overhead (`os_vm_resources`). This enables clean proving gas calculation. See usage in
     /// `get_tx_weights`.
-    pub tx_vm_resources: ExecutionResources,
+    pub tx_vm_resources: ExtendedExecutionResources,
     pub os_vm_resources: ExecutionResources,
     pub n_reverted_steps: usize,
     pub sierra_gas: GasAmount,
@@ -68,7 +68,7 @@ pub struct ComputationResources {
 }
 
 impl ComputationResources {
-    pub fn total_vm_resources(&self) -> ExecutionResources {
+    pub fn total_vm_resources(&self) -> ExtendedExecutionResources {
         &self.tx_vm_resources + &self.os_vm_resources
     }
 
@@ -79,7 +79,7 @@ impl ComputationResources {
     ) -> GasVector {
         let vm_cost = get_vm_resources_cost(
             versioned_constants,
-            &self.total_vm_resources(),
+            &self.total_vm_resources().vm_resources,
             self.n_reverted_steps,
             computation_mode,
         );
@@ -111,7 +111,7 @@ impl ComputationResources {
     pub fn total_charged_computation_units(&self, resource: TrackedResource) -> usize {
         match resource {
             TrackedResource::CairoSteps => {
-                self.total_vm_resources().n_steps + self.n_reverted_steps
+                self.total_vm_resources().vm_resources.n_steps + self.n_reverted_steps
             }
             TrackedResource::SierraGas => {
                 usize::try_from(self.sierra_gas.0 + self.reverted_sierra_gas.0).unwrap()
