@@ -34,6 +34,8 @@ use crate::execution::call_info::{
     CairoPrimitiveCounterMap,
     CairoPrimitiveName,
     ExecutionSummary,
+    ExtendedExecutionResources,
+    OpcodeCounterMap,
 };
 use crate::fee::resources::{ComputationResources, TransactionResources};
 use crate::state::cached_state::{CachedState, StateChangesKeys, StateMaps, TransactionalState};
@@ -623,9 +625,14 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     let tx_resources = TransactionResources {
         computation: ComputationResources {
             sierra_gas: GasAmount::ZERO,
-            tx_vm_resources: ExecutionResources {
-                builtin_instance_counter: tx_builtin_counters.clone(),
-                ..Default::default()
+            tx_vm_resources: ExtendedExecutionResources {
+                vm_resources: ExecutionResources {
+                    builtin_instance_counter: tx_builtin_counters.clone(),
+                    ..Default::default()
+                },
+                // Opcode counters not tested: extraction not yet implemented (see entry_point_execution.rs:432).
+                // Once implemented, should test bouncer weight calculations with opcode costs.
+                opcode_instance_counter: OpcodeCounterMap::default(),
             },
             os_vm_resources: os_vm_resources.clone(),
             ..Default::default()

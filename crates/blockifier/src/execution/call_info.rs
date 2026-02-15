@@ -211,7 +211,10 @@ impl ExecutionSummary {
         use crate::fee::resources::{ComputationResources, MessageResources};
 
         let computation_resources = ComputationResources {
-            tx_vm_resources: self.charged_resources.vm_resources,
+            tx_vm_resources: ExtendedExecutionResources {
+                vm_resources: self.charged_resources.vm_resources,
+                opcode_instance_counter: Default::default(),
+            },
             os_vm_resources: ExecutionResources::default(),
             n_reverted_steps: 0,
             sierra_gas: self.charged_resources.gas_consumed,
@@ -275,9 +278,8 @@ impl AddAssign<&ChargedResources> for ChargedResources {
 
 /// Extended execution resources that include both VM execution resources and opcode counter which
 /// are retrieved separately from the Cairo runner.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct ExtendedExecutionResources {
     #[serde(flatten)]
     pub vm_resources: ExecutionResources,
@@ -304,6 +306,17 @@ impl Add<&ExtendedExecutionResources> for &ExtendedExecutionResources {
         };
         result += other;
         result
+    }
+}
+
+impl Add<&ExecutionResources> for &ExtendedExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn add(self, other: &ExecutionResources) -> ExtendedExecutionResources {
+        ExtendedExecutionResources {
+            vm_resources: &self.vm_resources + other,
+            opcode_instance_counter: self.opcode_instance_counter.clone(),
+        }
     }
 }
 
