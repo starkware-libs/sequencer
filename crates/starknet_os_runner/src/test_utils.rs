@@ -4,6 +4,7 @@ use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
+use blockifier_reexecution::utils::get_chain_info;
 use rstest::fixture;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::ChainId;
@@ -68,9 +69,8 @@ pub fn rpc_state_reader() -> RpcStateReader {
     let node_url = get_rpc_url();
     RpcStateReader::new_with_config_from_url(
         node_url,
-        ChainId::Mainnet,
+        get_chain_info(&ChainId::Mainnet, None),
         BlockId::Number(BlockNumber(TEST_BLOCK_NUMBER)),
-        None,
     )
 }
 
@@ -109,7 +109,8 @@ pub fn sepolia_runner_factory() -> RpcRunnerFactory {
     let runner_config =
         RunnerConfig { storage_proof_config: StorageProofConfig { include_state_changes: true } };
 
-    RpcRunnerFactory::new(rpc_url, ChainId::Sepolia, contract_class_manager, runner_config, None)
+    let chain_info = get_chain_info(&ChainId::Sepolia, None);
+    RpcRunnerFactory::new(rpc_url, chain_info, contract_class_manager, runner_config)
 }
 
 // ================================================================================================

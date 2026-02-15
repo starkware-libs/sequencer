@@ -14,6 +14,7 @@ use blockifier_reexecution::state_reader::config::RpcStateReaderConfig;
 use blockifier_reexecution::state_reader::offline_state_reader::OfflineConsecutiveStateReaders;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 use blockifier_reexecution::state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
+use blockifier_reexecution::utils::get_chain_info;
 use clap::Parser;
 use google_cloud_storage::client::{Client, ClientConfig};
 use google_cloud_storage::http::objects::download::Range;
@@ -68,10 +69,11 @@ async fn main() {
             // for details), so should be executed in a blocking thread.
             // TODO(Aner): make only the RPC calls blocking, not the whole function.
             tokio::task::spawn_blocking(move || {
+                let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
                 ConsecutiveRpcStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
-                    rpc_args.parse_chain_id(),
+                    chain_info,
                     false,
                     contract_class_manager,
                 )
@@ -98,7 +100,7 @@ async fn main() {
             );
 
             let rpc_state_reader_config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
-            let chain_id = rpc_args.parse_chain_id();
+            let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
 
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn_blocking)
             // for details), so should be executed in a blocking thread.
@@ -107,7 +109,7 @@ async fn main() {
                 ConsecutiveRpcStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(rpc_state_reader_config),
-                    chain_id,
+                    chain_info,
                     false,
                     contract_class_manager,
                 )
@@ -129,7 +131,8 @@ async fn main() {
             let mut task_set = tokio::task::JoinSet::new();
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
-                let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
+                let node_url = rpc_args.node_url.clone();
+                let chain_info = get_chain_info(&rpc_args.parse_chain_id(), None);
                 let contract_class_manager = contract_class_manager.clone();
 
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
@@ -142,7 +145,7 @@ async fn main() {
                         ConsecutiveRpcStateReaders::new(
                             block_number.prev().expect("Should not run with block 0"),
                             Some(rpc_state_reader_config),
-                            chain_id,
+                            chain_info,
                             true,
                             contract_class_manager,
                         )
