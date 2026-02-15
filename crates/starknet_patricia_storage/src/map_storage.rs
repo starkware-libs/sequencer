@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use lru::LruCache;
+use moka::sync::Cache;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationErrors};
 
@@ -74,7 +74,7 @@ impl Storage for MapStorage {
 /// Only getter methods are cached.
 pub struct CachedStorage<S: Storage> {
     pub storage: S,
-    pub cache: LruCache<DbKey, Option<DbValue>>,
+    pub cache: Cache<DbKey, Option<DbValue>>,
     pub cache_on_write: bool,
     reads: u128,
     cached_reads: u128,
@@ -85,7 +85,7 @@ pub struct CachedStorage<S: Storage> {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CachedStorageConfig<InnerStorageConfig: StorageConfigTrait> {
     // Max number of entries in the cache.
-    pub cache_size: NonZeroUsize,
+    pub cache_size: NonZeroUsize, // TODO(Nimrod): Change type to `u64`.
 
     // If true, the cache is updated on write operations even if the value is not in the cache.
     pub cache_on_write: bool,
@@ -200,9 +200,12 @@ impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
 
 impl<S: Storage> CachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig<S::Config>) -> Self {
+        // TODO(Nimrod): Consider defining custom eviction policies.
         Self {
             storage,
-            cache: LruCache::new(config.cache_size),
+            cache: Cache::builder()
+                .max_capacity(config.cache_size.get().try_into().unwrap())
+                .build(),
             cache_on_write: config.cache_on_write,
             reads: 0,
             cached_reads: 0,
@@ -212,8 +215,8 @@ impl<S: Storage> CachedStorage<S> {
     }
 
     fn update_cached_value(&mut self, key: &DbKey, value: &DbValue) {
-        if self.cache_on_write || self.cache.contains(key) {
-            self.cache.put(key.clone(), Some(value.clone()));
+        if self.cache_on_write || self.cache.contains_key(key) {
+            self.cache.insert(key.clone(), Some(value.clone()));
         }
     }
 
@@ -238,11 +241,11 @@ impl<S: Storage> Storage for CachedStorage<S> {
         self.reads += 1;
         if let Some(cached_value) = self.cache.get(key) {
             self.cached_reads += 1;
-            return Ok(cached_value.clone());
+            return Ok(cached_value);
         }
 
         let storage_value = self.storage.get(key).await?;
-        self.cache.put(key.clone(), storage_value.clone());
+        self.cache.insert(key.clone(), storage_value.clone());
         Ok(storage_value)
     }
 
@@ -259,8 +262,8 @@ impl<S: Storage> Storage for CachedStorage<S> {
         let mut indices_to_fetch = Vec::new();
 
         for (index, key) in keys.iter().enumerate() {
-            if let Some(cached_value) = self.cache.get(key) {
-                values[index] = cached_value.clone();
+            if let Some(cached_value) = self.cache.get(*key) {
+                values[index] = cached_value;
             } else {
                 keys_to_fetch.push(*key);
                 indices_to_fetch.push(index);
@@ -274,7 +277,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
         let fetched_values = self.storage.mget(keys_to_fetch.as_slice()).await?;
         indices_to_fetch.iter().zip(keys_to_fetch).zip(fetched_values).for_each(
             |((index, key), value)| {
-                self.cache.put((*key).clone(), value.clone());
+                self.cache.insert((*key).clone(), value.clone());
                 values[*index] = value;
             },
         );
@@ -292,7 +295,7 @@ impl<S: Storage> Storage for CachedStorage<S> {
     }
 
     async fn delete(&mut self, key: &DbKey) -> PatriciaStorageResult<()> {
-        self.cache.pop(key);
+        self.cache.invalidate(key);
         self.storage.delete(key).await
     }
 
