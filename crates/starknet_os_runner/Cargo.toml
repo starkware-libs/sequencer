@@ -8,7 +8,6 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
-in_memory_proving = ["proving_utils/in_memory_proving"]
 
 [dependencies]
 anyhow.workspace = true
@@ -24,7 +23,7 @@ clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
-proving_utils.workspace = true
+proving_utils = { workspace = true, features = ["in_memory_proving"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true

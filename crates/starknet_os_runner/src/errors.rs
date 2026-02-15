@@ -2,7 +2,6 @@ use blockifier::state::errors::StateError;
 use blockifier_reexecution::errors::ReexecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use proving_utils::proof_encoding::ProofEncodingError;
-use proving_utils::stwo_run_and_prove::StwoRunAndProveError;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::TransactionHash;
 use starknet_os::errors::StarknetOsError;
@@ -79,15 +78,6 @@ pub enum ProvingError {
     #[error("Failed to create temporary file: {0}")]
     CreateTempFile(#[source] std::io::Error),
 
-    #[error("Failed to write Cairo PIE to zip file: {0}")]
-    WriteCairoPie(#[source] std::io::Error),
-
-    #[error("Failed to write program input: {0}")]
-    WriteProgramInput(#[source] std::io::Error),
-
-    #[error("Failed to serialize program input: {0}")]
-    SerializeProgramInput(#[source] serde_json::Error),
-
     #[error("Failed to resolve resource path for {file_name}: {source}")]
     ResolveResourcePath {
         file_name: String,
@@ -96,7 +86,7 @@ pub enum ProvingError {
     },
 
     #[error("Prover execution failed: {0}")]
-    ProverExecution(#[from] StwoRunAndProveError),
+    ProverExecution(#[from] proving_utils::in_memory_proving::StwoRunAndProveError),
 
     #[error("Failed to read proof file: {0}")]
     ReadProof(#[source] ProofEncodingError),
@@ -107,7 +97,6 @@ pub enum ProvingError {
     #[error("Failed to parse proof facts: {0}")]
     ParseProofFacts(#[source] serde_json::Error),
 
-    #[cfg(feature = "in_memory_proving")]
-    #[error("In-memory prover execution failed: {0}")]
-    InMemoryProverExecution(#[from] proving_utils::in_memory_proving::StwoRunAndProveError),
+    #[error("Proving task failed to join: {0}")]
+    TaskJoin(#[from] tokio::task::JoinError),
 }

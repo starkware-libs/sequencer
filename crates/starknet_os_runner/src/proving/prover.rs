@@ -7,22 +7,11 @@ use std::path::PathBuf;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use proving_utils::in_memory_proving::cairo_air::utils::ProofFormat;
+use proving_utils::in_memory_proving::{prove_pie_in_memory, ProveConfig};
 use proving_utils::proof_encoding::ProofBytes;
-use proving_utils::simple_bootloader_input::SimpleBootloaderInput;
-use proving_utils::stwo_run_and_prove::{
-    run_stwo_run_and_prove,
-    ProofFormat,
-    StwoRunAndProveConfig,
-    StwoRunAndProveInput,
-};
 use starknet_api::transaction::fields::Proof;
 use tempfile::NamedTempFile;
-
-#[cfg(feature = "in_memory_proving")]
-use proving_utils::in_memory_proving::{
-    prove_pie_in_memory,
-    ProveConfig as InMemoryProveConfig,
-};
 
 use crate::errors::ProvingError;
 
@@ -47,7 +36,11 @@ pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingE
     })
 }
 
-/// Proves a Cairo PIE using the stwo prover.
+/// Proves a Cairo PIE using the stwo prover with in-memory CairoPie passing.
+///
+/// Passes CairoPie directly to the prover library, avoiding disk I/O for the input.
+/// The proof output is still written to a temporary file. The synchronous proving work
+/// is offloaded to a blocking thread via `tokio::task::spawn_blocking`.
 ///
 /// # Arguments
 ///
@@ -57,77 +50,11 @@ pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingE
 ///
 /// The prover output containing the proof and program output.
 pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
-    // Create temporary files.
-    let create_temp_file_and_path = || -> Result<(NamedTempFile, PathBuf), ProvingError> {
-        let file = NamedTempFile::new().map_err(ProvingError::CreateTempFile)?;
-        let path = file.path().to_path_buf();
-        Ok((file, path))
-    };
-
-    let (_cairo_pie_file, cairo_pie_path) = create_temp_file_and_path()?;
-    let (_program_input_file, program_input_path) = create_temp_file_and_path()?;
-    let (_proof_file, proof_path) = create_temp_file_and_path()?;
-    let (_program_output_file, program_output_path) = create_temp_file_and_path()?;
-
-    // Write Cairo PIE to zip file.
-    cairo_pie
-        .write_zip_file(&cairo_pie_path, true /* merge_extra_segments */)
-        .map_err(ProvingError::WriteCairoPie)?;
-
-    // Write program input.
-    let program_input = SimpleBootloaderInput::from_cairo_pie_path(&cairo_pie_path);
-    let program_input_str =
-        serde_json::to_string(&program_input).map_err(ProvingError::SerializeProgramInput)?;
-    std::fs::write(&program_input_path, &program_input_str)
-        .map_err(ProvingError::WriteProgramInput)?;
-
-    // Resolve bootloader path.
-    let bootloader_path = resolve_resource_path(BOOTLOADER_FILE)?;
-
-    // Build prover input.
-    let input = StwoRunAndProveInput {
-        program_path: bootloader_path,
-        program_input_path: Some(program_input_path),
-        prover_params_path: None,
-        proof_output_path: proof_path.clone(),
-        program_output_path: Some(program_output_path.clone()),
-    };
-
-    // Configure the prover.
-    let config = StwoRunAndProveConfig { proof_format: ProofFormat::Binary, ..Default::default() };
-
-    // Run the prover.
-    run_stwo_run_and_prove(&input, &config).await?;
-
-    // Read and decompress the proof.
-    let proof_bytes = ProofBytes::from_file(&proof_path).map_err(ProvingError::ReadProof)?;
-
-    // Read and parse program output.
-    let program_output_str =
-        std::fs::read_to_string(&program_output_path).map_err(ProvingError::ReadProofFacts)?;
-    let program_output: ProgramOutput =
-        serde_json::from_str(&program_output_str).map_err(ProvingError::ParseProofFacts)?;
-
-    // Convert proof bytes to packed u32 format.
-    let proof: Proof = proof_bytes.into();
-
-    Ok(ProverOutput { proof, program_output })
+    tokio::task::spawn_blocking(move || prove_sync(cairo_pie)).await?
 }
 
-/// Proves a Cairo PIE using the stwo prover with in-memory CairoPie passing.
-///
-/// This function avoids writing the CairoPie to disk by passing it directly to the
-/// prover library. The proof output is still written to a temporary file.
-///
-/// # Arguments
-///
-/// * `cairo_pie` - The Cairo PIE to prove.
-///
-/// # Returns
-///
-/// The prover output containing the proof and program output.
-#[cfg(feature = "in_memory_proving")]
-pub(crate) fn prove_in_memory(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
+/// Synchronous inner implementation of proving.
+fn prove_sync(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
     // Create temporary files for output only.
     let create_temp_file_and_path = || -> Result<(NamedTempFile, PathBuf), ProvingError> {
         let file = NamedTempFile::new().map_err(ProvingError::CreateTempFile)?;
@@ -142,9 +69,9 @@ pub(crate) fn prove_in_memory(cairo_pie: CairoPie) -> Result<ProverOutput, Provi
     let bootloader_path = resolve_resource_path(BOOTLOADER_FILE)?;
 
     // Configure the prover.
-    let prove_config = InMemoryProveConfig {
+    let prove_config = ProveConfig {
         proof_path: proof_path.clone(),
-        proof_format: proving_utils::in_memory_proving::cairo_air::utils::ProofFormat::Binary,
+        proof_format: ProofFormat::Binary,
         verify: false,
         prover_params_json: None,
     };
