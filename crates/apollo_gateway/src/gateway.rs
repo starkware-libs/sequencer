@@ -44,7 +44,12 @@ use crate::errors::{
     transaction_converter_err_to_deprecated_gw_err,
     GatewayResult,
 };
-use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
+use crate::metrics::{
+    register_metrics,
+    GatewayMetricHandle,
+    GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE,
+};
 use crate::proof_archive_writer::{
     GcsProofArchiveWriter,
     NoOpProofArchiveWriter,
@@ -195,8 +200,10 @@ impl<
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
+        let mut proof_archive_handle = None;
         if let Some((proof_facts, proof)) = proof_data {
             let tx_hash = internal_tx.tx_hash;
+            let proof_facts_hash = proof_facts.hash();
             // Proof is verified during conversion to internal tx. It is stored here, after
             // validation, to avoid storing proofs for rejected transactions.
             match self
@@ -216,16 +223,16 @@ impl<
             }
             let proof_archive_writer_start = Instant::now();
             let proof_archive_writer = self.proof_archive_writer.clone();
-            tokio::spawn(async move {
-                if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
-                    error!("Failed to archive proof to GCS: {}", e);
-                }
+            let handle = tokio::spawn(async move {
+                let result = proof_archive_writer.set_proof(proof_facts, proof).await;
                 let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
                 info!(
                     "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
                      {tx_hash:?}"
                 );
+                result
             });
+            proof_archive_handle = Some((handle, proof_facts_hash, tx_hash));
         }
         let gateway_output = create_gateway_output(&internal_tx);
 
@@ -243,6 +250,26 @@ impl<
         };
 
         metric_counters.transaction_sent_to_mempool();
+
+        if let Some((handle, proof_facts_hash, tx_hash)) = proof_archive_handle {
+            match handle.await {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => {
+                    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                    error!(
+                        "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
+                         tx_hash: {tx_hash:?}, error: {e}"
+                    );
+                }
+                Err(e) => {
+                    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                    error!(
+                        "Proof archive writer task panicked. proof_facts_hash: \
+                         {proof_facts_hash:?}, tx_hash: {tx_hash:?}, error: {e}"
+                    );
+                }
+            }
+        }
 
         Ok(gateway_output)
     }
