@@ -16,14 +16,14 @@ use crate::state_reader::rpc_objects::{
     RpcSuccessResponse,
 };
 use crate::state_reader::rpc_state_reader::{RetryConfig, RpcStateReader};
+use crate::utils::get_chain_info;
 
 fn rpc_state_reader_from_latest(config: &RpcStateReaderConfig) -> RpcStateReader {
     RpcStateReader {
         config: config.clone(),
         block_id: BlockId::Latest,
         retry_config: RetryConfig::default(),
-        chain_id: ChainId::Mainnet,
-        strk_fee_token_address: None,
+        chain_info: get_chain_info(&ChainId::Mainnet, None),
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
     }
 }
