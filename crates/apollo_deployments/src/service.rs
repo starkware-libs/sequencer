@@ -28,6 +28,7 @@ use crate::deployment_definitions::{ComponentConfigInService, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
+use crate::deployments::validator::ValidatorNodeServiceName;
 use crate::replacers::insert_replacer_annotations;
 use crate::scale_policy::ScalePolicy;
 #[cfg(test)]
@@ -110,8 +111,9 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
 )]
 pub enum NodeService {
     Consolidated(ConsolidatedNodeServiceName),
-    Hybrid(HybridNodeServiceName),
     Distributed(DistributedNodeServiceName),
+    Hybrid(HybridNodeServiceName),
+    Validator(ValidatorNodeServiceName),
 }
 
 // TODO(Tsabary): move p2p ports from the application configs to the replacer format.
@@ -133,8 +135,9 @@ impl NodeService {
     fn as_inner(&self) -> &dyn ServiceNameInner {
         match self {
             NodeService::Consolidated(inner) => inner,
-            NodeService::Hybrid(inner) => inner,
             NodeService::Distributed(inner) => inner,
+            NodeService::Hybrid(inner) => inner,
+            NodeService::Validator(inner) => inner,
         }
     }
 
@@ -231,9 +234,12 @@ impl NodeType {
             Self::Consolidated => {
                 ConsolidatedNodeServiceName::iter().map(NodeService::Consolidated).collect()
             }
-            Self::Hybrid => HybridNodeServiceName::iter().map(NodeService::Hybrid).collect(),
             Self::Distributed => {
                 DistributedNodeServiceName::iter().map(NodeService::Distributed).collect()
+            }
+            Self::Hybrid => HybridNodeServiceName::iter().map(NodeService::Hybrid).collect(),
+            Self::Validator => {
+                ValidatorNodeServiceName::iter().map(NodeService::Validator).collect()
             }
         }
     }
@@ -267,6 +273,7 @@ impl NodeType {
             // TODO(Tsabary): avoid this code duplication.
             Self::Consolidated => ConsolidatedNodeServiceName::get_component_configs(ports),
             Self::Hybrid => HybridNodeServiceName::get_component_configs(ports),
+            Self::Validator => ValidatorNodeServiceName::get_component_configs(ports),
             Self::Distributed => DistributedNodeServiceName::get_component_configs(ports),
         }
     }
@@ -428,8 +435,9 @@ impl Serialize for NodeService {
         // Serialize only the inner value.
         match self {
             NodeService::Consolidated(inner) => inner.serialize(serializer),
-            NodeService::Hybrid(inner) => inner.serialize(serializer),
             NodeService::Distributed(inner) => inner.serialize(serializer),
+            NodeService::Hybrid(inner) => inner.serialize(serializer),
+            NodeService::Validator(inner) => inner.serialize(serializer),
         }
     }
 }

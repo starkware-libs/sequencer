@@ -28,6 +28,7 @@ async fn main() {
         args.n_consolidated,
         args.n_distributed,
         args.n_hybrid,
+        args.n_validator,
         Some(custom_paths),
         // TODO(Tsabary/Nadin): add a different identifier.
         TestIdentifier::PositiveFlowIntegrationTest,
@@ -61,6 +62,9 @@ struct Args {
 
     #[arg(long)]
     n_hybrid: usize,
+
+    #[arg(long)]
+    n_validator: usize,
 
     #[arg(long)]
     output_base_dir: String,

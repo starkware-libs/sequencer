@@ -58,6 +58,7 @@ use crate::node_component_configs::{
     create_consolidated_component_configs,
     create_distributed_component_configs,
     create_hybrid_component_configs,
+    create_validator_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::state_reader::StorageTestHandles;
@@ -350,6 +351,7 @@ impl IntegrationTestManager {
         num_of_consolidated_nodes: usize,
         num_of_distributed_nodes: usize,
         num_of_hybrid_nodes: usize,
+        num_of_validator_nodes: usize,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
     ) -> Self {
@@ -360,6 +362,7 @@ impl IntegrationTestManager {
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
             num_of_hybrid_nodes,
+            num_of_validator_nodes,
             custom_paths,
             test_unique_id,
         )
@@ -1085,13 +1088,17 @@ async fn get_sequencer_setup_configs(
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
     num_of_hybrid_nodes: usize,
+    num_of_validator_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
     let mut node_component_configs = Vec::with_capacity(
-        num_of_consolidated_nodes + num_of_distributed_nodes + num_of_hybrid_nodes,
+        num_of_consolidated_nodes
+            + num_of_distributed_nodes
+            + num_of_hybrid_nodes
+            + num_of_validator_nodes,
     );
     for _ in 0..num_of_consolidated_nodes {
         node_component_configs
@@ -1107,6 +1114,12 @@ async fn get_sequencer_setup_configs(
         node_component_configs.push((
             create_distributed_component_configs(&mut available_ports_generator),
             NodeType::Distributed,
+        ));
+    }
+    for _ in 0..num_of_validator_nodes {
+        node_component_configs.push((
+            create_validator_component_configs(&mut available_ports_generator),
+            NodeType::Validator,
         ));
     }
 

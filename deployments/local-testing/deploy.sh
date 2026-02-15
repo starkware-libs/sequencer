@@ -311,7 +311,8 @@ generate_state() {
         --data-prefix-path "${data_prefix}" \
         --n-consolidated 1 \
         --n-hybrid 0 \
-        --n-distributed 0 || {
+        --n-distributed 0 \
+        --n-validator 0 || {
         log_error "Failed to generate state"
         log_error "Make sure Anvil is installed and accessible: which anvil"
         exit 1

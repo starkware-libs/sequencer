@@ -28,6 +28,8 @@ async fn main() {
     const N_HYBRID_SEQUENCERS: usize = 0;
     /// The number of distributed remote sequencers that participate in the test.
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
+    /// The number of validator sequencers that participate in the test.
+    const N_VALIDATOR_SEQUENCERS: usize = 0;
 
     const AWAIT_REVERT_INTERVAL_MS: u64 = 500;
     const MAX_ATTEMPTS: usize = 50;
@@ -38,6 +40,7 @@ async fn main() {
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         N_HYBRID_SEQUENCERS,
+        N_VALIDATOR_SEQUENCERS,
         None,
         TestIdentifier::RevertFlowIntegrationTest,
     )
