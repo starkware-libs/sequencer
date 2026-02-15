@@ -507,7 +507,7 @@
   "committer_config.storage_config.cache_size": {
     "description": "Max number of entries in the cache",
     "privacy": "Public",
-    "value": 1000000
+    "value": 10000000
   },
   "committer_config.storage_config.include_inner_stats": {
     "description": "If true, the inner stats are included when collecting statistics",
