@@ -1,0 +1,47 @@
+# This workflow builds and uploads cargo tools (cargo-machete, cargo-nextest, taplo, cargo-deny, etc.)
+# as GitHub artifacts for caching purposes. The artifacts are then downloaded and restored in the
+# install_rust action to avoid recompiling/reinstalling these tools on every CI run.
+#
+# Artifacts include:
+#   - bin/ directory: All actual binary executables from ~/.cargo/bin (excluding symlinks)
+#   - .crates.toml and .crates2.json: Cargo metadata files that track installed crate versions
+#
+# The artifacts are retained for 90 days and overwrite previous versions to ensure the latest
+# tools are always available. This significantly speeds up CI by avoiding repeated cargo install
+# operations.
+name: Upload Cargo Tools Artifacts
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'pr' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  upload_cargo_tools_artifacts:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install rust.
+        uses: ./.github/actions/install_rust
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare cargo tools artifacts
+        run: |
+          mkdir -p ~/cargo-tools-artifacts/bin
+          find ~/.cargo/bin -type f -exec cp --preserve=all {} ~/cargo-tools-artifacts/bin \;
+          cp --preserve=all ~/.cargo/.crates.toml ~/cargo-tools-artifacts/ 2>/dev/null || true
+          cp --preserve=all ~/.cargo/.crates2.json ~/cargo-tools-artifacts/ 2>/dev/null || true
+
+      - name: Upload cargo tools artifacts
+        uses: namespace-actions/upload-artifact@v1
+        with:
+          name: cargo-tools-artifacts
+          path: ~/cargo-tools-artifacts
+          retention-days: 90
+          overwrite: true

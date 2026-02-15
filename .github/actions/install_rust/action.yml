@@ -22,6 +22,34 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
+    - name: Download cargo tools artifacts
+      uses: namespace-actions/download-artifact@v2
+      continue-on-error: true
+      with:
+        name: cargo-tools-artifacts
+        path: /tmp/cargo-tools-artifacts
+        github-token: ${{ inputs.github_token }}
+        run-id: null
+
+    - name: Restore cargo tools
+      continue-on-error: true
+      shell: bash
+      run: |
+        echo "Restoring cargo tools artifacts from /tmp/cargo-tools-artifacts..."
+        if [ -d /tmp/cargo-tools-artifacts/bin ]; then
+          chmod +x /tmp/cargo-tools-artifacts/bin/*
+          cp -r /tmp/cargo-tools-artifacts/bin/* ~/.cargo/bin/
+          echo "Binaries restored successfully"
+        fi
+        if [ -f /tmp/cargo-tools-artifacts/.crates.toml ]; then
+          cp /tmp/cargo-tools-artifacts/.crates.toml ~/.cargo/
+          echo "Crate.toml restored successfully"
+        fi
+        if [ -f /tmp/cargo-tools-artifacts/.crates2.json ]; then
+          cp /tmp/cargo-tools-artifacts/.crates2.json ~/.cargo/
+          echo "Crates2.json restored successfully"
+        fi
+
     - name: Install cargo tools
       shell: bash
       run: ./scripts/install_cargo_tools.sh
