@@ -14,8 +14,8 @@ define_infra_metrics!(committer);
 define_metrics!(
     Committer => {
         MetricGauge {
-            OFFSET,
-            "offset",
+            COMMITTER_OFFSET,
+            "committer_offset",
             "The next block number to commit"
         },
         MetricHistogram {
@@ -87,8 +87,8 @@ define_metrics!(
 );
 
 pub fn register_metrics(offset: BlockNumber) {
-    OFFSET.register();
-    OFFSET.set_lossy(offset.0);
+    COMMITTER_OFFSET.register();
+    COMMITTER_OFFSET.set_lossy(offset.0);
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.register();

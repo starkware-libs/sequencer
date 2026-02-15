@@ -566,11 +566,11 @@
     "Committer": {
       "panels": [
         {
-          "title": "Offset",
+          "title": "Committer Offset",
           "description": "The next block number to commit",
           "type": "stat",
           "exprs": [
-            "offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {}
         },
