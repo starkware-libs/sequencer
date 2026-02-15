@@ -1,7 +1,9 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
+use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_starknet_client::reader::{MockStarknetReader, StarknetReader};
+use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_storage::body::BodyStorageWriter;
@@ -24,8 +26,17 @@ use crate::StateSync;
 
 fn setup() -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
-    let state_sync =
-        StateSync { storage_reader, new_block_sender: channel(0).0, starknet_client: None };
+    let mut config_manager_client = MockConfigManagerClient::new();
+    config_manager_client
+        .expect_get_state_sync_dynamic_config()
+        .returning(|| Ok(StateSyncDynamicConfig::default()));
+    let state_sync = StateSync {
+        storage_reader,
+        new_block_sender: channel(0).0,
+        starknet_client: None,
+        config_manager_client: Arc::new(config_manager_client),
+        dynamic_config: Arc::new(RwLock::new(StateSyncDynamicConfig::default())),
+    };
     (state_sync, storage_writer)
 }
 
@@ -125,8 +136,18 @@ async fn test_get_block_hash_fallback_to_starknet_client() {
     let starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>> =
         Some(Arc::new(starknet_client));
     let ((storage_reader, _storage_writer), _) = get_test_storage();
-    let mut state_sync =
-        StateSync { storage_reader, new_block_sender: channel(0).0, starknet_client };
+    let mut config_manager_client = MockConfigManagerClient::new();
+    // Set up expectation for get_state_sync_dynamic_config to return default config
+    config_manager_client
+        .expect_get_state_sync_dynamic_config()
+        .returning(|| Ok(StateSyncDynamicConfig::default()));
+    let mut state_sync = StateSync {
+        storage_reader,
+        new_block_sender: channel(0).0,
+        starknet_client,
+        config_manager_client: Arc::new(config_manager_client),
+        dynamic_config: Arc::new(RwLock::new(StateSyncDynamicConfig::default())),
+    };
 
     // The block is not in storage, so it should fall back to starknet_client
     let response = state_sync.handle_request(StateSyncRequest::GetBlockHash(block_number)).await;
