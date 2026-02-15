@@ -216,8 +216,14 @@ apollo_state_sync_types.path = "crates/apollo_state_sync_types"
 apollo_storage.path = "crates/apollo_storage"
 apollo_task_executor.path = "crates/apollo_task_executor"
 apollo_test_utils.path = "crates/apollo_test_utils"
+<<<<<<< HEAD
 apollo_time.path = "crates/apollo_time"
 apollo_transaction_converter.path = "crates/apollo_transaction_converter"
+||||||| 63dac1e8a4
+apollo_time.path = "crates/apollo_time"
+=======
+apollo_time = { path = "crates/apollo_time", version = "0.17.0-rc.0" }
+>>>>>>> origin/main-v0.14.1-committer
 ark-bls12-381 = "0.5.0"
 ark-ec = "0.5.0"
 ark-ff = "0.5.0"
@@ -244,6 +250,7 @@ bytes = "1"
 bzip2 = { version = "0.5.0", default-features = false }
 c-kzg = "2.1.5"
 cached = "0.44.0"
+<<<<<<< HEAD
 cairo-air = { git = "https://github.com/starkware-libs/stwo-cairo", rev = "87d62124346e53beaf73c5a8396ccaceecd13552" }
 cairo-felt = "0.9.1"
 cairo-lang-casm = "2.14.1-dev.3"
@@ -254,6 +261,25 @@ cairo-lang-starknet-classes = "2.14.1-dev.3"
 cairo-lang-utils = "2.14.1-dev.3"
 cairo-native = "0.9.0-rc.0"
 cairo-vm = "3.0.1"
+||||||| 63dac1e8a4
+cairo-lang-casm = "2.12.3"
+cairo-lang-runner = "2.12.3"
+cairo-lang-sierra = "2.12.3"
+cairo-lang-sierra-to-casm = "2.12.3"
+cairo-lang-starknet-classes = "2.12.3"
+cairo-lang-utils = "2.12.3"
+cairo-native = "0.7.3"
+cairo-vm = "2.5.0"
+=======
+cairo-lang-casm = "2.12.4"
+cairo-lang-runner = "2.12.4"
+cairo-lang-sierra = "2.12.4"
+cairo-lang-sierra-to-casm = "2.12.4"
+cairo-lang-starknet-classes = "2.12.4"
+cairo-lang-utils = "2.12.4"
+cairo-native = "0.7.3"
+cairo-vm = "2.5.0"
+>>>>>>> origin/main-v0.14.1-committer
 camelpaste = "0.1.0"
 chrono = "0.4.26"
 clap = "4.5.4"

@@ -101,7 +101,9 @@ def extract_service_info(service: Dict[str, str]) -> Tuple[str, str, str]:
     return controller, service_name.lower(), controller.lower()
 
 
-def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None:
+def wait_for_services_ready(
+    deployment_config_path: str, namespace: str, verbose: bool = False
+) -> None:
     """Wait for Kubernetes resources to become ready."""
     config.load_kube_config()
 
@@ -129,6 +131,10 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
                 sys.exit(1)
         except ApiException as e:
             print(f"❌ API Exception occurred: {e}")
+            if verbose:
+                print(f"   Status: {e.status}")
+                print(f"   Reason: {e.reason}")
+                print(f"   Body: {e.body}")
             raise
 
         print(
@@ -162,8 +168,14 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
                 if ready == desired and ready > 0:
                     print(f"✅ {controller} {resource_name} is ready.")
                     break
+                elif verbose:
+                    print(f"   Status: ready={ready}, desired={desired}")
             except ApiException as e:
                 print(f"❌ Error while checking status: {e}")
+                if verbose:
+                    print(f"   Status: {e.status}")
+                    print(f"   Reason: {e.reason}")
+                    print(f"   Body: {e.body}")
 
             time.sleep(poll_interval)
             elapsed += poll_interval
@@ -193,6 +205,11 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Overlay path in dot notation (e.g., 'hybrid.testing.node-0')",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output (shows detailed API error information)",
     )
     args = parser.parse_args()
 
@@ -230,7 +247,9 @@ if __name__ == "__main__":
             workspace=workspace,
             namespace=args.namespace,
         )
-        wait_for_services_ready(deployment_config_path=temp_config_path, namespace=args.namespace)
+        wait_for_services_ready(
+            deployment_config_path=temp_config_path, namespace=args.namespace, verbose=args.verbose
+        )
         print("✅ All sequencer services are ready.")
     finally:
         # Clean up temp file

@@ -3,10 +3,8 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use apollo_config::converters::{
-    deserialize_comma_separated_str,
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
-    serialize_optional_comma_separated,
 };
 use apollo_config::dumping::{
     prepend_sub_config_name,
@@ -15,6 +13,8 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::de::{Deserializer, Error};
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
@@ -96,6 +96,53 @@ impl SerializeConfig for CendeConfig {
 const GWEI_FACTOR: u128 = u128::pow(10, 9);
 const ETH_FACTOR: u128 = u128::pow(10, 18);
 
+// This matches the min_gas_price in orchestrator_versioned_constants_0_14_1.json (0x1dcd65000).
+const MIN_ALLOWED_GAS_PRICE: u128 = 8_000_000_000;
+
+/// Represents a minimum gas price that applies starting from a specific block height.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PricePerHeight {
+    /// The block height at which this price becomes active.
+    pub height: u64,
+    /// The minimum gas price in fri.
+    pub price: u128,
+}
+
+/// Serializes `Vec<PricePerHeight>` into the format: "height1:price1,height2:price2,height3:price3"
+pub fn serialize_price_per_height(entries: &[PricePerHeight]) -> String {
+    entries.iter().map(|e| format!("{}:{}", e.height, e.price)).collect::<Vec<_>>().join(",")
+}
+
+/// Parses `Vec<PricePerHeight>` from the format: "height1:price1,height2:price2,height3:price3"
+pub fn parse_price_per_height(s: &str) -> Result<Vec<PricePerHeight>, String> {
+    let trimmed = s.trim();
+
+    if trimmed.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    trimmed
+        .split(',')
+        .map(|entry| {
+            let entry = entry.trim();
+            let parts: Vec<&str> = entry.split(':').map(|p| p.trim()).collect();
+            if parts.len() != 2 {
+                return Err(format!(
+                    "Invalid price_per_height entry format: '{}'. Expected 'height:price'",
+                    entry
+                ));
+            }
+            let height = parts[0]
+                .parse::<u64>()
+                .map_err(|e| format!("Invalid height '{}': {}", parts[0], e))?;
+            let price = parts[1]
+                .parse::<u128>()
+                .map_err(|e| format!("Invalid price '{}': {}", parts[1], e))?;
+            Ok(PricePerHeight { height, price })
+        })
+        .collect()
+}
+
 /// Configuration for the Context struct.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ContextConfig {
@@ -119,12 +166,6 @@ impl SerializeConfig for ContextConfig {
 pub struct ContextStaticConfig {
     /// Buffer size for streaming outbound proposals.
     pub proposal_buffer_size: usize,
-    /// The number of validators.
-    pub num_validators: u64,
-    /// Optional explicit set of validator IDs (contract addresses) to use.
-    /// If provided, this overrides `num_validators`.
-    #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
-    pub validator_ids: Option<Vec<ContractAddress>>,
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
     /// Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.
@@ -160,12 +201,6 @@ impl SerializeConfig for ContextStaticConfig {
                 "proposal_buffer_size",
                 &self.proposal_buffer_size,
                 "The buffer size for streaming outbound proposals.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "num_validators",
-                &self.num_validators,
-                "The number of validators.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -222,13 +257,6 @@ impl SerializeConfig for ContextStaticConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        dump.extend(ser_optional_param(
-            &serialize_optional_comma_separated(&self.validator_ids),
-            "".to_string(),
-            "validator_ids",
-            "Optional explicit set of validator IDs (comma separated).",
-            ParamPrivacyInput::Public,
-        ));
         dump.extend([ser_param(
             "deployment_mode",
             &format!("{:?}", self.deployment_mode).to_lowercase(),
@@ -243,8 +271,6 @@ impl Default for ContextStaticConfig {
     fn default() -> Self {
         Self {
             proposal_buffer_size: 100,
-            num_validators: 1,
-            validator_ids: None,
             chain_id: ChainId::Mainnet,
             block_timestamp_window_seconds: 1,
             l1_da_mode: true,
@@ -260,6 +286,7 @@ impl Default for ContextStaticConfig {
 
 /// Dynamic configuration for the Context struct.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[validate(schema(function = "validate_price_per_height"))]
 pub struct ContextDynamicConfig {
     /// The minimum L1 gas price in wei.
     pub min_l1_gas_price_wei: u128,
@@ -285,6 +312,13 @@ pub struct ContextDynamicConfig {
     // TODO(guyn): remove this after we completely remove wei prices from block info.
     /// If given, will override the conversion rate.
     pub override_eth_to_fri_rate: Option<u128>,
+    // List of minimum L2 gas prices per block height.
+    // Format: "height1:price1,height2:price2,height3:price3"
+    #[serde(
+        deserialize_with = "deserialize_price_per_height_from_string",
+        serialize_with = "serialize_price_per_height_as_string"
+    )]
+    pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
 }
 
 impl SerializeConfig for ContextDynamicConfig {
@@ -356,6 +390,19 @@ impl SerializeConfig for ContextDynamicConfig {
             "Replace the Eth-to-Fri conversion rate with this value.",
             ParamPrivacyInput::Public,
         ));
+
+        // Serialize as string format "h1:v1,h2:v2" using the same function as the Serialize impl
+        let serialized = serialize_price_per_height(&self.min_l2_gas_price_per_height);
+        let (key, value) = ser_param(
+            "min_l2_gas_price_per_height",
+            &serialized,
+            "List of minimum L2 gas prices per block height in format \
+             'height1:price1,height2:price2'. Each entry specifies a height and the minimum gas \
+             price that applies from that height onwards.",
+            ParamPrivacyInput::Public,
+        );
+        dump.insert(key, value);
+
         dump
     }
 }
@@ -373,6 +420,53 @@ impl Default for ContextDynamicConfig {
             override_l1_gas_price_fri: None,
             override_l1_data_gas_price_fri: None,
             override_eth_to_fri_rate: None,
+            min_l2_gas_price_per_height: vec![],
         }
     }
+}
+
+/// Deserializes `Vec<PricePerHeight>` from string format "height1:price1,height2:price2,...".
+pub fn deserialize_price_per_height_from_string<'de, D>(
+    de: D,
+) -> Result<Vec<PricePerHeight>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: String = Deserialize::deserialize(de)?;
+    parse_price_per_height(&raw).map_err(Error::custom)
+}
+
+/// Serializes `Vec<PricePerHeight>` as string format "height1:price1,height2:price2,...".
+pub fn serialize_price_per_height_as_string<S>(
+    entries: &[PricePerHeight],
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let s = serialize_price_per_height(entries);
+    serializer.serialize_str(&s)
+}
+
+fn validate_price_per_height(
+    config: &ContextDynamicConfig,
+) -> Result<(), validator::ValidationError> {
+    // Check that heights are in strictly ascending order using windows
+    if !config.min_l2_gas_price_per_height.windows(2).all(|w| w[0].height < w[1].height) {
+        return Err(validator::ValidationError::new(
+            "min_l2_gas_price_per_height heights must be in strictly ascending order",
+        ));
+    }
+
+    // Check that all prices are above the minimum
+    for entry in &config.min_l2_gas_price_per_height {
+        if entry.price < MIN_ALLOWED_GAS_PRICE {
+            return Err(validator::ValidationError::new(
+                "all prices in min_l2_gas_price_per_height must be at least 8 gwei (8000000000 \
+                 fri)",
+            ));
+        }
+    }
+
+    Ok(())
 }

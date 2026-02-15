@@ -151,6 +151,13 @@ def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
     if "start_block" not in data:
         raise ValueError("Missing required key: start_block")
 
+    if int(data["start_block"]) == 0:
+        logger.error(
+            f"Refusing to deploy: start_block is 0 in {keys_in_repo}. "
+            "Set a non-zero start_block and re-run."
+        )
+        raise SystemExit(1)
+
     shutil.copyfile(keys_in_repo, generated_path)
     logger.info(f"Copied keys file: {keys_in_repo} -> {generated_path}")
 
@@ -194,6 +201,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.delete_first:
         logger.info("Deleting existing resources...")
         _run(["kubectl", *namespace_args, "delete", "-k", str(kustomize_dir), "--ignore-not-found"])
+
+    # Ensure the sequencer is scaled down before deploying/updating echonet.
+    logger.info("Scaling down statefulset/sequencer-node-statefulset to 0 replicas...")
+    _run(
+        [
+            "kubectl",
+            *namespace_args,
+            "scale",
+            "statefulset",
+            "sequencer-node-statefulset",
+            "--replicas=0",
+        ]
+    )
+    logger.info("Waiting for rollout status statefulset/sequencer-node-statefulset...")
+    _run(
+        ["kubectl", *namespace_args, "rollout", "status", "statefulset/sequencer-node-statefulset"]
+    )
 
     # Apply manifests
     logger.info("Applying manifests...")

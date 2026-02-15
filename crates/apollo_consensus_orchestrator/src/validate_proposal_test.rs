@@ -13,9 +13,9 @@ use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
     ProposalCommitment as ConsensusProposalCommitment,
     ProposalFin,
+    ProposalInit,
     ProposalPart,
     TransactionBatch,
 };
@@ -53,7 +53,7 @@ use crate::validate_proposal::{
 
 struct TestProposalValidateArguments {
     pub deps: TestDeps,
-    pub block_info: ConsensusBlockInfo,
+    pub init: ProposalInit,
     pub block_info_validation: BlockInfoValidation,
     pub proposal_id: ProposalId,
     pub timeout: Duration,
@@ -68,7 +68,7 @@ impl From<TestProposalValidateArguments> for ProposalValidateArguments {
     fn from(args: TestProposalValidateArguments) -> Self {
         ProposalValidateArguments {
             deps: args.deps.into(),
-            block_info: args.block_info,
+            init: args.init,
             block_info_validation: args.block_info_validation,
             proposal_id: args.proposal_id,
             timeout: args.timeout,
@@ -85,7 +85,7 @@ fn create_proposal_validate_arguments()
 -> (TestProposalValidateArguments, mpsc::Sender<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
-    let block_info = block_info(BlockNumber(0), 0);
+    let init = block_info(BlockNumber(0), 0);
     let block_info_validation = BlockInfoValidation {
         height: BlockNumber(0),
         block_timestamp_window_seconds: 60,
@@ -105,7 +105,7 @@ fn create_proposal_validate_arguments()
     (
         TestProposalValidateArguments {
             deps,
-            block_info,
+            init,
             block_info_validation,
             proposal_id,
             timeout,
@@ -142,6 +142,7 @@ async fn validate_empty_proposal() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: 0,
+            commitment_parts: None,
         }))
         .await
         .unwrap();
@@ -169,6 +170,7 @@ async fn validate_proposal_success() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
+            commitment_parts: None,
         }))
         .await
         .unwrap();
@@ -227,9 +229,9 @@ async fn validation_timeout() {
 async fn invalid_block_info() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
 
-    proposal_args.block_info.l2_gas_price_fri =
+    proposal_args.init.l2_gas_price_fri =
         GasPrice(proposal_args.block_info_validation.l2_gas_price_fri.0 + 1);
-    content_sender.send(ProposalPart::BlockInfo(proposal_args.block_info.clone())).await.unwrap();
+    content_sender.send(ProposalPart::Init(proposal_args.init.clone())).await.unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(ValidateProposalError::InvalidBlockInfo(_, _, _))));
@@ -276,6 +278,7 @@ async fn proposal_fin_mismatch() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: received_fin,
             executed_transaction_count: n_executed.try_into().unwrap(),
+            commitment_parts: None,
         }))
         .await
         .unwrap();
@@ -308,6 +311,7 @@ async fn batcher_returns_invalid_proposal() {
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ConsensusProposalCommitment::default(),
             executed_transaction_count: n_executed.try_into().unwrap(),
+            commitment_parts: None,
         }))
         .await
         .unwrap();

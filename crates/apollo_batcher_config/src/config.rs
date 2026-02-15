@@ -10,7 +10,10 @@ use apollo_config::dumping::{
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::db::DbConfig;
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerStaticConfig,
+};
 use apollo_storage::{StorageConfig, StorageScope};
 use blockifier::blockifier::config::{ContractClassManagerConfig, WorkerPoolConfig};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
@@ -90,8 +93,7 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct CommitmentManagerConfig {
     pub tasks_channel_size: usize,
     pub results_channel_size: usize,
-    // Wait for tasks channel to be available before sending.
-    pub wait_for_tasks_channel: bool,
+    pub panic_if_task_channel_full: bool,
 }
 
 impl Default for CommitmentManagerConfig {
@@ -99,7 +101,7 @@ impl Default for CommitmentManagerConfig {
         Self {
             tasks_channel_size: DEFAULT_TASKS_CHANNEL_SIZE,
             results_channel_size: DEFAULT_RESULTS_CHANNEL_SIZE,
-            wait_for_tasks_channel: true,
+            panic_if_task_channel_full: false,
         }
     }
 }
@@ -120,10 +122,10 @@ impl SerializeConfig for CommitmentManagerConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "wait_for_tasks_channel",
-                &self.wait_for_tasks_channel,
-                "If the task channel is full: if true, will wait for the tasks channel to be \
-                 available. If false, will panic.",
+                "panic_if_task_channel_full",
+                &self.panic_if_task_channel_full,
+                "If the task channel is full: if true, will panic. If false, will wait for the \
+                 tasks channel to be available.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -223,10 +225,9 @@ impl SerializeConfig for FirstBlockWithPartialBlockHash {
     }
 }
 
-/// The batcher related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-#[validate(schema(function = "validate_batcher_config"))]
-pub struct BatcherConfig {
+#[validate(schema(function = "validate_batcher_static_config"))]
+pub struct BatcherStaticConfig {
     pub storage: StorageConfig,
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
@@ -237,11 +238,12 @@ pub struct BatcherConfig {
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
     pub propose_l1_txs_every: u64,
+    // TODO(Amos): Move to commitment manager config.
     pub first_block_with_partial_block_hash: Option<FirstBlockWithPartialBlockHash>,
-    pub storage_reader_server_config: ServerConfig,
+    pub storage_reader_server_static_config: StorageReaderServerStaticConfig,
 }
 
-impl SerializeConfig for BatcherConfig {
+impl SerializeConfig for BatcherStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         // TODO(yair): create nicer function to append sub configs.
         let mut dump = BTreeMap::from([
@@ -273,10 +275,6 @@ impl SerializeConfig for BatcherConfig {
         ]);
         dump.append(&mut prepend_sub_config_name(self.storage.dump(), "storage"));
         dump.append(&mut prepend_sub_config_name(
-            self.storage_reader_server_config.dump(),
-            "storage_reader_server_config",
-        ));
-        dump.append(&mut prepend_sub_config_name(
             self.block_builder_config.dump(),
             "block_builder_config",
         ));
@@ -300,11 +298,15 @@ impl SerializeConfig for BatcherConfig {
             &self.first_block_with_partial_block_hash,
             "first_block_with_partial_block_hash",
         ));
+        dump.append(&mut prepend_sub_config_name(
+            self.storage_reader_server_static_config.dump(),
+            "storage_reader_server_static_config",
+        ));
         dump
     }
 }
 
-impl Default for BatcherConfig {
+impl Default for BatcherStaticConfig {
     fn default() -> Self {
         Self {
             storage: StorageConfig {
@@ -327,14 +329,48 @@ impl Default for BatcherConfig {
             pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
             propose_l1_txs_every: 1, // Default is to propose L1 transactions every proposal.
             first_block_with_partial_block_hash: None,
-            storage_reader_server_config: ServerConfig::default(),
+            storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
         }
     }
 }
 
-fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), ValidationError> {
-    if batcher_config.input_stream_content_buffer_size
-        < batcher_config.block_builder_config.n_concurrent_txs
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct BatcherDynamicConfig {
+    pub storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
+}
+
+impl SerializeConfig for BatcherDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(
+            self.storage_reader_server_dynamic_config.dump(),
+            "storage_reader_server_dynamic_config",
+        )
+    }
+}
+
+/// The batcher related configuration.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct BatcherConfig {
+    #[validate(nested)]
+    pub static_config: BatcherStaticConfig,
+    #[validate(nested)]
+    pub dynamic_config: BatcherDynamicConfig,
+}
+
+impl SerializeConfig for BatcherConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::new();
+        config.extend(prepend_sub_config_name(self.static_config.dump(), "static_config"));
+        config.extend(prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        config
+    }
+}
+
+fn validate_batcher_static_config(
+    batcher_static_config: &BatcherStaticConfig,
+) -> Result<(), ValidationError> {
+    if batcher_static_config.input_stream_content_buffer_size
+        < batcher_static_config.block_builder_config.n_concurrent_txs
     {
         return Err(ValidationError::new(
             "input_stream_content_buffer_size must be at least n_concurrent_txs",
@@ -343,9 +379,11 @@ fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), Validat
 
     // Idle detection delay must be > polling interval to allow time for polling to find
     // transactions.
-    let idle_delay = batcher_config.block_builder_config.proposer_idle_detection_delay_millis;
-    let polling_interval =
-        Duration::from_millis(batcher_config.block_builder_config.tx_polling_interval_millis);
+    let idle_delay =
+        batcher_static_config.block_builder_config.proposer_idle_detection_delay_millis;
+    let polling_interval = Duration::from_millis(
+        batcher_static_config.block_builder_config.tx_polling_interval_millis,
+    );
     if idle_delay <= polling_interval {
         return Err(ValidationError::new(
             "proposer_idle_detection_delay_millis must be greater than tx_polling_interval_millis",

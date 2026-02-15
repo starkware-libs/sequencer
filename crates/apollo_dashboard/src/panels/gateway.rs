@@ -13,7 +13,8 @@ use apollo_gateway::metrics::{
 };
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{sum_by_label, DisplayMethod, RANGE_DURATION};
 
 fn get_panel_gateway_transactions_received_by_type() -> Panel {

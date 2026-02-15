@@ -14,8 +14,18 @@
 # automatically convert it back to a number during processing if needed.
 
 # Generic placeholder overrides
-batched_transactions_stuck-severity: "p5"
+batched_transactions_stuck_long_time-sampling_window_secs-expression: 1800
 batched_transactions_stuck_long_time-severity: "p5"
-get_consensus_block_number_progress_is_slow-comparison: 6.666666666666667
-consensus_block_number_stuck-expression: 120
-consensus_block_number_stuck_long_time-expression: 1800
+batched_transactions_stuck-sampling_window_secs-expression: 120
+batched_transactions_stuck-severity: "p5"
+consensus_block_number_stuck_long_time-sampling_window_secs-expression: 1800
+consensus_block_number_stuck-sampling_window_secs-expression: 120
+consensus_round_above_zero_multiple_times-comparison_value: 20.0
+consensus_round_above_zero_multiple_times-sampling_window_secs-expression: 600
+consensus_round_high-comparison_value: 13.333333333333334
+gateway_add_tx_idle_p2p_rpc-sampling_window_secs-expression: 120
+get_consensus_block_number_progress_is_slow-comparison_value: 6.666666666666667
+high_empty_blocks_ratio-zero_bucket-sampling_window_secs-expression: 300
+high_empty_blocks_ratio-total_count-sampling_window_secs-expression: 300
+http_server_no_successful_transactions-sampling_window_secs-expression: 1800
+mempool_add_tx_idle_p2p_rpc-sampling_window_secs-expression: 120

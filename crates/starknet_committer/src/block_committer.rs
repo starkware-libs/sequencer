@@ -1,4 +1,6 @@
 pub mod commit;
+#[cfg(test)]
+pub mod commit_test;
 pub mod errors;
 pub mod input;
 pub mod measurements_util;

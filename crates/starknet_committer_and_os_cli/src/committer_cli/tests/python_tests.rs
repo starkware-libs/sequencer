@@ -12,7 +12,7 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::block_committer::random_structs::DummyRandomValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
-use starknet_committer::db::facts_db::db::FactsNodeLayout;
+use starknet_committer::db::facts_db::{FactDbFilledNode, FactsNodeLayout};
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::{
     TreeHashFunctionImpl,
@@ -22,7 +22,7 @@ use starknet_committer::hash_function::hash::{
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -292,8 +292,10 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
     };
 
     // Create a filled node (irrelevant leaf type) with binary data and zero hash.
-    let filled_node: FactDbFilledNode<StarknetStorageValue> =
-        FactDbFilledNode { data: NodeData::Binary(binary_data), hash: HashOutput(Felt::ZERO) };
+    let filled_node: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode(FilledNode {
+        data: NodeData::Binary(binary_data),
+        hash: HashOutput(Felt::ZERO),
+    });
 
     // Serialize the binary node and insert it into the map under the key "value".
     let value = filled_node
@@ -427,11 +429,11 @@ fn xor_hash(x: &[u8], y: &[u8]) -> Vec<u8> {
     x.iter().zip(y.iter()).map(|(a, b)| a ^ b).collect()
 }
 
-fn db_key<L: Leaf>(
+pub fn db_key<L: Leaf>(
     node: &FactDbFilledNode<L>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> DbKey {
-    let suffix = node.hash.0.to_bytes_be();
+    let suffix = node.0.hash.0.to_bytes_be();
     node.get_db_key(key_context, &suffix)
 }
 
@@ -450,34 +452,35 @@ pub(crate) fn test_node_db_key() -> String {
     // Generate keys for different node types.
     let hash = HashOutput(zero);
 
-    let binary_node: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode {
+    let binary_node: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode(FilledNode {
         data: NodeData::Binary(BinaryData { left_data: hash, right_data: hash }),
         hash,
-    };
+    });
     let binary_node_key = db_key(&binary_node, &dummy_contract_address).0;
 
-    let edge_node: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode {
+    let edge_node: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode(FilledNode {
         data: NodeData::Edge(EdgeData { bottom_data: hash, path_to_bottom: Default::default() }),
         hash,
-    };
+    });
 
     let edge_node_key = db_key(&edge_node, &dummy_contract_address).0;
 
-    let storage_leaf = FactDbFilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash };
+    let storage_leaf =
+        FactDbFilledNode(FilledNode { data: NodeData::Leaf(StarknetStorageValue(zero)), hash });
     let storage_leaf_key = db_key(&storage_leaf, &dummy_contract_address).0;
 
-    let state_tree_leaf = FactDbFilledNode {
+    let state_tree_leaf = FactDbFilledNode(FilledNode {
         data: NodeData::Leaf(ContractState {
             class_hash: ClassHash(zero),
             storage_root_hash: HashOutput(zero),
             nonce: Nonce(zero),
         }),
         hash,
-    };
+    });
     let state_tree_leaf_key = db_key(&state_tree_leaf, &EmptyKeyContext).0;
 
     let compiled_class_leaf =
-        FactDbFilledNode { data: NodeData::Leaf(CompiledClassHash(zero)), hash };
+        FactDbFilledNode(FilledNode { data: NodeData::Leaf(CompiledClassHash(zero)), hash });
     let compiled_class_leaf_key = db_key(&compiled_class_leaf, &EmptyKeyContext).0;
 
     // Store keys in a HashMap.
@@ -542,13 +545,13 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     let binary_data: HashMap<String, u128> = serde_json::from_str(binary_json)?;
 
     // Create a binary node from the parsed data.
-    let binary_rust: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode {
+    let binary_rust: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode(FilledNode {
         data: NodeData::Binary(BinaryData {
             left_data: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "left")?)),
             right_data: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "right")?)),
         }),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&binary_data, "hash")?)),
-    };
+    });
 
     // Store the binary node in the storage.
     rust_fact_storage
@@ -565,7 +568,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     let edge_data: HashMap<String, u128> = serde_json::from_str(edge_json)?;
 
     // Create an edge node from the parsed data.
-    let edge_rust: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode {
+    let edge_rust: FactDbFilledNode<StarknetStorageValue> = FactDbFilledNode(FilledNode {
         data: NodeData::Edge(EdgeData {
             bottom_data: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "bottom")?)),
             path_to_bottom: PathToBottom::new(
@@ -582,7 +585,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
             .expect("Illegal PathToBottom"),
         }),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&edge_data, "hash")?)),
-    };
+    });
 
     // Store the edge node in the storage.
     rust_fact_storage
@@ -599,13 +602,13 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
     let storage_leaf_data: HashMap<String, u128> = serde_json::from_str(storage_leaf_json)?;
 
     // Create a storage leaf node from the parsed data.
-    let storage_leaf_rust = FactDbFilledNode {
+    let storage_leaf_rust = FactDbFilledNode(FilledNode {
         data: NodeData::Leaf(StarknetStorageValue(Felt::from(*get_or_key_not_found(
             &storage_leaf_data,
             "value",
         )?))),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&storage_leaf_data, "hash")?)),
-    };
+    });
 
     // Store the storage leaf node in the storage.
     rust_fact_storage
@@ -623,7 +626,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
         serde_json::from_str(contract_state_leaf)?;
 
     // Create a contract state leaf node from the parsed data.
-    let contract_state_leaf_rust = FactDbFilledNode {
+    let contract_state_leaf_rust = FactDbFilledNode(FilledNode {
         data: NodeData::Leaf(ContractState {
             class_hash: ClassHash(Felt::from(*get_or_key_not_found(
                 &contract_state_leaf_data,
@@ -637,7 +640,7 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
         }),
 
         hash: HashOutput(Felt::from(*get_or_key_not_found(&contract_state_leaf_data, "hash")?)),
-    };
+    });
 
     // Store the contract state leaf node in the storage.
     rust_fact_storage
@@ -655,13 +658,13 @@ async fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTest
         serde_json::from_str(compiled_class_leaf)?;
 
     // Create a compiled class leaf node from the parsed data.
-    let compiled_class_leaf_rust = FactDbFilledNode {
+    let compiled_class_leaf_rust = FactDbFilledNode(FilledNode {
         data: NodeData::Leaf(CompiledClassHash(Felt::from(*get_or_key_not_found(
             &compiled_class_leaf_data,
             "compiled_class_hash",
         )?))),
         hash: HashOutput(Felt::from(*get_or_key_not_found(&compiled_class_leaf_data, "hash")?)),
-    };
+    });
 
     // Store the compiled class leaf node in the storage.
     rust_fact_storage

@@ -30,8 +30,6 @@ sequencer_venv/*
 /logs
 /target
 /.vscode
-# Git hooks
-/.husky
 /.idea
 __pycache__/
 .idea/
@@ -56,3 +54,7 @@ deployments/papyrus/helm/config/*
 !deployments/papyrus/helm/config/example.json
 
 integration_test_temporary_logs
+
+# Claude Code local config
+.claude*.local*
+.claude/*.local*

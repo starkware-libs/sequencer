@@ -52,7 +52,26 @@ def get_monitoring_endpoint_port(service_config: Dict[str, Any]) -> Union[int, f
 def run(
     cmd: List[str], capture_output: bool = False, check: bool = True, text: bool = True
 ) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=capture_output, check=check, text=text)
+    """
+    Run a command and handle errors with detailed output.
+
+    When check=True, always capture output to preserve error details on failure.
+    """
+    # If check=True, we need to capture output to show errors on failure
+    should_capture = capture_output or check
+
+    try:
+        result = subprocess.run(cmd, capture_output=should_capture, check=check, text=text)
+        return result
+    except subprocess.CalledProcessError as e:
+        # Print detailed error information
+        print(f"❌ Command failed: {' '.join(cmd)}")
+        if e.stdout:
+            print(f"stdout:\n{e.stdout}")
+        if e.stderr:
+            print(f"stderr:\n{e.stderr}")
+        # Re-raise to maintain original behavior
+        raise
 
 
 def wait_for_port(host: str, port: int, timeout: int = 15) -> bool:
@@ -108,6 +127,7 @@ def run_service_check(
     port_forward_retries: int = 3,
     port_forward_retry_delay: int = 2,
     port_wait_timeout: int = 30,
+    verbose: bool = False,
 ):
     pf_process = None
     port_established = False
@@ -128,10 +148,18 @@ def run_service_check(
                 f"[{service_name}] 🚀 Port-forwarding attempt {attempt}/{port_forward_retries} on {local_port} -> {monitoring_port}"
             )
 
+            port_forward_cmd = [
+                "kubectl",
+                "port-forward",
+                pod_name,
+                f"{local_port}:{monitoring_port}",
+            ]
+            if verbose:
+                port_forward_cmd.insert(1, "-v=6")
             pf_process = subprocess.Popen(
-                ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                port_forward_cmd,
+                stdout=subprocess.DEVNULL if not verbose else None,
+                stderr=subprocess.DEVNULL if not verbose else None,
             )
 
             # Wait for port to be ready
@@ -195,6 +223,7 @@ def main(
     interval: int,
     initial_delay: int,
     namespace: str,
+    verbose: bool = False,
 ):
     print(f"Running liveness checks on {len(services)} services")
     print(f"Timeout: {timeout}s")
@@ -217,20 +246,20 @@ def main(
             time.sleep(delay)
 
         try:
-            pod_name = run(
-                [
-                    "kubectl",
-                    "get",
-                    "pods",
-                    "-n",
-                    namespace,
-                    "-l",
-                    f"service={service_label}",
-                    "-o",
-                    "jsonpath={.items[0].metadata.name}",
-                ],
-                capture_output=True,
-            ).stdout.strip()
+            get_cmd = [
+                "kubectl",
+                "get",
+                "pods",
+                "-n",
+                namespace,
+                "-l",
+                f"service={service_label}",
+                "-o",
+                "jsonpath={.items[0].metadata.name}",
+            ]
+            if verbose:
+                get_cmd.insert(1, "-v=6")
+            pod_name = run(get_cmd, capture_output=True).stdout.strip()
             print(f"Found pod for {service_name}: {pod_name}")
         except subprocess.CalledProcessError:
             print(f"❌ Missing pod for {service_name}. Aborting!")
@@ -247,6 +276,10 @@ def main(
             print(f"❌ {e}. Aborting!")
             sys.exit(1)
 
+        port_forward_retries = 3
+        port_forward_retry_delay = 2
+        port_wait_timeout = 30
+
         process = Process(
             name=service_name,
             target=run_service_check,
@@ -259,6 +292,10 @@ def main(
                 interval,
                 initial_delay,
                 process_queue,
+                port_forward_retries,
+                port_forward_retry_delay,
+                port_wait_timeout,
+                verbose,
             ),
         )
         process.start()
@@ -349,6 +386,11 @@ if __name__ == "__main__":
         default=None,
         help="Overlay path in dot notation (e.g., 'hybrid.testing.node-0')",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose kubectl output (adds -v=6 flag to kubectl commands)",
+    )
 
     args = parser.parse_args()
 
@@ -377,4 +419,5 @@ if __name__ == "__main__":
         interval=args.interval,
         initial_delay=args.initial_delay,
         namespace=args.namespace,
+        verbose=args.verbose,
     )

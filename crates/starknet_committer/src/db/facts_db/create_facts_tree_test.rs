@@ -7,7 +7,7 @@ use crate::db::create_original_skeleton_tests::{
     test_create_original_skeleton,
     CreateTreeCase,
 };
-use crate::db::facts_db::db::FactsNodeLayout;
+use crate::db::facts_db::FactsNodeLayout;
 
 #[apply(create_tree_cases)]
 #[rstest]

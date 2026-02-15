@@ -101,6 +101,12 @@ pub struct BlockModificationsCounts {
     pub emptied_storage_leaves: usize,
 }
 
+impl BlockModificationsCounts {
+    pub fn total(&self) -> usize {
+        self.storage_tries + self.contracts_trie + self.classes_trie
+    }
+}
+
 #[derive(Default, Clone)]
 pub struct BlockMeasurement {
     pub n_writes: usize,

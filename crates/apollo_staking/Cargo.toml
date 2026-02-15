@@ -6,9 +6,12 @@ repository.workspace = true
 license-file.workspace = true
 description = "Staking functionality for Starknet consensus participants."
 
+[features]
+testing = []
+
 [dependencies]
 apollo_config_manager_types.workspace = true
-apollo_consensus.workspace = true
+apollo_protobuf.workspace = true
 apollo_staking_config.workspace = true
 apollo_state_sync_types.workspace = true
 async-trait.workspace = true

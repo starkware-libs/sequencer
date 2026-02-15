@@ -39,6 +39,7 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+<<<<<<< HEAD
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",
@@ -395,16 +396,721 @@
     "value": "StateOnly"
   },
   "batcher_config.storage_reader_server_config.enable": {
+||||||| 63dac1e8a4
+  "batcher_config.block_builder_config.bouncer_config.blake_weight": {
+    "description": "blake opcode gas weight.",
+    "privacy": "Public",
+    "value": 3334
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
+    "description": "An upper bound on the total l1_gas used in a block.",
+    "privacy": "Public",
+    "value": 2500000
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": {
+    "description": "An upper bound on the message segment length in a block.",
+    "privacy": "Public",
+    "value": 3700
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": {
+    "description": "An upper bound on the total number of events generated in a block.",
+    "privacy": "Public",
+    "value": 5000
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_txs": {
+    "description": "An upper bound on the total number of transactions in a block.",
+    "privacy": "Public",
+    "value": 600
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
+    "description": "An upper bound on the total builtins and steps gas usage used in a block.",
+    "privacy": "Public",
+    "value": 6000000000
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
+    "description": "An upper bound on the total sierra_gas used in a block.",
+    "privacy": "Public",
+    "value": 6000000000
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
+    "description": "An upper bound on the total state diff size in a block.",
+    "privacy": "Public",
+    "value": 4000
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
+    "description": "Add_mod gas weight.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
+    "description": "Bitwise gas weight.",
+    "privacy": "Public",
+    "value": 583
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecdsa": {
+    "description": "Ecdsa gas weight.",
+    "privacy": "Public",
+    "value": 2000000
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecop": {
+    "description": "Ec_op gas weight.",
+    "privacy": "Public",
+    "value": 857850
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.keccak": {
+    "description": "Keccak gas weight.",
+    "privacy": "Public",
+    "value": 600000
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
+    "description": "Mul_mod gas weight.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
+    "description": "Pedersen gas weight.",
+    "privacy": "Public",
+    "value": 3000
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
+    "description": "Poseidon gas weight.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check": {
+    "description": "Range_check gas weight.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check96": {
+    "description": "range_check96 gas weight.",
+    "privacy": "Public",
+    "value": 179
+  },
+  "batcher_config.block_builder_config.chain_info.chain_id": {
+    "description": "The chain ID of the StarkNet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": {
+    "description": "Address of the ETH fee token.",
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
+  },
+  "batcher_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address": {
+    "description": "Address of the STRK fee token.",
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
+  },
+  "batcher_config.block_builder_config.execute_config.n_workers": {
+    "description": "Number of parallel transaction execution workers.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "batcher_config.block_builder_config.execute_config.stack_size": {
+    "description": "The thread stack size (proportional to the maximal gas of a transaction).",
+    "privacy": "Public",
+    "value": 62914560
+  },
+  "batcher_config.block_builder_config.n_concurrent_txs": {
+    "description": "Number of transactions in each request from the tx_provider.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.block_builder_config.proposer_idle_detection_delay_millis": {
+    "description": "Minimum time (in milliseconds) that must pass since block creation started before checking for idle state. If this delay has passed AND no transactions are currently being executed, the proposer will finish building the current block.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "batcher_config.block_builder_config.tx_polling_interval_millis": {
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "pointer_target": "versioned_constants_overrides.#is_none",
+    "privacy": "TemporaryValue"
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
+    "description": "Maximum number of steps the invoke function is allowed to run.",
+    "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
+    "privacy": "Public"
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transaction.",
+    "pointer_target": "versioned_constants_overrides.max_n_events",
+    "privacy": "Public"
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
+    "description": "Maximum recursion depth for nested calls during blockifier validation.",
+    "pointer_target": "versioned_constants_overrides.max_recursion_depth",
+    "privacy": "Public"
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": {
+    "description": "Maximum number of steps the validation function is allowed to run.",
+    "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
+    "privacy": "Public"
+  },
+  "batcher_config.commitment_manager_config.results_channel_size": {
+    "description": "The size of the channel for receiving results from the commitment manager.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.commitment_manager_config.tasks_channel_size": {
+    "description": "The size of the channel for sending tasks to the commitment manager.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.commitment_manager_config.wait_for_tasks_channel": {
+    "description": "If the task channel is full: if true, will wait for the tasks channel to be available. If false, will panic.",
+    "privacy": "Public",
+    "value": true
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
+    "description": "The size of the compilation request channel.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
+    "pointer_target": "native_classes_whitelist",
+    "privacy": "Public"
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
+    "description": "Whether to panic on compilation failure.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
+    "description": "Enables Cairo native execution.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
+    "description": "Block Sequencer main program while compiling sierra, for testing.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.contract_cache_size": {
+    "description": "The size of the global contract cache.",
+    "privacy": "Public",
+    "value": 600
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 600
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_file_size": {
+    "description": "Limitation of compiled Cairo Native file size (bytes).",
+    "privacy": "Public",
+    "value": 52428800
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 16106127360
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.optimization_level": {
+    "description": "The level of optimization to apply during compilation.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "batcher_config.first_block_with_partial_block_hash.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "batcher_config.first_block_with_partial_block_hash.block_hash": {
+    "description": "The hash of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.first_block_with_partial_block_hash.block_number": {
+    "description": "The number of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "batcher_config.first_block_with_partial_block_hash.parent_block_hash": {
+    "description": "The hash of the parent block of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.input_stream_content_buffer_size": {
+    "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
+    "privacy": "Public",
+    "value": 400
+  },
+  "batcher_config.max_l1_handler_txs_per_block_proposal": {
+    "description": "The maximum number of L1 handler transactions to include in a block proposal.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "batcher_config.outstream_content_buffer_size": {
+    "description": "The maximum number of items to include in a single get_proposal_content response.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.pre_confirmed_block_writer_config.channel_buffer_capacity": {
+    "description": "The capacity of the channel buffer for receiving pre-confirmed transactions.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.pre_confirmed_block_writer_config.write_block_interval_millis": {
+    "description": "Time interval (ms) between writing pre-confirmed blocks. Writes occur only when block data changes.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "batcher_config.pre_confirmed_cende_config.recorder_url": {
+    "description": "The URL of the Pythonic cende_recorder",
+    "pointer_target": "recorder_url",
+    "privacy": "Public"
+  },
+  "batcher_config.propose_l1_txs_every": {
+    "description": "Only propose L1 transactions every N proposals.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "batcher_config.storage.db_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "batcher_config.storage.db_config.enforce_file_exists": {
+    "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.storage.db_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
+    "privacy": "Public",
+    "value": 4294967296
+  },
+  "batcher_config.storage.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
+  },
+  "batcher_config.storage.db_config.max_size": {
+    "description": "The maximum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "batcher_config.storage.db_config.min_size": {
+    "description": "The minimum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1048576
+  },
+  "batcher_config.storage.db_config.path_prefix": {
+    "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
+    "privacy": "Public",
+    "value": "/data/batcher"
+  },
+  "batcher_config.storage.mmap_file_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than max_object_size.",
+    "privacy": "Public",
+    "value": 1073741824
+  },
+  "batcher_config.storage.mmap_file_config.max_object_size": {
+    "description": "The maximum size of a single object in the file in bytes",
+    "privacy": "Public",
+    "value": 268435456
+  },
+  "batcher_config.storage.mmap_file_config.max_size": {
+    "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "batcher_config.storage.scope": {
+    "description": "The categories of data saved in storage.",
+    "privacy": "Public",
+    "value": "StateOnly"
+  },
+  "batcher_config.storage_reader_server_config.enable": {
+=======
+  "batcher_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
+>>>>>>> origin/main-v0.14.1-committer
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
     "value": false
   },
-  "batcher_config.storage_reader_server_config.ip": {
+  "batcher_config.static_config.block_builder_config.bouncer_config.blake_weight": {
+    "description": "blake opcode gas weight.",
+    "privacy": "Public",
+    "value": 3334
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
+    "description": "An upper bound on the total l1_gas used in a block.",
+    "privacy": "Public",
+    "value": 2500000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": {
+    "description": "An upper bound on the message segment length in a block.",
+    "privacy": "Public",
+    "value": 3700
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events": {
+    "description": "An upper bound on the total number of events generated in a block.",
+    "privacy": "Public",
+    "value": 5000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_txs": {
+    "description": "An upper bound on the total number of transactions in a block.",
+    "privacy": "Public",
+    "value": 600
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
+    "description": "An upper bound on the total builtins and steps gas usage used in a block.",
+    "privacy": "Public",
+    "value": 6000000000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
+    "description": "An upper bound on the total sierra_gas used in a block.",
+    "privacy": "Public",
+    "value": 6000000000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
+    "description": "An upper bound on the total state diff size in a block.",
+    "privacy": "Public",
+    "value": 4000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.add_mod": {
+    "description": "Add_mod gas weight.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.bitwise": {
+    "description": "Bitwise gas weight.",
+    "privacy": "Public",
+    "value": 583
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecdsa": {
+    "description": "Ecdsa gas weight.",
+    "privacy": "Public",
+    "value": 2000000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecop": {
+    "description": "Ec_op gas weight.",
+    "privacy": "Public",
+    "value": 857850
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.keccak": {
+    "description": "Keccak gas weight.",
+    "privacy": "Public",
+    "value": 600000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.mul_mod": {
+    "description": "Mul_mod gas weight.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.pedersen": {
+    "description": "Pedersen gas weight.",
+    "privacy": "Public",
+    "value": 3000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.poseidon": {
+    "description": "Poseidon gas weight.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check": {
+    "description": "Range_check gas weight.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.range_check96": {
+    "description": "range_check96 gas weight.",
+    "privacy": "Public",
+    "value": 179
+  },
+  "batcher_config.static_config.block_builder_config.chain_info.chain_id": {
+    "description": "The chain ID of the StarkNet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": {
+    "description": "Address of the ETH fee token.",
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address": {
+    "description": "Address of the STRK fee token.",
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.block_builder_config.execute_config.n_workers": {
+    "description": "Number of parallel transaction execution workers.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "batcher_config.static_config.block_builder_config.execute_config.stack_size": {
+    "description": "The thread stack size (proportional to the maximal gas of a transaction).",
+    "privacy": "Public",
+    "value": 62914560
+  },
+  "batcher_config.static_config.block_builder_config.n_concurrent_txs": {
+    "description": "Number of transactions in each request from the tx_provider.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.static_config.block_builder_config.proposer_idle_detection_delay_millis": {
+    "description": "Minimum time (in milliseconds) that must pass since block creation started before checking for idle state. If this delay has passed AND no transactions are currently being executed, the proposer will finish building the current block.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "batcher_config.static_config.block_builder_config.tx_polling_interval_millis": {
+    "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "batcher_config.static_config.block_builder_config.versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "pointer_target": "versioned_constants_overrides.#is_none",
+    "privacy": "TemporaryValue"
+  },
+  "batcher_config.static_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
+    "description": "Maximum number of steps the invoke function is allowed to run.",
+    "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.block_builder_config.versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transaction.",
+    "pointer_target": "versioned_constants_overrides.max_n_events",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
+    "description": "Maximum recursion depth for nested calls during blockifier validation.",
+    "pointer_target": "versioned_constants_overrides.max_recursion_depth",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": {
+    "description": "Maximum number of steps the validation function is allowed to run.",
+    "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.commitment_manager_config.panic_if_task_channel_full": {
+    "description": "If the task channel is full: if true, will panic. If false, will wait for the tasks channel to be available.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.static_config.commitment_manager_config.results_channel_size": {
+    "description": "The size of the channel for receiving results from the commitment manager.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.static_config.commitment_manager_config.tasks_channel_size": {
+    "description": "The size of the channel for sending tasks to the commitment manager.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
+    "description": "The size of the compilation request channel.",
+    "privacy": "Public",
+    "value": 2000
+  },
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
+    "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
+    "pointer_target": "native_classes_whitelist",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
+    "description": "Whether to panic on compilation failure.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
+    "description": "Enables Cairo native execution.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
+    "description": "Block Sequencer main program while compiling sierra, for testing.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.static_config.contract_class_manager_config.contract_cache_size": {
+    "description": "The size of the global contract cache.",
+    "privacy": "Public",
+    "value": 600
+  },
+  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": {
+    "description": "The path to the Sierra-to-Native compiler binary.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 600
+  },
+  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size": {
+    "description": "Limitation of compiled Cairo Native file size (bytes).",
+    "privacy": "Public",
+    "value": 52428800
+  },
+  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 16106127360
+  },
+  "batcher_config.static_config.contract_class_manager_config.native_compiler_config.optimization_level": {
+    "description": "The level of optimization to apply during compilation.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "batcher_config.static_config.first_block_with_partial_block_hash.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "batcher_config.static_config.first_block_with_partial_block_hash.block_hash": {
+    "description": "The hash of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.static_config.first_block_with_partial_block_hash.block_number": {
+    "description": "The number of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash": {
+    "description": "The hash of the parent block of the first block with a partial block hash components.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.static_config.input_stream_content_buffer_size": {
+    "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
+    "privacy": "Public",
+    "value": 400
+  },
+  "batcher_config.static_config.max_l1_handler_txs_per_block_proposal": {
+    "description": "The maximum number of L1 handler transactions to include in a block proposal.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "batcher_config.static_config.outstream_content_buffer_size": {
+    "description": "The maximum number of items to include in a single get_proposal_content response.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.static_config.pre_confirmed_block_writer_config.channel_buffer_capacity": {
+    "description": "The capacity of the channel buffer for receiving pre-confirmed transactions.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.static_config.pre_confirmed_block_writer_config.write_block_interval_millis": {
+    "description": "Time interval (ms) between writing pre-confirmed blocks. Writes occur only when block data changes.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "batcher_config.static_config.pre_confirmed_cende_config.recorder_url": {
+    "description": "The URL of the Pythonic cende_recorder",
+    "pointer_target": "recorder_url",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.propose_l1_txs_every": {
+    "description": "Only propose L1 transactions every N proposals.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "batcher_config.static_config.storage.db_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.storage.db_config.enforce_file_exists": {
+    "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.static_config.storage.db_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
+    "privacy": "Public",
+    "value": 4294967296
+  },
+  "batcher_config.static_config.storage.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
+  },
+  "batcher_config.static_config.storage.db_config.max_size": {
+    "description": "The maximum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "batcher_config.static_config.storage.db_config.min_size": {
+    "description": "The minimum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1048576
+  },
+  "batcher_config.static_config.storage.db_config.path_prefix": {
+    "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
+    "privacy": "Public",
+    "value": "/data/batcher"
+  },
+  "batcher_config.static_config.storage.mmap_file_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than max_object_size.",
+    "privacy": "Public",
+    "value": 1073741824
+  },
+  "batcher_config.static_config.storage.mmap_file_config.max_object_size": {
+    "description": "The maximum size of a single object in the file in bytes",
+    "privacy": "Public",
+    "value": 268435456
+  },
+  "batcher_config.static_config.storage.mmap_file_config.max_size": {
+    "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "batcher_config.static_config.storage.scope": {
+    "description": "The categories of data saved in storage.",
+    "privacy": "Public",
+    "value": "StateOnly"
+  },
+  "batcher_config.static_config.storage_reader_server_static_config.ip": {
     "description": "The IP address for the storage reader HTTP server.",
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "batcher_config.storage_reader_server_config.port": {
+  "batcher_config.static_config.storage_reader_server_static_config.port": {
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
     "value": 8091
@@ -2099,6 +2805,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote": {
+    "description": "When true, require the virtual proposer to have voted in favor before reaching a decision.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.consensus_manager_config.dynamic_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
@@ -2244,6 +2955,11 @@
     "privacy": "Public",
     "value": 1000000000
   },
+  "consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height": {
+    "description": "List of minimum L2 gas prices per block height in format 'height1:price1,height2:price2'. Each entry specifies a height and the minimum gas price that applies from that height onwards.",
+    "privacy": "Public",
+    "value": ""
+  },
   "consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate": {
     "description": "Replace the Eth-to-Fri conversion rate with this value.",
     "privacy": "Public",
@@ -2319,11 +3035,6 @@
     "privacy": "Public",
     "value": true
   },
-  "consensus_manager_config.context_config.static_config.num_validators": {
-    "description": "The number of validators.",
-    "privacy": "Public",
-    "value": 1
-  },
   "consensus_manager_config.context_config.static_config.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",
@@ -2338,16 +3049,6 @@
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
     "value": 10000
-  },
-  "consensus_manager_config.context_config.static_config.validator_ids": {
-    "description": "Optional explicit set of validator IDs (comma separated).",
-    "privacy": "Public",
-    "value": ""
-  },
-  "consensus_manager_config.context_config.static_config.validator_ids.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "consensus_manager_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
@@ -2459,6 +3160,31 @@
     "pointer_target": "revert_config.should_revert",
     "privacy": "Public"
   },
+  "consensus_manager_config.staking_manager_config.dynamic_config.default_committee": {
+    "description": "Defines the default committee configuration (size and stakers) for all epochs.",
+    "privacy": "Public",
+    "value": "0,100:"
+  },
+  "consensus_manager_config.staking_manager_config.dynamic_config.override_committee": {
+    "description": "Optional override configuration that takes precedence over default_committee.",
+    "privacy": "Public",
+    "value": "0,100:"
+  },
+  "consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.staking_manager_config.static_config.max_cached_epochs": {
+    "description": "The maximum number of epochs to cache.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "consensus_manager_config.staking_manager_config.static_config.use_only_actual_proposer_selection": {
+    "description": "If true, get_proposer will use the same deterministic round-robin selection as get_actual_proposer.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.stream_handler_config.channel_buffer_capacity": {
     "description": "The capacity of the channel buffer for stream messages.",
     "privacy": "Public",
@@ -2484,237 +3210,245 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "gateway_config.authorized_declarer_accounts": {
+  "gateway_config.static_config.authorized_declarer_accounts": {
     "description": "Authorized declarer accounts. If set, only these accounts can declare new contracts. Addresses are in hex format and separated by a comma with no space.",
     "privacy": "Public",
     "value": ""
   },
-  "gateway_config.authorized_declarer_accounts.#is_none": {
+  "gateway_config.static_config.authorized_declarer_accounts.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "gateway_config.block_declare": {
+  "gateway_config.static_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.chain_info.chain_id": {
+  "gateway_config.static_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
-  "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": {
+  "gateway_config.static_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
     "pointer_target": "eth_fee_token_address",
     "privacy": "Public"
   },
-  "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": {
+  "gateway_config.static_config.chain_info.fee_token_addresses.strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
     "value": 2000
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
     "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
     "pointer_target": "native_classes_whitelist",
     "privacy": "Public"
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
     "description": "Whether to panic on compilation failure.",
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
     "description": "Enables Cairo native execution.",
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
     "description": "Block Sequencer main program while compiling sierra, for testing.",
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.contract_cache_size": {
+  "gateway_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",
     "value": 300
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
     "privacy": "Public",
     "value": ""
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.compiler_binary_path.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "Public",
     "value": 600
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
     "privacy": "Public",
     "value": 52428800
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
     "value": 16106127360
   },
-  "gateway_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "gateway_config.contract_class_manager_config.native_compiler_config.optimization_level": {
+  "gateway_config.static_config.contract_class_manager_config.native_compiler_config.optimization_level": {
     "description": "The level of optimization to apply during compilation.",
     "privacy": "Public",
     "value": 2
   },
+<<<<<<< HEAD
   "gateway_config.proof_archive_writer_config.bucket_name": {
     "description": "The name of the bucket to write proofs to. An empty string indicates a test environment that does not connect to GCS.",
     "privacy": "Public",
     "value": "proof-archive"
   },
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
+||||||| 63dac1e8a4
+  "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
+=======
+  "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
+>>>>>>> origin/main-v0.14.1-committer
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
     "privacy": "Public",
     "value": 200
   },
-  "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
+  "gateway_config.static_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
     "description": "Maximum nonce for which the validation is skipped.",
     "privacy": "Public",
     "value": "0x1"
   },
-  "gateway_config.stateful_tx_validator_config.min_gas_price_percentage": {
+  "gateway_config.static_config.stateful_tx_validator_config.min_gas_price_percentage": {
     "description": "Minimum gas price as percentage of threshold to accept transactions.",
     "privacy": "Public",
     "value": 100
   },
-  "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": {
+  "gateway_config.static_config.stateful_tx_validator_config.reject_future_declare_txs": {
     "description": "If true, rejects declare transactions with future nonces.",
     "privacy": "Public",
     "value": true
   },
-  "gateway_config.stateful_tx_validator_config.validate_resource_bounds": {
+  "gateway_config.static_config.stateful_tx_validator_config.validate_resource_bounds": {
     "description": "If true, ensures the max L2 gas price exceeds (a configurable percentage of) the base gas price of the previous block.",
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.#is_none": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.#is_none": {
     "description": "Flag for an optional field.",
     "pointer_target": "versioned_constants_overrides.#is_none",
     "privacy": "TemporaryValue"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
     "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
     "description": "Maximum number of events that can be emitted from the transaction.",
     "pointer_target": "versioned_constants_overrides.max_n_events",
     "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "pointer_target": "versioned_constants_overrides.max_recursion_depth",
     "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": {
+  "gateway_config.static_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": {
     "description": "Maximum number of steps the validation function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+<<<<<<< HEAD
   "gateway_config.stateless_tx_validator_config.allow_client_side_proving": {
     "description": "If true, allows transactions with non-empty proof_facts or proof fields.",
     "privacy": "Public",
     "value": true
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
+||||||| 63dac1e8a4
+  "gateway_config.stateless_tx_validator_config.max_calldata_length": {
+=======
+  "gateway_config.static_config.stateless_tx_validator_config.max_calldata_length": {
+>>>>>>> origin/main-v0.14.1-committer
     "description": "Limitation of calldata length.",
     "privacy": "Public",
     "value": 5000
   },
-  "gateway_config.stateless_tx_validator_config.max_contract_bytecode_size": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_contract_bytecode_size": {
     "description": "Limitation of contract class bytecode size.",
     "privacy": "Public",
     "value": 81920
   },
-  "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_contract_class_object_size": {
     "description": "Limitation of contract class object size.",
     "privacy": "Public",
     "value": 4089446
   },
-  "gateway_config.stateless_tx_validator_config.max_l2_gas_amount": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_l2_gas_amount": {
     "description": "Maximum allowed L2 gas amount for transactions.",
     "privacy": "Public",
     "value": 1200000000
   },
+<<<<<<< HEAD
   "gateway_config.stateless_tx_validator_config.max_proof_size": {
     "description": "Limitation of proof size.",
     "privacy": "Public",
     "value": 600000
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
+||||||| 63dac1e8a4
+  "gateway_config.stateless_tx_validator_config.max_sierra_version.major": {
+=======
+  "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.major": {
+>>>>>>> origin/main-v0.14.1-committer
     "description": "The major version of the configuration.",
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
     "value": 8
   },
-  "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.patch": {
     "description": "The patch version of the configuration.",
     "privacy": "Public",
     "value": 18446744073709551615
   },
-  "gateway_config.stateless_tx_validator_config.max_signature_length": {
+  "gateway_config.static_config.stateless_tx_validator_config.max_signature_length": {
     "description": "Limitation of signature length.",
     "privacy": "Public",
     "value": 4000
   },
-  "gateway_config.stateless_tx_validator_config.min_gas_price": {
+  "gateway_config.static_config.stateless_tx_validator_config.min_gas_price": {
     "description": "Minimum gas price for transactions.",
     "privacy": "Public",
     "value": 8000000000
   },
-  "gateway_config.stateless_tx_validator_config.min_sierra_version.major": {
+  "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.major": {
     "description": "The major version of the configuration.",
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": {
+  "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": {
+  "gateway_config.static_config.stateless_tx_validator_config.min_sierra_version.patch": {
     "description": "The patch version of the configuration.",
     "privacy": "Public",
     "value": 0
   },
-  "gateway_config.stateless_tx_validator_config.validate_resource_bounds": {
+  "gateway_config.static_config.stateless_tx_validator_config.validate_resource_bounds": {
     "description": "If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.",
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"
@@ -2743,6 +3477,11 @@
     "description": "The http server ip.",
     "privacy": "Public",
     "value": "0.0.0.0"
+  },
+  "http_server_config.static_config.max_request_body_size": {
+    "description": "Max request body size in bytes.",
+    "privacy": "Public",
+    "value": 5242880
   },
   "http_server_config.static_config.port": {
     "description": "The http server port.",
@@ -3134,15 +3873,15 @@
     "privacy": "Public",
     "value": 81920
   },
+  "sierra_compiler_config.max_cpu_time": {
+    "description": "Limitation of compilation cpu time (seconds).",
+    "privacy": "Public",
+    "value": 60
+  },
   "sierra_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
     "value": 5368709120
-  },
-  "sierra_compiler_config.max_memory_usage.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
   },
   "starknet_url": {
     "description": "URL for communicating with Starknet.",
@@ -3154,382 +3893,382 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "state_sync_config.central_sync_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.class_cache_size": {
-    "description": "Size of class cache, must be a positive integer.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.concurrent_requests": {
-    "description": "Maximum number of concurrent requests to Starknet feeder-gateway for getting a type of data (for example, blocks).",
-    "privacy": "Public",
-    "value": 10
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.http_headers": {
-    "description": "'k1:v1 k2:v2 ...' headers for SN-client.",
-    "privacy": "Private",
-    "value": ""
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.max_classes_to_download": {
-    "description": "Maximum number of classes to download at a given time.",
-    "privacy": "Public",
-    "value": 20
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.max_state_updates_to_download": {
-    "description": "Maximum number of state updates to download at a given time.",
-    "privacy": "Public",
-    "value": 20
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.max_state_updates_to_store_in_memory": {
-    "description": "Maximum number of state updates to store in memory at a given time.",
-    "privacy": "Public",
-    "value": 20
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.retry_config.max_retries": {
-    "description": "Maximum number of retries before the node stops retrying.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.retry_config.retry_base_millis": {
-    "description": "Base waiting time after a failed request. After that, the time increases exponentially.",
-    "privacy": "Public",
-    "value": 30
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.retry_config.retry_max_delay_millis": {
-    "description": "Max waiting time after a failed request.",
-    "privacy": "Public",
-    "value": 30000
-  },
-  "state_sync_config.central_sync_client_config.central_source_config.starknet_url": {
-    "description": "Starknet feeder-gateway URL. It should match chain_id.",
-    "pointer_target": "starknet_url",
-    "privacy": "Public"
-  },
-  "state_sync_config.central_sync_client_config.sync_config.base_layer_propagation_sleep_duration": {
-    "description": "Time in seconds to poll the base layer to get the latest proved block.",
-    "privacy": "Public",
-    "value": 10
-  },
-  "state_sync_config.central_sync_client_config.sync_config.blocks_max_stream_size": {
-    "description": "Max amount of blocks to download in a stream.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.central_sync_client_config.sync_config.collect_pending_data": {
-    "description": "Whether to collect data on pending blocks.",
-    "privacy": "Public",
-    "value": false
-  },
-  "state_sync_config.central_sync_client_config.sync_config.latest_block_poll_interval_millis": {
-    "description": "Time in milliseconds between polling for the latest block while node is synchronized.",
-    "privacy": "Public",
-    "value": 500
-  },
-  "state_sync_config.central_sync_client_config.sync_config.recoverable_error_sleep_duration": {
-    "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "state_sync_config.central_sync_client_config.sync_config.state_updates_max_stream_size": {
-    "description": "Max amount of state updates to download in a stream.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.central_sync_client_config.sync_config.store_sierras_and_casms": {
-    "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
-    "privacy": "Public",
-    "value": false
-  },
-  "state_sync_config.central_sync_client_config.sync_config.verify_blocks": {
-    "description": "Whether to verify incoming blocks.",
-    "privacy": "Public",
-    "value": true
-  },
-  "state_sync_config.network_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "state_sync_config.network_config.advertised_multiaddr": {
-    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
-    "privacy": "Public",
-    "value": ""
-  },
-  "state_sync_config.network_config.advertised_multiaddr.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "state_sync_config.network_config.bootstrap_peer_multiaddr": {
-    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
-    "privacy": "Public",
-    "value": ""
-  },
-  "state_sync_config.network_config.bootstrap_peer_multiaddr.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "state_sync_config.network_config.broadcasted_message_metadata_buffer_size": {
-    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
-    "privacy": "Public",
-    "value": 100000
-  },
-  "state_sync_config.network_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
-    "description": "The base delay in milliseconds for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 2
-  },
-  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
-    "description": "The factor for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 5
-  },
-  "state_sync_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
-    "description": "The maximum delay in seconds for the exponential backoff strategy.",
-    "privacy": "Public",
-    "value": 5
-  },
-  "state_sync_config.network_config.discovery_config.heartbeat_interval": {
-    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.network_config.idle_connection_timeout": {
-    "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
-    "privacy": "Public",
-    "value": 120
-  },
-  "state_sync_config.network_config.peer_manager_config.malicious_timeout_seconds": {
-    "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": {
-    "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.network_config.port": {
-    "description": "The port that the node listens on for incoming connections.",
-    "privacy": "Public",
-    "value": 12345
-  },
-  "state_sync_config.network_config.prune_dead_connections_ping_interval": {
-    "description": "The interval in seconds between each prune dead connections ping check.",
-    "privacy": "Public",
-    "value": 15
-  },
-  "state_sync_config.network_config.prune_dead_connections_ping_timeout": {
-    "description": "The timeout in seconds for a ping to be considered failed.",
-    "privacy": "Public",
-    "value": 20
-  },
-  "state_sync_config.network_config.reported_peer_ids_buffer_size": {
-    "description": "The size of the buffer that holds the reported peer ids.",
-    "privacy": "Public",
-    "value": 100000
-  },
-  "state_sync_config.network_config.secret_key": {
-    "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
-    "privacy": "Private",
-    "value": ""
-  },
-  "state_sync_config.network_config.session_timeout": {
-    "description": "Maximal time in seconds that each session can take before failing on timeout.",
-    "privacy": "Public",
-    "value": 120
-  },
-  "state_sync_config.p2p_sync_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "state_sync_config.p2p_sync_client_config.buffer_size": {
-    "description": "Size of the buffer for read from the storage and for incoming responses.",
-    "privacy": "Public",
-    "value": 100000
-  },
-  "state_sync_config.p2p_sync_client_config.num_block_classes_per_query": {
-    "description": "The maximum amount of block's classes to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.p2p_sync_client_config.num_block_state_diffs_per_query": {
-    "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.p2p_sync_client_config.num_block_transactions_per_query": {
-    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.p2p_sync_client_config.num_headers_per_query": {
-    "description": "The maximum amount of headers to ask from peers in each iteration.",
-    "privacy": "Public",
-    "value": 10000
-  },
-  "state_sync_config.p2p_sync_client_config.wait_period_for_new_data": {
-    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
-    "privacy": "Public",
-    "value": 50
-  },
-  "state_sync_config.p2p_sync_client_config.wait_period_for_other_protocol": {
-    "description": "Time in millisseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
-    "privacy": "Public",
-    "value": 50
-  },
-  "state_sync_config.revert_config.revert_up_to_and_including": {
-    "description": "The component will revert blocks up to this block number (including).",
-    "pointer_target": "revert_config.revert_up_to_and_including",
-    "privacy": "Public"
-  },
-  "state_sync_config.revert_config.should_revert": {
-    "description": "If set true, the component would revert blocks and do nothing else.",
-    "pointer_target": "revert_config.should_revert",
-    "privacy": "Public"
-  },
-  "state_sync_config.rpc_config.apollo_gateway_retry_config.max_retries": {
-    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
-    "privacy": "Public",
-    "value": 5
-  },
-  "state_sync_config.rpc_config.apollo_gateway_retry_config.retry_base_millis": {
-    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
-    "privacy": "Public",
-    "value": 50
-  },
-  "state_sync_config.rpc_config.apollo_gateway_retry_config.retry_max_delay_millis": {
-    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.rpc_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "state_sync_config.rpc_config.collect_metrics": {
-    "description": "If true, collect metrics for the rpc.",
-    "privacy": "Public",
-    "value": false
-  },
-  "state_sync_config.rpc_config.execution_config.default_initial_gas_cost": {
-    "description": "The initial gas cost for a transaction",
-    "privacy": "Public",
-    "value": 10000000000
-  },
-  "state_sync_config.rpc_config.execution_config.eth_fee_contract_address": {
-    "description": "The eth fee token address to receive fees",
-    "pointer_target": "eth_fee_token_address",
-    "privacy": "Public"
-  },
-  "state_sync_config.rpc_config.execution_config.strk_fee_contract_address": {
-    "description": "The strk fee token address to receive fees",
-    "pointer_target": "strk_fee_token_address",
-    "privacy": "Public"
-  },
-  "state_sync_config.rpc_config.ip": {
-    "description": "The JSON RPC server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "state_sync_config.rpc_config.max_events_chunk_size": {
-    "description": "Maximum chunk size supported by the node in get_events requests.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "state_sync_config.rpc_config.max_events_keys": {
-    "description": "Maximum number of keys supported by the node in get_events requests.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "state_sync_config.rpc_config.port": {
-    "description": "The JSON RPC server port.",
-    "privacy": "Public",
-    "value": 8090
-  },
-  "state_sync_config.rpc_config.starknet_url": {
-    "description": "URL for communicating with Starknet in write_api methods.",
-    "pointer_target": "starknet_url",
-    "privacy": "Public"
-  },
-  "state_sync_config.storage_config.db_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "state_sync_config.storage_config.db_config.enforce_file_exists": {
-    "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
-    "privacy": "Public",
-    "value": false
-  },
-  "state_sync_config.storage_config.db_config.growth_step": {
-    "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
-    "privacy": "Public",
-    "value": 4294967296
-  },
-  "state_sync_config.storage_config.db_config.max_readers": {
-    "description": "The maximum number of readers used by the database.",
-    "privacy": "Public",
-    "value": 8192
-  },
-  "state_sync_config.storage_config.db_config.max_size": {
-    "description": "The maximum size of the node's storage in bytes.",
-    "privacy": "Public",
-    "value": 1099511627776
-  },
-  "state_sync_config.storage_config.db_config.min_size": {
-    "description": "The minimum size of the node's storage in bytes.",
-    "privacy": "Public",
-    "value": 1048576
-  },
-  "state_sync_config.storage_config.db_config.path_prefix": {
-    "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
-    "privacy": "Public",
-    "value": "/data/state_sync"
-  },
-  "state_sync_config.storage_config.mmap_file_config.growth_step": {
-    "description": "The growth step in bytes, must be greater than max_object_size.",
-    "privacy": "Public",
-    "value": 1073741824
-  },
-  "state_sync_config.storage_config.mmap_file_config.max_object_size": {
-    "description": "The maximum size of a single object in the file in bytes",
-    "privacy": "Public",
-    "value": 268435456
-  },
-  "state_sync_config.storage_config.mmap_file_config.max_size": {
-    "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
-    "privacy": "Public",
-    "value": 1099511627776
-  },
-  "state_sync_config.storage_config.scope": {
-    "description": "The categories of data saved in storage.",
-    "privacy": "Public",
-    "value": "FullArchive"
-  },
-  "state_sync_config.storage_reader_server_config.enable": {
+  "state_sync_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
     "value": false
   },
-  "state_sync_config.storage_reader_server_config.ip": {
+  "state_sync_config.static_config.central_sync_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.class_cache_size": {
+    "description": "Size of class cache, must be a positive integer.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.concurrent_requests": {
+    "description": "Maximum number of concurrent requests to Starknet feeder-gateway for getting a type of data (for example, blocks).",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.http_headers": {
+    "description": "'k1:v1 k2:v2 ...' headers for SN-client.",
+    "privacy": "Private",
+    "value": ""
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.max_classes_to_download": {
+    "description": "Maximum number of classes to download at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.max_state_updates_to_download": {
+    "description": "Maximum number of state updates to download at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.max_state_updates_to_store_in_memory": {
+    "description": "Maximum number of state updates to store in memory at a given time.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.retry_config.max_retries": {
+    "description": "Maximum number of retries before the node stops retrying.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.retry_config.retry_base_millis": {
+    "description": "Base waiting time after a failed request. After that, the time increases exponentially.",
+    "privacy": "Public",
+    "value": 30
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.retry_config.retry_max_delay_millis": {
+    "description": "Max waiting time after a failed request.",
+    "privacy": "Public",
+    "value": 30000
+  },
+  "state_sync_config.static_config.central_sync_client_config.central_source_config.starknet_url": {
+    "description": "Starknet feeder-gateway URL. It should match chain_id.",
+    "pointer_target": "starknet_url",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.base_layer_propagation_sleep_duration": {
+    "description": "Time in seconds to poll the base layer to get the latest proved block.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.blocks_max_stream_size": {
+    "description": "Max amount of blocks to download in a stream.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.collect_pending_data": {
+    "description": "Whether to collect data on pending blocks.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.latest_block_poll_interval_millis": {
+    "description": "Time in milliseconds between polling for the latest block while node is synchronized.",
+    "privacy": "Public",
+    "value": 500
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.recoverable_error_sleep_duration": {
+    "description": "Waiting time in seconds before restarting synchronization after a recoverable error.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.state_updates_max_stream_size": {
+    "description": "Max amount of state updates to download in a stream.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms": {
+    "description": "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This is needed for backward compatibility with the native blockifier. Behavior: \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for **legacy** classes (compiled with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.static_config.central_sync_client_config.sync_config.verify_blocks": {
+    "description": "Whether to verify incoming blocks.",
+    "privacy": "Public",
+    "value": true
+  },
+  "state_sync_config.static_config.network_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "state_sync_config.static_config.network_config.advertised_multiaddr": {
+    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
+    "privacy": "Public",
+    "value": ""
+  },
+  "state_sync_config.static_config.network_config.advertised_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr": {
+    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+    "privacy": "Public",
+    "value": ""
+  },
+  "state_sync_config.static_config.network_config.bootstrap_peer_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "state_sync_config.static_config.network_config.broadcasted_message_metadata_buffer_size": {
+    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
+    "privacy": "Public",
+    "value": 100000
+  },
+  "state_sync_config.static_config.network_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
+    "description": "The base delay in milliseconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
+    "description": "The factor for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.static_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
+    "description": "The maximum delay in seconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.static_config.network_config.discovery_config.heartbeat_interval": {
+    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.network_config.idle_connection_timeout": {
+    "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
+    "privacy": "Public",
+    "value": 120
+  },
+  "state_sync_config.static_config.network_config.peer_manager_config.malicious_timeout_seconds": {
+    "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "state_sync_config.static_config.network_config.peer_manager_config.unstable_timeout_millis": {
+    "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.network_config.port": {
+    "description": "The port that the node listens on for incoming connections.",
+    "privacy": "Public",
+    "value": 12345
+  },
+  "state_sync_config.static_config.network_config.prune_dead_connections_ping_interval": {
+    "description": "The interval in seconds between each prune dead connections ping check.",
+    "privacy": "Public",
+    "value": 15
+  },
+  "state_sync_config.static_config.network_config.prune_dead_connections_ping_timeout": {
+    "description": "The timeout in seconds for a ping to be considered failed.",
+    "privacy": "Public",
+    "value": 20
+  },
+  "state_sync_config.static_config.network_config.reported_peer_ids_buffer_size": {
+    "description": "The size of the buffer that holds the reported peer ids.",
+    "privacy": "Public",
+    "value": 100000
+  },
+  "state_sync_config.static_config.network_config.secret_key": {
+    "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
+    "privacy": "Private",
+    "value": ""
+  },
+  "state_sync_config.static_config.network_config.session_timeout": {
+    "description": "Maximal time in seconds that each session can take before failing on timeout.",
+    "privacy": "Public",
+    "value": 120
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.buffer_size": {
+    "description": "Size of the buffer for read from the storage and for incoming responses.",
+    "privacy": "Public",
+    "value": 100000
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.num_block_classes_per_query": {
+    "description": "The maximum amount of block's classes to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.num_block_state_diffs_per_query": {
+    "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.num_block_transactions_per_query": {
+    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.num_headers_per_query": {
+    "description": "The maximum amount of headers to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 10000
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.wait_period_for_new_data": {
+    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
+    "privacy": "Public",
+    "value": 50
+  },
+  "state_sync_config.static_config.p2p_sync_client_config.wait_period_for_other_protocol": {
+    "description": "Time in millisseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
+    "privacy": "Public",
+    "value": 50
+  },
+  "state_sync_config.static_config.revert_config.revert_up_to_and_including": {
+    "description": "The component will revert blocks up to this block number (including).",
+    "pointer_target": "revert_config.revert_up_to_and_including",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.revert_config.should_revert": {
+    "description": "If set true, the component would revert blocks and do nothing else.",
+    "pointer_target": "revert_config.should_revert",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.max_retries": {
+    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.retry_base_millis": {
+    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "state_sync_config.static_config.rpc_config.apollo_gateway_retry_config.retry_max_delay_millis": {
+    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.rpc_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.rpc_config.collect_metrics": {
+    "description": "If true, collect metrics for the rpc.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.static_config.rpc_config.execution_config.default_initial_gas_cost": {
+    "description": "The initial gas cost for a transaction",
+    "privacy": "Public",
+    "value": 10000000000
+  },
+  "state_sync_config.static_config.rpc_config.execution_config.eth_fee_contract_address": {
+    "description": "The eth fee token address to receive fees",
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.rpc_config.execution_config.strk_fee_contract_address": {
+    "description": "The strk fee token address to receive fees",
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.rpc_config.ip": {
+    "description": "The JSON RPC server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "state_sync_config.static_config.rpc_config.max_events_chunk_size": {
+    "description": "Maximum chunk size supported by the node in get_events requests.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.static_config.rpc_config.max_events_keys": {
+    "description": "Maximum number of keys supported by the node in get_events requests.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.static_config.rpc_config.port": {
+    "description": "The JSON RPC server port.",
+    "privacy": "Public",
+    "value": 8090
+  },
+  "state_sync_config.static_config.rpc_config.starknet_url": {
+    "description": "URL for communicating with Starknet in write_api methods.",
+    "pointer_target": "starknet_url",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.storage_config.db_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "state_sync_config.static_config.storage_config.db_config.enforce_file_exists": {
+    "description": "Whether to enforce that the path exists. If true, `open_env` fails when the mdbx.dat file does not exist.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.static_config.storage_config.db_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
+    "privacy": "Public",
+    "value": 4294967296
+  },
+  "state_sync_config.static_config.storage_config.db_config.max_readers": {
+    "description": "The maximum number of readers used by the database.",
+    "privacy": "Public",
+    "value": 8192
+  },
+  "state_sync_config.static_config.storage_config.db_config.max_size": {
+    "description": "The maximum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "state_sync_config.static_config.storage_config.db_config.min_size": {
+    "description": "The minimum size of the node's storage in bytes.",
+    "privacy": "Public",
+    "value": 1048576
+  },
+  "state_sync_config.static_config.storage_config.db_config.path_prefix": {
+    "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
+    "privacy": "Public",
+    "value": "/data/state_sync"
+  },
+  "state_sync_config.static_config.storage_config.mmap_file_config.growth_step": {
+    "description": "The growth step in bytes, must be greater than max_object_size.",
+    "privacy": "Public",
+    "value": 1073741824
+  },
+  "state_sync_config.static_config.storage_config.mmap_file_config.max_object_size": {
+    "description": "The maximum size of a single object in the file in bytes",
+    "privacy": "Public",
+    "value": 268435456
+  },
+  "state_sync_config.static_config.storage_config.mmap_file_config.max_size": {
+    "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
+    "privacy": "Public",
+    "value": 1099511627776
+  },
+  "state_sync_config.static_config.storage_config.scope": {
+    "description": "The categories of data saved in storage.",
+    "privacy": "Public",
+    "value": "FullArchive"
+  },
+  "state_sync_config.static_config.storage_reader_server_static_config.ip": {
     "description": "The IP address for the storage reader HTTP server.",
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "state_sync_config.storage_reader_server_config.port": {
+  "state_sync_config.static_config.storage_reader_server_static_config.port": {
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
     "value": 8091

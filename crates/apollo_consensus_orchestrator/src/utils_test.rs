@@ -1,7 +1,7 @@
 use apollo_batcher_types::communication::{BatcherClientError, BatcherClientResult};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_infra::component_client::ClientError;
-use apollo_protobuf::consensus::ConsensusBlockInfo;
+use apollo_protobuf::consensus::ProposalInit;
 use apollo_state_sync_types::communication::{StateSyncClientError, StateSyncClientResult};
 use apollo_state_sync_types::errors::StateSyncError;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -24,7 +24,7 @@ const CURRENT_BLOCK_NUMBER: BlockNumber = BlockNumber(STORED_BLOCK_HASH_BUFFER);
 const RETRO_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
 const RETRO_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0x1234567890abcdef"));
 
-async fn get_block_info(args: &ProposalBuildArguments) -> ConsensusBlockInfo {
+async fn get_block_info(args: &ProposalBuildArguments) -> ProposalInit {
     let timestamp = args.deps.clock.unix_now();
     let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
         args.deps.l1_gas_price_provider.clone(),
@@ -34,11 +34,11 @@ async fn get_block_info(args: &ProposalBuildArguments) -> ConsensusBlockInfo {
     )
     .await;
 
-    ConsensusBlockInfo {
-        height: args.proposal_init.height,
-        round: args.proposal_init.round,
-        valid_round: args.proposal_init.valid_round,
-        proposer: args.proposal_init.proposer,
+    ProposalInit {
+        height: args.build_param.height,
+        round: args.build_param.round,
+        valid_round: args.build_param.valid_round,
+        proposer: args.build_param.proposer,
         timestamp,
         builder: args.builder_address,
         l1_da_mode: args.l1_da_mode,
@@ -47,6 +47,8 @@ async fn get_block_info(args: &ProposalBuildArguments) -> ConsensusBlockInfo {
         l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
+        starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        version_constant_commitment: Default::default(),
     }
 }
 
@@ -64,7 +66,7 @@ async fn retrospective_block_hash_happy_flow(
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client.
     test_proposal_args
         .deps
@@ -86,11 +88,11 @@ async fn retrospective_block_hash_happy_flow(
     });
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let block_info = get_block_info(&proposal_args).await;
+    let init = get_block_info(&proposal_args).await;
     let res = retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,
-        &block_info,
+        &init,
     )
     .await
     .unwrap();
@@ -128,7 +130,7 @@ async fn retrospective_block_hash_sad_flow(
     #[case] state_sync_error: StateSyncClientError,
 ) {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
     // Clone the errors to use them in the match statement.
     let batcher_error_cloned = batcher_error.clone();
     let state_sync_error_cloned = state_sync_error.clone();
@@ -148,11 +150,11 @@ async fn retrospective_block_hash_sad_flow(
         .returning(move |_| Err(state_sync_error.clone()));
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let block_info = get_block_info(&proposal_args).await;
+    let init = get_block_info(&proposal_args).await;
     let res = retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,
-        &block_info,
+        &init,
     )
     .await
     .unwrap_err();
@@ -171,7 +173,7 @@ async fn retrospective_block_hash_sad_flow(
 #[tokio::test]
 async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client to return an error.
     test_proposal_args
         .deps
@@ -197,11 +199,11 @@ async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
         .returning(|_| Ok(RETRO_BLOCK_HASH));
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let block_info = get_block_info(&proposal_args).await;
+    let init = get_block_info(&proposal_args).await;
     let res = wait_for_retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,
-        &block_info,
+        &init,
         proposal_args.deps.clock.as_ref(),
         proposal_args.retrospective_block_hash_deadline,
         proposal_args.retrospective_block_hash_retry_interval_millis,
@@ -217,7 +219,7 @@ async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
 #[tokio::test]
 async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
     let (mut test_proposal_args, _proposal_receiver) = create_proposal_build_arguments();
-    test_proposal_args.proposal_init.height = CURRENT_BLOCK_NUMBER;
+    test_proposal_args.build_param.height = CURRENT_BLOCK_NUMBER;
     // Setup batcher client to return BlockHashNotFound error in the first attempt.
     test_proposal_args
         .deps
@@ -247,11 +249,11 @@ async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
         .returning(|_| Err(StateSyncError::BlockNotFound(RETRO_BLOCK_NUMBER).into()));
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let block_info = get_block_info(&proposal_args).await;
+    let init = get_block_info(&proposal_args).await;
     let res = wait_for_retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,
-        &block_info,
+        &init,
         proposal_args.deps.clock.as_ref(),
         proposal_args.retrospective_block_hash_deadline,
         proposal_args.retrospective_block_hash_retry_interval_millis,

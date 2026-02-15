@@ -184,11 +184,17 @@ pub fn gateway_for_benchmark(gateway_config: GatewayConfig) -> GatewayForBenchma
     let proof_archive_writer = Arc::new(MockProofArchiveWriterTrait::new());
     let transaction_converter = TransactionConverter::new(
         class_manager_client.clone(),
+<<<<<<< HEAD
         proof_manager_client.clone(),
         gateway_config.chain_info.chain_id.clone(),
+||||||| 63dac1e8a4
+        gateway_config.chain_info.chain_id.clone(),
+=======
+        gateway_config.static_config.chain_info.chain_id.clone(),
+>>>>>>> origin/main-v0.14.1-committer
     );
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
-        config: gateway_config.stateless_tx_validator_config.clone(),
+        config: gateway_config.static_config.stateless_tx_validator_config.clone(),
     });
     mempool_client.expect_add_tx().returning(|_| Ok(()));
     mempool_client.expect_validate_tx().returning(|_| Ok(()));

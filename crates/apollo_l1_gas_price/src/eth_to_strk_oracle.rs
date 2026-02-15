@@ -8,6 +8,7 @@ use apollo_config::secrets::Sensitive;
 use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
+use apollo_metrics::metrics::set_unix_now_seconds;
 use async_trait::async_trait;
 use futures::FutureExt;
 use lru::LruCache;
@@ -20,6 +21,7 @@ use url::Url;
 use crate::metrics::{
     register_eth_to_strk_metrics,
     ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS,
     ETH_TO_STRK_RATE,
     ETH_TO_STRK_SUCCESS_COUNT,
 };
@@ -180,6 +182,7 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
         ));
     }
     ETH_TO_STRK_SUCCESS_COUNT.increment(1);
+    set_unix_now_seconds(&ETH_TO_STRK_LAST_SUCCESS_TIMESTAMP_SECONDS);
     ETH_TO_STRK_RATE.set_lossy(rate);
     Ok(rate)
 }

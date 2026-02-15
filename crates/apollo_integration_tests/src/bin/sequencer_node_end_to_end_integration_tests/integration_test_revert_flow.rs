@@ -162,14 +162,20 @@ fn modify_revert_config(
     revert_up_to_and_including: Option<BlockNumber>,
 ) {
     let should_revert = revert_up_to_and_including.is_some();
-    config.state_sync_config.as_mut().unwrap().revert_config.should_revert = should_revert;
+    config.state_sync_config.as_mut().unwrap().static_config.revert_config.should_revert =
+        should_revert;
     config.consensus_manager_config.as_mut().unwrap().revert_config.should_revert = should_revert;
 
     // If should revert is false, the revert_up_to_and_including value is irrelevant.
     if should_revert {
         let revert_up_to_and_including = revert_up_to_and_including.unwrap();
-        config.state_sync_config.as_mut().unwrap().revert_config.revert_up_to_and_including =
-            revert_up_to_and_including;
+        config
+            .state_sync_config
+            .as_mut()
+            .unwrap()
+            .static_config
+            .revert_config
+            .revert_up_to_and_including = revert_up_to_and_including;
         config
             .consensus_manager_config
             .as_mut()

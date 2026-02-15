@@ -265,7 +265,7 @@ async fn test_get_compiled_class(
 }
 
 #[tokio::test]
-#[should_panic(expected = "Class with hash {class_hash:?} doesn't appear in class manager even \
+#[should_panic(expected = "Class with hash ClassHash(0x2) doesn't appear in class manager even \
                            though it was declared")]
 async fn test_get_compiled_class_panics_when_class_exists_in_sync_but_not_in_class_manager() {
     test_get_compiled_class(

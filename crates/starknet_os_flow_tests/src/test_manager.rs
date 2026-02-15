@@ -56,7 +56,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_os::commitment_infos::create_commitment_infos;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
@@ -95,11 +95,21 @@ use crate::utils::{
 /// The resulting address depends on the nonce of the deploying account - if extra init transactions
 /// are added to the initial state construction before the STRK fee token is deployed, the address
 /// must be updated.
+<<<<<<< HEAD
 pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
     r#"
     0x4a058b5cfd03175ed4bf39ef9613319c8ffaa0380e0ec4c27b5ab76c642ed54
 "#
 ];
+||||||| 63dac1e8a4
+pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![[r#"
+        0x1a465ff487205d561821685efff4903cb07d69f014b1688a560f8c6380cd025
+    "#]];
+=======
+pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![[r#"
+    0x687666789bd19af15e37d7231ebd954753697de62be963cac54587a25656c02
+"#]];
+>>>>>>> origin/main-v0.14.1-committer
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
     ContractAddress(
         PatriciaKey::try_from(Felt::from_hex_unchecked(

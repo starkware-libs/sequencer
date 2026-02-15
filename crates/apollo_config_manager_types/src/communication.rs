@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_batcher_config::config::BatcherDynamicConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_http_server_config::config::HttpServerDynamicConfig;
@@ -44,6 +45,7 @@ pub trait ConfigManagerClient: Send + Sync {
     ) -> ConfigManagerClientResult<HttpServerDynamicConfig>;
 
     async fn get_mempool_dynamic_config(&self) -> ConfigManagerClientResult<MempoolDynamicConfig>;
+    async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig>;
     async fn get_staking_manager_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<StakingManagerDynamicConfig>;
@@ -65,8 +67,9 @@ pub enum ConfigManagerRequest {
     GetContextDynamicConfig,
     GetHttpServerDynamicConfig,
     GetMempoolDynamicConfig,
+    GetBatcherDynamicConfig,
     GetStakingManagerDynamicConfig,
-    SetNodeDynamicConfig(NodeDynamicConfig),
+    SetNodeDynamicConfig(Box<NodeDynamicConfig>),
 }
 impl_debug_for_infra_requests_and_responses!(ConfigManagerRequest);
 impl_labeled_request!(ConfigManagerRequest, ConfigManagerRequestLabelValue);
@@ -85,6 +88,7 @@ pub enum ConfigManagerResponse {
     GetContextDynamicConfig(ConfigManagerResult<ContextDynamicConfig>),
     GetHttpServerDynamicConfig(ConfigManagerResult<HttpServerDynamicConfig>),
     GetMempoolDynamicConfig(ConfigManagerResult<MempoolDynamicConfig>),
+    GetBatcherDynamicConfig(ConfigManagerResult<BatcherDynamicConfig>),
     GetStakingManagerDynamicConfig(ConfigManagerResult<StakingManagerDynamicConfig>),
     SetNodeDynamicConfig(ConfigManagerResult<()>),
 }
@@ -159,6 +163,19 @@ where
         )
     }
 
+    async fn get_batcher_dynamic_config(&self) -> ConfigManagerClientResult<BatcherDynamicConfig> {
+        let request = ConfigManagerRequest::GetBatcherDynamicConfig;
+        handle_all_response_variants!(
+            self,
+            request,
+            ConfigManagerResponse,
+            GetBatcherDynamicConfig,
+            ConfigManagerClientError,
+            ConfigManagerError,
+            Direct
+        )
+    }
+
     async fn get_staking_manager_dynamic_config(
         &self,
     ) -> ConfigManagerClientResult<StakingManagerDynamicConfig> {
@@ -178,7 +195,7 @@ where
         &self,
         config: NodeDynamicConfig,
     ) -> ConfigManagerClientResult<()> {
-        let request = ConfigManagerRequest::SetNodeDynamicConfig(config);
+        let request = ConfigManagerRequest::SetNodeDynamicConfig(Box::new(config));
         handle_all_response_variants!(
             self,
             request,

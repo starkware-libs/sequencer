@@ -31,6 +31,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 async-recursion.workspace = true
+expect-test.workspace = true
 rstest.workspace = true
 rstest_reuse.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }

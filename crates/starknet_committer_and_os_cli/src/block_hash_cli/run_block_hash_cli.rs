@@ -48,7 +48,7 @@ pub async fn run_block_hash_cli(block_hash_cli_command: BlockHashCliCommand) {
         Command::BlockHashCommitments { io_args: IoArgs { input_path, output_path } } => {
             let commitments_input: BlockCommitmentsInput = load_input(input_path);
             info!("Successfully loaded block hash commitment input.");
-            let commitments = calculate_block_commitments(
+            let (commitments, _) = calculate_block_commitments(
                 &commitments_input.transactions_data,
                 commitments_input.state_diff,
                 commitments_input.l1_da_mode,

@@ -80,7 +80,7 @@ async fn test_block_hash_regression(
     }];
 
     let state_diff = get_state_diff();
-    let block_commitments = calculate_block_commitments(
+    let (block_commitments, _) = calculate_block_commitments(
         &transactions_data,
         state_diff,
         l1_da_mode,
@@ -125,7 +125,7 @@ async fn test_tx_commitment_with_an_empty_signature() {
         transaction_output: get_transaction_output(),
         transaction_hash: tx_hash!(1),
     }];
-    let block_commitments = calculate_block_commitments(
+    let (block_commitments, _) = calculate_block_commitments(
         &transactions_data,
         get_state_diff(),
         L1DataAvailabilityMode::Blob,
@@ -164,6 +164,38 @@ fn l2_gas_price_pre_v0_13_4() {
             GlobalRoot::default(),
             BlockHash::default()
         )
+    );
+}
+
+#[tokio::test]
+async fn block_commitment_timings_are_non_negative() {
+    let transactions_data = vec![TransactionHashingData {
+        transaction_signature: TransactionSignature(vec![Felt::TWO, Felt::THREE].into()),
+        transaction_output: get_transaction_output(),
+        transaction_hash: tx_hash!(1),
+    }];
+    let (_commitments, timings) = calculate_block_commitments(
+        &transactions_data,
+        get_state_diff(),
+        L1DataAvailabilityMode::Blob,
+        &StarknetVersion::V0_13_4,
+    )
+    .await;
+    assert!(
+        timings.transaction_commitment_duration.as_secs_f64() >= 0.0,
+        "transaction_commitment_duration should be non-negative"
+    );
+    assert!(
+        timings.event_commitment_duration.as_secs_f64() >= 0.0,
+        "event_commitment_duration should be non-negative"
+    );
+    assert!(
+        timings.receipt_commitment_duration.as_secs_f64() >= 0.0,
+        "receipt_commitment_duration should be non-negative"
+    );
+    assert!(
+        timings.state_diff_commitment_duration.as_secs_f64() >= 0.0,
+        "state_diff_commitment_duration should be non-negative"
     );
 }
 

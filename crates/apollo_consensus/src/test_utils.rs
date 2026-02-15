@@ -1,26 +1,36 @@
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
+    BuildParam,
     ProposalCommitment,
     ProposalInit,
+    Round,
     Vote,
     VoteType,
 };
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_staking::committee_provider::{
+    CommitteeError,
+    CommitteeTrait,
+    MockCommitteeTrait,
+    Staker,
+};
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ContractAddress;
 use starknet_api::crypto::utils::RawSignature;
+use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 
 use crate::storage::{HeightVotedStorageError, HeightVotedStorageTrait};
-use crate::types::{ConsensusContext, ConsensusError, Round, ValidatorId};
+use crate::types::{ConsensusContext, ConsensusError, ValidatorId};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -31,21 +41,21 @@ pub struct TestBlock {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TestProposalPart {
-    BlockInfo(ConsensusBlockInfo),
+    Init(ProposalInit),
     Invalid,
 }
 
-impl From<ConsensusBlockInfo> for TestProposalPart {
-    fn from(block_info: ConsensusBlockInfo) -> Self {
-        TestProposalPart::BlockInfo(block_info)
+impl From<ProposalInit> for TestProposalPart {
+    fn from(init: ProposalInit) -> Self {
+        TestProposalPart::Init(init)
     }
 }
 
-impl TryFrom<TestProposalPart> for ConsensusBlockInfo {
+impl TryFrom<TestProposalPart> for ProposalInit {
     type Error = ProtobufConversionError;
     fn try_from(part: TestProposalPart) -> Result<Self, Self::Error> {
-        if let TestProposalPart::BlockInfo(block_info) = part {
-            return Ok(block_info);
+        if let TestProposalPart::Init(init) = part {
+            return Ok(init);
         }
         Err(ProtobufConversionError::SerdeJsonError("Invalid proposal part".to_string()))
     }
@@ -53,8 +63,8 @@ impl TryFrom<TestProposalPart> for ConsensusBlockInfo {
 
 impl From<TestProposalPart> for Vec<u8> {
     fn from(part: TestProposalPart) -> Vec<u8> {
-        if let TestProposalPart::BlockInfo(block_info) = part {
-            return block_info.into();
+        if let TestProposalPart::Init(init) = part {
+            return init.into();
         }
         vec![]
     }
@@ -64,7 +74,7 @@ impl TryFrom<Vec<u8>> for TestProposalPart {
     type Error = ProtobufConversionError;
 
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(TestProposalPart::BlockInfo(value.try_into()?))
+        Ok(TestProposalPart::Init(value.try_into()?))
     }
 }
 
@@ -78,13 +88,13 @@ mock! {
 
         async fn build_proposal(
             &mut self,
-            init: ProposalInit,
+            build_param: BuildParam,
             timeout: Duration,
         ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError>;
 
         async fn validate_proposal(
             &mut self,
-            block_info: ConsensusBlockInfo,
+            init: ProposalInit,
             timeout: Duration,
             content: mpsc::Receiver<TestProposalPart>
         ) -> oneshot::Receiver<ProposalCommitment>;
@@ -92,14 +102,8 @@ mock! {
         async fn repropose(
             &mut self,
             id: ProposalCommitment,
-            init: ProposalInit,
+            build_param: BuildParam,
         );
-
-        async fn validators(&self, height: BlockNumber) -> Result<Vec<ValidatorId>, ConsensusError>;
-
-        fn proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
-
-        fn virtual_proposer(&self, height: BlockNumber, round: Round) -> Result<ValidatorId, ConsensusError>;
 
         async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
@@ -149,12 +153,12 @@ pub fn precommit(
     }
 }
 
-pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -> ProposalInit {
-    ProposalInit { height, round, proposer, ..Default::default() }
+pub fn build_param(height: BlockNumber, round: Round, proposer: ValidatorId) -> BuildParam {
+    BuildParam { height, round, proposer, ..Default::default() }
 }
 
-pub fn block_info(height: BlockNumber, round: Round, proposer: ValidatorId) -> ConsensusBlockInfo {
-    ConsensusBlockInfo { height, round, proposer, ..Default::default() }
+pub fn proposal_init(height: BlockNumber, round: Round, proposer: ValidatorId) -> ProposalInit {
+    ProposalInit { height, round, proposer, ..Default::default() }
 }
 
 #[derive(Debug)]
@@ -187,4 +191,47 @@ pub fn get_new_storage_config() -> StorageConfig {
         db_config: DbConfig { path_prefix: PathBuf::from(db_file_path), ..Default::default() },
         ..Default::default()
     }
+}
+
+pub fn test_committee(
+    validators: Vec<ValidatorId>,
+    get_actual_proposer_fn: Box<dyn Fn(Round) -> ContractAddress + Send + Sync>,
+    get_virtual_proposer_fn: Box<
+        dyn Fn(Round) -> Result<ContractAddress, CommitteeError> + Send + Sync,
+    >,
+) -> Arc<dyn CommitteeTrait> {
+    let stakers = validators
+        .into_iter()
+        .map(|address| Staker { address, weight: StakingWeight(1), public_key: Felt::ZERO })
+        .collect();
+
+    let get_actual = Arc::new(get_actual_proposer_fn);
+    let get_virtual = Arc::new(get_virtual_proposer_fn);
+
+    let mut mock = MockCommitteeTrait::new();
+    mock.expect_members().return_const(stakers);
+    mock.expect_get_proposer().returning(move |_, round| (*get_virtual)(round));
+    mock.expect_get_actual_proposer().returning(move |_, round| (*get_actual)(round));
+    Arc::new(mock)
+}
+
+/// Committee where virtual proposer equals actual proposer. Takes a single function that returns
+/// the proposer address for a round (no Result). Use when both proposers are the same.
+pub fn mock_committee_virtual_equal_to_actual(
+    validators: Vec<ValidatorId>,
+    get_actual_proposer_fn: Box<dyn Fn(Round) -> ContractAddress + Send + Sync>,
+) -> Arc<dyn CommitteeTrait> {
+    let stakers = validators
+        .into_iter()
+        .map(|address| Staker { address, weight: StakingWeight(1), public_key: Felt::ZERO })
+        .collect();
+
+    let get_actual = Arc::new(get_actual_proposer_fn);
+
+    let mut mock = MockCommitteeTrait::new();
+    mock.expect_members().return_const(stakers);
+    let get_for_proposer = Arc::clone(&get_actual);
+    mock.expect_get_proposer().returning(move |_, round| Ok((*get_for_proposer)(round)));
+    mock.expect_get_actual_proposer().returning(move |_, round| (*get_actual)(round));
+    Arc::new(mock)
 }

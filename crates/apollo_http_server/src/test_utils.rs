@@ -99,50 +99,93 @@ pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
     HttpServerConfig::new(socket.ip(), socket.port(), DEFAULT_MAX_SIERRA_PROGRAM_SIZE)
 }
 
-/// Creates an HTTP server and an HttpTestClient that can interact with it.
-async fn http_client_server_setup(
-    mock_config_manager_client: MockConfigManagerClient,
-    mock_gateway_client: MockGatewayClient,
+pub struct HttpClientServerSetupBuilder {
     http_server_config: HttpServerConfig,
-) -> HttpTestClient {
-    // Create and run the server.
+    mock_config_manager_client: Option<MockConfigManagerClient>,
+    mock_gateway_client: Option<MockGatewayClient>,
+}
 
-    let config_manager_client = Arc::new(mock_config_manager_client);
-    let gateway_client = Arc::new(mock_gateway_client);
-
-    // Spawn an http server wrapped in a retry mechanism.
-    let mut remaining_retries: u8 = 5;
-    loop {
-        // Create the server struct (consumed by the spawned task).
-        let mut http_server = HttpServer::new(
-            http_server_config.clone(),
-            config_manager_client.clone(),
-            gateway_client.clone(),
+impl HttpClientServerSetupBuilder {
+    // The builder must be invoked with different port_index values to support concurrent execution,
+    // otherwise leading to Address already in use (os error 98) errors.
+    // The input port_index is used to construct the http_server_config.
+    pub fn new(port_index: u16) -> Self {
+        let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+        println!("Using port index {}", port_index);
+        let mut available_ports =
+            AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), port_index);
+        let http_server_config = HttpServerConfig::new(
+            ip,
+            available_ports.get_next_port(),
+            DEFAULT_MAX_SIERRA_PROGRAM_SIZE,
         );
-        // Spawn the server.
-        let handle = tokio::spawn(async move { http_server.run().await });
-
-        // Let it run for a few milliseconds to ensure it has successfully started.
-        const SLEEP_DURATION: Duration = Duration::from_millis(10);
-        sleep(SLEEP_DURATION).await;
-
-        // Check if the server is still running, if so, continue. Otherwise, log and repeat.
-        if !handle.is_finished() {
-            break;
-        } else {
-            println!("Server handle: {handle:?}");
-            remaining_retries -= 1;
-            assert!(remaining_retries > 0, "Failed spawning test http server");
-        }
+        Self::new_from_http_server_config(http_server_config)
     }
 
-    let (ip, port) = http_server_config.ip_and_port();
-    let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+    // If a custom http server config is needed, don't hesitate to make this method public.
+    fn new_from_http_server_config(http_server_config: HttpServerConfig) -> Self {
+        Self { http_server_config, mock_config_manager_client: None, mock_gateway_client: None }
+    }
 
-    // Ensure the server starts running.
-    tokio::task::yield_now().await;
+    pub fn with_max_request_body_size(mut self, max_request_body_size: usize) -> Self {
+        self.http_server_config.static_config.max_request_body_size = max_request_body_size;
+        self
+    }
 
-    add_tx_http_client
+    pub fn with_mock_config_manager_client(
+        mut self,
+        mock_config_manager_client: MockConfigManagerClient,
+    ) -> Self {
+        self.mock_config_manager_client = Some(mock_config_manager_client);
+        self
+    }
+
+    pub fn with_mock_gateway_client(mut self, mock_gateway_client: MockGatewayClient) -> Self {
+        self.mock_gateway_client = Some(mock_gateway_client);
+        self
+    }
+
+    // Creates a client for testing the http server functionality.
+    pub async fn build(self) -> HttpTestClient {
+        let config_manager_client = Arc::new(
+            self.mock_config_manager_client.unwrap_or_else(|| get_mock_config_manager_client(true)),
+        );
+        let gateway_client = Arc::new(self.mock_gateway_client.unwrap_or_default());
+
+        // Spawn an http server wrapped in a retry mechanism.
+        let mut remaining_retries: u8 = 5;
+        loop {
+            // Create the server struct (consumed by the spawned task).
+            let mut http_server = HttpServer::new(
+                self.http_server_config.clone(),
+                config_manager_client.clone(),
+                gateway_client.clone(),
+            );
+            // Spawn the server.
+            let handle = tokio::spawn(async move { http_server.run().await });
+
+            // Let it run for a few milliseconds to ensure it has successfully started.
+            const SLEEP_DURATION: Duration = Duration::from_millis(10);
+            sleep(SLEEP_DURATION).await;
+
+            // Check if the server is still running, if so, continue. Otherwise, log and repeat.
+            if !handle.is_finished() {
+                break;
+            } else {
+                println!("Server handle: {handle:?}");
+                remaining_retries -= 1;
+                assert!(remaining_retries > 0, "Failed spawning test http server");
+            }
+        }
+
+        let (ip, port) = self.http_server_config.ip_and_port();
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+
+        // Ensure the server starts running.
+        tokio::task::yield_now().await;
+
+        add_tx_http_client
+    }
 }
 
 pub trait GatewayTransaction: Serialize + Clone {
@@ -182,24 +225,6 @@ impl GatewayTransaction for TransactionSerialization {
     fn content_type(&self) -> &str {
         "application/text"
     }
-}
-
-// Creates a client for testing the http server functionality. Must be invoked with different
-// `port_index` values to support concurrent execution, otherwise leading to `Address already in use
-// (os error 98)` errors.
-pub async fn add_tx_http_client(
-    mock_config_manager_client: MockConfigManagerClient,
-    mock_gateway_client: MockGatewayClient,
-    port_index: u16,
-) -> HttpTestClient {
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    println!("Using port index {port_index}");
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), port_index);
-    let http_server_config =
-        HttpServerConfig::new(ip, available_ports.get_next_port(), DEFAULT_MAX_SIERRA_PROGRAM_SIZE);
-    http_client_server_setup(mock_config_manager_client, mock_gateway_client, http_server_config)
-        .await
 }
 
 pub fn rpc_invoke_tx() -> RpcTransaction {

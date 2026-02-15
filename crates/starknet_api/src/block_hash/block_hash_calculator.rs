@@ -1,9 +1,10 @@
 use std::sync::LazyLock;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Poseidon;
-use tokio::task::spawn_blocking;
+use tokio::task::{spawn_blocking, JoinHandle};
 
 use super::event_commitment::{calculate_event_commitment, EventLeafElement};
 use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
@@ -107,6 +108,19 @@ pub struct TransactionHashingData {
     pub transaction_signature: TransactionSignature,
     pub transaction_output: TransactionOutputForHash,
     pub transaction_hash: TransactionHash,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct BlockCommitmentsMeasurements {
+    pub transaction_commitment_duration: Duration,
+    pub event_commitment_duration: Duration,
+    pub receipt_commitment_duration: Duration,
+    pub state_diff_commitment_duration: Duration,
+    // Number of transactions in the block.
+    pub n_txs: usize,
+    // Number of events in the block.
+    pub n_events: usize,
+    pub state_diff_length: usize,
 }
 
 /// Commitments of a block.
@@ -246,7 +260,7 @@ pub async fn calculate_block_commitments(
     state_diff: ThinStateDiff,
     l1_da_mode: L1DataAvailabilityMode,
     starknet_version: &StarknetVersion,
-) -> BlockHeaderCommitments {
+) -> (BlockHeaderCommitments, BlockCommitmentsMeasurements) {
     let transaction_leaf_elements: Vec<TransactionLeafElement> = transactions_data
         .iter()
         .map(|tx_leaf| {
@@ -281,31 +295,49 @@ pub async fn calculate_block_commitments(
         l1_da_mode,
     );
 
-    // Spawn tasks for parallel execution
-    let transaction_task = spawn_blocking(move || {
+    let n_txs = transactions_data.len();
+    let n_events = event_leaf_elements.len();
+    let state_diff_length = state_diff.len();
+
+    // Spawn tasks for parallel execution; each measures its own duration.
+    let transaction_task = spawn_measured_task(move || {
         calculate_transaction_commitment::<Poseidon>(&transaction_leaf_elements)
     });
 
     let event_task =
-        spawn_blocking(move || calculate_event_commitment::<Poseidon>(&event_leaf_elements));
+        spawn_measured_task(move || calculate_event_commitment::<Poseidon>(&event_leaf_elements));
 
     let receipt_task =
-        spawn_blocking(move || calculate_receipt_commitment::<Poseidon>(&receipt_elements));
+        spawn_measured_task(move || calculate_receipt_commitment::<Poseidon>(&receipt_elements));
 
-    let state_diff_task = spawn_blocking(move || calculate_state_diff_hash(&state_diff));
+    let state_diff_task = spawn_measured_task(move || calculate_state_diff_hash(&state_diff));
 
     // Wait for all tasks to complete.
-    let (transaction_commitment, event_commitment, receipt_commitment, state_diff_commitment) =
-        tokio::try_join!(transaction_task, event_task, receipt_task, state_diff_task)
-            .expect("Failed to join block commitments tasks.");
+    let (
+        (transaction_commitment, transaction_duration),
+        (event_commitment, event_duration),
+        (receipt_commitment, receipt_duration),
+        (state_diff_commitment, state_diff_duration),
+    ) = tokio::try_join!(transaction_task, event_task, receipt_task, state_diff_task)
+        .expect("Failed to join block commitments tasks.");
 
-    BlockHeaderCommitments {
+    let commitments = BlockHeaderCommitments {
         transaction_commitment,
         event_commitment,
         receipt_commitment,
         state_diff_commitment,
         concatenated_counts,
-    }
+    };
+    let measurements = BlockCommitmentsMeasurements {
+        transaction_commitment_duration: transaction_duration,
+        event_commitment_duration: event_duration,
+        receipt_commitment_duration: receipt_duration,
+        state_diff_commitment_duration: state_diff_duration,
+        n_txs,
+        n_events,
+        state_diff_length,
+    };
+    (commitments, measurements)
 }
 
 // A single felt: [
@@ -372,4 +404,15 @@ pub fn gas_prices_to_hash(
             l1_data_gas_price.price_in_fri.0.into(),
         ]
     }
+}
+
+fn spawn_measured_task<T>(task: impl FnOnce() -> T + Send + 'static) -> JoinHandle<(T, Duration)>
+where
+    T: Send + 'static,
+{
+    spawn_blocking(move || {
+        let start = Instant::now();
+        let result = task();
+        (result, start.elapsed())
+    })
 }

@@ -5,16 +5,16 @@ replicas: 1
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_core.json
   sequencerConfig:
-    batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events: 5000
-    batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size: 4000
-    batcher_config.block_builder_config.execute_config.n_workers: 28
-    batcher_config.block_builder_config.proposer_idle_detection_delay_millis: 2000
-    batcher_config.first_block_with_partial_block_hash.#is_none: true
-    batcher_config.first_block_with_partial_block_hash.block_number: 0
-    batcher_config.first_block_with_partial_block_hash.block_hash: "0x0"
-    batcher_config.first_block_with_partial_block_hash.parent_block_hash: "0x0"
-    batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time: 600
-    batcher_config.storage_reader_server_config.port: 55011
+    batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.n_events: 5000
+    batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size: 4000
+    batcher_config.static_config.block_builder_config.execute_config.n_workers: 28
+    batcher_config.static_config.block_builder_config.proposer_idle_detection_delay_millis: 2000
+    batcher_config.static_config.first_block_with_partial_block_hash.#is_none: true
+    batcher_config.static_config.first_block_with_partial_block_hash.block_number: 0
+    batcher_config.static_config.first_block_with_partial_block_hash.block_hash: "0x0"
+    batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash: "0x0"
+    batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time: 600
+    batcher_config.static_config.storage_reader_server_static_config.port: 55011
     class_manager_config.class_manager_config.max_compiled_contract_class_object_size: 4089446
     components.batcher.port: 55000
     components.batcher.url: sequencer-core-service
@@ -36,10 +36,11 @@ config:
     components.proof_manager.url: sequencer-core-service
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
+    consensus_manager_config.consensus_manager_config.dynamic_config.require_virtual_proposer_vote: false
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.base: 9.1
     consensus_manager_config.consensus_manager_config.dynamic_config.timeouts.proposal.max: 15.0
+    consensus_manager_config.context_config.dynamic_config.min_l2_gas_price_per_height: ""
     consensus_manager_config.context_config.static_config.build_proposal_margin_millis: 1000
-    consensus_manager_config.context_config.static_config.num_validators: 1
     consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate.#is_none: true
     consensus_manager_config.context_config.dynamic_config.override_eth_to_fri_rate: 0
     consensus_manager_config.context_config.dynamic_config.override_l1_data_gas_price_fri.#is_none: true
@@ -53,12 +54,13 @@ config:
     consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none: true
     consensus_manager_config.network_config.bootstrap_peer_multiaddr: ""
     consensus_manager_config.network_config.port: 53080
-    state_sync_config.central_sync_client_config.#is_none: true
-    state_sync_config.network_config.#is_none: false
-    state_sync_config.network_config.port: 55010
-    state_sync_config.p2p_sync_client_config.#is_none: false
-    state_sync_config.rpc_config.port: 8090
-    state_sync_config.storage_reader_server_config.port: 55012
+    consensus_manager_config.staking_manager_config.dynamic_config.default_committee: "0,100:0x64,1,0x1,true"
+    state_sync_config.static_config.central_sync_client_config.#is_none: true
+    state_sync_config.static_config.network_config.#is_none: false
+    state_sync_config.static_config.network_config.port: 55010
+    state_sync_config.static_config.p2p_sync_client_config.#is_none: false
+    state_sync_config.static_config.rpc_config.port: 8090
+    state_sync_config.static_config.storage_reader_server_static_config.port: 55012
 
 service:
   enabled: true

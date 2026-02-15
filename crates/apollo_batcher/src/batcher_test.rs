@@ -2,7 +2,12 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherDynamicConfig,
+    BatcherStaticConfig,
+    BlockBuilderConfig,
+};
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
@@ -21,6 +26,13 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
+<<<<<<< HEAD
+||||||| 63dac1e8a4
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
+=======
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
+>>>>>>> origin/main-v0.14.1-committer
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
@@ -193,7 +205,10 @@ impl Default for MockDependenciesWithRealStorage {
             storage_writer,
             clients: MockClients::default(),
             batcher_config: BatcherConfig {
-                outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+                static_config: BatcherStaticConfig {
+                    outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             _temp_dir: temp_dir,
@@ -225,18 +240,23 @@ async fn create_batcher_with_real_storage(
 
 async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
     storage_reader: Arc<R>,
-    storage_writer: Box<dyn BatcherStorageWriter>,
+    mut storage_writer: Box<dyn BatcherStorageWriter>,
     clients: MockClients,
     config: BatcherConfig,
 ) -> Batcher {
     let committer_client = Arc::new(clients.committer_client);
     let commitment_manager = CommitmentManager::create_commitment_manager(
-        &config,
-        &config.commitment_manager_config,
-        storage_reader.as_ref(),
+        &config.static_config.commitment_manager_config,
+        storage_reader.clone(),
+        &mut storage_writer,
         committer_client.clone(),
     )
     .await;
+
+    let mut mock_config_manager = MockConfigManagerClient::new();
+    mock_config_manager
+        .expect_get_batcher_dynamic_config()
+        .returning(|| Ok(BatcherDynamicConfig::default()));
 
     let mut batcher = Batcher::new(
         config,
@@ -245,6 +265,13 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         committer_client,
         Arc::new(clients.l1_provider_client),
         Arc::new(clients.mempool_client),
+<<<<<<< HEAD
+||||||| 63dac1e8a4
+        TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
+=======
+        TransactionConverter::new(clients.class_manager_client, CHAIN_ID_FOR_TESTS.clone()),
+        Arc::new(mock_config_manager),
+>>>>>>> origin/main-v0.14.1-committer
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
         commitment_manager,
@@ -518,8 +545,7 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
 #[tokio::test]
 async fn consecutive_heights_success() {
     let mut storage_reader = MockBatcherStorageReader::new();
-    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
-    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // create commitment manager
+    storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // batcher start
     storage_reader.expect_state_diff_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
     storage_reader
         .expect_state_diff_height()
@@ -793,7 +819,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 
     let mut batcher = create_batcher(mock_dependencies).await;
     // Only propose L1 txs every PROPOSALS_L1_MODULATOR proposals.
-    batcher.config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
+    batcher.config.static_config.propose_l1_txs_every = PROPOSALS_L1_MODULATOR.try_into().unwrap();
 
     for i in 0..N_PROPOSALS {
         batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
@@ -1508,8 +1534,14 @@ async fn mempool_not_ready() {
 #[test]
 fn validate_batcher_config_failure() {
     let config = BatcherConfig {
-        input_stream_content_buffer_size: 99,
-        block_builder_config: BlockBuilderConfig { n_concurrent_txs: 100, ..Default::default() },
+        static_config: BatcherStaticConfig {
+            input_stream_content_buffer_size: 99,
+            block_builder_config: BlockBuilderConfig {
+                n_concurrent_txs: 100,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
         ..Default::default()
     };
 

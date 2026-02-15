@@ -1,7 +1,8 @@
+use std::marker::PhantomData;
+
 use ethnum::U256;
 use starknet_api::hash::HashOutput;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::SERIALIZE_HASH_BYTES;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -23,6 +24,7 @@ use starknet_patricia_storage::errors::{DeserializationError, SerializationResul
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
+use crate::db::facts_db::node_serde::SERIALIZE_HASH_BYTES;
 use crate::db::index_db::leaves::INDEX_LAYOUT_DB_KEY_SEPARATOR;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 
@@ -38,24 +40,38 @@ impl From<HashOutput> for EmptyNodeData {
     }
 }
 
+/// A filled node in the index layout, parameterized by the leaf type and hash function.
+/// The hash function is used during deserialization to compute the leaf hash (which is not stored).
 #[derive(PartialEq, Debug, derive_more::Into)]
-pub struct IndexFilledNode<L: Leaf>(pub FilledNode<L, EmptyNodeData>);
+pub struct IndexFilledNodeWithHasher<L: Leaf, H>(
+    pub FilledNode<L, EmptyNodeData>,
+    #[into(skip)] pub PhantomData<H>,
+);
+
+impl<L: Leaf, H> IndexFilledNodeWithHasher<L, H> {
+    pub fn new(filled_node: FilledNode<L, EmptyNodeData>) -> Self {
+        Self(filled_node, PhantomData)
+    }
+}
+
+/// Type alias for `IndexFilledNodeWithHasher` with the production hash function.
+pub type IndexFilledNode<L> = IndexFilledNodeWithHasher<L, TreeHashFunctionImpl>;
 
 pub struct IndexNodeContext {
     pub is_leaf: bool,
 }
 
-impl<L: Leaf> HasStaticPrefix for IndexFilledNode<L> {
+impl<L: Leaf, H> HasStaticPrefix for IndexFilledNodeWithHasher<L, H> {
     type KeyContext = <L as HasStaticPrefix>::KeyContext;
     fn get_static_prefix(key_context: &Self::KeyContext) -> DbKeyPrefix {
         L::get_static_prefix(key_context)
     }
 }
 
-impl<L> DBObject for IndexFilledNode<L>
+impl<L, H> DBObject for IndexFilledNodeWithHasher<L, H>
 where
     L: Leaf,
-    TreeHashFunctionImpl: TreeHashFunction<L>,
+    H: TreeHashFunction<L>,
 {
     const DB_KEY_SEPARATOR: &[u8] = INDEX_LAYOUT_DB_KEY_SEPARATOR;
 
@@ -89,16 +105,19 @@ where
     ) -> Result<Self, DeserializationError> {
         if deserialize_context.is_leaf {
             let leaf = L::deserialize(value, &EmptyDeserializationContext)?;
-            let hash = TreeHashFunctionImpl::compute_leaf_hash(&leaf);
-            Ok(Self(FilledNode { hash, data: NodeData::Leaf(leaf) }))
+            let hash = H::compute_leaf_hash(&leaf);
+            Ok(Self(FilledNode { hash, data: NodeData::Leaf(leaf) }, PhantomData))
         } else if value.0.len() == INDEX_LAYOUT_BINARY_BYTES {
-            Ok(Self(FilledNode {
-                hash: HashOutput(Felt::from_bytes_be_slice(&value.0)),
-                data: NodeData::Binary(BinaryData {
-                    left_data: EmptyNodeData,
-                    right_data: EmptyNodeData,
-                }),
-            }))
+            Ok(Self(
+                FilledNode {
+                    hash: HashOutput(Felt::from_bytes_be_slice(&value.0)),
+                    data: NodeData::Binary(BinaryData {
+                        left_data: EmptyNodeData,
+                        right_data: EmptyNodeData,
+                    }),
+                },
+                PhantomData,
+            ))
         }
         // Edge nodes are always serailized to more than INDEX_LAYOUT_BINARY_BYTES bytes.
         else {
@@ -125,18 +144,22 @@ where
             buf[..byte_len].copy_from_slice(path_slice);
             let path = U256::from_le_bytes(buf);
 
-            Ok(Self(FilledNode {
-                hash: node_hash,
-                data: NodeData::Edge(EdgeData {
-                    bottom_data: EmptyNodeData,
-                    path_to_bottom: PathToBottom::new(
-                        EdgePath(path),
-                        EdgePathLength::new(bit_len)
-                            .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
-                    )
-                    .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
-                }),
-            }))
+            Ok(Self(
+                FilledNode {
+                    hash: node_hash,
+                    data: NodeData::Edge(EdgeData {
+                        bottom_data: EmptyNodeData,
+                        path_to_bottom: PathToBottom::new(
+                            EdgePath(path),
+                            EdgePathLength::new(bit_len).map_err(|error| {
+                                DeserializationError::ValueError(Box::new(error))
+                            })?,
+                        )
+                        .map_err(|error| DeserializationError::ValueError(Box::new(error)))?,
+                    }),
+                },
+                PhantomData,
+            ))
         }
     }
 }

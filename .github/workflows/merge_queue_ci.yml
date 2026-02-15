@@ -15,7 +15,7 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
       # Environment setup.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Install rust components + lld.
       - uses: ./.github/actions/bootstrap
@@ -28,7 +28,6 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin

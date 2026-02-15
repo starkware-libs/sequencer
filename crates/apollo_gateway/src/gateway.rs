@@ -123,11 +123,11 @@ impl<
             config: Arc::new(config.clone()),
             stateless_tx_validator,
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
-                config: config.stateful_tx_validator_config.clone(),
-                chain_info: config.chain_info.clone(),
+                config: config.static_config.stateful_tx_validator_config.clone(),
+                chain_info: config.static_config.chain_info.clone(),
                 state_reader_factory,
                 contract_class_manager: ContractClassManager::start(
-                    config.contract_class_manager_config.clone(),
+                    config.static_config.contract_class_manager_config.clone(),
                 ),
             }),
             mempool_client,
@@ -257,7 +257,7 @@ impl<
         declare_tx: &RpcDeclareTransaction,
     ) -> Result<(), StarknetError> {
         // TODO(noamsp): Return same error as in Python gateway.
-        if self.config.block_declare {
+        if self.config.static_config.block_declare {
             return Err(StarknetError {
                 code: StarknetErrorCode::UnknownErrorCode(
                     "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
@@ -321,11 +321,17 @@ pub fn create_gateway(
     });
     let transaction_converter = Arc::new(TransactionConverter::new(
         class_manager_client,
+<<<<<<< HEAD
         proof_manager_client,
         config.chain_info.chain_id.clone(),
+||||||| 63dac1e8a4
+        config.chain_info.chain_id.clone(),
+=======
+        config.static_config.chain_info.chain_id.clone(),
+>>>>>>> origin/main-v0.14.1-committer
     ));
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
-        config: config.stateless_tx_validator_config.clone(),
+        config: config.static_config.stateless_tx_validator_config.clone(),
     });
 
     // Create proof archive writer: use NoOp if bucket name is empty, otherwise use real GCS.

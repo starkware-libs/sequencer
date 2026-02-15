@@ -24,8 +24,8 @@ use crate::compiler_version::VersionId;
 
 const DEFAULT_BUCKET_NAME: &str = "proof-archive";
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct GatewayConfig {
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+pub struct GatewayStaticConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
     pub contract_class_manager_config: ContractClassManagerConfig,
@@ -36,7 +36,7 @@ pub struct GatewayConfig {
     pub proof_archive_writer_config: ProofArchiveWriterConfig,
 }
 
-impl Default for GatewayConfig {
+impl Default for GatewayStaticConfig {
     fn default() -> Self {
         Self {
             stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
@@ -53,7 +53,7 @@ impl Default for GatewayConfig {
     }
 }
 
-impl SerializeConfig for GatewayConfig {
+impl SerializeConfig for GatewayStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([ser_param(
             "block_declare",
@@ -90,16 +90,28 @@ impl SerializeConfig for GatewayConfig {
     }
 }
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, Validate)]
+pub struct GatewayConfig {
+    #[validate(nested)]
+    pub static_config: GatewayStaticConfig,
+}
+
+impl SerializeConfig for GatewayConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(self.static_config.dump(), "static_config")
+    }
+}
+
 impl GatewayConfig {
     pub fn is_authorized_declarer(&self, declarer_address: &ContractAddress) -> bool {
-        match &self.authorized_declarer_accounts {
+        match &self.static_config.authorized_declarer_accounts {
             Some(allowed_accounts) => allowed_accounts.contains(declarer_address),
             None => true,
         }
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct StatelessTransactionValidatorConfig {
     // If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.
     pub validate_resource_bounds: bool,
@@ -209,7 +221,91 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
     }
 }
 
+<<<<<<< HEAD
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+||||||| 63dac1e8a4
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct RpcStateReaderConfig {
+    pub url: String,
+    pub json_rpc_version: String,
+}
+
+impl RpcStateReaderConfig {
+    pub fn from_url(url: String) -> Self {
+        Self { url, ..Default::default() }
+    }
+}
+
+impl Default for RpcStateReaderConfig {
+    fn default() -> Self {
+        Self { url: Default::default(), json_rpc_version: JSON_RPC_VERSION.to_string() }
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+impl RpcStateReaderConfig {
+    pub fn create_for_testing() -> Self {
+        Self::from_url("http://localhost:8080".to_string())
+    }
+}
+
+impl SerializeConfig for RpcStateReaderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param("url", &self.url, "The url of the rpc server.", ParamPrivacyInput::Public),
+            ser_param(
+                "json_rpc_version",
+                &self.json_rpc_version,
+                "The json rpc version.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+=======
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+pub struct RpcStateReaderConfig {
+    pub url: String,
+    pub json_rpc_version: String,
+}
+
+impl RpcStateReaderConfig {
+    pub fn from_url(url: String) -> Self {
+        Self { url, ..Default::default() }
+    }
+}
+
+impl Default for RpcStateReaderConfig {
+    fn default() -> Self {
+        Self { url: Default::default(), json_rpc_version: JSON_RPC_VERSION.to_string() }
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+impl RpcStateReaderConfig {
+    pub fn create_for_testing() -> Self {
+        Self::from_url("http://localhost:8080".to_string())
+    }
+}
+
+impl SerializeConfig for RpcStateReaderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param("url", &self.url, "The url of the rpc server.", ParamPrivacyInput::Public),
+            ser_param(
+                "json_rpc_version",
+                &self.json_rpc_version,
+                "The json rpc version.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+>>>>>>> origin/main-v0.14.1-committer
 pub struct StatefulTransactionValidatorConfig {
     // If true, ensures the max L2 gas price exceeds (a configurable percentage of) the base gas
     // price of the previous block.

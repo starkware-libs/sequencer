@@ -13,7 +13,8 @@ use apollo_mempool::metrics::{
 };
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{
     increase,
     sum_by_label,

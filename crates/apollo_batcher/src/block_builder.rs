@@ -41,6 +41,7 @@ use mockall::automock;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
+    BlockCommitmentsMeasurements,
     PartialBlockHashComponents,
     TransactionHashingData,
 };
@@ -62,7 +63,14 @@ use crate::metrics::{
     record_block_close_reason,
     BlockCloseReason,
     BATCHER_CLASS_CACHE_METRICS,
+    EVENT_COMMITMENT_LATENCY,
+    EVENT_COMMITMENT_PER_EVENT_LATENCY,
     PROPOSER_DEFERRED_TXS,
+    RECEIPT_COMMITMENT_LATENCY,
+    STATE_DIFF_COMMITMENT_LATENCY,
+    STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY,
+    TX_COMMITMENT_LATENCY,
+    TX_COMMITMENT_PER_TX_LATENCY,
     VALIDATOR_WASTED_TXS,
 };
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
@@ -144,15 +152,40 @@ impl BlockExecutionArtifacts {
         let l1_da_mode = L1DataAvailabilityMode::from_use_kzg_da(block_info.use_kzg_da);
         let transactions_data =
             prepare_txs_hashing_data(&execution_data.execution_infos_and_signatures);
-        let header_commitments = calculate_block_commitments(
+        let (header_commitments, measurements) = calculate_block_commitments(
             &transactions_data,
             commitment_state_diff_as_thin_state_diff(&commitment_state_diff),
             l1_da_mode,
             &block_info.starknet_version,
         )
         .await;
+<<<<<<< HEAD
         let partial_block_hash_components =
             PartialBlockHashComponents::new(&block_info, header_commitments);
+||||||| 63dac1e8a4
+        let partial_block_hash_components = PartialBlockHashComponents {
+            header_commitments,
+            block_number: block_info.block_number,
+            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
+            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
+            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
+            sequencer: SequencerContractAddress(block_info.sequencer_address),
+            timestamp: block_info.block_timestamp,
+            starknet_version,
+        };
+=======
+        record_block_commitment_measurements(measurements);
+        let partial_block_hash_components = PartialBlockHashComponents {
+            header_commitments,
+            block_number: block_info.block_number,
+            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
+            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
+            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
+            sequencer: SequencerContractAddress(block_info.sequencer_address),
+            timestamp: block_info.block_timestamp,
+            starknet_version,
+        };
+>>>>>>> origin/main-v0.14.1-committer
         let l2_gas_used = execution_data.l2_gas_used();
         Self {
             execution_data,
@@ -889,5 +922,30 @@ fn remove_last_map<V>(map: &mut IndexMap<TransactionHash, V>, tx_hash: &Transact
 fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHash) {
     if let Some((idx, _)) = set.swap_remove_full(tx_hash) {
         assert_eq!(idx, set.len(), "The removed txs must be the last ones.");
+    }
+}
+
+#[allow(clippy::as_conversions)]
+fn record_block_commitment_measurements(measurements: BlockCommitmentsMeasurements) {
+    TX_COMMITMENT_LATENCY.record_lossy(measurements.transaction_commitment_duration.as_secs_f64());
+    if measurements.n_txs > 0 {
+        TX_COMMITMENT_PER_TX_LATENCY.record_lossy(
+            measurements.transaction_commitment_duration.as_secs_f64() / measurements.n_txs as f64,
+        );
+    }
+    EVENT_COMMITMENT_LATENCY.record_lossy(measurements.event_commitment_duration.as_secs_f64());
+    if measurements.n_events > 0 {
+        EVENT_COMMITMENT_PER_EVENT_LATENCY.record_lossy(
+            measurements.event_commitment_duration.as_secs_f64() / measurements.n_events as f64,
+        );
+    }
+    RECEIPT_COMMITMENT_LATENCY.record_lossy(measurements.receipt_commitment_duration.as_secs_f64());
+    STATE_DIFF_COMMITMENT_LATENCY
+        .record_lossy(measurements.state_diff_commitment_duration.as_secs_f64());
+    if measurements.state_diff_length > 0 {
+        STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY.record_lossy(
+            measurements.state_diff_commitment_duration.as_secs_f64()
+                / measurements.state_diff_length as f64,
+        );
     }
 }
