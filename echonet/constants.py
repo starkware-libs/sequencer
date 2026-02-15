@@ -24,6 +24,11 @@ IGNORED_REVERT_PATTERNS = [
     "attestation with wrong block hash",
 ]
 
+# Calldata marker to ignore for l2_gas mismatch diagnostics.
+IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA = (
+    "0x10398fe631af9ab2311840432d507bf7ef4b959ae967f1507928f5afe888a99"
+)
+
 # ---------------------------------------------------------------------------
 # Echonet config file locations / names
 # ---------------------------------------------------------------------------
