@@ -6,8 +6,6 @@ repository.workspace = true
 license.workspace = true
 description = "State root commitment computation component for the Starknet sequencer."
 
-[features]
-testing = []
 
 [dependencies]
 apollo_committer_config.workspace = true
@@ -25,6 +23,9 @@ tracing.workspace = true
 assert_matches.workspace = true
 indexmap.workspace = true
 tokio.workspace = true
+
+[features]
+testing = []
 
 [lints]
 workspace = true

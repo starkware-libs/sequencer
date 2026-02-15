@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use apollo_committer_config::config::CommitterConfig;
@@ -8,17 +9,55 @@ use apollo_committer_types::committer_types::{
 };
 use apollo_committer_types::errors::CommitterError;
 use assert_matches::assert_matches;
+use async_trait::async_trait;
 use indexmap::indexmap;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ClassHash, CompiledClassHash, StateDiffCommitment};
-use starknet_api::hash::PoseidonHash;
+use starknet_api::hash::{HashOutput, PoseidonHash};
 use starknet_api::state::ThinStateDiff;
+use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
+use starknet_committer::block_committer::input::Input;
+use starknet_committer::block_committer::measurements_util::MeasurementsTrait;
+use starknet_committer::db::forest_trait::ForestReader;
 use starknet_committer::db::mock_forest_storage::MockForestStorage;
+use starknet_committer::forest::filled_forest::FilledForest;
+use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia_storage::map_storage::MapStorage;
 
 use super::Committer;
-use crate::committer::{CommitBlockMock, StorageConstructor};
+use crate::committer::StorageConstructor;
+
+pub struct CommitBlockMock;
+
+#[async_trait]
+impl CommitBlockTrait for CommitBlockMock {
+    /// Sets the class trie root hash to the first class hash in the state diff (sorted
+    /// deterministically).
+    async fn commit_block<Reader: ForestReader + Send, M: MeasurementsTrait + Send>(
+        input: Input<Reader::InitialReadContext>,
+        _trie_reader: &mut Reader,
+        _measurements: &mut M,
+    ) -> BlockCommitmentResult<FilledForest> {
+        // Sort class hashes deterministically to ensure all nodes get the same "first" class hash
+        let mut sorted_class_hashes: Vec<_> =
+            input.state_diff.class_hash_to_compiled_class_hash.keys().collect();
+        sorted_class_hashes.sort();
+
+        let root_class_hash = match sorted_class_hashes.first() {
+            Some(class_hash) => HashOutput(class_hash.0),
+            None => HashOutput::ROOT_OF_EMPTY_TREE,
+        };
+        Ok(FilledForest {
+            storage_tries: HashMap::new(),
+            contracts_trie: FilledTreeImpl {
+                tree_map: HashMap::new(),
+                root_hash: HashOutput::ROOT_OF_EMPTY_TREE,
+            },
+            classes_trie: FilledTreeImpl { tree_map: HashMap::new(), root_hash: root_class_hash },
+        })
+    }
+}
 
 pub type ApolloTestStorage = MapStorage;
 pub type ApolloTestCommitter =
