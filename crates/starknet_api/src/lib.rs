@@ -25,6 +25,8 @@ pub mod state;
 pub mod test_utils;
 pub mod transaction;
 pub mod transaction_hash;
+#[cfg(test)]
+pub mod transaction_hash_examples;
 pub mod type_utils;
 pub mod versioned_constants_logic;
 
