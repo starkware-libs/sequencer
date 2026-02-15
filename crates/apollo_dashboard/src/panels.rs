@@ -12,6 +12,7 @@ pub(crate) mod mempool_p2p;
 pub(crate) mod pod_metrics;
 pub(crate) mod reverts;
 pub(crate) mod sierra_compiler;
+pub(crate) mod staking;
 pub(crate) mod state_sync;
 pub(crate) mod storage;
 pub(crate) mod tokio;
