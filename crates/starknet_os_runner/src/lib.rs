@@ -19,3 +19,5 @@ mod storage_proofs_test;
 pub mod test_utils;
 #[cfg(test)]
 mod virtual_block_executor_test;
+#[cfg(test)]
+mod virtual_snos_prover_test;
