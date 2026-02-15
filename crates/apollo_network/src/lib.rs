@@ -194,6 +194,7 @@
 //! [libp2p]: https://libp2p.io/
 
 pub mod authentication;
+pub mod committee_manager;
 #[cfg(test)]
 mod config_test;
 pub mod discovery;
