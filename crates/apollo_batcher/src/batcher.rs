@@ -182,6 +182,9 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
+    #[cfg(test)]
+    pub(crate) commitment_manager: ApolloCommitmentManager,
+    #[cfg(not(test))]
     commitment_manager: ApolloCommitmentManager,
 
     // Kept alive to maintain the server running.
@@ -1237,7 +1240,8 @@ impl Batcher {
         }
     }
 
-    pub fn get_block_hash(&self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
+    pub fn get_block_hash(&mut self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
+        self.get_commitment_results_and_write_to_storage()?;
         self.storage_reader
             .get_block_hash(block_number)
             .map_err(|err| {
@@ -1246,12 +1250,8 @@ impl Batcher {
             })?
             .ok_or(BatcherError::BlockHashNotFound(block_number))
     }
-    async fn write_commitment_results_and_add_new_task(
-        &mut self,
-        height: BlockNumber,
-        state_diff: ThinStateDiff,
-        optional_state_diff_commitment: Option<StateDiffCommitment>,
-    ) -> BatcherResult<()> {
+
+    fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
                 &self.config.static_config.first_block_with_partial_block_hash,
@@ -1262,6 +1262,16 @@ impl Batcher {
                 error!("Failed to get commitment results and write to storage: {err}");
                 BatcherError::InternalError
             })?;
+        Ok(())
+    }
+
+    async fn write_commitment_results_and_add_new_task(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        optional_state_diff_commitment: Option<StateDiffCommitment>,
+    ) -> BatcherResult<()> {
+        self.get_commitment_results_and_write_to_storage()?;
         self.commitment_manager
             .add_commitment_task(
                 height,
