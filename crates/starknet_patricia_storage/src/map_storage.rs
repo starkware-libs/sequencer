@@ -17,6 +17,7 @@ use crate::storage_trait::{
 };
 
 #[derive(Debug, Default, PartialEq, Serialize)]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 pub struct MapStorage(pub DbHashMap);
 
 #[derive(Serialize, Debug)]
