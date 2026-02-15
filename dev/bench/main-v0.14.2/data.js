@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771186928447,
+  "lastUpdate": 1771190762050,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -577,6 +577,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1144.58110098,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "56217775+dan-starkware@users.noreply.github.com",
+            "name": "dan-starkware",
+            "username": "dan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad67408c358c3fb57953bc14ddd797bc8bec93db",
+          "message": "workspace: rename standalone adjective variables in tests (#12552)",
+          "timestamp": "2026-02-15T21:03:07Z",
+          "tree_id": "af5b7016aedb74a8478737b3fd5c2d99449b207d",
+          "url": "https://github.com/starkware-libs/sequencer/commit/ad67408c358c3fb57953bc14ddd797bc8bec93db"
+        },
+        "date": 1771190761763,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 756.78480379,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1164.32770897,
             "unit": "ms"
           }
         ]
