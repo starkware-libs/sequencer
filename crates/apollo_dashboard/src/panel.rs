@@ -22,6 +22,7 @@ pub(crate) enum PanelType {
     TimeSeries,
     #[allow(dead_code)] // TODO(Ron): use BarGauge in panels
     BarGauge,
+    PieChart,
 }
 
 #[derive(Debug, Clone, PartialEq)]
