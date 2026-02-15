@@ -19,6 +19,7 @@ use crate::execution::call_info::{
     cairo_primitive_counter_map,
     CairoPrimitiveCounterMap,
     ExecutionSummary,
+    ExtendedExecutionResources,
 };
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
@@ -697,22 +698,20 @@ fn proving_gas_from_cairo_primitives_and_sierra_gas(
 
 /// Generic function to convert VM resources to gas with configurable builtin gas calculation
 pub fn vm_resources_to_gas(
-    resources: &ExecutionResources,
-    builtin_gas_cost: &BuiltinGasCosts,
+    resources: &ExtendedExecutionResources,
+    cairo_primitives_gas_costs: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    // TODO(AvivG): To support opcodes in the computation, resources should include opcode counters.
-    let builtins_gas_cost = cairo_primitives_to_gas(
-        &cairo_primitive_counter_map(resources.prover_builtins()),
-        builtin_gas_cost,
-    );
-    let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
+    let cairo_primitives_gas_cost =
+        cairo_primitives_to_gas(&resources.prover_cairo_primitives(), cairo_primitives_gas_costs);
+    let n_steps_gas_cost =
+        n_steps_to_gas(resources.vm_resources.total_n_steps(), versioned_constants);
     let n_memory_holes_gas_cost =
-        memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
+        memory_holes_to_gas(resources.vm_resources.n_memory_holes, versioned_constants);
 
     n_steps_gas_cost
         .checked_add_panic_on_overflow(n_memory_holes_gas_cost)
-        .checked_add_panic_on_overflow(builtins_gas_cost)
+        .checked_add_panic_on_overflow(cairo_primitives_gas_cost)
 }
 
 /// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
@@ -774,7 +773,7 @@ fn add_casm_hash_computation_gas_cost(
 }
 
 fn compute_sierra_gas(
-    vm_resources: &ExecutionResources,
+    vm_resources: &ExtendedExecutionResources,
     sierra_builtin_gas_costs: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
     tx_resources: &TransactionResources,
@@ -881,8 +880,7 @@ pub fn get_tx_weights<S: StateReader>(
     // Sierra gas computation.
     let (total_sierra_gas, casm_hash_computation_data_sierra_gas, vm_resources_sierra_gas) =
         compute_sierra_gas(
-            // TODO(AvivG): update compute_sierra_gas to accept ExtendedExecutionResources.
-            &vm_resources.vm_resources,
+            &vm_resources,
             sierra_builtin_gas_costs,
             versioned_constants,
             tx_resources,
