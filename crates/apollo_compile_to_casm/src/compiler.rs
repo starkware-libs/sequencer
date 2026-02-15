@@ -19,7 +19,7 @@ pub struct SierraToCasmCompiler {
 
 impl SierraToCasmCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        let path_to_binary = binary_path(&out_dir(), CAIRO_LANG_BINARY_NAME);
+        let path_to_binary = binary_path(CAIRO_LANG_BINARY_NAME);
         info!("Using Sierra compiler binary at: {:?}", path_to_binary);
         Self { config, path_to_binary }
     }
@@ -46,9 +46,4 @@ impl SierraToCasmCompiler {
         )?;
         Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
     }
-}
-
-// Returns the OUT_DIR. This function is only operable at run time.
-fn out_dir() -> PathBuf {
-    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
 }

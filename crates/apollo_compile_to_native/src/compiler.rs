@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use apollo_compilation_utils::compiler_utils::compile_with_args;
 use apollo_compilation_utils::errors::CompilationUtilError;
@@ -21,7 +21,7 @@ impl SierraToNativeCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         let path_to_binary = match &config.compiler_binary_path {
             Some(path) => path.clone(),
-            None => binary_path(&out_dir(), CAIRO_NATIVE_BINARY_NAME),
+            None => binary_path(CAIRO_NATIVE_BINARY_NAME),
         };
         Self { config, path_to_binary }
     }
@@ -33,11 +33,12 @@ impl SierraToNativeCompiler {
         let compiler_binary_path = &self.path_to_binary;
 
         let output_file = NamedTempFile::new()?;
-        let output_file_path = output_file.path().to_str().ok_or(
+        let output_file_path = output_file.path();
+        let output_file_path_str = output_file_path.to_str().ok_or(
             CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
         )?;
         let optimization_level = self.config.optimization_level.to_string();
-        let additional_args = [output_file_path, "--opt-level", &optimization_level];
+        let additional_args = [output_file_path_str, "--opt-level", &optimization_level];
         let resource_limits = ResourceLimits::new(
             self.config.max_cpu_time,
             self.config.max_file_size,
@@ -50,13 +51,12 @@ impl SierraToNativeCompiler {
             resource_limits,
         )?;
 
-        Ok(AotContractExecutor::from_path(Path::new(&output_file_path))
+        AotContractExecutor::from_path(output_file_path)
             .map_err(|e| CompilationUtilError::CompilationError(e.to_string()))?
-            .unwrap())
+            .ok_or_else(|| {
+                CompilationUtilError::CompilationError(
+                    "Native compiler did not produce an AOT contract executor.".to_owned(),
+                )
+            })
     }
-}
-
-// Returns the OUT_DIR. This function is only operable at run time.
-fn out_dir() -> PathBuf {
-    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
 }

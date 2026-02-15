@@ -109,6 +109,12 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
+      # Pre-install compiler binaries so tests don't each try to install them.
+      - name: "Install compiler binaries"
+        run: |
+          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile
+          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile
+
       - name: "Run tests"
         run: |
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
@@ -138,6 +144,12 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
+
+      # Pre-install compiler binaries so integration tests don't each try to install them.
+      - name: "Install compiler binaries"
+        run: |
+          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile
+          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile
 
       - name: "Run integration tests"
         run: |

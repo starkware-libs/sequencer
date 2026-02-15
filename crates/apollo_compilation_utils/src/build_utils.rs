@@ -1,3 +1,5 @@
+use std::io::ErrorKind;
+use std::path::Path;
 use std::process::Command;
 
 use tempfile::TempDir;
@@ -8,9 +10,8 @@ pub fn install_compiler_binary(
     binary_name: &str,
     required_version: &str,
     cargo_install_args: &[&str],
-    out_dir: &std::path::Path,
 ) {
-    let binary_path = binary_path(out_dir, binary_name);
+    let binary_path = binary_path(binary_name);
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
             let binary_version = String::from_utf8(binary_version.stdout)
@@ -49,18 +50,23 @@ pub fn install_compiler_binary(
     }
 
     // Move the '{binary_name}' executable to a shared location.
-    std::fs::create_dir_all(shared_folder_dir(out_dir))
+    std::fs::create_dir_all(shared_folder_dir())
         .expect("Failed to create shared executables folder");
-    let move_command_status = Command::new("mv")
-        .args([post_install_file_path.as_os_str(), binary_path.as_os_str()])
-        .status()
-        .expect("Failed to perform mv command.");
-
-    if !move_command_status.success() {
-        panic!("Failed to move the {binary_name} binary to the shared folder.");
-    }
-
-    std::fs::remove_dir_all(temp_cargo_path).expect("Failed to remove the cargo directory.");
+    move_binary(&post_install_file_path, &binary_path);
 
     println!("Successfully set executable file: {:?}", binary_path.display());
+}
+
+fn move_binary(source: &Path, target: &Path) {
+    match std::fs::rename(source, target) {
+        Ok(()) => {}
+        Err(error) if error.kind() == ErrorKind::CrossesDevices => {
+            std::fs::copy(source, target).expect("Failed to copy the binary to the shared folder.");
+            std::fs::remove_file(source)
+                .expect("Failed to remove the temporary binary after copy.");
+        }
+        Err(error) => {
+            panic!("Failed to move binary to shared folder: {error}");
+        }
+    }
 }
