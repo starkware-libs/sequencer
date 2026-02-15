@@ -40,7 +40,7 @@ source "${SCRIPT_DIR}/proving_utils_env.sh"
 
 # Default values.
 DOCKERFILE_PATH="${REPO_ROOT}/crates/starknet_os_runner/Dockerfile"
-IMAGE_TAG="os_runner:latest"
+IMAGE_TAG="us-central1-docker.pkg.dev/starkware-dev/sequencer/os-runner:latest"
 BUILD_MODE="release"
 DOCKER_BUILD_ARGS=""
 
