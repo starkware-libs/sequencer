@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
+use blockifier_reexecution::utils::get_chain_info;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, VIRTUAL_SNOS};
@@ -92,12 +93,13 @@ impl VirtualSnosProver<RpcRunnerFactory> {
             ContractClassManager::start(prover_config.contract_class_manager_config.clone());
         let node_url =
             Url::parse(&prover_config.rpc_node_url).expect("Invalid RPC node URL in config");
+        let chain_info =
+            get_chain_info(&prover_config.chain_id, prover_config.strk_fee_token_address);
         let runner = RpcRunnerFactory::new(
             node_url,
-            prover_config.chain_id.clone(),
+            chain_info,
             contract_class_manager,
             prover_config.runner_config.clone(),
-            prover_config.strk_fee_token_address,
         );
         Self { runner }
     }

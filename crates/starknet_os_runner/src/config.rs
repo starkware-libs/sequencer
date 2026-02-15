@@ -12,7 +12,7 @@ use crate::runner::RunnerConfig;
 pub struct ProverConfig {
     /// Configuration for the contract class manager.
     pub contract_class_manager_config: ContractClassManagerConfig,
-    /// Chain ID for transaction hash calculation.
+    /// Chain ID of the network.
     pub chain_id: ChainId,
     /// RPC node URL for fetching state.
     pub rpc_node_url: String,
