@@ -55,10 +55,11 @@ define_metrics!(
             "Total block commit duration in milliseconds (cumulative)",
             init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             TOTAL_BLOCK_DURATION_PER_MODIFICATION,
             "total_block_duration_per_modification",
-            "Duration of the block commit normalized by the number of modifications in milliseconds"
+            "Duration of the block commit normalized by the number of modifications in microseconds (cumulative)",
+            init = 0
         },
         MetricCounter {
             READ_DURATION_PER_BLOCK,
