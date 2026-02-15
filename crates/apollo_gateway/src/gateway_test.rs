@@ -6,8 +6,8 @@ use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
 use apollo_gateway_config::config::{
     GatewayConfig,
-    ProofArchiveWriterConfig,
     GatewayStaticConfig,
+    ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };

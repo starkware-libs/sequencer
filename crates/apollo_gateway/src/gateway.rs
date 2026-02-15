@@ -330,10 +330,12 @@ pub fn create_gateway(
 
     // Create proof archive writer: use NoOp if bucket name is empty, otherwise use real GCS.
     let proof_archive_writer: Arc<dyn ProofArchiveWriterTrait> =
-        if config.proof_archive_writer_config.bucket_name.is_empty() {
+        if config.static_config.proof_archive_writer_config.bucket_name.is_empty() {
             Arc::new(NoOpProofArchiveWriter)
         } else {
-            Arc::new(GcsProofArchiveWriter::new(config.proof_archive_writer_config.clone()))
+            Arc::new(GcsProofArchiveWriter::new(
+                config.static_config.proof_archive_writer_config.clone(),
+            ))
         };
 
     Gateway::new(
