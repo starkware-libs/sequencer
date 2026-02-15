@@ -66,10 +66,18 @@ pub struct GetProposalContentResponse {
     pub content: GetProposalContent,
 }
 
+/// Information returned when block building has finished (proposer or validator).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FinishedProposalInfo {
+    pub id: ProposalCommitment,
+    pub final_n_executed_txs: usize,
+    pub block_header_commitments: BlockHeaderCommitments,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GetProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
-    Finished { id: ProposalCommitment, final_n_executed_txs: usize },
+    Finished(FinishedProposalInfo),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -127,7 +135,7 @@ pub struct DecisionReachedResponse {
 pub enum ProposalStatus {
     Processing,
     // Only sent in response to `Finish`.
-    Finished(ProposalCommitment),
+    Finished(FinishedProposalInfo),
     // Only sent in response to `Abort`.
     Aborted,
     // May be caused due to handling of a previous item of the new proposal.

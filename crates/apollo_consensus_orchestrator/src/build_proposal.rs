@@ -1,12 +1,12 @@
 #[cfg(test)]
 #[path = "build_proposal_test.rs"]
 mod build_proposal_test;
-
 use std::borrow::BorrowMut;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     GetProposalContent,
     GetProposalContentInput,
     ProposalId,
@@ -114,7 +114,7 @@ pub(crate) async fn build_proposal(
         .await
         .map_err(|e| BuildProposalError::SendError(format!("Failed to send init: {e:?}")))?;
 
-    let (proposal_commitment, content) = get_proposal_content(&mut args).await?;
+    let (proposal_commitment, content, finished_info) = get_proposal_content(&mut args).await?;
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
@@ -125,6 +125,7 @@ pub(crate) async fn build_proposal(
         init,
         content,
         &args.proposal_id,
+        finished_info,
     );
     Ok(proposal_commitment)
 }
@@ -206,7 +207,11 @@ async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResul
 /// 3. Once finished, receive the commitment from the batcher.
 async fn get_proposal_content(
     args: &mut ProposalBuildArguments,
-) -> BuildProposalResult<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
+) -> BuildProposalResult<(
+    ProposalCommitment,
+    Vec<Vec<InternalConsensusTransaction>>,
+    FinishedProposalInfo,
+)> {
     let mut content = Vec::new();
     loop {
         if args.cancel_token.is_cancelled() {
@@ -255,16 +260,16 @@ async fn get_proposal_content(
                         ))
                     })?;
             }
-            GetProposalContent::Finished { id, final_n_executed_txs } => {
-                let proposal_commitment = ProposalCommitment(id.state_diff_commitment.0.0);
-                content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
+            GetProposalContent::Finished(info) => {
+                let proposal_commitment = ProposalCommitment(info.id.state_diff_commitment.0.0);
+                content = truncate_to_executed_txs(&mut content, info.final_n_executed_txs);
 
                 info!(
                     ?proposal_commitment,
-                    num_txs = final_n_executed_txs,
+                    num_txs = info.final_n_executed_txs,
                     "Finished building proposal",
                 );
-                if final_n_executed_txs == 0 {
+                if info.final_n_executed_txs == 0 {
                     warn!("Built an empty proposal.");
                 }
 
@@ -294,9 +299,11 @@ async fn get_proposal_content(
                     }
                 }
 
-                let executed_transaction_count: u64 = final_n_executed_txs
+                let executed_transaction_count: u64 = info
+                    .final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
+                // TODO(Asmaa): Pass the commitment parts.
                 let fin = ProposalFin {
                     proposal_commitment,
                     executed_transaction_count,
@@ -306,7 +313,7 @@ async fn get_proposal_content(
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
                     BuildProposalError::SendError(format!("Failed to send proposal fin: {e:?}"))
                 })?;
-                return Ok((proposal_commitment, content));
+                return Ok((proposal_commitment, content, info));
             }
         }
     }

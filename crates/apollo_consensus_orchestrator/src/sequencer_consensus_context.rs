@@ -13,6 +13,7 @@ use std::time::Duration;
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
+    FinishedProposalInfo,
     ProposalId,
     StartHeightInput,
 };
@@ -99,12 +100,12 @@ type HeightToIdToContent = BTreeMap<
     BlockNumber,
     BTreeMap<
         ProposalCommitment,
-        (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
+        (ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId, FinishedProposalInfo),
     >,
 >;
 
 pub(crate) struct BuiltProposals {
-    // {height: {proposal_commitment: (init, content, [proposal_ids])}}
+    // {height: {proposal_commitment: (init, content, [proposal_ids], finished_info)]}}
     // Note that multiple proposals IDs can be associated with the same content, but we only need
     // to store one of them.
     //
@@ -123,7 +124,8 @@ impl BuiltProposals {
         &self,
         height: &BlockNumber,
         commitment: &ProposalCommitment,
-    ) -> &(ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId) {
+    ) -> &(ProposalInit, Vec<Vec<InternalConsensusTransaction>>, ProposalId, FinishedProposalInfo)
+    {
         self.data
             .get(height)
             .unwrap_or_else(|| panic!("No proposals found for height {height}"))
@@ -142,11 +144,12 @@ impl BuiltProposals {
         init: ProposalInit,
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         proposal_id: &ProposalId,
+        finished_info: FinishedProposalInfo,
     ) {
         self.data
             .entry(*height)
             .or_default()
-            .insert(*proposal_commitment, (init, transactions, *proposal_id));
+            .insert(*proposal_commitment, (init, transactions, *proposal_id, finished_info));
     }
 }
 
@@ -354,6 +357,8 @@ impl SequencerConsensusContext {
             state_diff,
             l2_gas_used,
             central_objects,
+            // TODO(Asmaa): Remove once the context reads it from BuiltProposals
+            // (FinishedProposalInfo) instead of DecisionReachedResponse.
             block_header_commitments,
         } = decision_reached_response;
 
@@ -617,7 +622,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam) {
         info!(?id, ?build_param, "Reproposing.");
         let height = build_param.height;
-        let (init, txs, _) = self
+        let (init, txs, _, _) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
@@ -662,16 +667,13 @@ impl ConsensusContext for SequencerConsensusContext {
         info!("Finished consensus for height: {height}. Agreed on block: {:#066x}", commitment.0);
 
         self.interrupt_active_proposal().await;
-        let proposal_id;
-        let transactions;
-        let init;
-        {
+        let (init, transactions, proposal_id) = {
             let mut proposals = self.valid_proposals.lock().unwrap();
-            (init, transactions, proposal_id) =
+            let (init, transactions, proposal_id, _finished_info) =
                 proposals.get_proposal(&height, &commitment).clone();
-
             proposals.remove_proposals_below_or_at_height(&height);
-        }
+            (init, transactions, proposal_id)
+        };
 
         let decision_reached_response =
             self.deps.batcher.decision_reached(DecisionReachedInput { proposal_id }).await?;

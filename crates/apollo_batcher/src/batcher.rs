@@ -12,6 +12,7 @@ use apollo_batcher_types::batcher_types::{
     CentralObjects,
     DecisionReachedInput,
     DecisionReachedResponse,
+    FinishedProposalInfo,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
@@ -556,7 +557,7 @@ impl Batcher {
         let proposal_result =
             self.get_completed_proposal_result(proposal_id).await.expect("Proposal should exist.");
         let proposal_status = match proposal_result {
-            Ok((commitment, _)) => ProposalStatus::Finished(commitment),
+            Ok(info) => ProposalStatus::Finished(info),
             Err(err) => proposal_status_from(err)?,
         };
         Ok(SendProposalContentResponse { response: proposal_status })
@@ -618,7 +619,7 @@ impl Batcher {
 
         // Finished streaming all the transactions.
         self.propose_tx_streams.remove(&proposal_id);
-        let (commitment, final_n_executed_txs) = self
+        let info = self
             .get_completed_proposal_result(proposal_id)
             .await
             .expect("Proposal should exist.")
@@ -627,12 +628,10 @@ impl Batcher {
                 BatcherError::InternalError
             })?;
         info!(
-            "BATCHER_FIN_PROPOSER: Finished building proposal {proposal_id} with \
-             {final_n_executed_txs} transactions."
+            "BATCHER_FIN_PROPOSER: Finished building proposal {proposal_id} with {} transactions.",
+            info.final_n_executed_txs
         );
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished { id: commitment, final_n_executed_txs },
-        })
+        Ok(GetProposalContentResponse { content: GetProposalContent::Finished(info) })
     }
 
     #[instrument(skip(self, sync_block), err)]
@@ -1002,18 +1001,25 @@ impl Batcher {
         Ok(())
     }
 
-    // Returns a completed proposal result, either its commitment and final_n_executed_txs or an
-    // error if the proposal failed. If the proposal doesn't exist, or it's still active,
-    // returns None.
+    // Returns a completed proposal result, either its FinishedProposalInfo or an error if the
+    // proposal failed. If the proposal doesn't exist, or it's still active, returns None.
     async fn get_completed_proposal_result(
         &self,
         proposal_id: ProposalId,
-    ) -> Option<ProposalResult<(ProposalCommitment, usize)>> {
+    ) -> Option<ProposalResult<FinishedProposalInfo>> {
         let guard = self.executed_proposals.lock().await;
         let proposal_result = guard.get(&proposal_id);
         match proposal_result {
             Some(Ok(artifacts)) => {
-                Some(Ok((artifacts.commitment(), artifacts.final_n_executed_txs)))
+                let info = FinishedProposalInfo {
+                    id: artifacts.commitment(),
+                    final_n_executed_txs: artifacts.final_n_executed_txs,
+                    block_header_commitments: artifacts
+                        .partial_block_hash_components()
+                        .header_commitments
+                        .clone(),
+                };
+                Some(Ok(info))
             }
             Some(Err(e)) => Some(Err(e.clone())),
             None => None,

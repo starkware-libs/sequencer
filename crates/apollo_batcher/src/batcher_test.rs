@@ -11,6 +11,7 @@ use apollo_batcher_config::config::{
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
+    FinishedProposalInfo,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
@@ -171,8 +172,16 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
         .expect("set_state_diff failed");
 }
 
-async fn proposal_commitment() -> ProposalCommitment {
-    BlockExecutionArtifacts::create_for_testing().await.commitment()
+async fn finished_proposal_info() -> FinishedProposalInfo {
+    let artifacts = BlockExecutionArtifacts::create_for_testing().await;
+    FinishedProposalInfo {
+        id: artifacts.commitment(),
+        final_n_executed_txs: artifacts.final_n_executed_txs,
+        block_header_commitments: artifacts
+            .partial_block_hash_components()
+            .header_commitments
+            .clone(),
+    }
 }
 
 fn parent_proposal_commitment() -> ProposalCommitment {
@@ -613,7 +622,7 @@ async fn validate_block_full_flow() {
     assert_eq!(
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
         SendProposalContentResponse {
-            response: ProposalStatus::Finished(proposal_commitment().await)
+            response: ProposalStatus::Finished(finished_proposal_info().await)
         }
     );
     let metrics = recorder.handle().render();
@@ -768,12 +777,7 @@ async fn propose_block_full_flow() {
     assert_eq!(
         commitment,
         GetProposalContentResponse {
-            content: GetProposalContent::Finished {
-                id: proposal_commitment().await,
-                final_n_executed_txs: BlockExecutionArtifacts::create_for_testing()
-                    .await
-                    .final_n_executed_txs
-            }
+            content: GetProposalContent::Finished(finished_proposal_info().await)
         }
     );
 
