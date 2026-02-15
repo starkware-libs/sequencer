@@ -114,8 +114,8 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts(
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
-        .with(eq(proof_facts.clone()))
-        .return_once(|_| Ok(false));
+        .with(eq(proof_facts.clone()), eq(*invoke_tx.nonce()))
+        .return_once(|_, _| Ok(false));
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
@@ -149,8 +149,8 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
         proof_facts.clone(),
         proof.clone(),
     );
-
-    let consensus_tx = ConsensusTransaction::RpcTransaction(invoke_tx);
+    let nonce = *invoke_tx.nonce();
+    let consensus_tx = ConsensusTransaction::RpcTransaction(invoke_tx.clone());
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
 
@@ -158,16 +158,16 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
-        .with(eq(proof_facts.clone()))
-        .return_once(|_| Ok(false));
+        .with(eq(proof_facts.clone()), eq(nonce))
+        .return_once(|_, _| Ok(false));
 
     // Expect set proof to be called after the conversion succeeds.
     // This is specific to conversion from consensus to internal consensus.
     mock_proof_manager_client
         .expect_set_proof()
         .once()
-        .with(eq(proof_facts), eq(proof))
-        .return_once(|_, _| Ok(()));
+        .with(eq(proof_facts), eq(nonce), eq(proof))
+        .return_once(|_, _, _| Ok(()));
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
@@ -185,6 +185,7 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
 async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFacts, proof: Proof) {
     let rpc_tx =
         invoke_tx_client_side_proving(CairoVersion::default(), proof_facts.clone(), proof.clone());
+    let nonce = *rpc_tx.nonce();
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
 
@@ -192,15 +193,15 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
-        .with(eq(proof_facts.clone()))
-        .return_once(|_| Ok(false));
+        .with(eq(proof_facts.clone()), eq(nonce))
+        .return_once(|_, _| Ok(false));
 
     // Step 2 (Internal → RPC): Converter retrieves the proof to reconstruct the RPC tx.
     mock_proof_manager_client
         .expect_get_proof()
         .once()
-        .with(eq(proof_facts))
-        .return_once(move |_| Ok(Some(proof)));
+        .with(eq(proof_facts), eq(nonce))
+        .return_once(move |_, _| Ok(Some(proof)));
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 

@@ -5,6 +5,7 @@ use proving_utils::proof_encoding::ProofEncodingError;
 use proving_utils::stwo_run_and_prove::StwoRunAndProveError;
 use starknet_api::core::ClassHash;
 use starknet_os::errors::StarknetOsError;
+use starknet_patricia_storage::errors::SerializationError;
 use starknet_rust::providers::ProviderError;
 use thiserror::Error;
 
@@ -41,9 +42,12 @@ pub enum RunnerError {
 pub enum ProofProviderError {
     #[error("RPC provider error: {0}")]
     Rpc(#[from] ProviderError),
-
+    #[error(transparent)]
+    SerializationError(#[from] SerializationError),
     #[error("Invalid RPC proof response: {0}")]
     InvalidProofResponse(String),
+    #[error("Block commitment error: {0}")]
+    BlockCommitmentError(String),
 }
 
 #[derive(Debug, Error)]

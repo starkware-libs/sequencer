@@ -345,6 +345,16 @@ impl InvokeTransaction {
         let tx_hash = invoke_tx.calculate_transaction_hash(chain_id, &invoke_tx.version())?;
         Ok(Self { tx: invoke_tx, tx_hash })
     }
+
+    /// Returns the length of proof facts for client-side proving.
+    pub fn proof_facts_length(&self) -> usize {
+        match &self.tx {
+            crate::transaction::InvokeTransaction::V3(tx) => tx.proof_facts.0.len(),
+            // Client-side proving is only supported starting from V3.
+            crate::transaction::InvokeTransaction::V0(_)
+            | crate::transaction::InvokeTransaction::V1(_) => 0,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]

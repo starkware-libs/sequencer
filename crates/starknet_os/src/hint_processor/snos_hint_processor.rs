@@ -28,6 +28,7 @@ use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
 
+use crate::commitment_infos::CommitmentInfo;
 use crate::errors::StarknetOsError;
 use crate::hint_processor::common_hint_processor::{
     CommonHintProcessor,
@@ -47,7 +48,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintContext, HintEnum};
 use crate::hints::vars::CairoStruct;
-use crate::io::os_input::{CommitmentInfo, OsBlockInput, OsHintsConfig, OsInputError};
+use crate::io::os_input::{OsBlockInput, OsHintsConfig, OsInputError};
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 

@@ -34,6 +34,7 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, ValidReso
 use starknet_api::{calldata, deploy_account_tx_args, invoke_tx_args};
 use starknet_committer::block_committer::input::StateDiff;
 use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_os_runner::committer_utils::state_maps_to_committer_state_diff;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 
@@ -47,7 +48,6 @@ use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
     commit_state_diff,
     create_cairo1_bootstrap_declare_tx,
-    create_committer_state_diff,
     create_declare_tx,
     execute_transactions,
     get_class_hash_of_feature_contract,
@@ -180,7 +180,7 @@ pub(crate) async fn create_default_initial_state_data<S: FlowTestState, const N:
     final_state.state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
 
     // Commits the state diff with block hash mappings.
-    let committer_state_diff = create_committer_state_diff(state_diff);
+    let committer_state_diff = state_maps_to_committer_state_diff(state_diff);
     let (commitment_output, commitment_storage) =
         commit_initial_state_diff(committer_state_diff).await;
 

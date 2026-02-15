@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::core::{ChainId, ClassHash, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
@@ -33,11 +33,11 @@ use starknet_types_core::felt::Felt;
 use thiserror::Error;
 use tracing::info;
 
-use crate::proof_verification::{verify_proof, VerifyProofAndFactsError};
+use crate::proof_verification::{stwo_verify, VerifyProofError};
 
 /// The expected bootloader program hash for proof verification.
-pub const BOOTLOADER_PROGRAM_HASH: &str =
-    "0x3faf9fbac01a844107ca8f272e78763d3818ac40ed9107307271b651e7efe0d";
+pub const BOOTLOADER_PROGRAM_HASH: Felt =
+    Felt::from_hex_unchecked("0x3faf9fbac01a844107ca8f272e78763d3818ac40ed9107307271b651e7efe0d");
 
 #[cfg(test)]
 #[path = "transaction_converter_test.rs"]
@@ -54,7 +54,7 @@ pub enum TransactionConverterError {
     #[error(transparent)]
     ProofManagerClientError(#[from] ProofManagerClientError),
     #[error(transparent)]
-    ProofVerificationError(#[from] VerifyProofAndFactsError),
+    ProofVerificationError(#[from] VerifyProofError),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
@@ -125,9 +125,13 @@ impl TransactionConverter {
             .ok_or(TransactionConverterError::ClassNotFound { class_hash })
     }
 
-    async fn get_proof(&self, proof_facts: &ProofFacts) -> TransactionConverterResult<Proof> {
+    async fn get_proof(
+        &self,
+        proof_facts: &ProofFacts,
+        nonce: Nonce,
+    ) -> TransactionConverterResult<Proof> {
         self.proof_manager_client
-            .get_proof(proof_facts.clone())
+            .get_proof(proof_facts.clone(), nonce)
             .await?
             .ok_or(TransactionConverterError::ProofNotFound { facts_hash: proof_facts.hash() })
     }
@@ -186,7 +190,7 @@ impl TransactionConverterTrait for TransactionConverter {
                 let proof = if tx.proof_facts.is_empty() {
                     Proof::default()
                 } else {
-                    self.get_proof(&tx.proof_facts).await?
+                    self.get_proof(&tx.proof_facts, tx.nonce).await?
                 };
 
                 Ok(RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
@@ -235,7 +239,7 @@ impl TransactionConverterTrait for TransactionConverter {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
                 // Verify proof here; storage happens in the caller after successful
                 // conversion/validation.
-                self.handle_proof_verification(&tx.proof_facts, &tx.proof).await?;
+                self.handle_proof_verification(&tx.proof_facts, &tx.proof, tx.nonce).await?;
                 InternalRpcTransactionWithoutTxHash::Invoke(tx.into())
             }
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
@@ -359,7 +363,7 @@ impl TransactionConverter {
         let proof_data = match &tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
                 if !invoke_tx.proof_facts.is_empty() {
-                    Some((invoke_tx.proof_facts.clone(), invoke_tx.proof.clone()))
+                    Some((invoke_tx.proof_facts.clone(), invoke_tx.nonce, invoke_tx.proof.clone()))
                 } else {
                     None
                 }
@@ -367,9 +371,9 @@ impl TransactionConverter {
             _ => None,
         };
         let internal_tx = self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
-        if let Some((proof_facts, proof)) = proof_data {
+        if let Some((proof_facts, nonce, proof)) = proof_data {
             let proof_manager_store_start = Instant::now();
-            self.proof_manager_client.set_proof(proof_facts, proof).await?;
+            self.proof_manager_client.set_proof(proof_facts, nonce, proof).await?;
             let proof_manager_store_duration = proof_manager_store_start.elapsed();
             let tx_hash = internal_tx.tx_hash;
             info!(
@@ -383,6 +387,7 @@ impl TransactionConverter {
         &self,
         proof_facts: &ProofFacts,
         proof: &Proof,
+        nonce: Nonce,
     ) -> TransactionConverterResult<()> {
         // If the proof facts are empty, it is a standard transaction that does not use client-side
         // proving and we skip proof verification. We return Ok only if the proof facts are
@@ -392,7 +397,8 @@ impl TransactionConverter {
             return Ok(());
         }
 
-        let contains_proof = self.proof_manager_client.contains_proof(proof_facts.clone()).await?;
+        let contains_proof =
+            self.proof_manager_client.contains_proof(proof_facts.clone(), nonce).await?;
         // If the proof already exists in the proof manager, indicating it has already been
         // verified, we skip proof verification.
         if contains_proof {
@@ -400,7 +406,7 @@ impl TransactionConverter {
         }
 
         let verify_start = Instant::now();
-        self.verify_proof_and_facts(proof_facts.clone(), proof.clone())?;
+        self.verify_proof(proof_facts.clone(), proof.clone())?;
         let verify_duration = verify_start.elapsed();
         let proof_facts_hash = proof_facts.hash();
         info!(
@@ -412,41 +418,34 @@ impl TransactionConverter {
 
     /// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
     /// program hash to the expected value.
-    fn verify_proof_and_facts(
-        &self,
-        proof_facts: ProofFacts,
-        proof: Proof,
-    ) -> Result<(), VerifyProofAndFactsError> {
+    fn verify_proof(&self, proof_facts: ProofFacts, proof: Proof) -> Result<(), VerifyProofError> {
         // Reject empty proof payloads before running the verifier.
         if proof.is_empty() {
-            return Err(VerifyProofAndFactsError::EmptyProof);
+            return Err(VerifyProofError::EmptyProof);
         }
 
         // Validate that the first element of proof facts is PROOF_VERSION.
-        let expected_proof_version = Felt::from(PROOF_VERSION);
+        let expected_proof_version = PROOF_VERSION;
         let actual_first = proof_facts.0.first().copied().unwrap_or_default();
         if actual_first != expected_proof_version {
-            return Err(VerifyProofAndFactsError::InvalidProofVersion {
+            return Err(VerifyProofError::InvalidProofVersion {
                 expected: expected_proof_version,
                 actual: actual_first,
             });
         }
 
         // Verify proof and extract program output and program hash.
-        let output = verify_proof(proof)?;
+        let output = stwo_verify(proof)?;
 
         let program_variant = proof_facts.0.get(1).copied().unwrap_or_default();
         let expected_proof_facts = output.program_output.try_into_proof_facts(program_variant)?;
         if expected_proof_facts != proof_facts {
-            return Err(VerifyProofAndFactsError::ProofFactsMismatch);
+            return Err(VerifyProofError::ProofFactsMismatch);
         }
 
         // Validate the bootloader program hash output against the expected bootloader hash.
-        let expected_program_hash = Felt::from_hex(BOOTLOADER_PROGRAM_HASH.trim())
-            .map_err(VerifyProofAndFactsError::ParseExpectedHash)?;
-
-        if output.program_hash != expected_program_hash {
-            return Err(VerifyProofAndFactsError::BootloaderHashMismatch);
+        if output.program_hash != BOOTLOADER_PROGRAM_HASH {
+            return Err(VerifyProofError::BootloaderHashMismatch);
         }
 
         Ok(())

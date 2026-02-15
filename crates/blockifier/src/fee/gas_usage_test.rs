@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_rational::Ratio;
+use num_traits::Zero;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{FeeType, StarknetVersion};
@@ -78,7 +79,15 @@ fn starknet_resources() -> StarknetResources {
         },
         19,
     );
-    StarknetResources::new(2_usize, 3_usize, 4_usize, state_resources, 6.into(), execution_summary)
+    StarknetResources::new(
+        2_usize,
+        3_usize,
+        4_usize,
+        state_resources,
+        6.into(),
+        execution_summary,
+        5_usize,
+    )
 }
 
 #[rstest]
@@ -99,7 +108,7 @@ fn test_get_event_gas_cost(
             .collect();
     let execution_summary = CallInfo::summarize_many(call_infos.iter(), versioned_constants);
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary, 0);
     assert_eq!(
         GasVector::default(),
         starknet_resources.to_gas_vector(
@@ -152,7 +161,7 @@ fn test_get_event_gas_cost(
         GasVectorComputationMode::All => GasVector::from_l2_gas(expected_gas),
     };
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary, 0);
     let gas_vector = starknet_resources.to_gas_vector(
         versioned_constants,
         use_kzg_da,
@@ -335,6 +344,12 @@ fn test_gas_computation_regression_test(
     #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
+    // Client side proving is only supported from V3 transactions, which use AllResourceBounds.
+    if !starknet_resources.archival_data.proof_facts_length.is_zero()
+        && gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas
+    {
+        return;
+    }
     // Use a constant version of the versioned constants so that version changes do not break this
     // test. This specific version is arbitrary.
     // TODO(Amos, 1/10/2024): Parameterize the version.
@@ -367,12 +382,12 @@ fn test_gas_computation_regression_test(
             true => GasVector {
                 l1_gas: GasAmount(21543),
                 l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(87040),
+                l2_gas: GasAmount(112640),
             },
             false => GasVector {
                 l1_gas: GasAmount(62834),
                 l1_data_gas: GasAmount(0),
-                l2_gas: GasAmount(87040),
+                l2_gas: GasAmount(112640),
             },
         },
     };
@@ -427,12 +442,12 @@ fn test_gas_computation_regression_test(
             true => GasVector {
                 l1_gas: GasAmount(21543),
                 l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(1120394),
+                l2_gas: GasAmount(1145994),
             },
             false => GasVector {
                 l1_gas: GasAmount(62834),
                 l1_data_gas: GasAmount(0),
-                l2_gas: GasAmount(1120394),
+                l2_gas: GasAmount(1145994),
             },
         },
     };

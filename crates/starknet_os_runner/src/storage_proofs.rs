@@ -2,16 +2,22 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::hash::HashOutput;
-use starknet_os::io::os_input::{CommitmentInfo, StateCommitmentInfos};
+use starknet_api::hash::{HashOutput, StateRoots};
+use starknet_os::commitment_infos::{
+    create_commitment_infos,
+    CommitmentInfo,
+    StateCommitmentInfos,
+};
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     flatten_preimages,
     Preimage,
     PreimageMap,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_rust::providers::jsonrpc::HttpTransport;
 use starknet_rust::providers::{JsonRpcClient, Provider};
 use starknet_rust_core::types::{
@@ -21,8 +27,29 @@ use starknet_rust_core::types::{
     StorageProof as RpcStorageProof,
 };
 
+use crate::committer_utils::{
+    commit_state_diff,
+    create_facts_db_from_storage_proof,
+    state_maps_to_committer_state_diff,
+};
 use crate::errors::ProofProviderError;
 use crate::virtual_block_executor::VirtualBlockExecutionData;
+
+/// Configuration for storage proof provider behavior.
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct StorageProofConfig {
+    /// Whether to include state changes in the storage proofs.
+    ///
+    /// When `true`, the provider tracks state modifications and provides proofs for both the
+    /// pre-execution and post-execution state roots, enabling verification of state
+    /// transitions.
+    ///
+    /// When `false`, the provider only provides proofs for the initial state and assumes
+    /// no state changes occur. This mode is suitable for read-only operations or when
+    /// state verification is not required.
+    #[allow(dead_code)]
+    pub(crate) include_state_changes: bool,
+}
 
 /// Provides Patricia Merkle proofs for the initial state used in transaction execution.
 ///
@@ -31,7 +58,7 @@ use crate::virtual_block_executor::VirtualBlockExecutionData;
 /// execution) are consistent with the global state commitment (Patricia root).
 ///
 /// The returned `StorageProofs` contains:
-/// - `proof_state`: The ambient state values (nonces, class hashes) discovered in the proof.
+/// - `contract_leaf_state`: Nonces and class hashes extracted from contract leaves.
 /// - `commitment_infos`: The Patricia Merkle proof nodes for contracts, classes, and storage tries.
 #[async_trait]
 #[allow(dead_code)]
@@ -40,6 +67,7 @@ pub(crate) trait StorageProofProvider {
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
+        config: &StorageProofConfig,
     ) -> Result<StorageProofs, ProofProviderError>;
 }
 
@@ -54,10 +82,10 @@ pub(crate) struct RpcStorageProofsQuery {
 /// Complete OS input data built from RPC proofs.
 #[allow(dead_code)]
 pub(crate) struct StorageProofs {
-    /// State information discovered in the Patricia proof (nonces, class hashes)
-    /// that might not have been explicitly read during transaction execution.
-    /// This data is required by the OS to verify the contract state leaves.
-    pub(crate) proof_state: StateMaps,
+    /// Extended initial reads with class hashes and nonces from the proof.
+    /// Required by the OS to verify contract state.
+    pub(crate) extended_initial_reads: StateMaps,
+    /// Commitment infos for the extended initial reads.
     pub(crate) commitment_infos: StateCommitmentInfos,
 }
 
@@ -141,42 +169,68 @@ impl RpcStorageProofsProvider {
         Ok(storage_proof)
     }
 
-    /// Converts an RPC storage proof response to OS input format.
-    ///
-    /// # Validation
-    ///
-    /// This function validates that the RPC response arrays match the expected lengths from
-    /// the query, ensuring the RPC provider returned data in the correct order.
-    pub(crate) fn to_storage_proofs(
+    /// Creates commitment infos from RPC storage proof and state changes.
+    /// This function runs the committer to compute new state roots based on the execution data,
+    /// then generates commitment infos using the facts stored in the committer's storage.
+    pub(crate) async fn create_commitment_infos_with_state_changes(
         rpc_proof: &RpcStorageProof,
         query: &RpcStorageProofsQuery,
-    ) -> Result<StorageProofs, ProofProviderError> {
-        // Validate that contract_leaves_data matches contract_addresses length.
-        let leaves_len = rpc_proof.contracts_proof.contract_leaves_data.len();
-        let addresses_len = query.contract_addresses.len();
-        if leaves_len != addresses_len {
-            return Err(ProofProviderError::InvalidProofResponse(format!(
-                "Contract leaves length mismatch: expected {addresses_len} leaves for requested \
-                 contracts, got {leaves_len}"
-            )));
-        }
+        extended_initial_reads: &StateMaps,
+        state_diff: &StateMaps,
+    ) -> Result<StateCommitmentInfos, ProofProviderError> {
+        // Build FactsDb from RPC proofs and execution initial reads.
+        let mut facts_db =
+            create_facts_db_from_storage_proof(rpc_proof, query, extended_initial_reads)?;
 
-        let mut proof_state = StateMaps::default();
-        let commitment_infos = Self::build_commitment_infos(rpc_proof, query)?;
+        // Get initial state roots from RPC proof.
+        let contracts_trie_root_hash = HashOutput(rpc_proof.global_roots.contracts_tree_root);
+        let classes_trie_root_hash = HashOutput(rpc_proof.global_roots.classes_tree_root);
+        // Convert the blockifier state maps to committer state diff.
+        let committer_state_diff = state_maps_to_committer_state_diff(state_diff.clone());
 
-        // Update proof_state with class hashes and nonces from the proof.
-        // We've validated the lengths match, so this zip is safe.
-        for (leaf, addr) in
-            rpc_proof.contracts_proof.contract_leaves_data.iter().zip(&query.contract_addresses)
-        {
-            proof_state.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
-            proof_state.nonces.insert(*addr, Nonce(leaf.nonce));
-        }
+        // Commit state diff using the committer.
+        let new_roots = commit_state_diff(
+            &mut facts_db,
+            contracts_trie_root_hash,
+            classes_trie_root_hash,
+            committer_state_diff,
+        )
+        .await?;
 
-        Ok(StorageProofs { proof_state, commitment_infos })
+        let previous_state_roots = StateRoots { contracts_trie_root_hash, classes_trie_root_hash };
+
+        // Consume the new facts from the committer storage.
+        let mut map_storage: MapStorage = facts_db.consume_storage();
+
+        // Get extended initial reads keys.
+        let initial_reads_keys = extended_initial_reads.keys();
+
+        // TODO(Aviv): Try to undertand if we can create classes trie commitment info
+        // without the compiled class hashes.
+        let mut commitment_infos = create_commitment_infos(
+            &previous_state_roots,
+            &new_roots,
+            &mut map_storage,
+            &initial_reads_keys,
+        )
+        .await;
+
+        // The created commitment infos doesn't have the compiled class hashes,
+        // as a result it doesn't have the classes trie commitment info.
+        // We complement it with the RPC proof facts.
+        let classes_rpc_facts =
+            flatten_preimages(&Self::rpc_nodes_to_preimage_map(&rpc_proof.classes_proof));
+        commitment_infos.classes_trie_commitment_info.commitment_facts.extend(classes_rpc_facts);
+
+        Ok(commitment_infos)
     }
 
-    fn build_commitment_infos(
+    /// Creates commitment infos from RPC storage proof without state changes.
+    ///
+    /// This function assumes that the new state roots equal the previous state roots.
+    /// It sets `updated_root` equal to `previous_root` for all commitment infos (contracts,
+    /// classes, and storage tries).
+    fn create_commitment_infos_without_state_changes(
         rpc_proof: &RpcStorageProof,
         query: &RpcStorageProofsQuery,
     ) -> Result<StateCommitmentInfos, ProofProviderError> {
@@ -303,11 +357,48 @@ impl StorageProofProvider for RpcStorageProofsProvider {
         &self,
         block_number: BlockNumber,
         execution_data: &VirtualBlockExecutionData,
+        config: &StorageProofConfig,
     ) -> Result<StorageProofs, ProofProviderError> {
         let query = Self::prepare_query(execution_data);
 
         let rpc_proof = self.fetch_proofs(block_number, &query).await?;
 
-        Self::to_storage_proofs(&rpc_proof, &query)
+        // Validate that contract_leaves_data matches contract_addresses length.
+        let leaves_len = rpc_proof.contracts_proof.contract_leaves_data.len();
+        let addresses_len = query.contract_addresses.len();
+        if leaves_len != addresses_len {
+            return Err(ProofProviderError::InvalidProofResponse(format!(
+                "Contract leaves length mismatch: expected {addresses_len} leaves for requested \
+                 contracts, got {leaves_len}"
+            )));
+        }
+
+        // Update initial reads with class hashes and nonces from the proof.
+        // We've validated the lengths match, so this zip is safe.
+        let mut extended_initial_reads = StateMaps::default();
+        for (leaf, addr) in
+            rpc_proof.contracts_proof.contract_leaves_data.iter().zip(&query.contract_addresses)
+        {
+            extended_initial_reads.class_hashes.insert(*addr, ClassHash(leaf.class_hash));
+            extended_initial_reads.nonces.insert(*addr, Nonce(leaf.nonce));
+        }
+
+        // Include storage values from execution.
+        extended_initial_reads.storage.extend(&execution_data.initial_reads.storage);
+
+        let commitment_infos = match config.include_state_changes {
+            true => {
+                Self::create_commitment_infos_with_state_changes(
+                    &rpc_proof,
+                    &query,
+                    &extended_initial_reads,
+                    &execution_data.state_diff,
+                )
+                .await?
+            }
+            false => Self::create_commitment_infos_without_state_changes(&rpc_proof, &query)?,
+        };
+
+        Ok(StorageProofs { extended_initial_reads, commitment_infos })
     }
 }

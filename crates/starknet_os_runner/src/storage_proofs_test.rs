@@ -10,7 +10,7 @@ use starknet_api::state::StorageKey;
 use starknet_rust::providers::Provider;
 use starknet_types_core::felt::Felt;
 
-use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofProvider};
+use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig, StorageProofProvider};
 use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
 use crate::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
 
@@ -53,11 +53,13 @@ fn test_get_storage_proofs_from_rpc(
             base_block_header_commitments: BlockHeaderCommitments::default(),
         },
         initial_reads: state_maps,
+        state_diff: StateMaps::default(),
         executed_class_hashes: HashSet::new(),
     };
 
+    let config = StorageProofConfig::default();
     let result = runtime.block_on(async {
-        rpc_provider.get_storage_proofs(BlockNumber(block_number), &execution_data).await
+        rpc_provider.get_storage_proofs(BlockNumber(block_number), &execution_data, &config).await
     });
     assert!(result.is_ok(), "Failed to get storage proofs: {:?}", result.err());
 
@@ -76,20 +78,20 @@ fn test_get_storage_proofs_from_rpc(
         "Expected non-empty contracts tree commitment facts"
     );
 
-    // Verify the queried contract is in proof_state.
+    // Verify the queried contract is in contract_leaf_state.
     assert!(
-        storage_proofs.proof_state.class_hashes.contains_key(&contract_address),
+        storage_proofs.extended_initial_reads.class_hashes.contains_key(&contract_address),
         "Expected contract address {:?} in class_hashes",
         contract_address
     );
     assert!(
-        storage_proofs.proof_state.nonces.contains_key(&contract_address),
+        storage_proofs.extended_initial_reads.nonces.contains_key(&contract_address),
         "Expected contract address {:?} in nonces",
         contract_address
     );
 
-    // Verify the queried storage is in the original execution_data (not proof_state, which only has
-    // nonces/hashes)
+    // Verify the queried storage is in the original execution_data (not contract_leaf_state,
+    // which only has nonces/hashes)
     assert!(
         execution_data.initial_reads.storage.contains_key(&(contract_address, storage_key)),
         "Expected storage key {:?} in contract's storage",

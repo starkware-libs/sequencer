@@ -6,7 +6,8 @@
     },
     "gateway": {
         "max_calldata_length": 5000,
-        "max_contract_bytecode_size": 81920
+        "max_contract_bytecode_size": 81920,
+        "max_proof_size": 90000
     },
     "invoke_tx_max_n_steps": 10000000,
     "deprecated_l2_resource_gas_costs": {
@@ -21,10 +22,6 @@
         "gas_per_code_byte": [
             32,
             1000
-        ],
-        "gas_per_proof": [
-            1000000000,
-            1
         ]
     },
     "archival_data_gas_costs": {
@@ -70,7 +67,7 @@
     "segment_arena_cells": false,
     "os_constants": {
         "allowed_virtual_os_program_hashes": [
-            "0x130206a40921880628605041292e995870334451179c63090221210893986a2"
+            "0x56cb82807b5af2736cee1da0919bc265b499836623bd32265eacc8c8dc98421"
         ],
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": "0x0",

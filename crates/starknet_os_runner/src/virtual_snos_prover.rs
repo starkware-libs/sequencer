@@ -3,11 +3,12 @@
 //! This module contains the core proving logic, extracted from the HTTP layer
 //! to enable better separation of concerns and testability.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use apollo_transaction_converter::ProgramOutputError;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
+use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
 use starknet_api::transaction::fields::{Proof, ProofFacts, VIRTUAL_SNOS};
@@ -18,14 +19,13 @@ use starknet_api::transaction::{
     TransactionHasher,
 };
 use starknet_os::io::os_output::OsOutputError;
-use starknet_types_core::felt::Felt;
 use tracing::{info, instrument};
 use url::Url;
 
+use crate::config::ProverConfig;
 use crate::errors::{ProvingError, RunnerError};
 use crate::proving::prover::prove;
-use crate::runner::RpcRunnerFactory;
-use crate::server::config::ServiceConfig;
+use crate::runner::{RpcRunnerFactory, VirtualSnosRunner};
 
 /// Error type for the virtual SNOS prover.
 #[derive(Debug, thiserror::Error)]
@@ -47,45 +47,78 @@ pub enum VirtualSnosProverError {
     OutputParseError(#[from] OsOutputError),
 }
 
-/// Output from a successful proving operation.
-#[derive(Debug, Clone)]
-pub struct VirtualSnosProverOutput {
+/// Result of a successful prove transaction operation.
+///
+/// This struct is used both as the RPC response and as part of the internal prover output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProveTransactionResult {
     /// The generated proof.
     pub proof: Proof,
     /// The proof facts.
     pub proof_facts: ProofFacts,
     /// Messages sent from L2 to L1 during execution.
     pub l2_to_l1_messages: Vec<MessageToL1>,
+}
+
+/// Output from a successful proving operation.
+///
+/// Contains the RPC-facing result plus internal metrics.
+#[derive(Debug, Clone)]
+pub struct VirtualSnosProverOutput {
+    /// The proving result (proof, proof facts, and messages).
+    pub result: ProveTransactionResult,
     /// Duration of OS execution.
-    pub os_duration: std::time::Duration,
+    pub os_duration: Duration,
     /// Duration of proving.
-    pub prove_duration: std::time::Duration,
+    pub prove_duration: Duration,
     /// Total duration from start to finish.
-    pub total_duration: std::time::Duration,
+    pub total_duration: Duration,
 }
 
 /// Virtual SNOS prover for Starknet transactions.
 ///
 /// Encapsulates all proving logic, including OS execution and proof generation.
 /// This prover is independent of the HTTP layer and can be used directly for testing.
+///
+/// The prover is generic over the runner, allowing different implementations
+/// (RPC-based, mock, etc.) to be used interchangeably.
 #[derive(Clone)]
-pub struct VirtualSnosProver {
-    // TODO(Avi): Make `RunnerFactory` generic and not just RPC-based.
-    /// Factory for creating RPC-based runners.
-    runner_factory: RpcRunnerFactory,
+pub(crate) struct VirtualSnosProver<R: VirtualSnosRunner> {
+    /// Runner for executing the virtual OS.
+    runner: R,
     /// Chain ID for transaction hash calculation.
     chain_id: ChainId,
 }
 
-impl VirtualSnosProver {
+/// Type alias for the RPC-based virtual SNOS prover.
+pub(crate) type RpcVirtualSnosProver = VirtualSnosProver<RpcRunnerFactory>;
+
+impl VirtualSnosProver<RpcRunnerFactory> {
     /// Creates a new VirtualSnosProver from configuration.
-    pub fn new(config: &ServiceConfig) -> Self {
+    ///
+    /// This constructor creates an RPC-based prover using the configuration values.
+    pub fn new(prover_config: &ProverConfig) -> Self {
         let contract_class_manager =
-            ContractClassManager::start(config.contract_class_manager_config.clone());
-        let node_url = Url::parse(&config.rpc_node_url).expect("Invalid RPC node URL in config");
-        let runner_factory =
-            RpcRunnerFactory::new(node_url, config.chain_id.clone(), contract_class_manager);
-        Self { runner_factory, chain_id: config.chain_id.clone() }
+            ContractClassManager::start(prover_config.contract_class_manager_config.clone());
+        let node_url =
+            Url::parse(&prover_config.rpc_node_url).expect("Invalid RPC node URL in config");
+        let runner = RpcRunnerFactory::new(
+            node_url,
+            prover_config.chain_id.clone(),
+            contract_class_manager,
+            prover_config.runner_config.clone(),
+        );
+        Self { runner, chain_id: prover_config.chain_id.clone() }
+    }
+}
+
+impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
+    /// Creates a new VirtualSnosProver from a runner.
+    ///
+    /// This constructor allows using any runner implementation.
+    #[allow(dead_code)]
+    pub(crate) fn from_runner(runner: R, chain_id: ChainId) -> Self {
+        Self { runner, chain_id }
     }
 
     /// Proves a transaction on top of the specified block.
@@ -123,12 +156,10 @@ impl VirtualSnosProver {
         // Run OS and get output.
         let os_start = Instant::now();
 
-        // Create a runner using the factory.
-        let runner = self.runner_factory.create_runner(block_id);
-
         let txs = vec![(invoke_tx, tx_hash)];
-        let runner_output = runner
-            .run_virtual_os(txs)
+        let runner_output = self
+            .runner
+            .run_virtual_os(block_id, txs)
             .await
             .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
 
@@ -151,17 +182,15 @@ impl VirtualSnosProver {
         );
 
         // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
-        let proof_facts =
-            prover_output.program_output.try_into_proof_facts(Felt::from(VIRTUAL_SNOS))?;
+        let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
 
-        Ok(VirtualSnosProverOutput {
+        let result = ProveTransactionResult {
             proof: prover_output.proof,
             proof_facts,
             l2_to_l1_messages: runner_output.l2_to_l1_messages,
-            os_duration,
-            prove_duration,
-            total_duration,
-        })
+        };
+
+        Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
     }
 }
 

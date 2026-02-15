@@ -54,16 +54,17 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             .global_root_height()
             .expect("Failed to get global root height from storage.");
         info!("Initializing commitment manager.");
-        let mut commitment_manager = CommitmentManager::initialize(
+        let commitment_manager = CommitmentManager::initialize(
             commitment_manager_config,
             global_root_height,
             committer_client,
         );
         let block_height =
             storage_reader.state_diff_height().expect("Failed to get block height from storage.");
-        commitment_manager
-            .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
-            .await;
+        // TODO(Einat): Uncomment when the committer should be enabled.
+        // commitment_manager
+        //     .add_missing_commitment_tasks(block_height, batcher_config, storage_reader)
+        //     .await;
         commitment_manager
     }
 

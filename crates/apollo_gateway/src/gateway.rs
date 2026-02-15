@@ -191,7 +191,7 @@ impl<
         let proof_data = match tx {
             RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref tx)) => {
                 if !tx.proof_facts.is_empty() {
-                    Some((tx.proof_facts.clone(), tx.proof.clone()))
+                    Some((tx.proof_facts.clone(), tx.nonce, tx.proof.clone()))
                 } else {
                     None
                 }
@@ -224,13 +224,14 @@ impl<
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
-        if let Some((proof_facts, proof)) = proof_data {
+        if let Some((proof_facts, tx_nonce, proof)) = proof_data {
             let tx_hash = internal_tx.tx_hash;
             let proof_manager_client = self.transaction_converter.get_proof_manager_client();
             let proof_manager_store_start = Instant::now();
             // Proof is verified during conversion to internal tx. It is stored here, after
             // validation, to avoid storing proofs for rejected transactions.
-            if let Err(e) = proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await
+            if let Err(e) =
+                proof_manager_client.set_proof(proof_facts.clone(), tx_nonce, proof.clone()).await
             {
                 error!("Failed to set proof in proof manager: {}", e);
             }
@@ -370,6 +371,7 @@ pub fn create_gateway(
 impl ComponentStarter for Gateway {
     async fn start(&mut self) {
         register_metrics();
+        self.0.proof_archive_writer.connect().await;
     }
 }
 

@@ -99,7 +99,6 @@ pub struct RawVersionedConstants {
 #[serde(deny_unknown_fields)]
 pub struct RawOsConstants {
     // Allowed virtual OS program hashes for client-side proving.
-    // TODO(Meshi): Add a test that the latest virtual OS program hash is in this list.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
 
     // Selectors.
@@ -495,6 +494,9 @@ pub struct ArchivalDataGasCosts {
     // where rational numbers are supported.
     pub gas_per_code_byte: ResourceCost,
     // TODO(AvivG): Update value for 0.14.2 once the value is finalized.
+    // Note: This field is only present in archival_data_gas_costs (for V3+ transactions with
+    // proof facts). It's not present in deprecated_l2_resource_gas_costs (for V0-V2 transactions).
+    #[serde(default)]
     pub gas_per_proof: ResourceCost,
 }
 
@@ -534,6 +536,7 @@ impl CairoNativeStackConfig {
 pub struct VersionedConstantsGatewayLimits {
     pub max_calldata_length: usize,
     pub max_contract_bytecode_size: usize,
+    pub max_proof_size: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]

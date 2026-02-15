@@ -2,12 +2,12 @@ use blockifier::state::state_api::StateReader;
 use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
 
+use crate::commitment_infos::CommitmentInfo;
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintContext;
 use crate::hints::vars::{CairoStruct, Const, Ids};
-use crate::io::os_input::CommitmentInfo;
 
 #[derive(Copy, Clone)]
 pub(crate) enum CommitmentType {

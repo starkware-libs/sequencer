@@ -8,7 +8,7 @@ use crate::io::virtual_os_output::VirtualOsOutput;
 #[test]
 fn test_virtual_os_output_roundtrip() {
     let expected = VirtualOsOutput {
-        version: Felt::from(VIRTUAL_OS_OUTPUT_VERSION),
+        version: VIRTUAL_OS_OUTPUT_VERSION,
         base_block_number: BlockNumber(42),
         base_block_hash: StarkHash::from(0x1234u64),
         starknet_os_config_hash: StarkHash::from(0x5678u64),

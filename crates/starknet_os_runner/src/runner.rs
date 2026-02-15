@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -8,24 +9,20 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress, OsChainInfo};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, TransactionHash};
-use starknet_os::io::os_input::{
-    CommitmentInfo,
-    OsBlockInput,
-    OsHints,
-    OsHintsConfig,
-    StarknetOsInput,
-};
+use starknet_os::commitment_infos::CommitmentInfo;
+use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::runner::run_virtual_os;
 use url::Url;
 
 use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
-use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofProvider};
+use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig, StorageProofProvider};
 use crate::virtual_block_executor::{
     RpcVirtualBlockExecutor,
     VirtualBlockExecutionData,
@@ -104,14 +101,20 @@ impl From<VirtualOsBlockInput> for OsHints {
     }
 }
 
+// ================================================================================================
+// Runner
+// ================================================================================================
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+pub struct RunnerConfig {
+    /// Configuration for storage proof provider.
+    pub(crate) storage_proof_config: StorageProofConfig,
+}
+
 pub(crate) struct RunnerOutput {
     pub cairo_pie: CairoPie,
     pub l2_to_l1_messages: Vec<MessageToL1>,
 }
-
-// ================================================================================================
-// Runner
-// ================================================================================================
 
 /// Generic runner for executing transactions and generating OS input.
 ///
@@ -129,6 +132,7 @@ where
     pub(crate) classes_provider: C,
     pub(crate) storage_proofs_provider: S,
     pub(crate) virtual_block_executor: V,
+    pub(crate) config: RunnerConfig,
     pub(crate) contract_class_manager: ContractClassManager,
     pub(crate) block_id: BlockId,
 }
@@ -144,6 +148,7 @@ where
         classes_provider: C,
         storage_proofs_provider: S,
         virtual_block_executor: V,
+        config: RunnerConfig,
         contract_class_manager: ContractClassManager,
         block_id: BlockId,
     ) -> Self {
@@ -151,6 +156,7 @@ where
             classes_provider,
             storage_proofs_provider,
             virtual_block_executor,
+            config,
             contract_class_manager,
             block_id,
         }
@@ -164,10 +170,9 @@ where
         execution_data: VirtualBlockExecutionData,
         classes_provider: &C,
         storage_proofs_provider: &S,
+        storage_proof_config: &StorageProofConfig,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<OsHints, RunnerError> {
-        let mut execution_data = execution_data;
-
         // Extract chain info from block context.
         let chain_info = execution_data.base_block_info.block_context.chain_info();
         let os_chain_info = OsChainInfo {
@@ -181,7 +186,11 @@ where
         // Fetch classes and storage proofs in parallel.
         let (classes, storage_proofs) = tokio::join!(
             classes_provider.get_classes(&execution_data.executed_class_hashes),
-            storage_proofs_provider.get_storage_proofs(block_number, &execution_data)
+            storage_proofs_provider.get_storage_proofs(
+                block_number,
+                &execution_data,
+                storage_proof_config
+            )
         );
         let classes = classes?;
         let storage_proofs = storage_proofs?;
@@ -190,14 +199,19 @@ where
         let tx_execution_infos =
             execution_data.execution_outputs.into_iter().map(|output| output.0.into()).collect();
 
-        // Merge initial_reads with proof_state.
-        execution_data.initial_reads.extend(&storage_proofs.proof_state);
+        // The extended_initial_reads from storage proofs already has class_hashes, nonces,
+        // and storage values. We just need to add compiled class hashes from the classes provider.
+        let mut extended_initial_reads = storage_proofs.extended_initial_reads;
 
         // Add class hash to compiled class hash mappings from the classes provider.
-        execution_data
-            .initial_reads
+        extended_initial_reads
             .compiled_class_hashes
             .extend(&classes.class_hash_to_compiled_class_hash);
+
+        // Must clear declared_contracts: the OS calls `update_cache` with an empty class map
+        // (it receives compiled classes separately in `compiled_classes`), which would fail
+        // an assertion if declared_contracts is non-empty.
+        extended_initial_reads.declared_contracts.clear();
 
         // Assemble VirtualOsBlockInput.
         let virtual_os_block_input = VirtualOsBlockInput {
@@ -214,7 +228,7 @@ where
             transactions: txs,
             tx_execution_infos,
             block_info: execution_data.base_block_info.block_context.block_info().clone(),
-            initial_reads: execution_data.initial_reads,
+            initial_reads: extended_initial_reads,
             base_block_hash: execution_data.base_block_info.base_block_hash,
             base_block_header_commitments: execution_data
                 .base_block_info
@@ -236,8 +250,6 @@ where
     /// 4. Runs the virtual OS.
     ///
     /// Consumes the runner since the virtual block executor is single-use per block.
-    ///
-    /// Returns the virtual OS output containing the Cairo PIE and L2 to L1 messages.
     pub async fn run_virtual_os(
         self,
         txs: Vec<(InvokeTransaction, TransactionHash)>,
@@ -247,6 +259,7 @@ where
             classes_provider,
             storage_proofs_provider,
             virtual_block_executor,
+            config,
             contract_class_manager,
             block_id,
         } = self;
@@ -270,6 +283,7 @@ where
             execution_data,
             &classes_provider,
             &storage_proofs_provider,
+            &config.storage_proof_config,
             txs_for_hints,
         )
         .await?;
@@ -283,6 +297,25 @@ where
 }
 
 // ================================================================================================
+// VirtualSnosRunner Trait
+// ================================================================================================
+
+/// Trait for runners that can execute the virtual Starknet OS.
+///
+/// This trait abstracts the execution of transactions through the virtual OS,
+/// allowing different runner implementations (RPC-based, mock, etc.) to be used
+/// interchangeably.
+#[async_trait]
+pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
+    /// Runs the Starknet virtual OS with the given transactions on top of the specified block.
+    async fn run_virtual_os(
+        &self,
+        block_id: BlockId,
+        txs: Vec<(InvokeTransaction, TransactionHash)>,
+    ) -> Result<RunnerOutput, RunnerError>;
+}
+
+// ================================================================================================
 // RPC Runner Factory
 // ================================================================================================
 
@@ -292,7 +325,6 @@ where
 /// - `Arc<StateReaderAndContractManager<RpcStateReader>>` for class fetching.
 /// - `RpcStorageProofsProvider` for storage proofs.
 /// - `RpcVirtualBlockExecutor` for transaction execution.
-#[allow(dead_code)]
 pub(crate) type RpcRunner = Runner<
     Arc<StateReaderAndContractManager<RpcStateReader>>,
     RpcStorageProofsProvider,
@@ -326,6 +358,8 @@ pub(crate) struct RpcRunnerFactory {
     chain_id: ChainId,
     /// Contract class manager for caching compiled classes.
     contract_class_manager: ContractClassManager,
+    /// Configuration for the runner.
+    runner_config: RunnerConfig,
 }
 
 impl RpcRunnerFactory {
@@ -334,15 +368,13 @@ impl RpcRunnerFactory {
         node_url: Url,
         chain_id: ChainId,
         contract_class_manager: ContractClassManager,
+        runner_config: RunnerConfig,
     ) -> Self {
-        Self { node_url, chain_id, contract_class_manager }
+        Self { node_url, chain_id, contract_class_manager, runner_config }
     }
 
     /// Creates a runner configured for the given block ID.
-    ///
-    /// The runner is ready to execute transactions on top of the specified block.
-    /// Each runner is single-use (consumed when `run_os` is called).
-    pub(crate) fn create_runner(&self, block_id: BlockId) -> RpcRunner {
+    fn create_runner(&self, block_id: BlockId) -> RpcRunner {
         // Create the virtual block executor for this block.
         let virtual_block_executor = RpcVirtualBlockExecutor::new(
             self.node_url.to_string(),
@@ -371,8 +403,21 @@ impl RpcRunnerFactory {
             state_reader_and_contract_manager,
             storage_proofs_provider,
             virtual_block_executor,
+            self.runner_config.clone(),
             self.contract_class_manager.clone(),
             block_id,
         )
+    }
+}
+
+#[async_trait]
+impl VirtualSnosRunner for RpcRunnerFactory {
+    async fn run_virtual_os(
+        &self,
+        block_id: BlockId,
+        txs: Vec<(InvokeTransaction, TransactionHash)>,
+    ) -> Result<RunnerOutput, RunnerError> {
+        let runner = self.create_runner(block_id);
+        runner.run_virtual_os(txs).await
     }
 }
