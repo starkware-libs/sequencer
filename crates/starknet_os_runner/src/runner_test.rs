@@ -25,6 +25,11 @@ use crate::test_utils::{
 #[tokio::test(flavor = "multi_thread")]
 #[ignore] // Requires RPC access.
 async fn test_run_os_with_balance_of_transaction() {
+    if std::env::var("SEPOLIA_NODE_URL").is_err() {
+        eprintln!("Skipping test_run_os_with_balance_of_transaction: SEPOLIA_NODE_URL not set.");
+        return;
+    }
+
     // Creates an invoke transaction that calls `balanceOf` on the STRK token.
     let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS_SEPOLIA).unwrap();
     let account = ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap();
@@ -61,6 +66,11 @@ async fn test_run_os_with_balance_of_transaction() {
 #[tokio::test(flavor = "multi_thread")]
 #[ignore] // Requires RPC access.
 async fn test_run_os_with_transfer_transaction() {
+    if std::env::var("SEPOLIA_NODE_URL").is_err() {
+        eprintln!("Skipping test_run_os_with_transfer_transaction: SEPOLIA_NODE_URL not set.");
+        return;
+    }
+
     let strk_token = ContractAddress::try_from(STRK_TOKEN_ADDRESS_SEPOLIA).unwrap();
     let account = ContractAddress::try_from(DUMMY_ACCOUNT_ADDRESS).unwrap();
     let recipient = contract_address!("0x123");

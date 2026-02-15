@@ -31,6 +31,9 @@ async fn test_prove_cairo_pie_10_transfers() {
         CairoPie::read_zip_file(&cairo_pie_path).expect("Failed to read Cairo PIE from zip file");
 
     // Prove the Cairo PIE.
+    #[cfg(feature = "in_memory_proving")]
+    let output = prove_in_memory(cairo_pie).expect("Failed to prove Cairo PIE");
+    #[cfg(not(feature = "in_memory_proving"))]
     let output = prove(cairo_pie).await.expect("Failed to prove Cairo PIE");
 
     // Verify the proof.

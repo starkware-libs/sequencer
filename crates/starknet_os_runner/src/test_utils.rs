@@ -53,9 +53,10 @@ pub fn get_rpc_url() -> String {
     env::var("NODE_URL").expect("NODE_URL environment variable required for this test")
 }
 
-/// Gets the Sepolia RPC URL (defaults to local node, can be overridden via SEPOLIA_NODE_URL).
+/// Gets the Sepolia RPC URL from the environment (SEPOLIA_NODE_URL).
 pub fn get_sepolia_rpc_url() -> String {
-    env::var("SEPOLIA_NODE_URL").unwrap_or_else(|_| "http://localhost:9546/rpc/v0_10".to_string())
+    env::var("SEPOLIA_NODE_URL")
+        .expect("SEPOLIA_NODE_URL environment variable required for Sepolia tests")
 }
 
 // ================================================================================================
