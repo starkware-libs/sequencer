@@ -67,10 +67,11 @@ define_metrics!(
             "Duration of the read operation per block in milliseconds (cumulative)",
             init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             AVERAGE_READ_RATE,
             "average_read_rate",
-            "Reads per second average over a block"
+            "Reads per second average over a block (cumulative)",
+            init = 0
         },
         MetricCounter {
             WRITE_DURATION_PER_BLOCK,
@@ -78,10 +79,11 @@ define_metrics!(
             "Duration of the write operation per block in milliseconds (cumulative)",
             init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             AVERAGE_WRITE_RATE,
             "average_write_rate",
-            "Writes per second average over a block"
+            "Writes per second average over a block (cumulative)",
+            init = 0
         },
         MetricCounter {
             COMPUTE_DURATION_PER_BLOCK,
@@ -89,10 +91,11 @@ define_metrics!(
             "Duration of the compute operation per block in milliseconds (cumulative)",
             init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             AVERAGE_COMPUTE_RATE,
             "average_compute_rate",
-            "Compute written entries per second average over a block"
+            "Compute written entries per second average over a block (cumulative)",
+            init = 0
         },
     },
 );
