@@ -382,38 +382,42 @@ fn verify_decision_reached_response(
 
 fn assert_proposal_metrics(
     metrics: &str,
-    expected_started: u64,
-    expected_succeeded: u64,
-    expected_failed: u64,
-    expected_aborted: u64,
+    expected_started_count: u64,
+    expected_succeeded_count: u64,
+    expected_failed_count: u64,
+    expected_aborted_count: u64,
 ) {
-    let n_expected_active_proposals =
-        expected_started - (expected_succeeded + expected_failed + expected_aborted);
+    let n_expected_active_proposals = expected_started_count
+        - (expected_succeeded_count + expected_failed_count + expected_aborted_count);
     assert!(n_expected_active_proposals <= 1);
-    let started = PROPOSAL_STARTED.parse_numeric_metric::<u64>(metrics);
-    let succeeded = PROPOSAL_SUCCEEDED.parse_numeric_metric::<u64>(metrics);
-    let failed = PROPOSAL_FAILED.parse_numeric_metric::<u64>(metrics);
-    let aborted = PROPOSAL_ABORTED.parse_numeric_metric::<u64>(metrics);
+    let actual_started_count = PROPOSAL_STARTED.parse_numeric_metric::<u64>(metrics);
+    let actual_succeeded_count = PROPOSAL_SUCCEEDED.parse_numeric_metric::<u64>(metrics);
+    let actual_failed_count = PROPOSAL_FAILED.parse_numeric_metric::<u64>(metrics);
+    let actual_aborted_count = PROPOSAL_ABORTED.parse_numeric_metric::<u64>(metrics);
 
     assert_eq!(
-        started,
-        Some(expected_started),
-        "unexpected value proposal_started, expected {expected_started} got {started:?}",
+        actual_started_count,
+        Some(expected_started_count),
+        "unexpected value proposal_started, expected {expected_started_count} got \
+         {actual_started_count:?}",
     );
     assert_eq!(
-        succeeded,
-        Some(expected_succeeded),
-        "unexpected value proposal_succeeded, expected {expected_succeeded} got {succeeded:?}",
+        actual_succeeded_count,
+        Some(expected_succeeded_count),
+        "unexpected value proposal_succeeded, expected {expected_succeeded_count} got \
+         {actual_succeeded_count:?}",
     );
     assert_eq!(
-        failed,
-        Some(expected_failed),
-        "unexpected value proposal_failed, expected {expected_failed} got {failed:?}",
+        actual_failed_count,
+        Some(expected_failed_count),
+        "unexpected value proposal_failed, expected {expected_failed_count} got \
+         {actual_failed_count:?}",
     );
     assert_eq!(
-        aborted,
-        Some(expected_aborted),
-        "unexpected value proposal_aborted, expected {expected_aborted} got {aborted:?}",
+        actual_aborted_count,
+        Some(expected_aborted_count),
+        "unexpected value proposal_aborted, expected {expected_aborted_count} got \
+         {actual_aborted_count:?}",
     );
 }
 

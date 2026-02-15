@@ -127,9 +127,9 @@ impl NonceManager {
 
     /// Decrements the nonce of the account, unless it is zero.
     pub fn rollback(&mut self, account_address: ContractAddress) {
-        let current = *self.next_nonce.get(&account_address).unwrap_or(&Felt::default());
-        if current != Felt::ZERO {
-            self.next_nonce.insert(account_address, current - 1);
+        let current_nonce = *self.next_nonce.get(&account_address).unwrap_or(&Felt::default());
+        if current_nonce != Felt::ZERO {
+            self.next_nonce.insert(account_address, current_nonce - 1);
         }
     }
 }
