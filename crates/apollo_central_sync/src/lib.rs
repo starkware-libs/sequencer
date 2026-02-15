@@ -738,6 +738,63 @@ fn verify_parent_block_hash(
 
     Ok(())
 }
+
+/// Helper function to read header_marker using RW transaction.
+/// Performs blocking I/O in a separate thread to avoid holding non-Send guards across await.
+async fn get_header_marker_rw(
+    writer: &Arc<Mutex<StorageWriter>>,
+) -> Result<BlockNumber, StateSyncError> {
+    let writer = writer.clone();
+    spawn_blocking(move || {
+        let mut writer_guard = writer.blocking_lock();
+        let txn = writer_guard.begin_rw_txn()?;
+        Ok(txn.get_header_marker()?)
+    })
+    .await?
+}
+
+/// Helper function to read state_marker using RW transaction.
+/// Performs blocking I/O in a separate thread to avoid holding non-Send guards across await.
+async fn get_state_marker_rw(
+    writer: &Arc<Mutex<StorageWriter>>,
+) -> Result<BlockNumber, StateSyncError> {
+    let writer = writer.clone();
+    spawn_blocking(move || {
+        let mut writer_guard = writer.blocking_lock();
+        let txn = writer_guard.begin_rw_txn()?;
+        Ok(txn.get_state_marker()?)
+    })
+    .await?
+}
+
+/// Helper function to read markers for compiled classes using RW transaction.
+/// Performs blocking I/O in a separate thread to avoid holding non-Send guards across await.
+async fn get_compiled_class_markers_rw(
+    writer: &Arc<Mutex<StorageWriter>>,
+) -> Result<(BlockNumber, BlockNumber, BlockNumber), StateSyncError> {
+    let writer = writer.clone();
+    spawn_blocking(move || {
+        let mut writer_guard = writer.blocking_lock();
+        let txn = writer_guard.begin_rw_txn()?;
+        let mut from = txn.get_compiled_class_marker()?;
+        let state_marker = txn.get_state_marker()?;
+        let compiler_backward_compatibility_marker =
+            txn.get_compiler_backward_compatibility_marker()?;
+        // Avoid starting streams from blocks without declared classes.
+        while from < state_marker {
+            let state_diff = txn
+                .get_state_diff(from)?
+                .expect("Expecting to have state diff up to the marker.");
+            if state_diff.class_hash_to_compiled_class_hash.is_empty() {
+                from = from.unchecked_next();
+            } else {
+                break;
+            }
+        }
+        Ok((from, state_marker, compiler_backward_compatibility_marker))
+    })
+    .await?
+}
 // TODO(dvir): consider gathering in a single pending argument instead.
 #[allow(clippy::too_many_arguments)]
 fn stream_new_blocks<
@@ -759,13 +816,7 @@ fn stream_new_blocks<
     try_stream! {
             loop {
             // Use RW transaction to read header_marker (sees uncommitted data from batching).
-            let header_marker = {
-                let mut writer_guard = writer.lock().await;
-                let txn = writer_guard.begin_rw_txn()?;
-                let marker = txn.get_header_marker()?;
-                drop(txn);
-                marker
-            };
+            let header_marker = get_header_marker_rw(&writer).await?;
             let latest_central_block = central_source.get_latest_block().await?;
             *shared_highest_block.write().await = latest_central_block;
             let central_block_marker = latest_central_block.map_or(
@@ -775,13 +826,7 @@ fn stream_new_blocks<
             if header_marker == central_block_marker {
                 // Only if the node have the last block and state (without casms), sync pending data.
                 // Use RW transaction to read state_marker (sees uncommitted data from batching).
-                let state_marker = {
-                    let mut writer_guard = writer.lock().await;
-                    let txn = writer_guard.begin_rw_txn()?;
-                    let marker = txn.get_state_marker()?;
-                    drop(txn);
-                    marker
-                };
+                let state_marker = get_state_marker_rw(&writer).await?;
                 if collect_pending_data && state_marker == header_marker{
                     // Here is the only place we update the pending data.
                     debug!("Start polling for pending data of block {:?}.", header_marker);
@@ -822,14 +867,8 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
     try_stream! {
         loop {
             // Use RW transaction to read markers (sees uncommitted data from batching).
-            let (state_marker, last_block_number) = {
-                let mut writer_guard = writer.lock().await;
-                let txn = writer_guard.begin_rw_txn()?;
-                let state_marker = txn.get_state_marker()?;
-                let header_marker = txn.get_header_marker()?;
-                drop(txn);
-                (state_marker, header_marker)
-            };
+            let state_marker = get_state_marker_rw(&writer).await?;
+            let last_block_number = get_header_marker_rw(&writer).await?;
             if state_marker == last_block_number {
                 trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(block_propagation_sleep_duration).await;
@@ -915,24 +954,8 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
     try_stream! {
         loop {
             // Use RW transaction to read markers (sees uncommitted data from batching).
-            let (from, state_marker, compiler_backward_compatibility_marker) = {
-                let mut writer_guard = writer.lock().await;
-                let txn = writer_guard.begin_rw_txn()?;
-                let mut from = txn.get_compiled_class_marker()?;
-                let state_marker = txn.get_state_marker()?;
-                let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
-                // Avoid starting streams from blocks without declared classes.
-                while from < state_marker {
-                    let state_diff = txn.get_state_diff(from)?.expect("Expecting to have state diff up to the marker.");
-                    if state_diff.class_hash_to_compiled_class_hash.is_empty() {
-                        from = from.unchecked_next();
-                    }
-                    else {
-                        break;
-                    }
-                }
-                (from, state_marker, compiler_backward_compatibility_marker)
-            };
+            let (from, state_marker, compiler_backward_compatibility_marker) =
+                get_compiled_class_markers_rw(&writer).await?;
 
             if from == state_marker {
                 debug!(
