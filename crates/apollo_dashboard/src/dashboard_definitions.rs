@@ -41,6 +41,7 @@ use crate::panels::mempool_p2p::get_mempool_p2p_row;
 use crate::panels::pod_metrics::get_pod_metrics_row;
 use crate::panels::reverts::get_reverts_row;
 use crate::panels::sierra_compiler::get_compile_to_casm_row;
+use crate::panels::staking::get_staking_row;
 use crate::panels::state_sync::get_state_sync_row;
 use crate::panels::storage::get_storage_row;
 use crate::panels::tokio::get_tokio_row;
@@ -84,6 +85,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
         vec![
             get_overview_row(),
             get_consensus_row(),
+            get_staking_row(),
             get_cende_row(),
             get_batcher_row(),
             get_committer_row(),
