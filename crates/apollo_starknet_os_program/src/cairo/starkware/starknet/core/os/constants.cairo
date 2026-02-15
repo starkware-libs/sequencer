@@ -63,6 +63,8 @@ const ALIAS_CONTRACT_ADDRESS = 0x2;
 const RESERVED_CONTRACT_ADDRESS = 0x3;
 // The block number -> block hash mapping is written for the current block number minus this number.
 const STORED_BLOCK_HASH_BUFFER = 10;
+// Maximum age (in blocks) for proof blocks in client-side proving.
+const CLIENT_SIDE_PROVING_MAX_BLOCK_AGE = 300000;
 
 // Allowed virtual OS program hashes for client-side proving.
 const ALLOWED_VIRTUAL_OS_PROGRAM_HASHES_0 = (
