@@ -136,9 +136,7 @@ class BlockRangeDefaults:
 class SleepConfig:
     """Sleep/delay settings for block streaming and special transaction pacing."""
 
-    sleep_between_blocks_seconds: float = 2.0
-    initial_slow_blocks_count: int = 10
-    extra_sleep_time_seconds: float = 3.0
+    producer_startup_sleep_seconds: float = 10.0
     deploy_account_sleep_time_seconds: float = 2.0
 
 
