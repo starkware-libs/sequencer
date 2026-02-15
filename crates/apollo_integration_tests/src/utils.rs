@@ -31,12 +31,8 @@ use apollo_consensus_orchestrator_config::config::{
 };
 use apollo_gateway_config::config::{
     GatewayConfig,
-<<<<<<< HEAD
-    ProofArchiveWriterConfig,
-||||||| 63dac1e8a4
-=======
     GatewayStaticConfig,
->>>>>>> origin/main-v0.14.1-committer
+    ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
@@ -256,20 +252,10 @@ pub fn create_node_config(
         create_http_server_config(available_ports.get_next_local_host_socket());
     let class_manager_config =
         create_class_manager_config(storage_config.class_manager_storage_config);
-<<<<<<< HEAD
     let proof_manager_config = storage_config.proof_manager_config.clone();
-    state_sync_config.storage_config = storage_config.state_sync_storage_config;
-    state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
-    let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
-||||||| 63dac1e8a4
-    state_sync_config.storage_config = storage_config.state_sync_storage_config;
-    state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
-    let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
-=======
     state_sync_config.static_config.storage_config = storage_config.state_sync_storage_config;
     state_sync_config.static_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.static_config.rpc_config.starknet_url.clone();
->>>>>>> origin/main-v0.14.1-committer
 
     consensus_manager_config.consensus_manager_config.static_config.storage_config =
         storage_config.consensus_storage_config.clone();
@@ -700,22 +686,6 @@ pub fn create_gateway_config(
     let proof_archive_writer_config = ProofArchiveWriterConfig::create_for_testing();
 
     GatewayConfig {
-<<<<<<< HEAD
-        stateless_tx_validator_config,
-        stateful_tx_validator_config,
-        contract_class_manager_config,
-        chain_info,
-        block_declare: false,
-        authorized_declarer_accounts: None,
-        proof_archive_writer_config,
-||||||| 63dac1e8a4
-        stateless_tx_validator_config,
-        stateful_tx_validator_config,
-        contract_class_manager_config,
-        chain_info,
-        block_declare: false,
-        authorized_declarer_accounts: None,
-=======
         static_config: GatewayStaticConfig {
             stateless_tx_validator_config,
             stateful_tx_validator_config,
@@ -723,8 +693,8 @@ pub fn create_gateway_config(
             chain_info,
             block_declare: false,
             authorized_declarer_accounts: None,
+            proof_archive_writer_config,
         },
->>>>>>> origin/main-v0.14.1-committer
     }
 }
 

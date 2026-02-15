@@ -104,12 +104,8 @@ pub struct ConsensusManagerArgs {
     pub signature_manager_client: SharedSignatureManagerClient,
     pub config_manager_client: SharedConfigManagerClient,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-<<<<<<< HEAD
     pub proof_manager_client: SharedProofManagerClient,
-||||||| 63dac1e8a4
-=======
     pub committee_provider: Arc<dyn CommitteeProvider>,
->>>>>>> origin/main-v0.14.1-committer
 }
 
 impl ConsensusManager {
@@ -370,10 +366,6 @@ impl ConsensusManager {
     }
 }
 
-<<<<<<< HEAD
-#[allow(clippy::too_many_arguments)]
-||||||| 63dac1e8a4
-=======
 /// Creates a committee provider from consensus manager config and clients.
 pub fn create_committee_provider(
     config: &ConsensusManagerConfig,
@@ -399,7 +391,6 @@ pub fn create_committee_provider(
 }
 
 #[allow(clippy::too_many_arguments)]
->>>>>>> origin/main-v0.14.1-committer
 pub fn create_consensus_manager(
     config: ConsensusManagerConfig,
     batcher_client: SharedBatcherClient,

@@ -159,33 +159,9 @@ impl BlockExecutionArtifacts {
             &block_info.starknet_version,
         )
         .await;
-<<<<<<< HEAD
+        record_block_commitment_measurements(measurements);
         let partial_block_hash_components =
             PartialBlockHashComponents::new(&block_info, header_commitments);
-||||||| 63dac1e8a4
-        let partial_block_hash_components = PartialBlockHashComponents {
-            header_commitments,
-            block_number: block_info.block_number,
-            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
-            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
-            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
-            sequencer: SequencerContractAddress(block_info.sequencer_address),
-            timestamp: block_info.block_timestamp,
-            starknet_version,
-        };
-=======
-        record_block_commitment_measurements(measurements);
-        let partial_block_hash_components = PartialBlockHashComponents {
-            header_commitments,
-            block_number: block_info.block_number,
-            l1_gas_price: block_info.gas_prices.l1_gas_price_per_token(),
-            l1_data_gas_price: block_info.gas_prices.l1_data_gas_price_per_token(),
-            l2_gas_price: block_info.gas_prices.l2_gas_price_per_token(),
-            sequencer: SequencerContractAddress(block_info.sequencer_address),
-            timestamp: block_info.block_timestamp,
-            starknet_version,
-        };
->>>>>>> origin/main-v0.14.1-committer
         let l2_gas_used = execution_data.l2_gas_used();
         Self {
             execution_data,
