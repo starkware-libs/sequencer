@@ -35,7 +35,7 @@ use apollo_storage::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use apollo_storage::db::DbError;
 use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::{StorageError, StorageReader, StorageWriter};
+use apollo_storage::{StorageError, StorageReader, StorageTxnRW, StorageWriter};
 use async_stream::try_stream;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
@@ -261,6 +261,7 @@ impl<
         }
         let block_stream = stream_new_blocks(
             self.reader.clone(),
+            self.writer.clone(),
             self.central_source.clone(),
             self.pending_source.clone(),
             self.shared_highest_block.clone(),
@@ -273,14 +274,14 @@ impl<
         )
         .fuse();
         let state_diff_stream = stream_new_state_diffs(
-            self.reader.clone(),
+            self.writer.clone(),
             self.central_source.clone(),
             self.config.block_propagation_sleep_duration,
             self.config.state_updates_max_stream_size,
         )
         .fuse();
         let compiled_class_stream = stream_new_compiled_classes(
-            self.reader.clone(),
+            self.writer.clone(),
             self.central_source.clone(),
             self.config.block_propagation_sleep_duration,
             // TODO(yair): separate config param.
@@ -382,18 +383,20 @@ impl<
         block: Block,
         signature: BlockSignature,
     ) -> StateSyncResult {
-        // To prevent cases where central has forked under our feet, check incoming block's parent
-        // hash against the parent hash stored in the storage.
-        self.verify_parent_block_hash(block_number, &block)?;
-
         debug!("Storing block number: {block_number}, block header: {:?}", block.header);
         trace!("Block data: {block:#?}, signature: {signature:?}");
         let num_txs =
             block.body.transactions.len().try_into().expect("Failed to convert usize to u64");
         let timestamp = block.header.block_header_without_hash.timestamp;
+        // Capture expected parent hash for verification inside the RW transaction.
+        let expected_parent_hash = block.header.block_header_without_hash.parent_hash;
         self.perform_storage_writes(move |writer| {
-            let mut txn = writer
-                .begin_rw_txn()?
+            let txn = writer.begin_rw_txn()?;
+
+            // Verify parent block hash using RW transaction (sees uncommitted data from batching).
+            verify_parent_block_hash(&txn, block_number, expected_parent_hash)?;
+
+            let mut txn = txn
                 .append_header(block_number, &block.header)?
                 .append_block_signature(block_number, &signature)?
                 .append_body(block_number, block.body)?;
@@ -684,46 +687,6 @@ impl<
         .await
     }
 
-    // Compares the block's parent hash to the stored block.
-    fn verify_parent_block_hash(
-        &self,
-        block_number: BlockNumber,
-        block: &Block,
-    ) -> StateSyncResult {
-        let prev_block_number = match block_number.prev() {
-            None => return Ok(()),
-            Some(bn) => bn,
-        };
-        let prev_hash = self
-            .reader
-            .begin_ro_txn()?
-            .get_block_header(prev_block_number)?
-            .ok_or(StorageError::DBInconsistency {
-                msg: format!(
-                    "Missing block {prev_block_number} in the storage (for verifying block \
-                     {block_number}).",
-                ),
-            })?
-            .block_hash;
-
-        if prev_hash != block.header.block_header_without_hash.parent_hash {
-            // Block parent hash mismatch, log and restart sync loop.
-            warn!(
-                "Detected reorg in central. block number {block_number} had hash {prev_hash} but \
-                 the next block's parent hash is {}.",
-                block.header.block_header_without_hash.parent_hash
-            );
-            CENTRAL_SYNC_FORKS_FROM_FEEDER.increment(1);
-            return Err(StateSyncError::ParentBlockHashMismatch {
-                block_number,
-                expected_parent_block_hash: block.header.block_header_without_hash.parent_hash,
-                stored_parent_block_hash: prev_hash,
-            });
-        }
-
-        Ok(())
-    }
-
     async fn perform_storage_writes<
         F: FnOnce(&mut StorageWriter) -> Result<(), StateSyncError> + Send + 'static,
     >(
@@ -734,6 +697,47 @@ impl<
         spawn_blocking(move || f(&mut (writer.blocking_lock()))).await?
     }
 }
+
+/// Verifies that the parent block hash matches the expected hash.
+/// Uses an RW transaction to see uncommitted data from batched writes.
+///
+/// Returns Ok(()) if verification passes or if this is the first block (no parent).
+/// Returns an error if the parent hash doesn't match.
+fn verify_parent_block_hash(
+    txn: &StorageTxnRW<'_>,
+    block_number: BlockNumber,
+    expected_parent_hash: BlockHash,
+) -> Result<(), StateSyncError> {
+    let prev_block_number = match block_number.prev() {
+        None => return Ok(()),
+        Some(bn) => bn,
+    };
+
+    let prev_hash = txn
+        .get_block_header(prev_block_number)?
+        .ok_or(StorageError::DBInconsistency {
+            msg: format!(
+                "Missing block {prev_block_number} in the storage (for verifying block \
+                 {block_number}).",
+            ),
+        })?
+        .block_hash;
+
+    if prev_hash != expected_parent_hash {
+        warn!(
+            "Detected reorg in central. block number {block_number} had hash {prev_hash} but \
+             the next block's parent hash is {expected_parent_hash}.",
+        );
+        CENTRAL_SYNC_FORKS_FROM_FEEDER.increment(1);
+        return Err(StateSyncError::ParentBlockHashMismatch {
+            block_number,
+            expected_parent_block_hash: expected_parent_hash,
+            stored_parent_block_hash: prev_hash,
+        });
+    }
+
+    Ok(())
+}
 // TODO(dvir): consider gathering in a single pending argument instead.
 #[allow(clippy::too_many_arguments)]
 fn stream_new_blocks<
@@ -741,6 +745,7 @@ fn stream_new_blocks<
     TPendingSource: PendingSourceTrait + Sync + Send + 'static,
 >(
     reader: StorageReader,
+    writer: Arc<Mutex<StorageWriter>>,
     central_source: Arc<TCentralSource>,
     pending_source: Arc<TPendingSource>,
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
@@ -753,7 +758,14 @@ fn stream_new_blocks<
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
             loop {
-            let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
+            // Use RW transaction to read header_marker (sees uncommitted data from batching).
+            let header_marker = {
+                let mut writer_guard = writer.lock().await;
+                let txn = writer_guard.begin_rw_txn()?;
+                let marker = txn.get_header_marker()?;
+                drop(txn);
+                marker
+            };
             let latest_central_block = central_source.get_latest_block().await?;
             *shared_highest_block.write().await = latest_central_block;
             let central_block_marker = latest_central_block.map_or(
@@ -762,7 +774,15 @@ fn stream_new_blocks<
             CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.set_lossy(central_block_marker.0);
             if header_marker == central_block_marker {
                 // Only if the node have the last block and state (without casms), sync pending data.
-                if collect_pending_data && reader.begin_ro_txn()?.get_state_marker()? == header_marker{
+                // Use RW transaction to read state_marker (sees uncommitted data from batching).
+                let state_marker = {
+                    let mut writer_guard = writer.lock().await;
+                    let txn = writer_guard.begin_rw_txn()?;
+                    let marker = txn.get_state_marker()?;
+                    drop(txn);
+                    marker
+                };
+                if collect_pending_data && state_marker == header_marker{
                     // Here is the only place we update the pending data.
                     debug!("Start polling for pending data of block {:?}.", header_marker);
                     sync_pending_data(
@@ -794,17 +814,22 @@ fn stream_new_blocks<
 }
 
 fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
-    reader: StorageReader,
+    writer: Arc<Mutex<StorageWriter>>,
     central_source: Arc<TCentralSource>,
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
-            let txn = reader.begin_ro_txn()?;
-            let state_marker = txn.get_state_marker()?;
-            let last_block_number = txn.get_header_marker()?;
-            drop(txn);
+            // Use RW transaction to read markers (sees uncommitted data from batching).
+            let (state_marker, last_block_number) = {
+                let mut writer_guard = writer.lock().await;
+                let txn = writer_guard.begin_rw_txn()?;
+                let state_marker = txn.get_state_marker()?;
+                let header_marker = txn.get_header_marker()?;
+                drop(txn);
+                (state_marker, header_marker)
+            };
             if state_marker == last_block_number {
                 trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(block_propagation_sleep_duration).await;
@@ -881,7 +906,7 @@ impl StateSync {
 }
 
 fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>(
-    reader: StorageReader,
+    writer: Arc<Mutex<StorageWriter>>,
     central_source: Arc<TCentralSource>,
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
@@ -889,21 +914,25 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
-            let txn = reader.begin_ro_txn()?;
-            let mut from = txn.get_compiled_class_marker()?;
-            let state_marker = txn.get_state_marker()?;
-            let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
-            // Avoid starting streams from blocks without declared classes.
-            while from < state_marker {
-                let state_diff = txn.get_state_diff(from)?.expect("Expecting to have state diff up to the marker.");
-                if state_diff.class_hash_to_compiled_class_hash.is_empty() {
-                    from = from.unchecked_next();
+            // Use RW transaction to read markers (sees uncommitted data from batching).
+            let (from, state_marker, compiler_backward_compatibility_marker) = {
+                let mut writer_guard = writer.lock().await;
+                let txn = writer_guard.begin_rw_txn()?;
+                let mut from = txn.get_compiled_class_marker()?;
+                let state_marker = txn.get_state_marker()?;
+                let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
+                // Avoid starting streams from blocks without declared classes.
+                while from < state_marker {
+                    let state_diff = txn.get_state_diff(from)?.expect("Expecting to have state diff up to the marker.");
+                    if state_diff.class_hash_to_compiled_class_hash.is_empty() {
+                        from = from.unchecked_next();
+                    }
+                    else {
+                        break;
+                    }
                 }
-                else {
-                    break;
-                }
-            }
-            drop(txn); // Drop txn so we don't unnecessarily hold it open while sleeping.
+                (from, state_marker, compiler_backward_compatibility_marker)
+            };
 
             if from == state_marker {
                 debug!(
