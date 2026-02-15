@@ -43,7 +43,7 @@ class SequencerTiming:
     """Polling defaults used by the manager."""
 
     poll_interval_seconds: float = 2.0
-    scale_timeout_seconds: float = 1000.0
+    scale_timeout_seconds: float = 3000.0
 
 
 class SequencerManager:
@@ -224,7 +224,7 @@ class SequencerManager:
     def wait_for_synced_block_at_least(
         self,
         target_block: int,
-        timeout_seconds: float = 1000.0,
+        timeout_seconds: float = 3000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
         pod_name: Optional[str] = None,
