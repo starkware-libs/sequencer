@@ -16,9 +16,13 @@ use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
-use starknet_api::hash::{HashOutput, PoseidonHash};
+#[cfg(any(feature = "testing", test))]
+use starknet_api::hash::HashOutput;
+use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_committer::block_committer::commit::{BlockCommitmentResult, CommitBlockTrait};
+#[cfg(any(feature = "testing", test))]
+use starknet_committer::block_committer::commit::BlockCommitmentResult;
+use starknet_committer::block_committer::commit::CommitBlockTrait;
 use starknet_committer::block_committer::input::Input;
 use starknet_committer::block_committer::measurements_util::{
     Action,
@@ -26,10 +30,11 @@ use starknet_committer::block_committer::measurements_util::{
     MeasurementsTrait,
     SingleBlockMeasurements,
 };
+#[cfg(any(feature = "testing", test))]
+use starknet_committer::db::forest_trait::ForestReader;
 use starknet_committer::db::forest_trait::{
     EmptyInitialReadContext,
     ForestMetadataType,
-    ForestReader,
     ForestStorageWithEmptyReadContext,
 };
 use starknet_committer::db::index_db::db::IndexDb;
@@ -39,6 +44,7 @@ use starknet_committer::db::serde_db_utils::{
     DbBlockNumber,
 };
 use starknet_committer::forest::filled_forest::FilledForest;
+#[cfg(any(feature = "testing", test))]
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia_storage::map_storage::CachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
@@ -66,8 +72,10 @@ use crate::metrics::{
 mod committer_test;
 
 // TODO(Yoav): Move this to committer_test.rs.
+#[cfg(any(feature = "testing", test))]
 pub struct CommitBlockMock;
 
+#[cfg(any(feature = "testing", test))]
 #[async_trait]
 impl CommitBlockTrait for CommitBlockMock {
     /// Sets the class trie root hash to the first class hash in the state diff (sorted
