@@ -1370,7 +1370,7 @@ pub async fn create_batcher(
         worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
-    let mut storage_writer = Box::new(storage_writer);
+    let storage_writer = Box::new(storage_writer);
     let transaction_converter = TransactionConverter::new(
         class_manager_client,
         config.static_config.storage.db_config.chain_id.clone(),
@@ -1379,7 +1379,6 @@ pub async fn create_batcher(
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config.static_config.commitment_manager_config,
         storage_reader.clone(),
-        &mut storage_writer,
         committer_client.clone(),
     )
     .await;

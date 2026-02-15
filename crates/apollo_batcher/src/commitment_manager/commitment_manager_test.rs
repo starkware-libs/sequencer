@@ -81,13 +81,12 @@ fn get_dummy_parent_hash_and_partial_block_hash_components(
 }
 
 async fn create_commitment_manager(
-    mut mock_dependencies: MockDependencies,
+    mock_dependencies: MockDependencies,
 ) -> (ApolloCommitmentManager, Arc<MockBatcherStorageReader>, Box<MockBatcherStorageWriter>) {
     let storage_reader = Arc::new(mock_dependencies.storage_reader);
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &mock_dependencies.batcher_config.static_config.commitment_manager_config,
         storage_reader.clone(),
-        &mut mock_dependencies.storage_writer,
         Arc::new(mock_dependencies.committer_client),
     )
     .await;
