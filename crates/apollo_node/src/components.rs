@@ -121,7 +121,14 @@ pub async fn create_node_components(
             let compiler_shared_client = clients
                 .get_sierra_compiler_shared_client()
                 .expect("Sierra Compiler client should be available");
-            Some(create_class_manager(class_manager_config.clone(), compiler_shared_client))
+            let config_manager_shared_client = clients
+                .get_config_manager_shared_client()
+                .expect("Config Manager client should be available");
+            Some(create_class_manager(
+                class_manager_config.clone(),
+                compiler_shared_client,
+                config_manager_shared_client,
+            ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
