@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
-use blockifier::execution::call_info::{CallInfo, CallInfoIter};
+use blockifier::execution::call_info::{CairoPrimitiveName, CallInfo, CallInfoIter};
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use serde::Serialize;
@@ -16,18 +16,23 @@ pub struct ResourcesMapping(pub HashMap<String, usize>);
 
 impl From<TransactionReceipt> for ResourcesMapping {
     fn from(receipt: TransactionReceipt) -> ResourcesMapping {
-        // TODO(AvivG): Consider reporting opcode instance counter in ResourcesMapping.
-        let vm_resources = &receipt.resources.computation.total_vm_resources().vm_resources;
+        let vm_resources = &receipt.resources.computation.total_vm_resources();
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
-            vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
+            vm_resources.vm_resources.total_n_steps()
+                + receipt.resources.computation.n_reverted_steps,
         )]);
-        resources.extend(
-            vm_resources
-                .prover_builtins()
-                .iter()
-                .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
-        );
+        resources.extend(vm_resources.prover_cairo_primitives().iter().map(
+            |(primitive, value)| {
+                let name = match primitive {
+                    CairoPrimitiveName::Builtin(builtin) => {
+                        builtin.to_str_with_suffix().to_string()
+                    }
+                    CairoPrimitiveName::Opcode(opcode) => format!("{opcode:?}").to_lowercase(),
+                };
+                (name, *value)
+            },
+        ));
 
         ResourcesMapping(resources)
     }
