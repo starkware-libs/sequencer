@@ -61,7 +61,7 @@ impl PendingSource {
             config.http_headers,
             node_version,
             config.retry_config,
-            false,
+            config.use_compression,
         )?;
 
         Ok(PendingSource { apollo_starknet_client: Arc::new(apollo_starknet_client) })

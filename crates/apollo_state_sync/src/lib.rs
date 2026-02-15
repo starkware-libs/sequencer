@@ -65,7 +65,7 @@ impl StateSync {
                     // node version.
                     "",
                     config.retry_config,
-                    false,
+                    config.use_compression,
                 )
                 .expect("Failed creating feeder gateway client"),
             );

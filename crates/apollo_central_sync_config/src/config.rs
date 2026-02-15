@@ -28,6 +28,7 @@ pub struct CentralSourceConfig {
     #[validate(range(min = 1))]
     pub class_cache_size: usize,
     pub retry_config: RetryConfig,
+    pub use_compression: bool,
 }
 
 impl Default for CentralSourceConfig {
@@ -46,6 +47,7 @@ impl Default for CentralSourceConfig {
                 retry_max_delay_millis: 30000,
                 max_retries: 10,
             },
+            use_compression: false,
         }
     }
 }
@@ -94,6 +96,12 @@ impl SerializeConfig for CentralSourceConfig {
                 "class_cache_size",
                 &self.class_cache_size,
                 "Size of class cache, must be a positive integer.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "use_compression",
+                &self.use_compression,
+                "Whether to use gzip compression for downloads from the feeder gateway.",
                 ParamPrivacyInput::Public,
             ),
         ]);
