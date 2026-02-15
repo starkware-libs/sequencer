@@ -1,9 +1,10 @@
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
 use apollo_class_manager_config::config::CachedClassStorageConfig;
 use apollo_class_manager_types::CachedClassStorageError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{ComponentType, ServerConfig};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -25,7 +26,16 @@ impl ClassHashStorage {
         let builder = FsClassStorageBuilderForTesting::default();
         let (_, config, _) =
             builder.with_existing_paths(path_prefix.path().to_path_buf(), PathBuf::new()).build();
-        Self::new(config.class_hash_storage_config, ServerConfig::default()).unwrap()
+        Self::new(
+            config.class_hash_storage_config,
+            ServerConfig::new(
+                IpAddr::from(Ipv4Addr::LOCALHOST),
+                0,
+                false,
+                ComponentType::ClassManager,
+            ),
+        )
+        .unwrap()
     }
 }
 

@@ -11,6 +11,7 @@ use apollo_reverts::RevertConfig;
 use apollo_rpc::RpcConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::{
+    ComponentType,
     StorageReaderServerDynamicConfig,
     StorageReaderServerStaticConfig,
 };
@@ -78,7 +79,9 @@ impl Default for StateSyncStaticConfig {
             network_config: Some(NetworkConfig { port: STATE_SYNC_PORT, ..Default::default() }),
             revert_config: RevertConfig::default(),
             rpc_config: RpcConfig::default(),
-            storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
+            storage_reader_server_static_config: StorageReaderServerStaticConfig::new(
+                ComponentType::StateSync,
+            ),
         }
     }
 }
