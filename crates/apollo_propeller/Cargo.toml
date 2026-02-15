@@ -20,6 +20,7 @@ reed-solomon-simd.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+unsigned-varint.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
