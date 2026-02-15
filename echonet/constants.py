@@ -18,12 +18,6 @@ STATE_BLOCK_HASH_SELECTOR = "0x382d83e3"  # stateBlockHash()
 # Value to use as the end block number if none is given, large enough to not stop in the middle.
 MAX_BLOCK_NUMBER: int = 1 << 200
 
-# Revert error patterns to ignore when extracting revert mappings.
-IGNORED_REVERT_PATTERNS = [
-    "attestation is out of window",
-    "attestation with wrong block hash",
-]
-
 # ---------------------------------------------------------------------------
 # Echonet config file locations / names
 # ---------------------------------------------------------------------------

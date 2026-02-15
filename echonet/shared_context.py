@@ -9,7 +9,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import ClassVar, Dict, List, Mapping, Optional, Set
 
-from echonet.constants import IGNORED_REVERT_PATTERNS
 from echonet.echonet_types import (
     BLOCK_STORE_TUNING,
     CONFIG,
@@ -96,15 +95,6 @@ class _TxErrorTracker:
     def record_echonet_revert_error(
         self, tx_hash: str, error: str, source_block_number: int
     ) -> None:
-        def matches_ignored_revert_error(revert_error: str) -> bool:
-            return any(pattern in revert_error.lower() for pattern in IGNORED_REVERT_PATTERNS)
-
-        # Ignore expected revert errors. Exclude from both mainnet and echonet reports.
-        if matches_ignored_revert_error(error):
-            if tx_hash in self.revert_errors_mainnet:
-                self.revert_errors_mainnet.pop(tx_hash, None)
-            return
-
         # If we already have a mainnet revert for this tx, treat as matched and drop it.
         if tx_hash in self.revert_errors_mainnet:
             self.revert_errors_mainnet.pop(tx_hash, None)
