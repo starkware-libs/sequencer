@@ -4656,8 +4656,7 @@ dependencies = [
 [[package]]
 name = "cairo-vm"
 version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93802c2d382cec1e5f50caec5db81f2a9ac8fe928d55b942e2d1cd395baa9e85"
+source = "git+https://github.com/heemankv/cairo-vm?branch=feat%2Fmemory-optimization-methods#ad957f2fcd6150cd62efb77355f7b26ca0baed61"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
@@ -12569,7 +12568,7 @@ dependencies = [
  "dashmap",
  "educe 0.5.11",
  "fnv",
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
  "hex",
  "indexmap 2.12.0",
  "itertools 0.12.1",
@@ -12627,7 +12626,7 @@ name = "stwo-constraint-framework"
 version = "0.1.1"
 source = "git+https://github.com/starkware-libs/stwo?rev=6b5c843#6b5c84396da9ce282dc6accb343dd7ef6d1b9966"
 dependencies = [
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",
