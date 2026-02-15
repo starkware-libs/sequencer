@@ -211,7 +211,10 @@ impl ExecutionSummary {
         use crate::fee::resources::{ComputationResources, MessageResources};
 
         let computation_resources = ComputationResources {
-            tx_vm_resources: self.charged_resources.vm_resources,
+            tx_vm_resources: ExtendedExecutionResources {
+                vm_resources: self.charged_resources.vm_resources,
+                opcode_instance_counter: Default::default(),
+            },
             os_vm_resources: ExecutionResources::default(),
             n_reverted_steps: 0,
             sierra_gas: self.charged_resources.gas_consumed,
@@ -301,6 +304,17 @@ impl Add<&ExtendedExecutionResources> for &ExtendedExecutionResources {
         new.add_assign(other);
 
         new
+    }
+}
+
+impl Add<&ExecutionResources> for &ExtendedExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn add(self, other: &ExecutionResources) -> ExtendedExecutionResources {
+        ExtendedExecutionResources {
+            vm_resources: &self.vm_resources + other,
+            opcode_instance_counter: self.opcode_instance_counter.clone(),
+        }
     }
 }
 

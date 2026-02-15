@@ -234,6 +234,7 @@ fn test_rc96_holes(
                 .resources
                 .computation
                 .total_vm_resources()
+                .vm_resources
                 .builtin_instance_counter[&BuiltinName::range_check96],
             24
         );
@@ -1396,7 +1397,7 @@ fn test_max_fee_to_max_steps_conversion(
     );
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context).unwrap();
-    let n_steps1 = tx_execution_info1.receipt.resources.computation.total_vm_resources().n_steps;
+    let n_steps1 = tx_execution_info1.receipt.resources.computation.total_vm_resources().vm_resources.n_steps;
     let gas_used_vector1 = tx_execution_info1.receipt.resources.to_gas_vector(
         &block_context.versioned_constants,
         block_context.block_info.use_kzg_da,

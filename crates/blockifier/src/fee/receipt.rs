@@ -4,7 +4,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode};
 
 use crate::context::TransactionContext;
-use crate::execution::call_info::ExecutionSummary;
+use crate::execution::call_info::{ExecutionSummary, ExtendedExecutionResources};
 use crate::fee::resources::{
     ComputationResources,
     StarknetResources,
@@ -91,7 +91,11 @@ impl TransactionReceipt {
         let tx_resources = TransactionResources {
             starknet_resources,
             computation: ComputationResources {
-                tx_vm_resources: charged_resources.vm_resources.filter_unused_builtins(),
+                tx_vm_resources: ExtendedExecutionResources {
+                    vm_resources: charged_resources.vm_resources.filter_unused_builtins(),
+                    // Opcode counters not yet extracted from VM (see entry_point_execution.rs:432).
+                    opcode_instance_counter: Default::default(),
+                },
                 os_vm_resources,
                 n_reverted_steps: reverted_steps,
                 sierra_gas: charged_resources.gas_consumed,

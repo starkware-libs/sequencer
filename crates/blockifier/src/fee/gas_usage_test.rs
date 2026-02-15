@@ -406,7 +406,7 @@ fn test_gas_computation_regression_test(
         GasVectorComputationMode::All => (GasAmount(13), GasAmount(7)),
     };
     let computation_resources = ComputationResources {
-        tx_vm_resources,
+        tx_vm_resources: tx_vm_resources.into(),
         os_vm_resources: ExecutionResources::default(),
         n_reverted_steps,
         sierra_gas,

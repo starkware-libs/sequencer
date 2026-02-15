@@ -19,10 +19,11 @@ impl From<TransactionReceipt> for ResourcesMapping {
         let vm_resources = &receipt.resources.computation.total_vm_resources();
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
-            vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
+            vm_resources.vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
         )]);
         resources.extend(
             vm_resources
+                .vm_resources
                 .prover_builtins()
                 .iter()
                 .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),

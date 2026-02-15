@@ -246,6 +246,7 @@ fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> Executi
     let receipt = &execution_info.receipt;
     let resources = &receipt.resources.computation.total_vm_resources();
     let builtin_instance_counter = resources
+        .vm_resources
         .builtin_instance_counter
         .iter()
         .map(|(&builtin_name, &count)| {
@@ -254,9 +255,10 @@ fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> Executi
         .collect();
 
     ExecutionResources {
-        n_steps: resources.n_steps.try_into().expect("Failed to convert usize to u64"),
+        n_steps: resources.vm_resources.n_steps.try_into().expect("Failed to convert usize to u64"),
         builtin_instance_counter,
         n_memory_holes: resources
+            .vm_resources
             .n_memory_holes
             .try_into()
             .expect("Failed to convert usize to u64"),
