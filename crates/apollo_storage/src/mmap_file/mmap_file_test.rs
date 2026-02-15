@@ -150,33 +150,33 @@ fn grow_file() {
         let (mut writer, _) =
             open_file::<NoVersionValueWrapper<Vec<u8>>>(config.clone(), file_path.clone(), offset)
                 .unwrap();
-        // file_size = 4 (growth_step), offset = 0
+        // file_size = 4 (1 * growth_step) after pre-growth, offset = 0.
         let mut file_size = usize::try_from(file.metadata().unwrap().len()).unwrap();
         assert_eq!(file_size, config.growth_step);
         assert_eq!(offset, 0);
 
         offset += writer.append(&data).len;
-        // file_size = 8 (2 * growth_step), offset = 3 (serialization_size)
+        // file_size = 4 (1 * growth_step), offset = 3. No additional growth needed.
         file_size = file.metadata().unwrap().len().try_into().unwrap();
-        assert_eq!(file_size, 2 * config.growth_step);
+        assert_eq!(file_size, config.growth_step);
         assert_eq!(offset, serialization_size);
 
         offset += writer.append(&data).len;
-        // file_size = 12 (3 * growth_step), offset = 6 (2 * serialization_size)
+        // file_size = 8 (2 * growth_step), offset = 6.
         file_size = file.metadata().unwrap().len().try_into().unwrap();
-        assert_eq!(file_size, 3 * config.growth_step);
+        assert_eq!(file_size, 2 * config.growth_step);
         assert_eq!(offset, 2 * serialization_size);
 
         offset += writer.append(&data).len;
-        // file_size = 12 (3 * growth_step), offset = 9 (3 * serialization_size)
+        // file_size = 12 (3 * growth_step), offset = 9.
         file_size = file.metadata().unwrap().len().try_into().unwrap();
         assert_eq!(file_size, 3 * config.growth_step);
         assert_eq!(offset, 3 * serialization_size);
 
         offset += writer.append(&data).len;
-        // file_size = 16 (4 * growth_step), offset = 12 (4 * serialization_size)
+        // file_size = 12 (3 * growth_step), offset = 12.
         file_size = file.metadata().unwrap().len().try_into().unwrap();
-        assert_eq!(file_size, 4 * config.growth_step);
+        assert_eq!(file_size, 3 * config.growth_step);
         assert_eq!(offset, 4 * serialization_size);
     }
 
@@ -187,9 +187,9 @@ fn grow_file() {
         .truncate(false)
         .open(file_path.clone())
         .unwrap();
-    assert_eq!(usize::try_from(file.metadata().unwrap().len()).unwrap(), 4 * config.growth_step);
+    assert_eq!(usize::try_from(file.metadata().unwrap().len()).unwrap(), 3 * config.growth_step);
     let _ = open_file::<NoVersionValueWrapper<Vec<u8>>>(config.clone(), file_path, offset).unwrap();
-    assert_eq!(usize::try_from(file.metadata().unwrap().len()).unwrap(), 4 * config.growth_step);
+    assert_eq!(usize::try_from(file.metadata().unwrap().len()).unwrap(), 3 * config.growth_step);
 
     dir.close().unwrap();
 }
