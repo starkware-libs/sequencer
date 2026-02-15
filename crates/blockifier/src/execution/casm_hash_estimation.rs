@@ -8,6 +8,7 @@ use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::bouncer::vm_resources_to_gas;
+use crate::execution::call_info::ExtendedExecutionResources;
 use crate::execution::contract_class::{
     EntryPointV1,
     EntryPointsByType,
@@ -72,8 +73,16 @@ impl EstimatedExecutionResources {
         builtin_gas_cost: &BuiltinGasCosts,
         versioned_constants: &VersionedConstants,
     ) -> GasAmount {
-        let resources_gas =
-            vm_resources_to_gas(self.resources_ref(), builtin_gas_cost, versioned_constants);
+        // TODO(AvivG): Consider removing `EstimatedExecutionResources` struct with a trait
+        // implemented by `EstimateCasmHashResources` and integrate blake computation here.
+        let resources_gas = vm_resources_to_gas(
+            &ExtendedExecutionResources {
+                vm_resources: self.resources(),
+                opcode_instance_counter: Default::default(),
+            },
+            builtin_gas_cost,
+            versioned_constants,
+        );
 
         // Blake is computed separately since it is not currently included in the vm resources.
         let blake_count = u64_from_usize(self.blake_count());
