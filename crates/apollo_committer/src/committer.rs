@@ -462,9 +462,12 @@ fn update_metrics(
     BLOCKS_COMMITTED.increment(1);
     TOTAL_BLOCK_DURATION.increment((durations.block * 1000.0) as u64);
     let n_modifications = modifications_counts.total();
+    // Microseconds.
     let total_block_duration_per_modification = if n_modifications > 0 {
-        let total_block_duration_per_modification = durations.block / n_modifications as f64;
-        TOTAL_BLOCK_DURATION_PER_MODIFICATION.record_lossy(total_block_duration_per_modification);
+        let total_block_duration_per_modification =
+            durations.block / n_modifications as f64 * 1_000_000.0;
+        TOTAL_BLOCK_DURATION_PER_MODIFICATION
+            .increment(total_block_duration_per_modification as u64);
         Some(total_block_duration_per_modification)
     } else {
         None
@@ -534,14 +537,14 @@ fn log_block_measurements(
 ) {
     info!(
         "Block {height} stats: durations in ms (total/read/compute/write): \
-         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification: {}, rates \
+         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates \
          (read/compute/write): {}/{}/{}, modifications count \
          (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}",
         durations.block * 1000.0,
         durations.read * 1000.0,
         durations.compute * 1000.0,
         durations.write * 1000.0,
-        total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.2}s")),
+        total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.0}µs")),
         read_rate.map_or(String::new(), |r| format!("{r:.2}")),
         compute_rate.map_or(String::new(), |r| format!("{r:.2}")),
         write_rate.map_or(String::new(), |r| format!("{r:.2}")),
