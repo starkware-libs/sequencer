@@ -896,6 +896,7 @@ dependencies = [
  "futures",
  "indexmap 2.12.0",
  "itertools 0.12.1",
+ "lru 0.12.5",
  "mempool_test_utils",
  "metrics",
  "metrics-exporter-prometheus",

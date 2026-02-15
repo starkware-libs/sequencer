@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 use apollo_batcher_config::config::{
@@ -13,7 +14,8 @@ use apollo_committer_types::committer_types::{
     RevertBlockRequest,
 };
 use apollo_committer_types::communication::{CommitterRequestLabelValue, SharedCommitterClient};
-use starknet_api::block::BlockNumber;
+use lru::LruCache;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_hash,
     PartialBlockHashComponents,
@@ -45,11 +47,11 @@ use crate::metrics::{
 
 // TODO(Amos): Add this to config.
 const TASK_SEND_RETRY_DELAY: Duration = Duration::from_millis(100);
+const N_RECENT_BLOCK_HASHES: NonZeroUsize = NonZeroUsize::new(30).unwrap();
 
 pub(crate) type CommitmentManagerResult<T> = Result<T, CommitmentManagerError>;
 pub(crate) type ApolloCommitmentManager = CommitmentManager<StateCommitter>;
 
-#[allow(dead_code)]
 /// Encapsulates the block hash calculation logic.
 // TODO(Amos): Add storage reader & storage writer fields.
 pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
@@ -59,6 +61,7 @@ pub(crate) struct CommitmentManager<S: StateCommitterTrait> {
     pub(crate) commitment_task_offset: BlockNumber,
     pub(crate) state_committer: S,
     pub(crate) task_timer: TaskTimer,
+    pub(crate) recent_block_hashes_cache: LruCache<BlockNumber, BlockHash>,
 }
 
 impl<S: StateCommitterTrait> CommitmentManager<S> {
@@ -278,6 +281,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 }
             }
 
+            // Add block hash to cache.
+            if let Some(block_hash) = block_hash {
+                self.recent_block_hashes_cache.put(height, block_hash);
+            }
+
             // Write the block hash and global root to storage.
             storage_writer.set_global_root_and_block_hash(height, global_root, block_hash)?;
             GLOBAL_ROOT_HEIGHT.increment(1);
@@ -347,6 +355,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
             commitment_task_offset: global_root_height,
             state_committer,
             task_timer,
+            recent_block_hashes_cache: LruCache::new(N_RECENT_BLOCK_HASHES),
         }
     }
 

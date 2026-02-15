@@ -77,7 +77,7 @@ use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
 use tokio::task::AbortHandle;
-use tracing::{debug, error, info, instrument, trace, Instrument};
+use tracing::{debug, error, info, instrument, trace, warn, Instrument};
 
 use crate::block_builder::{
     BlockBuilderError,
@@ -1237,15 +1237,27 @@ impl Batcher {
         }
     }
 
-    pub fn get_block_hash(&self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
-        self.storage_reader
-            .get_block_hash(block_number)
-            .map_err(|err| {
-                error!("Failed to get block hash from storage: {err}");
-                BatcherError::InternalError
-            })?
-            .ok_or(BatcherError::BlockHashNotFound(block_number))
+    pub fn get_block_hash(&mut self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
+        match self.commitment_manager.recent_block_hashes_cache.get(&block_number) {
+            Some(block_hash) => Ok(*block_hash),
+            None => {
+                warn!(
+                    "Block hash of block {block_number} not found in cache, fetching from storage."
+                );
+                let block_hash = self
+                    .storage_reader
+                    .get_block_hash(block_number)
+                    .map_err(|err| {
+                        error!("Failed to get block hash from storage: {err}");
+                        BatcherError::InternalError
+                    })?
+                    .ok_or(BatcherError::BlockHashNotFound(block_number))?;
+                self.commitment_manager.recent_block_hashes_cache.put(block_number, block_hash);
+                Ok(block_hash)
+            }
+        }
     }
+
     async fn write_commitment_results_and_add_new_task(
         &mut self,
         height: BlockNumber,

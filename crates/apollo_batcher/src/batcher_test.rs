@@ -1616,7 +1616,7 @@ async fn get_block_hash() {
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Ok(Some(BlockHash::default())));
 
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Ok(BlockHash::default()));
 }
@@ -1629,7 +1629,7 @@ async fn get_block_hash_not_found() {
         .expect_get_block_hash()
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Ok(None));
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Err(BatcherError::BlockHashNotFound(INITIAL_HEIGHT)));
 }
@@ -1642,7 +1642,7 @@ async fn get_block_hash_error() {
         .expect_get_block_hash()
         .with(eq(INITIAL_HEIGHT))
         .returning(|_| Err(StorageError::InnerError(DbError::InnerDeserialization)));
-    let batcher = create_batcher(mock_dependencies).await;
+    let mut batcher = create_batcher(mock_dependencies).await;
     let result = batcher.get_block_hash(INITIAL_HEIGHT);
     assert_eq!(result, Err(BatcherError::InternalError));
 }
