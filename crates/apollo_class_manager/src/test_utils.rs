@@ -1,7 +1,9 @@
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
 use apollo_class_manager_config::config::FsClassStorageConfig;
 use apollo_storage::db::DbConfig;
+use apollo_storage::storage_reader_server::ComponentType;
 use starknet_api::core::ChainId;
 use tempfile::TempDir;
 
@@ -53,7 +55,12 @@ impl FsClassStorageBuilderForTesting {
         let Self { config, handles } = self;
         let class_hash_storage = ClassHashStorage::new(
             config.class_hash_storage_config.clone(),
-            apollo_storage::storage_reader_server::ServerConfig::default(),
+            apollo_storage::storage_reader_server::ServerConfig::new(
+                IpAddr::from(Ipv4Addr::LOCALHOST),
+                0,
+                false,
+                ComponentType::ClassManager,
+            ),
         )
         .unwrap();
         let fs_class_storage =

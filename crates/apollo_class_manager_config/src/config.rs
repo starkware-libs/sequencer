@@ -6,6 +6,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::db::DbConfig;
 use apollo_storage::mmap_file::MmapFileConfig;
 use apollo_storage::storage_reader_server::{
+    ComponentType,
     StorageReaderServerDynamicConfig,
     StorageReaderServerStaticConfig,
 };
@@ -71,7 +72,9 @@ impl Default for FsClassStorageConfig {
                 },
                 scope: StorageScope::StateOnly,
             },
-            storage_reader_server_static_config: StorageReaderServerStaticConfig::default(),
+            storage_reader_server_static_config: StorageReaderServerStaticConfig::new(
+                ComponentType::ClassManager,
+            ),
         }
     }
 }
