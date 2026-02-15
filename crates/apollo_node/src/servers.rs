@@ -685,7 +685,7 @@ fn create_wrapper_servers(
     components: &mut SequencerNodeComponents,
 ) -> WrapperServers {
     let config_manager_runner_server = create_wrapper_server!(
-        &config.components.config_manager.execution_mode.clone().into(),
+        &config.components.config_manager.execution_mode.into(),
         components.config_manager_runner
     );
 
@@ -713,12 +713,12 @@ fn create_wrapper_servers(
     );
 
     let mempool_p2p_runner_server = create_wrapper_server!(
-        &config.components.mempool_p2p.execution_mode.clone().into(),
+        &config.components.mempool_p2p.execution_mode.into(),
         components.mempool_p2p_runner
     );
 
     let state_sync_runner_server = create_wrapper_server!(
-        &config.components.state_sync.execution_mode.clone().into(),
+        &config.components.state_sync.execution_mode.into(),
         components.state_sync_runner
     );
 

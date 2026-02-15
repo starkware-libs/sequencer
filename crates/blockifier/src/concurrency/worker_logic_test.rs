@@ -99,7 +99,7 @@ pub fn test_commit_tx() {
     .into_iter()
     .map(Transaction::Account)
     .collect::<Vec<Transaction>>();
-    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config);
     let cached_state =
         test_state(&block_context.chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
     let versioned_state = safe_versioned_state_for_testing(cached_state);
@@ -219,7 +219,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
         nonce!(0_u8),
     ))];
 
-    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config);
 
     let state = test_state(&block_context.chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
     let versioned_state = safe_versioned_state_for_testing(state);
@@ -289,7 +289,7 @@ pub fn test_validate_after_commit_tx() {
         nonce!(0_u8),
     ))];
 
-    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config);
     let cached_state =
         test_state(&block_context.chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
     let versioned_state = safe_versioned_state_for_testing(cached_state);
@@ -383,7 +383,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         .map(Transaction::Account)
         .collect::<Vec<Transaction>>();
 
-    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config);
     let worker_executor = WorkerExecutor::new(
         safe_versioned_state.clone(),
         txs.to_vec(),
@@ -541,7 +541,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
         .map(Transaction::Account)
         .collect::<Vec<Transaction>>();
 
-    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config);
     let worker_executor = WorkerExecutor::new(
         safe_versioned_state.clone(),
         txs.to_vec(),
@@ -658,7 +658,7 @@ fn test_deploy_before_declare(
     let txs =
         [declare_tx, invoke_tx].into_iter().map(Transaction::Account).collect::<Vec<Transaction>>();
 
-    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config);
     let worker_executor = WorkerExecutor::new(
         safe_versioned_state,
         txs.to_vec(),
@@ -740,7 +740,7 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
         })
         .collect::<Vec<Transaction>>();
 
-    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config);
     let worker_executor = WorkerExecutor::new(
         safe_versioned_state,
         txs.to_vec(),
@@ -842,7 +842,7 @@ fn test_worker_commit_phase_with_halt() {
         })
         .collect::<Vec<Transaction>>();
 
-    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config);
     let worker_executor = WorkerExecutor::new(
         safe_versioned_state,
         txs.to_vec(),

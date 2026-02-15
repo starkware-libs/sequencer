@@ -451,7 +451,7 @@ impl std::fmt::Display for ProviderState {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SessionState {
     Propose,
     Validate,

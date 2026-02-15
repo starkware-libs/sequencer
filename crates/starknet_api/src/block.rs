@@ -585,7 +585,7 @@ macro_rules! impl_try_from_uint_for_nonzero_gas_price {
 impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
 
 // TODO(Arni): Remove derive of Default. Gas prices should always be set.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GasPriceVector {
     pub l1_gas_price: NonzeroGasPrice,
     pub l1_data_gas_price: NonzeroGasPrice,
@@ -599,7 +599,7 @@ pub enum FeeType {
 }
 
 // TODO(Arni): Remove derive of Default. Gas prices should always be set.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GasPrices {
     pub eth_gas_prices: GasPriceVector,  // In wei.
     pub strk_gas_prices: GasPriceVector, // In fri.

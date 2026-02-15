@@ -26,7 +26,7 @@ pub const TRACE_LENGTH_CAP: usize = 15000;
 pub const TRACE_EXTRA_CHARS_SLACK: usize = 100;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PreambleType {
     CallContract,
     LibraryCall,
@@ -126,7 +126,7 @@ impl From<&ErrorStackSegment> for String {
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum ErrorStackHeader {
     Constructor,
     Execution,

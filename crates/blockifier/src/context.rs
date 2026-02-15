@@ -173,7 +173,7 @@ impl BlockContext {
             block_timestamp: BlockTimestamp(rounded_timestamp),
             sequencer_address: 0_u128.into(),
             // TODO(Yoni): consider setting here trivial prices if and when this field is exposed.
-            gas_prices: self.block_info.gas_prices.clone(),
+            gas_prices: self.block_info.gas_prices,
             use_kzg_da: self.block_info.use_kzg_da,
             starknet_version: self.block_info.starknet_version,
         }

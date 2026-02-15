@@ -99,7 +99,7 @@ async fn test_block_hash_regression(
             price_in_wei: 9_u8.into(),
         },
         l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
-        starknet_version: block_hash_version.clone().into(),
+        starknet_version: block_hash_version.into(),
         header_commitments: block_commitments,
     };
 

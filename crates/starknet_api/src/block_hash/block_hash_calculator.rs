@@ -50,7 +50,7 @@ pub static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
 });
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd)]
 pub enum BlockHashVersion {
     V0_13_2,
     V0_13_4,
@@ -213,7 +213,7 @@ pub fn calculate_block_hash(
     let block_commitments = &partial_block_hash_components.header_commitments;
     Ok(BlockHash(
         HashChain::new()
-            .chain(&block_hash_version.clone().into())
+            .chain(&block_hash_version.into())
             .chain(&partial_block_hash_components.block_number.0.into())
             .chain(&state_root.0)
             .chain(&partial_block_hash_components.sequencer.0)
