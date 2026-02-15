@@ -33,6 +33,8 @@ pub enum Unit {
     PercentUnit,
     MB,
     Microseconds,
+    #[allow(dead_code)]
+    Milliseconds,
 }
 
 impl Unit {
@@ -43,6 +45,7 @@ impl Unit {
             Unit::PercentUnit => "percentunit",
             Unit::MB => "decmbytes",
             Unit::Microseconds => "µs",
+            Unit::Milliseconds => "ms",
         }
     }
 }
