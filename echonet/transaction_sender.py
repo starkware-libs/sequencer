@@ -105,10 +105,9 @@ class SenderConfig:
     retries: int = 3
     retry_backoff_seconds: float = 0.5
     max_retry_sleep_seconds: float = 30.0
-    sleep_between_blocks_seconds: float = CONFIG.sleep.sleep_between_blocks_seconds
 
-    queue_size: int = 100
-    blocks_to_wait_before_failing_tx: int = 30
+    queue_size: int = 30
+    blocks_to_wait_before_failing_tx: int = 50
 
 
 @dataclass(frozen=True, slots=True)
@@ -254,8 +253,8 @@ class TransactionSenderService:
 
             # TODO(Ron): shorten this function
             async def producer() -> None:
+                await asyncio.sleep(CONFIG.sleep.producer_startup_sleep_seconds)
                 block_number = config.start_block
-                current_start_block = config.start_block
                 while not self._stop_event.is_set():
                     if config.end_block and block_number > config.end_block:
                         return
@@ -309,15 +308,9 @@ class TransactionSenderService:
                         )
                         await drain_queue()
                         block_number = await resync_executor.execute(trigger=trigger)
-                        current_start_block = block_number
                         continue
 
                     block_number += 1
-                    await self._sleep_between_blocks(
-                        current_block=block_number,
-                        start_block=current_start_block,
-                        base_sleep_seconds=config.sleep_between_blocks_seconds,
-                    )
 
             async def consumer() -> None:
                 while True:
@@ -353,18 +346,6 @@ class TransactionSenderService:
             await tx_queue.put(None)
             await tx_queue.join()
             await consumer_task
-
-    async def _sleep_between_blocks(
-        self,
-        current_block: int,
-        start_block: int,
-        base_sleep_seconds: float,
-    ) -> None:
-        effective_sleep = base_sleep_seconds
-        if (current_block - start_block) < CONFIG.sleep.initial_slow_blocks_count:
-            effective_sleep = float(base_sleep_seconds) + CONFIG.sleep.extra_sleep_time_seconds
-        if effective_sleep > 0:
-            await asyncio.sleep(effective_sleep)
 
 
 class TransactionSenderRunner:
@@ -419,8 +400,7 @@ class TransactionSenderRunner:
                     f"TransactionSenderRunner starting: feeder_url={config.feeder_url} "
                     f"sequencer_url={config.sequencer_url} start_block={config.start_block} "
                     f"end_block={config.end_block} timeout={config.request_timeout_seconds} "
-                    f"retries={config.retries} backoff={config.retry_backoff_seconds} "
-                    f"sleep={config.sleep_between_blocks_seconds}"
+                    f"retries={config.retries} backoff={config.retry_backoff_seconds}"
                 )
                 asyncio.run(self._service.run(config))
             finally:
@@ -462,7 +442,6 @@ def start_background_sender(
     request_timeout_seconds: float = 15.0,
     retries: int = 3,
     retry_backoff_seconds: float = 0.5,
-    sleep_between_blocks_seconds: float = CONFIG.sleep.sleep_between_blocks_seconds,
 ) -> bool:
     """
     Start the background transaction sender.
@@ -475,7 +454,6 @@ def start_background_sender(
         request_timeout_seconds=request_timeout_seconds,
         retries=retries,
         retry_backoff_seconds=retry_backoff_seconds,
-        sleep_between_blocks_seconds=sleep_between_blocks_seconds,
     )
     return TransactionSenderRunner.background().start(config=cfg)
 
