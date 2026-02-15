@@ -115,7 +115,7 @@ class SenderConfig:
 class TxData:
     tx: JsonObject
     source_block_number: int
-    source_timestamp: Optional[int]
+    source_timestamp: int
 
 
 class TxSelector:
@@ -178,13 +178,31 @@ class HttpForwarder:
         self._session = session
         self._sequencer_url = sequencer_url.rstrip("/")
 
-    async def forward(self, tx: JsonObject, source_block_number: int) -> None:
+    async def _post_tx_timestamp(self, tx_hash: str, source_timestamp: int) -> None:
+        url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.update_timestamps}"
+        headers = {"Content-Type": "application/json"}
+        payload = {tx_hash: int(source_timestamp)}
+        try:
+            async with self._session.post(url, json=payload, headers=headers) as response:
+                if response.status != requests.codes.ok:
+                    text = await response.text()
+                    logger.warning(
+                        f"Failed to post tx timestamp (status={response.status}) tx={tx_hash}: {text}"
+                    )
+        except Exception as err:
+            logger.warning(f"Failed to post tx timestamp tx={tx_hash}: {err}")
+
+    async def forward(
+        self, tx: JsonObject, source_block_number: int, source_timestamp: int
+    ) -> None:
         url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.add_transaction}"
         headers = {"Content-Type": "application/json"}
+        tx_hash = tx["transaction_hash"]
+
+        await self._post_tx_timestamp(tx_hash, source_timestamp)
 
         async with self._session.post(url, json=tx, headers=headers) as response:
             text = await response.text()
-            tx_hash = tx["transaction_hash"]
             if response.status != requests.codes.ok:
                 logger.warning(f"Forward failed ({response.status}): {text}")
                 shared.record_gateway_error(
@@ -321,7 +339,9 @@ class TransactionSenderService:
                             await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
 
                         await forwarder.forward(
-                            prepared, source_block_number=item.source_block_number
+                            prepared,
+                            source_block_number=item.source_block_number,
+                            source_timestamp=item.source_timestamp,
                         )
                     finally:
                         tx_queue.task_done()
