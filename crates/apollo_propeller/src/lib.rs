@@ -12,6 +12,9 @@ pub mod protocol;
 pub mod reed_solomon;
 #[cfg(test)]
 mod reed_solomon_test;
+pub mod sharding;
+#[cfg(test)]
+mod sharding_test;
 pub mod signature;
 #[cfg(test)]
 mod signature_test;
