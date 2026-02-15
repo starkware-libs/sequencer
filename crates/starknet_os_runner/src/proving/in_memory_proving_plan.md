@@ -31,10 +31,11 @@ cairo-air = { path = "../stwo-cairo/stwo_cairo_prover/crates/cairo-air" }
 cairo-program-runner-lib = { path = "../proving-utils/crates/cairo-program-runner-lib" }
 stwo-cairo-adapter = { path = "../stwo-cairo/stwo_cairo_prover/crates/adapter" }
 stwo_cairo_prover = { path = "../stwo-cairo/stwo_cairo_prover/crates/prover" }
-stwo_run_and_prove_lib = { path = "../proving-utils/crates/stwo_run_and_prove", package = "stwo_run_and_prove" }
+stwo_run_and_prove_lib = { path = "../proving-utils/crates/stwo_run_and_prove", package = "stwo-run-and-prove" }
 ```
 
 Version compatibility note:
+- This setup assumes `proving-utils` is synced to main tip `316344a31891`.
 - `proving-utils`, `stwo`, and `stwo-cairo` currently pin some `cairo-lang-*` and `cairo-vm`
   dependencies below the versions used by the sequencer workspace.
 - The workspace keeps its own versions, and this in-memory proving flow links against the proving

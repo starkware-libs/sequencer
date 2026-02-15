@@ -244,11 +244,12 @@ bytes = "1"
 bzip2 = { version = "0.5.0", default-features = false }
 c-kzg = "2.1.5"
 cached = "0.44.0"
+# Keep sibling proving repos synced; `proving-utils` main tip used here is 316344a31891.
 cairo-air = { path = "../stwo-cairo/stwo_cairo_prover/crates/cairo-air" }
 cairo-program-runner-lib = { path ="../proving-utils/crates/cairo-program-runner-lib" }
 stwo-cairo-adapter = { path = "../stwo-cairo/stwo_cairo_prover/crates/adapter" }
 stwo_cairo_prover = { path = "../stwo-cairo/stwo_cairo_prover/crates/prover" }
-stwo_run_and_prove_lib = { path = "../proving-utils/crates/stwo_run_and_prove", package = "stwo_run_and_prove" }
+stwo_run_and_prove_lib = { path = "../proving-utils/crates/stwo_run_and_prove", package = "stwo-run-and-prove" }
 cairo-felt = "0.9.1"
 cairo-lang-casm = "2.14.1-dev.3"
 cairo-lang-runner = "2.14.1-dev.3"
