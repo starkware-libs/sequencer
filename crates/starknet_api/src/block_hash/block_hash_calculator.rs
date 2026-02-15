@@ -30,6 +30,7 @@ use crate::core::{
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasVector;
+use crate::hash::StarkHash;
 use crate::state::ThinStateDiff;
 use crate::transaction::fields::{Fee, TransactionSignature};
 use crate::transaction::{Event, MessageToL1, TransactionExecutionStatus, TransactionHash};
@@ -164,6 +165,29 @@ impl TryFrom<&BlockHeader> for Option<BlockHeaderCommitments> {
                 }
             }
         }
+    }
+}
+
+/// Hash of [`PartialBlockHashComponents`] only (no state root or parent hash).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct PartialBlockHash(pub StarkHash);
+
+impl PartialBlockHash {
+    const GLOBAL_ROOT_FOR_PARTIAL_BLOCK_HASH: GlobalRoot = GlobalRoot(Felt::ZERO);
+    const PARENT_HASH_FOR_PARTIAL_BLOCK_HASH: BlockHash = BlockHash(Felt::ZERO);
+
+    /// Hash of [`PartialBlockHashComponents`].
+    /// Uses the same formula as [`calculate_block_hash`] with the fixed constants above for the
+    /// state root and parent hash.
+    pub fn from_partial_block_hash_components(
+        partial_block_hash_components: &PartialBlockHashComponents,
+    ) -> StarknetApiResult<Self> {
+        let block_hash = calculate_block_hash(
+            partial_block_hash_components,
+            Self::GLOBAL_ROOT_FOR_PARTIAL_BLOCK_HASH,
+            Self::PARENT_HASH_FOR_PARTIAL_BLOCK_HASH,
+        )?;
+        Ok(Self(block_hash.0))
     }
 }
 
