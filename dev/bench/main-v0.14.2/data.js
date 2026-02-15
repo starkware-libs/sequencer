@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771075242801,
+  "lastUpdate": 1771166409014,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -509,6 +509,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1149.04825152,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "78365039+Yoni-Starkware@users.noreply.github.com",
+            "name": "Yoni",
+            "username": "Yoni-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f1e8c4403a78c8bff1dea2853c87f40c5b1f2555",
+          "message": "apollo_starknet_os_program: address review comments (#12467)",
+          "timestamp": "2026-02-15T14:21:23Z",
+          "tree_id": "a1a44937ca29852d667ccdb4f79dc929466150d7",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f1e8c4403a78c8bff1dea2853c87f40c5b1f2555"
+        },
+        "date": 1771166408739,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 747.74567973,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1148.28421894,
             "unit": "ms"
           }
         ]
