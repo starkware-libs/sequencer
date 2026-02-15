@@ -37,9 +37,16 @@ pub struct ClassReader {
 
 impl ClassReader {
     fn read_executable(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
-        let casm = self
-            .runtime
-            .block_on(self.reader.get_executable(class_hash))
+        println!(
+            "TEMPDEBUG300 [thread: {:?}] trying to block on get_executable",
+            std::thread::current().id()
+        );
+        let block_on_result = self.runtime.block_on(self.reader.get_executable(class_hash));
+        println!(
+            "TEMPDEBUG301 [thread: {:?}] block on get_executable result",
+            std::thread::current().id()
+        );
+        let casm = block_on_result
             .map_err(|err| StateError::StateReadError(err.to_string()))?
             .ok_or(StateError::UndeclaredClassHash(class_hash))?;
 

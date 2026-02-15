@@ -188,9 +188,33 @@ where
             .expect("Request building should succeed")
     }
 
-    async fn try_send(&self, http_request: HyperRequest<Full<Bytes>>) -> ClientResult<Response> {
+    async fn try_send(
+        &self,
+        http_request: HyperRequest<Full<Bytes>>,
+        request_id: &RequestId,
+        request_name: &str,
+        attempt: usize,
+        max_attempts: usize,
+    ) -> ClientResult<Response> {
         trace!("Sending HTTP request");
-        let http_response = self.client.request(http_request).await.map_err(|err| {
+        println!(
+            "TEMPDEBUG400 [thread: {:?}] trying to request request_id={} request={} attempt={}/{}",
+            std::thread::current().id(),
+            request_id,
+            request_name,
+            attempt,
+            max_attempts
+        );
+        let client_request_result = self.client.request(http_request).await;
+        println!(
+            "TEMPDEBUG401 [thread: {:?}] request result request_id={} request={} attempt={}/{}",
+            std::thread::current().id(),
+            request_id,
+            request_name,
+            attempt,
+            max_attempts
+        );
+        let http_response = client_request_result.map_err(|err| {
             warn!("HTTP request to {} failed with error: {err:?}", self.uri);
             ClientError::CommunicationFailure(err.to_string())
         })?;
@@ -241,7 +265,8 @@ where
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
         let request_id = RequestId::generate();
         tracing::Span::current().record("request_id", display(&request_id));
-        let log_message = format!("{} to {}", component_request.as_ref(), self.uri);
+        let request_name = component_request.as_ref().to_string();
+        let log_message = format!("{} to {}", request_name, self.uri);
         let request_label = component_request.request_label();
 
         // Serialize the request.
@@ -264,7 +289,9 @@ where
         for attempt in 1..max_attempts + 1 {
             trace!("Request {log_message} attempt {attempt} of {max_attempts}");
             let start = Instant::now();
-            let res = self.try_send(http_request.clone()).await;
+            let res = self
+                .try_send(http_request.clone(), &request_id, &request_name, attempt, max_attempts)
+                .await;
             let elapsed = start.elapsed();
             if res.is_ok() {
                 trace!("Request {log_message} successful on attempt {attempt}/{max_attempts}");

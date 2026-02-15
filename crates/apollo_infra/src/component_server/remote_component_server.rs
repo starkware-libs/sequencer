@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
@@ -10,6 +12,7 @@ use async_trait::async_trait;
 use bytes::Bytes;
 use http::header::CONTENT_TYPE;
 use http::StatusCode;
+use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Incoming;
 use hyper::service::{service_fn, Service};
@@ -41,12 +44,22 @@ const DEFAULT_MAX_STREAMS_PER_CONNECTION: u32 = 8;
 const DEFAULT_BIND_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 
 macro_rules! serve_connection {
-    ($io:expr, $service:expr, $max_streams:expr) => {
+    ($io:expr, $service:expr, $max_streams:expr, $conn_id:expr) => {
+        println!(
+            "TEMPDEBUG500 [thread: {:?}] calling serve_connection conn_id={}",
+            std::thread::current().id(),
+            $conn_id
+        );
         let result = ServerBuilder::new(TokioExecutor::new())
             .http2()
             .max_concurrent_streams($max_streams)
             .serve_connection($io, $service)
             .await;
+        println!(
+            "TEMPDEBUG501 [thread: {:?}] serve_connection returned conn_id={}",
+            std::thread::current().id(),
+            $conn_id
+        );
 
         if let Err(e) = result {
             error!("Remote component server start error: {e}");
@@ -131,21 +144,31 @@ where
     async fn remote_component_server_handler(
         http_request: HyperRequest<Incoming>,
         request_id: RequestId,
+        conn_id: u64,
         local_client: LocalComponentClient<Request, Response>,
         metrics: &'static RemoteServerMetrics,
-    ) -> Result<HyperResponse<Full<Bytes>>, hyper::Error> {
+    ) -> Result<HyperResponse<BoxBody<Bytes, Infallible>>, hyper::Error> {
         trace!("Received HTTP request: {http_request:?}");
         let body_bytes = http_request.into_body().collect().await?.to_bytes();
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
 
         metrics.increment_total_received();
 
+        let request_label: &str;
         let http_response = match SerdeWrapper::<Request>::wrapper_deserialize(&body_bytes)
             .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
                 trace!("Successfully deserialized request: {request:?}");
                 metrics.increment_valid_received();
+                request_label = request.request_label();
+                println!(
+                    "TEMPDEBUG550 [thread: {:?}] received request request_id={} request={} conn_id={}",
+                    std::thread::current().id(),
+                    request_id,
+                    request_label,
+                    conn_id
+                );
 
                 // Wrap the send operation in a tokio::spawn as it is NOT a cancel-safe operation.
                 // Even if the current task is cancelled, the inner task will continue to run.
@@ -159,14 +182,28 @@ where
                 match response {
                     Ok(response) => {
                         trace!("Local client processed request successfully: {response:?}");
+                        let response_body = SerdeWrapper::new(response)
+                            .wrapper_serialize()
+                            .expect("Response serialization should succeed");
+                        let request_id_for_frame = request_id.clone();
+                        let request_label_for_frame = request_label;
+                        let conn_id_for_frame = conn_id;
+                        let response_body = Full::new(Bytes::from(response_body)).map_frame(
+                            move |frame| {
+                                println!(
+                                    "TEMPDEBUG552 [thread: {:?}] response body frame request_id={} request={} conn_id={}",
+                                    std::thread::current().id(),
+                                    request_id_for_frame,
+                                    request_label_for_frame,
+                                    conn_id_for_frame
+                                );
+                                frame
+                            },
+                        ).boxed();
                         HyperResponse::builder()
                             .status(StatusCode::OK)
                             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-                            .body(Full::new(Bytes::from(
-                                SerdeWrapper::new(response)
-                                    .wrapper_serialize()
-                                    .expect("Response serialization should succeed"),
-                            )))
+                            .body(response_body)
                     }
                     Err(error) => {
                         panic!(
@@ -177,18 +214,45 @@ where
             }
             Err(error) => {
                 error!("Failed to deserialize request: {error:?}");
+                request_label = "<deserialization_error>";
+                println!(
+                    "TEMPDEBUG550 [thread: {:?}] received request request_id={} request={} conn_id={}",
+                    std::thread::current().id(),
+                    request_id,
+                    request_label,
+                    conn_id
+                );
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
-                HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Full::new(
-                    Bytes::from(
-                        SerdeWrapper::new(server_error)
-                            .wrapper_serialize()
-                            .expect("Server error serialization should succeed"),
-                    ),
-                ))
+                let response_body = SerdeWrapper::new(server_error)
+                    .wrapper_serialize()
+                    .expect("Server error serialization should succeed");
+                let request_id_for_frame = request_id.clone();
+                let request_label_for_frame = request_label;
+                let conn_id_for_frame = conn_id;
+                let response_body = Full::new(Bytes::from(response_body)).map_frame(
+                    move |frame| {
+                        println!(
+                            "TEMPDEBUG552 [thread: {:?}] response body frame request_id={} request={} conn_id={}",
+                            std::thread::current().id(),
+                            request_id_for_frame,
+                            request_label_for_frame,
+                            conn_id_for_frame
+                        );
+                        frame
+                    },
+                ).boxed();
+                HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(response_body)
             }
         }
         .expect("Response building should succeed");
         trace!("Built HTTP response: {http_response:?}");
+        println!(
+            "TEMPDEBUG551 [thread: {:?}] sending response request_id={} request={} conn_id={}",
+            std::thread::current().id(),
+            request_id,
+            request_label,
+            conn_id
+        );
 
         Ok(http_response)
     }
@@ -213,7 +277,8 @@ where
              max_streams: u32,
              connection_semaphore: Arc<Semaphore>,
              local_client: LocalComponentClient<Request, Response>,
-             metrics: &'static RemoteServerMetrics| {
+             metrics: &'static RemoteServerMetrics,
+             conn_id: u64| {
                 async move {
                     match connection_semaphore.try_acquire_owned() {
                         Ok(permit) => {
@@ -221,6 +286,7 @@ where
                             trace!("Acquired semaphore permit for connection");
                             let handle_request_service =
                                 service_fn(move |req: HyperRequest<Incoming>| {
+                                    let conn_id = conn_id;
                                     trace!("Received request: {:?}", req);
                                     let request_id = req
                                         .headers()
@@ -233,6 +299,7 @@ where
                                     Self::remote_component_server_handler(
                                         req,
                                         request_id,
+                                        conn_id,
                                         local_client.clone(),
                                         metrics,
                                     )
@@ -246,14 +313,16 @@ where
                                 remote_server_metrics: metrics,
                             };
 
-                            serve_connection!(io, service, max_streams);
+                            serve_connection!(io, service, max_streams, conn_id);
                         }
                         Err(_) => {
                             trace!("Too many connections, denying a new connection");
                             // Marked `async` to conform to the expected `Service` trait, requiring
                             // the handler to return a `Future`.
                             let reject_request_service =
-                                service_fn(move |_req: HyperRequest<Incoming>| async {
+                                service_fn(move |_req: HyperRequest<Incoming>| {
+                                    let conn_id = conn_id;
+                                    async move {
                                     let body: Vec<u8> = SerdeWrapper::new(
                                         ServerError::RequestDeserializationFailure(
                                             BUSY_PREVIOUS_REQUESTS_MSG.to_string(),
@@ -277,7 +346,7 @@ where
                                         hyper::Error,
                                     > = Ok(response);
                                     wrapped_response
-                                });
+                                }});
 
                             // No permit is acquired, so no need to hold one.
                             let service = PermitGuardedService {
@@ -286,7 +355,7 @@ where
                                 remote_server_metrics: metrics,
                             };
 
-                            serve_connection!(io, service, max_streams);
+                            serve_connection!(io, service, max_streams, conn_id);
                         }
                     }
                 }
@@ -295,6 +364,7 @@ where
         let listener = TcpListener::bind(&bind_socket).await.unwrap_or_else(|e| {
             panic!("Failed to bind remote component server socket {:#?}: {e}", bind_socket)
         });
+        static NEXT_CONN_ID: AtomicU64 = AtomicU64::new(1);
 
         loop {
             let (stream, _) = match listener.accept().await {
@@ -305,6 +375,8 @@ where
                     continue;
                 }
             };
+
+            let conn_id = NEXT_CONN_ID.fetch_add(1, Ordering::Relaxed);
 
             if let Err(e) = stream.set_nodelay(self.config.set_tcp_nodelay) {
                 warn!("Failed to set TCP_NODELAY: {e}");
@@ -319,6 +391,7 @@ where
                 connection_semaphore.clone(),
                 self.local_client.clone(),
                 self.metrics,
+                conn_id,
             ));
         }
     }
