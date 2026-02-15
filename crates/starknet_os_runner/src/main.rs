@@ -4,19 +4,19 @@ use std::net::SocketAddr;
 
 use anyhow::Context;
 use clap::Parser;
-use http::{header, HeaderValue, Method};
 use jsonrpsee::server::{ServerBuilder, ServerConfig};
 use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
+use starknet_os_runner::server::cors::{build_cors_layer, cors_mode};
 use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
 use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
 use tower::ServiceBuilder;
-use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::info;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // TODO(Avi): Revisit the starknet_os_runner=debug default once the service stabilizes.
     // Initialize tracing with RUST_LOG (default: info,starknet_os_runner=debug).
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info,starknet_os_runner=debug"));
@@ -52,40 +52,4 @@ async fn main() -> anyhow::Result<()> {
 
     handle.stopped().await;
     Ok(())
-}
-
-fn build_cors_layer(cors_allow_origin: &[String]) -> anyhow::Result<Option<CorsLayer>> {
-    if cors_allow_origin.is_empty() {
-        return Ok(None);
-    }
-
-    // Origins are already validated/normalized by `ServiceConfig::from_args`, so
-    // `HeaderValue::from_str` should never fail here.
-    let allow_origin = if cors_allow_origin.iter().any(|origin| origin == "*") {
-        AllowOrigin::any()
-    } else {
-        let header_values = cors_allow_origin
-            .iter()
-            .map(|origin| {
-                HeaderValue::from_str(origin)
-                    .context(format!("Invalid cors_allow_origin header value '{origin}'"))
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        AllowOrigin::list(header_values)
-    };
-
-    Ok(Some(
-        CorsLayer::new()
-            .allow_origin(allow_origin)
-            .allow_methods([Method::POST])
-            .allow_headers([header::CONTENT_TYPE]),
-    ))
-}
-
-fn cors_mode(cors_allow_origin: &[String]) -> &'static str {
-    match cors_allow_origin {
-        [] => "disabled",
-        [single] if single == "*" => "wildcard",
-        _ => "allowlist",
-    }
 }
