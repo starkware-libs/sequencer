@@ -14,7 +14,8 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentResponse,
     ValidateBlockInput,
 };
-use apollo_batcher_types::communication::MockBatcherClient;
+use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
+use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverter,
@@ -204,6 +205,7 @@ impl TestDeps {
                 });
             block_number = block_number.unchecked_next();
         }
+        self.setup_default_batcher_get_block_hash();
     }
 
     pub(crate) fn setup_deps_for_validate(&mut self, args: SetupDepsArgs) {
@@ -263,6 +265,7 @@ impl TestDeps {
                 });
             block_number = block_number.unchecked_next();
         }
+        self.setup_default_batcher_get_block_hash();
     }
 
     pub(crate) fn setup_default_transaction_converter(&mut self) {
@@ -290,6 +293,12 @@ impl TestDeps {
             blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
         }));
         self.l1_gas_price_provider.expect_get_eth_to_fri_rate().return_const(Ok(ETH_TO_FRI_RATE));
+    }
+
+    pub(crate) fn setup_default_batcher_get_block_hash(&mut self) {
+        self.batcher.expect_get_block_hash().returning(|block_number| {
+            Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(block_number)))
+        });
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
