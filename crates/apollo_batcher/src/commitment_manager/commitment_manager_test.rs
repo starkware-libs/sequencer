@@ -1,6 +1,5 @@
 use std::panic;
 use std::sync::Arc;
-use std::time::Duration;
 
 use apollo_batcher_config::config::{
     BatcherConfig,
@@ -18,7 +17,6 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 use starknet_api::core::{GlobalRoot, StateDiffCommitment};
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::time::sleep;
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::commitment_manager::commitment_manager_impl::{
@@ -26,7 +24,15 @@ use crate::commitment_manager::commitment_manager_impl::{
     CommitmentManager,
 };
 use crate::commitment_manager::errors::CommitmentManagerError;
-use crate::test_utils::{test_state_diff, INITIAL_HEIGHT, LATEST_BLOCK_IN_STORAGE};
+use crate::test_utils::{
+    get_number_of_items_in_channel_from_receiver,
+    get_number_of_items_in_channel_from_sender,
+    test_state_diff,
+    wait_for_condition,
+    wait_for_n_items,
+    INITIAL_HEIGHT,
+    LATEST_BLOCK_IN_STORAGE,
+};
 
 struct MockDependencies {
     pub(crate) storage_reader: MockBatcherStorageReader,
@@ -74,14 +80,6 @@ fn get_dummy_parent_hash_and_partial_block_hash_components(
     Ok((Some(BlockHash::default()), Some(partial_block_hash_components)))
 }
 
-fn get_number_of_items_in_channel_from_sender<T>(sender: &Sender<T>) -> usize {
-    sender.max_capacity() - sender.capacity()
-}
-
-fn get_number_of_items_in_channel_from_receiver<T>(receiver: &Receiver<T>) -> usize {
-    receiver.max_capacity() - receiver.capacity()
-}
-
 async fn create_commitment_manager(
     mut mock_dependencies: MockDependencies,
 ) -> (ApolloCommitmentManager, Arc<MockBatcherStorageReader>, Box<MockBatcherStorageWriter>) {
@@ -96,33 +94,10 @@ async fn create_commitment_manager(
     (commitment_manager, storage_reader, mock_dependencies.storage_writer)
 }
 
-async fn wait_for_condition<F>(mut condition: F, error_message: &str)
-where
-    F: FnMut() -> bool,
-{
-    let max_n_retries = 3;
-    let mut n_retries = 0;
-    while !condition() {
-        sleep(Duration::from_millis(500)).await;
-        n_retries += 1;
-        if n_retries >= max_n_retries {
-            panic!("{} after {} retries.", error_message, max_n_retries);
-        }
-    }
-}
-
 async fn wait_for_empty_channel<T>(sender: &mut Sender<T>) {
     wait_for_condition(
         || get_number_of_items_in_channel_from_sender(sender) == 0,
         "Timed out waiting for channel to be empty.",
-    )
-    .await;
-}
-
-async fn wait_for_n_items<T>(receiver: &mut Receiver<T>, expected_n_results: usize) {
-    wait_for_condition(
-        || get_number_of_items_in_channel_from_receiver(receiver) >= expected_n_results,
-        &format!("Timed out waiting for {} items in channel.", expected_n_results),
     )
     .await;
 }
