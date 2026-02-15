@@ -211,7 +211,10 @@ pub async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) ->
 }
 
 pub async fn assert_no_reverted_txs(monitoring_client: &MonitoringClient, sequencer_idx: usize) {
-    let reverted =
+    let reverted_count =
         monitoring_client.get_metric::<usize>(REVERTED_TRANSACTIONS.get_name()).await.unwrap();
-    assert_eq!(reverted, 0, "Sequencer {sequencer_idx} has {reverted} reverted transactions");
+    assert_eq!(
+        reverted_count, 0,
+        "Sequencer {sequencer_idx} has {reverted_count} reverted transactions"
+    );
 }
