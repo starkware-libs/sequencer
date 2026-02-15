@@ -4,7 +4,6 @@
 #[cfg(test)]
 #[path = "sequencer_consensus_context_test.rs"]
 mod sequencer_consensus_context_test;
-
 use std::cmp::max;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
@@ -16,7 +15,8 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     StartHeightInput,
 };
-use apollo_batcher_types::communication::BatcherClient;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverterError,
     TransactionConverterTrait,
@@ -45,6 +45,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::ready;
 use futures::SinkExt;
 use starknet_api::block::{
+    BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockInfo,
     BlockNumber,
@@ -65,7 +66,12 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-use crate::cende::{BlobParameters, CendeContext, InternalTransactionWithReceipt};
+use crate::cende::{
+    BlobParameters,
+    CendeContext,
+    InternalTransactionWithReceipt,
+    N_RECENT_BLOCK_HASHES_IN_BLOB,
+};
 use crate::fee_market::{
     calculate_next_base_gas_price,
     get_min_gas_price_for_height,
@@ -460,6 +466,7 @@ impl SequencerConsensusContext {
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
                     .map(|commitment| ProposalCommitment(commitment.partial_block_hash.0)),
+                recent_block_hashes: self.collect_recent_block_hashes(height).await,
             })
             .await
         {
@@ -469,6 +476,28 @@ impl SequencerConsensusContext {
 
     pub fn get_config(&self) -> &ContextConfig {
         &self.config
+    }
+
+    /// Collects the recent block hashes from the batcher.
+    /// Returns computed block hashes in range [height - N_RECENT_BLOCK_HASHES_IN_BLOB, height].
+    async fn collect_recent_block_hashes(&self, height: BlockNumber) -> Vec<BlockHashAndNumber> {
+        let mut recent_block_hashes = Vec::new();
+        let lowest_height = height.0.saturating_sub(N_RECENT_BLOCK_HASHES_IN_BLOB);
+        for height in lowest_height..=height.0 {
+            let block_number = BlockNumber(height);
+            match self.deps.batcher.get_block_hash(block_number).await {
+                Ok(block_hash) => {
+                    recent_block_hashes
+                        .push(BlockHashAndNumber { number: block_number, hash: block_hash });
+                }
+                // This error is expected if the block is not yet committed.
+                Err(BatcherClientError::BatcherError(BatcherError::BlockHashNotFound(_))) => (),
+
+                // TODO(Nimrod): Consider handle this error differently.
+                Err(err) => error!("Failed to get block hash from batcher: {err:?}"),
+            }
+        }
+        recent_block_hashes
     }
 }
 
