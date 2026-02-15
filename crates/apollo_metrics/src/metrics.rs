@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::OnceLock;
 
 use crate::metric_definitions::METRIC_LABEL_FILTER;
@@ -40,6 +40,33 @@ pub enum MetricScope {
     StateSync,
     Storage,
     Tokio,
+}
+
+impl Display for MetricScope {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let label = match self {
+            MetricScope::Batcher => "Batcher",
+            MetricScope::Blockifier => "Blockifier",
+            MetricScope::ClassManager => "Class Manager",
+            MetricScope::Committer => "Committer",
+            MetricScope::Consensus => "Consensus",
+            MetricScope::ConsensusManager => "Consensus Manager",
+            MetricScope::ConsensusOrchestrator => "Consensus Orchestrator",
+            MetricScope::Gateway => "Gateway",
+            MetricScope::HttpServer => "Http Server",
+            MetricScope::Infra => "Infra",
+            MetricScope::L1GasPrice => "L1 Gas Price",
+            MetricScope::L1Provider => "L1 Provider",
+            MetricScope::Mempool => "Mempool",
+            MetricScope::MempoolP2p => "Mempool P2P",
+            MetricScope::CompileToCasm => "Compile To Casm",
+            MetricScope::StateSync => "State Sync",
+            MetricScope::Storage => "Storage",
+            MetricScope::Tokio => "Tokio",
+        };
+
+        f.write_str(label)
+    }
 }
 
 // Inner struct used to define a metric of any type.
