@@ -101,4 +101,5 @@ pub fn register_metrics(offset: BlockNumber) {
     WRITE_DURATION_PER_BLOCK.register();
     AVERAGE_WRITE_RATE.register();
     COMPUTE_DURATION_PER_BLOCK.register();
+    AVERAGE_COMPUTE_RATE.register();
 }
