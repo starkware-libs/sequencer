@@ -46,6 +46,7 @@ define_metrics!(
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_ADD_TX_FAILURE, "gateway_add_tx_failure", "Counter of add_tx failures by reason", init = 0 , labels = ADD_TX_FAILURE_LABELS},
+        MetricCounter { GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE, "gateway_proof_archive_write_failure", "Counter of proof archive (GCS) write failures", init=0 },
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME, "gateway_validate_stateful_tx_storage_time", "Total time spent in storage operations in secs during stateful tx validation" },
@@ -257,6 +258,7 @@ pub(crate) fn register_metrics() {
     GATEWAY_TRANSACTIONS_FAILED.register();
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.register();
     GATEWAY_ADD_TX_FAILURE.register();
+    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.register();
     GATEWAY_ADD_TX_LATENCY.register();
     GATEWAY_VALIDATE_TX_LATENCY.register();
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME.register();
