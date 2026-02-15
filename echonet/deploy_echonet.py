@@ -21,6 +21,9 @@ import shlex
 import shutil
 import subprocess
 import tarfile
+import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from constants import ECHONET_KEYS_FILENAME
@@ -139,6 +142,16 @@ def _namespace_args(namespace: str | None) -> list[str]:
     return ["-n", namespace] if namespace else []
 
 
+def _probe_http_ok(url: str, timeout_seconds: float = 1.0) -> bool:
+    try:
+        with urllib.request.urlopen(url, timeout=timeout_seconds) as resp:
+            return 200 <= int(getattr(resp, "status", 0)) < 300
+    except urllib.error.HTTPError as e:
+        return 200 <= int(getattr(e, "code", 0)) < 300
+    except Exception:
+        return False
+
+
 def _copy_generated_keys(keys_in_repo: Path, generated_path: Path) -> None:
     """
     Copy the non-secret echonet keys JSON into the kustomize generated/ directory.
@@ -175,6 +188,23 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Delete existing resources first (kubectl delete -k).",
     )
+    parser.add_argument(
+        "-n",
+        "--namespace",
+        default=None,
+        help="Kubernetes namespace (default: current context namespace).",
+    )
+    parser.add_argument(
+        "--port-forward",
+        action="store_true",
+        help="After rollout, run `kubectl port-forward svc/echonet` and keep it in the foreground.",
+    )
+    parser.add_argument(
+        "--port-forward-local-port",
+        type=int,
+        default=18080,
+        help="Local port for --port-forward (default: 18080).",
+    )
     args = parser.parse_args(argv)
 
     # Paths
@@ -196,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
     generated_keys_path = generated_dir / ECHONET_KEYS_FILENAME
     _copy_generated_keys(keys_in_repo=keys_in_repo, generated_path=generated_keys_path)
 
-    namespace_args = _namespace_args(None)
+    namespace_args = _namespace_args(args.namespace)
 
     if args.delete_first:
         logger.info("Deleting existing resources...")
@@ -226,6 +256,53 @@ def main(argv: list[str] | None = None) -> int:
     # Wait for rollout to complete.
     logger.info("Waiting for rollout status deployment/echonet...")
     _run(["kubectl", *namespace_args, "rollout", "status", "deployment/echonet"])
+
+    if args.port_forward:
+        local_port = args.port_forward_local_port
+
+        json_url = f"http://127.0.0.1:{local_port}/echonet/report"
+        ui_url = f"http://127.0.0.1:{local_port}/echonet/report/ui"
+
+        cmd = [
+            "kubectl",
+            *namespace_args,
+            "port-forward",
+            "svc/echonet",
+            f"{local_port}:80",
+        ]
+        logger.debug(f"Starting port-forward: {shlex.join(cmd)}")
+
+        deadline = time.time() + 90.0
+        proc = None
+        try:
+            while time.time() <= deadline:
+                if proc is None or proc.poll() is not None:
+                    proc = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    time.sleep(0.25)
+                    continue
+
+                if _probe_http_ok(json_url, timeout_seconds=1.0):
+                    logger.info(f"Open: {ui_url}")
+                    proc.wait()
+                    return 0
+
+                time.sleep(0.5)
+
+            raise RuntimeError(f"Timed out waiting for echonet HTTP to become ready: {json_url}")
+        except KeyboardInterrupt:
+            logger.info("Stopping port-forward...")
+            return 0
+        finally:
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    proc.kill()
 
     logger.info("Done.")
     return 0
