@@ -29,10 +29,7 @@ use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
     TempSkeletonNode,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
-use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonTree,
-    UpdatedSkeletonTreeImpl,
-};
+use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
 
 #[fixture]
 fn initial_updated_skeleton(

@@ -22,7 +22,6 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
     UpdatedSkeletonNodeMap,
-    UpdatedSkeletonTree,
     UpdatedSkeletonTreeImpl,
 };
 
