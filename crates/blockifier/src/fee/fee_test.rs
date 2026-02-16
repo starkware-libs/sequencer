@@ -47,7 +47,8 @@ fn test_simple_get_vm_resource_usage(
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
     let versioned_constants = VersionedConstants::create_for_account_testing();
-    let mut vm_resource_usage = get_vm_resource_usage();
+    // TODO(AvivG): update to test ExtendedExecutionResources.
+    let mut vm_resource_usage = get_vm_resource_usage().vm_resources;
     let n_reverted_steps = 15;
 
     // Positive flow.
@@ -102,7 +103,8 @@ fn test_float_get_vm_resource_usage(
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
     let versioned_constants = VersionedConstants::create_for_testing();
-    let mut vm_resource_usage = get_vm_resource_usage();
+    // TODO(AvivG): update to test ExtendedExecutionResources.
+    let mut vm_resource_usage = get_vm_resource_usage().vm_resources;
 
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
