@@ -42,6 +42,7 @@ class SnapshotModel:
     revert_errors_echonet: Mapping[str, RevertErrorInfo]
     resync_causes: ResyncTriggerMap
     certain_failures: ResyncTriggerMap
+    l2_gas_mismatches: Mapping[str, JsonObject]
 
     def to_dict(self) -> JsonObject:
         """
@@ -70,6 +71,7 @@ class SnapshotModel:
             "latest_block_timestamp": self.latest_block_timestamp,
             "timestamp_diff_seconds": self.timestamp_diff_seconds,
             "uptime_seconds": self.uptime_seconds,
+            "l2_gas_mismatches": self.l2_gas_mismatches,
         }
 
     @classmethod
@@ -94,4 +96,5 @@ class SnapshotModel:
             revert_errors_echonet=data["revert_errors_echonet"],
             resync_causes=data["resync_causes"],
             certain_failures=data["certain_failures"],
+            l2_gas_mismatches=data.get("l2_gas_mismatches", {}),
         )

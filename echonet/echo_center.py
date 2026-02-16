@@ -596,6 +596,15 @@ class EchoCenterService:
                     f"blob_total_gas_l2={blob_l2_gas} "
                     f"fgw_total_gas_consumed_l2={fgw_l2_gas}"
                 )
+                self.shared.record_l2_gas_mismatch(
+                    tx_hash=tx_hash,
+                    echo_block=int(echo_block_number),
+                    source_block=int(source_block),
+                    blob_total_gas_l2=int(blob_l2_gas),
+                    fgw_total_gas_consumed_l2=(
+                        int(fgw_l2_gas) if isinstance(fgw_l2_gas, int) else None
+                    ),
+                )
 
     @staticmethod
     def _json_response(payload: Any, status: int = requests.codes.ok) -> flask.Response:
