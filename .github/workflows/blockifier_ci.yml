@@ -130,7 +130,7 @@ jobs:
 
       # Pre-install compiler binaries; ignore failure if base branch lacks install binaries.
       - name: "Install compiler binaries (base branch)"
-        run: scripts/install_compiler_binaries.sh || true
+        run: scripts/install_compiler_binaries.sh --release || true
 
       # Benchmark the base branch code.
       - name: Benchmark (Base Branch)
@@ -150,6 +150,8 @@ jobs:
 
       # Pre-install compiler binaries so benchmarks can invoke them.
       - uses: ./.github/actions/install_compiler_binaries
+        with:
+          build_mode: release
 
       # Benchmark the current branch and compare to the previous run.
       - name: Benchmark (Feature Branch)
