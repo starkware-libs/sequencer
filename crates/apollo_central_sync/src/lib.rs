@@ -119,7 +119,7 @@ pub enum StateSyncError {
          Expected {expected_parent_block_hash}, found {stored_parent_block_hash}."
     )]
     ParentBlockHashMismatch {
-        _block_number: BlockNumber,
+        block_number: BlockNumber,
         expected_parent_block_hash: BlockHash,
         stored_parent_block_hash: BlockHash,
     },

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_class_manager_types::{ClassHashes, ClassManagerClient, MockClassManagerClient};
+use apollo_class_manager_types::{ClassManagerClient, MockClassManagerClient};
 use apollo_starknet_client::reader::PendingData;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::header::HeaderStorageReader;
@@ -26,6 +26,7 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
+    StarknetVersion,
 };
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
@@ -227,6 +228,7 @@ async fn sync_happy_flow() {
             hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
+    let test_starknet_version = StarknetVersion::V0_11_0;
     central_mock.expect_stream_new_blocks().returning(move |initial, up_to| {
         let blocks_stream: BlocksStream<'_> = stream! {
             for block_number in initial.iter_up_to(up_to) {
@@ -238,6 +240,7 @@ async fn sync_happy_flow() {
                     block_header_without_hash: BlockHeaderWithoutHash {
                         block_number,
                         parent_hash: create_block_hash(block_number.prev().unwrap_or_default(), false),
+                        starknet_version: test_starknet_version,
                         ..Default::default()
                     },
                     ..Default::default()
@@ -361,13 +364,17 @@ async fn sync_happy_flow() {
     // Create mock class manager client with expectations
     let mut mock_class_manager = MockClassManagerClient::new();
 
-    // Expect add_deprecated_class to be called for both class hashes
-    mock_class_manager.expect_add_class().times(1).returning(move |_class| {
-        Ok(ClassHashes { class_hash: class_hash_1, ..Default::default() })
-    });
-    mock_class_manager.expect_add_class().times(1).returning(move |_class| {
-        Ok(ClassHashes { class_hash: class_hash_2, ..Default::default() })
-    });
+    // Expect compiled classes to be sent directly for non backward compatible blocks.
+    mock_class_manager
+        .expect_add_class_and_executable_unsafe()
+        .withf(move |class_hash, _class, _exec_hash, _exec_class| *class_hash == class_hash_1)
+        .times(1)
+        .returning(|_, _, _, _| Ok(()));
+    mock_class_manager
+        .expect_add_class_and_executable_unsafe()
+        .withf(move |class_hash, _class, _exec_hash, _exec_class| *class_hash == class_hash_2)
+        .times(1)
+        .returning(|_, _, _, _| Ok(()));
     mock_class_manager
         .expect_add_deprecated_class()
         .withf(move |class_hash, _class| *class_hash == deployed_class_hash)
