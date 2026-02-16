@@ -25,6 +25,8 @@ REVERT_INACTIVITY_SUBSTRINGS: tuple[str, ...] = (
     "Successfully reverted State Sync's storage to height marker",
 )
 
+_CACHED_NAMESPACE_BY_PATH: dict[str, str] = {}
+
 
 ConfigMutator = Callable[[JsonObject], None]
 
@@ -338,7 +340,11 @@ class SequencerManager:
 
 
 def _read_namespace_from_serviceaccount(namespace_path: str) -> str:
+    cached = _CACHED_NAMESPACE_BY_PATH.get(namespace_path)
+    if cached is not None:
+        return cached
     with open(namespace_path, "r") as f:
         namespace = f.read().strip()
     logger.info(f"Auto-detected namespace: {namespace}")
+    _CACHED_NAMESPACE_BY_PATH[namespace_path] = namespace
     return namespace
