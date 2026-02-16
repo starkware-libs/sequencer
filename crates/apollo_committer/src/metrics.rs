@@ -49,12 +49,6 @@ define_metrics!(
             init = 0
         },
         MetricCounter {
-            EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
-            "emptied_leaves_percentage_per_block",
-            "Percentage of storage tries leaves emptied (0-100 scale, cumulative sum)",
-            init = 0
-        },
-        MetricCounter {
             TOTAL_BLOCK_DURATION,
             "total_block_duration",
             "Total block commit duration in milliseconds (cumulative)",
@@ -113,7 +107,6 @@ pub fn register_metrics(offset: BlockNumber) {
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.register();
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.register();
     COUNT_EMPTIED_LEAVES_PER_BLOCK.register();
-    EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.register();
     TOTAL_BLOCK_DURATION.register();
     TOTAL_BLOCK_DURATION_PER_MODIFICATION.register();
     READ_DURATION_PER_BLOCK.register();
