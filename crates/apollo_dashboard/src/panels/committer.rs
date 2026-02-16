@@ -2,6 +2,7 @@ use apollo_committer::metrics::{
     AVERAGE_COMPUTE_RATE,
     AVERAGE_READ_RATE,
     AVERAGE_WRITE_RATE,
+    BLOCKS_COMMITTED,
     COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
@@ -18,6 +19,7 @@ use apollo_metrics::metrics::MetricQueryName;
 
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
+use crate::query_builder::increase;
 
 const BLOCK_DURATIONS_LOG_QUERY: &str = "\"Block\" AND \"durations in ms\"";
 const RATES_LOG_QUERY: &str = "\"Block\" AND \"rates\"";
@@ -30,6 +32,29 @@ fn get_offset_panel() -> Panel {
         COMMITTER_OFFSET.get_name_with_filter().to_string(),
         PanelType::Stat,
     )
+}
+
+/// Returns a panel that shows the average of a counter per block over a 1m window.
+#[allow(dead_code)]
+fn average_per_block_panel(
+    name: impl ToString,
+    description: impl ToString,
+    numerator: &dyn MetricQueryName,
+    divisor: Option<u64>,
+    log_query: Option<&str>,
+    unit: Unit,
+) -> Panel {
+    let blocks = increase(&BLOCKS_COMMITTED, "1m");
+    let divisor = match divisor {
+        Some(n) => format!("{} * {}", n, blocks),
+        None => blocks,
+    };
+    let expr = format!("{} / clamp_min({}, 1)", increase(numerator, "1m"), divisor,);
+    let mut panel = Panel::new(name, description, expr, PanelType::TimeSeries).with_unit(unit);
+    if let Some(q) = log_query {
+        panel = panel.with_log_query(q);
+    }
+    panel
 }
 
 fn get_total_block_duration_panel() -> Panel {
