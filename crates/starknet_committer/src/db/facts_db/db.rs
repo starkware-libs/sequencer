@@ -5,12 +5,14 @@ use starknet_api::core::ContractAddress;
 use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, PatriciaStorageResult, Storage};
+use starknet_rust_core::types::MerkleNode;
 
 use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
@@ -32,6 +34,13 @@ use crate::patricia_merkle_tree::types::CompiledClassHash;
 /// DB representation of a trie node in facts layout.
 #[derive(PartialEq, Debug, derive_more::Into)]
 pub struct FactDbFilledNode<L: Leaf>(pub FilledNode<L, HashOutput>);
+
+impl<L: Leaf> From<(HashOutput, &MerkleNode)> for FactDbFilledNode<L> {
+    fn from((hash, node): (HashOutput, &MerkleNode)) -> Self {
+        let data: NodeData<L, HashOutput> = NodeData::from(node);
+        Self(FilledNode { hash, data })
+    }
+}
 
 /// Facts DB node layout.
 ///

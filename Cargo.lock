@@ -12102,6 +12102,7 @@ dependencies = [
  "rstest_reuse",
  "serde",
  "serde_json",
+ "starknet-rust-core 0.16.0",
  "starknet-types-core",
  "starknet_api",
  "starknet_patricia",
