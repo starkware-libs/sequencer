@@ -478,21 +478,21 @@ fn update_metrics(
 
     let read_rate = if durations.read > 0.0 {
         let rate = *n_reads as f64 / durations.read;
-        AVERAGE_READ_RATE.record_lossy(rate);
+        AVERAGE_READ_RATE.increment(rate as u64);
         Some(rate)
     } else {
         None
     };
     let compute_rate = if durations.compute > 0.0 {
         let rate = *n_writes as f64 / durations.compute;
-        AVERAGE_COMPUTE_RATE.record_lossy(rate);
+        AVERAGE_COMPUTE_RATE.increment(rate as u64);
         Some(rate)
     } else {
         None
     };
     let write_rate = if durations.write > 0.0 {
         let rate = *n_writes as f64 / durations.write;
-        AVERAGE_WRITE_RATE.record_lossy(rate);
+        AVERAGE_WRITE_RATE.increment(rate as u64);
         Some(rate)
     } else {
         None
@@ -545,9 +545,9 @@ fn log_block_measurements(
         durations.compute * 1000.0,
         durations.write * 1000.0,
         total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.0}µs")),
-        read_rate.map_or(String::new(), |r| format!("{r:.2}")),
-        compute_rate.map_or(String::new(), |r| format!("{r:.2}")),
-        write_rate.map_or(String::new(), |r| format!("{r:.2}")),
+        read_rate.map_or(String::new(), |r| format!("{r:.0}")),
+        compute_rate.map_or(String::new(), |r| format!("{r:.0}")),
+        write_rate.map_or(String::new(), |r| format!("{r:.0}")),
         modifications_counts.storage_tries,
         modifications_counts.contracts_trie,
         modifications_counts.classes_trie,
