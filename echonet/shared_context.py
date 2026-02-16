@@ -163,6 +163,38 @@ class _ResyncTracker:
 
 
 @dataclass(slots=True)
+class _ReportL2GasMismatchTracker:
+    """Tracks L2 gas mismatch rows for reporting."""
+
+    l2_gas_mismatches: List[JsonObject]
+
+    @classmethod
+    def empty(cls) -> "_ReportL2GasMismatchTracker":
+        return cls(
+            l2_gas_mismatches=[],
+        )
+
+    def record_l2_gas_mismatch(
+        self,
+        *,
+        tx_hash: str,
+        echo_block: int,
+        source_block: int,
+        blob_total_gas_l2: int,
+        fgw_total_gas_consumed_l2: int | None,
+    ) -> None:
+        self.l2_gas_mismatches.append(
+            {
+                "tx_hash": tx_hash,
+                "echo_block": echo_block,
+                "source_block": source_block,
+                "blob_total_gas_l2": blob_total_gas_l2,
+                "fgw_total_gas_consumed_l2": fgw_total_gas_consumed_l2,
+            }
+        )
+
+
+@dataclass(slots=True)
 class _BlockStore:
     """In-memory storage for echo_center outputs and raw feeder blocks."""
 
@@ -369,6 +401,7 @@ class SharedContext:
         self._tx = _TxTracker.empty()
         self._errors = _TxErrorTracker.empty()
         self._resync = _ResyncTracker.empty()
+        self._l2_gas_mismatches = _ReportL2GasMismatchTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
 
@@ -448,6 +481,25 @@ class SharedContext:
             self._progress.sender_current_block = None
         _BlockStore.write_snapshot_items_to_disk(snapshot_items, base_dir=archive_dir)
         l1_manager.clear_stored_blocks()
+
+    # --- Report extras (cumulative; preserved across resync) ---
+    def record_l2_gas_mismatch(
+        self,
+        *,
+        tx_hash: str,
+        echo_block: int,
+        source_block: int,
+        blob_total_gas_l2: int,
+        fgw_total_gas_consumed_l2: int | None,
+    ) -> None:
+        with self._lock:
+            self._l2_gas_mismatches.record_l2_gas_mismatch(
+                tx_hash=tx_hash,
+                echo_block=echo_block,
+                source_block=source_block,
+                blob_total_gas_l2=blob_total_gas_l2,
+                fgw_total_gas_consumed_l2=fgw_total_gas_consumed_l2,
+            )
 
     # --- Block storage (echo_center output + raw FGW blocks) ---
     def store_block(
@@ -544,6 +596,7 @@ class SharedContext:
                 revert_errors_echonet=dict(self._errors.revert_errors_echonet),
                 resync_causes=dict(self._resync.resync_causes),
                 certain_failures=dict(self._resync.certain_failures),
+                l2_gas_mismatches=list(self._l2_gas_mismatches.l2_gas_mismatches),
             )
 
     # --- Progress markers ---
