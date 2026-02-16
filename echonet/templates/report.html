@@ -531,6 +531,7 @@
                     {% endif %}
                     <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ row.tx_hash }}" target="_blank"
                       rel="noopener" title="Open in Voyager">Voyager</a>
+                    {% if not export %}
                     <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                       data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                     <a class="btn btnSmall btnLink"
@@ -539,6 +540,7 @@
                     <a class="btn btnSmall btnLink"
                       href="/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
                       rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
+                    {% endif %}
                   </div>
                 </td>
               </tr>
