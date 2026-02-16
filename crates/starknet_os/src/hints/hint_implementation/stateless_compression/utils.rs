@@ -484,11 +484,11 @@ where
 /// Computes the starting offsets for each bucket in a list of buckets, based on their lengths.
 pub(crate) fn get_bucket_offsets(bucket_lengths: &[usize]) -> Vec<usize> {
     let mut offsets = Vec::with_capacity(bucket_lengths.len());
-    let mut current = 0;
+    let mut current_offset = 0;
 
     for &length in bucket_lengths {
-        offsets.push(current);
-        current += length;
+        offsets.push(current_offset);
+        current_offset += length;
     }
 
     offsets
@@ -525,16 +525,16 @@ where
     let mut result = Vec::with_capacity(n_elms);
 
     for felt in compressed {
-        let mut remaining = felt.to_biguint();
+        let mut remaining_value = felt.to_biguint();
         let n_packed_elms = min(n_elms_per_felt, n_elms - result.len());
         for _ in 0..n_packed_elms {
-            let (new_remaining, value) = remaining.div_rem(&elm_bound_as_big);
+            let (new_remaining_value, value) = remaining_value.div_rem(&elm_bound_as_big);
             result.push(
                 value.try_into().expect(
                     "Value is the remainder modulo elm_bound, so it should fit in the type",
                 ),
             );
-            remaining = new_remaining;
+            remaining_value = new_remaining_value;
         }
     }
 

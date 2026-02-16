@@ -318,6 +318,15 @@ where
         // Run virtual OS to get Cairo PIE.
         let output = run_virtual_os(os_hints)?;
 
+        // Log execution resources.
+        let resources = &output.cairo_pie.execution_resources;
+        info!(
+            n_steps = resources.n_steps,
+            n_memory_holes = resources.n_memory_holes,
+            builtins = ?resources.builtin_instance_counter,
+            "Virtual OS execution resources"
+        );
+
         // Construct RunnerOutput with Cairo PIE and L2 to L1 messages.
         Ok(RunnerOutput { cairo_pie: output.cairo_pie, l2_to_l1_messages })
     }

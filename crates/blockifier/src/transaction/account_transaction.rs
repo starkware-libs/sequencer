@@ -712,10 +712,11 @@ impl AccountTransaction {
                 remaining_gas.limit_usage(tx_context.sierra_gas_limit(&ExecutionMode::Execute)),
             )),
         );
+        let extended_calldata_length = self.calldata_length() + self.proof_facts_length();
         let n_allotted_execution_steps = execution_context.subtract_validation_and_overhead_steps(
             &validate_call_info,
             &self.tx_type(),
-            self.calldata_length(),
+            extended_calldata_length,
         );
 
         // Save the state changes resulting from running `validate_tx`, to be used later for

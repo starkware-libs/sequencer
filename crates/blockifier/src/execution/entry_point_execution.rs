@@ -7,13 +7,13 @@ use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
-use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
+use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::GasCosts;
-use crate::execution::call_info::{cairo_primitive_counter_map, CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, ExtendedExecutionResources, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     EntryPointExecutionContext,
@@ -31,7 +31,6 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
-use crate::transaction::objects::ExecutionResourcesTraits;
 
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]
@@ -408,10 +407,10 @@ pub fn finalize_runner(
     Ok(())
 }
 
-pub fn extract_vm_resources(
+pub fn extract_extended_vm_resources(
     runner: &CairoRunner,
     syscall_handler: &SyscallHintProcessor<'_>,
-) -> Result<ExecutionResources, PostExecutionError> {
+) -> Result<ExtendedExecutionResources, PostExecutionError> {
     // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
     let mut vm_resources_without_inner_calls = runner
@@ -428,14 +427,23 @@ pub fn extract_vm_resources(
     // Take into account the syscall resources of the current call.
     vm_resources_without_inner_calls += &versioned_constants
         .get_additional_os_syscall_resources(&syscall_handler.base.syscalls_usage);
-    Ok(vm_resources_without_inner_calls)
+    Ok(ExtendedExecutionResources {
+        vm_resources: vm_resources_without_inner_calls,
+        // TODO(AvivG): Get opcode instance counter from the runner.
+        opcode_instance_counter: Default::default(),
+    })
 }
 
 pub fn total_vm_resources(
-    tracked_vm_resources_without_inner_calls: &ExecutionResources,
+    tracked_vm_resources_without_inner_calls: &ExtendedExecutionResources,
     inner_calls: &[CallInfo],
-) -> ExecutionResources {
-    tracked_vm_resources_without_inner_calls + &CallInfo::summarize_vm_resources(inner_calls.iter())
+) -> ExtendedExecutionResources {
+    tracked_vm_resources_without_inner_calls
+    // TODO(AvivG): Have CallInfo::summarize_vm_resources return ExtendedExecutionResources.
+        + &ExtendedExecutionResources {
+            vm_resources: CallInfo::summarize_vm_resources(inner_calls.iter()),
+            opcode_instance_counter: Default::default(),
+        }
 }
 
 pub fn finalize_execution(
@@ -452,17 +460,18 @@ pub fn finalize_execution(
 
     // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
-    let vm_resources_without_inner_calls = extract_vm_resources(&runner, &syscall_handler)?;
+    let extended_resources_without_inner_calls =
+        extract_extended_vm_resources(&runner, &syscall_handler)?;
 
-    let tracked_vm_resources_without_inner_calls = match tracked_resource {
-        TrackedResource::CairoSteps => &vm_resources_without_inner_calls,
-        TrackedResource::SierraGas => &ExecutionResources::default(),
+    let tracked_extended_resources_without_inner_calls = match tracked_resource {
+        TrackedResource::CairoSteps => &extended_resources_without_inner_calls,
+        TrackedResource::SierraGas => &ExtendedExecutionResources::default(),
     };
 
     syscall_handler.finalize();
 
-    let vm_resources = total_vm_resources(
-        tracked_vm_resources_without_inner_calls,
+    let extended_resources = total_vm_resources(
+        tracked_extended_resources_without_inner_calls,
         &syscall_handler.base.inner_calls,
     );
 
@@ -480,11 +489,10 @@ pub fn finalize_execution(
         },
         inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
-        resources: vm_resources,
+        // TODO(AvivG): replace CallInfo::resources type with ExtendedExecutionResources.
+        resources: extended_resources.vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
-        builtin_counters: cairo_primitive_counter_map(
-            vm_resources_without_inner_calls.prover_builtins(),
-        ),
+        builtin_counters: extended_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler_base.syscalls_usage,
     })
 }

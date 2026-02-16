@@ -183,9 +183,11 @@ pub fn estimate_minimal_gas_vector(
 
     // TODO(Yoni): BLOCKIFIER-RESET: reuse TransactionReceipt code.
     let data_segment_length = get_onchain_data_segment_length(&state_changes_by_account_tx);
-    let os_steps_for_type =
-        versioned_constants.os_resources_for_tx_type(&tx.tx_type(), tx.calldata_length()).n_steps
-            + versioned_constants.os_kzg_da_resources(data_segment_length).n_steps;
+    let extended_calldata_length = tx.calldata_length() + tx.proof_facts_length();
+    let os_steps_for_type = versioned_constants
+        .os_resources_for_tx_type(&tx.tx_type(), extended_calldata_length)
+        .n_steps
+        + versioned_constants.os_kzg_da_resources(data_segment_length).n_steps;
 
     let resources = ExecutionResources { n_steps: os_steps_for_type, ..Default::default() };
     let da_gas_cost = get_da_gas_cost(&state_changes_by_account_tx, block_info.use_kzg_da);

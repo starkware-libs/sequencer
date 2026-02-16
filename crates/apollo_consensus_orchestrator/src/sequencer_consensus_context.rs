@@ -625,9 +625,14 @@ impl ConsensusContext for SequencerConsensusContext {
             .clone();
 
         let transaction_converter = self.deps.transaction_converter.clone();
+<<<<<<< HEAD
         let mut stream_sender =
             self.start_stream(HeightAndRound(height.0, build_param.round)).await;
         tokio::spawn(
+=======
+        let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
+        let handle = tokio::spawn(
+>>>>>>> origin/main-v0.14.2
             async move {
                 let res =
                     send_reproposal(id, init, txs, &mut stream_sender, transaction_converter).await;
@@ -642,6 +647,13 @@ impl ConsensusContext for SequencerConsensusContext {
             }
             .instrument(error_span!("consensus_repropose", round = build_param.round)),
         );
+        // Spawn a follow-up task to detect panics. Without this, if the reproposal
+        // task panics, the JoinError is silently swallowed when the handle is dropped.
+        tokio::spawn(async move {
+            if let Err(e) = handle.await {
+                error!("Reproposal task panicked: {e:?}");
+            }
+        });
     }
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {

@@ -11,39 +11,27 @@ from starkware.starknet.core.os.virtual_os_output import (
     VirtualOsOutputHeader,
 )
 
-// Recursively hashes each L2-to-L1 message separately and writes them.
-func hash_messages_to_l1_recursive{output_ptr: felt*, poseidon_ptr: PoseidonBuiltin*}(
-    messages_ptr_start: MessageToL1Header*, messages_ptr_end: MessageToL1Header*
+// Hashes each L2-to-L1 message separately and writes the hash to the output.
+func output_message_to_l1_hashes{output_ptr: felt*, poseidon_ptr: PoseidonBuiltin*}(
+    messages_ptr_start: felt*, messages_ptr_end: felt*
 ) {
-    alloc_locals;
-
     if (messages_ptr_start == messages_ptr_end) {
         return ();
     }
 
     // Read the message header.
-    let message_header = [messages_ptr_start];
-    let payload_size = message_header.payload_size;
+    let message_header = cast(messages_ptr_start, MessageToL1Header*);
 
     // Hash the message (header + payload).
-    // The message consists of: from_address, to_address, payload_size, ...payload.
-    let message_size = MessageToL1Header.SIZE + payload_size;
-    let (message_hash) = poseidon_hash_many(
-        n=message_size, elements=cast(messages_ptr_start, felt*)
-    );
+    let message_size = MessageToL1Header.SIZE + message_header.payload_size;
+    let (message_hash) = poseidon_hash_many(n=message_size, elements=messages_ptr_start);
 
     // Store the hash and advance output_ptr.
-    assert [output_ptr] = message_hash;
+    assert output_ptr[0] = message_hash;
     let output_ptr = &output_ptr[1];
 
-    // Move to the next message.
-    let next_message_ptr = cast(
-        messages_ptr_start + MessageToL1Header.SIZE + payload_size, MessageToL1Header*
-    );
-
-    // Recursively process the remaining messages.
-    return hash_messages_to_l1_recursive(
-        messages_ptr_start=next_message_ptr, messages_ptr_end=messages_ptr_end
+    return output_message_to_l1_hashes(
+        messages_ptr_start=&messages_ptr_start[message_size], messages_ptr_end=messages_ptr_end
     );
 }
 
@@ -65,8 +53,8 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
     state_update_output: CommitmentUpdate*,
     os_global_context: OsGlobalContext*,
 ) -> OsOutputHeader* {
-    // Calculate the block hash based on the block info and the **initial** state root.
-    let (_prev_block_hash, block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
+    // Calculate the previous block hash based on the block info and the **initial** state root.
+    let (_prev_prev_block_hash, prev_block_hash) = get_block_hashes{poseidon_ptr=poseidon_ptr}(
         block_info=block_context.block_info_for_execute, state_root=state_update_output.initial_root
     );
 
@@ -74,7 +62,7 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
         state_update_output=state_update_output,
         prev_block_number=block_context.block_info_for_execute.block_number,
         new_block_number=0,
-        prev_block_hash=block_hash,
+        prev_block_hash=prev_block_hash,
         new_block_hash=0,
         os_program_hash=0,
         starknet_os_config_hash=os_global_context.starknet_os_config_hash,
@@ -88,13 +76,7 @@ func get_block_os_output_header{poseidon_ptr: PoseidonBuiltin*}(
 // Outputs the virtual OS header and the messages to L1.
 func process_os_output{
     output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
-}(
-    n_blocks: felt,
-    os_outputs: OsOutput*,
-    n_public_keys: felt,
-    public_keys: felt*,
-    os_global_context: OsGlobalContext*,
-) {
+}(n_blocks: felt, os_outputs: OsOutput*, n_public_keys: felt, public_keys: felt*) {
     alloc_locals;
     assert n_public_keys = 0;
 
@@ -110,7 +92,7 @@ func process_os_output{
     let output_ptr = output_ptr + VirtualOsOutputHeader.SIZE;
     let messages_to_l1_hashes_ptr_start: felt* = output_ptr;
 
-    hash_messages_to_l1_recursive(
+    output_message_to_l1_hashes(
         messages_ptr_start=os_output.initial_carried_outputs.messages_to_l1,
         messages_ptr_end=os_output.final_carried_outputs.messages_to_l1,
     );
@@ -123,7 +105,7 @@ func process_os_output{
         output_version=VIRTUAL_OS_OUTPUT_VERSION,
         base_block_number=header.prev_block_number,
         base_block_hash=header.prev_block_hash,
-        starknet_os_config_hash=os_global_context.starknet_os_config_hash,
+        starknet_os_config_hash=header.starknet_os_config_hash,
         n_messages_to_l1=n_messages_to_l1,
     );
 

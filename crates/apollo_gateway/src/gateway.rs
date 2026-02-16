@@ -22,7 +22,11 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
-use apollo_transaction_converter::{TransactionConverter, TransactionConverterTrait};
+use apollo_transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+    VerificationHandle,
+};
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::executable_transaction::AccountTransaction;
@@ -30,10 +34,9 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
-    RpcInvokeTransaction,
     RpcTransaction,
 };
-use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
 use tracing::{debug, error, info, warn};
 
 use crate::errors::{
@@ -167,18 +170,6 @@ impl<
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
-        // Extract proof data early for potential archiving later.
-        let proof_data = match tx {
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref tx)) => {
-                if !tx.proof_facts.is_empty() {
-                    Some((tx.proof_facts.clone(), tx.proof.clone()))
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-
         if let RpcTransaction::Declare(ref declare_tx) = tx {
             if let Err(e) = self.check_declare_permissions(declare_tx) {
                 metric_counters.record_add_tx_failure(&e);
@@ -190,7 +181,7 @@ impl<
         self.stateless_tx_validator.validate(&tx)?;
 
         let tx_signature = tx.signature().clone();
-        let (internal_tx, executable_tx) =
+        let (internal_tx, executable_tx, proof_data) =
             self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
 
         let mut stateful_transaction_validator = self
@@ -206,22 +197,26 @@ impl<
 
         if let Some((proof_facts, proof)) = proof_data {
             let tx_hash = internal_tx.tx_hash;
-            let proof_manager_client = self.transaction_converter.get_proof_manager_client();
-            let proof_manager_store_start = Instant::now();
             // Proof is verified during conversion to internal tx. It is stored here, after
             // validation, to avoid storing proofs for rejected transactions.
-            if let Err(e) = proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await
-            {
-                error!("Failed to set proof in proof manager: {}", e);
+            let store_result = self
+                .transaction_converter
+                .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
+                .await;
+            match store_result {
+                Ok(proof_manager_store_duration) => {
+                    info!(
+                        "Proof manager store in the gateway took: \
+                         {proof_manager_store_duration:?} for tx hash: {tx_hash:?}"
+                    );
+                }
+                Err(e) => {
+                    error!("Failed to set proof in proof manager: {}", e);
+                }
             }
-            let proof_manager_store_duration = proof_manager_store_start.elapsed();
-            info!(
-                "Proof manager store took: {proof_manager_store_duration:?} for tx hash: \
-                 {tx_hash:?}"
-            );
-            let proof_archive_writer_start = Instant::now();
             let proof_archive_writer = self.proof_archive_writer.clone();
             tokio::spawn(async move {
+                let proof_archive_writer_start = Instant::now();
                 if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
                     error!("Failed to archive proof to GCS: {}", e);
                 }
@@ -284,14 +279,22 @@ impl<
         &self,
         tx: RpcTransaction,
         tx_signature: &TransactionSignature,
-    ) -> Result<(InternalRpcTransaction, AccountTransaction), StarknetError> {
-        let internal_tx =
+    ) -> Result<
+        (InternalRpcTransaction, AccountTransaction, Option<(ProofFacts, Proof)>),
+        StarknetError,
+    > {
+        let (internal_tx, verification_handle) =
             self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
                 |e| {
                     warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
                     transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
                 },
             )?;
+
+        // Await the verification task immediately.
+        let proof_data = self
+            .await_verification_task_and_extract_proof_data(verification_handle, tx_signature)
+            .await?;
 
         let executable_tx = self
             .transaction_converter
@@ -302,7 +305,30 @@ impl<
                 transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
             })?;
 
-        Ok((internal_tx, executable_tx))
+        Ok((internal_tx, executable_tx, proof_data))
+    }
+    async fn await_verification_task_and_extract_proof_data(
+        &self,
+        verification_handle: Option<VerificationHandle>,
+        tx_signature: &TransactionSignature,
+    ) -> Result<Option<(ProofFacts, Proof)>, StarknetError> {
+        let Some(handle) = verification_handle else {
+            return Ok(None);
+        };
+
+        handle
+            .verification_task
+            .await
+            .map_err(|e| {
+                warn!("Proof verification task panicked: {}", e);
+                StarknetError::internal_with_logging("Proof verification task panicked:", &e)
+            })?
+            .map_err(|e| {
+                warn!("Proof verification failed: {}", e);
+                transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
+            })?;
+
+        Ok(Some((handle.proof_facts, handle.proof)))
     }
 }
 

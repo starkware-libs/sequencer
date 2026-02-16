@@ -151,11 +151,6 @@ impl RemoteClientMetrics {
             .record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
     }
 
-    // TODO(Tsabary): consider deleting
-    pub fn get_attempts_metric(&self) -> &'static MetricHistogram {
-        self.attempts
-    }
-
     pub fn get_response_time_metric(&self) -> &'static LabeledMetricHistogram {
         self.response_times
     }
@@ -272,11 +267,6 @@ impl LocalServerMetrics {
         self.received_msgs
     }
 
-    // TODO(Tsabary): consider deleting
-    pub fn get_processed_metric(&self) -> &'static MetricCounter {
-        self.processed_msgs
-    }
-
     pub fn get_high_priority_queue_depth_metric(&self) -> &'static MetricGauge {
         self.high_priority_queue_depth
     }
@@ -365,16 +355,6 @@ impl RemoteServerMetrics {
 
     pub fn get_total_received_metric(&self) -> &'static MetricCounter {
         self.total_received_msgs
-    }
-
-    // TODO(Tsabary): consider deleting
-    pub fn get_valid_received_metric(&self) -> &'static MetricCounter {
-        self.valid_received_msgs
-    }
-
-    // TODO(Tsabary): consider deleting
-    pub fn get_processed_metric(&self) -> &'static MetricCounter {
-        self.processed_msgs
     }
 
     pub fn get_number_of_connections_metric(&self) -> &'static MetricGauge {

@@ -377,9 +377,9 @@ impl VersionedConstants {
     pub fn os_resources_for_tx_type(
         &self,
         tx_type: &TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
     ) -> ExecutionResources {
-        self.os_resources.resources_for_tx_type(tx_type, calldata_length)
+        self.os_resources.resources_for_tx_type(tx_type, extended_calldata_length)
     }
 
     pub fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
@@ -392,9 +392,11 @@ impl VersionedConstants {
         starknet_resources: &StarknetResources,
         use_kzg_da: bool,
     ) -> ExecutionResources {
+        let extended_calldata_length = starknet_resources.archival_data.calldata_length
+            + starknet_resources.archival_data.proof_facts_length;
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
-            starknet_resources.archival_data.calldata_length,
+            extended_calldata_length,
             starknet_resources.state.get_onchain_data_segment_length(),
             use_kzg_da,
         )
@@ -494,7 +496,6 @@ pub struct ArchivalDataGasCosts {
     // actual number we wanted is 1/32 gas per byte. Change the value to 1/32 in the next version
     // where rational numbers are supported.
     pub gas_per_code_byte: ResourceCost,
-    // TODO(AvivG): Update value for 0.14.2 once the value is finalized.
     // Note: This field is only present in archival_data_gas_costs (for V3+ transactions with
     // proof facts). It's not present in deprecated_l2_resource_gas_costs (for V0-V2 transactions).
     #[serde(default)]
@@ -648,11 +649,12 @@ impl OsResources {
     fn get_additional_os_tx_resources(
         &self,
         tx_type: TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
         data_segment_length: usize,
         use_kzg_da: bool,
     ) -> ExecutionResources {
-        let mut os_additional_vm_resources = self.resources_for_tx_type(&tx_type, calldata_length);
+        let mut os_additional_vm_resources =
+            self.resources_for_tx_type(&tx_type, extended_calldata_length);
 
         if use_kzg_da {
             os_additional_vm_resources += &self.os_kzg_da_resources(data_segment_length);
@@ -702,12 +704,12 @@ impl OsResources {
     fn resources_for_tx_type(
         &self,
         tx_type: &TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
     ) -> ExecutionResources {
         let resources_vector = self.resources_params_for_tx_type(tx_type);
         &resources_vector.constant
             + &CallDataFactor::from(&resources_vector.calldata_factor)
-                .calculate_resources(calldata_length)
+                .calculate_resources(extended_calldata_length)
     }
 
     fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
@@ -947,8 +949,7 @@ pub struct BuiltinGasCosts {
 }
 
 impl BuiltinGasCosts {
-    // TODO(AvivG): Make this function private and use get_cairo_primitive_gas_cost instead.
-    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
+    fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
         let gas_cost = match *builtin {
             BuiltinName::range_check => self.range_check,
             BuiltinName::pedersen => self.pedersen,

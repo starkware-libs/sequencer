@@ -17,9 +17,7 @@ use crate::blockifier::transaction_executor::{
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{
     cairo_primitive_counter_map,
-    BuiltinCounterMap,
     CairoPrimitiveCounterMap,
-    CairoPrimitiveName,
     ExecutionSummary,
 };
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
@@ -683,19 +681,16 @@ fn memory_holes_to_gas(
 }
 
 /// Calculates proving gas from builtin counters and Sierra gas.
-fn proving_gas_from_builtins_and_sierra_gas(
+fn proving_gas_from_cairo_primitives_and_sierra_gas(
     sierra_gas: GasAmount,
-    builtin_counters: &BuiltinCounterMap,
+    cairo_primitives_counters: &CairoPrimitiveCounterMap,
     proving_builtin_gas_costs: &BuiltinGasCosts,
     sierra_builtin_gas_costs: &BuiltinGasCosts,
 ) -> GasAmount {
-    // TODO(AvivG): To support opcodes in the computation, pass cairo_primitive_counter_map to this
-    // function
-    let cairo_primitives_counters = cairo_primitive_counter_map(builtin_counters.clone());
     let cairo_primitives_proving_gas =
-        cairo_primitives_to_gas(&cairo_primitives_counters, proving_builtin_gas_costs);
+        cairo_primitives_to_gas(cairo_primitives_counters, proving_builtin_gas_costs);
     let steps_proving_gas =
-        sierra_gas_to_steps_gas(sierra_gas, &cairo_primitives_counters, sierra_builtin_gas_costs);
+        sierra_gas_to_steps_gas(sierra_gas, cairo_primitives_counters, sierra_builtin_gas_costs);
 
     steps_proving_gas.checked_add_panic_on_overflow(cairo_primitives_proving_gas)
 }
@@ -806,7 +801,7 @@ fn compute_sierra_gas(
 }
 
 fn compute_proving_gas(
-    builtin_counters: &BuiltinCounterMap,
+    cairo_primitives_counters: &CairoPrimitiveCounterMap,
     vm_resources_sierra_gas: GasAmount,
     versioned_constants: &VersionedConstants,
     proving_builtin_gas_costs: &BuiltinGasCosts,
@@ -814,9 +809,9 @@ fn compute_proving_gas(
     migration_gas: GasAmount,
     class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
 ) -> (GasAmount, CasmHashComputationData) {
-    let vm_resources_proving_gas = proving_gas_from_builtins_and_sierra_gas(
+    let vm_resources_proving_gas = proving_gas_from_cairo_primitives_and_sierra_gas(
         vm_resources_sierra_gas,
-        builtin_counters,
+        cairo_primitives_counters,
         proving_builtin_gas_costs,
         sierra_builtin_gas_costs,
     );
@@ -840,7 +835,7 @@ pub fn get_tx_weights<S: StateReader>(
     tx_resources: &TransactionResources,
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
-    tx_builtin_counters: &CairoPrimitiveCounterMap,
+    tx_cairo_primitives_counters: &CairoPrimitiveCounterMap,
     bouncer_config: &BouncerConfig,
 ) -> TransactionExecutionResult<TxWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
@@ -895,28 +890,23 @@ pub fn get_tx_weights<S: StateReader>(
         );
 
     // Proving gas computation.
-    // Exclude tx_vm_resources to prevent double-counting in tx_builtin_counters.
-    let mut vm_resources_builtins_for_proving_gas_computation =
+    // Exclude tx_vm_resources to prevent double-counting in tx_cairo_primitives_counters.
+    let vm_resources_builtins_for_proving_gas_computation =
         (&patrticia_update_resources + &tx_resources.computation.os_vm_resources).prover_builtins();
 
-    // Convert `tx_builtin_counters` into the format expected by `add_maps`.
-    // TODO(AvivG): Support opcode counters in gas computations.
-    let tx_builtins: BuiltinCounterMap = tx_builtin_counters
-        .iter()
-        .map(|(cairo_primitive_name, count)| match cairo_primitive_name {
-            CairoPrimitiveName::Builtin(builtin_name) => (*builtin_name, *count),
-            CairoPrimitiveName::Opcode(_) => panic!(
-                "Opcode counters are not expected here: CallInfo does not yet receive opcode data \
-                 from the VM / native."
-            ),
-        })
-        .collect();
+    // TODO(AvivG): To support opcodes in the computation, os resources should include opcode
+    // counters.
+    let mut vm_resources_cairo_primitives_for_proving_gas_computation =
+        cairo_primitive_counter_map(vm_resources_builtins_for_proving_gas_computation.clone());
 
-    // Use tx_builtin_counters to count the Sierra gas executed entry points as well.
-    add_maps(&mut vm_resources_builtins_for_proving_gas_computation, &tx_builtins);
+    // Use tx_cairo_primitives_counters to count the Sierra gas executed entry points as well.
+    add_maps(
+        &mut vm_resources_cairo_primitives_for_proving_gas_computation,
+        tx_cairo_primitives_counters,
+    );
 
     let (total_proving_gas, casm_hash_computation_data_proving_gas) = compute_proving_gas(
-        &vm_resources_builtins_for_proving_gas_computation,
+        &vm_resources_cairo_primitives_for_proving_gas_computation,
         vm_resources_sierra_gas,
         versioned_constants,
         proving_builtin_gas_costs,
