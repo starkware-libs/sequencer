@@ -76,6 +76,13 @@ pub(crate) struct BlockInfoValidation {
     pub l2_gas_price_fri: GasPrice,
 }
 
+/// Parameters for deadline and cancellation handling during proposal finalization.
+struct ProposalDeadlineParams {
+    clock: Arc<dyn Clock>,
+    deadline: DateTime,
+    cancel_token: CancellationToken,
+}
+
 enum HandledProposalPart {
     Continue,
     Invalid(String),
@@ -152,10 +159,17 @@ pub(crate) async fn validate_proposal(
     )
     .await?;
 
+    let deadline_params = ProposalDeadlineParams {
+        clock: args.deps.clock.clone(),
+        deadline,
+        cancel_token: args.cancel_token.clone(),
+    };
+
     // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
+                abort_verification_handles(&mut verification_handles);
                 // Ignoring batcher errors, to better reflect the proposal interruption.
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await.ok();
                 return Err(ValidateProposalError::ProposalInterrupted(
@@ -163,6 +177,7 @@ pub(crate) async fn validate_proposal(
                 ));
             }
             _ = args.deps.clock.sleep_until(deadline) => {
+                abort_verification_handles(&mut verification_handles);
                 // Ignoring batcher errors, to better reflect the proposal deadline timeout.
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await.ok();
                 return Err(ValidateProposalError::ValidationTimeout(
@@ -177,16 +192,19 @@ pub(crate) async fn validate_proposal(
                     &mut content,
                     &mut verification_handles,
                     args.deps.transaction_converter.clone(),
+                    &deadline_params,
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
                         break (built_block, received_fin);
                     }
                     HandledProposalPart::Continue => {continue;}
                     HandledProposalPart::Invalid(err) => {
-                        // No need to abort since the Batcher is the source of this info.
+                        abort_verification_handles(&mut verification_handles);
+                        // No need to abort batcher since the Batcher is the source of this info.
                         return Err(ValidateProposalError::InvalidProposal(err));
                     }
                     HandledProposalPart::Failed(fail_reason) => {
+                        abort_verification_handles(&mut verification_handles);
                         batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await?;
                         return Err(ValidateProposalError::ProposalPartFailed(fail_reason,proposal_part));
                     }
@@ -380,6 +398,16 @@ async fn await_verification_and_store_proof(
     Ok(())
 }
 
+async fn await_all_verification_handles(
+    verification_handles: &mut Vec<VerificationHandle>,
+    transaction_converter: &Arc<dyn TransactionConverterTrait>,
+) -> Result<(), String> {
+    while let Some(handle) = verification_handles.pop() {
+        await_verification_and_store_proof(handle, transaction_converter).await?;
+    }
+    Ok(())
+}
+
 /// Handles receiving a proposal from another node without blocking consensus:
 /// 1. Receives the proposal part from the network.
 /// 2. Pass this to the batcher.
@@ -391,6 +419,7 @@ async fn handle_proposal_part(
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
     verification_handles: &mut Vec<VerificationHandle>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
+    deadline_params: &ProposalDeadlineParams,
 ) -> HandledProposalPart {
     match proposal_part {
         None => {
@@ -415,14 +444,33 @@ async fn handle_proposal_part(
 
             // Proof verification tasks are spawned during transaction conversion in the
             // transaction batch case, so they run concurrently with transaction
-            // execution by the batcher. Since the fin is always the last proposal part (sent after
-            // all transaction batch parts), we await all accumulated verification handles here to
-            // ensure every proof is verified and stored before finalizing the proposal.
-            for handle in verification_handles.drain(..) {
-                if let Err(e) =
-                    await_verification_and_store_proof(handle, &transaction_converter).await
-                {
-                    return HandledProposalPart::Failed(e);
+            // execution by the batcher. Since the fin is always the last proposal part
+            // (sent after all transaction batch parts), we await all accumulated
+            // verification handles here to ensure every proof is verified and stored
+            // before finalizing the proposal.
+            //
+            // The select! ensures we respect the validation deadline and cancellation
+            // token, preventing slow or hanging proof verification from stalling
+            // proposal validation indefinitely.
+            tokio::select! {
+                _ = deadline_params.cancel_token.cancelled() => {
+                    abort_verification_handles(verification_handles);
+                    return HandledProposalPart::Failed(
+                        "Proposal validation interrupted".to_string(),
+                    );
+                }
+                _ = deadline_params.clock.sleep_until(deadline_params.deadline) => {
+                    abort_verification_handles(verification_handles);
+                    return HandledProposalPart::Failed(
+                        "Proposal validation timed out".to_string(),
+                    );
+                }
+                result = await_all_verification_handles(
+                    verification_handles, &transaction_converter
+                ) => {
+                    if let Err(e) = result {
+                        return HandledProposalPart::Failed(e);
+                    }
                 }
             }
 
@@ -517,6 +565,14 @@ async fn handle_proposal_part(
             "Invalid proposal part: {:?}",
             proposal_part.clone()
         )),
+    }
+}
+
+/// Aborts all pending verification tasks. Used when the proposal fails for reasons unrelated to
+/// verification to avoid leaking background tasks or for validation timeout.
+fn abort_verification_handles(verification_handles: &mut Vec<VerificationHandle>) {
+    for handle in verification_handles.drain(..) {
+        handle.verification_task.abort();
     }
 }
 
