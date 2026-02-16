@@ -4,6 +4,8 @@
         theme: "echonet.report.theme",
         filter: "echonet.report.filter",
         scope: "echonet.report.filterScope",
+        blockDumpNumber: "echonet.report.blockDumpNumber",
+        blockDumpKind: "echonet.report.blockDumpKind",
     };
 
     function $(id) {
@@ -50,6 +52,19 @@
         if (!el) return;
         if (hidden) el.classList.add("isHidden");
         else el.classList.remove("isHidden");
+    }
+
+    function openCollapsibleSection(root) {
+        if (!root) return;
+        const tag = root.tagName ? root.tagName.toLowerCase() : "";
+        if (tag === "details") {
+            root.open = true;
+            return;
+        }
+        const d =
+            root.querySelector &&
+            root.querySelector('details[data-section-details="1"], details.sectionDetails');
+        if (d) d.open = true;
     }
 
     function countVisibleRows(root) {
@@ -120,6 +135,36 @@
         });
 
         updateTableMeta();
+    }
+
+    function initSectionCollapsePersistence() {
+        // Persist section open/closed state across refreshes (like refresh dropdown).
+        // Keyed by the <section id="..."> that wraps a `details.sectionDetails`.
+        try {
+            const prefix = "echonet.report.sectionOpen.";
+            document.querySelectorAll('details.sectionDetails[data-section-details="1"]').forEach((d) => {
+                const section = d.closest("section[id]");
+                const id = section ? (section.id || "") : "";
+                if (!id) return;
+
+                const key = prefix + id;
+                const saved = localStorage.getItem(key);
+                if (saved === "1") d.open = true;
+                else if (saved === "0") d.open = false;
+                else {
+                    // Defaults: everything open except pending txs.
+                    if (id === "pending-txs") d.open = false;
+                }
+
+                d.addEventListener("toggle", () => {
+                    try {
+                        localStorage.setItem(key, d.open ? "1" : "0");
+                    } catch (_) { }
+                });
+            });
+        } catch (_) {
+            // If localStorage is unavailable, just fall back to HTML defaults.
+        }
     }
 
     function toast(msg) {
@@ -217,11 +262,11 @@
 
     function buildGcpLogsUrl({ txHash } = {}) {
         const b = document.body?.dataset || {};
-        const projectId = (b.gcpProjectId || "").trim() || "starkware-dev";
-        const location = (b.gcpLocation || "").trim() || "us-central1";
-        const cluster = (b.gkeClusterName || "").trim() || "sequencer-dev";
+        const projectId = (b.gcpProjectId || "").trim();
+        const location = (b.gcpLocation || "").trim();
+        const cluster = (b.gkeClusterName || "").trim();
         const namespace = (b.k8sNamespace || "").trim();
-        const duration = (b.gcpLogsDuration || "").trim() || "PT2H";
+        const duration = (b.gcpLogsDuration || "").trim();
 
         const lines = [];
         lines.push('resource.type="k8s_container"');
@@ -418,6 +463,53 @@
         });
     }
 
+    function initBlockDumpPersistence() {
+        const num = $("blockDumpNumber");
+        const kind = $("blockDumpKind");
+        if (!num && !kind) return;
+
+        // Restore (localStorage wins; no URL param support needed here since the form opens in a new tab).
+        try {
+            if (num) {
+                const saved = localStorage.getItem(STORAGE.blockDumpNumber);
+                if (saved != null && saved !== "") num.value = saved;
+            }
+            if (kind) {
+                const saved = localStorage.getItem(STORAGE.blockDumpKind);
+                if (saved != null && saved !== "") kind.value = saved;
+            }
+        } catch (_) { }
+
+        // Preserve focus across auto-refresh reloads (best-effort), like filter input.
+        if (num) {
+            const focusKey = "echonet.report.blockDumpNumberFocused";
+            num.addEventListener("focus", () => sessionStorage.setItem(focusKey, "1"));
+            num.addEventListener("blur", () => sessionStorage.setItem(focusKey, "0"));
+            if (sessionStorage.getItem(focusKey) === "1") {
+                setTimeout(() => {
+                    num.focus();
+                    num.select();
+                }, 0);
+            }
+        }
+
+        // Persist changes.
+        if (num) {
+            num.addEventListener("input", () => {
+                try {
+                    localStorage.setItem(STORAGE.blockDumpNumber, num.value || "");
+                } catch (_) { }
+            });
+        }
+        if (kind) {
+            kind.addEventListener("change", () => {
+                try {
+                    localStorage.setItem(STORAGE.blockDumpKind, kind.value || "");
+                } catch (_) { }
+            });
+        }
+    }
+
     function clamp01(x) {
         const n = Number(x);
         if (!Number.isFinite(n)) return 0;
@@ -453,6 +545,8 @@
         function scrollToId(id) {
             const el = document.getElementById(id);
             if (!el) return;
+            // If the target section is collapsed, open it before scrolling.
+            openCollapsibleSection(el);
             el.scrollIntoView({ behavior: "smooth", block: "start" });
         }
 
@@ -500,8 +594,19 @@
         if (!section) return;
         const el = document.getElementById(section);
         if (el) {
+            // If the target section is collapsed, open it before scrolling.
+            openCollapsibleSection(el);
             setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
         }
+    }
+
+    function initHashOpen() {
+        const h = (window.location.hash || "").trim();
+        if (!h || h === "#") return;
+        const id = h.startsWith("#") ? h.slice(1) : h;
+        if (!id) return;
+        const el = document.getElementById(id);
+        if (el) openCollapsibleSection(el);
     }
 
     function getCellValue(tr, idx) {
@@ -594,9 +699,12 @@
         initCopyVisibleHashes();
         initRefresh();
         initThemeToggle();
+        initBlockDumpPersistence();
+        initSectionCollapsePersistence();
         initScrollLinks();
         initSortableTables();
         initSectionParamScroll();
+        initHashOpen();
         initRestoreScrollPosition();
         updateTableMeta();
     }

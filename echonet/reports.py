@@ -614,6 +614,7 @@ def build_report_view_model(
     r = _SnapshotReportRollup.from_snapshot(snapshot)
 
     return {
+        "feeder_base_url": str(CONFIG.feeder.base_url).rstrip("/"),
         "snapshot": r.s,
         "meta": {
             "generated_at_utc": r.now_utc,
