@@ -38,8 +38,6 @@ spec:
               base64 -d /bundle/echonet-src.tgz.b64 > /tmp/echonet-src.tgz
               tar -xzf /tmp/echonet-src.tgz -C /app
               test -f /app/echonet/__init__.py
-              # Convenience for interactive debugging: allow `python reports.py` from /app.
-              ln -sf /app/echonet/reports.py /app/reports.py
           volumeMounts:
             - name: echonet-src-bundle
               mountPath: /bundle
