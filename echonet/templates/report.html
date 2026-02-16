@@ -127,10 +127,12 @@
               <span class="mono">{{ kpis.gateway_errors_count }}</span></span>
             <span class="pill pillLink {{ severity.reverts_mainnet }}" role="button" tabindex="0"
               data-scroll-to="reverts-mainnet">Reverts
-              (mainnet-only): <span class="mono">{{ kpis.reverts_mainnet_count }}</span></span>
+              (mainnet-only): <span class="mono">{{ kpis.reverts_mainnet_count }}</span>
+              <span class="mono">({{ reverts.mainnet_only.pct_of_total_sent }})</span></span>
             <span class="pill pillLink {{ severity.reverts_echonet }}" role="button" tabindex="0"
               data-scroll-to="reverts-echonet">Reverts
-              (echonet-only): <span class="mono">{{ kpis.reverts_echonet_count }}</span></span>
+              (echonet-only): <span class="mono">{{ kpis.reverts_echonet_count }}</span>
+              <span class="mono">({{ reverts.echonet_only.pct_of_total_sent }})</span></span>
           </div>
           <div class="pillRow">
             <span class="pill pillLink {{ severity.resync_causes }}" role="button" tabindex="0"
@@ -150,8 +152,10 @@
       </section>
 
       <section id="pending-txs">
-        <div class="card">
-          <div class="cardTitle">Non-committed tx hashes (pending)</div>
+        <details class="card details sectionDetails" data-section-details="1">
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Non-committed tx hashes (pending)</span>
+          </summary>
           {% if not export %}
           <div class="tableMeta smallMuted" data-table-meta="pending"></div>
           {% endif %}
@@ -189,9 +193,9 @@
                     <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                       data-logs-tx="{{ tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                     <a class="btn btnSmall btnLink"
-                      href="/feeder_gateway/get_block?blockNumber={{ src_bn }}&withFeeMarketInfo=true" target="_blank"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ src_bn }}&withFeeMarketInfo=true" target="_blank"
                       rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
-                    <a class="btn btnSmall btnLink" href="/feeder_gateway/get_state_update?blockNumber={{ src_bn }}"
+                    <a class="btn btnSmall btnLink" href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ src_bn }}"
                       target="_blank" rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
                     {% endif %}
                   </div>
@@ -201,15 +205,14 @@
             </tbody>
           </table>
           {% endif %}
-        </div>
+        </details>
       </section>
 
       <section id="gateway-errors">
-        <div class="card">
-          <div class="cardTitle">
-            Gateway errors
-            <span class="countPill">{{ kpis.gateway_errors_count }}</span>
-          </div>
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Gateway errors <span class="countPill">{{ kpis.gateway_errors_count }}</span></span>
+          </summary>
           {% if not export %}
           <div class="tableMeta smallMuted" data-table-meta="gateway"></div>
           {% endif %}
@@ -257,10 +260,10 @@
                     <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                       data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                     <a class="btn btnSmall btnLink"
-                      href="/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
                       target="_blank" rel="noopener" title="Open block JSON (upstream/stored feeder)">Block</a>
                     <a class="btn btnSmall btnLink"
-                      href="/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
                       rel="noopener" title="Open state update JSON (upstream/stored feeder)">State</a>
                     {% endif %}
                   </div>
@@ -270,16 +273,15 @@
             </tbody>
           </table>
           {% endif %}
-        </div>
+        </details>
       </section>
 
       <section id="reverts-mainnet">
-        <div class="card">
-          <div class="cardTitle">
-            Reverted only on Mainnet
-            <span class="countPill">{{ reverts.mainnet_only.total }} ({{ reverts.mainnet_only.pct_of_total_sent
-              }})</span>
-          </div>
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Reverted only on Mainnet <span class="countPill">{{ reverts.mainnet_only.total }} ({{ reverts.mainnet_only.pct_of_total_sent
+                }})</span></span>
+          </summary>
           {% if reverts.mainnet_only.total == 0 %}
           <div class="empty">(none)</div>
           {% else %}
@@ -331,10 +333,10 @@
                       <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                         data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                       <a class="btn btnSmall btnLink"
-                        href="/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                        href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
                         target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
                       <a class="btn btnSmall btnLink"
-                        href="/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                        href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
                         rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
                       {% endif %}
                     </div>
@@ -346,16 +348,15 @@
           </details>
           {% endfor %}
           {% endif %}
-        </div>
+        </details>
       </section>
 
       <section id="reverts-echonet">
-        <div class="card">
-          <div class="cardTitle">
-            Reverted only on Echonet
-            <span class="countPill">{{ reverts.echonet_only.total }} ({{ reverts.echonet_only.pct_of_total_sent
-              }})</span>
-          </div>
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Reverted only on Echonet <span class="countPill">{{ reverts.echonet_only.total }} ({{ reverts.echonet_only.pct_of_total_sent
+                }})</span></span>
+          </summary>
           {% if reverts.echonet_only.total == 0 %}
           <div class="empty">(none)</div>
           {% else %}
@@ -407,10 +408,10 @@
                       <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                         data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                       <a class="btn btnSmall btnLink"
-                        href="/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                        href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
                         target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
                       <a class="btn btnSmall btnLink"
-                        href="/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                        href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
                         rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
                       {% endif %}
                     </div>
@@ -422,15 +423,14 @@
           </details>
           {% endfor %}
           {% endif %}
-        </div>
+        </details>
       </section>
 
       <section id="resync-triggers">
-        <div class="card">
-          <div class="cardTitle">
-            Resync triggers (first failures)
-            <span class="countPill">{{ kpis.resync_causes_count }}</span>
-          </div>
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Resync triggers (first failures) <span class="countPill">{{ kpis.resync_causes_count }}</span></span>
+          </summary>
           {% if not export %}
           <div class="tableMeta smallMuted" data-table-meta="resync"></div>
           {% endif %}
@@ -472,10 +472,10 @@
                     <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                       data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                     <a class="btn btnSmall btnLink"
-                      href="/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
                       target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
                     <a class="btn btnSmall btnLink"
-                      href="/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
                       rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
                     {% endif %}
                   </div>
@@ -485,15 +485,14 @@
             </tbody>
           </table>
           {% endif %}
-        </div>
+        </details>
       </section>
 
       <section id="certain-failures">
-        <div class="card">
-          <div class="cardTitle">
-            Certain failures (repeated triggers)
-            <span class="countPill">{{ kpis.certain_failures_count }}</span>
-          </div>
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Certain failures (repeated triggers) <span class="countPill">{{ kpis.certain_failures_count }}</span></span>
+          </summary>
           {% if not export %}
           <div class="tableMeta smallMuted" data-table-meta="certain"></div>
           {% endif %}
@@ -531,14 +530,16 @@
                     {% endif %}
                     <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ row.tx_hash }}" target="_blank"
                       rel="noopener" title="Open in Voyager">Voyager</a>
+                    {% if not export %}
                     <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
                       data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                     <a class="btn btnSmall btnLink"
-                      href="/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
                       target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
                     <a class="btn btnSmall btnLink"
-                      href="/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
                       rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
+                    {% endif %}
                   </div>
                 </td>
               </tr>
@@ -546,15 +547,14 @@
             </tbody>
           </table>
           {% endif %}
-        </div>
+        </details>
       </section>
 
       <section id="l2-gas-mismatches">
-        <div class="card">
-          <div class="cardTitle">
-            L2 gas used mismatches
-            <span class="countPill">{{ l2_gas_mismatches | length }}</span>
-          </div>
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">L2 gas used mismatches <span class="countPill">{{ l2_gas_mismatches | length }}</span></span>
+          </summary>
           {% if not export %}
           <div class="tableMeta smallMuted" data-table-meta="diag"></div>
           {% endif %}
@@ -604,10 +604,10 @@
                       data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
                     <a class="btn btnSmall btnLink"
                       href="/echonet/block_dump?blockNumber={{ row.echo_block }}&kind=blob" target="_blank"
-                      rel="noopener" title="Open echonet blob dump JSON (echo block)">Echo blob</a>
+                      rel="noopener" title="Open echonet blob dump JSON (echo block)">Echo&nbsp;blob</a>
                     <a class="btn btnSmall btnLink"
-                      href="/feeder_gateway/get_block?blockNumber={{ row.source_block }}&withFeeMarketInfo=true"
-                      target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Source block</a>
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.source_block }}&withFeeMarketInfo=true"
+                      target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Source&nbsp;block</a>
                     {% endif %}
                   </div>
                 </td>
@@ -616,7 +616,7 @@
             </tbody>
           </table>
           {% endif %}
-        </div>
+        </details>
       </section>
 
       {% if not export %}
