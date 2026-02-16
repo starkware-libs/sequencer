@@ -414,7 +414,7 @@ pub fn finalize_runner(
     Ok(())
 }
 
-pub fn extract_vm_resources(
+pub fn extract_extended_vm_resources(
     runner: &CairoRunner,
     syscall_handler: &SyscallHintProcessor<'_>,
 ) -> Result<ExtendedExecutionResources, PostExecutionError> {
@@ -467,7 +467,8 @@ pub fn finalize_execution(
 
     // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
-    let vm_resources_without_inner_calls = extract_vm_resources(&runner, &syscall_handler)?;
+    let vm_resources_without_inner_calls =
+        extract_extended_vm_resources(&runner, &syscall_handler)?;
 
     let tracked_vm_resources_without_inner_calls = match tracked_resource {
         TrackedResource::CairoSteps => &vm_resources_without_inner_calls,
