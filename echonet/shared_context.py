@@ -346,11 +346,15 @@ class SharedContext:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
+        self._started_at_monotonic = time.monotonic()
         self._tx = _TxTracker.empty()
         self._errors = _TxErrorTracker.empty()
         self._resync = _ResyncTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
+
+    def get_uptime_seconds(self) -> int:
+        return int(time.monotonic() - self._started_at_monotonic)
 
     # --- Tx lifecycle ---
     def record_sent_tx(self, tx_hash: str, source_block_number: int) -> None:
@@ -482,6 +486,7 @@ class SharedContext:
             first_ts = self._progress.first_block_timestamp
             latest_ts = self._progress.latest_block_timestamp
             timestamp_diff_seconds = latest_ts - first_ts if (first_ts and latest_ts) else None
+            uptime_seconds = int(time.monotonic() - self._started_at_monotonic)
 
             return SnapshotModel(
                 start_block=configured_start_block,
@@ -492,6 +497,7 @@ class SharedContext:
                 first_block_timestamp=first_ts,
                 latest_block_timestamp=latest_ts,
                 timestamp_diff_seconds=timestamp_diff_seconds,
+                uptime_seconds=uptime_seconds,
                 total_sent_tx_count=self._tx.total_forwarded_tx_count,
                 committed_count=len(self._tx.committed),
                 pending_total_count=len(self._tx.ever_seen_pending),
