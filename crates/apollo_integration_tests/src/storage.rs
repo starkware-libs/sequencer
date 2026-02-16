@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use apollo_infra_utils::test_utils::AvailablePorts;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 
@@ -108,13 +109,19 @@ pub fn get_integration_test_storage(
     custom_paths: Option<CustomPaths>,
     accounts: Vec<AccountTransactionGenerator>,
     chain_info: &ChainInfo,
+    available_ports: &mut AvailablePorts,
 ) -> StorageTestSetup {
     let storage_exec_paths = custom_paths.as_ref().and_then(|paths| {
         paths.get_db_base().map(|db_base| StorageExecutablePaths::new(db_base, node_index))
     });
 
-    let StorageTestSetup { mut storage_config, storage_handles } =
-        StorageTestSetup::new(accounts, chain_info, storage_exec_paths);
+    let class_manager_storage_reader_server_port = available_ports.get_next_port();
+    let StorageTestSetup { mut storage_config, storage_handles } = StorageTestSetup::new(
+        accounts,
+        chain_info,
+        storage_exec_paths,
+        class_manager_storage_reader_server_port,
+    );
 
     // Allow overriding the path with a custom prefix for Docker mode in system tests.
     if let Some(paths) = custom_paths {

@@ -1,8 +1,10 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_proc_macros::unique_u16;
 use apollo_test_utils::get_test_block;
+use async_trait::async_trait;
 use axum::http::StatusCode;
 use axum::Router;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -27,7 +29,12 @@ use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::consensus::{ConsensusStorageWriter, LastVotedMarker};
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
-use crate::storage_reader_server::ServerConfig;
+use crate::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    ServerConfig,
+    StorageReaderServerDynamicConfig,
+};
 use crate::storage_reader_server_test_utils::get_response;
 use crate::storage_reader_types::{
     GenericStorageReaderServer,
@@ -39,6 +46,18 @@ use crate::version::VersionStorageReader;
 use crate::{MarkerKind, OffsetKind, StorageReader};
 
 const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
+
+/// Mock provider for testing, always returns enabled=true
+struct MockTestDynamicConfigProvider;
+
+#[async_trait]
+impl DynamicConfigProvider for MockTestDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: true })
+    }
+}
 
 /// Test server setup containing all the components needed for testing storage reader requests.
 struct TestServerSetup {
@@ -148,7 +167,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         available_ports_factory(instance_index).get_next_port(),
         true,
     );
-    let server = GenericStorageReaderServer::new(reader.clone(), config);
+    let mock_config_provider = Arc::new(MockTestDynamicConfigProvider);
+    let server = GenericStorageReaderServer::new(reader.clone(), config, mock_config_provider);
     let app = server.app();
 
     TestServerSetup {

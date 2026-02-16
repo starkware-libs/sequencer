@@ -121,6 +121,7 @@ impl FlowTestSetup {
                 StorageConfig::default(),
                 available_ports.get_next_ports(NUM_OF_SEQUENCERS),
                 available_ports.get_next_ports(NUM_OF_SEQUENCERS),
+                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
             )
             .try_into()
             .unwrap();
@@ -245,8 +246,13 @@ impl FlowSequencerSetup {
         allow_bootstrap_txs: bool,
     ) -> Self {
         let path = None;
-        let StorageTestSetup { storage_config, storage_handles } =
-            StorageTestSetup::new(accounts, &chain_info, path);
+        let class_manager_storage_reader_server_port = available_ports.get_next_port();
+        let StorageTestSetup { storage_config, storage_handles } = StorageTestSetup::new(
+            accounts,
+            &chain_info,
+            path,
+            class_manager_storage_reader_server_port,
+        );
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
