@@ -211,7 +211,7 @@ impl ExecutionSummary {
         use crate::fee::resources::{ComputationResources, MessageResources};
 
         let computation_resources = ComputationResources {
-            tx_vm_resources: self.charged_resources.vm_resources,
+            tx_vm_resources: self.charged_resources.vm_resources.vm_resources,
             os_vm_resources: ExecutionResources::default(),
             n_reverted_steps: 0,
             sierra_gas: self.charged_resources.gas_consumed,
@@ -241,8 +241,8 @@ impl ExecutionSummary {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Serialize, Eq, PartialEq)]
 pub struct ChargedResources {
-    pub vm_resources: ExecutionResources, // Counted in CairoSteps mode calls.
-    pub gas_consumed: GasAmount,          // Counted in SierraGas mode calls.
+    pub vm_resources: ExtendedExecutionResources, // Counted in CairoSteps mode calls.
+    pub gas_consumed: GasAmount,                  // Counted in SierraGas mode calls.
 }
 
 impl Add<&ChargedResources> for &ChargedResources {
@@ -456,8 +456,7 @@ impl CallInfo {
             // Note: the vm_resources and gas_consumed of a call contains the inner call resources,
             // unlike other fields such as events and messages.
             charged_resources: ChargedResources {
-                // TODO(AvivG): Update charged_resources to use ExtendedExecutionResources.
-                vm_resources: self.resources.vm_resources.clone(),
+                vm_resources: self.resources.clone(),
                 gas_consumed: GasAmount(self.execution.gas_consumed),
             },
             executed_class_hashes,
