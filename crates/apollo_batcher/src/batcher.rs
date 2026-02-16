@@ -1316,6 +1316,7 @@ fn log_txs_execution_result(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,

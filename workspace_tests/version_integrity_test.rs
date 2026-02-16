@@ -44,6 +44,7 @@ const CRATES_FOR_PUBLISH_REGRESSION: Expect = expect![[r#"
         "apollo_sizeof",
         "apollo_sizeof_macros",
         "apollo_starknet_os_program",
+        "apollo_time",
         "blockifier",
         "blockifier_test_utils",
         "starknet_api",
