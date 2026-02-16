@@ -8,6 +8,7 @@ pub mod sources;
 mod sync_test;
 
 use std::cmp::min;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -96,6 +97,7 @@ pub struct GenericStateSync<
     writer: Arc<Mutex<StorageWriter>>,
     sequencer_pub_key: Option<SequencerPublicKey>,
     class_manager_client: Option<SharedClassManagerClient>,
+    starknet_versions: HashMap<BlockNumber, StarknetVersion>,
 }
 
 pub type StateSyncResult = Result<(), StateSyncError>;
@@ -117,7 +119,7 @@ pub enum StateSyncError {
          Expected {expected_parent_block_hash}, found {stored_parent_block_hash}."
     )]
     ParentBlockHashMismatch {
-        block_number: BlockNumber,
+        _block_number: BlockNumber,
         expected_parent_block_hash: BlockHash,
         stored_parent_block_hash: BlockHash,
     },
@@ -136,6 +138,8 @@ pub enum StateSyncError {
     },
     #[error("Sequencer public key changed from {old:?} to {new:?}.")]
     SequencerPubKeyChanged { old: SequencerPublicKey, new: SequencerPublicKey },
+    #[error("Starknet version for block {block_number} wasn't found when storing state diff.")]
+    MissingStarknetVersion { block_number: BlockNumber },
     #[error(transparent)]
     ClassManagerClientError(#[from] ClassManagerClientError),
     #[error(transparent)]
@@ -216,6 +220,7 @@ impl<
                 | StateSyncError::BaseLayerHashMismatch { .. }
                 | StateSyncError::ClassManagerClientError(_)
                 | StateSyncError::BaseLayerBlockWithoutMatchingHeader { .. }
+                | StateSyncError::MissingStarknetVersion { .. }
                 | StateSyncError::JoinError(_) => true,
                 StateSyncError::SequencerPubKeyChanged { .. }
                 | StateSyncError::ParentBlockHashMismatch { .. } => false,
@@ -281,7 +286,6 @@ impl<
             self.config.latest_block_poll_interval_millis,
             // TODO(yair): separate config param.
             self.config.state_updates_max_stream_size,
-            self.config.store_sierras_and_casms_block_threshold,
         )
         .fuse();
         let base_layer_block_stream = match &self.base_layer_source {
@@ -296,11 +300,7 @@ impl<
         };
         // TODO(dvir): try use interval instead of stream.
         // TODO(DvirYo): fix the bug and remove this check.
-        let check_sync_progress = check_sync_progress(
-            self.reader.clone(),
-            self.config.store_sierras_and_casms_block_threshold,
-        )
-        .fuse();
+        let check_sync_progress = check_sync_progress(self.reader.clone()).fuse();
         pin_mut!(
             block_stream,
             state_diff_stream,
@@ -330,7 +330,10 @@ impl<
     async fn process_sync_event(&mut self, sync_event: SyncEvent) -> StateSyncResult {
         match sync_event {
             SyncEvent::BlockAvailable { block_number, block, signature } => {
-                self.store_block(block_number, block, signature).await
+                let starknet_version = block.header.block_header_without_hash.starknet_version;
+                self.store_block(block_number, block, signature).await?;
+                self.starknet_versions.insert(block_number, starknet_version);
+                Ok(())
             }
             SyncEvent::StateDiffAvailable {
                 block_number,
@@ -338,9 +341,26 @@ impl<
                 state_diff,
                 deployed_contract_class_definitions,
             } => {
+                let starknet_version = if let Some(starknet_version) =
+                    self.starknet_versions.remove(&block_number)
+                {
+                    starknet_version
+                } else {
+                    debug!(
+                        "Starknet version for block {} not found in cache; using stored header.",
+                        block_number
+                    );
+                    let header = self
+                        .reader
+                        .begin_ro_txn()?
+                        .get_block_header(block_number)?
+                        .ok_or(StateSyncError::MissingStarknetVersion { block_number })?;
+                    header.block_header_without_hash.starknet_version
+                };
                 self.store_state_diff(
                     block_number,
                     block_hash,
+                    starknet_version,
                     state_diff,
                     deployed_contract_class_definitions,
                 )
@@ -436,6 +456,7 @@ impl<
         &mut self,
         block_number: BlockNumber,
         block_hash: BlockHash,
+        starknet_version: StarknetVersion,
         mut state_diff: StateDiff,
         deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
     ) -> StateSyncResult {
@@ -534,9 +555,7 @@ impl<
         }
         let has_class_manager = self.class_manager_client.is_some();
 
-        let store_sierras_and_casms_block_threshold =
-            self.config.store_sierras_and_casms_block_threshold;
-        let store_sierras_and_casms = block_number.0 < store_sierras_and_casms_block_threshold;
+        let store_sierras_and_casms = starknet_version < STARKNET_VERSION_TO_COMPILE_FROM;
         self.perform_storage_writes(move |writer| {
             if has_class_manager {
                 writer
@@ -555,9 +574,8 @@ impl<
             if store_sierras_and_casms || block_contains_non_backwards_compatible_classes {
                 let store_reason = if store_sierras_and_casms {
                     format!(
-                        "block {} is below store_sierras_and_casms_block_threshold: \
-                         {store_sierras_and_casms_block_threshold}",
-                        block_number.0
+                        "block {} has Starknet version {} below {}",
+                        block_number.0, starknet_version, STARKNET_VERSION_TO_COMPILE_FROM
                     )
                 } else {
                     format!("block {} contains non backwards compatible classes", block_number.0)
@@ -579,10 +597,10 @@ impl<
                 )?;
             } else {
                 trace!(
-                    "Skipping appending classes {:?} to storage since block is at or above \
-                     store_sierras_and_casms_block_threshold and \
-                     block_contains_non_backwards_compatible_classes is false",
-                    classes.keys().collect::<Vec<_>>()
+                    "Skipping appending classes {:?} to storage since block version is at or \
+                     above {} and block_contains_non_backwards_compatible_classes is false",
+                    classes.keys().collect::<Vec<_>>(),
+                    STARKNET_VERSION_TO_COMPILE_FROM
                 );
             }
             txn.commit()?;
@@ -632,7 +650,7 @@ impl<
                     .expect("Failed adding class and compiled class to class manager.");
             }
         }
-        if block_number.0 >= self.config.store_sierras_and_casms_block_threshold {
+        if is_compiler_backward_compatible {
             return Ok(());
         }
         let result = self
@@ -886,6 +904,7 @@ impl StateSync {
             writer: Arc::new(Mutex::new(writer)),
             sequencer_pub_key: None,
             class_manager_client,
+            starknet_versions: HashMap::new(),
         }
     }
 }
@@ -895,7 +914,6 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
     central_source: Arc<TCentralSource>,
     latest_block_poll_interval_millis: Duration,
     max_stream_size: u32,
-    store_sierras_and_casms_block_threshold: u64,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
@@ -933,10 +951,9 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
 
             // No point in downloading casms if we don't store them and don't send them to the
             // class manager
-            if are_casms_backward_compatible && from.0 >= store_sierras_and_casms_block_threshold {
+            if are_casms_backward_compatible {
                 info!("Compiled classes stream reached a block that has backward compatibility for \
-                      the compiler, and block is at or above store_sierras_and_casms_block_threshold. \
-                      Finishing the compiled class stream");
+                      the compiler. Finishing the compiled class stream");
                 pending::<()>().await;
                 continue;
             }
@@ -999,7 +1016,6 @@ fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
 // TODO(dvir): add a test for this scenario.
 fn check_sync_progress(
     reader: StorageReader,
-    store_sierras_and_casms_block_threshold: u64,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         let (mut header_marker, mut state_marker, mut casm_marker) = {
@@ -1021,11 +1037,8 @@ fn check_sync_progress(
                 let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
                 (new_header_marker, new_state_marker, new_casm_marker, compiler_backward_compatibility_marker)
             };
-            let store_sierras_and_casms =
-                new_casm_marker.0 < store_sierras_and_casms_block_threshold;
             let is_casm_stuck = casm_marker == new_casm_marker
-                && (new_casm_marker < compiler_backward_compatibility_marker
-                    || store_sierras_and_casms);
+                && new_casm_marker < compiler_backward_compatibility_marker;
             if header_marker==new_header_marker || state_marker==new_state_marker || is_casm_stuck {
                 debug!("No progress in the sync. Return NoProgress event. Header marker: {header_marker}, \
                        State marker: {state_marker}, Casm marker: {casm_marker}.");

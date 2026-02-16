@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use papyrus_common::state::MigratedCompiledClassHashEntry;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
-use starknet_api::block::BlockHash;
+use starknet_api::block::{BlockHash, StarknetVersion};
 use starknet_api::core::{CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::TransactionOffsetInBlock;
@@ -50,6 +50,15 @@ fn load_block_missing_transaction_receipts_succeeds() {
         .remove("transaction_receipts");
     let block: Block = serde_json::from_value(raw_block).unwrap();
     assert!(block.transaction_receipts().is_empty());
+}
+
+#[test]
+fn load_block_missing_starknet_version_uses_default() {
+    let mut raw_block: Value =
+        serde_json::from_str(&read_resource_file("reader/block_post_0_13_1.json")).unwrap();
+    raw_block.as_object_mut().expect("Block JSON should be an object.").remove("starknet_version");
+    let block: Block = serde_json::from_value(raw_block).unwrap();
+    assert_eq!(block.starknet_version(), StarknetVersion::PreV0_9_1);
 }
 
 #[test]

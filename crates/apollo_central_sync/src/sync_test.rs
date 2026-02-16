@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -207,6 +208,7 @@ async fn store_base_layer_block_test() {
         writer: Arc::new(Mutex::new(writer)),
         sequencer_pub_key: None,
         class_manager_client: None,
+        starknet_versions: HashMap::new(),
     };
 
     // Trying to store a block without a header in the storage.
