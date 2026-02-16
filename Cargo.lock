@@ -2385,6 +2385,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_metrics",
  "apollo_protobuf",
+ "assert_matches",
  "asynchronous-codec",
  "futures",
  "hex",

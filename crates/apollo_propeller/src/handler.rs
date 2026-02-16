@@ -236,7 +236,7 @@ impl Handler {
     }
 
     /// Create a batch of messages from the send queue that fits within max_wire_message_size.
-    fn create_message_batch(
+    pub(crate) fn create_message_batch(
         send_queue: &mut VecDeque<ProtoUnit>,
         max_wire_message_size: usize,
     ) -> ProtoBatch {
