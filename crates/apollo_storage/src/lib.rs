@@ -633,6 +633,13 @@ impl StorageWriter {
             _metric_updater: MetricsHandler::new(None),
         })
     }
+
+    /// Resets the batch commit counter to zero. For testing purposes only.
+    /// This is useful to ensure predictable batch boundaries in tests.
+    pub(crate) fn reset_batch_counter_for_testing(&mut self) {
+        let mut state = self.shared_state.lock().unwrap();
+        state.commit_counter = 0;
+    }
 }
 
 /// A struct for increasing a gauge metric when an instance is created and decreasing it when it is
