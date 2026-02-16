@@ -169,7 +169,7 @@ where
             .await;
         match &result {
             Ok(_) => {
-                info!("Committed block number {height} with state diff {state_diff_commitment:?}");
+                debug!("Committed block number {height} with state diff {state_diff_commitment:?}");
             }
             Err(err) => {
                 error!("Failed to commit block number {height}: {err:?}");
@@ -535,7 +535,7 @@ fn log_block_measurements(
     modifications_counts: &BlockModificationsCounts,
     emptied_leaves_percentage: Option<f64>,
 ) {
-    info!(
+    debug!(
         "Block {height} stats: durations in ms (total/read/compute/write): \
          {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates \
          (read/compute/write): {}/{}/{}, modifications count \

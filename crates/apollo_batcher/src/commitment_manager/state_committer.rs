@@ -5,7 +5,7 @@ use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_committer_types::errors::CommitterClientResult;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::commitment_manager::types::{
     CommitmentTaskOutput,
@@ -59,7 +59,7 @@ impl StateCommitter {
         // TODO(Yoav): Test this function.
         info!("StateCommitter task loop running.");
         while let Some(request) = tasks_receiver.recv().await {
-            info!(
+            debug!(
                 "Processing task of type {:?} for height {:?}",
                 request.task_type(),
                 request.height(),
@@ -68,7 +68,7 @@ impl StateCommitter {
             let height = output.height();
             match results_sender.send(output.clone()).await {
                 Ok(_) => {
-                    info!(
+                    debug!(
                         "Successfully sent the committer result to the results channel: \
                          {output:?}."
                     );
