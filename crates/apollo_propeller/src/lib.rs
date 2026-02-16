@@ -2,6 +2,8 @@ pub mod behaviour;
 pub mod config;
 pub mod engine;
 pub mod handler;
+#[cfg(test)]
+mod handler_test;
 pub mod merkle;
 pub mod message_processor;
 pub mod metrics;

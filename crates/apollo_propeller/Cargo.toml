@@ -26,9 +26,14 @@ tracing.workspace = true
 unsigned-varint.workspace = true
 
 [dev-dependencies]
+assert_matches.workspace = true
+libp2p = { workspace = true, features = ["tokio", "yamux", "tcp"] }
+libp2p-swarm-test.workspace = true
+prost.workspace = true
 rstest.workspace = true
+tokio = { workspace = true, features = ["test-util", "macros", "rt", "time"] }
+tokio-stream.workspace = true
 tokio-test.workspace = true
-
 
 [lints]
 workspace = true
