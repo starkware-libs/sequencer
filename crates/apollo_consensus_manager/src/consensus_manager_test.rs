@@ -123,6 +123,7 @@ async fn revert_voted_height_when_batcher_already_at_target() {
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
             config_manager_client: config_manager,
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+            proof_manager_client: Arc::new(MockProofManagerClient::new()),
             committee_provider,
         },
         Arc::new(Mutex::new(mock_voted_height_storage)),
