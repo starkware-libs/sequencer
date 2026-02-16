@@ -1,9 +1,16 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use apollo_class_manager_config::config::CachedClassStorageConfig;
 use apollo_class_manager_types::CachedClassStorageError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    ServerConfig,
+    StorageReaderServerDynamicConfig,
+};
+use async_trait::async_trait;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -19,13 +26,31 @@ use crate::class_storage::{
 };
 use crate::test_utils::FsClassStorageBuilderForTesting;
 
+/// Mock provider for testing, always returns enabled=true
+struct MockTestDynamicConfigProvider;
+
+#[async_trait]
+impl DynamicConfigProvider for MockTestDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: true })
+    }
+}
+
 #[cfg(test)]
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
         let builder = FsClassStorageBuilderForTesting::default();
         let (_, config, _) =
             builder.with_existing_paths(path_prefix.path().to_path_buf(), PathBuf::new()).build();
-        Self::new(config.class_hash_storage_config, ServerConfig::default()).unwrap()
+        let dynamic_config_provider = Arc::new(MockTestDynamicConfigProvider);
+        Self::new(
+            config.class_hash_storage_config,
+            ServerConfig::default(),
+            dynamic_config_provider,
+        )
+        .unwrap()
     }
 }
 

@@ -1,4 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use async_trait::async_trait;
@@ -9,7 +10,14 @@ use starknet_api::block::{BlockHeader, BlockNumber};
 use tower::util::ServiceExt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
-use crate::storage_reader_server::{ServerConfig, StorageReaderServer, StorageReaderServerHandler};
+use crate::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    ServerConfig,
+    StorageReaderServer,
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerHandler,
+};
 use crate::storage_reader_server_test_utils::{get_response, send_storage_query, to_bytes};
 use crate::test_utils::get_test_storage;
 use crate::{StorageError, StorageReader};
@@ -55,6 +63,38 @@ impl StorageReaderServerHandler<TestRequest, TestResponse> for ErrorHandler {
     }
 }
 
+// Mock provider returning enabled=true
+struct MockEnabledDynamicConfigProvider;
+
+#[async_trait]
+impl DynamicConfigProvider for MockEnabledDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: true })
+    }
+}
+
+fn create_enabled_mock_config_provider() -> Arc<dyn DynamicConfigProvider> {
+    Arc::new(MockEnabledDynamicConfigProvider)
+}
+
+// Mock provider returning enabled=false
+struct MockDisabledDynamicConfigProvider;
+
+#[async_trait]
+impl DynamicConfigProvider for MockDisabledDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: false })
+    }
+}
+
+fn create_disabled_mock_config_provider() -> Arc<dyn DynamicConfigProvider> {
+    Arc::new(MockDisabledDynamicConfigProvider)
+}
+
 #[tokio::test]
 async fn endpoint_successful_query() {
     let ((reader, mut writer), _temp_dir) = get_test_storage();
@@ -74,8 +114,12 @@ async fn endpoint_successful_query() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
     let app = server.app();
 
     // Test query for existing block
@@ -95,8 +139,12 @@ async fn endpoint_query_nonexistent_block() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
     let app = server.app();
 
     // Test query for non-existent block
@@ -116,8 +164,12 @@ async fn endpoint_handler_error() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
     let app = server.app();
 
     let request = TestRequest { block_number: 0 };
@@ -140,8 +192,12 @@ async fn endpoint_invalid_json() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
     let app = server.app();
 
     // Test with invalid JSON
@@ -159,4 +215,78 @@ async fn endpoint_invalid_json() {
 
     // Should return error status code
     assert!(!response.status().is_success());
+}
+
+#[tokio::test]
+async fn test_request_when_disabled() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+
+    // Add a test header at block 0
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(BlockNumber(0), &BlockHeader::default())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 4);
+
+    let config =
+        ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
+
+    let mock_config_provider = create_disabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
+    let app = server.app();
+
+    // Send request
+    let request = TestRequest { block_number: 0 };
+    let response = send_storage_query(app, &request).await;
+
+    // Assert HTTP 503 response
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+
+    let body = to_bytes(response).await;
+    let error_message = String::from_utf8(body.to_vec()).unwrap();
+    assert!(error_message.contains("Storage reader server is disabled"));
+}
+
+#[tokio::test]
+async fn test_request_when_enabled() {
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+
+    // Add a test header at block 0
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(BlockNumber(0), &BlockHeader::default())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 5);
+
+    let config =
+        ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
+
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
+    let app = server.app();
+
+    // Send request
+    let request = TestRequest { block_number: 0 };
+    let test_response: TestResponse = get_response(app, &request, StatusCode::OK).await;
+
+    // Assert success
+    assert!(test_response.found);
 }

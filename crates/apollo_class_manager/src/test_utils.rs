@@ -1,13 +1,32 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use apollo_class_manager_config::config::FsClassStorageConfig;
 use apollo_storage::db::DbConfig;
+use apollo_storage::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    StorageReaderServerDynamicConfig,
+};
+use async_trait::async_trait;
 use starknet_api::core::ChainId;
 use tempfile::TempDir;
 
 use crate::class_storage::{ClassHashStorage, FsClassStorage};
 
 pub type FileHandles = (TempDir, TempDir);
+
+/// Mock provider for testing, always returns enabled=true
+struct MockTestDynamicConfigProvider;
+
+#[async_trait]
+impl DynamicConfigProvider for MockTestDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: true })
+    }
+}
 
 pub struct FsClassStorageBuilderForTesting {
     config: FsClassStorageConfig,
@@ -51,9 +70,11 @@ impl FsClassStorageBuilderForTesting {
 
     pub fn build(self) -> (FsClassStorage, FsClassStorageConfig, Option<FileHandles>) {
         let Self { config, handles } = self;
+        let dynamic_config_provider = Arc::new(MockTestDynamicConfigProvider);
         let class_hash_storage = ClassHashStorage::new(
             config.class_hash_storage_config.clone(),
             apollo_storage::storage_reader_server::ServerConfig::default(),
+            dynamic_config_provider,
         )
         .unwrap();
         let fs_class_storage =
