@@ -712,11 +712,11 @@
           }
         },
         {
-          "title": "Percentage Emptied Leaves per Block",
+          "title": "Percentage of Emptied Leaves",
           "description": "Average percentage of storage tries leaves emptied per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "increase(emptied_leaves_percentage_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(100 * increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
+            "increase(count_emptied_leaves_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(count_storage_tries_modifications_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "unit": "percentunit",
