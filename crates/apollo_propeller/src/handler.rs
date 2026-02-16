@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 use std::ops::ControlFlow;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
 
 use apollo_infra_utils::warn_every_n_ms;
 use apollo_protobuf::protobuf::{PropellerUnit as ProtoUnit, PropellerUnitBatch as ProtoBatch};
@@ -73,6 +73,9 @@ pub struct Handler {
     events_to_emit: VecDeque<HandlerOut>,
     /// Maximum wire message size for batching.
     max_wire_message_size: usize,
+    /// The most recent waker from [`ConnectionHandler::poll`], used to wake the task when new
+    /// messages are enqueued via [`on_behaviour_event`].
+    waker: Option<Waker>,
 }
 
 /// State of the inbound substream, opened by the remote peer.
@@ -116,6 +119,7 @@ impl Handler {
             send_queue: VecDeque::new(),
             events_to_emit: VecDeque::new(),
             max_wire_message_size: config.max_wire_message_size,
+            waker: None,
         }
     }
 
@@ -389,6 +393,7 @@ impl Handler {
             match Sink::poll_ready(Pin::new(&mut substream), cx) {
                 Poll::Ready(Ok(())) => {
                     let message = Self::create_message_batch(send_queue, max_wire_message_size);
+                    let batch_len = message.batch.len();
                     match Sink::start_send(Pin::new(&mut substream), message) {
                         Ok(()) => {
                             should_flush = true;
@@ -397,16 +402,17 @@ impl Handler {
                             continue;
                         }
                         Err(err) => {
-                            // TODO(AndrewL): Units were lost, consider a re-try mechanism.
-                            error!("Failed to send message on outbound stream: {err}");
+                            error!(
+                                "Failed to send message on outbound stream: {err} ({batch_len} \
+                                 unit(s) lost)"
+                            );
                             return Some(ConnectionHandlerEvent::NotifyBehaviour(
-                                HandlerOut::SendError(err.to_string()),
+                                HandlerOut::SendError(format!("{err} ({batch_len} unit(s) lost)")),
                             ));
                         }
                     }
                 }
                 Poll::Ready(Err(err)) => {
-                    // TODO(AndrewL): Units were lost, consider a re-try mechanism.
                     error!("Failed to send message on outbound stream: {err}");
                     return Some(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::SendError(
                         err.to_string(),
@@ -484,7 +490,9 @@ impl ConnectionHandler for Handler {
         match event {
             HandlerIn::SendUnit(msg) => {
                 self.send_queue.push_back(msg.into());
-                // TODO(AndrewL): Wake up poll to send the message
+                if let Some(waker) = self.waker.as_ref() {
+                    waker.wake_by_ref();
+                }
             }
         }
     }
@@ -495,7 +503,8 @@ impl ConnectionHandler for Handler {
     ) -> Poll<
         ConnectionHandlerEvent<Self::OutboundProtocol, Self::OutboundOpenInfo, Self::ToBehaviour>,
     > {
-        // TODO(AndrewL): inline this function into poll
+        // Store the waker so on_behaviour_event can wake us when new messages arrive.
+        self.waker = Some(cx.waker().clone());
         self.poll_inner(cx)
     }
 
@@ -554,16 +563,17 @@ impl ConnectionHandler for Handler {
                     );
                 }
 
-                // TODO(AndrewL): Handle DialUpgradeError properly. Current issues:
-                // 1. Silent delivery failure: send_queue is not drained, so messages accumulate
-                //    with no failure signal to the behaviour.
-                // 2. Infinite renegotiation loop: resetting to Idle while send_queue is non-empty
-                //    causes poll_send to immediately request another OutboundSubstreamRequest,
-                //    looping forever against unsupported peers.
-                // Fix: drain send_queue, push a HandlerOut::SendError onto events_to_emit with
-                // the dropped count, and reset to Idle.
-                // TODO(AndrewL): Trigger poll (e.g. via a waker) after resetting to Idle so that
-                // a new substream can be established promptly.
+                // Drain the send queue and report the failure to the behaviour. Without this,
+                // messages would silently accumulate and the handler would enter an infinite
+                // renegotiation loop (Idle → request → error → Idle → ...) against unsupported
+                // peers.
+                let dropped_count = self.send_queue.len();
+                if dropped_count > 0 {
+                    self.send_queue.clear();
+                    self.events_to_emit.push_back(HandlerOut::SendError(format!(
+                        "Dial upgrade failed, {dropped_count} queued message(s) lost"
+                    )));
+                }
             }
             _ => {}
         }

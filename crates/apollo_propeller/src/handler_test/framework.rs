@@ -176,7 +176,6 @@ pub async fn validate_received_unit(handler: &mut Handler, expected: &PropellerU
     );
 }
 
-#[allow(dead_code)]
 pub async fn validate_send_error(handler: &mut Handler) {
     let event = handler.next().await.unwrap();
     assert_matches!(event, ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::SendError(_)));

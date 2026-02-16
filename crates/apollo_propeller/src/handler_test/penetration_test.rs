@@ -425,17 +425,24 @@ async fn immediate_close_after_negotiation() {
 async fn repeated_dial_upgrade_errors_with_full_queue() {
     let mut handler = make_handler();
 
-    // Fill the queue
+    // Fill the queue with 20 messages, trigger substream request, then error.
+    // The first error drains the queue and emits a SendError. Subsequent cycles
+    // each queue a fresh message, request, error, drain, and emit SendError.
     for _ in 0..20 {
         simulate_send_unit(&mut handler, make_test_unit());
     }
     validate_outbound_substream_request(&mut handler).await;
 
-    // Hit the handler with 100 consecutive DialUpgradeErrors
+    // First error drains all 20 queued messages
+    simulate_dial_upgrade_error(&mut handler, 0, StreamUpgradeError::Timeout);
+    validate_send_error(&mut handler).await;
+
+    // Now cycle: enqueue one, request, error, drain — 100 times
     for _ in 0..100 {
-        simulate_dial_upgrade_error(&mut handler, 0, StreamUpgradeError::Timeout);
-        // The handler should re-request because the queue is non-empty
+        simulate_send_unit(&mut handler, make_test_unit());
         validate_outbound_substream_request(&mut handler).await;
+        simulate_dial_upgrade_error(&mut handler, 0, StreamUpgradeError::Timeout);
+        validate_send_error(&mut handler).await;
     }
 
     // Handler must still be responsive
@@ -445,8 +452,6 @@ async fn repeated_dial_upgrade_errors_with_full_queue() {
 #[tokio::test]
 async fn mixed_negotiation_errors_cycle() {
     let mut handler = make_handler();
-    simulate_send_unit(&mut handler, make_test_unit());
-    validate_outbound_substream_request(&mut handler).await;
 
     let errors = [
         StreamUpgradeError::Timeout,
@@ -454,10 +459,12 @@ async fn mixed_negotiation_errors_cycle() {
         StreamUpgradeError::Io(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "broken")),
     ];
 
+    // Each iteration: enqueue a message, request substream, error drains queue + emits SendError
     for error in errors {
-        simulate_dial_upgrade_error(&mut handler, 0, error);
-        // Queue is non-empty, so handler should re-request
+        simulate_send_unit(&mut handler, make_test_unit());
         validate_outbound_substream_request(&mut handler).await;
+        simulate_dial_upgrade_error(&mut handler, 0, error);
+        validate_send_error(&mut handler).await;
     }
 }
 

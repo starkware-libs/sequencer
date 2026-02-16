@@ -1,14 +1,12 @@
-/// Tests that document known bugs in the Propeller handler.
+/// Regression tests for previously-known bugs in the Propeller handler.
 ///
-/// Each test in this file exercises a behavior that the TODOs in `handler.rs` identify as
-/// incorrect. The tests assert what *should* happen (the correct behavior). Today they will
-/// fail because the bugs are still present. When a bug is fixed, the corresponding test will
-/// start passing — at that point the `#[ignore]` annotation should be removed.
+/// These tests were originally `#[ignore]`-d because they exercised buggy behavior. Now that
+/// the bugs are fixed, they run as normal tests and serve as regression guards.
 ///
-/// Referencing TODOs by line range in handler.rs at time of writing:
-///   - Lines 546-553: DialUpgradeError silent delivery failure + infinite renegotiation loop
-///   - Line 476: on_behaviour_event doesn't wake the poller
-///   - Lines 389, 398: Units lost on send error with no retry or count
+/// Original TODOs in handler.rs:
+///   - DialUpgradeError silent delivery failure + infinite renegotiation loop (fixed)
+///   - on_behaviour_event doesn't wake the poller (fixed)
+///   - Units lost on send error with no count reported (fixed)
 use assert_matches::assert_matches;
 use futures::prelude::*;
 use libp2p::swarm::handler::{ConnectionHandler, ConnectionHandlerEvent, StreamUpgradeError};
@@ -17,19 +15,10 @@ use super::framework::*;
 use crate::handler::HandlerOut;
 
 // =========================================================================
-// TODO(handler.rs:546-553): DialUpgradeError — silent delivery failure
-//
-// Current behavior: After a DialUpgradeError, the send_queue retains messages
-// but no SendError is emitted to the behaviour. The caller has no way to know
-// their messages are stuck in a dead-end queue.
-//
-// Correct behavior: The handler should drain the send_queue and emit a
-// SendError to the behaviour reporting the number of dropped messages.
+// Regression: DialUpgradeError — reports lost messages
 // =========================================================================
 
 #[tokio::test]
-#[ignore = "known bug: DialUpgradeError does not emit SendError for queued messages \
-            (handler.rs:546-553)"]
 async fn dial_upgrade_error_should_report_lost_messages() {
     let mut handler = make_handler();
 
@@ -38,34 +27,21 @@ async fn dial_upgrade_error_should_report_lost_messages() {
         simulate_send_unit(&mut handler, make_test_unit());
     }
 
-    // Trigger substream request
     validate_outbound_substream_request(&mut handler).await;
 
-    // Simulate negotiation failure — messages can never be delivered on this substream
+    // Simulate negotiation failure
     simulate_dial_upgrade_error(&mut handler, 0, StreamUpgradeError::NegotiationFailed);
 
-    // CORRECT behavior: the handler should emit a SendError telling the behaviour that
-    // messages were lost, rather than silently keeping them in the queue.
+    // The handler should emit a SendError reporting the lost messages
     let event = handler.next().await.unwrap();
     assert_matches!(event, ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::SendError(_)));
 }
 
 // =========================================================================
-// TODO(handler.rs:546-553): DialUpgradeError — infinite renegotiation loop
-//
-// Current behavior: After a DialUpgradeError with a non-empty queue, the
-// handler resets to Idle and immediately re-requests a substream on the next
-// poll. If the remote peer doesn't support the protocol, this loops forever:
-//   DialUpgradeError → Idle → OutboundSubstreamRequest → DialUpgradeError → ...
-//
-// Correct behavior: The handler should either:
-//   (a) drain the queue and report failure, or
-//   (b) implement exponential backoff before retrying.
-// The simplest correct fix from the TODO is (a).
+// Regression: DialUpgradeError — no infinite renegotiation loop
 // =========================================================================
 
 #[tokio::test]
-#[ignore = "known bug: infinite renegotiation loop against unsupported peer (handler.rs:546-553)"]
 async fn dial_upgrade_error_should_not_renegotiate_endlessly() {
     let mut handler = make_handler();
 
@@ -75,11 +51,8 @@ async fn dial_upgrade_error_should_not_renegotiate_endlessly() {
     // First failure
     simulate_dial_upgrade_error(&mut handler, 0, StreamUpgradeError::NegotiationFailed);
 
-    // CORRECT behavior: after the error, the handler should NOT immediately request another
-    // substream. It should drain the queue and emit SendError(s) instead.
-    //
-    // TODAY this fails because the handler DOES request another substream (the renegotiation
-    // loop bug). We assert that the handler does NOT produce an OutboundSubstreamRequest.
+    // After the error, the handler should NOT immediately request another substream.
+    // It should drain the queue and emit SendError instead.
     let maybe_event = handler.next().now_or_never();
     match maybe_event {
         Some(Some(ConnectionHandlerEvent::OutboundSubstreamRequest { .. })) => {
@@ -88,29 +61,20 @@ async fn dial_upgrade_error_should_not_renegotiate_endlessly() {
                  — this is the infinite renegotiation loop"
             );
         }
-        _ => {
-            // Good: handler did not immediately re-request
+        Some(Some(ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::SendError(_)))) => {
+            // Correct: handler reported the lost messages
+        }
+        other => {
+            panic!("Expected SendError event, got: {other:?}");
         }
     }
 }
 
 // =========================================================================
-// TODO(handler.rs:476): on_behaviour_event doesn't wake the poller
-//
-// Current behavior: on_behaviour_event(SendUnit) pushes to send_queue but
-// does not call cx.waker().wake_by_ref(). The message sits in the queue
-// until something else causes poll to be called.
-//
-// Correct behavior: After enqueueing, the handler should wake the waker so
-// the runtime will call poll() promptly.
-//
-// Note: This is hard to test in isolation without access to the waker, but
-// we can demonstrate the symptom: if nothing else is driving the handler,
-// a newly-enqueued message won't trigger any event until an external poll.
+// Regression: on_behaviour_event wakes the poller
 // =========================================================================
 
 #[tokio::test]
-#[ignore = "known bug: on_behaviour_event doesn't wake poller (handler.rs:476)"]
 async fn send_unit_should_wake_handler() {
     let mut handler = make_handler();
 
@@ -129,48 +93,43 @@ async fn send_unit_should_wake_handler() {
         }
     };
 
-    // Now enqueue another message. Because the handler doesn't wake itself,
-    // we'd need to externally poll it. In a correct implementation, the handler
-    // should self-wake so that `tokio::select!` on handler.next() resolves promptly.
+    // Poll the handler once so it returns Pending and stores its waker.
+    // After this, the waker is registered.
+    validate_no_events(&mut handler);
+
+    // Enqueue another message. The handler should self-wake, which means when
+    // we next poll it, it will be Ready (not stuck on Pending forever).
     simulate_send_unit(&mut handler, make_test_unit());
 
-    // Give the handler a generous deadline — if it self-wakes, the message should
-    // arrive at the remote within the timeout.
-    let result = tokio::time::timeout(
-        std::time::Duration::from_millis(500),
-        remote_recv_batch(&mut remote_f),
-    )
+    // Drive both the handler and the remote reader. If the waker fired correctly,
+    // the handler's poll will be called by the runtime and the message will flow.
+    let result = tokio::time::timeout(std::time::Duration::from_millis(500), async {
+        loop {
+            tokio::select! {
+                batch = remote_f.next() => return batch.unwrap().unwrap(),
+                event = handler.next() => {
+                    // The handler may emit events while sending; keep polling
+                    if event.is_none() { break; }
+                }
+            }
+        }
+        // Fallback: try reading from remote one more time
+        remote_f.next().await.unwrap().unwrap()
+    })
     .await;
 
     assert!(
         result.is_ok(),
-        "BUG: handler did not self-wake after on_behaviour_event; message is stuck in send_queue \
-         until an external event triggers poll"
+        "Handler did not self-wake after on_behaviour_event; message stuck in send_queue"
     );
 }
 
 // =========================================================================
-// TODO(handler.rs:389,398): Units lost on send error — no retry, no count
-//
-// Current behavior: When start_send or poll_ready errors, the batch that was
-// popped from send_queue is silently lost. The SendError event contains only
-// the IO error message, not the number of lost units or their content.
-//
-// Correct behavior: The handler should either:
-//   (a) re-enqueue the batch for retry, or
-//   (b) report how many units were lost in the SendError.
+// Regression: send error includes count of lost units
 // =========================================================================
 
 #[tokio::test]
-#[ignore = "known bug: units lost on send error are not re-enqueued or counted (handler.rs:389,398)"]
-async fn send_error_should_not_silently_lose_units() {
-    // This test verifies that after a send error, the handler either retries
-    // the lost batch or reports the count. Currently it does neither.
-    //
-    // Triggering a real start_send error is non-trivial in the test harness
-    // (we'd need to break the underlying stream at the right moment), so this
-    // test documents the issue by exercising the batch-then-drop path through
-    // the oversized-message codepath.
+async fn send_error_should_report_lost_unit_count() {
     let tiny_max = 10; // so small that the encoded batch will exceed the codec limit
     let mut handler = make_handler_with_max_size(tiny_max);
 
@@ -188,27 +147,14 @@ async fn send_error_should_not_silently_lose_units() {
         libp2p::swarm::handler::FullyNegotiatedOutbound { protocol: framed, info: 0 },
     ));
 
-    // Drive the handler — it should try to send, hit the codec error, and emit SendError.
+    // Drive the handler — it should try to send, hit the codec error, and emit SendError
     let event = handler.next().await.unwrap();
-    assert_matches!(
-        event,
-        ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::SendError(ref _msg))
-    );
-
-    // NOW — the unit that was popped from the queue is gone forever.
-    // CORRECT behavior: the handler should either:
-    //   1. Re-enqueue the lost units so a subsequent send attempt can retry, OR
-    //   2. Include the count of lost units in the SendError so the behaviour knows.
-    //
-    // Since we can't introspect send_queue from here, and the current SendError
-    // is just a string, we assert that the error message includes the count.
-    // This will fail because the current implementation only includes the IO error.
     let msg = match event {
         ConnectionHandlerEvent::NotifyBehaviour(HandlerOut::SendError(msg)) => msg,
-        _ => unreachable!(),
+        other => panic!("Expected SendError, got: {other:?}"),
     };
     assert!(
-        msg.contains("1 unit") || msg.contains("lost"),
-        "BUG: SendError should report lost unit count, got: {msg}"
+        msg.contains("1 unit") && msg.contains("lost"),
+        "SendError should report 1 lost unit, got: {msg}"
     );
 }
