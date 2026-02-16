@@ -23,6 +23,7 @@ from echonet.reports import (
     RevertComparisonTextReport,
     SnapshotTextReport,
     build_report_view_model,
+    filter_mainnet_reverts_for_reporting,
 )
 from echonet.sequencer_manager import _read_namespace_from_serviceaccount
 from echonet.shared_context import SharedContext, l1_manager, shared
@@ -741,7 +742,7 @@ class EchoCenterService:
         reverts_text = RevertComparisonTextReport(
             classifier=RevertClassifier(),
         ).render(
-            mainnet_reverts=dict(snap.revert_errors_mainnet),
+            mainnet_reverts=filter_mainnet_reverts_for_reporting(snap),
             echonet_reverts=dict(snap.revert_errors_echonet),
         )
         out = snapshot_text.rstrip() + "\n\n" + reverts_text
