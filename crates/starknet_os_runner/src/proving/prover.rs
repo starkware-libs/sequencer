@@ -6,13 +6,14 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_transaction_converter::ProgramOutput;
+use cairo_air::utils::ProofFormat;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
-use proving_utils::in_memory_proving::cairo_air::utils::ProofFormat;
-use proving_utils::in_memory_proving::{prove_pie_in_memory, ProveConfig};
 use proving_utils::proof_encoding::ProofBytes;
 use starknet_api::transaction::fields::Proof;
+use stwo_run_and_prove_lib::ProveConfig;
 use tempfile::NamedTempFile;
 
+use super::stwo_run_and_prove::prove_pie_in_memory;
 use crate::errors::ProvingError;
 
 /// Bootloader program file name.
@@ -40,7 +41,7 @@ pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingE
 ///
 /// Passes CairoPie directly to the prover library, avoiding disk I/O for the input.
 /// The proof output is still written to a temporary file. The synchronous proving work
-/// is offloaded to a blocking thread via `tokio::task::spawn_blocking`.
+/// is offloaded to a blocking thread inside `prove_pie_in_memory`.
 ///
 /// # Arguments
 ///
@@ -50,18 +51,7 @@ pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingE
 ///
 /// The prover output containing the proof and program output.
 pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
-    tokio::task::spawn_blocking(move || prove_sync(cairo_pie)).await?
-}
-
-/// Synchronous inner implementation of proving.
-fn prove_sync(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
     // Create temporary files for output only.
-    let create_temp_file_and_path = || -> Result<(NamedTempFile, PathBuf), ProvingError> {
-        let file = NamedTempFile::new().map_err(ProvingError::CreateTempFile)?;
-        let path = file.path().to_path_buf();
-        Ok((file, path))
-    };
-
     let (_proof_file, proof_path) = create_temp_file_and_path()?;
     let (_program_output_file, program_output_path) = create_temp_file_and_path()?;
 
@@ -82,7 +72,8 @@ fn prove_sync(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
         cairo_pie,
         Some(program_output_path.clone()),
         prove_config,
-    )?;
+    )
+    .await?;
 
     // Read and decompress the proof.
     let proof_bytes = ProofBytes::from_file(&proof_path).map_err(ProvingError::ReadProof)?;
@@ -97,4 +88,10 @@ fn prove_sync(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
     let proof: Proof = proof_bytes.into();
 
     Ok(ProverOutput { proof, program_output })
+}
+
+fn create_temp_file_and_path() -> Result<(NamedTempFile, PathBuf), ProvingError> {
+    let file = NamedTempFile::new().map_err(ProvingError::CreateTempFile)?;
+    let path = file.path().to_path_buf();
+    Ok((file, path))
 }

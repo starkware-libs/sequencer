@@ -3,6 +3,8 @@ use blockifier_reexecution::errors::ReexecutionError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use proving_utils::proof_encoding::ProofEncodingError;
 use starknet_api::core::ClassHash;
+
+use crate::proving::error::StwoRunAndProveError;
 use starknet_api::transaction::TransactionHash;
 use starknet_os::errors::StarknetOsError;
 use starknet_patricia_storage::errors::SerializationError;
@@ -86,7 +88,7 @@ pub enum ProvingError {
     },
 
     #[error("Prover execution failed: {0}")]
-    ProverExecution(#[from] proving_utils::in_memory_proving::StwoRunAndProveError),
+    ProverExecution(#[from] StwoRunAndProveError),
 
     #[error("Failed to read proof file: {0}")]
     ReadProof(#[source] ProofEncodingError),
@@ -97,6 +99,4 @@ pub enum ProvingError {
     #[error("Failed to parse proof facts: {0}")]
     ParseProofFacts(#[source] serde_json::Error),
 
-    #[error("Proving task failed to join: {0}")]
-    TaskJoin(#[from] tokio::task::JoinError),
 }

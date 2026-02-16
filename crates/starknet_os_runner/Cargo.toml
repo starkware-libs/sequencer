@@ -18,12 +18,15 @@ blockifier.workspace = true
 blockifier_reexecution.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+cairo-air.workspace = true
+cairo-program-runner-lib.workspace = true
 cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
-proving_utils = { workspace = true, features = ["in_memory_proving"] }
+proving_utils.workspace = true
+stwo_run_and_prove_lib.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true

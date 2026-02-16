@@ -384,8 +384,7 @@ starknet_patricia_storage.path = "crates/starknet_patricia_storage"
 static_assertions = "1.1.0"
 strum = "0.25.0"
 strum_macros = "0.25.2"
-stwo = { git = "https://github.com/starkware-libs/stwo", rev = "6b5c843" }
-stwo_v2 = { package = "stwo", git = "https://github.com/starkware-libs/stwo", rev = "b0ba0c4" }
+stwo = { git = "https://github.com/starkware-libs/stwo", rev = "b0ba0c4" }
 syn = "2.0.39"
 tempfile = "3.7.0"
 test-case = "3.2.1"

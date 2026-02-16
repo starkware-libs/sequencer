@@ -10,7 +10,7 @@ use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION};
 use starknet_types_core::felt::Felt;
-use stwo_v2::core::vcs_lifted::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher};
+use stwo::core::vcs_lifted::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher};
 use thiserror::Error;
 
 /// Output from verifying a proof using stwo.
