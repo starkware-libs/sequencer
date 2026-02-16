@@ -3994,7 +3994,7 @@
           "description": "Pod disk utilization (used / capacity)",
           "type": "timeseries",
           "exprs": [
-            "\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
+            "\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
           ],
           "extra_params": {
             "unit": "percentunit",
@@ -4016,7 +4016,7 @@
               ]
             },
             "legends": [
-              "{{pod}}"
+              "{{persistentvolumeclaim}}"
             ]
           }
         },
@@ -4025,7 +4025,7 @@
           "description": "Pod disk limit utilization (used / capacity)",
           "type": "timeseries",
           "exprs": [
-            "\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
+            "\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
           ],
           "extra_params": {
             "unit": "percentunit",
@@ -4047,7 +4047,7 @@
               ]
             },
             "legends": [
-              "{{pod}}"
+              "{{persistentvolumeclaim}}"
             ]
           }
         }
