@@ -142,6 +142,7 @@ impl StorageTestSetup {
         test_defined_accounts: Vec<AccountTransactionGenerator>,
         chain_info: &ChainInfo,
         storage_exec_paths: Option<StorageExecutablePaths>,
+        class_manager_storage_reader_server_port: u16,
     ) -> Self {
         let preset_test_contracts = PresetTestContracts::new();
         // TODO(yair): Avoid cloning.
@@ -196,7 +197,10 @@ impl StorageTestSetup {
             mut class_manager_storage,
             class_manager_storage_config,
             class_manager_storage_handles,
-        ) = fs_class_storage_builder.with_chain_id(chain_info.chain_id.clone()).build();
+        ) = fs_class_storage_builder
+            .with_chain_id(chain_info.chain_id.clone())
+            .with_storage_reader_server_port(class_manager_storage_reader_server_port)
+            .build();
 
         initialize_class_manager_test_state(&mut class_manager_storage, classes);
 
