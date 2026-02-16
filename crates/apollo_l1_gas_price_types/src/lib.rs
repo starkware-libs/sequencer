@@ -18,7 +18,7 @@ use mockall::automock;
 use papyrus_base_layer::L1BlockNumber;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice};
-use strum::{EnumVariantNames, VariantNames};
+use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tracing::instrument;
 

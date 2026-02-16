@@ -10,7 +10,6 @@ use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
-use strum::VariantNames;
 
 use crate::communication::MempoolRequestLabelValue;
 use crate::errors::MempoolError;

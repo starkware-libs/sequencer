@@ -22,7 +22,7 @@ use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher};
 use starknet_api::StarknetApiError;
-use strum::{EnumVariantNames, VariantNames};
+use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tracing::instrument;
 

@@ -16,7 +16,7 @@ use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use blockifier::metrics::CacheMetrics;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
-use strum::{EnumVariantNames, VariantNames};
+use strum::EnumVariantNames;
 use strum_macros::IntoStaticStr;
 
 use crate::communication::GATEWAY_REQUEST_LABELS;
