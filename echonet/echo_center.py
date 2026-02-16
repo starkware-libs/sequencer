@@ -9,10 +9,7 @@ from typing import Any, List, Literal, Optional, Tuple, Union
 import flask  # pyright: ignore[reportMissingImports]
 import requests
 
-from echonet.constants import (
-    IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA,
-    SERVICEACCOUNT_NAMESPACE_PATH,
-)
+from echonet.constants import IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
@@ -24,6 +21,7 @@ from echonet.reports import (
     SnapshotTextReport,
     build_report_view_model,
 )
+from echonet.sequencer_manager import _read_namespace_from_serviceaccount
 from echonet.shared_context import SharedContext, l1_manager, shared
 from echonet.transaction_sender import start_background_sender
 
@@ -31,13 +29,6 @@ BlockNumberParam = Union[int, Literal["latest"]]
 
 flask_logger = get_logger("flask")
 logger = get_logger("echo_center")
-
-
-def _read_namespace_from_serviceaccount(path: str = SERVICEACCOUNT_NAMESPACE_PATH) -> str:
-    try:
-        return Path(path).read_text(encoding="utf-8").strip()
-    except Exception:
-        return ""
 
 
 def _build_gcp_logs_context() -> dict[str, str]:
