@@ -21,6 +21,25 @@ use tracing::info;
 #[path = "config_manager_tests.rs"]
 pub mod config_manager_tests;
 
+/// Expands to a match on `request`; each `($variant, $method)` pair becomes an arm that
+/// calls `self.$method().await` and wraps the result in `ConfigManagerResponse::$variant`.
+macro_rules! handle_config_request {
+    ($self:expr, $request:expr, $( ($variant:ident, $method:ident) ),* $(,)?) => {
+        match $request {
+            $(
+                ConfigManagerRequest::$variant => {
+                    ConfigManagerResponse::$variant($self.$method().await)
+                }
+            ),*
+            ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {
+                ConfigManagerResponse::SetNodeDynamicConfig(
+                    $self.set_node_dynamic_config(*new_config).await,
+                )
+            }
+        }
+    };
+}
+
 #[derive(Clone)]
 pub struct ConfigManager {
     _config: ConfigManagerConfig,
@@ -105,55 +124,20 @@ impl ConfigManager {
 #[async_trait]
 impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for ConfigManager {
     async fn handle_request(&mut self, request: ConfigManagerRequest) -> ConfigManagerResponse {
-        match request {
-            // TODO(Nadin/Tsabary): consider using a macro to generate the responses for each type
-            // of request.
-            ConfigManagerRequest::GetConsensusDynamicConfig => {
-                ConfigManagerResponse::GetConsensusDynamicConfig(
-                    self.get_consensus_dynamic_config().await,
-                )
-            }
-            ConfigManagerRequest::GetClassManagerDynamicConfig => {
-                ConfigManagerResponse::GetClassManagerDynamicConfig(
-                    self.get_class_manager_dynamic_config().await,
-                )
-            }
-            ConfigManagerRequest::GetMempoolDynamicConfig => {
-                ConfigManagerResponse::GetMempoolDynamicConfig(
-                    self.get_mempool_dynamic_config().await,
-                )
-            }
-            ConfigManagerRequest::GetBatcherDynamicConfig => {
-                ConfigManagerResponse::GetBatcherDynamicConfig(
-                    self.get_batcher_dynamic_config().await,
-                )
-            }
-            ConfigManagerRequest::GetStateSyncDynamicConfig => {
-                ConfigManagerResponse::GetStateSyncDynamicConfig(
-                    self.get_state_sync_dynamic_config().await,
-                )
-            }
-            ConfigManagerRequest::GetStakingManagerDynamicConfig => {
-                ConfigManagerResponse::GetStakingManagerDynamicConfig(
-                    self.get_staking_manager_dynamic_config().await,
-                )
-            }
-            ConfigManagerRequest::GetHttpServerDynamicConfig => {
-                ConfigManagerResponse::GetHttpServerDynamicConfig(
-                    self.get_http_server_dynamic_config().await,
-                )
-            }
-            ConfigManagerRequest::GetContextDynamicConfig => {
-                ConfigManagerResponse::GetContextDynamicConfig(
-                    self.get_context_dynamic_config().await,
-                )
-            }
-            ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {
-                ConfigManagerResponse::SetNodeDynamicConfig(
-                    self.set_node_dynamic_config(*new_config).await,
-                )
-            }
-        }
+        // Note: the `ConfigManagerRequest::SetNodeDynamicConfig` variant is handled inside the
+        // macro.
+        handle_config_request!(
+            self,
+            request,
+            (GetBatcherDynamicConfig, get_batcher_dynamic_config),
+            (GetClassManagerDynamicConfig, get_class_manager_dynamic_config),
+            (GetConsensusDynamicConfig, get_consensus_dynamic_config),
+            (GetContextDynamicConfig, get_context_dynamic_config),
+            (GetHttpServerDynamicConfig, get_http_server_dynamic_config),
+            (GetMempoolDynamicConfig, get_mempool_dynamic_config),
+            (GetStakingManagerDynamicConfig, get_staking_manager_dynamic_config),
+            (GetStateSyncDynamicConfig, get_state_sync_dynamic_config),
+        )
     }
 }
 
