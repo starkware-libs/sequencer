@@ -81,7 +81,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
             StateResources::default(),
             None,
             ExecutionSummary::default(),
-            0,
+            false,
         );
         let gas_per_code_byte = versioned_constants
             .get_archival_data_gas_costs(&gas_vector_computation_mode)
@@ -125,7 +125,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(deploy_account_state_changes_count, 0),
         None,
         ExecutionSummary::default(),
-        0,
+        false,
     );
     let gas_per_data_felt = versioned_constants
         .get_archival_data_gas_costs(&gas_vector_computation_mode)
@@ -157,13 +157,13 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     if gas_vector_computation_mode == GasVectorComputationMode::All {
         let proof_facts_length = 7;
         let invoke_with_proof_starknet_resources = StarknetResources::new(
-            0,
+            proof_facts_length,
             0,
             0,
             StateResources::default(),
             None,
             ExecutionSummary::default(),
-            proof_facts_length,
+            true,
         );
 
         // Manual calculation.
@@ -196,7 +196,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::default(),
         Some(l1_handler_payload_size),
         ExecutionSummary::default(),
-        0,
+        false,
     );
     let l1_handler_gas_usage_vector = l1_handler_tx_starknet_resources.to_gas_vector(
         &versioned_constants,
@@ -273,7 +273,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(l2_to_l1_state_changes_count, 0),
         None,
         execution_summary.clone(),
-        0,
+        false,
     );
 
     let l2_to_l1_messages_gas_usage_vector = l2_to_l1_starknet_resources.to_gas_vector(
@@ -329,7 +329,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(storage_writes_state_changes_count, n_storage_updates / 2),
         None,
         ExecutionSummary::default(),
-        0,
+        false,
     );
 
     let storage_writings_gas_usage_vector = storage_writes_starknet_resources.to_gas_vector(
@@ -364,7 +364,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         ),
         Some(l1_handler_payload_size),
         execution_summary.clone(),
-        0,
+        false,
     );
 
     let gas_usage_vector = combined_cases_starknet_resources.to_gas_vector(
@@ -423,7 +423,7 @@ fn test_calculate_tx_gas_usage(
             calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
             resource_bounds: max_resource_bounds,
     });
-    let calldata_length = account_tx.calldata_length();
+    let extended_calldata_length = account_tx.extended_calldata_length();
     let signature_length = account_tx.signature_length();
     let fee_token_address = chain_info.fee_token_address(&account_tx.fee_type());
     let tx_execution_info = account_tx.execute(state, block_context).unwrap();
@@ -438,13 +438,13 @@ fn test_calculate_tx_gas_usage(
     };
     let n_allocated_keys = 0; // This tx doesn't allocate the account balance.
     let starknet_resources = StarknetResources::new(
-        calldata_length,
+        extended_calldata_length,
         signature_length,
         0,
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         ExecutionSummary::default(),
-        0,
+        false,
     );
 
     assert_eq!(
@@ -479,7 +479,7 @@ fn test_calculate_tx_gas_usage(
         nonce: nonce!(1_u8),
     });
 
-    let calldata_length = account_tx.calldata_length();
+    let extended_calldata_length = account_tx.extended_calldata_length();
     let signature_length = account_tx.signature_length();
     let tx_execution_info = account_tx.execute(state, block_context).unwrap();
     // For the balance update of the sender and the recipient.
@@ -498,14 +498,14 @@ fn test_calculate_tx_gas_usage(
     let execution_summary =
         CallInfo::summarize_many(vec![execution_call_info].into_iter(), versioned_constants);
     let starknet_resources = StarknetResources::new(
-        calldata_length,
+        extended_calldata_length,
         signature_length,
         0,
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         // The transfer entrypoint emits an event - pass the call info to count its resources.
         execution_summary,
-        0,
+        false,
     );
 
     assert_eq!(
