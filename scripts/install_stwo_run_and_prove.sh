@@ -92,21 +92,6 @@ install_binary() {
     success "Binary installed to ${BINARY_PATH}"
 }
 
-# Sync the bootloader from proving-utils into starknet_os_runner resources.
-sync_bootloader() {
-    local src="${BUILD_DIR}/crates/cairo-program-runner-lib/resources/compiled_programs/bootloaders/simple_bootloader_compiled.json"
-    local dst="${REPO_ROOT}/crates/starknet_os_runner/resources/simple_bootloader_compiled.json"
-
-    if [ ! -f "${src}" ]; then
-        warn "Bootloader not found at ${src}, skipping sync"
-        return 0
-    fi
-
-    info "Syncing bootloader to ${dst}..."
-    cp "${src}" "${dst}"
-    success "Bootloader synced"
-}
-
 # Print usage instructions.
 print_instructions() {
     echo ""
@@ -117,6 +102,7 @@ print_instructions() {
     echo "Binary location: ${BINARY_PATH}"
     echo ""
     echo "The proving_utils crate will automatically find this binary."
+    echo "The bootloader JSON is downloaded by starknet_os_runner at runtime from pinned proving-utils."
     echo "No PATH modification is required for development."
     echo ""
     echo "Optional: To use from command line directly, add to PATH:"
@@ -150,7 +136,6 @@ main() {
     clone_or_update_proving_utils "${BUILD_DIR}"
     build_binary
     install_binary
-    sync_bootloader
     print_instructions
 }
 

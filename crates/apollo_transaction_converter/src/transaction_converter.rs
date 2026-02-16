@@ -473,7 +473,10 @@ impl TransactionConverter {
 
         // Validate the bootloader program hash output against the expected bootloader hash.
         if output.program_hash != BOOTLOADER_PROGRAM_HASH {
-            return Err(VerifyProofError::BootloaderHashMismatch);
+            return Err(VerifyProofError::BootloaderProgramHashMismatch {
+                expected: BOOTLOADER_PROGRAM_HASH,
+                actual: output.program_hash,
+            });
         }
 
         Ok(())

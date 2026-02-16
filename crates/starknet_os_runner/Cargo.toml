@@ -24,8 +24,10 @@ futures.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
 proving_utils.workspace = true
+reqwest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+sha2.workspace = true
 shared_execution_objects.workspace = true
 starknet-rust.workspace = true
 starknet-rust-core.workspace = true
@@ -38,6 +40,7 @@ starknet_patricia_storage.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }
+tokio-retry.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url.workspace = true
@@ -51,6 +54,7 @@ mockito.workspace = true
 reqwest.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
+starknet_api = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
