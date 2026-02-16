@@ -495,14 +495,17 @@ fn central_casm_contract_class_default_optional_fields() -> CentralCasmContractC
     CentralCasmContractClass::from(casm_contract_class)
 }
 
-fn execution_resources() -> ExecutionResources {
-    ExecutionResources {
-        n_steps: 2,
-        n_memory_holes: 3,
-        builtin_instance_counter: BTreeMap::from([
-            (BuiltinName::range_check, 31),
-            (BuiltinName::pedersen, 4),
-        ]),
+fn execution_resources() -> ExtendedExecutionResources {
+    ExtendedExecutionResources {
+        vm_resources: ExecutionResources {
+            n_steps: 2,
+            n_memory_holes: 3,
+            builtin_instance_counter: BTreeMap::from([
+                (BuiltinName::range_check, 31),
+                (BuiltinName::pedersen, 4),
+            ]),
+        },
+        opcode_instance_counter: Default::default(),
     }
 }
 
