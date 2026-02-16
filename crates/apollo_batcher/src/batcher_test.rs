@@ -822,14 +822,14 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
 
 #[rstest]
 #[tokio::test]
-async fn get_height() {
+async fn get_next_height() {
     let mut storage_reader = MockBatcherStorageReader::new();
     storage_reader.expect_state_diff_height().returning(|| Ok(INITIAL_HEIGHT));
     storage_reader.expect_global_root_height().returning(|| Ok(INITIAL_HEIGHT));
 
     let batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() }).await;
 
-    let result = batcher.get_height().await.unwrap();
+    let result = batcher.get_next_height().await.unwrap();
     assert_eq!(result, GetHeightResponse { height: INITIAL_HEIGHT });
 }
 
@@ -1570,7 +1570,7 @@ async fn get_height_with_real_storage() {
     let batcher =
         create_batcher_with_real_storage(MockDependenciesWithRealStorage::default()).await;
 
-    let result = batcher.get_height().await;
+    let result = batcher.get_next_height().await;
     assert_eq!(result, Ok(GetHeightResponse { height: BlockNumber(0) }));
 }
 
