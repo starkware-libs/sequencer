@@ -95,6 +95,46 @@ pub enum ProvingError {
         source: std::io::Error,
     },
 
+    #[error("Failed to resolve project root path: {0}")]
+    ResolveProjectRootPath(#[source] std::io::Error),
+
+    #[error("Failed to read cached bootloader file at {path}: {source}")]
+    ReadBootloaderCache {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to download bootloader file: {0}")]
+    DownloadBootloader(#[source] reqwest::Error),
+
+    #[error("Invalid bootloader cache path: {path}")]
+    InvalidBootloaderPath { path: String },
+
+    #[error("Failed to create bootloader cache directory at {path}: {source}")]
+    CreateBootloaderCacheDir {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to write bootloader cache file at {path}: {source}")]
+    WriteBootloaderCache {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to persist bootloader cache file at {path}: {source}")]
+    PersistBootloaderCache {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Bootloader hash mismatch: expected {expected}, got {actual}")]
+    BootloaderHashMismatch { expected: String, actual: String },
+
     #[error("Prover execution failed: {0}")]
     ProverExecution(#[from] StwoRunAndProveError),
 

@@ -1,14 +1,16 @@
 use std::fs;
 
+use apollo_transaction_converter::ProgramOutput;
 use apollo_transaction_converter::proof_verification::stwo_verify;
 use apollo_transaction_converter::transaction_converter::BOOTLOADER_PROGRAM_HASH;
-use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
-use crate::proving::prover::{prove, resolve_resource_path, BOOTLOADER_FILE};
+use crate::proving::prover::{
+    BOOTLOADER_JSON_SHA256, prove, resolve_bootloader_path, resolve_resource_path,
+};
 
 /// Test resource file names.
 const CAIRO_PIE_FILE: &str = "cairo_pie_10_transfers.zip";
@@ -60,8 +62,20 @@ async fn test_prove_cairo_pie_10_transfers() {
 }
 
 #[test]
-fn test_simple_bootloader_program_hash_matches_expected() {
-    let bootloader_path = resolve_resource_path(BOOTLOADER_FILE).unwrap();
+fn test_bootloader_json_hash_is_sha256_hex() {
+    assert_eq!(BOOTLOADER_JSON_SHA256.len(), 64, "Expected a SHA-256 hex digest.");
+    assert!(
+        BOOTLOADER_JSON_SHA256.chars().all(|ch| ch.is_ascii_hexdigit()),
+        "Expected only hex characters."
+    );
+}
+
+/// This test is ignored by default because it downloads the bootloader JSON.
+/// Run with: `cargo test -p starknet_os_runner -- --ignored test_simple_bootloader_program_hash_matches_expected`
+#[tokio::test]
+#[ignore]
+async fn test_simple_bootloader_program_hash_matches_expected() {
+    let bootloader_path = resolve_bootloader_path().await.unwrap();
     let program_bytes = fs::read(&bootloader_path).expect("Failed to read bootloader file");
     let program =
         Program::from_bytes(&program_bytes, Some("main")).expect("Failed to load bootloader");
