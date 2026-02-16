@@ -134,7 +134,7 @@ impl<'txn, 'env> EventsReader<'txn, 'env> for StorageTxn<'env, RO> {
         address: ContractAddress,
         tx_index: TransactionIndex,
     ) -> StorageResult<Option<()>> {
-        let events_table = self.open_table(&self.tables.events)?;
+        let events_table = self.open_table(&self.tables().events)?;
         Ok(events_table.get(self.txn(), &(address, tx_index))?.map(|_| ()))
     }
 }
@@ -292,8 +292,8 @@ where
         &'env self,
         key: (ContractAddress, EventIndex),
     ) -> StorageResult<EventIterByContractAddress<'env, 'txn>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
-        let events_table = self.open_table(&self.tables.events)?;
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
+        let events_table = self.open_table(&self.tables().events)?;
         let mut cursor = events_table.cursor(self.txn())?;
         let events_queue = if let Some((contract_address, tx_index)) =
             cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
@@ -345,7 +345,7 @@ where
         event_index: EventIndex,
         to_block_number: BlockNumber,
     ) -> StorageResult<EventIterByEventIndex<'txn>> {
-        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let transaction_metadata_table = self.open_table(&self.tables().transaction_metadata)?;
         let mut tx_cursor = transaction_metadata_table.cursor(self.txn())?;
         let first_txn_location = tx_cursor.lower_bound(&event_index.0)?;
         let first_relevant_transaction = match first_txn_location {

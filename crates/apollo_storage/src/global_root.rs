@@ -35,7 +35,7 @@ where
 
 impl<Mode: TransactionKind> GlobalRootStorageReader for StorageTxn<'_, Mode> {
     fn get_global_root(&self, block_number: &BlockNumber) -> StorageResult<Option<GlobalRoot>> {
-        let table = self.open_table(&self.tables.global_root)?;
+        let table = self.open_table(&self.tables().global_root)?;
         Ok(table.get(self.txn(), block_number)?)
     }
 }
@@ -46,15 +46,15 @@ impl GlobalRootStorageWriter for StorageTxn<'_, RW> {
         block_number: &BlockNumber,
         global_root: GlobalRoot,
     ) -> StorageResult<Self> {
-        let table = self.open_table(&self.tables.global_root)?;
+        let table = self.open_table(&self.tables().global_root)?;
         table.upsert(self.txn(), block_number, &global_root)?;
         Ok(self)
     }
 
     fn revert_global_root(self, target_block_number: &BlockNumber) -> StorageResult<Self> {
-        let global_roots_table = self.open_table(&self.tables.global_root)?;
+        let global_roots_table = self.open_table(&self.tables().global_root)?;
         global_roots_table.delete(self.txn(), target_block_number)?;
-        let markers_table = self.open_table(&self.tables.markers)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
         markers_table.upsert(self.txn(), &MarkerKind::GlobalRoot, target_block_number)?;
         Ok(self)
     }
