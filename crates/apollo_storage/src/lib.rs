@@ -800,9 +800,23 @@ impl<'a> StorageTxnRW<'a> {
 
     /// Commits the changes made in the transaction to the storage.
     /// The commit counter is incremented. When it reaches batch_size, the MDBX transaction
-    /// is actually committed. This is allowed to be an empty commit (no writes), which
-    /// means the batch_size may be less than the actual number of writes due to incrementing
-    /// when the commit is empty.
+    /// is actually committed.
+    ///
+    /// NOTE: Empty Commits Are Allowed
+    /// ===============================
+    /// We increment the counter for ALL commits, including empty transactions that
+    /// didn't perform any writes. We are aware that this can happen and accept it
+    /// as a trade-off for simpler implementation.
+    ///
+    /// This means the actual batch size (number of transactions with real writes)
+    /// may be less than the configured batch_size due to empty commits incrementing
+    /// the counter. Empty commits can occur in scenarios such as:
+    /// - Version checks that find no update needed
+    /// - Read-only operations that still call commit() for consistency
+    /// - Conditional writes where the condition evaluates to false
+    ///
+    /// The simpler logic (always increment) avoids the complexity of maintaining
+    /// a "dirty flag" and calling mark_dirty() throughout the codebase.
     #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(mut self) -> StorageResult<()> {
         // Always flush files so readers can access the data immediately.
@@ -824,29 +838,6 @@ impl<'a> StorageTxnRW<'a> {
             }
         }
         Ok(())
-    }
-}
-
-impl Drop for StorageTxnRW<'_> {
-    /// Safety mechanism for RW transactions dropped without commit.
-    ///
-    /// Two scenarios:
-    /// 1. Forgotten commit with pending writes (commit_counter > 0) - panic.
-    /// 2. Failed operation (commit_counter = 0) - abort transaction to discard partial writes.
-    fn drop(&mut self) {
-        // Note: commit() consumes self, so Drop only runs for uncommitted transactions.
-        if self.guard.commit_counter > 0 {
-            // Scenario 1: Pending writes exist.
-            panic!(
-                "StorageTxnRW dropped without commit() while {} pending writes exist! \
-                 This would cause data loss. Always call commit() or handle errors properly.",
-                self.guard.commit_counter
-            );
-        } else {
-            // Scenario 2: No pending writes, but there might be partial writes from a failed
-            // operation. Abort the transaction to discard them.
-            self.guard.active_txn = None;
-        }
     }
 }
 
