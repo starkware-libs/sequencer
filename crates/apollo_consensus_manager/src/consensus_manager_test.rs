@@ -29,7 +29,7 @@ async fn revert_batcher_blocks() {
 
     let mut mock_batcher_client = MockBatcherClient::new();
     mock_batcher_client
-        .expect_get_height()
+        .expect_get_next_height()
         .returning(|| Ok(GetHeightResponse { height: BATCHER_HEIGHT }));
 
     let mut mock_voted_height_storage = MockHeightVotedStorageTrait::new();
@@ -82,7 +82,9 @@ async fn revert_batcher_blocks() {
 async fn no_reverts_without_config() {
     let mut mock_batcher = MockBatcherClient::new();
     mock_batcher.expect_revert_block().times(0).returning(|_| Ok(()));
-    mock_batcher.expect_get_height().returning(|| Ok(GetHeightResponse { height: BlockNumber(0) }));
+    mock_batcher
+        .expect_get_next_height()
+        .returning(|| Ok(GetHeightResponse { height: BlockNumber(0) }));
 
     let consensus_manager = ConsensusManager::new(ConsensusManagerArgs {
         config: ConsensusManagerConfig {
