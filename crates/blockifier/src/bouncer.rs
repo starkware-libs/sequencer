@@ -17,6 +17,7 @@ use crate::blockifier::transaction_executor::{
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
 use crate::execution::call_info::{
     cairo_primitive_counter_map,
+    BuiltinCounterMap,
     CairoPrimitiveCounterMap,
     ExecutionSummary,
 };
@@ -890,23 +891,17 @@ pub fn get_tx_weights<S: StateReader>(
         );
 
     // Proving gas computation.
-    // Exclude tx_vm_resources to prevent double-counting in tx_cairo_primitives_counters.
-    let vm_resources_builtins_for_proving_gas_computation =
-        (&patrticia_update_resources + &tx_resources.computation.os_vm_resources).prover_builtins();
-
-    // TODO(AvivG): To support opcodes in the computation, os resources should include opcode
-    // counters.
-    let mut vm_resources_cairo_primitives_for_proving_gas_computation =
-        cairo_primitive_counter_map(vm_resources_builtins_for_proving_gas_computation.clone());
-
-    // Use tx_cairo_primitives_counters to count the Sierra gas executed entry points as well.
-    add_maps(
-        &mut vm_resources_cairo_primitives_for_proving_gas_computation,
+    let cairo_primitives_for_proving_gas = get_cairo_primitives_for_proving_gas_computation(
+        patrticia_update_resources.prover_builtins(),
+        tx_resources.computation.os_vm_resources.prover_builtins(),
+        // This accounts for:
+        // 1 the Sierra gas executed entry points
+        // 2 the tx_resources.computation.tx_vm_resources
         tx_cairo_primitives_counters,
     );
 
     let (total_proving_gas, casm_hash_computation_data_proving_gas) = compute_proving_gas(
-        &vm_resources_cairo_primitives_for_proving_gas_computation,
+        &cairo_primitives_for_proving_gas,
         vm_resources_sierra_gas,
         versioned_constants,
         proving_builtin_gas_costs,
@@ -931,6 +926,20 @@ pub fn get_tx_weights<S: StateReader>(
         casm_hash_computation_data_proving_gas,
         class_hashes_to_migrate: migration_data.class_hashes_to_migrate,
     })
+}
+
+fn get_cairo_primitives_for_proving_gas_computation(
+    patricia_update_builtins: BuiltinCounterMap,
+    os_computation_builtins: BuiltinCounterMap,
+    tx_cairo_primitives: &CairoPrimitiveCounterMap,
+) -> CairoPrimitiveCounterMap {
+    // patricia updates does not consume opcodes.
+    let mut cairo_primitives = cairo_primitive_counter_map(patricia_update_builtins);
+    // Os computation does not consume opcodes.
+    add_maps(&mut cairo_primitives, &cairo_primitive_counter_map(os_computation_builtins));
+    add_maps(&mut cairo_primitives, tx_cairo_primitives);
+
+    cairo_primitives
 }
 
 /// Returns a mapping from each class hash to its estimated Cairo resources for Casm hash
