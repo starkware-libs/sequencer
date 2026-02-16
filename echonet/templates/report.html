@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Echonet Report</title>
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml" />
+  {% if export %}
+  <link rel="stylesheet" href="data:text/css;base64,{{ inline_css_b64 }}" />
+  {% else %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='report.css') }}" />
+  <script defer src="{{ url_for('static', filename='report.js') }}"></script>
+  {% endif %}
+</head>
+
+<body data-echonet-revert-rate-pct="{{ meta.echonet_revert_rate_pct }}"
+  data-echonet-revert-risk="{{ meta.echonet_revert_risk_0_1 }}" data-report-export="{{ 1 if export else 0 }}"
+  data-gcp-project-id="{{ logs.gcp_project_id }}" data-gcp-location="{{ logs.gcp_location }}"
+  data-gke-cluster-name="{{ logs.gke_cluster_name }}" data-k8s-namespace="{{ logs.k8s_namespace }}"
+  data-gcp-logs-duration="{{ logs.duration }}">
+  <header class="topbar">
+    <div class="brand">
+      <div class="title">Echonet Report</div>
+      <div class="subtitle">
+        Generated <span class="mono">{{ meta.generated_at_utc }}</span>
+      </div>
+    </div>
+
+    {% if not export %}
+    <div class="controls">
+      <label class="control">
+        <span>Filter</span>
+        <input id="filterInput" type="search" placeholder="tx hash / reason / status…" autocomplete="off" />
+      </label>
+
+      <label class="control">
+        <span>Scope</span>
+        <select id="scopeSelect" title="Limit filtering to one section">
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="gateway">Gateway errors</option>
+          <option value="reverts">Reverts</option>
+          <option value="resync">Resync</option>
+          <option value="diag">Diagnostics</option>
+        </select>
+      </label>
+
+      <label class="control">
+        <span>Auto refresh</span>
+        <select id="refreshSelect">
+          <option value="off">Off</option>
+          <option value="5">5s</option>
+          <option value="15">15s</option>
+          <option value="60">60s</option>
+        </select>
+      </label>
+
+      <button class="btn" id="refreshNowBtn" type="button">Refresh</button>
+      <button class="btn" id="copyVisibleBtn" type="button" title="Copy visible tx hashes (respects scope)">Copy
+        visible</button>
+      <a class="btn btnLink" id="logsBaseLink" href="#" target="_blank" rel="noopener"
+        title="Open GCP Logs Explorer for this namespace">Logs</a>
+      <button class="btn" id="themeToggleBtn" type="button" title="Toggle theme">Theme</button>
+      <a class="btn btnLink" href="/echonet/report/ui/download" title="Download static HTML snapshot">Download</a>
+      <a class="btn btnLink" href="/echonet/report" title="Raw JSON snapshot">JSON</a>
+      <a class="btn btnLink" href="/echonet/report/text" title="Text snapshot (plain text)">Text</a>
+      <div class="statusLine" id="filterStats" aria-live="polite"></div>
+    </div>
+    {% endif %}
+  </header>
+
+  <main class="container">
+    <div class="stack">
+      <section>
+        <div class="card kpiProgress">
+          <div class="cardTitle">Progress</div>
+          <div class="progressHero">
+            <div>
+              <div class="heroRow">
+                <div>
+                  <div class="heroLabel">Blocks processed</div>
+                  <div class="heroValue mono">{{ progress.blocks_processed }}</div>
+                </div>
+                <div>
+                  <div class="heroLabel">Current block</div>
+                  <div class="heroValue mono">{{ progress.current_block }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="kv kvTight">
+              <div class="k">Initial start</div>
+              <div class="v mono">{{ progress.initial_start_block }}</div>
+              <div class="k">Current start</div>
+              <div class="v mono">{{ progress.current_start_block }}</div>
+              <div class="k">First timestamp</div>
+              <div class="v mono">{{ meta.first_block_timestamp_iso }}</div>
+              <div class="k">Latest timestamp</div>
+              <div class="v mono">{{ meta.latest_block_timestamp_iso }}</div>
+              <div class="k">Span</div>
+              <div class="v mono">{{ meta.span_human }}</div>
+              <div class="k">Forward rate</div>
+              <div class="v mono">{{ meta.forward_rate }}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="row2">
+        <div class="card">
+          <div class="cardTitle">Transactions</div>
+          <div class="bigNumber mono">{{ kpis.total_sent_tx_count }}</div>
+          <div class="smallMuted">Total forwarded</div>
+          <div class="pillRow">
+            <span class="pill {{ severity.committed }}">Committed: <span class="mono">{{ kpis.committed_count }}</span>
+              ({{ kpis.committed_pct_of_pending_total }})</span>
+            <span class="pill {{ severity.pending }}">Pending: <span class="mono">{{ kpis.pending_commission_count
+                }}</span> ({{ kpis.pending_pct_of_pending_total }})</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cardTitle">Alerts</div>
+          <div class="pillRow">
+            <span class="pill pillLink {{ severity.gateway_errors }}" role="button" tabindex="0"
+              data-scroll-to="gateway-errors">Gateway errors:
+              <span class="mono">{{ kpis.gateway_errors_count }}</span></span>
+            <span class="pill pillLink {{ severity.reverts_mainnet }}" role="button" tabindex="0"
+              data-scroll-to="reverts-mainnet">Reverts
+              (mainnet-only): <span class="mono">{{ kpis.reverts_mainnet_count }}</span>
+              <span class="mono">({{ reverts.mainnet_only.pct_of_total_sent }})</span></span>
+            <span class="pill pillLink {{ severity.reverts_echonet }}" role="button" tabindex="0"
+              data-scroll-to="reverts-echonet">Reverts
+              (echonet-only): <span class="mono">{{ kpis.reverts_echonet_count }}</span>
+              <span class="mono">({{ reverts.echonet_only.pct_of_total_sent }})</span></span>
+          </div>
+          <div class="pillRow">
+            <span class="pill pillLink {{ severity.resync_causes }}" role="button" tabindex="0"
+              data-scroll-to="resync-triggers">Resync triggers:
+              <span class="mono">{{ kpis.resync_causes_count }}</span></span>
+            <span class="pill pillLink {{ severity.certain_failures }}" role="button" tabindex="0"
+              data-scroll-to="certain-failures">Certain failures:
+              <span class="mono">{{ kpis.certain_failures_count }}</span></span>
+            <span class="pill pillLink {{ severity.l2_gas_mismatches }}" role="button" tabindex="0"
+              data-scroll-to="l2-gas-mismatches">L2 gas
+              mismatches: <span class="mono">{{ kpis.l2_gas_mismatches_count }}</span></span>
+          </div>
+          <div class="smallMuted">
+            Tip: press <span class="mono">/</span> to focus filter; <span class="mono">Esc</span> clears it.
+          </div>
+        </div>
+      </section>
+
+      <section id="pending-txs">
+        <details class="card details sectionDetails" data-section-details="1">
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Non-committed tx hashes (pending)</span>
+          </summary>
+          {% if not export %}
+          <div class="tableMeta smallMuted" data-table-meta="pending"></div>
+          {% endif %}
+          {% if not pending_txs %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="pending" data-table="pending">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colHash" />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="num">Source block</th>
+                <th class="sortable" data-sort="str">Tx hash</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx_hash, src_bn in pending_txs %}
+              <tr data-search="{{ tx_hash }} {{ src_bn }}">
+                <td class="mono">{{ src_bn }}</td>
+                <td class="mono">
+                  <span class="hash" title="{{ tx_hash }}">{{ tx_hash }}</span>
+                </td>
+                <td class="right">
+                  <div class="rowActions">
+                    {% if not export %}
+                    <button class="btn btnSmall copyBtn" type="button" data-copy="{{ tx_hash }}">Copy</button>
+                    {% endif %}
+                    <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ tx_hash }}" target="_blank"
+                      rel="noopener" title="Open in Voyager">Voyager</a>
+                    {% if not export %}
+                    <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
+                      data-logs-tx="{{ tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
+                    <a class="btn btnSmall btnLink"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ src_bn }}&withFeeMarketInfo=true" target="_blank"
+                      rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
+                    <a class="btn btnSmall btnLink" href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ src_bn }}"
+                      target="_blank" rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </details>
+      </section>
+
+      <section id="gateway-errors">
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Gateway errors <span class="countPill">{{ kpis.gateway_errors_count }}</span></span>
+          </summary>
+          {% if not export %}
+          <div class="tableMeta smallMuted" data-table-meta="gateway"></div>
+          {% endif %}
+          {% if not gateway_errors %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="gateway" data-table="gateway">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colStatus" />
+              <col class="colHash" />
+              <col />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="num">Block</th>
+                <th class="sortable" data-sort="str">Status</th>
+                <th class="sortable" data-sort="str">Tx hash</th>
+                <th>Response</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in gateway_errors %}
+              <tr class="sev {{ severity.gateway_errors }}"
+                data-search="{{ row.tx_hash }} {{ row.status }} {{ row.block_number }} {{ row.response }}">
+                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono"><span class="status {{ severity.gateway_errors }}">{{ row.status }}</span></td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">
+                  <details class="details">
+                    <summary>Show</summary>
+                    <pre class="pre">{{ row.response }}</pre>
+                  </details>
+                </td>
+                <td class="right">
+                  <div class="rowActions">
+                    {% if not export %}
+                    <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                    {% endif %}
+                    <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ row.tx_hash }}" target="_blank"
+                      rel="noopener" title="Open in Voyager">Voyager</a>
+                    {% if not export %}
+                    <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
+                      data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
+                    <a class="btn btnSmall btnLink"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                      target="_blank" rel="noopener" title="Open block JSON (upstream/stored feeder)">Block</a>
+                    <a class="btn btnSmall btnLink"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                      rel="noopener" title="Open state update JSON (upstream/stored feeder)">State</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </details>
+      </section>
+
+      <section id="reverts-mainnet">
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Reverted only on Mainnet <span class="countPill">{{ reverts.mainnet_only.total }} ({{ reverts.mainnet_only.pct_of_total_sent
+                }})</span></span>
+          </summary>
+          {% if reverts.mainnet_only.total == 0 %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <div class="smallMuted">Use the filter box to narrow down.</div>
+          {% for group in reverts.mainnet_only.groups %}
+          <details class="details filterable" data-filter-scope="reverts" open>
+            <summary>
+              <span class="badge bad">{{ group.count }}</span>
+              <span class="mono">{{ group.name }}</span>
+              <span class="countPill">{{ group.pct_of_section }}</span>
+            </summary>
+            <table class="table" data-table="reverts">
+              <colgroup>
+                <col class="colBn" />
+                <col class="colHash" />
+                <col />
+                <col class="colActions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort="num">Source block</th>
+                  <th class="sortable" data-sort="str">Tx hash</th>
+                  <th>Reason (shortened)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in group.rows %}
+                <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.raw_error }}">
+                  <td class="mono">{{ row.block_number }}</td>
+                  <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                  <td>
+                    <div class="reason">{{ row.reason }}</div>
+                    {% if row.raw_error and row.raw_error != row.reason %}
+                    <details class="details nested">
+                      <summary>Raw</summary>
+                      <pre class="pre">{{ row.raw_error }}</pre>
+                    </details>
+                    {% endif %}
+                  </td>
+                  <td class="right">
+                    <div class="rowActions">
+                      {% if not export %}
+                      <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                      {% endif %}
+                      <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ row.tx_hash }}" target="_blank"
+                        rel="noopener" title="Open in Voyager">Voyager</a>
+                      {% if not export %}
+                      <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
+                        data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
+                      <a class="btn btnSmall btnLink"
+                        href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                        target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
+                      <a class="btn btnSmall btnLink"
+                        href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                        rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+          {% endfor %}
+          {% endif %}
+        </details>
+      </section>
+
+      <section id="reverts-echonet">
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Reverted only on Echonet <span class="countPill">{{ reverts.echonet_only.total }} ({{ reverts.echonet_only.pct_of_total_sent
+                }})</span></span>
+          </summary>
+          {% if reverts.echonet_only.total == 0 %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <div class="smallMuted">Use the filter box to narrow down.</div>
+          {% for group in reverts.echonet_only.groups %}
+          <details class="details filterable" data-filter-scope="reverts" open>
+            <summary>
+              <span class="badge bad">{{ group.count }}</span>
+              <span class="mono">{{ group.name }}</span>
+              <span class="countPill">{{ group.pct_of_section }}</span>
+            </summary>
+            <table class="table" data-table="reverts">
+              <colgroup>
+                <col class="colBn" />
+                <col class="colHash" />
+                <col />
+                <col class="colActions" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="sortable" data-sort="num">Source block</th>
+                  <th class="sortable" data-sort="str">Tx hash</th>
+                  <th>Reason (shortened)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in group.rows %}
+                <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.raw_error }}">
+                  <td class="mono">{{ row.block_number }}</td>
+                  <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                  <td>
+                    <div class="reason">{{ row.reason }}</div>
+                    {% if row.raw_error and row.raw_error != row.reason %}
+                    <details class="details nested">
+                      <summary>Raw</summary>
+                      <pre class="pre">{{ row.raw_error }}</pre>
+                    </details>
+                    {% endif %}
+                  </td>
+                  <td class="right">
+                    <div class="rowActions">
+                      {% if not export %}
+                      <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                      {% endif %}
+                      <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ row.tx_hash }}" target="_blank"
+                        rel="noopener" title="Open in Voyager">Voyager</a>
+                      {% if not export %}
+                      <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
+                        data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
+                      <a class="btn btnSmall btnLink"
+                        href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                        target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
+                      <a class="btn btnSmall btnLink"
+                        href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                        rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+          {% endfor %}
+          {% endif %}
+        </details>
+      </section>
+
+      <section id="resync-triggers">
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Resync triggers (first failures) <span class="countPill">{{ kpis.resync_causes_count }}</span></span>
+          </summary>
+          {% if not export %}
+          <div class="tableMeta smallMuted" data-table-meta="resync"></div>
+          {% endif %}
+          {% if not resync.causes %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="resync" data-table="resync">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colCount" />
+              <col class="colHash" />
+              <col />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="num">Block</th>
+                <th class="sortable" data-sort="num">Count</th>
+                <th class="sortable" data-sort="str">Tx hash</th>
+                <th class="sortable" data-sort="str">Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in resync.causes %}
+              <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.count }}">
+                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono">{{ row.count }}</td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">{{ row.reason }}</td>
+                <td class="right">
+                  <div class="rowActions">
+                    {% if not export %}
+                    <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                    {% endif %}
+                    <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ row.tx_hash }}" target="_blank"
+                      rel="noopener" title="Open in Voyager">Voyager</a>
+                    {% if not export %}
+                    <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
+                      data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
+                    <a class="btn btnSmall btnLink"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                      target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
+                    <a class="btn btnSmall btnLink"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                      rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </details>
+      </section>
+
+      <section id="certain-failures">
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">Certain failures (repeated triggers) <span class="countPill">{{ kpis.certain_failures_count }}</span></span>
+          </summary>
+          {% if not export %}
+          <div class="tableMeta smallMuted" data-table-meta="certain"></div>
+          {% endif %}
+          {% if not resync.certain_failures %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <table class="table filterable" data-filter-scope="resync" data-table="certain">
+            <colgroup>
+              <col class="colCount" />
+              <col class="colBn" />
+              <col class="colHash" />
+              <col />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="num">Count</th>
+                <th class="sortable" data-sort="num">Block</th>
+                <th class="sortable" data-sort="str">Tx hash</th>
+                <th class="sortable" data-sort="str">Reason</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in resync.certain_failures %}
+              <tr data-search="{{ row.tx_hash }} {{ row.block_number }} {{ row.reason }} {{ row.count }}">
+                <td class="mono">{{ row.count }}</td>
+                <td class="mono">{{ row.block_number }}</td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">{{ row.reason }}</td>
+                <td class="right">
+                  <div class="rowActions">
+                    {% if not export %}
+                    <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                    {% endif %}
+                    <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ row.tx_hash }}" target="_blank"
+                      rel="noopener" title="Open in Voyager">Voyager</a>
+                    {% if not export %}
+                    <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
+                      data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
+                    <a class="btn btnSmall btnLink"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.block_number }}&withFeeMarketInfo=true"
+                      target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Block</a>
+                    <a class="btn btnSmall btnLink"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_state_update?blockNumber={{ row.block_number }}" target="_blank"
+                      rel="noopener" title="Open source state update JSON (upstream feeder)">State</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </details>
+      </section>
+
+      <section id="l2-gas-mismatches">
+        <details class="card details sectionDetails" data-section-details="1" open>
+          <summary class="sectionSummary">
+            <span class="sectionSummaryLeft">L2 gas used mismatches <span class="countPill">{{ l2_gas_mismatches | length }}</span></span>
+          </summary>
+          {% if not export %}
+          <div class="tableMeta smallMuted" data-table-meta="diag"></div>
+          {% endif %}
+          {% if not l2_gas_mismatches %}
+          <div class="empty">(none)</div>
+          {% else %}
+          <div class="smallMuted">
+            Showing all L2 gas used mismatches.
+          </div>
+          <table class="table filterable" data-filter-scope="diag" data-table="diag">
+            <colgroup>
+              <col class="colBn" />
+              <col class="colBn" />
+              <col class="colHash" />
+              <col class="colCount" />
+              <col class="colCount" />
+              <col class="colActions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th class="sortable" data-sort="num">Echo block</th>
+                <th class="sortable" data-sort="num">Source block</th>
+                <th class="sortable" data-sort="str">Tx hash</th>
+                <th class="sortable" data-sort="num">Blob L2 gas</th>
+                <th class="sortable" data-sort="num">FGW L2 gas</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in l2_gas_mismatches %}
+              <tr
+                data-search="{{ row.tx_hash }} {{ row.echo_block }} {{ row.source_block }} {{ row.blob_total_gas_l2 }} {{ row.fgw_total_gas_consumed_l2 }}">
+                <td class="mono">{{ row.echo_block }}</td>
+                <td class="mono">{{ row.source_block }}</td>
+                <td class="mono"><span class="hash" title="{{ row.tx_hash }}">{{ row.tx_hash }}</span></td>
+                <td class="mono">{{ row.blob_total_gas_l2 }}</td>
+                <td class="mono">{{ row.fgw_total_gas_consumed_l2 }}</td>
+                <td class="right">
+                  <div class="rowActions">
+                    {% if not export %}
+                    <button class="btn btnSmall copyBtn" type="button" data-copy="{{ row.tx_hash }}">Copy</button>
+                    {% endif %}
+                    <a class="btn btnSmall btnLink" href="https://voyager.online/tx/{{ row.tx_hash }}" target="_blank"
+                      rel="noopener" title="Open in Voyager">Voyager</a>
+                    {% if not export %}
+                    <a class="btn btnSmall btnLink logsLink" href="#" target="_blank" rel="noopener"
+                      data-logs-tx="{{ row.tx_hash }}" title="Open logs filtered by this tx hash">Logs</a>
+                    <a class="btn btnSmall btnLink"
+                      href="/echonet/block_dump?blockNumber={{ row.echo_block }}&kind=blob" target="_blank"
+                      rel="noopener" title="Open echonet blob dump JSON (echo block)">Echo&nbsp;blob</a>
+                    <a class="btn btnSmall btnLink"
+                      href="{{ feeder_base_url }}/feeder_gateway/get_block?blockNumber={{ row.source_block }}&withFeeMarketInfo=true"
+                      target="_blank" rel="noopener" title="Open source block JSON (upstream feeder)">Source&nbsp;block</a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        </details>
+      </section>
+
+      {% if not export %}
+      <section id="block-dump">
+        <div class="card">
+          <div class="cardTitle">Echonet Blocks</div>
+          <div class="smallMuted">
+            Fetch a stored payload from Echonet via <span class="mono">/echonet/block_dump</span>.
+          </div>
+          <form class="inlineForm" action="/echonet/block_dump" method="get" target="_blank" rel="noopener">
+            <label class="control">
+              <span>Block number</span>
+              <input id="blockDumpNumber" name="blockNumber" type="number" inputmode="numeric" min="0"
+                placeholder="e.g. 123456" required class="noSpin" />
+            </label>
+            <label class="control">
+              <span>Kind</span>
+              <select id="blockDumpKind" name="kind" required>
+                <option value="blob">blob</option>
+                <option value="block">block</option>
+                <option value="state_update">state_update</option>
+              </select>
+            </label>
+            <div class="formActions">
+              <button class="btn" id="blockDumpOpenBtn" type="submit">Open</button>
+            </div>
+          </form>
+        </div>
+      </section>
+      {% endif %}
+    </div>
+
+    <footer class="footer">
+      <div>
+        {% if export %}
+        Static snapshot: interactive controls + local endpoints are disabled.
+        {% else %}
+        Endpoints:
+        <a href="/echonet/report/ui">UI</a>,
+        <a href="/echonet/report">JSON</a>,
+        <a href="/echonet/report/text">Text</a>,
+        <a href="/echonet/block_dump?blockNumber=0&kind=blob">Block dump</a>
+        {% endif %}
+      </div>
+    </footer>
+  </main>
+</body>
+
+</html>

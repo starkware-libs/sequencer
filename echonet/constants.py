@@ -22,6 +22,7 @@ MAX_BLOCK_NUMBER: int = 1 << 200
 IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA = (
     "0x10398fe631af9ab2311840432d507bf7ef4b959ae967f1507928f5afe888a99"
 )
+
 # ---------------------------------------------------------------------------
 # Echonet config file locations / names
 # ---------------------------------------------------------------------------
