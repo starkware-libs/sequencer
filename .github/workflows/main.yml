@@ -121,10 +121,7 @@ jobs:
       - run: pip install -r scripts/requirements.txt
 
       # Pre-install compiler binaries so tests don't each try to install them.
-      - name: "Install compiler binaries"
-        run: |
-          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile
-          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile
+      - uses: ./.github/actions/install_compiler_binaries
 
       - name: "Run tests"
         run: |
@@ -158,10 +155,7 @@ jobs:
       - run: pip install -r scripts/requirements.txt
 
       # Pre-install compiler binaries so integration tests don't each try to install them.
-      - name: "Install compiler binaries"
-        run: |
-          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile
-          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile
+      - uses: ./.github/actions/install_compiler_binaries
 
       - name: "Run integration tests"
         run: |

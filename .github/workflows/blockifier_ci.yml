@@ -85,10 +85,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       # Pre-install compiler binaries so tests don't each try to install them.
-      - name: "Install compiler binaries"
-        run: |
-          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile
-          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile
+      - uses: ./.github/actions/install_compiler_binaries
       # cairo_native is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features cairo_native
       - run: cargo test -p blockifier --features cairo_native
@@ -133,9 +130,7 @@ jobs:
 
       # Pre-install compiler binaries; ignore failure if base branch lacks install binaries.
       - name: "Install compiler binaries (base branch)"
-        run: |
-          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile || true
-          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile || true
+        run: scripts/install_compiler_binaries.sh || true
 
       # Benchmark the base branch code.
       - name: Benchmark (Base Branch)
@@ -154,10 +149,7 @@ jobs:
           cp -r target/criterion pr-${{ github.run_id }}/target/
 
       # Pre-install compiler binaries so benchmarks can invoke them.
-      - name: "Install compiler binaries"
-        run: |
-          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile
-          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile
+      - uses: ./.github/actions/install_compiler_binaries
 
       # Benchmark the current branch and compare to the previous run.
       - name: Benchmark (Feature Branch)

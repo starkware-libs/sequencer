@@ -61,9 +61,9 @@ jobs:
       - run: echo "REEXECUTION_INPUT_FILES_PREFIX=$(cat ./crates/blockifier_reexecution/resources/offline_reexecution_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://reexecution_artifacts/$REEXECUTION_INPUT_FILES_PREFIX/resources/* ./crates/blockifier_reexecution/resources/
       # Pre-install compiler binaries so tests don't each try to install them.
-      - name: "Install compiler binaries"
-        run: |
-          cargo run --release -p apollo_compile_to_casm --bin install_starknet_sierra_compile
+      - uses: ./.github/actions/install_compiler_binaries
+        with:
+          build_mode: release
       # Run blockifier re-execution tests.
       - run: cargo test --release -p blockifier_reexecution -- --include-ignored
       # Compile the rpc-tests, without running them.

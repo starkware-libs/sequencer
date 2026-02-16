@@ -1,0 +1,29 @@
+name: Install compiler binaries
+description: Install starknet-sierra-compile and starknet-native-compile (cached).
+
+inputs:
+  build_mode:
+    description: "debug or release"
+    required: false
+    default: "debug"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache compiler binaries
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: target/${{ inputs.build_mode }}/shared_executables
+        key: compiler-binaries-${{ runner.os }}-${{ inputs.build_mode }}-${{ hashFiles('crates/apollo_infra_utils/src/cairo_compiler_version.rs', 'crates/apollo_compile_to_native/src/constants.rs') }}
+
+    - name: Install compiler binaries
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        BUILD_FLAGS=""
+        if [ "${{ inputs.build_mode }}" = "release" ]; then
+          BUILD_FLAGS="--release"
+        fi
+        cargo run ${BUILD_FLAGS} -p apollo_compile_to_casm --bin install_starknet_sierra_compile
+        cargo run ${BUILD_FLAGS} -p apollo_compile_to_native --bin install_starknet_native_compile

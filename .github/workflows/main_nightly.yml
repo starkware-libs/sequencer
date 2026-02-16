@@ -46,10 +46,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Pre-install compiler binaries so tests don't each try to install them.
-      - name: "Install compiler binaries"
-        run: |
-          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile
-          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile
+      - uses: ./.github/actions/install_compiler_binaries
 
       # Run feature combo test.
       - name: "Run feature combo on all crates."
@@ -82,10 +79,7 @@ jobs:
       - run: pip install -r scripts/requirements.txt
 
       # Pre-install compiler binaries so tests don't each try to install them.
-      - name: "Install compiler binaries"
-        run: |
-          cargo run -p apollo_compile_to_casm --bin install_starknet_sierra_compile
-          cargo run -p apollo_compile_to_native --bin install_starknet_native_compile
+      - uses: ./.github/actions/install_compiler_binaries
 
       - name: "Run integration tests pull request"
         run: |
