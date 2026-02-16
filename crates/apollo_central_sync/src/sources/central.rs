@@ -116,7 +116,7 @@ pub(crate) type BlocksStream<'a> =
 type CentralStateUpdate =
     (BlockNumber, BlockHash, StateDiff, IndexMap<ClassHash, DeprecatedContractClass>);
 pub(crate) type StateUpdatesStream<'a> = BoxStream<'a, CentralResult<CentralStateUpdate>>;
-type CentralCompiledClass = (ClassHash, CompiledClassHash, CasmContractClass);
+type CentralCompiledClass = (BlockNumber, ClassHash, CompiledClassHash, CasmContractClass);
 pub(crate) type CompiledClassesStream<'a> = BoxStream<'a, CentralResult<CentralCompiledClass>>;
 
 #[async_trait]
@@ -212,27 +212,25 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
                         // TODO(yair): Consider expecting, since the state diffs should not contain
                         // holes and we suppose to never exceed the state marker.
                         Ok(None) => Err(CentralError::StateUpdateNotFound),
-                        Ok(Some(state_diff)) => Ok(state_diff),
+                        Ok(Some(state_diff)) => Ok((bn, state_diff)),
                     }
                 })
                 .flat_map(|maybe_state_diff| match maybe_state_diff {
-                    Ok(state_diff) => {
-                        state_diff
-                            .class_hash_to_compiled_class_hash
-                            .into_iter()
-                            .map(Ok)
-                            .collect()
-                    }
+                    Ok((bn, state_diff)) => state_diff
+                        .class_hash_to_compiled_class_hash
+                        .into_iter()
+                        .map(move |(class_hash, compiled_class_hash)| Ok((bn, class_hash, compiled_class_hash)))
+                        .collect::<Vec<_>>(),
                     Err(err) => vec![Err(err)],
                 });
 
             let mut compiled_classes = futures_util::stream::iter(class_hashes_iter)
-                .map(|maybe_class_hashes| async move {
-                    match maybe_class_hashes {
-                        Ok((class_hash, compiled_class_hash)) => {
+                .map(|maybe_item| async move {
+                    match maybe_item {
+                        Ok((block_number, class_hash, compiled_class_hash)) => {
                             trace!("Downloading compiled class {:?}.", class_hash);
                             let compiled_class = self.get_compiled_class(class_hash).await?;
-                            Ok((class_hash, compiled_class_hash, compiled_class))
+                            Ok((block_number, class_hash, compiled_class_hash, compiled_class))
                         },
                         Err(err) => Err(err),
                     }
@@ -241,8 +239,8 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
 
             while let Some(maybe_compiled_class) = compiled_classes.next().await {
                 match maybe_compiled_class {
-                    Ok((class_hash, compiled_class_hash, compiled_class)) => {
-                        yield Ok((class_hash, compiled_class_hash, compiled_class));
+                    Ok((block_number, class_hash, compiled_class_hash, compiled_class)) => {
+                        yield Ok((block_number, class_hash, compiled_class_hash, compiled_class));
                     }
                     Err(err) => {
                         yield Err(err);
