@@ -1,24 +1,15 @@
-"""
-Reporting utilities for Echonet.
-"""
-
 from __future__ import annotations
 
-import argparse
-import json
 import logging
 import re
-from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable, Sequence, TypeVar
-
-import requests
+from typing import Any, Callable, Sequence, TypeVar
 
 from echonet import helpers
-from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, RevertErrorInfo
+from echonet.echonet_types import CONFIG, RevertErrorInfo
 from echonet.report_models import SnapshotModel
 
 T = TypeVar("T")
@@ -26,6 +17,13 @@ T = TypeVar("T")
 
 def format_if_present(f: Callable[[T], str], v: T | None) -> str:
     return f(v) if v else "(unknown)"
+
+
+def _severity_for_count(count: int) -> str:
+    """Map a non-negative count to a severity label."""
+    if count == 0:
+        return "neutral"
+    return "bad" if count >= 11 else "warn"
 
 
 def _format_percent(part: int, total: int) -> str:
@@ -40,34 +38,20 @@ def _format_rate(numerator: int, denom_seconds: int | None, unit: str) -> str:
     return f"{numerator / denom_seconds:.2f} {unit}"
 
 
-class BaseRevertComparisonTextReport(ABC):
-    """
-    Template-method base class for rendering revert comparisons.
-
-    Subclasses implement `_render_section(...)` and inherit the shared `render()` skeleton.
-    """
-
-    def render(
-        self,
-        mainnet_reverts: dict[str, RevertErrorInfo],
-        echonet_reverts: dict[str, RevertErrorInfo],
-    ) -> str:
-        total_mainnet = len(mainnet_reverts)
-        total_echonet = len(echonet_reverts)
-
-        lines: list[str] = []
-        lines.append("=== Revert counts ===")
-        lines.append(f"Only on Mainnet: {total_mainnet}")
-        lines.append(f"Only on Echonet: {total_echonet}")
-        lines.append("")
-        lines.extend(self._render_section("Reverted only on Mainnet", mainnet_reverts))
-        lines.append("")
-        lines.extend(self._render_section("Reverted only on Echonet", echonet_reverts))
-        return "\n".join(lines).rstrip() + "\n"
-
-    @abstractmethod
-    def _render_section(self, title: str, reverts: dict[str, RevertErrorInfo]) -> list[str]:
-        raise NotImplementedError
+def _format_duration(seconds: int | None) -> str:
+    if seconds is None:
+        return "(unknown)"
+    s = seconds
+    if s < 60:
+        return f"{s}s"
+    m, s = divmod(s, 60)
+    if m < 60:
+        return f"{m}m {s}s"
+    h, m = divmod(m, 60)
+    if h < 48:
+        return f"{h}h {m}m"
+    d, h = divmod(h, 24)
+    return f"{d}d {h}h"
 
 
 def append_key_value_lines(
@@ -75,26 +59,6 @@ def append_key_value_lines(
 ) -> None:
     for k, v in items:
         lines.append(f"{k:<{pad}} {v}")
-
-
-class ReportHttpClient:
-    """HTTP client for the Echonet `/echonet/report` and related debug endpoints."""
-
-    def __init__(self, base_url: str, timeout_seconds: float = 5.0) -> None:
-        self._base_url = base_url.rstrip("/")
-        self._timeout_seconds = timeout_seconds
-
-    def fetch_report_snapshot(self) -> JsonObject:
-        url = f"{self._base_url}/echonet/report"
-        resp = requests.get(url, timeout=self._timeout_seconds)
-        resp.raise_for_status()
-        return resp.json()
-
-    def fetch_block_dump(self, block_number: int, kind: BlockDumpKind) -> JsonObject:
-        url = f"{self._base_url}/echonet/block_dump?blockNumber={block_number}&kind={kind.value}"
-        resp = requests.get(url, timeout=self._timeout_seconds)
-        resp.raise_for_status()
-        return resp.json()
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,24 +90,16 @@ class SnapshotTextReport:
 
     def render(self) -> str:
         s = self._s
+        r = _SnapshotReportRollup.from_snapshot(s)
         lines: list[str] = []
 
         lines.append("=== Echonet snapshot ===")
         append_key_value_lines(
             lines,
             [
-                (
-                    "Initial start block",
-                    format_if_present(str, s.initial_start_block),
-                ),
-                (
-                    "Current start block",
-                    format_if_present(str, s.current_start_block),
-                ),
-                (
-                    "Current block",
-                    format_if_present(str, s.current_block),
-                ),
+                ("Initial start block", format_if_present(str, s.initial_start_block)),
+                ("Current start block", format_if_present(str, s.current_start_block)),
+                ("Current block", format_if_present(str, s.current_block)),
                 (
                     "First block timestamp",
                     format_if_present(helpers.timestamp_to_iso, s.first_block_timestamp),
@@ -155,17 +111,14 @@ class SnapshotTextReport:
                 (
                     "Time span (first->latest)",
                     format_if_present(
-                        lambda secs: f"{secs} sec ({str(timedelta(seconds=int(secs)))})",
+                        lambda secs: f"{secs} sec ({str(timedelta(seconds=secs))})",
                         s.timestamp_diff_seconds,
                     ),
                 ),
-                (
-                    "Blocks processed",
-                    format_if_present(str, s.blocks_sent_count),
-                ),
+                ("Blocks processed", format_if_present(str, s.blocks_sent_count)),
                 (
                     "Forward rate",
-                    _format_rate(s.total_sent_tx_count, s.timestamp_diff_seconds, unit="tx/s"),
+                    r.forward_rate,
                 ),
             ],
         )
@@ -184,16 +137,20 @@ class SnapshotTextReport:
                     f"{s.pending_commission_count} ({_format_percent(s.pending_commission_count, s.pending_total_count)})",
                 ),
                 (
-                    "Gateway errors (live)",
-                    f"{len(s.gateway_errors)} ({_format_percent(len(s.gateway_errors), s.total_sent_tx_count)})",
+                    "Gateway errors",
+                    f"{r.gateway_errors_count} ({_format_percent(r.gateway_errors_count, r.total_sent)})",
                 ),
                 (
                     "Reverted only on Mainnet",
-                    f"{len(s.revert_errors_mainnet)} ({_format_percent(len(s.revert_errors_mainnet), s.total_sent_tx_count)})",
+                    f"{r.reverts_mainnet_count} ({_format_percent(r.reverts_mainnet_count, r.total_sent)})",
                 ),
                 (
                     "Reverted only on Echonet",
-                    f"{len(s.revert_errors_echonet)} ({_format_percent(len(s.revert_errors_echonet), s.total_sent_tx_count)})",
+                    f"{r.reverts_echonet_count} ({_format_percent(r.reverts_echonet_count, r.total_sent)})",
+                ),
+                (
+                    "L2 gas mismatches",
+                    f"{r.l2_gas_mismatches_count} ({_format_percent(r.l2_gas_mismatches_count, r.total_sent)})",
                 ),
                 ("Resync triggers (first failures)", str(len(s.resync_causes))),
                 ("Certain failures (repeated triggers)", str(len(s.certain_failures))),
@@ -213,7 +170,7 @@ class SnapshotTextReport:
         if not s.sent_tx_hashes:
             lines.append("(none)")
         else:
-            for tx_hash, src_bn in sorted(s.sent_tx_hashes.items(), key=lambda kv: kv[1]):
+            for tx_hash, src_bn in s.sent_tx_hashes.items():
                 lines.append(f"{tx_hash} @ {src_bn}")
 
         lines.append("")
@@ -240,6 +197,20 @@ class SnapshotTextReport:
                     f"{tx_hash}: bn={meta['block_number']} reason={meta['reason']} count={meta['count']}"
                 )
 
+        lines.append("")
+        lines.append("=== L2 gas mismatches ===")
+        if not s.l2_gas_mismatches:
+            lines.append("(none)")
+        else:
+            for tx_hash, meta in sorted(
+                s.l2_gas_mismatches.items(), key=lambda kv: kv[1]["echo_block"]
+            ):
+                lines.append(
+                    f"{tx_hash}: echo_bn={meta['echo_block']} src_bn={meta['source_block']} "
+                    f"blob_total_gas_l2={meta['blob_total_gas_l2']} "
+                    f"fgw_total_gas_consumed_l2={meta['fgw_total_gas_consumed_l2']}"
+                )
+
         return "\n".join(lines).rstrip() + "\n"
 
 
@@ -250,17 +221,9 @@ class RevertRule:
 
 
 class RevertClassifier:
-    """
-    Classify revert errors into coarse-grained buckets.
-    """
+    """Classify revert errors into coarse-grained buckets."""
 
-    _WRAPPER_REASONS_LOWER = frozenset(
-        {
-            "argent/multicall-failed",
-            "entrypoint_failed",
-        }
-    )
-
+    _WRAPPER_REASONS_LOWER = frozenset({"argent/multicall-failed", "entrypoint_failed"})
     _reason_in_parentheses_regex = re.compile(r"\('([^']*)'\)")
     _reason_in_quotes_regex = re.compile(r'"([^"]+)"')
 
@@ -322,10 +285,9 @@ class RevertClassifier:
                 and any(x in lc(m) for x in ("u256_sub", "u128_sub", "u64_sub", "u32_sub")),
             ),
             RevertRule("Result::unwrap failed", lambda m: "result::unwrap failed" in lc(m)),
-            RevertRule("NEGATIVE", lambda m: "negative:" in m),
+            RevertRule("NEGATIVE", lambda m: "NEGATIVE:" in m),
             RevertRule("Not player", lambda m: "not player" in m),
             RevertRule("Player not won last round", lambda m: "player not won last round" in lc(m)),
-            # Attestation-related revert types, currently excluded from report records.
             RevertRule(
                 "Attestation out of window", lambda m: "attestation is out of window" in lc(m)
             ),
@@ -333,6 +295,23 @@ class RevertClassifier:
                 "Attestation wrong block hash",
                 lambda m: "attestation with wrong block hash" in lc(m),
             ),
+            RevertRule(
+                "Attestation is done for this epoch",
+                lambda m: "attestation is done for this epoch" in lc(m),
+            ),
+            RevertRule("Insufficient max L2Gas", lambda m: "insufficient max L2Gas" in lc(m)),
+            RevertRule(
+                "ERC20: insufficient balance", lambda m: "erc20: insufficient balance" in lc(m)
+            ),
+            RevertRule(
+                "insufficient unassigned stake", lambda m: "insufficient unassigned stake" in lc(m)
+            ),
+            RevertRule(
+                "Caller is not owner of token", lambda m: "caller is not owner of token" in lc(m)
+            ),
+            RevertRule("ERC721: invalid token ID", lambda m: "erc721: invalid token id" in lc(m)),
+            RevertRule("Insufficient from_token", lambda m: "insufficient from_token" in lc(m)),
+            RevertRule("Tile already minted", lambda m: "tile already minted" in lc(m)),
             RevertRule("Invalid request ID", lambda m: "invalid request id" in lc(m)),
             RevertRule("argent/multicall-failed", lambda m: "argent/multicall-failed" in lc(m)),
             RevertRule("MIN_LIQUIDITY", lambda m: "min_liquidity" in lc(m)),
@@ -359,9 +338,27 @@ class RevertClassifier:
         ]
 
 
-class RevertComparisonTextReport(BaseRevertComparisonTextReport):
+class RevertComparisonTextReport:
     def __init__(self, classifier: RevertClassifier) -> None:
         self._classifier = classifier
+
+    def render(
+        self,
+        mainnet_reverts: dict[str, RevertErrorInfo],
+        echonet_reverts: dict[str, RevertErrorInfo],
+    ) -> str:
+        total_mainnet = len(mainnet_reverts)
+        total_echonet = len(echonet_reverts)
+
+        lines: list[str] = []
+        lines.append("=== Revert counts ===")
+        lines.append(f"Only on Mainnet: {total_mainnet}")
+        lines.append(f"Only on Echonet: {total_echonet}")
+        lines.append("")
+        lines.extend(self._render_section("Reverted only on Mainnet", mainnet_reverts))
+        lines.append("")
+        lines.extend(self._render_section("Reverted only on Echonet", echonet_reverts))
+        return "\n".join(lines).rstrip() + "\n"
 
     def _render_section(self, title: str, reverts: dict[str, RevertErrorInfo]) -> list[str]:
         grouped = self._classifier.group(reverts)
@@ -376,33 +373,6 @@ class RevertComparisonTextReport(BaseRevertComparisonTextReport):
             lines.append(f"-- {error_type} ({len(txs)} txs, {_format_percent(len(txs), total)}) --")
             for tx_hash, src_bn, revert_reason in sorted(txs, key=lambda x: x[1]):  # src_bn
                 lines.append(f"bn={str(src_bn)} {tx_hash}: {revert_reason}")
-        return lines
-
-
-class RawRevertComparisonTextReport(BaseRevertComparisonTextReport):
-    """
-    Render the revert comparison without classification and without shortening messages.
-
-    This is intended for `--compare-reverts`, where we want to additionally show
-    the full original revert errors after the classified summary.
-    """
-
-    def _render_section(self, title: str, reverts: dict[str, RevertErrorInfo]) -> list[str]:
-        total = len(reverts)
-        lines: list[str] = [f"=== {title} ({total} txs) ==="]
-        if total == 0:
-            lines.append("(none)")
-            return lines
-
-        for tx_hash, info in sorted(reverts.items(), key=lambda kv: kv[1]["block_number"]):
-            raw = info["error"]
-            lines.append("")
-            lines.append(f"bn={str(info['block_number'])} {tx_hash}:")
-            if not raw:
-                lines.append("  (empty)")
-                continue
-            for ln in raw.splitlines():
-                lines.append(f"  {ln}")
         return lines
 
 
@@ -467,82 +437,231 @@ def write_pre_resync_reports(
     )
 
 
-def print_snapshot(base_url: str) -> None:
-    data = ReportHttpClient(base_url).fetch_report_snapshot()
-    print(SnapshotTextReport(SnapshotModel.from_dict(data)).render(), end="")
+@dataclass(frozen=True, slots=True)
+class RevertRow:
+    tx_hash: str
+    block_number: int
+    reason: str
+    raw_error: str
 
 
-def compare_reverts(base_url: str) -> None:
-    data = ReportHttpClient(base_url).fetch_report_snapshot()
-    s = SnapshotModel.from_dict(data)
-    classified = RevertComparisonTextReport(classifier=RevertClassifier()).render(
-        mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
-    )
-    raw = RawRevertComparisonTextReport().render(
-        mainnet_reverts=s.revert_errors_mainnet, echonet_reverts=s.revert_errors_echonet
-    )
-
-    print("=== CLASSIFIED REVERTS (shortened) ===")
-    print(classified, end="")
-    print("")
-    print("=== FULL REVERTS (raw) ===")
-    print(raw, end="")
+@dataclass(frozen=True, slots=True)
+class RevertGroup:
+    name: str
+    count: int
+    pct_of_section: str
+    rows: list[RevertRow]
 
 
-def show_block(base_url: str, block_number: int, kind: BlockDumpKind) -> None:
-    obj = ReportHttpClient(base_url).fetch_block_dump(block_number=block_number, kind=kind)
-    print(f"=== Block {block_number} [{kind}] ===")
-    print(json.dumps(obj, ensure_ascii=False, indent=2))
+def _group_reverts(
+    reverts: dict[str, RevertErrorInfo],
+    *,
+    classifier: RevertClassifier,
+) -> list[RevertGroup]:
+    grouped: dict[str, list[RevertRow]] = defaultdict(list)
+    for tx_hash, info in reverts.items():
+        raw = str(info.get("error") or "")
+        reason = classifier.extract_revert_reason(raw)
+        grouped[classifier.classify(reason)].append(
+            RevertRow(
+                tx_hash=str(tx_hash),
+                block_number=info["block_number"],
+                reason=reason,
+                raw_error=raw,
+            )
+        )
+
+    total = sum(len(rows) for rows in grouped.values())
+
+    out = [
+        RevertGroup(
+            name=group_name,
+            count=len(rows),
+            pct_of_section=_format_percent(len(rows), total),
+            rows=sorted(rows, key=lambda r: (r.block_number, r.tx_hash)),
+        )
+        for group_name, rows in grouped.items()
+    ]
+    return sorted(out, key=lambda g: (-g.count, g.name))
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Echonet reports")
-    parser.add_argument(
-        "--snapshot",
-        action="store_true",
-        help="Fetch and print the in-memory tx snapshot from the running app",
-    )
-    parser.add_argument(
-        "--compare-reverts",
-        action="store_true",
-        help="Compare revert errors from in-memory state (mainnet vs echonet). Prints classified + full raw sections.",
-    )
-    parser.add_argument(
-        "--base-url",
-        default="http://127.0.0.1",
-        help="Echonet base URL (default: http://127.0.0.1).",
-    )
-    parser.add_argument(
-        "--all", action="store_true", help="Run both snapshot and revert comparison"
-    )
-    parser.add_argument(
-        "--show-block", type=int, help="Block number to fetch from the in-memory store"
-    )
-    parser.add_argument(
-        "--kind",
-        choices=[k.value for k in BlockDumpKind],
-        default=BlockDumpKind.BLOB.value,
-        help="Which payload to fetch for --show-block",
-    )
-    args = parser.parse_args()
+@dataclass(frozen=True, slots=True)
+class _SnapshotReportRollup:
+    s: SnapshotModel
 
-    # If no explicit action flags provided, run --all by default.
-    if not (args.snapshot or args.compare_reverts or args.all or args.show_block):
-        args.all = True
+    total_sent: int
+    pending_total: int
+    committed: int
+    pending_commission: int
 
-    if args.snapshot or args.all:
-        print_snapshot(args.base_url)
-        if not args.all:
-            return
+    gateway_errors_count: int
+    reverts_mainnet_count: int
+    reverts_echonet_count: int
+    resync_causes_count: int
+    certain_failures_count: int
+    l2_gas_mismatches_count: int
 
-    if args.compare_reverts:
-        compare_reverts(args.base_url)
-        return
+    forward_rate: str
+    echonet_revert_rate_pct: float
+    echonet_revert_risk_0_1: float
+    now_utc: str
 
-    if args.show_block:
-        show_block(args.base_url, args.show_block, BlockDumpKind(args.kind))
-        return
+    sev: dict[str, str]
+
+    pending_txs: list[tuple[str, int]]
+    gateway_errors_rows: list[dict[str, Any]]
+    grouped_mainnet: list[RevertGroup]
+    grouped_echonet: list[RevertGroup]
+    resync_causes_rows: list[dict[str, Any]]
+    certain_failures_rows: list[dict[str, Any]]
+    l2_gas_mismatches_rows: list[dict[str, Any]]
+
+    @classmethod
+    def from_snapshot(cls, s: SnapshotModel) -> "_SnapshotReportRollup":
+        classifier = RevertClassifier()
+
+        total_sent = s.total_sent_tx_count
+        pending_total = s.pending_total_count
+        committed = s.committed_count
+        pending_commission = s.pending_commission_count
+
+        gateway_errors_count = len(s.gateway_errors)
+        reverts_mainnet_count = len(s.revert_errors_mainnet)
+        reverts_echonet_count = len(s.revert_errors_echonet)
+        resync_causes_count = len(s.resync_causes)
+        certain_failures_count = len(s.certain_failures)
+        l2_gas_mismatches_count = len(s.l2_gas_mismatches)
+
+        sev = {
+            "pending": ("neutral" if pending_commission < CONFIG.tx_sender.max_pending_txs_before_pausing else "bad"),
+            "committed": ("ok" if committed > 0 else "neutral"),
+            "gateway_errors": _severity_for_count(gateway_errors_count),
+            "reverts_mainnet": _severity_for_count(reverts_mainnet_count),
+            "reverts_echonet": _severity_for_count(reverts_echonet_count),
+            "resync_causes": ("bad" if resync_causes_count > 0 else "neutral"),
+            "certain_failures": ("bad" if certain_failures_count > 0 else "neutral"),
+            "l2_gas_mismatches": _severity_for_count(l2_gas_mismatches_count),
+        }
+
+        pending_txs = [(tx_hash, src_bn) for tx_hash, src_bn in s.sent_tx_hashes.items()]
+
+        gateway_errors_rows = [
+            {
+                "tx_hash": str(tx_hash),
+                "status": payload["status"],
+                "block_number": payload["block_number"],
+                "response": str(payload["response"]),
+            }
+            for tx_hash, payload in s.gateway_errors.items()
+        ]
+
+        grouped_mainnet = _group_reverts(dict(s.revert_errors_mainnet), classifier=classifier)
+        grouped_echonet = _group_reverts(dict(s.revert_errors_echonet), classifier=classifier)
+
+        resync_causes_rows = sorted(
+            (dict(v) for v in s.resync_causes.values()),
+            key=lambda x: (x["block_number"], x["tx_hash"]),
+        )
+        certain_failures_rows = sorted(
+            (dict(v) for v in s.certain_failures.values()),
+            key=lambda x: (-x["count"], x["block_number"]),
+        )
+        l2_gas_mismatches_rows = sorted(
+            (dict(v) for v in s.l2_gas_mismatches.values()),
+            key=lambda r: (r["echo_block"], r["tx_hash"]),
+        )
+        forward_rate = _format_rate(total_sent, s.uptime_seconds, unit="tx/s")
+        echonet_revert_rate_pct = (
+            (100.0 * reverts_echonet_count / total_sent) if total_sent > 0 else 0.0
+        )
+        echonet_revert_risk_0_1 = min(echonet_revert_rate_pct, 1.0)
+
+        return cls(
+            s=s,
+            total_sent=total_sent,
+            pending_total=pending_total,
+            committed=committed,
+            pending_commission=pending_commission,
+            gateway_errors_count=gateway_errors_count,
+            reverts_mainnet_count=reverts_mainnet_count,
+            reverts_echonet_count=reverts_echonet_count,
+            resync_causes_count=resync_causes_count,
+            certain_failures_count=certain_failures_count,
+            l2_gas_mismatches_count=l2_gas_mismatches_count,
+            forward_rate=forward_rate,
+            echonet_revert_rate_pct=echonet_revert_rate_pct,
+            echonet_revert_risk_0_1=echonet_revert_risk_0_1,
+            now_utc=helpers.timestamp_to_iso(int(helpers.utc_now().timestamp())),
+            sev=sev,
+            pending_txs=pending_txs,
+            gateway_errors_rows=gateway_errors_rows,
+            grouped_mainnet=grouped_mainnet,
+            grouped_echonet=grouped_echonet,
+            resync_causes_rows=resync_causes_rows,
+            certain_failures_rows=certain_failures_rows,
+            l2_gas_mismatches_rows=l2_gas_mismatches_rows,
+        )
 
 
-if __name__ == "__main__":
-    main()
+def build_report_view_model(
+    snapshot: SnapshotModel,
+) -> dict[str, Any]:
+    """Prepare a UI-friendly dict for the HTML report template."""
+    r = _SnapshotReportRollup.from_snapshot(snapshot)
+
+    return {
+        "snapshot": r.s,
+        "meta": {
+            "generated_at_utc": r.now_utc,
+            "first_block_timestamp_iso": format_if_present(
+                helpers.timestamp_to_iso, r.s.first_block_timestamp
+            ),
+            "latest_block_timestamp_iso": format_if_present(
+                helpers.timestamp_to_iso, r.s.latest_block_timestamp
+            ),
+            "span_human": _format_duration(r.s.timestamp_diff_seconds),
+            "forward_rate": r.forward_rate,
+            "echonet_revert_rate_pct": round(r.echonet_revert_rate_pct, 3),
+            "echonet_revert_risk_0_1": round(r.echonet_revert_risk_0_1, 6),
+        },
+        "kpis": {
+            "total_sent_tx_count": r.total_sent,
+            "committed_count": r.committed,
+            "pending_commission_count": r.pending_commission,
+            "pending_total_count": r.pending_total,
+            "gateway_errors_count": r.gateway_errors_count,
+            "reverts_mainnet_count": r.reverts_mainnet_count,
+            "reverts_echonet_count": r.reverts_echonet_count,
+            "resync_causes_count": r.resync_causes_count,
+            "certain_failures_count": r.certain_failures_count,
+            "l2_gas_mismatches_count": r.l2_gas_mismatches_count,
+            "committed_pct_of_pending_total": _format_percent(r.committed, r.pending_total),
+            "pending_pct_of_pending_total": _format_percent(r.pending_commission, r.pending_total),
+        },
+        "severity": r.sev,
+        "progress": {
+            "initial_start_block": format_if_present(str, r.s.initial_start_block),
+            "current_start_block": format_if_present(str, r.s.current_start_block),
+            "current_block": format_if_present(str, r.s.current_block),
+            "blocks_processed": format_if_present(str, r.s.blocks_sent_count),
+        },
+        "pending_txs": r.pending_txs,
+        "gateway_errors": r.gateway_errors_rows,
+        "reverts": {
+            "mainnet_only": {
+                "total": r.reverts_mainnet_count,
+                "pct_of_total_sent": _format_percent(r.reverts_mainnet_count, r.total_sent),
+                "groups": r.grouped_mainnet,
+            },
+            "echonet_only": {
+                "total": r.reverts_echonet_count,
+                "pct_of_total_sent": _format_percent(r.reverts_echonet_count, r.total_sent),
+                "groups": r.grouped_echonet,
+            },
+        },
+        "resync": {
+            "causes": r.resync_causes_rows,
+            "certain_failures": r.certain_failures_rows,
+        },
+        "l2_gas_mismatches": r.l2_gas_mismatches_rows,
+    }
