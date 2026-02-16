@@ -244,16 +244,6 @@ pub struct ChargedResources {
     pub gas_consumed: GasAmount,          // Counted in SierraGas mode calls.
 }
 
-impl ChargedResources {
-    pub fn from_execution_resources(resources: ExecutionResources) -> Self {
-        Self { vm_resources: resources, ..Default::default() }
-    }
-
-    pub fn from_gas(gas_consumed: GasAmount) -> Self {
-        Self { gas_consumed, ..Default::default() }
-    }
-}
-
 impl Add<&ChargedResources> for &ChargedResources {
     type Output = ChargedResources;
 
