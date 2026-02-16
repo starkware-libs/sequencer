@@ -59,7 +59,6 @@ use crate::metrics::{
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_EMPTIED_LEAVES_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
-    EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
     TOTAL_BLOCK_DURATION_PER_MODIFICATION,
@@ -508,8 +507,6 @@ fn update_metrics(
     let emptied_leaves_percentage = if modifications_counts.storage_tries > 0 {
         let percentage = modifications_counts.emptied_storage_leaves as f64
             / modifications_counts.storage_tries as f64;
-        // Store as 0-100 scale for counter.
-        EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.increment((percentage * 100.0) as u64);
         Some(percentage * 100.0)
     } else {
         None
