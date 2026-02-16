@@ -51,14 +51,14 @@ impl SerializeConfig for P2pSyncClientConfig {
             ser_param(
                 "wait_period_for_new_data",
                 &self.wait_period_for_new_data.as_millis(),
-                "Time in millisseconds to wait when a query returned with partial data before \
+                "Time in milliseconds to wait when a query returned with partial data before \
                  sending a new query",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "wait_period_for_other_protocol",
                 &self.wait_period_for_other_protocol.as_millis(),
-                "Time in millisseconds to wait for a dependency protocol to advance (e.g.state \
+                "Time in milliseconds to wait for a dependency protocol to advance (e.g.state \
                  diff sync depends on header sync)",
                 ParamPrivacyInput::Public,
             ),
