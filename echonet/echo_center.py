@@ -675,7 +675,7 @@ class EchoCenterService:
                 {"error": f"Invalid kind: {kind_raw}"}, requests.codes.bad_request
             )
 
-        payload = self.shared.get_block_field(bn, kind.value)
+        payload = self.shared.get_block_field_with_disk_fallback(bn, kind.value)
         if payload is None:
             return self._empty_response(requests.codes.not_found)
         return self._json_response(payload, requests.codes.ok)
