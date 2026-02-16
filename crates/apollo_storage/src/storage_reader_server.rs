@@ -83,8 +83,6 @@ pub trait StorageReaderServerHandler<Request, Response> {
     ) -> Result<Response, StorageError>;
 }
 
-// TODO(Nadin): Remove #[allow(dead_code)] once the fields are used in the implementation.
-#[allow(dead_code)]
 /// A server for handling remote storage reader queries via a configurable request handler.
 pub struct StorageReaderServer<RequestHandler, Request, Response>
 where
