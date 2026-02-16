@@ -533,7 +533,11 @@ class _SnapshotReportRollup:
         l2_gas_mismatches_count = len(s.l2_gas_mismatches)
 
         sev = {
-            "pending": ("neutral" if pending_commission < CONFIG.tx_sender.max_pending_txs_before_pausing else "bad"),
+            "pending": (
+                "neutral"
+                if pending_commission < CONFIG.tx_sender.max_pending_txs_before_pausing
+                else "bad"
+            ),
             "committed": ("ok" if committed > 0 else "neutral"),
             "gateway_errors": _severity_for_count(gateway_errors_count),
             "reverts_mainnet": _severity_for_count(reverts_mainnet_count),
