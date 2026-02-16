@@ -28,7 +28,7 @@ use crate::fee::resources::{
     TransactionResources,
 };
 use crate::state::cached_state::StateChangesCount;
-use crate::test_utils::get_vm_resource_usage;
+use crate::test_utils::get_extended_vm_resource_usage;
 use crate::transaction::test_utils::invoke_tx_with_default_flags;
 use crate::utils::u64_from_usize;
 
@@ -398,7 +398,7 @@ fn test_gas_computation_regression_test(
     );
 
     // Test VM resources.
-    let mut tx_vm_resources = get_vm_resource_usage();
+    let mut tx_vm_resources = get_extended_vm_resource_usage().vm_resources;
     tx_vm_resources.n_memory_holes = 2;
     let n_reverted_steps = 15;
     let (sierra_gas, reverted_sierra_gas) = match gas_vector_computation_mode {

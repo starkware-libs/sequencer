@@ -54,7 +54,7 @@ use strum_macros::EnumCount as EnumCountMacro;
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::ExecutionSummary;
+use crate::execution::call_info::{ExecutionSummary, ExtendedExecutionResources, OpcodeCounterMap};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::vm_syscall_utils::{
@@ -418,17 +418,21 @@ pub fn gas_vector_from_vm_usage(
     }
 }
 
-pub fn get_vm_resource_usage() -> ExecutionResources {
-    ExecutionResources {
-        n_steps: 10000,
-        n_memory_holes: 0,
-        builtin_instance_counter: BTreeMap::from([
-            (BuiltinName::pedersen, 10),
-            (BuiltinName::range_check, 24),
-            (BuiltinName::ecdsa, 1),
-            (BuiltinName::bitwise, 1),
-            (BuiltinName::poseidon, 1),
-        ]),
+pub fn get_extended_vm_resource_usage() -> ExtendedExecutionResources {
+    ExtendedExecutionResources {
+        vm_resources: ExecutionResources {
+            n_steps: 10000,
+            n_memory_holes: 0,
+            builtin_instance_counter: BTreeMap::from([
+                (BuiltinName::pedersen, 10),
+                (BuiltinName::range_check, 24),
+                (BuiltinName::ecdsa, 1),
+                (BuiltinName::bitwise, 1),
+                (BuiltinName::poseidon, 1),
+            ]),
+        },
+        // TODO(AvivG): test with non-default opcode instance counter.
+        opcode_instance_counter: OpcodeCounterMap::default(),
     }
 }
 
