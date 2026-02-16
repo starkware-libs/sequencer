@@ -7,7 +7,7 @@ license.workspace = true
 description = "End-to-end integration tests for the Starknet sequencer."
 
 [features]
-cairo_native = ["apollo_batcher/cairo_native"]
+cairo_native = ["apollo_node/cairo_native"]
 
 [lints]
 workspace = true
