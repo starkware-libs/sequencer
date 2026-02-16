@@ -23,7 +23,8 @@ pub mod test;
 struct TransactionReceiptParameters<'a> {
     tx_context: &'a TransactionContext,
     gas_mode: GasVectorComputationMode,
-    calldata_length: usize,
+    // Combined length of calldata and proof facts.
+    extended_calldata_length: usize,
     signature_length: usize,
     code_size: usize,
     state_changes: &'a StateChanges,
@@ -33,7 +34,7 @@ struct TransactionReceiptParameters<'a> {
     tx_type: TransactionType,
     reverted_steps: usize,
     reverted_sierra_gas: GasAmount,
-    proof_facts_length: usize,
+    has_client_side_proof: bool,
 }
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
@@ -53,7 +54,7 @@ impl TransactionReceipt {
         let TransactionReceiptParameters {
             tx_context,
             gas_mode,
-            calldata_length,
+            extended_calldata_length,
             signature_length,
             code_size,
             state_changes,
@@ -63,17 +64,17 @@ impl TransactionReceipt {
             tx_type,
             reverted_steps,
             reverted_sierra_gas,
-            proof_facts_length,
+            has_client_side_proof,
         } = tx_receipt_params;
         let charged_resources = execution_summary_without_fee_transfer.charged_resources.clone();
         let starknet_resources = StarknetResources::new(
-            calldata_length,
+            extended_calldata_length,
             signature_length,
             code_size,
             StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
-            proof_facts_length,
+            has_client_side_proof,
         );
 
         // Transaction overhead ('additional') resources are computed in VM resources no matter what
@@ -135,7 +136,7 @@ impl TransactionReceipt {
             gas_mode: GasVectorComputationMode::All, /* Although L1 handler resources are
                                                       * deprecated, we still want to compute a
                                                       * full gas vector. */
-            calldata_length: l1_handler_payload_size,
+            extended_calldata_length: l1_handler_payload_size,
             signature_length: 0, // Signature is validated on L1.
             code_size: 0,
             state_changes,
@@ -145,7 +146,7 @@ impl TransactionReceipt {
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
             reverted_sierra_gas: GasAmount(0),
-            proof_facts_length: 0,
+            has_client_side_proof: false,
         })
     }
 
@@ -174,7 +175,7 @@ impl TransactionReceipt {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
             gas_mode: tx_context.get_gas_vector_computation_mode(),
-            calldata_length: account_tx.calldata_length(),
+            extended_calldata_length: account_tx.extended_calldata_length(),
             signature_length: account_tx.signature_length(),
             code_size: account_tx.declare_code_size(),
             state_changes,
@@ -184,7 +185,7 @@ impl TransactionReceipt {
             tx_type: account_tx.tx_type(),
             reverted_steps,
             reverted_sierra_gas,
-            proof_facts_length: account_tx.proof_facts_length(),
+            has_client_side_proof: account_tx.has_client_side_proof(),
         })
     }
 }
