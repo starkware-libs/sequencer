@@ -94,6 +94,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "sierra_compiler_config.max_bytecode_size",
     "starknet_url",
     "state_sync_config.static_config.central_sync_client_config.#is_none",
+    "state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold",
     "state_sync_config.static_config.network_config.#is_none",
     "state_sync_config.static_config.p2p_sync_client_config.#is_none",
     "state_sync_config.static_config.rpc_config.port",
