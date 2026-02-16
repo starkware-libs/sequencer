@@ -3375,12 +3375,12 @@
     "value": 10000
   },
   "state_sync_config.static_config.p2p_sync_client_config.wait_period_for_new_data": {
-    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
+    "description": "Time in milliseconds to wait when a query returned with partial data before sending a new query",
     "privacy": "Public",
     "value": 50
   },
   "state_sync_config.static_config.p2p_sync_client_config.wait_period_for_other_protocol": {
-    "description": "Time in millisseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
+    "description": "Time in milliseconds to wait for a dependency protocol to advance (e.g.state diff sync depends on header sync)",
     "privacy": "Public",
     "value": 50
   },
