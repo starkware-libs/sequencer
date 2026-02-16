@@ -7,7 +7,6 @@ use apollo_infra::metrics::{
     RemoteServerMetrics,
 };
 use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_labels};
-use strum::VariantNames;
 
 use crate::communication::CLASS_MANAGER_REQUEST_LABELS;
 

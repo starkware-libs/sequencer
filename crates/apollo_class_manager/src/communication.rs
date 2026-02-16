@@ -8,7 +8,6 @@ use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteCompo
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::generate_permutation_labels;
 use async_trait::async_trait;
-use strum::VariantNames;
 
 use crate::ClassManager;
 

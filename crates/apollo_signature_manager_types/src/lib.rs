@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
 use starknet_api::core::Nonce;
 use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
-use strum::{EnumVariantNames, VariantNames};
+use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 pub type KeyStoreResult<T> = Result<T, KeyStoreError>;

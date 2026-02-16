@@ -4,7 +4,6 @@ use indexmap::indexmap;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
-use strum::VariantNames;
 use strum_macros::EnumVariantNames;
 
 use crate::generate_permutation_labels;
