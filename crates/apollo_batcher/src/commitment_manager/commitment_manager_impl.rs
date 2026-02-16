@@ -21,7 +21,7 @@ use starknet_api::state::ThinStateDiff;
 use tokio::sync::mpsc::error::{TryRecvError, TrySendError};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{sleep, Duration};
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::batcher::{BatcherStorageReader, BatcherStorageWriter};
 use crate::commitment_manager::errors::CommitmentManagerError;
@@ -234,7 +234,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     ) -> CommitmentManagerResult<()> {
         for commitment_task_output in commitment_results.into_iter() {
             let height = commitment_task_output.height;
-            info!("Writing commitment results to storage for height {}.", height);
+            debug!("Writing commitment results to storage for height {}.", height);
 
             // Decide whether to finalize the block hash based on the config.
             let should_finalize_block_hash = match first_block_with_partial_block_hash.as_ref() {
@@ -474,11 +474,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     ) -> CommitmentManagerResult<FinalBlockCommitment> {
         match should_finalize_block_hash {
             false => {
-                info!("Finalized commitment for block {height} without calculating block hash.");
+                debug!("Finalized commitment for block {height} without calculating block hash.");
                 Ok(FinalBlockCommitment { height, block_hash: None, global_root })
             }
             true => {
-                info!("Finalizing commitment for block {height} with calculating block hash.");
+                debug!("Finalizing commitment for block {height} with calculating block hash.");
                 let (parent_hash, partial_block_hash_components) =
                     storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
                 let parent_hash = parent_hash.ok_or_else(|| {
@@ -505,11 +505,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         if let Some(task_duration) = task_duration {
             match task_type {
                 CommitterRequestLabelValue::CommitBlock => {
-                    info!("Commit block latency for block {height}: {task_duration} seconds.");
+                    debug!("Commit block latency for block {height}: {task_duration} seconds.");
                     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.record_lossy(task_duration)
                 }
                 CommitterRequestLabelValue::RevertBlock => {
-                    info!("Revert block latency for block {height}: {task_duration} seconds.");
+                    debug!("Revert block latency for block {height}: {task_duration} seconds.");
                     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.record_lossy(task_duration)
                 }
             }
