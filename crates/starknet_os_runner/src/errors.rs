@@ -88,12 +88,38 @@ pub enum ProvingError {
     #[error("Failed to serialize program input: {0}")]
     SerializeProgramInput(#[source] serde_json::Error),
 
-    #[error("Failed to resolve resource path for {file_name}: {source}")]
-    ResolveResourcePath {
-        file_name: String,
+    #[error("Failed to resolve project root path: {0}")]
+    ResolveProjectRootPath(#[source] std::io::Error),
+
+    #[error("Failed to download bootloader file: {0}")]
+    DownloadBootloader(#[source] reqwest::Error),
+
+    #[error("Invalid bootloader cache path: {path}")]
+    InvalidBootloaderPath { path: String },
+
+    #[error("Failed to create bootloader cache directory at {path}: {source}")]
+    CreateBootloaderCacheDir {
+        path: String,
         #[source]
         source: std::io::Error,
     },
+
+    #[error("Failed to write bootloader cache file at {path}: {source}")]
+    WriteBootloaderCache {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Failed to persist bootloader cache file at {path}: {source}")]
+    PersistBootloaderCache {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Bootloader file SHA-256 mismatch: expected {expected}, got {actual}")]
+    BootloaderFileSha256Mismatch { expected: String, actual: String },
 
     #[error("Prover execution failed: {0}")]
     ProverExecution(#[from] StwoRunAndProveError),

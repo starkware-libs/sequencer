@@ -4,7 +4,6 @@
 
 use std::path::PathBuf;
 
-use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use proving_utils::proof_encoding::ProofBytes;
@@ -19,9 +18,7 @@ use starknet_api::transaction::fields::Proof;
 use tempfile::NamedTempFile;
 
 use crate::errors::ProvingError;
-
-/// Bootloader program file name.
-pub(crate) const BOOTLOADER_FILE: &str = "simple_bootloader_compiled.json";
+use crate::proving::bootloader::resolve_bootloader_path;
 
 /// Output from the prover containing the compressed proof and associated program output.
 #[derive(Debug, Clone)]
@@ -30,15 +27,6 @@ pub(crate) struct ProverOutput {
     pub proof: Proof,
     /// Raw program output from the bootloader (first element is number of tasks).
     pub program_output: ProgramOutput,
-}
-
-/// Resolves a path to a resource file in the crate's resources directory.
-/// Constructs the path relative to the project root.
-pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingError> {
-    let path = ["crates", "starknet_os_runner", "resources", file_name].iter().collect::<PathBuf>();
-    resolve_project_relative_path(&path.to_string_lossy()).map_err(|source| {
-        ProvingError::ResolveResourcePath { file_name: file_name.to_string(), source }
-    })
 }
 
 /// Proves a Cairo PIE using the stwo prover.
@@ -76,7 +64,7 @@ pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingEr
         .map_err(ProvingError::WriteProgramInput)?;
 
     // Resolve bootloader path.
-    let bootloader_path = resolve_resource_path(BOOTLOADER_FILE)?;
+    let bootloader_path = resolve_bootloader_path().await?;
 
     // Build prover input.
     let input = StwoRunAndProveInput {

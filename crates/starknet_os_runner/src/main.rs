@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 use anyhow::Context;
 use clap::Parser;
 use jsonrpsee::server::{ServerBuilder, ServerConfig};
+use starknet_os_runner::proving::bootloader::resolve_bootloader_path;
 use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
 use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
 use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
@@ -22,6 +23,10 @@ async fn main() -> anyhow::Result<()> {
     // Parse CLI args and load config.
     let args = CliArgs::parse();
     let config = ServiceConfig::from_args(args)?;
+
+    // Download and verify bootloader JSON before accepting requests.
+    resolve_bootloader_path().await?;
+    info!("Bootloader JSON resolved and cached.");
 
     // Build and start the JSON-RPC server.
     let rpc_impl = ProvingRpcServerImpl::from_config(&config);
