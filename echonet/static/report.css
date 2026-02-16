@@ -362,6 +362,76 @@ a:hover {
     margin-bottom: 10px;
 }
 
+/* Collapsible section cards (page-level sections). */
+.sectionDetails > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sectionDetails > summary::-webkit-details-marker {
+    display: none;
+}
+
+.sectionDetails > summary.sectionSummary {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    font-weight: 650;
+    letter-spacing: 0.2px;
+    /* Override generic `.details summary` styling; match original `.cardTitle`. */
+    color: var(--text);
+    font-size: inherit;
+    position: relative;
+    padding-right: 18px; /* room for chevron */
+    margin: 0 0 10px;
+}
+
+.sectionDetails:not([open]) > summary.sectionSummary {
+    margin-bottom: 0;
+}
+
+.sectionSummaryLeft {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sectionSummaryRight {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sectionDetails > summary.sectionSummary::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid color-mix(in oklab, var(--muted) 65%, transparent);
+    opacity: 0.85;
+    transform: translateY(-50%) rotate(0deg);
+    transition: transform 120ms ease, border-top-color 120ms ease, opacity 120ms ease;
+}
+
+.sectionDetails[open] > summary.sectionSummary::after {
+    transform: translateY(-50%) rotate(180deg);
+    border-top-color: color-mix(in oklab, var(--link) 70%, transparent);
+    opacity: 0.95;
+}
+
+.sectionDetails > summary.sectionSummary:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--link) 16%, transparent);
+    border-radius: 12px;
+}
+
 .kpiProgress .cardTitle {
     margin-bottom: 8px;
 }
@@ -662,7 +732,7 @@ body[data-report-export="1"] .hash:focus {
     }
 }
 
-.details summary {
+.details:not(.sectionDetails) summary {
     cursor: pointer;
     user-select: none;
     color: var(--link);
