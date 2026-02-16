@@ -410,17 +410,14 @@ impl TransactionConverter {
             return Ok(None);
         }
 
-        // Clone data needed for the spawned task.
-        let proof_facts_for_task = proof_facts.clone();
-        let proof_for_task = proof.clone();
-        // Clone the proof manager client so it can be safely moved into the spawned async task
-        // without lifetime or ownership issues.
+        let task_proof_facts = proof_facts.clone();
+        let task_proof = proof.clone();
         let proof_manager_client = self.proof_manager_client.clone();
 
         // Spawn verification task.
         let verification_task = tokio::spawn(async move {
             let contains_proof =
-                proof_manager_client.contains_proof(proof_facts_for_task.clone()).await?;
+                proof_manager_client.contains_proof(task_proof_facts.clone()).await?;
 
             // If the proof already exists in the proof manager, indicating it has already been
             // verified, we skip proof verification.
@@ -429,9 +426,9 @@ impl TransactionConverter {
             }
 
             let verify_start = Instant::now();
-            Self::verify_proof(proof_facts_for_task.clone(), proof_for_task)?;
+            let proof_facts_hash = task_proof_facts.hash();
+            Self::verify_proof(task_proof_facts, task_proof)?;
             let verify_duration = verify_start.elapsed();
-            let proof_facts_hash = proof_facts_for_task.hash();
             info!(
                 "Proof verification took: {verify_duration:?} for proof facts hash: \
                  {proof_facts_hash:?}"

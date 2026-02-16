@@ -199,11 +199,11 @@ impl<
             let tx_hash = internal_tx.tx_hash;
             // Proof is verified during conversion to internal tx. It is stored here, after
             // validation, to avoid storing proofs for rejected transactions.
-            match self
+            let store_result = self
                 .transaction_converter
                 .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
-                .await
-            {
+                .await;
+            match store_result {
                 Ok(proof_manager_store_duration) => {
                     info!(
                         "Proof manager store in the gateway took: \
@@ -214,9 +214,9 @@ impl<
                     error!("Failed to set proof in proof manager: {}", e);
                 }
             }
-            let proof_archive_writer_start = Instant::now();
             let proof_archive_writer = self.proof_archive_writer.clone();
             tokio::spawn(async move {
+                let proof_archive_writer_start = Instant::now();
                 if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
                     error!("Failed to archive proof to GCS: {}", e);
                 }
@@ -291,8 +291,7 @@ impl<
                 },
             )?;
 
-        // Extract proof data from verification handle before awaiting to be used later to store the
-        // data.
+        // Await the verification task immediately.
         let proof_data = self
             .await_verification_task_and_extract_proof_data(verification_handle, tx_signature)
             .await?;
@@ -313,22 +312,23 @@ impl<
         verification_handle: Option<VerificationHandle>,
         tx_signature: &TransactionSignature,
     ) -> Result<Option<(ProofFacts, Proof)>, StarknetError> {
-        let proof_data = verification_handle
-            .as_ref()
-            .map(|handle| (handle.proof_facts.clone(), handle.proof.clone()));
+        let Some(handle) = verification_handle else {
+            return Ok(None);
+        };
 
-        // Await the verification task immediately.
-        if let Some(handle) = verification_handle {
-            let verification_result = handle.verification_task.await.map_err(|e| {
-                warn!("Proof verification task join error: {}", e);
-                StarknetError::internal_with_logging("Proof verification task join error:", &e)
-            })?;
-            verification_result.map_err(|e| {
+        handle
+            .verification_task
+            .await
+            .map_err(|e| {
+                warn!("Proof verification task panicked: {}", e);
+                StarknetError::internal_with_logging("Proof verification task panicked:", &e)
+            })?
+            .map_err(|e| {
                 warn!("Proof verification failed: {}", e);
                 transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
             })?;
-        }
-        Ok(proof_data)
+
+        Ok(Some((handle.proof_facts, handle.proof)))
     }
 }
 
