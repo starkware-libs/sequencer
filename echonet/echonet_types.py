@@ -48,7 +48,7 @@ class ResyncTrigger(ResyncTriggerPayload):
     """
     Metadata stored when a transaction causes a resync trigger.
 
-    This is persisted into report snapshots and rendered by `reports.py`.
+    This is persisted into report snapshots and rendered by the reporting UI/text endpoints.
     """
 
     count: int
@@ -177,6 +177,15 @@ class L1Config:
 
 
 @dataclass(frozen=True, slots=True)
+class GcpLogsConfig:
+    """Config used to build Google Cloud Logs Explorer links in the report UI."""
+
+    project_id: str
+    location: str
+    gke_cluster_name: str
+
+
+@dataclass(frozen=True, slots=True)
 class EchonetConfig:
     feeder: FeederGatewayConfig
     sequencer: SequencerGatewayConfig
@@ -187,6 +196,7 @@ class EchonetConfig:
     tx_filter: TxFilterConfig
     resync: ResyncConfig
     l1: L1Config
+    gcp_logs: GcpLogsConfig
 
     @classmethod
     def from_files(cls, keys_path: Path, secrets_path: Path) -> "EchonetConfig":
@@ -209,6 +219,9 @@ class EchonetConfig:
             {"X-Throttling-Bypass": feeder_bypass} if feeder_bypass else {}
         )
         l1_provider_api_key = str(secrets["l1_provider_api_key"])
+        gcp_project_id = str(secrets.get("gcp_project_id", ""))
+        gcp_location = str(secrets.get("gcp_location", ""))
+        gke_cluster_name = str(secrets.get("gke_cluster_name", ""))
 
         return cls(
             feeder=FeederGatewayConfig(
@@ -239,6 +252,11 @@ class EchonetConfig:
             ),
             l1=L1Config(
                 l1_provider_api_key=l1_provider_api_key,
+            ),
+            gcp_logs=GcpLogsConfig(
+                project_id=gcp_project_id,
+                location=gcp_location,
+                gke_cluster_name=gke_cluster_name,
             ),
         )
 
