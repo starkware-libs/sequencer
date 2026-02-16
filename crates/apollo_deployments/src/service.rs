@@ -74,6 +74,8 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "consensus_manager_config.network_config.bootstrap_peer_multiaddr",
     "consensus_manager_config.network_config.port",
     "consensus_manager_config.staking_manager_config.dynamic_config.default_committee",
+    "consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none",
+    "consensus_manager_config.staking_manager_config.dynamic_config.override_committee",
     "eth_fee_token_address",
     "gateway_config.static_config.authorized_declarer_accounts.#is_none",
     "gateway_config.static_config.authorized_declarer_accounts",
