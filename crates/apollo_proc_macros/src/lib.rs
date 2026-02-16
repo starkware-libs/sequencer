@@ -17,6 +17,8 @@ use syn::{
     Error,
     Expr,
     ExprLit,
+    Field,
+    Fields,
     Ident,
     Item,
     ItemConst,
@@ -505,4 +507,80 @@ pub fn make_visibility(attrs: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     input.into_token_stream().into()
+}
+
+/// Scans struct fields fields for `#[field_visibility(...)]` attributes and applies the visibility.
+/// This macro accepts no attributes and processes the fields.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use apollo_proc_macros::scan_fields_visibility;
+///
+/// #[scan_fields_visibility]
+/// pub struct MyStruct {
+///     #[cfg_attr(feature = "testing", field_visibility(pub))]
+///     public_field: i32,
+///     #[cfg_attr(feature = "testing", field_visibility(pub(crate)))]
+///     crate_visible_field: String,
+///     private_field: bool,  // unchanged visibility
+/// }
+///
+/// // After macro expansion, the struct becomes:
+/// // pub struct MyStruct {
+/// //     pub public_field: i32,
+/// //     pub(crate) crate_visible_field: String,
+/// //     private_field: bool,
+/// // }
+/// ```
+#[proc_macro_attribute]
+pub fn scan_fields_visibility(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let mut input: Item = parse_macro_input!(input);
+
+    let Item::Struct(ItemStruct { ref mut fields, .. }) = &mut input else {
+        return Error::new_spanned(
+            &input,
+            "`scan_fields_visibility` can only be applied to structs",
+        )
+        .to_compile_error()
+        .into();
+    };
+
+    let fields_to_scan = match fields {
+        Fields::Named(named_fields) => &mut named_fields.named,
+        Fields::Unnamed(unnamed_fields) => &mut unnamed_fields.unnamed,
+        Fields::Unit => {
+            return Error::new_spanned(
+                &input,
+                "`scan_fields_visibility` can only be applied to structs with fields",
+            )
+            .to_compile_error()
+            .into();
+        }
+    };
+
+    for field in fields_to_scan.iter_mut() {
+        if let Err(e) = process_field_visibility(field) {
+            return e.to_compile_error().into();
+        };
+    }
+
+    input.into_token_stream().into()
+}
+
+/// Processes a field's attributes to find and apply `#[field_visibility(...)]` attributes.
+fn process_field_visibility(field: &mut Field) -> syn::Result<()> {
+    // Find and process field_visibility attribute.
+    if let Some(pos) = field.attrs.iter().position(|attr| attr.path().is_ident("field_visibility"))
+    {
+        let attr = &field.attrs[pos];
+        // Parse and apply visibility.
+        field.vis = attr
+            .parse_args::<Visibility>()
+            .map_err(|e| Error::new_spanned(attr, format!("Failed to parse visibility: {}", e)))?;
+        // Remove the field_visibility attribute.
+        field.attrs.remove(pos);
+    }
+
+    Ok(())
 }
