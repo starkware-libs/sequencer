@@ -60,6 +60,7 @@ pub struct ComputationResources {
     /// Execution resources split between the transaction itself (`tx_vm_resources`) and OS
     /// overhead (`os_vm_resources`). This enables clean proving gas calculation. See usage in
     /// `get_tx_weights`.
+    // TODO(AvivG): update tx_vm_resources to ExtendedExecutionResources.
     pub tx_vm_resources: ExecutionResources,
     pub os_vm_resources: ExecutionResources,
     pub n_reverted_steps: usize,
