@@ -24,6 +24,7 @@ from echonet.reports import (
     SnapshotTextReport,
     build_report_view_model,
 )
+from echonet.sequencer_manager import _read_namespace_from_serviceaccount
 from echonet.shared_context import SharedContext, l1_manager, shared
 from echonet.transaction_sender import start_background_sender
 
@@ -33,16 +34,9 @@ flask_logger = get_logger("flask")
 logger = get_logger("echo_center")
 
 
-def _read_namespace_from_serviceaccount(path: str = SERVICEACCOUNT_NAMESPACE_PATH) -> str:
-    try:
-        return Path(path).read_text(encoding="utf-8").strip()
-    except Exception:
-        return ""
-
-
 def _build_gcp_logs_context() -> dict[str, str]:
     """Context used by the report UI to build GCP Logs Explorer links."""
-    ns = _read_namespace_from_serviceaccount()
+    ns = _read_namespace_from_serviceaccount(SERVICEACCOUNT_NAMESPACE_PATH)
     return {
         "gcp_project_id": CONFIG.gcp_logs.project_id,
         "gcp_location": CONFIG.gcp_logs.location,
