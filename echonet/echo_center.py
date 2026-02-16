@@ -1,18 +1,29 @@
+import base64
 import json
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Union
 
 import flask  # pyright: ignore[reportMissingImports]
 import requests
 
-from echonet.constants import IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA
+from echonet.constants import (
+    IGNORED_L2_GAS_MISMATCH_ATTESTATION_CALLDATA,
+    SERVICEACCOUNT_NAMESPACE_PATH,
+)
 from echonet.echonet_types import CONFIG, BlockDumpKind, JsonObject, TxType
 from echonet.feeder_client import FeederClient
 from echonet.helpers import format_hex
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
+from echonet.reports import (
+    RevertClassifier,
+    RevertComparisonTextReport,
+    SnapshotTextReport,
+    build_report_view_model,
+)
 from echonet.shared_context import SharedContext, l1_manager, shared
 from echonet.transaction_sender import start_background_sender
 
@@ -20,6 +31,25 @@ BlockNumberParam = Union[int, Literal["latest"]]
 
 flask_logger = get_logger("flask")
 logger = get_logger("echo_center")
+
+
+def _read_namespace_from_serviceaccount(path: str = SERVICEACCOUNT_NAMESPACE_PATH) -> str:
+    try:
+        return Path(path).read_text(encoding="utf-8").strip()
+    except Exception:
+        return ""
+
+
+def _build_gcp_logs_context() -> dict[str, str]:
+    """Context used by the report UI to build GCP Logs Explorer links."""
+    ns = _read_namespace_from_serviceaccount()
+    return {
+        "gcp_project_id": CONFIG.gcp_logs.project_id,
+        "gcp_location": CONFIG.gcp_logs.location,
+        "gke_cluster_name": CONFIG.gcp_logs.gke_cluster_name,
+        "k8s_namespace": ns,
+        "duration": "PT2H",
+    }
 
 
 def _total_l2_gas_consumed(receipt: JsonObject) -> int:
@@ -671,6 +701,62 @@ class EchoCenterService:
         snap = self.shared.get_report_snapshot()
         return self._json_response(snap.to_dict(), requests.codes.ok)
 
+    def handle_report_ui(self) -> flask.Response:
+        """HTML report dashboard."""
+        vm = build_report_view_model(self.shared.get_report_snapshot())
+        return flask.render_template(
+            "report.html",
+            export=False,
+            logs=_build_gcp_logs_context(),
+            **vm,
+        )
+
+    def handle_report_ui_download(self) -> flask.Response:
+        """
+        Download a static, self-contained HTML snapshot of the current report.
+        """
+        vm = build_report_view_model(self.shared.get_report_snapshot())
+
+        css_path = Path(__file__).resolve().parent / "static" / "report.css"
+        inline_css_b64 = base64.b64encode(css_path.read_bytes()).decode("ascii")
+
+        html = flask.render_template(
+            "report.html",
+            export=True,
+            inline_css_b64=inline_css_b64,
+            logs=_build_gcp_logs_context(),
+            **vm,
+        )
+        resp = flask.Response(
+            html.encode("utf-8"),
+            status=requests.codes.ok,
+            headers=[
+                ["Content-Type", "text/html; charset=utf-8"],
+                ["Content-Disposition", 'attachment; filename="echonet_report.html"'],
+            ],
+        )
+        return resp
+
+    def handle_report_text(self) -> flask.Response:
+        """
+        Plain-text snapshot report (similar to the old `reports.py` output).
+        """
+        snap = self.shared.get_report_snapshot()
+
+        snapshot_text = SnapshotTextReport(snap).render()
+        reverts_text = RevertComparisonTextReport(
+            classifier=RevertClassifier(),
+        ).render(
+            mainnet_reverts=dict(snap.revert_errors_mainnet),
+            echonet_reverts=dict(snap.revert_errors_echonet),
+        )
+        out = snapshot_text.rstrip() + "\n\n" + reverts_text
+        return flask.Response(
+            out.encode("utf-8"),
+            status=requests.codes.ok,
+            headers=[["Content-Type", "text/plain; charset=utf-8"]],
+        )
+
     def handle_block_dump(self) -> flask.Response:
         args = flask.request.args.to_dict(flat=True)
         bn = int(args["blockNumber"])
@@ -889,6 +975,21 @@ def get_compiled_class_by_class_hash() -> flask.Response:
 @app.route("/l1", methods=["GET", "POST"])
 def l1() -> flask.Response:
     return service.handle_l1()
+
+
+@app.route("/echonet/report/ui", methods=["GET"])
+def report_ui() -> flask.Response:
+    return service.handle_report_ui()
+
+
+@app.route("/echonet/report/ui/download", methods=["GET"])
+def report_ui_download() -> flask.Response:
+    return service.handle_report_ui_download()
+
+
+@app.route("/echonet/report/text", methods=["GET"])
+def report_text() -> flask.Response:
+    return service.handle_report_text()
 
 
 # Start the transaction sender automatically on startup.
