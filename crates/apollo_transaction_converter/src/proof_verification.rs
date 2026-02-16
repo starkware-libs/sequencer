@@ -30,8 +30,8 @@ pub enum VerifyProofError {
     ProofFactsMismatch,
     #[error(transparent)]
     ProgramOutputError(#[from] ProgramOutputError),
-    #[error("Bootloader program hash mismatch.")]
-    BootloaderHashMismatch,
+    #[error("Bootloader program hash mismatch: expected {expected}, got {actual}.")]
+    BootloaderProgramHashMismatch { expected: Felt, actual: Felt },
     #[error("Invalid proof version: expected {expected}, got {actual}.")]
     InvalidProofVersion { expected: Felt, actual: Felt },
     #[error(transparent)]
@@ -44,7 +44,10 @@ impl PartialEq for VerifyProofError {
             (Self::EmptyProof, Self::EmptyProof) => true,
             (Self::ProofFactsMismatch, Self::ProofFactsMismatch) => true,
             (Self::ProgramOutputError(lhs), Self::ProgramOutputError(rhs)) => lhs == rhs,
-            (Self::BootloaderHashMismatch, Self::BootloaderHashMismatch) => true,
+            (
+                Self::BootloaderProgramHashMismatch { expected: exp_l, actual: act_l },
+                Self::BootloaderProgramHashMismatch { expected: exp_r, actual: act_r },
+            ) => exp_l == exp_r && act_l == act_r,
             (
                 Self::InvalidProofVersion { expected: exp_l, actual: act_l },
                 Self::InvalidProofVersion { expected: exp_r, actual: act_r },
