@@ -20,6 +20,13 @@ JsonObject: TypeAlias = dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
+class SeverityConfig:
+    """Tuning parameters for report/UI severity classification."""
+
+    bad_count_threshold: int = 11
+
+
+@dataclass(frozen=True, slots=True)
 class BlockStoreTuning:
     """
     Tuning parameters for SharedContext's in-memory block retention.
@@ -183,6 +190,7 @@ class EchonetConfig:
     blocks: BlockRangeDefaults
     sleep: SleepConfig
     tx_sender: TxSenderTuning
+    severity: SeverityConfig
     paths: PathsConfig
     tx_filter: TxFilterConfig
     resync: ResyncConfig
@@ -230,6 +238,7 @@ class EchonetConfig:
             tx_sender=TxSenderTuning(
                 max_pending_txs_before_pausing=max_pending_txs_before_pausing,
             ),
+            severity=SeverityConfig(),
             paths=PathsConfig(),
             tx_filter=TxFilterConfig(
                 blocked_senders=helpers.parse_csv_to_lower_set(blocked_senders_csv),
