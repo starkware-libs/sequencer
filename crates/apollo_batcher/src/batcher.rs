@@ -1582,6 +1582,10 @@ impl BatcherStorageWriter for StorageWriter {
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
     ) -> StorageResult<()> {
+        info!(
+            "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
+             hash: {block_hash:?}."
+        );
         let mut txn = self
             .begin_rw_txn()?
             .set_global_root(&height, global_root)?
