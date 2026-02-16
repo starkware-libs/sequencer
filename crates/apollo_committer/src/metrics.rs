@@ -24,30 +24,35 @@ define_metrics!(
             "Number of blocks committed, in commit and revert",
             init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
             "count_storage_tries_modifications_per_block",
-            "Number of all storage tries modifications"
+            "Number of all storage tries modifications (cumulative)",
+            init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
             "count_contracts_trie_modifications_per_block",
-            "Number of contracts trie modifications"
+            "Number of contracts trie modifications (cumulative)",
+            init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
             "count_classes_trie_modifications_per_block",
-            "Number of classes trie modifications"
+            "Number of classes trie modifications (cumulative)",
+            init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             COUNT_EMPTIED_LEAVES_PER_BLOCK,
             "count_emptied_leaves_per_block",
-            "Number of leaves emptied in the storage tries per block"
+            "Number of leaves emptied in the storage tries per block (cumulative)",
+            init = 0
         },
-        MetricHistogram {
+        MetricCounter {
             EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
             "emptied_leaves_percentage_per_block",
-            "Percentage of storage tries leaves emptied over the total number of storage tries leaves per block"
+            "Percentage of storage tries leaves emptied (0-100 scale, cumulative sum)",
+            init = 0
         },
         MetricCounter {
             TOTAL_BLOCK_DURATION,
