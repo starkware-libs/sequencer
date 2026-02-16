@@ -44,11 +44,6 @@
     "privacy": "Public",
     "value": false
   },
-  "batcher_config.static_config.block_builder_config.bouncer_config.blake_weight": {
-    "description": "blake opcode gas weight.",
-    "privacy": "Public",
-    "value": 3334
-  },
   "batcher_config.static_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",
@@ -93,6 +88,11 @@
     "description": "Bitwise gas weight.",
     "privacy": "Public",
     "value": 583
+  },
+  "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.blake": {
+    "description": "Blake gas weight.",
+    "privacy": "Public",
+    "value": 3334
   },
   "batcher_config.static_config.block_builder_config.bouncer_config.builtin_weights.gas_costs.ecdsa": {
     "description": "Ecdsa gas weight.",
@@ -2589,6 +2589,11 @@
     "privacy": "Public",
     "value": 2
   },
+  "gateway_config.static_config.proof_archive_writer_config.bucket_name": {
+    "description": "The name of the bucket to write proofs to. An empty string indicates a test environment that does not connect to GCS.",
+    "privacy": "Public",
+    "value": "proof-archive"
+  },
   "gateway_config.static_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
     "privacy": "Public",
@@ -2639,6 +2644,11 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+  "gateway_config.static_config.stateless_tx_validator_config.allow_client_side_proving": {
+    "description": "If true, allows transactions with non-empty proof_facts or proof fields.",
+    "privacy": "Public",
+    "value": true
+  },
   "gateway_config.static_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
     "privacy": "Public",
@@ -2658,6 +2668,11 @@
     "description": "Maximum allowed L2 gas amount for transactions.",
     "privacy": "Public",
     "value": 1200000000
+  },
+  "gateway_config.static_config.stateless_tx_validator_config.max_proof_size": {
+    "description": "Limitation of proof size.",
+    "privacy": "Public",
+    "value": 600000
   },
   "gateway_config.static_config.stateless_tx_validator_config.max_sierra_version.major": {
     "description": "The major version of the configuration.",
