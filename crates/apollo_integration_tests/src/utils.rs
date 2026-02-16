@@ -216,10 +216,12 @@ pub fn create_node_config(
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
+    let batcher_storage_reader_server_port = available_ports.get_next_port();
     let batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_gas,
+        batcher_storage_reader_server_port,
     );
     let committer_config = ApolloCommitterConfig {
         db_path: storage_config.committer_db_path.clone(),
@@ -697,7 +699,12 @@ pub fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
     block_max_capacity_gas: GasAmount,
+    storage_reader_server_port: u16,
 ) -> BatcherConfig {
+    use std::net::Ipv4Addr;
+
+    use apollo_storage::storage_reader_server::StorageReaderServerStaticConfig;
+
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     BatcherConfig {
         static_config: BatcherStaticConfig {
@@ -718,6 +725,10 @@ pub fn create_batcher_config(
             },
             #[cfg(feature = "cairo_native")]
             contract_class_manager_config: cairo_native_class_manager_config(),
+            storage_reader_server_static_config: StorageReaderServerStaticConfig {
+                ip: Ipv4Addr::UNSPECIFIED.into(),
+                port: storage_reader_server_port,
+            },
             ..Default::default()
         },
         ..Default::default()
@@ -759,7 +770,10 @@ pub fn create_state_sync_configs(
     state_sync_storage_config: StorageConfig,
     ports: Vec<u16>,
     mut rpc_ports: Vec<u16>,
+    mut storage_reader_server_ports: Vec<u16>,
 ) -> Vec<StateSyncConfig> {
+    use apollo_storage::storage_reader_server::StorageReaderServerStaticConfig;
+
     create_connected_network_configs(ports)
         .into_iter()
         .map(|network_config| {
@@ -770,6 +784,10 @@ pub fn create_state_sync_configs(
                     ip: Ipv4Addr::LOCALHOST.into(),
                     port: rpc_ports.remove(0),
                     ..Default::default()
+                },
+                storage_reader_server_static_config: StorageReaderServerStaticConfig {
+                    ip: Ipv4Addr::UNSPECIFIED.into(),
+                    port: storage_reader_server_ports.remove(0),
                 },
                 ..Default::default()
             };
