@@ -587,16 +587,15 @@
           }
         },
         {
-          "title": "Total Block Duration Per Modification",
-          "description": "Total block duration normalized by the number of modifications",
+          "title": "Total Block Duration per Modification",
+          "description": "Average total block duration per modification over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(total_block_duration_per_modification_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(total_block_duration_per_modification_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(total_block_duration_per_modification{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(1000000 * increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"durations in ms\""
+            "log_query": "\"total block duration per modification\""
           }
         },
         {

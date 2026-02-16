@@ -69,13 +69,14 @@ fn get_total_block_duration_panel() -> Panel {
 }
 
 fn get_total_block_duration_per_modification_panel() -> Panel {
-    Panel::from_hist(
-        &TOTAL_BLOCK_DURATION_PER_MODIFICATION,
+    average_per_block_panel(
         "Total Block Duration per Modification",
-        "Total block duration normalized by the number of modifications",
+        "Average total block duration per modification over a 1m window",
+        &TOTAL_BLOCK_DURATION_PER_MODIFICATION,
+        Some(1_000_000),
+        Some("total block duration per modification"),
+        Unit::Seconds,
     )
-    .with_unit(Unit::Seconds)
-    .with_log_query(BLOCK_DURATIONS_LOG_QUERY)
 }
 
 fn get_read_duration_per_block_panel() -> Panel {
