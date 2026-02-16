@@ -661,13 +661,13 @@ fn test_invoke_tx(
         ..StateChangesCount::default()
     };
     let starknet_resources = StarknetResources::new(
-        calldata_length,
+        calldata_length + proof_facts_length,
         signature_length,
         0,
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
-        proof_facts_length,
+        proof_facts_length > 0,
     );
     let sender_address = invoke_tx.sender_address();
 
@@ -1167,8 +1167,16 @@ fn test_estimate_minimal_gas_vector(
     #[values(true, false)] use_kzg_da: bool,
     #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
     gas_vector_computation_mode: GasVectorComputationMode,
+    #[values(ProofFacts::default(), create_valid_proof_facts_for_testing())]
+    proof_facts: ProofFacts,
     #[case] cairo_version: CairoVersion,
 ) {
+    // Skip invalid combination: proof_facts only exist in V3 transactions, which use
+    // AllResourceBounds (GasVectorComputationMode::All).
+    if !proof_facts.is_empty() && gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas {
+        return;
+    }
+
     block_context.block_info.use_kzg_da = use_kzg_da;
     let TestInitData { account_address, contract_address, .. } =
         create_test_init_data(&block_context.chain_info, cairo_version);
@@ -1179,8 +1187,16 @@ fn test_estimate_minimal_gas_vector(
         max_fee: MAX_FEE
     };
 
-    // The minimal gas estimate does not depend on tx version.
-    let tx = &invoke_tx_with_default_flags(valid_invoke_tx_args);
+    // Compute minimal gas without proof_facts for comparison.
+    let tx_no_proof = &invoke_tx_with_default_flags(valid_invoke_tx_args.clone());
+    let minimal_gas_no_proof =
+        estimate_minimal_gas_vector(&block_context, tx_no_proof, &gas_vector_computation_mode);
+
+    // Compute minimal gas with the given proof_facts.
+    let tx = &invoke_tx_with_default_flags(invoke_tx_args! {
+        proof_facts: proof_facts.clone(),
+        ..valid_invoke_tx_args
+    });
     let minimal_gas_vector =
         estimate_minimal_gas_vector(&block_context, tx, &gas_vector_computation_mode);
     let minimal_l1_gas = minimal_gas_vector.l1_gas;
@@ -1194,6 +1210,16 @@ fn test_estimate_minimal_gas_vector(
         gas_vector_computation_mode == GasVectorComputationMode::All
     );
     assert_eq!(minimal_l1_data_gas > 0_u8.into(), use_kzg_da);
+
+    // Verify that proof_facts increase the minimal gas estimate.
+    if !proof_facts.is_empty() {
+        assert!(
+            minimal_gas_vector.l2_gas > minimal_gas_no_proof.l2_gas,
+            "Expected proof_facts to increase minimal L2 gas: with proof_facts={:?}, without={:?}",
+            minimal_gas_vector.l2_gas,
+            minimal_gas_no_proof.l2_gas
+        );
+    }
 }
 
 #[rstest]
@@ -1905,7 +1931,7 @@ fn test_declare_tx(
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
-        0,
+        false,
     );
     let account_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
         declare_tx_args! {

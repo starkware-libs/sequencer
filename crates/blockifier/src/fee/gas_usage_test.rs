@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_rational::Ratio;
-use num_traits::Zero;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{FeeType, StarknetVersion};
@@ -80,13 +79,13 @@ fn starknet_resources() -> StarknetResources {
         19,
     );
     StarknetResources::new(
-        2_usize,
+        2_usize + 5_usize, // calldata_length + proof_facts_length
         3_usize,
         4_usize,
         state_resources,
         6.into(),
         execution_summary,
-        5_usize,
+        true, // has_client_side_proof
     )
 }
 
@@ -108,7 +107,7 @@ fn test_get_event_gas_cost(
             .collect();
     let execution_summary = CallInfo::summarize_many(call_infos.iter(), versioned_constants);
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary, 0);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary, false);
     assert_eq!(
         GasVector::default(),
         starknet_resources.to_gas_vector(
@@ -161,7 +160,7 @@ fn test_get_event_gas_cost(
         GasVectorComputationMode::All => GasVector::from_l2_gas(expected_gas),
     };
     let starknet_resources =
-        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary, 0);
+        StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary, false);
     let gas_vector = starknet_resources.to_gas_vector(
         versioned_constants,
         use_kzg_da,
@@ -345,7 +344,7 @@ fn test_gas_computation_regression_test(
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
     // Client side proving is only supported from V3 transactions, which use AllResourceBounds.
-    if !starknet_resources.archival_data.proof_facts_length.is_zero()
+    if starknet_resources.archival_data.has_client_side_proof
         && gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas
     {
         return;

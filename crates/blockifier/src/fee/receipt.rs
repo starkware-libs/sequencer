@@ -23,6 +23,7 @@ pub mod test;
 struct TransactionReceiptParameters<'a> {
     tx_context: &'a TransactionContext,
     gas_mode: GasVectorComputationMode,
+    /// Calldata length including proof_facts_length if present.
     calldata_length: usize,
     signature_length: usize,
     code_size: usize,
@@ -33,7 +34,7 @@ struct TransactionReceiptParameters<'a> {
     tx_type: TransactionType,
     reverted_steps: usize,
     reverted_sierra_gas: GasAmount,
-    proof_facts_length: usize,
+    has_client_side_proof: bool,
 }
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
@@ -63,7 +64,7 @@ impl TransactionReceipt {
             tx_type,
             reverted_steps,
             reverted_sierra_gas,
-            proof_facts_length,
+            has_client_side_proof,
         } = tx_receipt_params;
         let charged_resources = execution_summary_without_fee_transfer.charged_resources.clone();
         let starknet_resources = StarknetResources::new(
@@ -73,7 +74,7 @@ impl TransactionReceipt {
             StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
-            proof_facts_length,
+            has_client_side_proof,
         );
 
         // Transaction overhead ('additional') resources are computed in VM resources no matter what
@@ -145,7 +146,7 @@ impl TransactionReceipt {
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
             reverted_sierra_gas: GasAmount(0),
-            proof_facts_length: 0,
+            has_client_side_proof: false,
         })
     }
 
@@ -171,10 +172,12 @@ impl TransactionReceipt {
         reverted_steps: usize,
         reverted_sierra_gas: GasAmount,
     ) -> Self {
+        let proof_facts_length = account_tx.proof_facts_length();
         Self::from_params(TransactionReceiptParameters {
             tx_context,
             gas_mode: tx_context.get_gas_vector_computation_mode(),
-            calldata_length: account_tx.calldata_length(),
+            // Calldata length includes proof_facts (they share the same gas_per_data_felt cost).
+            calldata_length: account_tx.calldata_length() + proof_facts_length,
             signature_length: account_tx.signature_length(),
             code_size: account_tx.declare_code_size(),
             state_changes,
@@ -184,7 +187,7 @@ impl TransactionReceipt {
             tx_type: account_tx.tx_type(),
             reverted_steps,
             reverted_sierra_gas,
-            proof_facts_length: account_tx.proof_facts_length(),
+            has_client_side_proof: proof_facts_length > 0,
         })
     }
 }
