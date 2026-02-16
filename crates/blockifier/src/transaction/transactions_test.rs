@@ -652,22 +652,22 @@ fn test_invoke_tx(
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
-    let calldata_length = invoke_tx.calldata_length();
+    let extended_calldata_length = invoke_tx.extended_calldata_length();
     let signature_length = invoke_tx.signature_length();
-    let proof_facts_length = invoke_tx.proof_facts_length();
+    let has_client_side_proof = invoke_tx.has_client_side_proof();
     let state_changes_for_fee = StateChangesCount {
         n_storage_updates: 1,
         n_modified_contracts: 1,
         ..StateChangesCount::default()
     };
     let starknet_resources = StarknetResources::new(
-        calldata_length,
+        extended_calldata_length,
         signature_length,
         0,
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
-        proof_facts_length,
+        has_client_side_proof,
     );
     let sender_address = invoke_tx.sender_address();
 
@@ -1194,6 +1194,35 @@ fn test_estimate_minimal_gas_vector(
         gas_vector_computation_mode == GasVectorComputationMode::All
     );
     assert_eq!(minimal_l1_data_gas > 0_u8.into(), use_kzg_da);
+}
+
+#[rstest]
+fn test_proof_facts_increases_minimal_l2_gas(block_context: BlockContext) {
+    // Setup basic context
+    let mode = GasVectorComputationMode::All;
+    let TestInitData { account_address, contract_address, .. } = create_test_init_data(
+        &block_context.chain_info,
+        CairoVersion::Cairo1(RunnableCairo1::Casm),
+    );
+
+    let base_args = invoke_tx_args! {
+        sender_address: account_address,
+        calldata: create_trivial_calldata(contract_address),
+        max_fee: MAX_FEE
+    };
+
+    // Baseline
+    let tx_no_proof = invoke_tx_with_default_flags(base_args.clone());
+    let gas_no_proof = estimate_minimal_gas_vector(&block_context, &tx_no_proof, &mode);
+
+    // With Proof Facts
+    let tx_with_proof = invoke_tx_with_default_flags(invoke_tx_args! {
+        proof_facts: create_valid_proof_facts_for_testing(),
+        ..base_args
+    });
+    let gas_with_proof = estimate_minimal_gas_vector(&block_context, &tx_with_proof, &mode);
+
+    assert!(gas_with_proof.l2_gas > gas_no_proof.l2_gas);
 }
 
 #[rstest]
@@ -1905,7 +1934,7 @@ fn test_declare_tx(
         StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
-        0,
+        false,
     );
     let account_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
         declare_tx_args! {
