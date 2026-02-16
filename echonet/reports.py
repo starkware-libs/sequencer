@@ -214,6 +214,20 @@ class SnapshotTextReport:
         return "\n".join(lines).rstrip() + "\n"
 
 
+def filter_mainnet_reverts_for_reporting(snapshot: SnapshotModel) -> dict[str, RevertErrorInfo]:
+    """
+    Filter mainnet-only reverts for *reporting* (UI/text/pre-resync reports).
+    """
+    cutoff_bn = next(iter(snapshot.sent_tx_hashes.values()), None)
+    if cutoff_bn is None:
+        return dict(snapshot.revert_errors_mainnet)
+    return {
+        tx_hash: info
+        for tx_hash, info in snapshot.revert_errors_mainnet.items()
+        if info["block_number"] <= cutoff_bn
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class RevertRule:
     name: str
@@ -390,7 +404,7 @@ class PreResyncReportWriter:
 
         snapshot_text = header + SnapshotTextReport(snapshot).render()
         reverts_text = header + RevertComparisonTextReport(classifier=self._classifier).render(
-            mainnet_reverts=snapshot.revert_errors_mainnet,
+            mainnet_reverts=filter_mainnet_reverts_for_reporting(snapshot),
             echonet_reverts=snapshot.revert_errors_echonet,
         )
 
@@ -526,7 +540,8 @@ class _SnapshotReportRollup:
         pending_commission = s.pending_commission_count
 
         gateway_errors_count = len(s.gateway_errors)
-        reverts_mainnet_count = len(s.revert_errors_mainnet)
+        mainnet_reverts_filtered = filter_mainnet_reverts_for_reporting(s)
+        reverts_mainnet_count = len(mainnet_reverts_filtered)
         reverts_echonet_count = len(s.revert_errors_echonet)
         resync_causes_count = len(s.resync_causes)
         certain_failures_count = len(s.certain_failures)
@@ -559,7 +574,7 @@ class _SnapshotReportRollup:
             for tx_hash, payload in s.gateway_errors.items()
         ]
 
-        grouped_mainnet = _group_reverts(dict(s.revert_errors_mainnet), classifier=classifier)
+        grouped_mainnet = _group_reverts(dict(mainnet_reverts_filtered), classifier=classifier)
         grouped_echonet = _group_reverts(dict(s.revert_errors_echonet), classifier=classifier)
 
         resync_causes_rows = sorted(
