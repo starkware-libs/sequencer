@@ -392,11 +392,9 @@ impl VersionedConstants {
         starknet_resources: &StarknetResources,
         use_kzg_da: bool,
     ) -> ExecutionResources {
-        let extended_calldata_length = starknet_resources.archival_data.calldata_length
-            + starknet_resources.archival_data.proof_facts_length;
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
-            extended_calldata_length,
+            starknet_resources.archival_data.extended_calldata_length,
             starknet_resources.state.get_onchain_data_segment_length(),
             use_kzg_da,
         )

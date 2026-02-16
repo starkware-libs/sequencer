@@ -132,22 +132,22 @@ pub struct StarknetResources {
 
 impl StarknetResources {
     pub fn new(
-        calldata_length: usize,
+        extended_calldata_length: usize,
         signature_length: usize,
         code_size: usize,
         state_resources: StateResources,
         l1_handler_payload_size: Option<usize>,
         execution_summary_without_fee_transfer: ExecutionSummary,
-        proof_facts_length: usize,
+        has_client_side_proof: bool,
     ) -> Self {
         // TODO(Yoni): store the entire summary.
         Self {
             archival_data: ArchivalDataResources {
                 event_summary: execution_summary_without_fee_transfer.event_summary,
-                calldata_length,
+                extended_calldata_length,
                 signature_length,
                 code_size,
-                proof_facts_length,
+                has_client_side_proof,
             },
             messages: MessageResources::new(
                 execution_summary_without_fee_transfer.l2_to_l1_payload_lengths,
@@ -250,10 +250,11 @@ impl StateResources {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ArchivalDataResources {
     pub event_summary: EventSummary,
-    pub calldata_length: usize,
+    /// Total calldata length, including proof_facts.
+    pub extended_calldata_length: usize,
     pub signature_length: usize,
     pub code_size: usize,
-    pub proof_facts_length: usize,
+    pub has_client_side_proof: bool,
 }
 
 impl ArchivalDataResources {
@@ -292,7 +293,7 @@ impl ArchivalDataResources {
         let archival_gas_costs = versioned_constants.get_archival_data_gas_costs(mode);
 
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
-        let total_data_size = u64_from_usize(self.calldata_length + self.signature_length);
+        let total_data_size = u64_from_usize(self.extended_calldata_length + self.signature_length);
         let gas_amount =
             (archival_gas_costs.gas_per_data_felt * total_data_size).to_integer().into();
 
@@ -321,32 +322,25 @@ impl ArchivalDataResources {
         }
     }
 
+    /// Returns the fixed gas cost for client-side proofs.
+    /// The per-felt cost for proof_facts is already included in calldata_length.
     fn get_client_side_proof_gas_cost(
         &self,
         versioned_constants: &VersionedConstants,
         mode: &GasVectorComputationMode,
     ) -> GasVector {
-        if self.proof_facts_length == 0 {
+        if !self.has_client_side_proof {
             return GasVector::ZERO;
         }
 
         let archival_gas_costs = versioned_constants.get_archival_data_gas_costs(mode);
 
-        let proof_facts_gas: GasAmount = (archival_gas_costs.gas_per_data_felt
-            * u64_from_usize(self.proof_facts_length))
-        .to_integer()
-        .into();
-
-        // Client-side proofs currently have a fixed gas cost. This cost corresponds to the
+        // Client-side proofs have a fixed gas cost. This cost corresponds to the
         // current proof version (reflected in the first proof fact).
         let proof_gas: GasAmount = archival_gas_costs.gas_per_proof.to_integer().into();
 
-        let total: GasAmount = proof_facts_gas
-            .checked_add(proof_gas)
-            .expect("client-side proof gas amount overflowed");
-
         match mode {
-            GasVectorComputationMode::All => GasVector::from_l2_gas(total),
+            GasVectorComputationMode::All => GasVector::from_l2_gas(proof_gas),
             GasVectorComputationMode::NoL2Gas => {
                 unreachable!(
                     "Client side proving is only supported from V3 transactions, which use \
