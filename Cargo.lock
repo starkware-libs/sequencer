@@ -1230,6 +1230,7 @@ dependencies = [
  "apollo_staking_config",
  "async-trait",
  "notify",
+ "paste",
  "serde_json",
  "starknet_api",
  "tempfile",

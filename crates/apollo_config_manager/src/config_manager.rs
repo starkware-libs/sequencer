@@ -15,6 +15,14 @@ use tracing::info;
 #[path = "config_manager_tests.rs"]
 pub mod config_manager_tests;
 
+macro_rules! handle_config_request_arm {
+    ($variant:ident) => {
+        ConfigManagerRequest::$variant => {
+            ConfigManagerResponse::$variant(paste::paste!(self.[< $variant:snake >]()))
+        }
+    };
+}
+
 #[derive(Clone)]
 pub struct ConfigManager {
     _config: ConfigManagerConfig,
@@ -66,29 +74,11 @@ impl ConfigManager {
 impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for ConfigManager {
     async fn handle_request(&mut self, request: ConfigManagerRequest) -> ConfigManagerResponse {
         match request {
-            // TODO(Nadin/Tsabary): consider using a macro to generate the responses for each type
-            // of request.
-            ConfigManagerRequest::GetConsensusDynamicConfig => {
-                ConfigManagerResponse::GetConsensusDynamicConfig(
-                    self.get_consensus_dynamic_config(),
-                )
-            }
-            ConfigManagerRequest::GetContextDynamicConfig => {
-                ConfigManagerResponse::GetContextDynamicConfig(self.get_context_dynamic_config())
-            }
-            ConfigManagerRequest::GetHttpServerDynamicConfig => {
-                ConfigManagerResponse::GetHttpServerDynamicConfig(
-                    self.get_http_server_dynamic_config(),
-                )
-            }
-            ConfigManagerRequest::GetMempoolDynamicConfig => {
-                ConfigManagerResponse::GetMempoolDynamicConfig(self.get_mempool_dynamic_config())
-            }
-            ConfigManagerRequest::GetStakingManagerDynamicConfig => {
-                ConfigManagerResponse::GetStakingManagerDynamicConfig(
-                    self.get_staking_manager_dynamic_config(),
-                )
-            }
+            handle_config_request_arm!(GetConsensusDynamicConfig),
+            handle_config_request_arm!(GetContextDynamicConfig),
+            handle_config_request_arm!(GetHttpServerDynamicConfig),
+            handle_config_request_arm!(GetMempoolDynamicConfig),
+            handle_config_request_arm!(GetStakingManagerDynamicConfig),
             ConfigManagerRequest::SetNodeDynamicConfig(new_config) => {
                 ConfigManagerResponse::SetNodeDynamicConfig(
                     self.set_node_dynamic_config(new_config),
