@@ -36,7 +36,7 @@ use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
@@ -72,6 +72,7 @@ pub type CendeAmbassadorResult<T> = Result<T, CendeAmbassadorError>;
 #[derive(Debug, Serialize)]
 pub(crate) struct AerospikeBlob {
     block_number: BlockNumber,
+    proposer: ContractAddress,
     state_diff: CentralStateDiff,
     // The batcher may return a `None` compressed state diff if it is disabled in the
     // configuration.
@@ -262,6 +263,7 @@ pub struct InternalTransactionWithReceipt {
 #[derive(Debug, Default)]
 pub struct BlobParameters {
     pub(crate) block_info: BlockInfo,
+    pub(crate) proposer: ContractAddress,
     pub(crate) state_diff: ThinStateDiff,
     pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
@@ -312,6 +314,7 @@ impl AerospikeBlob {
 
         Ok(AerospikeBlob {
             block_number,
+            proposer: blob_parameters.proposer,
             state_diff,
             compressed_state_diff,
             bouncer_weights: blob_parameters.bouncer_weights,

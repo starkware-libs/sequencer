@@ -425,6 +425,7 @@ impl SequencerConsensusContext {
             .cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 block_info: cende_block_info,
+                proposer: init.proposer,
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
                 transactions_with_execution_infos,

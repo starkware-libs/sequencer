@@ -1,5 +1,6 @@
 {
   "block_number": 5,
+  "proposer": "0x64",
   "state_diff": {
     "address_to_class_hash": {
       "0x1": "0x1",
