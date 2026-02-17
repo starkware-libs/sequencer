@@ -73,18 +73,19 @@ pub type ParamPath = String;
 /// A description of a configuration parameter.
 pub type Description = String;
 
+/// Behavior mode configuration for the node.
+pub mod behavior_mode;
+mod command;
 #[cfg(test)]
 mod config_test;
-#[cfg(any(feature = "testing", test))]
-/// Utilities for the produced configuration.
-pub mod test_utils;
-
-mod command;
 pub mod converters;
 pub mod dumping;
 pub mod loading;
 pub mod presentation;
 pub mod secrets;
+#[cfg(any(feature = "testing", test))]
+/// Utilities for the produced configuration.
+pub mod test_utils;
 pub mod validators;
 
 /// The privacy level of a config parameter, that received as input from the configs.

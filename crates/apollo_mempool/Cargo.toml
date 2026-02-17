@@ -22,6 +22,7 @@ testing = [
 workspace = true
 
 [dependencies]
+apollo_config.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_infra.workspace = true
 apollo_mempool_config.workspace = true
