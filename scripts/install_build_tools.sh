@@ -81,7 +81,12 @@ function install_rust() {
     log_step "install_build_tools" "Rust installed successfully"
     # Source the cargo environment to add ~/.cargo/bin to PATH for this shell session.
     # This is required because rustup installs to ~/.cargo/bin which isn't in PATH yet.
-    source "${HOME}/.cargo/env"
+    # The env file may not exist if rust was already installed.
+    if [ -f "${HOME}/.cargo/env" ]; then
+        source "${HOME}/.cargo/env"
+    elif [ -d "${HOME}/.cargo/bin" ]; then
+        export PATH="${HOME}/.cargo/bin:${PATH}"
+    fi
     # Now that rustup is installed, we can install the cargo rustfmt toolchain.
     echo "Installing cargo rustfmt toolchain..."
     verify_and_return_fmt_toolchain
