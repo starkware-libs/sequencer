@@ -1,11 +1,17 @@
 use std::collections::HashMap;
 
 use apollo_mempool_types::errors::MempoolError;
-use apollo_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs, ValidationArgs};
+use apollo_mempool_types::mempool_types::{
+    AccountState,
+    AddTransactionArgs,
+    CommitBlockArgs,
+    ValidationArgs,
+};
 use apollo_metrics::metrics::HistogramValue;
 use metrics_exporter_prometheus::PrometheusRecorder;
 use pretty_assertions::assert_eq;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransactionLabelValue};
+use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
 
@@ -239,6 +245,13 @@ macro_rules! add_tx_input {
             tip: 0
         )
     };
+}
+
+pub fn declare_add_tx_input(args: DeclareTxArgs) -> AddTransactionArgs {
+    let tx = internal_rpc_declare_tx(args);
+    let account_state = AccountState { address: tx.contract_address(), nonce: tx.nonce() };
+
+    AddTransactionArgs { tx, account_state }
 }
 
 #[track_caller]
