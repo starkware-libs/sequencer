@@ -3,3 +3,6 @@ pub mod errors;
 pub mod proving;
 pub mod running;
 pub mod server;
+
+#[cfg(test)]
+mod test_utils;
