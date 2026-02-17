@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "A storage implementation for a Starknet node."
 
 [features]
-testing = ["starknet_api/testing", "tempfile", "tower"]
+testing = ["reqwest", "starknet_api/testing", "tempfile", "tower"]
 storage_cli = ["clap", "reqwest"]
 
 [dependencies]
