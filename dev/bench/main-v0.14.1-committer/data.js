@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771329042608,
+  "lastUpdate": 1771332120672,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2515,6 +2515,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1178.85408833,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d3b1647fa91295d8e26ea2b035e26a9f405285f2",
+          "message": "apollo_staking: add logging and metrics (#12532)\n\n* apollo_staking: inject the dynamic config to the MockStakingContract\n\n* apollo_staking: add logging and metrics",
+          "timestamp": "2026-02-17T12:23:16Z",
+          "tree_id": "5f1b1fe3a3baa05bc3d461297b65ecfc2408e835",
+          "url": "https://github.com/starkware-libs/sequencer/commit/d3b1647fa91295d8e26ea2b035e26a9f405285f2"
+        },
+        "date": 1771332120396,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 747.97649167,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1146.95390278,
             "unit": "ms"
           }
         ]
