@@ -44,4 +44,10 @@ pub trait TransactionQueueTrait: Send + Sync {
     fn pending_queue_len(&self) -> usize {
         0
     }
+
+    // Default implementation returns empty vec.
+    #[cfg(test)]
+    fn pending_txs(&self) -> Vec<TransactionReference> {
+        Vec::new()
+    }
 }
