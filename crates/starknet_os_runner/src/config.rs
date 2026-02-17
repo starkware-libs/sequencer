@@ -4,7 +4,7 @@ use blockifier::blockifier::config::ContractClassManagerConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 
-use crate::runner::RunnerConfig;
+use crate::running::runner::RunnerConfig;
 
 /// Configuration for the VirtualSnosProver.
 #[derive(Clone, Debug, Deserialize, Serialize)]

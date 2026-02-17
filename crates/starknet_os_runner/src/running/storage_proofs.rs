@@ -27,14 +27,14 @@ use starknet_rust_core::types::{
     StorageProof as RpcStorageProof,
 };
 
-use crate::committer_utils::{
+use crate::errors::ProofProviderError;
+use crate::running::committer_utils::{
     commit_state_diff,
     create_facts_db_from_storage_proof,
     state_maps_to_committer_state_diff,
     validate_virtual_os_state_diff,
 };
-use crate::errors::ProofProviderError;
-use crate::virtual_block_executor::VirtualBlockExecutionData;
+use crate::running::virtual_block_executor::VirtualBlockExecutionData;
 
 /// Configuration for storage proof provider behavior.
 #[derive(Clone, Serialize, Deserialize, Debug)]

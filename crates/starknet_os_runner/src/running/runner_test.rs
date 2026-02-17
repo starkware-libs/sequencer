@@ -7,8 +7,8 @@ use starknet_api::core::ContractAddress;
 use starknet_api::test_utils::invoke::invoke_tx;
 use starknet_api::{contract_address, felt, invoke_tx_args};
 
-use crate::runner::VirtualSnosRunner;
-use crate::test_utils::{
+use crate::running::runner::VirtualSnosRunner;
+use crate::running::test_utils::{
     default_resource_bounds_for_client_side_tx,
     sepolia_runner_factory,
     DUMMY_ACCOUNT_ADDRESS,
