@@ -1,4 +1,5 @@
 pub mod communication;
+pub(crate) mod fifo_transaction_queue;
 pub mod mempool;
 pub mod metrics;
 pub(crate) mod transaction_pool;

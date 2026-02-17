@@ -26,6 +26,7 @@ use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
 
+use crate::fifo_transaction_queue::FifoTransactionQueue;
 use crate::metrics::{
     metric_count_committed_txs,
     metric_count_evicted_txs,
@@ -247,7 +248,7 @@ pub struct Mempool {
     // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
-    tx_queue: TransactionQueue,
+    tx_queue: Box<dyn TransactionQueueTrait>,
     // Accounts whose lowest transaction nonce is greater than the account nonce, which are
     // therefore candidates for eviction.
     accounts_with_gap: AccountsWithGap,
@@ -259,17 +260,18 @@ impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         // Select queue type based on deployment_mode.
         // In Echonet mode, use FIFO queue; otherwise use fee-based priority queue.
-        if matches!(config.static_config.deployment_mode, apollo_deployment_mode::DeploymentMode::Echonet) {
-            panic!(
-                "FIFO queue is not yet implemented. Echonet deployment mode requires FIFO queue."
-            );
-        }
+        let tx_queue: Box<dyn TransactionQueueTrait> =
+            if matches!(config.static_config.deployment_mode, apollo_deployment_mode::DeploymentMode::Echonet) {
+                Box::new(FifoTransactionQueue::default())
+            } else {
+                Box::new(TransactionQueue::default())
+            };
 
         Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
-            tx_queue: TransactionQueue::default(),
+            tx_queue,
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
@@ -278,6 +280,11 @@ impl Mempool {
 
     pub fn get_timestamp(&self) -> UnixTimestamp {
         self.clock.unix_now()
+    }
+
+    pub fn update_timestamps(&mut self, _mappings: HashMap<TransactionHash, UnixTimestamp>) {
+        // TODO: Implement timestamp updates for FIFO queue
+        // This will be needed when integrating with gateway's get_timestamp functionality
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
