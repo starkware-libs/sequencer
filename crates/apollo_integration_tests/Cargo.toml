@@ -68,6 +68,7 @@ mempool_test_utils.workspace = true
 metrics-exporter-prometheus.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
