@@ -304,10 +304,13 @@ fn set_version_if_needed(
 ) -> StorageResult<StorageWriter> {
     let Some(existing_storage_version) = get_storage_version(reader)? else {
         // Initialize the storage version.
-        writer.begin_rw_txn()?.set_state_version(&STORAGE_VERSION_STATE)?.commit()?;
+        // Use commit_immediate() to ensure version is persisted immediately,
+        // bypassing batching. This is critical because verify_storage_version()
+        // runs right after and must see the version data.
+        writer.begin_rw_txn()?.set_state_version(&STORAGE_VERSION_STATE)?.commit_immediate()?;
         // If in full-archive mode, also set the block version.
         if writer.scope == StorageScope::FullArchive {
-            writer.begin_rw_txn()?.set_blocks_version(&STORAGE_VERSION_BLOCKS)?.commit()?;
+            writer.begin_rw_txn()?.set_blocks_version(&STORAGE_VERSION_BLOCKS)?.commit_immediate()?;
         }
         debug!(
             "Storage was initialized with state_version: {:?}, scope: {:?}, blocks_version: {:?}",
@@ -326,7 +329,7 @@ fn set_version_if_needed(
                 // that the storage operates in StateOnly mode and prevents the operator from
                 // running it in FullArchive mode again.
                 debug!("Changing the storage scope from FullArchive to StateOnly.");
-                writer.begin_rw_txn()?.delete_blocks_version()?.commit()?;
+                writer.begin_rw_txn()?.delete_blocks_version()?.commit_immediate()?;
             }
         }
         StorageVersion::StateOnly(StateOnlyVersion { state_version: _ }) => {
@@ -379,7 +382,7 @@ fn set_version_if_needed(
             }
         }
     }
-    wtxn.commit()?;
+    wtxn.commit_immediate()?;
     Ok(writer)
 }
 
@@ -864,6 +867,25 @@ impl<'a> StorageTxnRW<'a> {
                     msg: "Batch commit triggered but no active transaction exists".to_string(),
                 });
             }
+        }
+        Ok(())
+    }
+
+    /// Commits immediately, bypassing batching.
+    ///
+    /// Use this for critical writes that must be persisted immediately, such as
+    /// storage version initialization. Without immediate commit, these writes
+    /// may not be visible to subsequent reads when batching is enabled,
+    /// causing storage initialization to fail.
+    pub fn commit_immediate(mut self) -> StorageResult<()> {
+        self.file_handlers.flush();
+
+        // Force commit regardless of batch counter
+        let txn_to_commit = self.guard.active_txn.take();
+        self.guard.commit_counter = 0;
+
+        if let Some(txn) = txn_to_commit {
+            txn.commit()?;
         }
         Ok(())
     }
