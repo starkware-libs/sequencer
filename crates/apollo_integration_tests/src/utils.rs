@@ -126,7 +126,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
 pub const TEST_SCENARIO_TIMEOUT: Duration = Duration::from_secs(50);
-pub const TIME_BETWEEN_CHECKS: Duration = Duration::from_secs(1);
+pub const TIME_BETWEEN_CHECKS: Duration = Duration::from_millis(500);
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
