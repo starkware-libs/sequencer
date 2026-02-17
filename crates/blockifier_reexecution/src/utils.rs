@@ -70,8 +70,6 @@ pub fn get_rpc_state_reader_config() -> RpcStateReaderConfig {
 }
 
 /// Returns the chain info for the given chain.
-/// If `strk_fee_token_address_override` is provided, it overrides the default STRK fee token
-/// address.
 pub fn get_chain_info(
     chain_id: &ChainId,
     strk_fee_token_address_override: Option<ContractAddress>,

@@ -71,7 +71,10 @@ use starknet_os::io::os_output_types::{
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
-use starknet_os_runner::committer_utils::{commit_state_diff, state_maps_to_committer_state_diff};
+use starknet_os_runner::running::committer_utils::{
+    commit_state_diff,
+    state_maps_to_committer_state_diff,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{

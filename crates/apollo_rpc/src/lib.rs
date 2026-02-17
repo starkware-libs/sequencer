@@ -220,7 +220,6 @@ pub async fn run_server(
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     debug!("Started get_last_synced_block");
     let starting_block = get_last_synced_block(storage_reader.clone())?;
-    debug!("Starting JSON-RPC.");
     let methods = get_methods_from_supported_apis(
         &config.chain_id,
         config.execution_config,
@@ -246,6 +245,7 @@ pub async fn run_server(
         .set_http_middleware(ServiceBuilder::new().filter_async(proxy_rpc_request));
 
     let server_address = SocketAddr::new(config.ip, config.port);
+    debug!("Starting JSON-RPC at address {server_address}.");
 
     if config.collect_metrics {
         let server = server_builder

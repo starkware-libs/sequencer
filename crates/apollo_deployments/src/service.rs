@@ -3,7 +3,6 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::Read;
 use std::iter::once;
-use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -377,7 +376,6 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
     fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
         ReactiveComponentExecutionConfig::local_with_remote_enabled(
             REMOTE_SERVICE_URL_PLACEHOLDER.to_string(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
             port,
         )
     }
@@ -386,13 +384,9 @@ pub(crate) trait GetComponentConfigs: ServiceNameInner {
     fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
         let idle_connections = self.get_scale_policy().idle_connections();
         let retries = self.get_retries();
-        ReactiveComponentExecutionConfig::remote(
-            REMOTE_SERVICE_URL_PLACEHOLDER.to_string(),
-            IpAddr::from(Ipv4Addr::UNSPECIFIED),
-            port,
-        )
-        .with_idle_connections(idle_connections)
-        .with_retries(retries)
+        ReactiveComponentExecutionConfig::remote(REMOTE_SERVICE_URL_PLACEHOLDER.to_string(), port)
+            .with_idle_connections(idle_connections)
+            .with_retries(retries)
     }
 
     fn component_config_pair(&self, port: u16) -> ComponentConfigPair {

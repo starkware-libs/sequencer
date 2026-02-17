@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use blockifier::context::ChainInfo;
 use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -27,10 +28,14 @@ use tracing::field::display;
 use tracing::{info, Span};
 use url::Url;
 
-use crate::classes_provider::ClassesProvider;
 use crate::errors::RunnerError;
-use crate::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig, StorageProofProvider};
-use crate::virtual_block_executor::{
+use crate::running::classes_provider::ClassesProvider;
+use crate::running::storage_proofs::{
+    RpcStorageProofsProvider,
+    StorageProofConfig,
+    StorageProofProvider,
+};
+use crate::running::virtual_block_executor::{
     RpcVirtualBlockExecutor,
     VirtualBlockExecutionData,
     VirtualBlockExecutor,
@@ -390,26 +395,22 @@ pub(crate) type RpcRunner = Runner<
 pub(crate) struct RpcRunnerFactory {
     /// URL of the RPC node.
     node_url: Url,
-    /// Chain ID for the network.
-    chain_id: ChainId,
+    chain_info: ChainInfo,
     /// Contract class manager for caching compiled classes.
     contract_class_manager: ContractClassManager,
     /// Configuration for the runner.
     runner_config: RunnerConfig,
-    /// Optional override for the STRK fee token address (e.g., for custom environments).
-    strk_fee_token_address: Option<ContractAddress>,
 }
 
 impl RpcRunnerFactory {
     /// Creates a new RPC runner factory.
     pub(crate) fn new(
         node_url: Url,
-        chain_id: ChainId,
+        chain_info: ChainInfo,
         contract_class_manager: ContractClassManager,
         runner_config: RunnerConfig,
-        strk_fee_token_address: Option<ContractAddress>,
     ) -> Self {
-        Self { node_url, chain_id, contract_class_manager, runner_config, strk_fee_token_address }
+        Self { node_url, chain_info, contract_class_manager, runner_config }
     }
 
     /// Creates a runner configured for the given block ID.
@@ -417,9 +418,8 @@ impl RpcRunnerFactory {
         // Create the virtual block executor for this block.
         let virtual_block_executor = RpcVirtualBlockExecutor::new(
             self.node_url.to_string(),
-            self.chain_id.clone(),
+            self.chain_info.clone(),
             block_id,
-            self.strk_fee_token_address,
         );
 
         // Create the storage proofs provider.
@@ -428,9 +428,8 @@ impl RpcRunnerFactory {
         // Create the state reader for class fetching.
         let rpc_state_reader = RpcStateReader::new_with_config_from_url(
             self.node_url.to_string(),
-            self.chain_id.clone(),
+            self.chain_info.clone(),
             block_id,
-            self.strk_fee_token_address,
         );
 
         // Wrap in StateReaderAndContractManager for class resolution.
@@ -447,7 +446,7 @@ impl RpcRunnerFactory {
             self.runner_config.clone(),
             self.contract_class_manager.clone(),
             block_id,
-            self.chain_id.clone(),
+            self.chain_info.chain_id.clone(),
         )
     }
 }

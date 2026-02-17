@@ -4,7 +4,7 @@ use blockifier::blockifier::config::ContractClassManagerConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 
-use crate::runner::RunnerConfig;
+use crate::running::runner::RunnerConfig;
 
 /// Configuration for the VirtualSnosProver.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -12,7 +12,7 @@ use crate::runner::RunnerConfig;
 pub struct ProverConfig {
     /// Configuration for the contract class manager.
     pub contract_class_manager_config: ContractClassManagerConfig,
-    /// Chain ID for transaction hash calculation.
+    /// Chain ID of the network.
     pub chain_id: ChainId,
     /// RPC node URL for fetching state.
     pub rpc_node_url: String,
