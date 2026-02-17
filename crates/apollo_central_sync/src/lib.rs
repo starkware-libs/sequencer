@@ -29,14 +29,12 @@ use apollo_state_sync_metrics::metrics::{
 };
 use apollo_storage::base_layer::{BaseLayerStorageReader, BaseLayerStorageWriter};
 use apollo_storage::body::BodyStorageWriter;
-use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::class_manager::{ClassManagerStorageReader, ClassManagerStorageWriter};
-use apollo_storage::compiled_class::{CasmStorageReader, CasmStorageWriter};
+use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use async_stream::try_stream;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
 use futures::stream;
 use futures_util::{pin_mut, select, Stream, StreamExt};
@@ -434,32 +432,9 @@ impl<
         let (thin_state_diff, classes, deprecated_classes) =
             ThinStateDiff::from_state_diff(state_diff);
 
-        let store_sierras_and_casms_block_threshold =
-            self.config.store_sierras_and_casms_block_threshold;
-        let store_sierras_and_casms = block_number.0 < store_sierras_and_casms_block_threshold;
-        let class_hash_to_compiled_class_hash =
-            thin_state_diff.class_hash_to_compiled_class_hash.clone();
-        let mut non_backward_compatible_classes: IndexMap<ClassHash, CasmContractClass> =
-            IndexMap::new();
-
         let compiler_backward_compatibility_marker =
             self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
         let is_non_backward_compatible = compiler_backward_compatibility_marker > block_number;
-        let has_class_manager = self.class_manager_client.is_some();
-        let should_fetch_casms =
-            is_non_backward_compatible && (store_sierras_and_casms || has_class_manager);
-
-        if should_fetch_casms {
-            debug!(
-                "Block {} contains {} non backward compatible classes.",
-                block_number,
-                classes.len()
-            );
-            for (class_hash, _) in &class_hash_to_compiled_class_hash {
-                let casm = self.central_source.get_compiled_class(*class_hash).await?;
-                non_backward_compatible_classes.insert(*class_hash, casm.clone());
-            }
-        }
 
         // Sending to class manager before updating the storage so that if the class manager send
         // fails we retry the same block.
@@ -467,11 +442,13 @@ impl<
             // A block contains only classes with either STARKNET_VERSION_TO_COMPILE_FROM or higher
             // or only classes below STARKNET_VERSION_TO_COMPILE_FROM, not both.
             if is_non_backward_compatible {
-                for (expected_class_hash, class) in &classes {
-                    let casm = non_backward_compatible_classes
-                        .get(expected_class_hash)
-                        .expect("Casm should be in non_backward_compatible_classes");
+                let class_hash_to_compiled_class_hash =
+                    thin_state_diff.class_hash_to_compiled_class_hash.clone();
+                for (expected_class_hash, _) in &class_hash_to_compiled_class_hash {
+                    let casm = self.central_source.get_compiled_class(*expected_class_hash).await?;
                     let compiled_class_hash_v2 = casm.hash(&HashVersion::V2);
+                    let class =
+                        classes.get(expected_class_hash).expect("Class should be in classes");
                     let sierra_version = class
                         .get_sierra_version()
                         .expect("Failed reading sierra version from program.");
@@ -514,48 +491,21 @@ impl<
                     .add_deprecated_class(*class_hash, deprecated_class.clone())
                     .await?;
             }
-        }
 
-        self.perform_storage_writes(move |writer| {
-            if has_class_manager {
+            self.perform_storage_writes(move |writer| {
                 writer
                     .begin_rw_txn()?
                     .update_class_manager_block_marker(&block_number.unchecked_next())?
                     .commit()?;
                 STATE_SYNC_CLASS_MANAGER_MARKER.set_lossy(block_number.unchecked_next().0);
-            }
+                Ok(())
+            })
+            .await?;
+        }
+
+        self.perform_storage_writes(move |writer| {
             let mut txn = writer.begin_rw_txn()?;
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
-            if store_sierras_and_casms {
-                debug!(
-                    "Appending classes {:?}, deprecated classes {:?} to storage since \
-                     store_sierras_and_casms_block_threshold is not reached.",
-                    classes.keys().collect::<Vec<_>>(),
-                    deprecated_classes.keys().collect::<Vec<_>>(),
-                );
-                txn = txn.append_classes(
-                    block_number,
-                    &classes
-                        .iter()
-                        .map(|(class_hash, class)| (*class_hash, class))
-                        .collect::<Vec<_>>(),
-                    &deprecated_classes
-                        .iter()
-                        .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
-                        .collect::<Vec<_>>(),
-                )?;
-
-                for (class_hash, casm) in &non_backward_compatible_classes {
-                    debug!("Appending CASM for non backward compatible class hash {class_hash}.");
-                    txn = txn.append_casm(class_hash, casm)?;
-                }
-            } else {
-                trace!(
-                    "Skipping appending classes {:?} to storage since block is at or above \
-                     store_sierras_and_casms_block_threshold.",
-                    classes.keys().collect::<Vec<_>>()
-                );
-            }
             txn.commit()?;
             Ok(())
         })
@@ -563,6 +513,7 @@ impl<
 
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
         STATE_SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
+        // TODO(noamsp): remove this marker throughout the repo.
         STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
 
         // Info the user on syncing the block once all the data is stored.
