@@ -1373,6 +1373,7 @@ dependencies = [
  "apollo_config_manager_types",
  "apollo_consensus",
  "apollo_consensus_orchestrator_config",
+ "apollo_deployment_mode",
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price_types",
@@ -1431,6 +1432,7 @@ name = "apollo_consensus_orchestrator_config"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config",
+ "apollo_deployment_mode",
  "serde",
  "starknet_api",
  "url",
@@ -1470,6 +1472,13 @@ dependencies = [
  "serde_with",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+]
+
+[[package]]
+name = "apollo_deployment_mode"
+version = "0.18.0-dev.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -1890,6 +1899,7 @@ name = "apollo_mempool"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config_manager_types",
+ "apollo_deployment_mode",
  "apollo_infra",
  "apollo_mempool_config",
  "apollo_mempool_p2p_types",
@@ -1928,6 +1938,7 @@ name = "apollo_mempool_config"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config",
+ "apollo_deployment_mode",
  "serde",
  "validator",
 ]
