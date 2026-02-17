@@ -605,6 +605,22 @@ impl SharedState {
 
     /// Ensures an active persistent transaction exists, creating one if needed.
     fn ensure_active_txn(&mut self) -> StorageResult<()> {
+        // #region agent log
+        {
+            let is_new = self.active_txn.is_none();
+            let tid = std::thread::current().id();
+            let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+            for path in &paths {
+                if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                    use std::io::Write as _;
+                    let _ = writeln!(f, r#"{{"timestamp":{},"location":"lib.rs:ensure_active_txn","message":"ensure_active_txn","data":{{"is_new":{},"thread_id":"{:?}","commit_counter":{},"batch_size":{}}},"hypothesisId":"TLS"}}"#,
+                        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(),
+                        is_new, tid, self.commit_counter, self.batch_size);
+                    break;
+                }
+            }
+        }
+        // #endregion
         if self.active_txn.is_none() {
             self.active_txn = Some(self.db_writer.begin_persistent_rw_txn()?);
         }
@@ -658,6 +674,26 @@ impl StorageWriter {
     pub(crate) fn reset_batch_counter_for_testing(&mut self) {
         let mut state = self.shared_state.lock().unwrap();
         state.commit_counter = 0;
+    }
+
+    /// Forces an immediate commit of any pending batched writes.
+    ///
+    /// This should be called before error recovery/retry paths to ensure that
+    /// uncommitted writes are persisted. Without this, retries would read stale
+    /// marker values because `begin_rw_txn()` would create a new transaction
+    /// that doesn't see the uncommitted writes from the abandoned transaction.
+    ///
+    /// This is a no-op if there are no pending writes (commit_counter == 0).
+    pub fn flush_pending_writes(&mut self) -> StorageResult<()> {
+        let mut guard = self.shared_state.lock().unwrap();
+        if guard.commit_counter > 0 {
+            // There are pending writes - force commit them
+            if let Some(txn) = guard.active_txn.take() {
+                txn.commit()?;
+            }
+            guard.commit_counter = 0;
+        }
+        Ok(())
     }
 }
 
@@ -850,6 +886,22 @@ impl<'a> StorageTxnRW<'a> {
         self.file_handlers.flush();
 
         self.guard.commit_counter += 1;
+        // #region agent log
+        {
+            let tid = std::thread::current().id();
+            let will_commit = self.guard.commit_counter >= self.guard.batch_size;
+            let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+            for path in &paths {
+                if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                    use std::io::Write as _;
+                    let _ = writeln!(f, r#"{{"timestamp":{},"location":"lib.rs:commit","message":"commit","data":{{"thread_id":"{:?}","counter":{},"batch_size":{},"will_real_commit":{}}},"hypothesisId":"TLS"}}"#,
+                        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(),
+                        tid, self.guard.commit_counter, self.guard.batch_size, will_commit);
+                    break;
+                }
+            }
+        }
+        // #endregion
 
         if self.guard.commit_counter >= self.guard.batch_size {
             // Batch size reached - commit the MDBX transaction and reset counter.

@@ -9,7 +9,7 @@ use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use assert_matches::assert_matches;
 use async_stream::stream;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -17,14 +17,8 @@ use futures::StreamExt;
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{
-    Block,
-    BlockBody,
-    BlockHash,
-    BlockHashAndNumber,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    Block, BlockBody, BlockHash, BlockHashAndNumber, BlockHeader, BlockHeaderWithoutHash,
+    BlockNumber, BlockSignature,
 };
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
@@ -38,18 +32,10 @@ use tracing::{debug, error};
 use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
 use crate::sources::central::{
-    BlocksStream,
-    CompiledClassesStream,
-    MockCentralSourceTrait,
-    StateUpdatesStream,
+    BlocksStream, MockCentralSourceTrait, StateUpdatesStream,
 };
 use crate::{
-    CentralError,
-    CentralSourceTrait,
-    GenericStateSync,
-    StateSyncError,
-    StateSyncResult,
-    SyncConfig,
+    CentralError, CentralSourceTrait, GenericStateSync, StateSyncError, StateSyncResult, SyncConfig,
 };
 
 const SYNC_SLEEP_DURATION: Duration = Duration::from_millis(100); // 100ms
@@ -302,39 +288,22 @@ async fn sync_happy_flow() {
         state_stream
     });
 
-    // Add compiled classes stream mock
-    central_mock.expect_stream_compiled_classes().returning(move |initial, up_to| {
-        let compiled_classes_stream: CompiledClassesStream<'_> = stream! {
-            for block_number in initial.iter_up_to(up_to) {
-                if block_number.0 >= N_BLOCKS {
-                    yield Err(CentralError::BlockNotFound { block_number });
-                }
-
-                // Return compiled classes for blocks that declared them
-                match block_number.0 {
-                    1 => {
-                        let mut rng = get_rng();
-                        yield Ok((
-                            class_hash_1,
-                            compiled_class_hash_1,
-                            CasmContractClass::get_test_instance(&mut rng),
-                        ));
-                    },
-                    3 => {
-                        let mut rng = get_rng();
-                        yield Ok((
-                            class_hash_2,
-                            compiled_class_hash_2,
-                            CasmContractClass::get_test_instance(&mut rng),
-                        ));
-                    },
-                    _ => {}
-                }
-            }
-        }
-        .boxed();
-        compiled_classes_stream
-    });
+    central_mock
+        .expect_get_compiled_class()
+        .withf(move |class_hash| *class_hash == class_hash_1)
+        .times(1)
+        .returning(|_| {
+            let mut rng = get_rng();
+            Ok(CasmContractClass::get_test_instance(&mut rng))
+        });
+    central_mock
+        .expect_get_compiled_class()
+        .withf(move |class_hash| *class_hash == class_hash_2)
+        .times(1)
+        .returning(|_| {
+            let mut rng = get_rng();
+            Ok(CasmContractClass::get_test_instance(&mut rng))
+        });
 
     central_mock.expect_get_block_hash().returning(|bn| Ok(Some(create_block_hash(bn, false))));
 

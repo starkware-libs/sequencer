@@ -1,28 +1,20 @@
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
+use apollo_starknet_client::ClientError;
 use apollo_starknet_client::reader::objects::block::BlockPostV0_13_1;
 use apollo_starknet_client::reader::{
-    Block,
-    BlockSignatureData,
-    ContractClass,
-    DeclaredClassHashEntry,
-    DeployedContract,
-    GenericContractClass,
-    MockStarknetReader,
-    ReaderClientError,
-    ReplacedClass,
-    StateUpdate,
+    Block, BlockSignatureData, ContractClass, DeclaredClassHashEntry, DeployedContract,
+    GenericContractClass, MockStarknetReader, ReaderClientError, ReplacedClass, StateUpdate,
     StorageEntry,
 };
-use apollo_starknet_client::ClientError;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures_util::pin_mut;
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use lru::LruCache;
 use mockall::predicate;
 use papyrus_common::state::MigratedCompiledClassHashEntry;
@@ -37,8 +29,8 @@ use starknet_api::state::{SierraContractClass as sn_api_ContractClass, ThinState
 use starknet_api::{class_hash, contract_address, felt, storage_key};
 use tokio_stream::StreamExt;
 
-use super::state_update_stream::StateUpdateStreamConfig;
 use super::ApiContractClass;
+use super::state_update_stream::StateUpdateStreamConfig;
 use crate::sources::central::{CentralError, CentralSourceTrait, GenericCentralSource};
 
 const TEST_CONCURRENT_REQUESTS: usize = 300;

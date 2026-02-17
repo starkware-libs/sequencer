@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex};
 use std::task::Poll;
 
 use apollo_starknet_client::reader::{ReaderClientResult, StarknetReader, StateUpdate};
-use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
+use apollo_storage::state::StateStorageReader;
 use futures_util::stream::FuturesOrdered;
 use futures_util::{Future, Stream, StreamExt};
 use indexmap::IndexMap;
