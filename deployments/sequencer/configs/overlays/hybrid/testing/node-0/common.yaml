@@ -11,6 +11,7 @@ image:
 
 config:
   sequencerConfig:
+    behavior_mode: "starknet"
     chain_id: "CHAIN_ID_SUBDIR"
     eth_fee_token_address: "0x1001"
     monitoring_endpoint_config.port: 8082

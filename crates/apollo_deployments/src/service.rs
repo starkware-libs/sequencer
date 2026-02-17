@@ -44,6 +44,7 @@ const REMOTE_SERVICE_URL_PLACEHOLDER: &str = "remote_service";
 // TODO(Tsabary): remove ports and mempool ttl from this list.
 pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
     "base_layer_config.bpo1_start_block_number",
+    "behavior_mode",
     "base_layer_config.bpo2_start_block_number",
     "base_layer_config.fusaka_no_bpo_start_block_number",
     "base_layer_config.starknet_contract_address",
