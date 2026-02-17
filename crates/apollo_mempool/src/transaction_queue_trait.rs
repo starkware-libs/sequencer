@@ -25,7 +25,7 @@ pub trait TransactionQueueTrait: Send + Sync {
     // Default implementation is a no-op (for queues that don't use gas price thresholds).
     fn update_gas_price_threshold(&mut self, _threshold: GasPrice) {}
 
-    fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference>;
+    fn iter_over_ready_txs(&self) -> Box<dyn Iterator<Item = &TransactionReference> + '_>;
 
     fn queue_snapshot(&self) -> TransactionQueueSnapshot;
 
