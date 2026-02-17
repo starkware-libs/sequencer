@@ -1,4 +1,5 @@
 {
+  "behavior_mode": "$$$_BEHAVIOR_MODE_$$$",
   "chain_id": "$$$_CHAIN_ID_$$$",
   "eth_fee_token_address": "$$$_ETH_FEE_TOKEN_ADDRESS_$$$",
   "native_classes_whitelist": "$$$_NATIVE_CLASSES_WHITELIST_$$$",

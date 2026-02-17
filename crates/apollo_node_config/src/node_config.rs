@@ -6,6 +6,7 @@ use std::vec::Vec;
 use apollo_batcher_config::config::{BatcherConfig, BatcherDynamicConfig};
 use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassManagerConfig};
 use apollo_committer_config::config::ApolloCommitterConfig;
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config::dumping::{
     generate_optional_struct_pointer,
     generate_struct_pointer,
@@ -189,6 +190,18 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ]),
     );
     pointers.append(&mut common_execution_config);
+
+    pointers.push((
+        ser_pointer_target_param(
+            "behavior_mode",
+            &BehaviorMode::Starknet,
+            "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+        ),
+        set_pointing_param_paths(&[
+            "consensus_manager_config.context_config.static_config.behavior_mode",
+            "mempool_config.static_config.behavior_mode",
+        ]),
+    ));
     pointers
 });
 
