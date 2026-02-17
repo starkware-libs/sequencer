@@ -204,10 +204,48 @@ impl CendeContext for CendeAmbassador {
     }
 }
 
+static BLOB_DUMPED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 #[sequencer_latency_histogram(CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, false)]
 async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) -> bool {
+    let in_memory_size = std::mem::size_of_val(blob);
+
+    let (client, request) = request_builder.json(blob).build_split();
+    let request = match request {
+        Ok(req) => req,
+        Err(err) => {
+            warn!("CENDE_FAILURE: Failed to build request. Error: {err}");
+            record_write_failure(CendeWriteFailureReason::CommunicationError);
+            return false;
+        }
+    };
+
+    if let Some(body) = request.body().and_then(|b| b.as_bytes()) {
+        info!(
+            "Blob with {} transactions - in-memory size: {in_memory_size} bytes, serialized size: \
+             {} bytes.",
+            blob.transactions.len(),
+            body.len()
+        );
+        if blob.transactions.len() > 200
+            && BLOB_DUMPED
+                .compare_exchange(
+                    false,
+                    true,
+                    std::sync::atomic::Ordering::SeqCst,
+                    std::sync::atomic::Ordering::SeqCst,
+                )
+                .is_ok()
+        {
+            let path = format!("/tmp/blob_{}.json", blob.block_number);
+            if let Err(err) = tokio::fs::write(&path, body).await {
+                warn!("Failed to save blob to {path}: {err}");
+            }
+        }
+    }
+
     // TODO(dvir): use compression to reduce the size of the blob in the network.
-    match request_builder.json(blob).send().await {
+    match client.execute(request).await {
         Ok(response) => {
             if response.status().is_success() {
                 info!(
