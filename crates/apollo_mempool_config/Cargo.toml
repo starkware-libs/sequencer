@@ -8,6 +8,7 @@ description = "Configuration types for the Apollo mempool component."
 
 [dependencies]
 apollo_config.workspace = true
+apollo_deployment_mode.workspace = true
 serde = { workspace = true, features = ["derive"] }
 validator.workspace = true
 

@@ -24,6 +24,7 @@ use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
+use apollo_deployment_mode::DeploymentMode;
 use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -192,6 +193,18 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ]),
     );
     pointers.append(&mut common_execution_config);
+
+    pointers.push((
+        ser_pointer_target_param(
+            "deployment_mode",
+            &DeploymentMode::Starknet,
+            "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+        ),
+        set_pointing_param_paths(&[
+            "consensus_manager_config.context_config.static_config.deployment_mode",
+            "mempool_config.static_config.deployment_mode",
+        ]),
+    ));
     pointers
 });
 
