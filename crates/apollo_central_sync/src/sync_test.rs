@@ -2,10 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_starknet_client::reader::objects::pending_data::{
-    AcceptedOnL2ExtraData,
-    DeprecatedPendingBlock,
-    PendingBlockOrDeprecated,
-    PendingStateUpdate,
+    AcceptedOnL2ExtraData, DeprecatedPendingBlock, PendingBlockOrDeprecated, PendingStateUpdate,
 };
 use apollo_starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
 use apollo_starknet_client::reader::objects::transaction::Transaction as ClientTransaction;
@@ -14,7 +11,7 @@ use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageReader, StorageWriter};
-use apollo_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{GetTestInstance, get_rng};
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures_util::StreamExt;
@@ -33,14 +30,8 @@ use crate::sources::base_layer::MockBaseLayerSourceTrait;
 use crate::sources::central::MockCentralSourceTrait;
 use crate::sources::pending::MockPendingSourceTrait;
 use crate::{
-    sort_state_diff,
-    stream_new_base_layer_block,
-    sync_pending_data,
-    GenericStateSync,
-    StateSyncError,
-    SyncConfig,
-    SyncEvent,
-    GENESIS_HASH,
+    GENESIS_HASH, GenericStateSync, StateSyncError, SyncConfig, SyncEvent, sort_state_diff,
+    stream_new_base_layer_block, sync_pending_data,
 };
 
 // TODO(anatg): Add a test to check that the sync calls the sort_state_diff function
