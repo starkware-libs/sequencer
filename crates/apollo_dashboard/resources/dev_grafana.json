@@ -205,6 +205,15 @@
           "extra_params": {}
         },
         {
+          "title": "Proposal Validation: Number of Accepted Proposals for Validation",
+          "description": "The number of proposals accepted for validation (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_proposals_accepted_for_validation{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Proposal Validation: Number of Validated Proposals",
           "description": "The number of proposals received and validated successfully (10m window)",
           "type": "timeseries",

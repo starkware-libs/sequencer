@@ -7,6 +7,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_PROPOSALS_VALIDATED,
@@ -158,6 +159,15 @@ fn get_panel_consensus_proposals_received() -> Panel {
         "Proposal Validation: Number of Received Proposals",
         format!("The number of proposals received from the network ({DEFAULT_DURATION} window)",),
         increase(&CONSENSUS_PROPOSALS_RECEIVED, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_consensus_proposals_accepted_for_validation() -> Panel {
+    Panel::new(
+        "Proposal Validation: Number of Accepted Proposals for Validation",
+        format!("The number of proposals accepted for validation ({DEFAULT_DURATION} window)",),
+        increase(&CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
 }
@@ -543,6 +553,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_build_proposal_failed(),
             get_panel_build_proposal_failure(),
             get_panel_consensus_proposals_received(),
+            get_panel_consensus_proposals_accepted_for_validation(),
             get_panel_consensus_proposals_validated(),
             get_panel_consensus_proposals_invalid(),
             get_panel_validate_proposal_failure(),
