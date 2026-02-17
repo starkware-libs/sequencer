@@ -84,6 +84,7 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use futures::future::join_all;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -100,6 +101,7 @@ use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, Transacti
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
+use tokio::time::{sleep, timeout};
 use tracing::{debug, info, Instrument};
 use url::Url;
 
@@ -114,6 +116,8 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
+pub const TEST_SCENARIO_TIMEOUT: Duration = Duration::from_secs(50);
+pub const TIME_BETWEEN_CHECKS: Duration = Duration::from_secs(1);
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -917,7 +921,6 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         .install_recorder()
         .expect("Should be able to install global prometheus recorder");
 
-    const TEST_SCENARIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
     let mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
@@ -988,7 +991,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
                 break;
             }
 
-            tokio::time::sleep(Duration::from_millis(2000)).await;
+            sleep(TIME_BETWEEN_CHECKS).await;
         }
     })
     .await
@@ -1004,6 +1007,55 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     assert_on_number_of_reverted_transactions_flow(
         &global_recorder_handle,
         expecting_reverted_transactions,
+    );
+    verify_block_hash_flow(&sequencers).await;
+}
+
+async fn get_max_batcher_height(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
+    let batcher_heights =
+        join_all(sequencers.iter().map(|sequencer| sequencer.batcher_height())).await;
+    *batcher_heights.iter().max().unwrap()
+}
+
+async fn get_min_global_root_offset(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
+    let global_root_offsets =
+        join_all(sequencers.iter().map(|sequencer| sequencer.get_global_root_height())).await;
+    *global_root_offsets.iter().min().unwrap()
+}
+
+async fn verify_block_hash_flow(sequencers: &[&FlowSequencerSetup]) {
+    let max_batcher_height = get_max_batcher_height(sequencers).await;
+    let mut min_global_root_offset = get_min_global_root_offset(sequencers).await;
+    timeout(TEST_SCENARIO_TIMEOUT, async {
+        loop {
+            info!(
+                "Waiting for min global root offset to reach: {max_batcher_height}, actual min \
+                 global root offset: {min_global_root_offset}"
+            );
+
+            if min_global_root_offset >= max_batcher_height {
+                break;
+            }
+            min_global_root_offset = get_min_global_root_offset(sequencers).await;
+            sleep(TIME_BETWEEN_CHECKS).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "Expected min global root offset to reach: {max_batcher_height}, actual min global \
+             root offset: {min_global_root_offset}"
+        )
+    });
+
+    let block_number = max_batcher_height
+        .prev()
+        .unwrap_or_else(|| panic!("At least one block should have been created"));
+    let block_hashes =
+        join_all(sequencers.iter().map(|sequencer| sequencer.get_block_hash(block_number))).await;
+    assert!(
+        block_hashes.windows(2).all(|w| w[0] == w[1]),
+        "Not all sequencers agree on the block hash for height {block_number}: {block_hashes:?}"
     );
 }
 
