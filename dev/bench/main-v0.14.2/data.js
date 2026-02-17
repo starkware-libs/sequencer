@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771331900733,
+  "lastUpdate": 1771337074141,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -645,6 +645,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1270.10724693,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "79d179f74ba8a3c48124028190747b8704c17cb6",
+          "message": "starknet_os_runner: add recording proxy for capturing RPC responses (#12347)",
+          "timestamp": "2026-02-17T13:42:40Z",
+          "tree_id": "7d413aa38d22d29d0846458d86a238f44263cba9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/79d179f74ba8a3c48124028190747b8704c17cb6"
+        },
+        "date": 1771337073826,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 849.85582328,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1328.28285607,
             "unit": "ms"
           }
         ]
