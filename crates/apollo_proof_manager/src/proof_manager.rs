@@ -48,41 +48,56 @@ impl ProofManager {
         Self { proof_storage, cache: ProofCache::new(config.cache_size) }
     }
 
-    pub fn set_proof(
+    pub async fn set_proof(
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
     ) -> Result<(), FsProofStorageError> {
-        if self.contains_proof(proof_facts.clone())? {
+        let facts_hash = proof_facts.hash();
+        // Check cache first (fast path).
+        if self.cache.contains(&facts_hash) {
             return Ok(());
         }
-        let facts_hash = proof_facts.hash();
+        // Check filesystem (avoids redundant write if proof already persisted).
+        if self.proof_storage.contains_proof(facts_hash).await? {
+            // Warm the cache so future lookups skip the filesystem.
+            self.cache.insert(facts_hash, proof);
+            return Ok(());
+        }
         self.cache.insert(facts_hash, proof.clone());
-        self.proof_storage.set_proof(facts_hash, proof)
+        // Write directly, bypassing the redundant contains_proof check in
+        // FsProofStorage::set_proof.
+        self.proof_storage.write_proof_atomically(facts_hash, proof).await
     }
 
-    pub fn get_proof(&self, proof_facts: ProofFacts) -> Result<Option<Proof>, FsProofStorageError> {
+    pub async fn get_proof(
+        &self,
+        proof_facts: ProofFacts,
+    ) -> Result<Option<Proof>, FsProofStorageError> {
         let facts_hash = proof_facts.hash();
         // Check cache first.
         if let Some(proof) = self.cache.get(&facts_hash) {
             return Ok(Some(proof));
         }
         // Fallback to filesystem.
-        let proof = self.proof_storage.get_proof(facts_hash)?;
+        let proof = self.proof_storage.get_proof(facts_hash).await?;
         if let Some(proof) = &proof {
             self.cache.insert(facts_hash, proof.clone());
         }
         Ok(proof)
     }
 
-    pub fn contains_proof(&self, proof_facts: ProofFacts) -> Result<bool, FsProofStorageError> {
+    pub async fn contains_proof(
+        &self,
+        proof_facts: ProofFacts,
+    ) -> Result<bool, FsProofStorageError> {
         let facts_hash = proof_facts.hash();
         // Check cache first.
         if self.cache.contains(&facts_hash) {
             return Ok(true);
         }
         // Fallback to filesystem.
-        self.proof_storage.contains_proof(facts_hash)
+        self.proof_storage.contains_proof(facts_hash).await
     }
 }
 

@@ -36,7 +36,6 @@ pub enum MetricScope {
     L1Provider,
     Mempool,
     MempoolP2p,
-    ProofManager,
     CompileToCasm,
     StateSync,
     Storage,

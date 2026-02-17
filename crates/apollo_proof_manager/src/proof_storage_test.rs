@@ -23,24 +23,24 @@ fn sample_proof() -> Proof {
     Proof::from(vec![1_u32, 2_u32, 3_u32, 4_u32, 5_u32])
 }
 
-#[test]
-fn fs_proof_storage_get_before_set_returns_none() {
+#[tokio::test]
+async fn fs_proof_storage_get_before_set_returns_none() {
     let storage = new_fs_proof_storage();
     let facts_hash = sample_facts_hash();
 
-    let res = storage.get_proof(facts_hash);
+    let res = storage.get_proof(facts_hash).await;
     assert!(res.is_ok());
     assert!(res.unwrap().is_none());
 }
 
-#[test]
-fn fs_proof_storage_roundtrip() {
+#[tokio::test]
+async fn fs_proof_storage_roundtrip() {
     let storage = new_fs_proof_storage();
     let proof = sample_proof();
     let facts_hash = sample_facts_hash();
 
-    storage.set_proof(facts_hash, proof.clone()).unwrap();
+    storage.set_proof(facts_hash, proof.clone()).await.unwrap();
 
-    let retrieved = storage.get_proof(facts_hash).unwrap();
+    let retrieved = storage.get_proof(facts_hash).await.unwrap();
     assert_eq!(retrieved, Some(proof));
 }
