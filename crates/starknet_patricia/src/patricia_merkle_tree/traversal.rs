@@ -56,7 +56,7 @@ pub trait SubTreeTrait<'a>: Sized {
 
     fn get_sorted_leaf_indices(&self) -> &SortedLeafIndices<'a>;
 
-    fn get_next_height(&self) -> SubTreeHeight {
+    fn get_height(&self) -> SubTreeHeight {
         SubTreeHeight::new(
             SubTreeHeight::ACTUAL_HEIGHT.0 - (self.get_root_index().bit_length() - 1),
         )
@@ -80,8 +80,7 @@ pub trait SubTreeTrait<'a>: Sized {
     ) -> (Self, Vec<&'a NodeIndex>) {
         let sorted_leaf_indices = self.get_sorted_leaf_indices();
         let bottom_index = path_to_bottom.bottom_index(self.get_root_index());
-        let bottom_height =
-            self.get_next_height() - SubTreeHeight::new(path_to_bottom.length.into());
+        let bottom_height = self.get_height() - SubTreeHeight::new(path_to_bottom.length.into());
         let leftmost_in_subtree = bottom_index << bottom_height.into();
         let rightmost_in_subtree =
             leftmost_in_subtree - NodeIndex::ROOT + (NodeIndex::ROOT << bottom_height.into());
