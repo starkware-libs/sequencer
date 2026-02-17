@@ -888,11 +888,17 @@ fn advance_to_round_when_proposer_function_fails() {
 
 #[test]
 fn timeout_prevote_ignored_when_wrong_step() {
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(_round: Round) -> Result<ValidatorId, CommitteeError> {
+        Ok(*PROPOSER_ID)
+    }
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
-        |_: Round| Ok(*PROPOSER_ID),
+        actual_proposer_fn,
+        virtual_proposer_fn,
         false,
         QuorumType::Byzantine,
     );
@@ -917,17 +923,16 @@ fn timeout_prevote_ignored_when_wrong_step() {
 
 #[test]
 fn no_repropose_when_virtual_proposer_fails_for_new_round() {
-    fn virtual_proposer_fn(round: Round) -> Result<ValidatorId, ConsensusError> {
-        if round == ROUND + 1 {
-            Err(ConsensusError::InternalNetworkError("virtual proposer failed".to_string()))
-        } else {
-            Ok(*PROPOSER_ID)
-        }
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(round: Round) -> Result<ValidatorId, CommitteeError> {
+        if round == ROUND + 1 { Err(CommitteeError::EmptyCommittee) } else { Ok(*PROPOSER_ID) }
     }
     let mut wrapper = TestWrapper::new(
         *PROPOSER_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
+        actual_proposer_fn,
         virtual_proposer_fn,
         false,
         QuorumType::Byzantine,
@@ -957,13 +962,19 @@ fn no_repropose_when_virtual_proposer_fails_for_new_round() {
 
 #[test]
 fn prevote_nil_when_new_proposal_differs_from_locked_value() {
+    fn actual_proposer_fn(_round: Round) -> ValidatorId {
+        *PROPOSER_ID
+    }
+    fn virtual_proposer_fn(_round: Round) -> Result<ValidatorId, CommitteeError> {
+        Ok(*PROPOSER_ID)
+    }
     const OTHER_PROPOSAL: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::TWO));
     let round_1: Round = 1;
     let mut wrapper = TestWrapper::new(
         *VALIDATOR_ID,
         4,
-        |_: Round| Ok(*PROPOSER_ID),
-        |_: Round| Ok(*PROPOSER_ID),
+        actual_proposer_fn,
+        virtual_proposer_fn,
         false,
         QuorumType::Byzantine,
     );
