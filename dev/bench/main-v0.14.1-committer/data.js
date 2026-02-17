@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771319740504,
+  "lastUpdate": 1771329042608,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2481,6 +2481,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1182.09358772,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "93648739+nadin-Starkware@users.noreply.github.com",
+            "name": "Nadin Jbara",
+            "username": "nadin-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "af37c39f563bc16bf674b2557e6346ef6a85fabd",
+          "message": "apollo_state_sync,apollo_node: wire up state_sync dynamic config runtime updates (#12423)",
+          "timestamp": "2026-02-17T11:30:43Z",
+          "tree_id": "f75d46163d78b1e866228a19cc0be768dff8f3f3",
+          "url": "https://github.com/starkware-libs/sequencer/commit/af37c39f563bc16bf674b2557e6346ef6a85fabd"
+        },
+        "date": 1771329042275,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 773.60441761,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1178.85408833,
             "unit": "ms"
           }
         ]
