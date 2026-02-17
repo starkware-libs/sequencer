@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
+use apollo_config::BehaviorMode;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
@@ -257,6 +258,12 @@ pub struct Mempool {
 
 impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
+        // Select queue type based on behavior_mode.
+        // In Echonet mode, use FIFO queue; otherwise use fee-based priority queue.
+        if matches!(config.static_config.behavior_mode, BehaviorMode::Echonet) {
+            panic!("FIFO queue is not yet implemented. Echonet behavior mode requires FIFO queue.");
+        }
+
         Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),

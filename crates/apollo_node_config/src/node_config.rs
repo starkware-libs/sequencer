@@ -19,7 +19,7 @@ use apollo_config::dumping::{
 };
 use apollo_config::loading::load_and_process_config;
 use apollo_config::validators::config_validate;
-use apollo_config::{ConfigError, ParamPath, SerializedParam};
+use apollo_config::{BehaviorMode, ConfigError, ParamPath, SerializedParam};
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_consensus_config::config::ConsensusDynamicConfig;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
@@ -192,6 +192,18 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ]),
     );
     pointers.append(&mut common_execution_config);
+
+    pointers.push((
+        ser_pointer_target_param(
+            "behavior_mode",
+            &BehaviorMode::Starknet,
+            "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+        ),
+        set_pointing_param_paths(&[
+            "consensus_manager_config.context_config.static_config.behavior_mode",
+            "mempool_config.static_config.behavior_mode",
+        ]),
+    ));
     pointers
 });
 

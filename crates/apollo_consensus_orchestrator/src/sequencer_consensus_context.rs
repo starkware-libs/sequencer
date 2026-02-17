@@ -18,6 +18,7 @@ use apollo_batcher_types::batcher_types::{
     StartHeightInput,
 };
 use apollo_batcher_types::communication::BatcherClient;
+use apollo_config::BehaviorMode;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, ConsensusError, ProposalCommitment, Round};
 use apollo_consensus_orchestrator_config::config::ContextConfig;
@@ -510,7 +511,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.static_config.build_proposal_time_ratio_for_retrospective_block_hash,
             );
 
-        let override_timestamp = self.config.static_config.deployment_mode.override_timestamp();
+        let override_timestamp =
+            matches!(self.config.static_config.behavior_mode, BehaviorMode::Echonet);
 
         let round = build_param.round;
         let args = ProposalBuildArguments {
