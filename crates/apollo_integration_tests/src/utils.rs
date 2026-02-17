@@ -1,8 +1,10 @@
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_batcher::batcher::BatcherStorageReader;
 use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
 use apollo_batcher_config::config::{BatcherConfig, BatcherStaticConfig, BlockBuilderConfig};
@@ -52,6 +54,10 @@ use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
+use apollo_node::clients::{create_node_clients, SequencerNodeClients};
+use apollo_node::communication::create_node_channels;
+use apollo_node::components::create_node_components;
+use apollo_node::servers::{create_node_servers, SequencerNodeServers};
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::component_execution_config::ExpectedComponentConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
@@ -84,6 +90,7 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use futures::future::join_all;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
@@ -100,6 +107,7 @@ use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, Transacti
 use starknet_types_core::felt::Felt;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
+use tokio::time::{sleep, timeout};
 use tracing::{debug, info, Instrument};
 use url::Url;
 
@@ -114,6 +122,8 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
+pub const TEST_SCENARIO_TIMEOUT: Duration = Duration::from_secs(50);
+pub const TIME_BETWEEN_CHECKS: Duration = Duration::from_secs(1);
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -193,6 +203,22 @@ impl TestScenario for DeployAndInvokeTxs {
     fn n_txs(&self) -> usize {
         N_TXS_IN_FIRST_BLOCK
     }
+}
+
+pub async fn create_node_modules_for_testing(
+    config: &SequencerNodeConfig,
+    prometheus_handle: Option<PrometheusHandle>,
+    cli_args: Vec<String>,
+) -> (SequencerNodeClients, SequencerNodeServers, Arc<dyn BatcherStorageReader>) {
+    info!("Creating node modules.");
+
+    let mut channels = create_node_channels(config);
+    let clients = create_node_clients(config, &mut channels);
+    let components = create_node_components(config, &clients, prometheus_handle, cli_args).await;
+    let batcher_storage_reader = components.batcher.as_ref().unwrap().storage_reader.clone();
+    let servers = create_node_servers(config, &mut channels, components, &clients);
+
+    (clients, servers, batcher_storage_reader)
 }
 
 // TODO(Tsabary): clean the passed args.
@@ -917,7 +943,6 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
         .install_recorder()
         .expect("Should be able to install global prometheus recorder");
 
-    const TEST_SCENARIO_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
     let mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
@@ -988,7 +1013,7 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
                 break;
             }
 
-            tokio::time::sleep(Duration::from_millis(2000)).await;
+            sleep(TIME_BETWEEN_CHECKS).await;
         }
     })
     .await
@@ -1004,6 +1029,57 @@ pub async fn end_to_end_flow(args: EndToEndFlowArgs) {
     assert_on_number_of_reverted_transactions_flow(
         &global_recorder_handle,
         expecting_reverted_transactions,
+    );
+    verify_block_hash_flow(&sequencers).await;
+}
+
+async fn get_max_batcher_height(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
+    let batcher_heights =
+        join_all(sequencers.iter().map(|sequencer| sequencer.batcher_height())).await;
+    *batcher_heights.iter().max().unwrap()
+}
+
+async fn get_min_global_root_offset(sequencers: &[&FlowSequencerSetup]) -> BlockNumber {
+    let global_root_offsets =
+        join_all(sequencers.iter().map(|sequencer| sequencer.get_global_root_height())).await;
+    *global_root_offsets.iter().min().unwrap()
+}
+
+async fn verify_block_hash_flow(sequencers: &[&FlowSequencerSetup]) {
+    let max_batcher_height = get_max_batcher_height(sequencers).await;
+    let mut min_global_root_offset = get_min_global_root_offset(sequencers).await;
+    timeout(TEST_SCENARIO_TIMEOUT, async {
+        loop {
+            info!(
+                "Waiting for min global root offset to reach: {max_batcher_height}, actual min \
+                 global root offset: {min_global_root_offset}"
+            );
+
+            if min_global_root_offset >= max_batcher_height {
+                break;
+            }
+            min_global_root_offset = get_min_global_root_offset(sequencers).await;
+            sleep(TIME_BETWEEN_CHECKS).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        panic!(
+            "Expected min global root offset to reach: {max_batcher_height}, actual min global \
+             root offset: {min_global_root_offset}"
+        )
+    });
+
+    let block_hashes = join_all(sequencers.iter().map(|sequencer| {
+        sequencer.get_block_hash(
+            max_batcher_height.prev().unwrap_or_else(|| panic!("At least one block should exist")),
+        )
+    }))
+    .await;
+    assert!(
+        block_hashes.windows(2).all(|w| w[0] == w[1]),
+        "Not all sequencers agree on the block hash for height {max_batcher_height}: \
+         {block_hashes:?}"
     );
 }
 
