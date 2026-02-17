@@ -13,28 +13,13 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_deployment_mode::DeploymentMode;
 use serde::de::{Deserializer, Error};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use url::Url;
 use validator::Validate;
-
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum DeploymentMode {
-    // Production mode.
-    #[default]
-    Starknet,
-    // Echonet mode.
-    Echonet,
-}
-
-impl DeploymentMode {
-    pub fn override_timestamp(&self) -> bool {
-        matches!(self, DeploymentMode::Echonet)
-    }
-}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CendeConfig {
@@ -259,7 +244,7 @@ impl SerializeConfig for ContextStaticConfig {
         ]);
         dump.extend([ser_param(
             "deployment_mode",
-            &format!("{:?}", self.deployment_mode).to_lowercase(),
+            &self.deployment_mode,
             "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
             ParamPrivacyInput::Public,
         )]);
