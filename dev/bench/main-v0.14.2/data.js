@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771354078344,
+  "lastUpdate": 1771360183932,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -713,6 +713,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1481.89667293,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e208b62745315010efe081e9bf5449157c414f0d",
+          "message": "apollo_proof_manager: make fs actions async (#12654)",
+          "timestamp": "2026-02-17T20:03:34Z",
+          "tree_id": "c184aac09b2fb370d829fdb19b6fe3404288a6ee",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e208b62745315010efe081e9bf5449157c414f0d"
+        },
+        "date": 1771360183532,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 885.43736339,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1348.8627038299999,
             "unit": "ms"
           }
         ]
