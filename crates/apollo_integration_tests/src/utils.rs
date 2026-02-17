@@ -5,7 +5,12 @@ use std::time::Duration;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
-use apollo_batcher_config::config::{BatcherConfig, BatcherStaticConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherDynamicConfig,
+    BatcherStaticConfig,
+    BlockBuilderConfig,
+};
 use apollo_class_manager_config::config::{
     CachedClassStorageConfig,
     ClassManagerConfig,
@@ -72,6 +77,10 @@ use apollo_state_sync_config::config::{
     StateSyncStaticConfig,
 };
 use apollo_storage::db::DbConfig;
+use apollo_storage::storage_reader_server::{
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerStaticConfig,
+};
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
@@ -214,10 +223,12 @@ pub fn create_node_config(
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
+    let storage_reader_server_port = available_ports.get_next_port();
     let batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_gas,
+        storage_reader_server_port,
     );
     let committer_config = ApolloCommitterConfig {
         db_path: storage_config.committer_db_path.clone(),
@@ -695,6 +706,7 @@ pub fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
     block_max_capacity_gas: GasAmount,
+    storage_reader_server_port: u16,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     BatcherConfig {
@@ -714,11 +726,17 @@ pub fn create_batcher_config(
                 n_concurrent_txs: 3,
                 ..Default::default()
             },
+            storage_reader_server_static_config: StorageReaderServerStaticConfig {
+                ip: Ipv4Addr::LOCALHOST.into(),
+                port: storage_reader_server_port,
+            },
             #[cfg(feature = "cairo_native")]
             contract_class_manager_config: cairo_native_class_manager_config(),
             ..Default::default()
         },
-        ..Default::default()
+        dynamic_config: BatcherDynamicConfig {
+            storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig { enable: true },
+        },
     }
 }
 
