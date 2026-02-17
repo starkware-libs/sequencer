@@ -1462,6 +1462,7 @@ dependencies = [
  "apollo_proof_manager",
  "apollo_state_sync_metrics",
  "apollo_storage",
+ "apollo_transaction_converter",
  "blockifier",
  "indexmap 2.12.0",
  "rstest",
@@ -2810,6 +2811,7 @@ name = "apollo_transaction_converter"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_metrics",
  "apollo_proof_manager_types",
  "apollo_sizeof",
  "assert_matches",
