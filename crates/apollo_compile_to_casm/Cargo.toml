@@ -16,6 +16,7 @@ workspace = true
 apollo_compilation_utils.workspace = true
 apollo_compile_to_casm_types.workspace = true
 apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
 apollo_sierra_compilation_config.workspace = true
@@ -29,11 +30,6 @@ tracing.workspace = true
 
 [dev-dependencies]
 apollo_compilation_utils = { workspace = true, features = ["testing"] }
-apollo_infra_utils.workspace = true
 assert_matches.workspace = true
 mempool_test_utils.workspace = true
 regex.workspace = true
-
-[build-dependencies]
-apollo_compilation_utils.workspace = true
-apollo_infra_utils.workspace = true

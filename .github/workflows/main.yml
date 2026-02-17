@@ -105,6 +105,9 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
+      # Pre-install compiler binaries so tests don't each try to install them.
+      - uses: ./.github/actions/install_compiler_binaries
+
       - name: "Run tests"
         run: |
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
@@ -134,6 +137,9 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
+
+      # Pre-install compiler binaries so integration tests don't each try to install them.
+      - uses: ./.github/actions/install_compiler_binaries
 
       - name: "Run integration tests"
         run: |

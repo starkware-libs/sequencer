@@ -2,4 +2,4 @@
 // not contain functionality that is available in only in one of these modes. Specifically, it
 // must avoid relying on env variables such as 'CARGO_*' or 'OUT_DIR'.
 
-pub(crate) const CAIRO_LANG_BINARY_NAME: &str = "starknet-sierra-compile";
+pub const CAIRO_LANG_BINARY_NAME: &str = "starknet-sierra-compile";

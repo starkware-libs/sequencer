@@ -15,6 +15,9 @@ function build() {
     source /tmp/venv/bin/activate
     rustup toolchain install
     cargo build --release -p native_blockifier --features "cairo_native" || ret=$?
+    if [ $ret -eq 0 ]; then
+        scripts/install_compiler_binaries.sh --release || ret=$?
+    fi
     clean
     return $ret
 }

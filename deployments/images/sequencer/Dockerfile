@@ -33,7 +33,8 @@ RUN BUILD_FLAGS=""; \
     if [ "$BUILD_MODE" = "release" ]; then \
     BUILD_FLAGS="--release"; \
     fi; \
-    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native
+    cargo build $BUILD_FLAGS --bin apollo_node --features cairo_native && \
+    scripts/install_compiler_binaries.sh $BUILD_FLAGS
 
 
 FROM ubuntu:24.04 AS final_stage
