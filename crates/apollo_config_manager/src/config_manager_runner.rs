@@ -98,9 +98,7 @@ impl ConfigManagerRunner {
                             | EventKind::Remove(_)
                             | EventKind::Other => {
                                 info!("ConfigManagerRunner: file change detected, updating config");
-                                if let Err(e) = self.update_config().await {
-                                    error!("ConfigManagerRunner: failed to update config: {e}");
-                                }
+                                let _ = self.update_config().await;
                             }
                             _ => {}
                         },
@@ -110,9 +108,7 @@ impl ConfigManagerRunner {
                 // Periodic tick
                 _ = update_interval.tick() => {
                     info!("ConfigManagerRunner: periodic check triggered, updating config");
-                    if let Err(e) = self.update_config().await {
-                        error!("ConfigManagerRunner: failed to update config: {e}");
-                    }
+                    let _ = self.update_config().await;
                 }
             }
         }
@@ -122,7 +118,10 @@ impl ConfigManagerRunner {
     pub(crate) async fn update_config(
         &mut self,
     ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
-        let config = load_and_validate_config(self.cli_args.clone(), false)?;
+        let config = load_and_validate_config(self.cli_args.clone(), false).map_err(|e| {
+            error!("ConfigManagerRunner: failed to update config: {e}");
+            e
+        })?;
         let node_dynamic_config = NodeDynamicConfig::from(&config);
 
         // Compare the previous and the newly read node dynamic config.
@@ -143,10 +142,7 @@ impl ConfigManagerRunner {
                     info!("Successfully updated dynamic config");
                     Ok(node_dynamic_config)
                 }
-                Err(e) => {
-                    error!("Failed to update dynamic config: {:?}", e);
-                    Err(format!("Failed to update dynamic config: {:?}", e).into())
-                }
+                Err(e) => Err(format!("Failed to update dynamic config: {:?}", e).into()),
             }
         }
     }
