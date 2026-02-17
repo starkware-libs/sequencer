@@ -115,6 +115,7 @@ class TxData:
     tx: JsonObject
     source_block_number: int
     source_timestamp: int
+    epoch: int
 
 
 class TxSelector:
@@ -125,16 +126,6 @@ class TxSelector:
         transactions: Sequence[JsonObject], blocked_senders: Set[str]
     ) -> list[JsonObject]:
         return [tx for tx in transactions if tx.get("sender_address") not in blocked_senders]
-
-    @staticmethod
-    def deploy_account_first(transactions: Sequence[JsonObject]) -> list[JsonObject]:
-        deploy_txs: list[JsonObject] = []
-        other_txs: list[JsonObject] = []
-
-        for tx in transactions:
-            (deploy_txs if tx["type"] == TxType.DEPLOY_ACCOUNT else other_txs).append(tx)
-
-        return [*deploy_txs, *other_txs]
 
 
 class TxTransformer:
@@ -173,9 +164,10 @@ class TxTransformer:
 class HttpForwarder:
     """Forward prepared txs into the local node and update `shared` bookkeeping."""
 
-    def __init__(self, session: aiohttp.ClientSession, sequencer_url: str) -> None:
+    def __init__(self, session: aiohttp.ClientSession, sequencer_url: str, retries: int) -> None:
         self._session = session
         self._sequencer_url = sequencer_url.rstrip("/")
+        self._retries = retries
 
     async def _post_tx_timestamp(self, tx_hash: str, source_timestamp: int) -> None:
         url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.update_timestamps}"
@@ -197,22 +189,32 @@ class HttpForwarder:
         url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.add_transaction}"
         headers = {"Content-Type": "application/json"}
         tx_hash = tx["transaction_hash"]
+        tx_type = tx.get("type")
 
         await self._post_tx_timestamp(tx_hash, source_timestamp)
 
-        async with self._session.post(url, json=tx, headers=headers) as response:
-            text = await response.text()
-            if response.status != requests.codes.ok:
-                logger.warning(f"Forward failed ({response.status}): {text}")
+        for attempt in range(self._retries + 1):
+            async with self._session.post(url, json=tx, headers=headers) as response:
+                text = await response.text()
+                if response.status == requests.codes.ok:
+                    logger.info(f"Forwarded tx: {tx_hash}")
+                    shared.record_sent_tx(tx_hash, source_block_number)
+                    return
+
+                logger.warning(
+                    "Forward failed: "
+                    f"tx={tx_hash} type={tx_type} src_bn={source_block_number} "
+                    f"attempt={attempt + 1}/{self._retries + 1} "
+                    f"status={response.status} response={text}"
+                )
+
+                if attempt < self._retries:
+                    await asyncio.sleep(CONFIG.sleep.gateway_error_retry_interval_seconds)
+                    continue
+
                 shared.record_gateway_error(
                     tx_hash, response.status, text, block_number=source_block_number
                 )
-            else:
-                logger.info(f"Forwarded tx: {tx_hash}")
-                shared.record_sent_tx(tx_hash, source_block_number)
-
-        if tx["type"] == TxType.DEPLOY_ACCOUNT:
-            await asyncio.sleep(CONFIG.sleep.deploy_account_sleep_time_seconds)
 
 
 class TransactionSenderService:
@@ -232,9 +234,12 @@ class TransactionSenderService:
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             tx_queue: "asyncio.Queue[Optional[TxData]]" = asyncio.Queue(maxsize=config.queue_size)
+            forwarding_lock = asyncio.Lock()
 
             transformer = TxTransformer(feeder)
-            forwarder = HttpForwarder(session, sequencer_url=config.sequencer_url)
+            forwarder = HttpForwarder(
+                session, sequencer_url=config.sequencer_url, retries=config.retries
+            )
             resync_policy = ResyncPolicy(
                 blocks_to_wait_before_failing_tx=config.blocks_to_wait_before_failing_tx
             )
@@ -275,27 +280,28 @@ class TransactionSenderService:
                     timestamp = block["timestamp"]
                     shared.store_fgw_block(block_number, block)
 
+                    epoch = shared.get_epoch()
                     revert_errors = _extract_revert_errors_by_tx_hash(block)
                     if revert_errors:
                         shared.record_mainnet_revert_errors(block_number, revert_errors)
 
                     all_txs = block["transactions"]
                     valid_txs = TxSelector.filter_blocked(all_txs, CONFIG.tx_filter.blocked_senders)
-                    ordered_txs = TxSelector.deploy_account_first(valid_txs)
                     logger.info(
-                        f"Block {block_number}: total={len(all_txs)} valid={len(ordered_txs)}"
+                        f"Block {block_number}: total={len(all_txs)} valid={len(valid_txs)}"
                     )
 
-                    for tx in ordered_txs:
+                    for tx in valid_txs:
                         tx_data = TxData(
                             tx=tx,
                             source_block_number=block_number,
                             source_timestamp=timestamp,
+                            epoch=epoch,
                         )
                         await tx_queue.put(tx_data)
 
-                    if ordered_txs:
-                        shared.record_forwarded_block(block_number, len(ordered_txs))
+                    if valid_txs:
+                        shared.record_forwarded_block(block_number, len(valid_txs))
                     shared.set_block_timestamp(timestamp)
 
                     gw_errors, sent_tx_hashes = shared.get_resync_evaluation_inputs()
@@ -309,8 +315,10 @@ class TransactionSenderService:
                             f"Resync triggered by tx {trigger['tx_hash']} at block {trigger['block_number']}: "
                             f"{trigger['reason']}"
                         )
+                        await forwarding_lock.acquire()
                         await drain_queue()
                         block_number = await resync_executor.execute(trigger=trigger)
+                        forwarding_lock.release()
                         continue
 
                     block_number += 1
@@ -334,11 +342,14 @@ class TransactionSenderService:
                         ):
                             await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
 
-                        await forwarder.forward(
-                            prepared,
-                            source_block_number=item.source_block_number,
-                            source_timestamp=item.source_timestamp,
-                        )
+                        async with forwarding_lock:
+                            if item.epoch != shared.get_epoch():
+                                continue
+                            await forwarder.forward(
+                                prepared,
+                                source_block_number=item.source_block_number,
+                                source_timestamp=item.source_timestamp,
+                            )
                     finally:
                         tx_queue.task_done()
 
