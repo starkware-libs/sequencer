@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::net::{IpAddr, ToSocketAddrs};
+use std::net::ToSocketAddrs;
 
 use apollo_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -135,8 +135,7 @@ impl ReactiveComponentExecutionConfig {
         }
     }
 
-    // TODO(Tsabary): remove the unused `_ip` arg.
-    pub fn remote(url: String, _ip: IpAddr, port: u16) -> Self {
+    pub fn remote(url: String, port: u16) -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::Remote,
             local_server_config: None,
@@ -148,8 +147,7 @@ impl ReactiveComponentExecutionConfig {
         }
     }
 
-    // TODO(Tsabary): remove the unused `_ip` arg.
-    pub fn local_with_remote_enabled(url: String, _ip: IpAddr, port: u16) -> Self {
+    pub fn local_with_remote_enabled(url: String, port: u16) -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
             local_server_config: Some(LocalServerConfig::default()),
