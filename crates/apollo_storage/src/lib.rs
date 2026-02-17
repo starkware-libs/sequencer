@@ -290,19 +290,16 @@ fn open_storage_internal(
     };
     let writer = StorageWriter::new(file_writers, storage_config.scope, shared_state);
 
-    let writer = set_version_if_needed(reader.clone(), writer)?;
-    verify_storage_version(reader.clone())?;
+    let mut writer = set_version_if_needed(writer)?;
+    verify_storage_version(&mut writer)?;
     Ok((reader, writer))
 }
 
 // In case storage version does not exist, set it to the crate version.
 // Expected to happen once - when the node is launched for the first time.
 // If the storage scope has changed, update accordingly.
-fn set_version_if_needed(
-    reader: StorageReader,
-    mut writer: StorageWriter,
-) -> StorageResult<StorageWriter> {
-    let Some(existing_storage_version) = get_storage_version(reader)? else {
+fn set_version_if_needed(mut writer: StorageWriter) -> StorageResult<StorageWriter> {
+    let Some(existing_storage_version) = get_storage_version_rw(&mut writer)? else {
         // Initialize the storage version.
         writer.begin_rw_txn()?.set_state_version(&STORAGE_VERSION_STATE)?.commit()?;
         // If in full-archive mode, also set the block version.
@@ -400,9 +397,10 @@ enum StorageVersion {
     StateOnly(StateOnlyVersion),
 }
 
-fn get_storage_version(reader: StorageReader) -> StorageResult<Option<StorageVersion>> {
+/// Reads storage version using RW transaction to see uncommitted batched writes.
+fn get_storage_version_rw(writer: &mut StorageWriter) -> StorageResult<Option<StorageVersion>> {
     let current_storage_version_state =
-        reader.begin_ro_txn()?.get_state_version().map_err(|err| {
+        writer.begin_rw_txn()?.get_state_version().map_err(|err| {
             if matches!(err, StorageError::InnerError(DbError::InnerDeserialization)) {
                 tracing::error!(
                     "Cannot deserialize storage version. Storage major version has been changed, \
@@ -411,7 +409,7 @@ fn get_storage_version(reader: StorageReader) -> StorageResult<Option<StorageVer
             }
             err
         })?;
-    let current_storage_version_blocks = reader.begin_ro_txn()?.get_blocks_version()?;
+    let current_storage_version_blocks = writer.begin_rw_txn()?.get_blocks_version()?;
     let Some(current_storage_version_state) = current_storage_version_state else {
         return Ok(None);
     };
@@ -429,8 +427,9 @@ fn get_storage_version(reader: StorageReader) -> StorageResult<Option<StorageVer
 }
 
 // Assumes the storage has a version.
-fn verify_storage_version(reader: StorageReader) -> StorageResult<()> {
-    let existing_storage_version = get_storage_version(reader)?;
+// Uses RW transaction to see uncommitted batched writes.
+fn verify_storage_version(writer: &mut StorageWriter) -> StorageResult<()> {
+    let existing_storage_version = get_storage_version_rw(writer)?;
     debug!(
         "Crate storage version: State = {STORAGE_VERSION_STATE:} Blocks = \
          {STORAGE_VERSION_BLOCKS:}. Existing storage state: {existing_storage_version:?} "
