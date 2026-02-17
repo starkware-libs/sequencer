@@ -77,13 +77,20 @@ log_step "install_build_tools" "Starting build tools installation..."
 
 install_common_packages
 
-log_step "install_build_tools" "Starting parallel installations (PyPy, Rust, cargo tools)..."
-install_pypy &
-install_rust &
-./install_cargo_tools.sh &
-wait
+log_step "install_build_tools" "Starting parallel installations (PyPy, Rust)..."
+pids=()
+install_pypy & pids+=($!)
+install_rust & pids+=($!)
+# Wait for all processes, fail if at least one failed.
+failed=0
+for pid in "${pids[@]}"; do
+    wait "$pid" || failed=1
+done
+(( $failed )) && exit 1
 log_step "install_build_tools" "Parallel installations completed"
-
+log_step "install_build_tools" "Running install_cargo_tools.sh..."
+${SCRIPT_DIR}/install_cargo_tools.sh
+log_step "install_build_tools" "install_cargo_tools.sh completed"
 log_step "install_build_tools" "Running dependencies.sh..."
 ./dependencies.sh
 
