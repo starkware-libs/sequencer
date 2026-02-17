@@ -28,9 +28,9 @@ use crate::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
     CONSENSUS_CONFLICTING_VOTES,
+    CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_VALIDATED,
-    CONSENSUS_PROPOSALS_VALID_INIT,
 };
 use crate::state_machine::{SMRequest, StateMachine, StateMachineEvent};
 use crate::types::{LeaderElection, ProposalCommitment, Round, ValidatorId};
@@ -122,8 +122,7 @@ impl SingleHeightConsensus {
             "Accepting {block_info:?}. node_round: {}, timeout: {timeout:?}",
             self.state_machine.round()
         );
-        // TODO(Asmaa): rename the metric.
-        CONSENSUS_PROPOSALS_VALID_INIT.increment(1);
+        CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION.increment(1);
 
         // Since validating the proposal is non-blocking, avoid validating the same round twice in
         // parallel (e.g., due to repeats or spam).
