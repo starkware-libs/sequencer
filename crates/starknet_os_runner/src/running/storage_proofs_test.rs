@@ -15,8 +15,8 @@ use crate::running::storage_proofs::{
     StorageProofConfig,
     StorageProofProvider,
 };
-use crate::running::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
 use crate::running::virtual_block_executor::{BaseBlockInfo, VirtualBlockExecutionData};
+use crate::test_utils::{rpc_provider, STRK_TOKEN_ADDRESS};
 
 /// Fixture: Creates initial reads with the STRK contract and storage slot 0.
 #[rstest::fixture]

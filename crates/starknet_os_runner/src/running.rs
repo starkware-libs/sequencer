@@ -19,10 +19,6 @@ pub mod rpc_records;
 #[cfg(test)]
 mod rpc_records_test;
 #[cfg(test)]
-mod runner_test;
-#[cfg(test)]
 mod storage_proofs_test;
-#[cfg(test)]
-pub mod test_utils;
 #[cfg(test)]
 mod virtual_block_executor_test;

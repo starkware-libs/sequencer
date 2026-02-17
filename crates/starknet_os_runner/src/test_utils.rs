@@ -6,10 +6,10 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use blockifier_reexecution::utils::get_chain_info;
 use rstest::fixture;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
+use starknet_api::transaction::fields::AllResourceBounds;
 use starknet_types_core::felt::Felt;
 use url::Url;
 
@@ -190,16 +190,36 @@ pub(crate) async fn resolve_test_mode(test_name: &str) -> TestRpcSetup {
 }
 
 // ================================================================================================
-// Transaction Helpers
+// Test Utils
 // ================================================================================================
 
-pub(crate) fn default_resource_bounds_for_client_side_tx() -> ValidResourceBounds {
-    ValidResourceBounds::AllResources(AllResourceBounds {
-        l1_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
-        l2_gas: ResourceBounds {
-            max_amount: GasAmount(10_000_000),
-            max_price_per_unit: GasPrice(0),
+/// Builds a client-side `RpcTransaction::Invoke` (v3) for the given sender and calldata.
+///
+/// Uses minimal resource bounds suitable for client-side (virtual) execution — the transaction
+/// is never broadcast on-chain so fees are irrelevant.
+pub(crate) fn build_client_side_rpc_invoke(
+    sender_address: ContractAddress,
+    calldata: starknet_api::transaction::fields::Calldata,
+) -> RpcTransaction {
+    let rpc_invoke_v3 = RpcInvokeTransactionV3 {
+        sender_address,
+        calldata,
+        signature: Default::default(),
+        nonce: Default::default(),
+        resource_bounds: AllResourceBounds {
+            l2_gas: starknet_api::transaction::fields::ResourceBounds {
+                max_amount: starknet_api::execution_resources::GasAmount(10_000_000),
+                max_price_per_unit: starknet_api::block::GasPrice(0),
+            },
+            ..Default::default()
         },
-        l1_data_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
-    })
+        tip: Default::default(),
+        paymaster_data: Default::default(),
+        account_deployment_data: Default::default(),
+        nonce_data_availability_mode: Default::default(),
+        fee_data_availability_mode: Default::default(),
+        proof_facts: Default::default(),
+        proof: Default::default(),
+    };
+    RpcTransaction::Invoke(RpcInvokeTransaction::V3(rpc_invoke_v3))
 }
