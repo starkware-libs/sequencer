@@ -3,6 +3,12 @@ use serde::{Serialize, Serializer};
 const IDLE_CONNECTIONS_FOR_AUTO_SCALED_SERVICES: usize = 0;
 const IDLE_CONNECTIONS_FOR_STATICALLY_SCALED_SERVICES: usize = 10;
 
+// Note: we explicitly use a new connection when sending a request to an autoscaled or a
+// service allowed to run on a spot instance to ensure each new request goes through the load
+// balancer and directed at an available server. This allows us to avoid having to address
+// connection termination issues, e.g., when the server is marked for eviction, and should be in
+// a graceful shutdown flow, and as such should reject new requests.
+
 /// Whether a service is autoscaled or not.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ScalePolicy {
