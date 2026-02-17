@@ -9,7 +9,6 @@ use apollo_committer::metrics::{
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_EMPTIED_LEAVES_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
-    EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
     TOTAL_BLOCK_DURATION_PER_MODIFICATION,
@@ -194,16 +193,15 @@ fn get_count_emptied_leaves_per_block_panel() -> Panel {
     )
 }
 
-fn get_percentage_emptied_leaves_per_block_panel() -> Panel {
-    // Metric stores 0-100 scale; divisor 100 in denominator gives average in 0-1 for PercentUnit.
-    average_per_block_panel(
-        "Percentage Emptied Leaves per Block",
+fn get_emptied_leaves_percentage() -> Panel {
+    Panel::ratio_time_series(
+        "Percentage of Emptied Leaves",
         "Average percentage of storage tries leaves emptied per block over a 1m window",
-        &EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
-        Some(100),
-        Some(COUNT_MODIFICATIONS_LOG_QUERY),
-        Some(Unit::PercentUnit),
+        &COUNT_EMPTIED_LEAVES_PER_BLOCK,
+        &[&COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK],
+        "1m",
     )
+    .with_log_query(COUNT_MODIFICATIONS_LOG_QUERY)
 }
 
 pub(crate) fn get_committer_row() -> Row {
@@ -223,7 +221,7 @@ pub(crate) fn get_committer_row() -> Row {
             get_count_contracts_trie_modifications_per_block_panel(),
             get_count_classes_trie_modifications_per_block_panel(),
             get_count_emptied_leaves_per_block_panel(),
-            get_percentage_emptied_leaves_per_block_panel(),
+            get_emptied_leaves_percentage(),
         ],
     )
 }
