@@ -1,0 +1,13 @@
+[package]
+name = "apollo_deployment_mode"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deployment mode configuration for the Apollo sequencer."
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
