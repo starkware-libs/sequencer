@@ -1609,10 +1609,13 @@ impl ComponentStarter for Batcher {
             .storage_reader
             .state_diff_height()
             .expect("Failed to get height from storage during batcher creation.");
+
         let global_root_height = self
             .storage_reader
             .global_root_height()
             .expect("Failed to get global roots height from storage during batcher creation.");
+
+        register_metrics(storage_height, global_root_height);
 
         self.commitment_manager
             .add_missing_commitment_tasks(
@@ -1622,8 +1625,6 @@ impl ComponentStarter for Batcher {
                 &mut self.storage_writer,
             )
             .await;
-
-        register_metrics(storage_height, global_root_height);
     }
 }
 
