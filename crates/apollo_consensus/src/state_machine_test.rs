@@ -883,3 +883,112 @@ fn advance_to_round_when_proposer_function_fails() {
     );
     assert!(wrapper.next_request().is_none());
 }
+
+#[test]
+fn timeout_prevote_ignored_when_wrong_step() {
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
+        false,
+        QuorumType::Byzantine,
+    );
+    wrapper.start();
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
+    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    // Now in Precommit step. TimeoutPrevote for current round should be ignored.
+    wrapper.send_timeout_prevote(ROUND);
+    assert!(wrapper.next_request().is_none());
+}
+
+#[test]
+fn no_repropose_when_virtual_proposer_fails_for_new_round() {
+    fn virtual_proposer_fn(round: Round) -> Result<ValidatorId, ConsensusError> {
+        if round == ROUND + 1 {
+            Err(ConsensusError::InternalNetworkError("virtual proposer failed".to_string()))
+        } else {
+            Ok(*PROPOSER_ID)
+        }
+    }
+    let mut wrapper = TestWrapper::new(
+        *PROPOSER_ID,
+        4,
+        |_: Round| Ok(*PROPOSER_ID),
+        virtual_proposer_fn,
+        false,
+        QuorumType::Byzantine,
+    );
+    wrapper.start();
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(ROUND));
+    wrapper.send_finished_building(PROPOSAL_ID, ROUND);
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *PROPOSER_ID))
+    );
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *PROPOSER_ID))
+    );
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    wrapper.send_timeout_precommit(ROUND);
+    // Proposer advances to round 1 with locked value but virtual_proposer(1) fails -> no Repropose.
+    assert!(wrapper.next_request().is_none());
+    assert_eq!(wrapper.state_machine.round(), ROUND + 1);
+}
+
+#[test]
+fn prevote_nil_when_new_proposal_differs_from_locked_value() {
+    const OTHER_PROPOSAL: Option<ProposalCommitment> = Some(ProposalCommitment(Felt::TWO));
+    let round_1: Round = 1;
+    let mut wrapper = TestWrapper::new(
+        *VALIDATOR_ID,
+        4,
+        |_: Round| Ok(*PROPOSER_ID),
+        |_: Round| Ok(*PROPOSER_ID),
+        false,
+        QuorumType::Byzantine,
+    );
+    wrapper.start();
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
+    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *PROPOSER_ID);
+    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
+    );
+    wrapper.send_precommit(None, ROUND);
+    wrapper.send_precommit(None, ROUND);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    wrapper.send_timeout_precommit(ROUND);
+    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, round_1));
+    // We have locked value PROPOSAL_ID. Receive a different proposal for round 1.
+    wrapper.send_finished_validation(OTHER_PROPOSAL, round_1);
+    // Should prevote nil (None) because proposal differs from locked value.
+    assert_eq!(
+        wrapper.next_request().unwrap(),
+        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, round_1, None, *VALIDATOR_ID))
+    );
+}
