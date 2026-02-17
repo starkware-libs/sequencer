@@ -13,6 +13,7 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
+use tracing::info;
 
 use crate::committee_provider::Staker;
 use crate::contract_types::{
@@ -83,23 +84,36 @@ impl CairoStakingContract {
 #[async_trait]
 impl StakingContract for CairoStakingContract {
     async fn get_stakers(&self, epoch: u64) -> StakingContractResult<Vec<Staker>> {
+        info!("Calling staking contract {GET_STAKERS_ENTRY_POINT} for epoch={epoch}.");
         let calldata = Calldata::from(vec![Felt::from(epoch)]);
         let retdata = self.call_view(GET_STAKERS_ENTRY_POINT, calldata)?;
 
         // Filter out stakers that don't have a public key.
-        let stakers = ContractStaker::from_retdata_many(retdata)?
+        let contract_stakers = ContractStaker::from_retdata_many(retdata)?;
+        let initial_len = contract_stakers.len();
+        let stakers: Vec<Staker> = contract_stakers
             .into_iter()
             .filter_map(|contract_staker| {
                 contract_staker.public_key.map(|_| Staker::from(&contract_staker))
             })
             .collect();
 
+        info!(
+            "Retrieved {} stakers for epoch={}, filtered out {} without public key.",
+            stakers.len(),
+            epoch,
+            initial_len - stakers.len()
+        );
+
         Ok(stakers)
     }
 
     async fn get_current_epoch(&self) -> StakingContractResult<Epoch> {
+        info!("Calling staking contract {GET_CURRENT_EPOCH_DATA_ENTRY_POINT}.");
         let retdata = self.call_view(GET_CURRENT_EPOCH_DATA_ENTRY_POINT, Calldata::from(vec![]))?;
-        Ok(Epoch::try_from(retdata)?)
+        let epoch = Epoch::try_from(retdata)?;
+        info!("Retrieved current epoch from contract: {epoch:?}.",);
+        Ok(epoch)
     }
 
     async fn get_previous_epoch(&self) -> StakingContractResult<Option<Epoch>> {
