@@ -87,6 +87,26 @@ pub mod presentation;
 pub mod secrets;
 pub mod validators;
 
+/// Node operational mode - determines which features and behaviors are enabled.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum NodeMode {
+    /// Production mode - standard Starknet behavior.
+    #[default]
+    Starknet,
+    /// Echonet mode - test/replay mode with special features:
+    /// - Uses original block timestamps instead of system clock
+    /// - Uses FIFO transaction queue instead of fee-based priority
+    Echonet,
+}
+
+impl NodeMode {
+    /// Returns true if running in Echonet mode.
+    pub fn is_echonet(&self) -> bool {
+        matches!(self, NodeMode::Echonet)
+    }
+}
+
 /// The privacy level of a config parameter, that received as input from the configs.
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub enum ParamPrivacyInput {

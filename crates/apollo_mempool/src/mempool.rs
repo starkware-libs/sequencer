@@ -257,6 +257,12 @@ pub struct Mempool {
 
 impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
+        // Select queue type based on node_mode.
+        // In Echonet mode, use FIFO queue; otherwise use fee-based priority queue.
+        if config.static_config.node_mode.is_echonet() {
+            panic!("FIFO queue is not yet implemented. Echonet node mode requires FIFO queue.");
+        }
+
         Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),

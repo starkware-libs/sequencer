@@ -2329,15 +2329,15 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
-  "consensus_manager_config.context_config.static_config.deployment_mode": {
-    "description": "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
-    "privacy": "Public",
-    "value": "starknet"
-  },
   "consensus_manager_config.context_config.static_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
     "value": true
+  },
+  "consensus_manager_config.context_config.static_config.node_mode": {
+    "description": "Node mode. 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "node_mode",
+    "privacy": "Public"
   },
   "consensus_manager_config.context_config.static_config.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
@@ -2959,6 +2959,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "mempool_config.static_config.node_mode": {
+    "description": "Node mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "node_mode",
+    "privacy": "Public"
+  },
   "mempool_config.static_config.validate_resource_bounds": {
     "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",
     "pointer_target": "validate_resource_bounds",
@@ -3113,6 +3118,11 @@
     "description": "Specifies whether to execute all class hashes or only specific ones using Cairo native. If limited, a specific list of class hashes is provided.",
     "privacy": "TemporaryValue",
     "value": "[]"
+  },
+  "node_mode": {
+    "description": "Node mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "privacy": "TemporaryValue",
+    "value": "starknet"
   },
   "proof_manager_config.#is_none": {
     "description": "Flag for an optional field.",
