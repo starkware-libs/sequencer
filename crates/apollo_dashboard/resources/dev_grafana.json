@@ -241,6 +241,18 @@
           }
         },
         {
+          "title": "Proof Manager Store Latency",
+          "description": "The time it takes to store a proof in the proof manager during proposal validation",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(consensus_proof_manager_store_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(consensus_proof_manager_store_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
           "title": "Consensus Timeouts By Type",
           "description": "The number of times consensus has timed out by type (10m window). \n- TimeoutPropose: as proposer, didn’t finish building in time; as validator, either didn’t receive the proposal or didn’t finish validation in time.\n- TimeoutPrevote: the node voted and received a quorum of prevotes, but not on the same value.\n- TimeoutPrecommit: didn’t finish validation but quorum of precommits received, or it finished but no decision reached.",
           "type": "timeseries",
@@ -1000,6 +1012,18 @@
           "exprs": [
             "histogram_quantile(0.50, sum by (le) (rate(proof_verification_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
             "histogram_quantile(0.95, sum by (le) (rate(proof_verification_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+          ],
+          "extra_params": {
+            "unit": "s"
+          }
+        },
+        {
+          "title": "Proof Manager Store Latency",
+          "description": "The time it takes to store a proof in the proof manager",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50, sum by (le) (rate(gateway_proof_manager_store_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
+            "histogram_quantile(0.95, sum by (le) (rate(gateway_proof_manager_store_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
           ],
           "extra_params": {
             "unit": "s"

@@ -40,6 +40,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_BUILD_PROPOSAL_FAILURE,
     CONSENSUS_L2_GAS_PRICE,
+    CONSENSUS_PROOF_MANAGER_STORE_LATENCY,
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
@@ -261,6 +262,15 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
     )
     .with_log_query("Applying Timeout")
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
+}
+
+fn get_panel_consensus_proof_manager_store_latency() -> Panel {
+    Panel::from_hist(
+        &CONSENSUS_PROOF_MANAGER_STORE_LATENCY,
+        "Proof Manager Store Latency",
+        "The time it takes to store a proof in the proof manager during proposal validation",
+    )
+    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_consensus_l2_gas_price() -> Panel {
@@ -547,6 +557,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_proposals_validated(),
             get_panel_consensus_proposals_invalid(),
             get_panel_validate_proposal_failure(),
+            get_panel_consensus_proof_manager_store_latency(),
             get_panel_consensus_timeouts_by_type(),
             get_panel_consensus_l2_gas_price(),
         ],
