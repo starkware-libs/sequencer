@@ -659,6 +659,26 @@ impl StorageWriter {
         let mut state = self.shared_state.lock().unwrap();
         state.commit_counter = 0;
     }
+
+    /// Forces an immediate commit of any pending batched writes.
+    ///
+    /// This should be called before error recovery/retry paths to ensure that
+    /// uncommitted writes are persisted. Without this, retries would read stale
+    /// marker values because `begin_rw_txn()` would create a new transaction
+    /// that doesn't see the uncommitted writes from the abandoned transaction.
+    ///
+    /// This is a no-op if there are no pending writes (commit_counter == 0).
+    pub fn flush_pending_writes(&mut self) -> StorageResult<()> {
+        let mut guard = self.shared_state.lock().unwrap();
+        if guard.commit_counter > 0 {
+            // There are pending writes - force commit them
+            if let Some(txn) = guard.active_txn.take() {
+                txn.commit()?;
+            }
+            guard.commit_counter = 0;
+        }
+        Ok(())
+    }
 }
 
 /// A struct for increasing a gauge metric when an instance is created and decreasing it when it is
