@@ -19,7 +19,13 @@ use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_n
 use apollo_node_config::config_utils::DeploymentBaseAppConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::node_config::SequencerNodeConfig;
-use apollo_storage::StorageConfig;
+use apollo_storage::storage_reader_server::{
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerStaticConfig,
+};
+use apollo_storage::storage_reader_server_test_utils::send_storage_reader_http_request;
+use apollo_storage::storage_reader_types::{StorageReaderRequest, StorageReaderResponse};
+use apollo_storage::{MarkerKind, StorageConfig};
 use apollo_test_utils::send_request;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::context::ChainInfo;
@@ -32,7 +38,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::anvil_mine_blocks;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -226,6 +232,24 @@ impl NodeSetup {
             &self.executables,
             ComponentConfigInService::ConsensusManager,
         )
+    }
+
+    fn batcher_storage_reader_server_addr(&self) -> SocketAddr {
+        let batcher_config = self
+            .get_batcher()
+            .get_config()
+            .batcher_config
+            .as_ref()
+            .expect("No executable with a set batcher.");
+        let static_config = &batcher_config.static_config.storage_reader_server_static_config;
+        SocketAddr::from((static_config.ip, static_config.port))
+    }
+
+    pub async fn send_batcher_storage_reader_request(
+        &self,
+        request: StorageReaderRequest,
+    ) -> StorageReaderResponse {
+        send_storage_reader_http_request(self.batcher_storage_reader_server_addr(), &request).await
     }
 
     pub fn run_service(&self, service: NodeService) -> AbortOnDropHandle<()> {
@@ -1071,6 +1095,98 @@ impl IntegrationTestManager {
             timeout.as_secs()
         );
     }
+
+    /// Verifies the block hash calculation flow across all running nodes.
+    ///
+    /// 1. Determines block N as the max batcher state marker across all running nodes.
+    /// 2. Waits for the global root marker to reach N on all running nodes.
+    /// 3. Retrieves the block hash of block N-1 from each running node via the storage reader
+    ///    server.
+    /// 4. Asserts that all running nodes agree on the block hash.
+    pub async fn verify_block_hash_across_all_running_nodes(&self) {
+        info!("Verifying block hash flow across all running nodes.");
+
+        // Step 1: Get the max state marker across all running nodes.
+        let state_markers: HashMap<usize, BlockNumber> = self
+            .perform_action_on_all_running_nodes(|running_node| async move {
+                let response = running_node
+                    .node_setup
+                    .send_batcher_storage_reader_request(StorageReaderRequest::Markers(
+                        MarkerKind::State,
+                    ))
+                    .await;
+                match response {
+                    StorageReaderResponse::Markers(block_number) => block_number,
+                    other => panic!("Expected Markers response, got: {other:?}"),
+                }
+            })
+            .await;
+        let max_state_marker =
+            *state_markers.values().max().expect("Should have at least one running node.");
+        info!("Max state marker across all running nodes: {max_state_marker}.");
+
+        // Step 2: Wait for global root marker to cover up to max_state_marker on all nodes.
+        info!("Waiting for global root marker to reach {max_state_marker} on all running nodes.");
+        self.perform_action_on_all_running_nodes(|running_node| async move {
+            let node_index = running_node.get_node_index();
+            loop {
+                let response = running_node
+                    .node_setup
+                    .send_batcher_storage_reader_request(StorageReaderRequest::Markers(
+                        MarkerKind::GlobalRoot,
+                    ))
+                    .await;
+                let global_root_height = match response {
+                    StorageReaderResponse::Markers(block_number) => block_number,
+                    other => panic!("Expected Markers response, got: {other:?}"),
+                };
+                if global_root_height >= max_state_marker {
+                    info!(
+                        "Global root marker reached {global_root_height} on sequencer \
+                         {node_index}."
+                    );
+                    break;
+                }
+                sleep(Duration::from_millis(100)).await;
+            }
+        })
+        .await;
+
+        // Step 3: Get block hash for max_state_marker - 1 from each running node via the
+        // storage reader server.
+        let block_to_check = max_state_marker
+            .prev()
+            .unwrap_or_else(|| panic!("At least one block should exist for hash verification."));
+        info!("Verifying block hash for block {block_to_check} across all running nodes.");
+
+        let block_hashes: HashMap<usize, BlockHash> = self
+            .perform_action_on_all_running_nodes(|running_node| async move {
+                let response = running_node
+                    .node_setup
+                    .send_batcher_storage_reader_request(StorageReaderRequest::Headers(
+                        block_to_check,
+                    ))
+                    .await;
+                match response {
+                    StorageReaderResponse::Headers(header) => header.block_hash,
+                    other => panic!("Expected Headers response, got: {other:?}"),
+                }
+            })
+            .await;
+
+        // Step 4: Assert all block hashes are the same.
+        let hash_values: Vec<&BlockHash> = block_hashes.values().collect();
+        assert!(
+            hash_values.windows(2).all(|w| w[0] == w[1]),
+            "Not all nodes agree on the block hash for block {block_to_check}: {block_hashes:?}"
+        );
+
+        info!(
+            "Block hash verification passed for block {block_to_check}. All {} running nodes \
+             agree on hash.",
+            block_hashes.len()
+        );
+    }
 }
 
 pub fn nonce_to_usize(nonce: Nonce) -> usize {
@@ -1204,7 +1320,7 @@ async fn get_sequencer_setup_configs(
                 ..Default::default()
             };
 
-            let (config, config_pointers_map) = create_node_config(
+            let (mut config, config_pointers_map) = create_node_config(
                 &mut config_available_ports,
                 chain_info.clone(),
                 storage_setup.storage_config.clone(),
@@ -1219,6 +1335,17 @@ async fn get_sequencer_setup_configs(
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
             );
+
+            // Enable the batcher's storage reader server for testing.
+            if let Some(batcher_config) = config.batcher_config.as_mut() {
+                batcher_config.static_config.storage_reader_server_static_config =
+                    StorageReaderServerStaticConfig {
+                        ip: Ipv4Addr::LOCALHOST.into(),
+                        port: config_available_ports.get_next_port(),
+                    };
+                batcher_config.dynamic_config.storage_reader_server_dynamic_config =
+                    StorageReaderServerDynamicConfig { enable: true };
+            }
 
             let base_app_config = DeploymentBaseAppConfig::new(config, config_pointers_map);
 
