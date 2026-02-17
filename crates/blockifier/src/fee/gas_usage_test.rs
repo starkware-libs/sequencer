@@ -46,9 +46,10 @@ fn versioned_constants() -> &'static VersionedConstants {
     VersionedConstants::latest_constants()
 }
 
+const PROOF_FACTS_COUNT: usize = 1;
+
 // Starknet resources with many resources (of arbitrary values) for testing.
-#[fixture]
-fn starknet_resources() -> StarknetResources {
+fn create_test_starknet_resources(has_client_side_proof: bool) -> StarknetResources {
     let call_info_1 = CallInfo {
         execution: CallExecution {
             events: vec![create_event_for_testing(1, 2), create_event_for_testing(1, 2)],
@@ -78,14 +79,12 @@ fn starknet_resources() -> StarknetResources {
         },
         19,
     );
-    // TODO(AvivG): To allow testing with and without client-side proof - change this to a
-    // parameter.
-    let has_client_side_proof = true;
     let calldata_length = 2_usize;
-    let proof_facts_length = 5_usize;
+    let proof_facts_length = if has_client_side_proof { PROOF_FACTS_COUNT } else { 0 };
+    let extended_calldata_length = calldata_length + proof_facts_length;
 
     StarknetResources::new(
-        calldata_length + proof_facts_length,
+        extended_calldata_length,
         3_usize,
         4_usize,
         state_resources,
@@ -344,17 +343,18 @@ fn test_discounted_gas_from_gas_vector_computation() {
 // Assert gas computation results are as expected. The goal of this test is to prevent unwanted
 // changes to the gas computation.
 fn test_gas_computation_regression_test(
-    starknet_resources: StarknetResources,
     #[values(false, true)] use_kzg_da: bool,
     #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
     gas_vector_computation_mode: GasVectorComputationMode,
+    #[values(false, true)] has_client_side_proof: bool,
 ) {
     // Client side proving is only supported from V3 transactions, which use AllResourceBounds.
-    if starknet_resources.archival_data.has_client_side_proof
-        && gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas
-    {
+    if has_client_side_proof && gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas {
         return;
     }
+
+    let starknet_resources = create_test_starknet_resources(has_client_side_proof);
+
     // Use a constant version of the versioned constants so that version changes do not break this
     // test. This specific version is arbitrary.
     // TODO(Amos, 1/10/2024): Parameterize the version.
@@ -368,41 +368,44 @@ fn test_gas_computation_regression_test(
     };
     versioned_constants.vm_resource_fee_cost = Arc::new(vm_resource_fee_cost);
 
+    // Calculate client-side proof overhead (if applicable).
+    let client_side_proof_l2_overhead = if has_client_side_proof {
+        let archival_gas_costs =
+            versioned_constants.get_archival_data_gas_costs(&gas_vector_computation_mode);
+        let proof_facts_cost =
+            (archival_gas_costs.gas_per_data_felt * u64_from_usize(PROOF_FACTS_COUNT)).to_integer();
+        let fixed_proof_cost = archival_gas_costs.gas_per_proof.to_integer();
+        proof_facts_cost + fixed_proof_cost
+    } else {
+        0
+    };
+
     // Test Starknet resources.
     let actual_starknet_resources_gas_vector = starknet_resources.to_gas_vector(
         &versioned_constants,
         use_kzg_da,
         &gas_vector_computation_mode,
     );
-    let expected_starknet_resources_gas_vector = match gas_vector_computation_mode {
-        GasVectorComputationMode::NoL2Gas => match use_kzg_da {
-            true => GasVector {
-                l1_gas: GasAmount(21544),
-                l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(0),
-            },
-            false => GasVector::from_l1_gas(GasAmount(62835)),
-        },
-        GasVectorComputationMode::All => match use_kzg_da {
-            true => GasVector {
-                l1_gas: GasAmount(21543),
-                l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(112640),
-            },
-            false => GasVector {
-                l1_gas: GasAmount(62834),
-                l1_data_gas: GasAmount(0),
-                l2_gas: GasAmount(112640),
-            },
-        },
+
+    let (l1, l1_data, l2) = match (&gas_vector_computation_mode, use_kzg_da) {
+        (GasVectorComputationMode::NoL2Gas, true) => (21544, 2720, 0),
+        (GasVectorComputationMode::NoL2Gas, false) => (62835, 0, 0),
+        (GasVectorComputationMode::All, true) => (21543, 2720, 87040),
+        (GasVectorComputationMode::All, false) => (62834, 0, 87040),
     };
+    let expected_starknet_resources_gas_vector = GasVector {
+        l1_gas: GasAmount(l1),
+        l1_data_gas: GasAmount(l1_data),
+        l2_gas: GasAmount(l2 + client_side_proof_l2_overhead),
+    };
+
     assert_eq!(
         actual_starknet_resources_gas_vector, expected_starknet_resources_gas_vector,
         "Unexpected gas computation result for starknet resources. If this is intentional please \
          fix this test."
     );
 
-    // Test VM resources.
+    // Test computation resources.
     let mut tx_extended_vm_resources = get_extended_vm_resource_usage();
     tx_extended_vm_resources.vm_resources.n_memory_holes = 2;
     let n_reverted_steps = 15;
@@ -425,37 +428,20 @@ fn test_gas_computation_regression_test(
     };
     assert_eq!(
         actual_computation_resources_gas_vector, expected_computation_resources_gas_vector,
-        "Unexpected gas computation result for VM resources. If this is intentional please fix \
-         this test."
+        "Unexpected gas computation result for computation resources. If this is intentional \
+         please fix this test."
     );
 
-    // Test transaction resources
+    // Test transaction resources: total = starknet + computation.
     let tx_resources =
         TransactionResources { starknet_resources, computation: computation_resources };
     let actual_gas_vector =
         tx_resources.to_gas_vector(&versioned_constants, use_kzg_da, &gas_vector_computation_mode);
-    let expected_gas_vector = match gas_vector_computation_mode {
-        GasVectorComputationMode::NoL2Gas => match use_kzg_da {
-            true => GasVector {
-                l1_gas: GasAmount(21575),
-                l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(0),
-            },
-            false => GasVector::from_l1_gas(GasAmount(62866)),
-        },
-        GasVectorComputationMode::All => match use_kzg_da {
-            true => GasVector {
-                l1_gas: GasAmount(21543),
-                l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(1145994),
-            },
-            false => GasVector {
-                l1_gas: GasAmount(62834),
-                l1_data_gas: GasAmount(0),
-                l2_gas: GasAmount(1145994),
-            },
-        },
-    };
+
+    let expected_gas_vector = expected_starknet_resources_gas_vector
+        .checked_add(expected_computation_resources_gas_vector)
+        .expect("Gas vector addition overflow in test");
+
     assert_eq!(
         actual_gas_vector, expected_gas_vector,
         "Unexpected gas computation result for tx resources. If this is intentional please fix \
