@@ -11,6 +11,35 @@ use std::cmp::min;
 use std::sync::Arc;
 use std::time::Duration;
 
+// #region agent log
+use std::io::Write;
+fn debug_log(location: &str, message: &str, data: &str, hypothesis: &str) {
+    // Try persistent data volume first (survives container restarts), fall back to local path
+    let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+    for path in &paths {
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        {
+            let _ = writeln!(
+                file,
+                r#"{{"timestamp":{},"location":"{}","message":"{}","data":{},"hypothesisId":"{}"}}"#,
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+                location,
+                message,
+                data,
+                hypothesis
+            );
+            break;
+        }
+    }
+}
+// #endregion
+
 use apollo_central_sync_config::config::SyncConfig;
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use apollo_proc_macros::latency_histogram;
@@ -544,6 +573,27 @@ impl<
                     .commit()?;
                 STATE_SYNC_CLASS_MANAGER_MARKER.set_lossy(block_number.unchecked_next().0);
             }
+            // #region agent log
+            // Read the marker BEFORE writing to see what storage expects
+            {
+                let pre_txn = writer.begin_rw_txn()?;
+                let current_marker = pre_txn.get_state_marker()?;
+                debug_log(
+                    "lib.rs:store_state_diff:before_append",
+                    "About to append state diff",
+                    &format!(r#"{{"block_to_write":{},"storage_marker_before_write":{}}}"#, block_number.0, current_marker.0),
+                    "B"
+                );
+                if current_marker.0 != block_number.0 {
+                    debug_log(
+                        "lib.rs:store_state_diff:MARKER_MISMATCH_DETECTED",
+                        "Marker mismatch about to happen",
+                        &format!(r#"{{"expected_by_storage":{},"trying_to_write":{}}}"#, current_marker.0, block_number.0),
+                        "B"
+                    );
+                }
+            }
+            // #endregion
             let mut txn = writer.begin_rw_txn()?;
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
             // Non backwards compatible classes must be stored for later use since we will only be
@@ -864,10 +914,21 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
     max_stream_size: u32,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
+        // #region agent log
+        let mut expected_next_block: Option<BlockNumber> = None;
+        // #endregion
         loop {
             // Use RW transaction to read markers (sees uncommitted data from batching).
             let state_marker = get_state_marker_rw(&writer).await?;
             let last_block_number = get_header_marker_rw(&writer).await?;
+            // #region agent log
+            debug_log(
+                "lib.rs:stream_new_state_diffs:loop_start",
+                "Starting state diff batch",
+                &format!(r#"{{"state_marker":{},"header_marker":{},"expected_next":{:?}}}"#, state_marker.0, last_block_number.0, expected_next_block.map(|b| b.0)),
+                "A"
+            );
+            // #endregion
             if state_marker == last_block_number {
                 trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(block_propagation_sleep_duration).await;
@@ -886,6 +947,25 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                     mut state_diff,
                     deployed_contract_class_definitions,
                 ) = maybe_state_diff?;
+                // #region agent log
+                debug_log(
+                    "lib.rs:stream_new_state_diffs:yield",
+                    "Yielding state diff",
+                    &format!(r#"{{"block_number":{},"expected_next":{:?},"state_marker_at_batch_start":{}}}"#, block_number.0, expected_next_block.map(|b| b.0), state_marker.0),
+                    "A"
+                );
+                if let Some(expected) = expected_next_block {
+                    if block_number != expected {
+                        debug_log(
+                            "lib.rs:stream_new_state_diffs:ORDER_VIOLATION",
+                            "BLOCK OUT OF ORDER",
+                            &format!(r#"{{"expected":{},"got":{},"state_marker_at_batch_start":{}}}"#, expected.0, block_number.0, state_marker.0),
+                            "A"
+                        );
+                    }
+                }
+                expected_next_block = Some(block_number.unchecked_next());
+                // #endregion
                 sort_state_diff(&mut state_diff);
                 yield SyncEvent::StateDiffAvailable {
                     block_number,
