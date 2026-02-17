@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771190762050,
+  "lastUpdate": 1771331900733,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -611,6 +611,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1164.32770897,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "11f241e4a7f4bf4cf9006ce55ce2b57fc9b70309",
+          "message": "starknet_os_runner: add rpc_records infrastructure for recording and replaying RPC interactions (#12346)",
+          "timestamp": "2026-02-17T12:17:35Z",
+          "tree_id": "7a177bb2e6e7cc8af21586c554da143785e66556",
+          "url": "https://github.com/starkware-libs/sequencer/commit/11f241e4a7f4bf4cf9006ce55ce2b57fc9b70309"
+        },
+        "date": 1771331900077,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 798.39529968,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1270.10724693,
             "unit": "ms"
           }
         ]
