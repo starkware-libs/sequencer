@@ -25,6 +25,12 @@ use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
 use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_storage::storage_reader_server::{
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerStaticConfig,
+};
+use apollo_storage::storage_reader_server_test_utils::send_storage_reader_http_request;
+use apollo_storage::storage_reader_types::{StorageReaderRequest, StorageReaderResponse};
 use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
 use futures::StreamExt;
@@ -290,6 +296,17 @@ impl FlowSequencerSetup {
         node_config.l1_gas_price_provider_config.as_mut().unwrap().number_of_blocks_for_mean =
             num_l1_txs;
 
+        // Enable the batcher's storage reader server for testing.
+        let storage_reader_server_port = available_ports.get_next_port();
+        let batcher_config = node_config.batcher_config.as_mut().unwrap();
+        batcher_config.static_config.storage_reader_server_static_config =
+            StorageReaderServerStaticConfig {
+                ip: std::net::Ipv4Addr::LOCALHOST.into(),
+                port: storage_reader_server_port,
+            };
+        batcher_config.dynamic_config.storage_reader_server_dynamic_config =
+            StorageReaderServerDynamicConfig { enable: true };
+
         debug!("Sequencer config: {:#?}", node_config);
         let prometheus_handle = metrics_recorder(MetricsConfig::disabled());
         let (clients, servers) = create_node_modules(&node_config, prometheus_handle, vec![]).await;
@@ -320,6 +337,19 @@ impl FlowSequencerSetup {
 
     pub async fn batcher_height(&self) -> BlockNumber {
         self.clients.get_batcher_shared_client().unwrap().get_height().await.unwrap().height
+    }
+
+    fn batcher_storage_reader_server_addr(&self) -> SocketAddr {
+        let batcher_config = self.node_config.batcher_config.as_ref().unwrap();
+        let static_config = &batcher_config.static_config.storage_reader_server_static_config;
+        SocketAddr::from((static_config.ip, static_config.port))
+    }
+
+    pub async fn send_batcher_storage_reader_request(
+        &self,
+        request: StorageReaderRequest,
+    ) -> StorageReaderResponse {
+        send_storage_reader_http_request(self.batcher_storage_reader_server_addr(), &request).await
     }
 }
 
