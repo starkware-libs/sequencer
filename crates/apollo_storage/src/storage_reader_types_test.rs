@@ -25,6 +25,7 @@ use crate::class_hash::ClassHashStorageWriter;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::consensus::{ConsensusStorageWriter, LastVotedMarker};
+use crate::global_root_marker::GlobalRootMarkerStorageReader;
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::storage_reader_server::ServerConfig;
@@ -363,8 +364,7 @@ async fn markers_request() {
 
     let txn = setup.reader.begin_ro_txn().unwrap();
 
-    // Test all implemented markers
-    // TODO(Nadin): Add tests for GlobalRoot once it is implemented.
+    // Test all implemented markers.
     let marker_tests = vec![
         (MarkerKind::State, txn.get_state_marker().unwrap()),
         (MarkerKind::Header, txn.get_header_marker().unwrap()),
@@ -378,6 +378,7 @@ async fn markers_request() {
             MarkerKind::CompilerBackwardCompatibility,
             txn.get_compiler_backward_compatibility_marker().unwrap(),
         ),
+        (MarkerKind::GlobalRoot, txn.get_global_root_marker().unwrap()),
     ];
 
     for (marker_kind, expected_marker) in marker_tests {

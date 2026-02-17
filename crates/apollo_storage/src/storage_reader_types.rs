@@ -20,6 +20,7 @@ use crate::class_hash::ClassHashStorageReader;
 use crate::class_manager::ClassManagerStorageReader;
 use crate::compiled_class::CasmStorageReader;
 use crate::consensus::{ConsensusStorageReader, LastVotedMarker};
+use crate::global_root_marker::GlobalRootMarkerStorageReader;
 use crate::header::{HeaderStorageReader, StorageBlockHeader};
 use crate::mmap_file::LocationInFile;
 use crate::state::StateStorageReader;
@@ -242,7 +243,7 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                         txn.get_compiler_backward_compatibility_marker()?
                     }
                     MarkerKind::Event => txn.get_event_marker()?,
-                    MarkerKind::GlobalRoot => unimplemented!(), // TODO(Nadin): Implement this
+                    MarkerKind::GlobalRoot => txn.get_global_root_marker()?,
                 };
                 Ok(StorageReaderResponse::Markers(block_number))
             }
