@@ -1,10 +1,5 @@
 use std::sync::Arc;
 
-use apollo_config_manager_types::communication::{
-    ConfigManagerClientError,
-    MockConfigManagerClient,
-};
-use apollo_config_manager_types::errors::ConfigManagerError;
 use apollo_staking_config::config::{
     CommitteeConfig,
     ConfiguredStaker,
@@ -65,6 +60,18 @@ fn mock_state_sync_client() -> SharedStateSyncClient {
     Arc::new(MockStateSyncClient::new())
 }
 
+#[fixture]
+fn default_config() -> StakingManagerDynamicConfig {
+    StakingManagerDynamicConfig {
+        default_committee: CommitteeConfig {
+            start_epoch: 0,
+            committee_size: 100,
+            stakers: vec![STAKER_1],
+        },
+        override_committee: None,
+    }
+}
+
 fn mock_client_with_latest(block: Option<BlockNumber>) -> SharedStateSyncClient {
     let mut mock = MockStateSyncClient::new();
     mock.expect_get_latest_block_number().returning(move || Ok(block));
@@ -73,99 +80,40 @@ fn mock_client_with_latest(block: Option<BlockNumber>) -> SharedStateSyncClient 
 
 #[rstest]
 #[tokio::test]
-async fn get_stakers_picks_latest_config_for_epoch(mock_state_sync_client: SharedStateSyncClient) {
-    let default_config =
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
-    let override_config = Some(CommitteeConfig {
-        start_epoch: 3,
-        committee_size: 100,
-        stakers: vec![STAKER_1, STAKER_2],
-    });
+async fn get_stakers_with_config_picks_latest_config_for_epoch(
+    mock_state_sync_client: SharedStateSyncClient,
+    default_config: StakingManagerDynamicConfig,
+) {
+    let input_config = StakingManagerDynamicConfig {
+        override_committee: Some(CommitteeConfig {
+            start_epoch: 3,
+            committee_size: 100,
+            stakers: vec![STAKER_1, STAKER_2],
+        }),
+        ..default_config
+    };
 
-    let contract =
-        MockStakingContract::new(mock_state_sync_client, default_config, override_config, None);
+    let contract = MockStakingContract::new(mock_state_sync_client, input_config.clone());
 
-    // Epoch 1 < 3, so should use default (STAKER_1 only)
-    let stakers = contract.get_stakers(1).await.unwrap();
+    // Epoch 1 < 3, so should use default (STAKER_1 only).
+    let stakers = contract.get_stakers_with_config(1, &input_config).await.unwrap();
     assert_eq!(stakers.len(), 1);
 
-    // Epoch 4 >= 3, so should use override (STAKER_1 and STAKER_2)
-    let stakers = contract.get_stakers(4).await.unwrap();
+    // Epoch 4 >= 3, so should use override (STAKER_1 and STAKER_2).
+    let stakers = contract.get_stakers_with_config(4, &input_config).await.unwrap();
     assert_eq!(stakers.len(), 2);
 }
 
 #[rstest]
 #[tokio::test]
-async fn get_stakers_no_override(mock_state_sync_client: SharedStateSyncClient) {
-    let default_config =
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
-
-    let contract = MockStakingContract::new(mock_state_sync_client, default_config, None, None);
-
-    // Should always return default stakers when no override is present
-    let stakers = contract.get_stakers(0).await.unwrap();
-    assert_eq!(stakers.len(), 1);
-
-    let stakers = contract.get_stakers(100).await.unwrap();
-    assert_eq!(stakers.len(), 1);
-}
-
-#[rstest]
-#[tokio::test]
-async fn get_stakers_fetches_dynamic_config_successfully(
+async fn get_stakers_uses_internal_default_config(
     mock_state_sync_client: SharedStateSyncClient,
+    default_config: StakingManagerDynamicConfig,
 ) {
-    let initial_default =
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
+    let contract = MockStakingContract::new(mock_state_sync_client, default_config);
 
-    let mut mock_config_client = MockConfigManagerClient::new();
-    mock_config_client.expect_get_staking_manager_dynamic_config().returning(move || {
-        Ok(StakingManagerDynamicConfig {
-            default_committee: CommitteeConfig {
-                start_epoch: 0,
-                committee_size: 100,
-                stakers: vec![STAKER_2],
-            },
-            override_committee: None,
-        })
-    });
-
-    let contract = MockStakingContract::new(
-        mock_state_sync_client,
-        initial_default,
-        None,
-        Some(Arc::new(mock_config_client)),
-    );
-
+    // get_stakers() should use the internal default_config.
     let stakers = contract.get_stakers(0).await.unwrap();
-    assert_eq!(stakers.len(), 1);
-    assert_eq!(stakers[0].address, STAKER_2.address);
-}
-
-#[rstest]
-#[tokio::test]
-async fn get_stakers_falls_back_to_initial_config_when_fetch_fails(
-    mock_state_sync_client: SharedStateSyncClient,
-) {
-    let initial_default =
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![STAKER_1] };
-
-    let mut mock_config_client = MockConfigManagerClient::new();
-    mock_config_client.expect_get_staking_manager_dynamic_config().returning(|| {
-        Err(ConfigManagerClientError::ConfigManagerError(ConfigManagerError::ConfigNotFound(
-            "Test error".to_string(),
-        )))
-    });
-
-    let contract = MockStakingContract::new(
-        mock_state_sync_client,
-        initial_default,
-        None,
-        Some(Arc::new(mock_config_client)),
-    );
-
-    let stakers = contract.get_stakers(0).await.unwrap();
-    // Should use initial config when fetching dynamic config fails.
     assert_eq!(stakers.len(), 1);
     assert_eq!(stakers[0].address, STAKER_1.address);
 }
@@ -179,26 +127,21 @@ async fn get_stakers_falls_back_to_initial_config_when_fetch_fails(
 async fn get_current_epoch_success(
     #[case] block_number: BlockNumber,
     #[case] expected_epoch: Epoch,
+    default_config: StakingManagerDynamicConfig,
 ) {
-    let contract = MockStakingContract::new(
-        mock_client_with_latest(Some(block_number)),
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
-        None,
-        None,
-    );
+    let contract =
+        MockStakingContract::new(mock_client_with_latest(Some(block_number)), default_config);
 
     let epoch = contract.get_current_epoch().await.unwrap();
     assert_eq!(epoch, expected_epoch);
 }
 
+#[rstest]
 #[tokio::test]
-async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks() {
-    let contract = MockStakingContract::new(
-        mock_client_with_latest(None),
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
-        None,
-        None,
-    );
+async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks(
+    default_config: StakingManagerDynamicConfig,
+) {
+    let contract = MockStakingContract::new(mock_client_with_latest(None), default_config);
 
     let epoch = contract.get_current_epoch().await.unwrap();
     assert_eq!(epoch, EPOCH_0);
@@ -213,26 +156,21 @@ async fn get_current_epoch_defaults_to_epoch_zero_when_no_blocks() {
 async fn get_previous_epoch_success(
     #[case] block_number: BlockNumber,
     #[case] expected_previous_epoch: Option<Epoch>,
+    default_config: StakingManagerDynamicConfig,
 ) {
-    let contract = MockStakingContract::new(
-        mock_client_with_latest(Some(block_number)),
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
-        None,
-        None,
-    );
+    let contract =
+        MockStakingContract::new(mock_client_with_latest(Some(block_number)), default_config);
 
     let previous_epoch = contract.get_previous_epoch().await.unwrap();
     assert_eq!(previous_epoch, expected_previous_epoch);
 }
 
+#[rstest]
 #[tokio::test]
-async fn get_previous_epoch_returns_none_when_no_blocks() {
-    let contract = MockStakingContract::new(
-        mock_client_with_latest(None),
-        CommitteeConfig { start_epoch: 0, committee_size: 100, stakers: vec![] },
-        None,
-        None,
-    );
+async fn get_previous_epoch_returns_none_when_no_blocks(
+    default_config: StakingManagerDynamicConfig,
+) {
+    let contract = MockStakingContract::new(mock_client_with_latest(None), default_config);
 
     let previous_epoch = contract.get_previous_epoch().await.unwrap();
     assert_eq!(previous_epoch, None);
