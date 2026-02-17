@@ -515,7 +515,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.static_config.build_proposal_time_ratio_for_retrospective_block_hash,
             );
 
-        let override_timestamp = self.config.static_config.deployment_mode.override_timestamp();
+        let override_timestamp = matches!(
+            self.config.static_config.deployment_mode,
+            apollo_deployment_mode::DeploymentMode::Echonet
+        );
 
         let round = build_param.round;
         let args = ProposalBuildArguments {
