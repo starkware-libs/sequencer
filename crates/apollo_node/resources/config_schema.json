@@ -419,6 +419,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "deployment_mode": {
+    "description": "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "privacy": "TemporaryValue",
+    "value": "starknet"
+  },
   "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": {
     "description": "Contract classes cache size.",
     "privacy": "Public",
@@ -2311,8 +2316,8 @@
   },
   "consensus_manager_config.context_config.static_config.deployment_mode": {
     "description": "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
-    "privacy": "Public",
-    "value": "starknet"
+    "pointer_target": "deployment_mode",
+    "privacy": "Public"
   },
   "consensus_manager_config.context_config.static_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
@@ -2933,6 +2938,11 @@
     "description": "Percentage increase for tip and max gas price to enable transaction replacement.",
     "privacy": "Public",
     "value": 10
+  },
+  "mempool_config.static_config.deployment_mode": {
+    "description": "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "deployment_mode",
+    "privacy": "Public"
   },
   "mempool_config.static_config.validate_resource_bounds": {
     "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",
