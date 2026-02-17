@@ -21,6 +21,8 @@ lazy_static! {
     static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
     static ref VALIDATORS: Vec<ValidatorId> =
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
+    /// Not in VALIDATORS; used for handle_vote_ignores_non_validator test.
+    static ref NON_VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 10).into();
     static ref BLOCK: TestBlock =
         TestBlock { content: vec![1, 2, 3], id: ProposalCommitment(Felt::ONE) };
     static ref PROPOSAL_INIT: ProposalInit =
@@ -523,6 +525,68 @@ fn broadcast_vote_before_decision_on_validation_finish() {
                 && v.proposal_commitment == Some(BLOCK.id)
                 && v.voter == *VALIDATOR_ID_1
         );
+        assert_matches!(
+            reqs.pop_front(),
+            Some(SMRequest::DecisionReached(dec)) if dec.block == BLOCK.id
+        );
+        assert!(reqs.is_empty());
+    });
+}
+
+#[test]
+fn observer_does_not_broadcast_on_start_or_votes() {
+    let mut shc = SingleHeightConsensus::new(
+        HEIGHT_0,
+        true, // is_observer
+        *VALIDATOR_ID_1,
+        VALIDATORS.to_vec(),
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
+    let leader_fn = |_round| -> LeaderFnResult { Ok(*PROPOSER_ID) };
+    let leader_election = LeaderElection::new(Box::new(leader_fn), Box::new(leader_fn));
+
+    let ret = shc.start(&leader_election);
+    assert_matches!(ret, mut reqs => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Propose, ROUND_0)));
+        assert!(reqs.is_empty());
+    });
+
+    let block_info = block_info(HEIGHT_0, ROUND_0, *PROPOSER_ID);
+    let round = block_info.round;
+    let _ = shc.handle_proposal(&leader_election, block_info);
+    let ret = shc.handle_event(
+        &leader_election,
+        StateMachineEvent::FinishedValidation(Some(BLOCK.id), round, None),
+    );
+    assert!(ret.is_empty());
+
+    // Reach decision with peer prevotes/precommits only; observer should get DecisionReached but
+    // never BroadcastVote.
+    let _ = shc
+        .handle_vote(&leader_election, prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *PROPOSER_ID));
+    let _ = shc.handle_vote(
+        &leader_election,
+        prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_2),
+    );
+    let _ = shc.handle_vote(
+        &leader_election,
+        prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_3),
+    );
+    let _ = shc.handle_vote(
+        &leader_election,
+        precommit(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *PROPOSER_ID),
+    );
+    let _ = shc.handle_vote(
+        &leader_election,
+        precommit(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_2),
+    );
+    let decision = shc.handle_vote(
+        &leader_election,
+        precommit(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_3),
+    );
+    assert_matches!(decision, mut reqs => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Precommit, ROUND_0)));
         assert_matches!(
             reqs.pop_front(),
             Some(SMRequest::DecisionReached(dec)) if dec.block == BLOCK.id
