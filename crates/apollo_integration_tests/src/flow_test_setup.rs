@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
+use apollo_batcher::batcher::BatcherStorageReader;
 use apollo_config::secrets::Sensitive;
 use apollo_consensus_manager_config::config::ConsensusManagerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
@@ -20,7 +21,6 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::BroadcastTopicChannels;
 use apollo_node::clients::SequencerNodeClients;
 use apollo_node::servers::run_component_servers;
-use apollo_node::utils::create_node_modules;
 use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
@@ -39,7 +39,7 @@ use papyrus_base_layer::test_utils::{
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use papyrus_base_layer::BaseLayerContract;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
@@ -60,6 +60,7 @@ use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
     create_node_config,
+    create_node_modules_for_testing,
     create_state_sync_configs,
     set_validator_id,
     spawn_local_eth_to_strk_oracle,
@@ -226,6 +227,9 @@ pub struct FlowSequencerSetup {
     // subsequently the test. This occurs for components who are wrapped by servers, but no other
     // component has their client, usually due to these clients being added in a later date.
     clients: SequencerNodeClients,
+
+    // Batcher storage reader. Used for testing the batcher's state.
+    pub batcher_storage_reader: Arc<dyn BatcherStorageReader>,
 }
 
 impl FlowSequencerSetup {
@@ -292,7 +296,8 @@ impl FlowSequencerSetup {
 
         debug!("Sequencer config: {:#?}", node_config);
         let prometheus_handle = metrics_recorder(MetricsConfig::disabled());
-        let (clients, servers) = create_node_modules(&node_config, prometheus_handle, vec![]).await;
+        let (clients, servers, batcher_storage_reader) =
+            create_node_modules_for_testing(&node_config, prometheus_handle, vec![]).await;
 
         let MonitoringEndpointConfig { ip, port, .. } =
             node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
@@ -311,6 +316,7 @@ impl FlowSequencerSetup {
             node_config,
             monitoring_client,
             clients,
+            batcher_storage_reader,
         }
     }
 
@@ -320,6 +326,19 @@ impl FlowSequencerSetup {
 
     pub async fn batcher_height(&self) -> BlockNumber {
         self.clients.get_batcher_shared_client().unwrap().get_height().await.unwrap().height
+    }
+
+    pub async fn get_block_hash(&self, block_number: BlockNumber) -> BlockHash {
+        self.clients
+            .get_batcher_shared_client()
+            .unwrap()
+            .get_block_hash(block_number)
+            .await
+            .unwrap()
+    }
+
+    pub async fn get_global_root_height(&self) -> BlockNumber {
+        self.batcher_storage_reader.global_root_height().unwrap()
     }
 }
 
