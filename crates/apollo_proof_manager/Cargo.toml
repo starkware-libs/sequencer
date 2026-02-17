@@ -24,7 +24,9 @@ starknet-types-core = { workspace = true, features = ["hash"] }
 starknet_api.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
+tokio = { workspace = true, features = ["fs", "io-util"] }
 
 
 [dev-dependencies]
 starknet_api = { workspace = true, features = ["testing"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
