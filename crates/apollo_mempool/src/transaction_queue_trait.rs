@@ -44,4 +44,7 @@ pub trait TransactionQueueTrait: Send + Sync {
     fn pending_queue_len(&self) -> usize {
         0
     }
+
+    #[cfg(test)]
+    fn pending_txs(&self) -> Vec<TransactionReference>;
 }

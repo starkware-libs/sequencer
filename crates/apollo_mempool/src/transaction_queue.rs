@@ -144,6 +144,11 @@ impl TransactionQueueTrait for TransactionQueue {
             self.insert(tx_reference, validate_resource_bounds);
         }
     }
+
+    #[cfg(test)]
+    fn pending_txs(&self) -> Vec<TransactionReference> {
+        self.pending_queue.iter().map(|tx| tx.0).collect()
+    }
 }
 
 impl TransactionQueue {

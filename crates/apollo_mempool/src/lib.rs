@@ -1,4 +1,5 @@
 pub mod communication;
+pub(crate) mod fifo_transaction_queue;
 pub mod mempool;
 pub mod metrics;
 pub(crate) mod transaction_pool;
@@ -8,3 +9,5 @@ pub(crate) mod utils;
 
 #[cfg(test)]
 pub mod test_utils;
+#[cfg(test)]
+mod fifo_mempool_test;
