@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771150103928,
+  "lastUpdate": 1771319740504,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2447,6 +2447,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1239.18905645,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "dori@starkware.co",
+            "name": "dorimedini-starkware",
+            "username": "dorimedini-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "68e741e2d17d0ba844fa3cf04afd9a29a1703932",
+          "message": "apollo_batcher,apollo_committer: make some info logs debug (#12643)\n\nSigned-off-by: Dori Medini <dori@starkware.co>",
+          "timestamp": "2026-02-17T08:55:31Z",
+          "tree_id": "229e43b89bffd2a944638a19261953e6dd93d220",
+          "url": "https://github.com/starkware-libs/sequencer/commit/68e741e2d17d0ba844fa3cf04afd9a29a1703932"
+        },
+        "date": 1771319740173,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 766.43685471,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1182.09358772,
             "unit": "ms"
           }
         ]
