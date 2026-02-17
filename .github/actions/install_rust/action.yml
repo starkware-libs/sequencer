@@ -13,7 +13,7 @@ runs:
   using: "composite"
   steps:
     - name: Mount Namespace cache volume
-      uses: namespacelabs/nscloud-cache-action@v1
+      uses: namespacelabs/nscloud-cache-action@yoav/ci/caching/use_sccache
       with:
         path: |
           /home/runner/.cargo
