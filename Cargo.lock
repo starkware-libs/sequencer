@@ -2303,6 +2303,7 @@ dependencies = [
  "starknet_api",
  "tempfile",
  "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
