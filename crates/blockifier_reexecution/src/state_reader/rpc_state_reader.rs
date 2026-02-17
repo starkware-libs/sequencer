@@ -11,7 +11,7 @@ use blockifier::blockifier::transaction_executor::{
 };
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
-use blockifier::context::BlockContext;
+use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -119,9 +119,8 @@ pub struct RpcStateReader {
     pub config: RpcStateReaderConfig,
     pub block_id: BlockId,
     pub(crate) retry_config: RetryConfig,
-    pub chain_id: ChainId,
-    /// Optional override for the STRK fee token address.
-    pub strk_fee_token_address: Option<ContractAddress>,
+
+    pub chain_info: ChainInfo,
     #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
@@ -133,8 +132,7 @@ impl Default for RpcStateReader {
             config,
             block_id: BlockId::Latest,
             retry_config: RetryConfig::default(),
-            chain_id: ChainId::Mainnet,
-            strk_fee_token_address: None,
+            chain_info: get_chain_info(&ChainId::Mainnet, None),
             contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
         }
     }
@@ -143,7 +141,7 @@ impl Default for RpcStateReader {
 impl RpcStateReader {
     pub fn new(
         config: &RpcStateReaderConfig,
-        chain_id: ChainId,
+        chain_info: ChainInfo,
         block_number: BlockNumber,
         dump_mode: bool,
     ) -> Self {
@@ -155,19 +153,16 @@ impl RpcStateReader {
             config: config.clone(),
             block_id: BlockId::Number(block_number),
             retry_config: RetryConfig::default(),
-            chain_id,
-            strk_fee_token_address: None,
+            chain_info,
             contract_class_mapping_dumper,
         }
     }
 
-    /// Creates an RpcStateReader from a node URL, chain ID, and block ID.
-    /// Optionally accepts a STRK fee token address override for custom environments.
+    /// Creates an RpcStateReader from a node URL, chain info, and block ID.
     pub fn new_with_config_from_url(
         node_url: String,
-        chain_id: ChainId,
+        chain_info: ChainInfo,
         block_id: BlockId,
-        strk_fee_token_address: Option<ContractAddress>,
     ) -> Self {
         let config = RpcStateReaderConfig::from_url(node_url);
         let contract_class_mapping_dumper = Arc::new(Mutex::new(None));
@@ -175,14 +170,18 @@ impl RpcStateReader {
             config,
             block_id,
             retry_config: RetryConfig::default(),
-            chain_id,
-            strk_fee_token_address,
+            chain_info,
             contract_class_mapping_dumper,
         }
     }
 
     pub fn new_for_testing(block_number: BlockNumber) -> Self {
-        RpcStateReader::new(&get_rpc_state_reader_config(), ChainId::Mainnet, block_number, false)
+        RpcStateReader::new(
+            &get_rpc_state_reader_config(),
+            get_chain_info(&ChainId::Mainnet, None),
+            block_number,
+            false,
+        )
     }
 
     // Note: This function is blocking though it is sending a request to the rpc server and waiting
@@ -308,7 +307,7 @@ impl RpcStateReader {
     pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
         Ok(BlockContext::new(
             self.get_block_info()?,
-            get_chain_info(&self.chain_id, self.strk_fee_token_address),
+            self.chain_info.clone(),
             self.get_versioned_constants()?,
             BouncerConfig::max(),
         ))
@@ -540,7 +539,7 @@ impl ConsecutiveRpcStateReaders {
     pub fn new(
         last_constructed_block_number: BlockNumber,
         config: Option<RpcStateReaderConfig>,
-        chain_id: ChainId,
+        chain_info: ChainInfo,
         dump_mode: bool,
         contract_class_manager: ContractClassManager,
     ) -> Self {
@@ -548,13 +547,13 @@ impl ConsecutiveRpcStateReaders {
         Self {
             last_block_state_reader: RpcStateReader::new(
                 &config,
-                chain_id.clone(),
+                chain_info.clone(),
                 last_constructed_block_number,
                 dump_mode,
             ),
             next_block_state_reader: RpcStateReader::new(
                 &config,
-                chain_id,
+                chain_info,
                 last_constructed_block_number.next().expect("Overflow in block number"),
                 dump_mode,
             ),
@@ -603,8 +602,8 @@ impl ConsecutiveRpcStateReaders {
         self,
         tx: Transaction,
     ) -> ReexecutionResult<(TransactionExecutionOutput, StateMaps, BlockContext)> {
-        let chain_id = self.next_block_state_reader.chain_id.clone();
-        let transaction_hash = tx.calculate_transaction_hash(&chain_id)?;
+        let chain_id = &self.next_block_state_reader.chain_info.chain_id;
+        let transaction_hash = tx.calculate_transaction_hash(chain_id)?;
 
         let blockifier_txs = self
             .next_block_state_reader
@@ -640,11 +639,11 @@ impl ConsecutiveRpcStateReaders {
                 let json_content = read_to_string(&tx_path).unwrap_or_else(|_| {
                     panic!("Failed to read transaction JSON file: {}.", tx_path)
                 });
-                let chain_id = self.next_block_state_reader.chain_id.clone();
+                let chain_id = &self.next_block_state_reader.chain_info.chain_id;
 
                 let json_value: Value = serde_json::from_str(&json_content)?;
                 let transaction = deserialize_transaction_json_to_starknet_api_tx(json_value)?;
-                let transaction_hash = transaction.calculate_transaction_hash(&chain_id)?;
+                let transaction_hash = transaction.calculate_transaction_hash(chain_id)?;
 
                 (transaction, transaction_hash)
             }
@@ -659,7 +658,7 @@ impl ConsecutiveRpcStateReaders {
 
     /// Writes the reexecution data required to reexecute a block to a JSON file.
     pub fn write_block_reexecution_data_to_file(self, full_file_path: &str) {
-        let chain_id = self.next_block_state_reader.chain_id.clone();
+        let chain_id = self.next_block_state_reader.chain_info.chain_id.clone();
         let block_number = self.next_block_state_reader.get_block_info().unwrap().block_number;
 
         let serializable_data_next_block = self.get_serializable_data_next_block().unwrap();
