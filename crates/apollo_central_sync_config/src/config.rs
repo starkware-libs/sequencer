@@ -114,8 +114,6 @@ pub struct SyncConfig {
     pub state_updates_max_stream_size: u32,
     pub verify_blocks: bool,
     pub collect_pending_data: bool,
-    // TODO(noamsp): get rid of this config param.
-    pub store_sierras_and_casms_block_threshold: u64,
 }
 
 impl SerializeConfig for SyncConfig {
@@ -165,17 +163,6 @@ impl SerializeConfig for SyncConfig {
                 "Whether to collect data on pending blocks.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "store_sierras_and_casms_block_threshold",
-                &self.store_sierras_and_casms_block_threshold,
-                "Block-number threshold for persisting **Sierra** and **CASM** to local storage \
-                 (for backward compatibility with the native blockifier). For blocks with \
-                 block_number < this value, Sierra and CASM are stored for all classes; for \
-                 block_number >= this value they are stored only for **legacy** classes (compiled \
-                 with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Use 0 to store for no \
-                 blocks, or a large value (e.g. u64::MAX) to store for all.",
-                ParamPrivacyInput::Public,
-            ),
         ])
     }
 }
@@ -190,7 +177,6 @@ impl Default for SyncConfig {
             state_updates_max_stream_size: 1000,
             verify_blocks: true,
             collect_pending_data: false,
-            store_sierras_and_casms_block_threshold: 0,
         }
     }
 }
