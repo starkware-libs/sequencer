@@ -118,7 +118,7 @@ pub struct RunnerConfig {
     pub(crate) storage_proof_config: StorageProofConfig,
 }
 
-pub(crate) struct RunnerOutput {
+pub struct RunnerOutput {
     pub cairo_pie: CairoPie,
     pub l2_to_l1_messages: Vec<MessageToL1>,
 }

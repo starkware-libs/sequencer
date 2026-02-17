@@ -19,7 +19,7 @@ use url::Url;
 use crate::config::ProverConfig;
 use crate::errors::{ProvingError, RunnerError};
 use crate::proving::prover::prove;
-use crate::runner::{RpcRunnerFactory, VirtualSnosRunner};
+use crate::runner::{RpcRunnerFactory, RunnerOutput, VirtualSnosRunner};
 
 /// Error type for the virtual SNOS prover.
 #[derive(Debug, thiserror::Error)]
@@ -116,9 +116,8 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
     ///
     /// This method:
     /// 1. Validates and extracts the invoke transaction.
-    /// 2. Calculates the transaction hash.
-    /// 3. Runs the Starknet OS.
-    /// 4. Generates a proof.
+    /// 2. Runs the Starknet OS.
+    /// 3. Generates a proof via [`prove_snos_run`].
     #[instrument(skip(self, transaction), fields(block_id = ?block_id, tx_hash))]
     pub async fn prove_transaction(
         &self,
@@ -155,7 +154,7 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
 
         // Run the prover.
         let prove_start = Instant::now();
-        let prover_output = prove(runner_output.cairo_pie).await?;
+        let result = prove_virtual_snos_run(runner_output).await?;
         let prove_duration = prove_start.elapsed();
         let total_duration = start_time.elapsed();
 
@@ -165,17 +164,27 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             "Proving completed"
         );
 
-        // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
-        let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
-
-        let result = ProveTransactionResult {
-            proof: prover_output.proof,
-            proof_facts,
-            l2_to_l1_messages: runner_output.l2_to_l1_messages,
-        };
-
         Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
     }
+}
+
+/// Proves a Virtual Starknet OS run from its output.
+///
+/// Generates a proof from the given [`RunnerOutput`] and converts the program output into proof
+/// facts.
+pub async fn prove_virtual_snos_run(
+    runner_output: RunnerOutput,
+) -> Result<ProveTransactionResult, VirtualSnosProverError> {
+    let prover_output = prove(runner_output.cairo_pie).await?;
+
+    // Convert program output to proof facts using VIRTUAL_SNOS variant marker.
+    let proof_facts = prover_output.program_output.try_into_proof_facts(VIRTUAL_SNOS)?;
+
+    Ok(ProveTransactionResult {
+        proof: prover_output.proof,
+        proof_facts,
+        l2_to_l1_messages: runner_output.l2_to_l1_messages,
+    })
 }
 
 /// Validates that the transaction is an Invoke transaction and extracts it.
