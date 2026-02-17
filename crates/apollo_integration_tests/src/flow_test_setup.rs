@@ -31,7 +31,7 @@ use apollo_storage::storage_reader_server::{
 };
 use apollo_storage::storage_reader_server_test_utils::send_storage_reader_http_request;
 use apollo_storage::storage_reader_types::{StorageReaderRequest, StorageReaderResponse};
-use apollo_storage::StorageConfig;
+use apollo_storage::{MarkerKind, StorageConfig};
 use blockifier::context::ChainInfo;
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::{
@@ -45,7 +45,7 @@ use papyrus_base_layer::test_utils::{
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use papyrus_base_layer::BaseLayerContract;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
@@ -339,6 +339,16 @@ impl FlowSequencerSetup {
         self.clients.get_batcher_shared_client().unwrap().get_height().await.unwrap().height
     }
 
+    pub async fn get_block_hash(&self, block_number: BlockNumber) -> BlockHash {
+        let response = self
+            .send_batcher_storage_reader_request(StorageReaderRequest::BlockHash(block_number))
+            .await;
+        match response {
+            StorageReaderResponse::BlockHash(block_hash) => block_hash,
+            other => panic!("Expected BlockHash response, got: {other:?}"),
+        }
+    }
+
     fn batcher_storage_reader_server_addr(&self) -> SocketAddr {
         let batcher_config = self.node_config.batcher_config.as_ref().unwrap();
         let static_config = &batcher_config.static_config.storage_reader_server_static_config;
@@ -350,6 +360,18 @@ impl FlowSequencerSetup {
         request: StorageReaderRequest,
     ) -> StorageReaderResponse {
         send_storage_reader_http_request(self.batcher_storage_reader_server_addr(), &request).await
+    }
+
+    pub async fn get_global_root_height(&self) -> BlockNumber {
+        let response = self
+            .send_batcher_storage_reader_request(StorageReaderRequest::Markers(
+                MarkerKind::GlobalRoot,
+            ))
+            .await;
+        match response {
+            StorageReaderResponse::Markers(block_number) => block_number,
+            other => panic!("Expected Markers response, got: {other:?}"),
+        }
     }
 }
 
