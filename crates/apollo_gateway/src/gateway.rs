@@ -44,7 +44,12 @@ use crate::errors::{
     transaction_converter_err_to_deprecated_gw_err,
     GatewayResult,
 };
-use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
+use crate::metrics::{
+    register_metrics,
+    GatewayMetricHandle,
+    GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_PROOF_MANAGER_STORE_LATENCY,
+};
 use crate::proof_archive_writer::{
     GcsProofArchiveWriter,
     NoOpProofArchiveWriter,
@@ -205,6 +210,8 @@ impl<
                 .await;
             match store_result {
                 Ok(proof_manager_store_duration) => {
+                    GATEWAY_PROOF_MANAGER_STORE_LATENCY
+                        .record(proof_manager_store_duration.as_secs_f64());
                     info!(
                         "Proof manager store in the gateway took: \
                          {proof_manager_store_duration:?} for tx hash: {tx_hash:?}"
