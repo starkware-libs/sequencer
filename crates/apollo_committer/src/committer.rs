@@ -164,7 +164,7 @@ where
             .await;
         match &result {
             Ok(_) => {
-                info!("Committed block number {height} with state diff {state_diff_commitment:?}");
+                debug!("Committed block number {height} with state diff {state_diff_commitment:?}");
             }
             Err(err) => {
                 error!("Failed to commit block number {height}: {err:?}");
@@ -458,7 +458,7 @@ fn update_metrics(
     READ_DURATION_PER_BLOCK.record_lossy(durations.read);
     COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
     WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
-    info!(
+    debug!(
         "Total/read/compute/write duration of block {height}: {:.0}/{:.0}/{:.0}/{:.0} ms",
         durations.block * 1000.0,
         durations.read * 1000.0,
@@ -468,19 +468,19 @@ fn update_metrics(
     READ_DB_ENTRIES_PER_BLOCK.set_lossy(*n_reads);
     WRITE_DB_ENTRIES_PER_BLOCK.set_lossy(*n_writes);
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
-    info!("Storage tries modifications in block {height}: {}", modifications_counts.storage_tries);
+    debug!("Storage tries modifications in block {height}: {}", modifications_counts.storage_tries);
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.contracts_trie);
-    info!(
+    debug!(
         "Contracts trie modifications in block {height}: {}",
         modifications_counts.contracts_trie
     );
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.classes_trie);
-    info!("Classes trie modifications in block {height}: {}", modifications_counts.classes_trie);
+    debug!("Classes trie modifications in block {height}: {}", modifications_counts.classes_trie);
     COUNT_EMPTIED_LEAVES_PER_BLOCK.record_lossy(modifications_counts.emptied_storage_leaves);
     if modifications_counts.storage_tries > 0 {
         let empty_leaves_percentage = modifications_counts.emptied_storage_leaves as f64
             / modifications_counts.storage_tries as f64;
         EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.record_lossy(empty_leaves_percentage);
-        info!("Emptied leaves percentage in block {height}: {empty_leaves_percentage:.2}%");
+        debug!("Emptied leaves percentage in block {height}: {empty_leaves_percentage:.2}%");
     }
 }
