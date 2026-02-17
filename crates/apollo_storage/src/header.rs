@@ -485,7 +485,31 @@ fn update_marker<'env>(
 ) -> StorageResult<()> {
     // Make sure marker is consistent.
     let header_marker = markers_table.get(txn, &MarkerKind::Header)?.unwrap_or_default();
+    // #region agent log
+    {
+        let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+        for path in &paths {
+            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                use std::io::Write;
+                let _ = writeln!(file, r#"{{"timestamp":{},"location":"header.rs:update_marker","message":"Header marker check","data":{{"header_marker":{},"block_number":{}}},"hypothesisId":"HEADER"}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(), header_marker.0, block_number.0);
+                break;
+            }
+        }
+    }
+    // #endregion
     if header_marker != block_number {
+        // #region agent log
+        {
+            let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+            for path in &paths {
+                if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                    use std::io::Write;
+                    let _ = writeln!(file, r#"{{"timestamp":{},"location":"header.rs:update_marker:MISMATCH","message":"HEADER MARKER MISMATCH","data":{{"header_marker":{},"block_number":{}}},"hypothesisId":"HEADER"}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(), header_marker.0, block_number.0);
+                    break;
+                }
+            }
+        }
+        // #endregion
         return Err(StorageError::MarkerMismatch { expected: header_marker, found: block_number });
     };
 
