@@ -1194,6 +1194,22 @@ fn test_estimate_minimal_gas_vector(
         gas_vector_computation_mode == GasVectorComputationMode::All
     );
     assert_eq!(minimal_l1_data_gas > 0_u8.into(), use_kzg_da);
+
+    // Client-side Proving: only in V3 transactions with AllResourceBounds.
+    if gas_vector_computation_mode == GasVectorComputationMode::All {
+        let tx_with_proof = invoke_tx_with_default_flags(invoke_tx_args! {
+            proof_facts: create_valid_proof_facts_for_testing(),
+            ..valid_invoke_tx_args
+        });
+        let gas_with_proof = estimate_minimal_gas_vector(
+            &block_context,
+            &tx_with_proof,
+            &gas_vector_computation_mode,
+        );
+
+        // Proof Facts increase minimal L2 gas.
+        assert!(gas_with_proof.l2_gas > minimal_gas_vector.l2_gas);
+    }
 }
 
 #[rstest]
