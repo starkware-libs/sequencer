@@ -49,7 +49,7 @@ jobs:
   native-blockifier-artifacts-push:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Commit hash on pull request event would be the head commit of the branch.
       - name: Get commit hash prefix for PR update

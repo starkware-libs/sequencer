@@ -1,25 +1,23 @@
-use std::time::Duration;
-
 use apollo_gateway::metrics::{
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_SUCCESS;
+use apollo_infra_utils::template::Template;
 use apollo_mempool::metrics::MEMPOOL_TRANSACTIONS_RECEIVED;
 use apollo_metrics::metrics::MetricQueryName;
 
+use crate::alert_placeholders::{format_sampling_window, ExpressionOrExpressionWithPlaceholder};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
-    SECS_IN_MIN,
 };
 
 fn build_idle_alert(
@@ -27,20 +25,23 @@ fn build_idle_alert(
     alert_title: &str,
     alert_group: AlertGroup,
     metric_name_with_filter: &str,
-    duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
+    let expr_template_string =
+        format!("sum(increase({}[{{}}s])) or vector(0)", metric_name_with_filter);
     Alert::new(
         alert_name,
         alert_title,
         alert_group,
-        format!("sum(increase({}[{}s])) or vector(0)", metric_name_with_filter, duration.as_secs()),
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![format_sampling_window(alert_name)],
+        ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 0.1, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
@@ -50,7 +51,6 @@ pub(crate) fn get_http_server_no_successful_transactions() -> Alert {
         "http server no successful transactions",
         AlertGroup::HttpServer,
         &ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
-        Duration::from_secs(30 * SECS_IN_MIN),
         AlertSeverity::Informational,
     )
 }
@@ -61,7 +61,6 @@ pub(crate) fn get_gateway_add_tx_idle() -> Alert {
         "Gateway add_tx idle (p2p+rpc)",
         AlertGroup::Gateway,
         &GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter(),
-        Duration::from_secs(2 * SECS_IN_MIN),
         AlertSeverity::Regular,
     )
 }
@@ -72,15 +71,11 @@ pub(crate) fn get_mempool_add_tx_idle() -> Alert {
         "Mempool add_tx idle (p2p+rpc)",
         AlertGroup::Mempool,
         &MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
-        Duration::from_secs(2 * SECS_IN_MIN),
         AlertSeverity::Sos,
     )
 }
 
-fn get_gateway_low_successful_transaction_rate(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_gateway_low_successful_transaction_rate(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "gateway_low_successful_transaction_rate",
         "gateway low successful transaction rate",
@@ -94,19 +89,9 @@ fn get_gateway_low_successful_transaction_rate(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_gateway_low_successful_transaction_rate_vec() -> Vec<Alert> {
-    vec![
-        get_gateway_low_successful_transaction_rate(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-        get_gateway_low_successful_transaction_rate(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_gateway_low_successful_transaction_rate(AlertSeverity::DayOnly)]
 }

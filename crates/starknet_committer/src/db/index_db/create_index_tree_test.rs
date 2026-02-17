@@ -12,11 +12,11 @@ use crate::db::create_original_skeleton_tests::{
     test_create_original_skeleton,
     CreateTreeCase,
 };
-use crate::db::index_db::db::IndexNodeLayout;
 use crate::db::index_db::test_utils::convert_facts_db_to_index_db;
-use crate::hash_function::hash::TreeHashFunctionImpl;
+use crate::db::index_db::IndexNodeLayout;
+use crate::hash_function::mock_hash::MockTreeHashFunction;
 
-impl TreeHashFunction<MockLeaf> for TreeHashFunctionImpl {
+impl TreeHashFunction<MockLeaf> for MockTreeHashFunction {
     fn compute_leaf_hash(leaf_data: &MockLeaf) -> HashOutput {
         HashOutput(leaf_data.0)
     }
@@ -41,7 +41,7 @@ async fn test_create_tree_index_layout(
     )
     .await;
 
-    test_create_original_skeleton::<MockLeaf, IndexNodeLayout>(
+    test_create_original_skeleton::<MockLeaf, IndexNodeLayout<MockTreeHashFunction>>(
         &mut storage,
         &case.leaf_modifications,
         case.root_hash,

@@ -21,7 +21,6 @@ apollo_proc_macros.workspace = true
 apollo_proof_manager_types.workspace = true
 apollo_protobuf.workspace = true
 apollo_sizeof.workspace = true
-apollo_staking.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_time = { workspace = true, features = ["tokio"] }
 apollo_transaction_converter.workspace = true

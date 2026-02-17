@@ -10,7 +10,8 @@ use apollo_infra::metrics::{
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::metrics::{LabeledMetricHistogram, MetricDetails, MetricQueryName};
 
-use crate::dashboard::{Panel, PanelType, Row, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, HISTOGRAM_QUANTILES, HISTOGRAM_TIME_RANGE};
 use crate::query_builder::increase;
 
 const INFRA_ROW_TITLE_SUFFIX: &str = "Infra";
@@ -190,8 +191,6 @@ fn get_request_type_panels(
         .collect::<Vec<_>>()
 }
 
-// TODO(Tsabary): define a trait that includes the `get_all_labeled_metrics` fn, and then unify
-// these two functions.
 fn get_infra_client_panels(
     local_client_metrics: &LocalClientMetrics,
     remote_client_metrics: &RemoteClientMetrics,

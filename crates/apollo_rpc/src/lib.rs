@@ -61,11 +61,6 @@ pub use crate::v0_8::transaction::{
 };
 pub use crate::v0_8::write_api_result::AddInvokeOkResult as AddInvokeOkResultRPC0_8;
 
-// TODO(Shahak): Consider adding genesis hash to the config to support chains that have
-// different genesis hash.
-// TODO(DanB): Consider moving to a more general place.
-const GENESIS_HASH: &str = "0x0";
-
 /// Maximum size of a supported transaction body - 10MB.
 pub const SERVER_MAX_BODY_SIZE: u32 = 10 * 1024 * 1024;
 

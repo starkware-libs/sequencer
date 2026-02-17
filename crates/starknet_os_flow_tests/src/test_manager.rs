@@ -56,7 +56,7 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_os::commitment_infos::create_commitment_infos;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;

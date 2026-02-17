@@ -1,6 +1,6 @@
 use starknet_committer::block_committer::commit::{CommitBlockImpl, CommitBlockTrait};
 use starknet_committer::block_committer::measurements_util::NoMeasurements;
-use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::StorageInitializer;
 use starknet_patricia_storage::map_storage::MapStorage;
 use tracing::info;

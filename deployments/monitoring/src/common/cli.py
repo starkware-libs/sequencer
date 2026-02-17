@@ -1,7 +1,5 @@
 import argparse
 
-from common.env import EnvironmentName
-
 
 def arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build And Upload Grafana Alerts")
@@ -60,12 +58,6 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
         required=True,
         help="Provide Kubernetes cluster to inject into alert expressions.",
-    )
-    parser.add_argument(
-        "--env",
-        type=str,
-        choices=[e.value for e in EnvironmentName],
-        required=True,
     )
     parser.add_argument(
         "--dashboard-overrides-config-file",

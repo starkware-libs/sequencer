@@ -8,16 +8,17 @@ use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
+use crate::transaction_queue_trait::TransactionQueueTrait;
 
 #[cfg(test)]
-#[path = "transaction_queue_test_utils.rs"]
-pub mod transaction_queue_test_utils;
+#[path = "fee_transaction_queue_test_utils.rs"]
+pub mod fee_transaction_queue_test_utils;
 
 // A queue holding the transaction that with nonces that match account nonces.
 // Note: the derived comparison functionality considers the order guaranteed by the data structures
 // used.
 #[derive(Debug, Default)]
-pub struct TransactionQueue {
+pub struct FeeTransactionQueue {
     gas_price_threshold: GasPrice,
     // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
@@ -27,12 +28,12 @@ pub struct TransactionQueue {
     address_to_tx: HashMap<ContractAddress, TransactionReference>,
 }
 
-impl TransactionQueue {
+impl TransactionQueueTrait for FeeTransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
     /// If `validate_resource_bounds` is false, the transaction is added to the priority queue,
     /// regardless of it's L2 gas price bound.
-    pub fn insert(&mut self, tx_reference: TransactionReference, validate_resource_bounds: bool) {
+    fn insert(&mut self, tx_reference: TransactionReference, validate_resource_bounds: bool) {
         assert_eq!(
             self.address_to_tx.insert(tx_reference.address, tx_reference),
             None,
@@ -53,16 +54,8 @@ impl TransactionQueue {
         );
     }
 
-    pub fn priority_queue_len(&self) -> usize {
-        self.priority_queue.len()
-    }
-
-    pub fn pending_queue_len(&self) -> usize {
-        self.pending_queue.len()
-    }
-
     // TODO(gilad): remove collect, if returning an iterator is possible.
-    pub fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
+    fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.priority_queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
@@ -74,17 +67,17 @@ impl TransactionQueue {
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
-    pub fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference> {
+    fn iter_over_ready_txs(&self) -> impl Iterator<Item = &TransactionReference> {
         self.priority_queue.iter().rev().map(|tx| &tx.0)
     }
 
-    pub fn get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
+    fn get_nonce(&self, address: ContractAddress) -> Option<Nonce> {
         self.address_to_tx.get(&address).map(|tx| tx.nonce)
     }
 
     /// Removes the transaction of the given account address from the queue.
     /// This is well-defined, since there is at most one transaction per address in the queue.
-    pub fn remove(&mut self, address: ContractAddress) -> bool {
+    fn remove_by_address(&mut self, address: ContractAddress) -> bool {
         let Some(tx_reference) = self.address_to_tx.remove(&address) else {
             return false;
         };
@@ -95,23 +88,23 @@ impl TransactionQueue {
 
     /// Removes the given transactions from the queue.
     /// If a transaction is not found, it is ignored.
-    pub fn remove_txs(&mut self, txs: &[TransactionReference]) -> Vec<TransactionReference> {
+    fn remove_txs(&mut self, txs: &[TransactionReference]) -> Vec<TransactionReference> {
         let mut removed_txs = Vec::new();
         for tx in txs {
             let queued_tx = self.address_to_tx.get(&tx.address);
             if queued_tx.is_some_and(|queued_tx| queued_tx.tx_hash == tx.tx_hash) {
-                self.remove(tx.address);
+                self.remove_by_address(tx.address);
                 removed_txs.push(*tx);
             };
         }
         removed_txs
     }
 
-    pub fn has_ready_txs(&self) -> bool {
+    fn has_ready_txs(&self) -> bool {
         !self.priority_queue.is_empty()
     }
 
-    pub fn update_gas_price_threshold(&mut self, threshold: GasPrice) {
+    fn update_gas_price_threshold(&mut self, threshold: GasPrice) {
         match threshold.cmp(&self.gas_price_threshold) {
             Ordering::Less => self.promote_txs_to_priority(threshold),
             Ordering::Greater => self.demote_txs_to_pending(threshold),
@@ -121,6 +114,39 @@ impl TransactionQueue {
         self.gas_price_threshold = threshold;
     }
 
+    fn queue_snapshot(&self) -> TransactionQueueSnapshot {
+        let priority_queue = self.priority_queue.iter().map(|tx| tx.0.tx_hash).collect();
+        let pending_queue = self.pending_queue.iter().map(|tx| tx.0.tx_hash).collect();
+
+        TransactionQueueSnapshot {
+            gas_price_threshold: self.gas_price_threshold,
+            priority_queue,
+            pending_queue,
+        }
+    }
+
+    fn rewind_txs(
+        &mut self,
+        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
+        validate_resource_bounds: bool,
+    ) {
+        // Rewind by re-inserting the next transaction for each address.
+        for (address, tx_reference) in next_txs_by_address {
+            self.remove_by_address(address);
+            self.insert(tx_reference, validate_resource_bounds);
+        }
+    }
+
+    fn priority_queue_len(&self) -> usize {
+        self.priority_queue.len()
+    }
+
+    fn pending_queue_len(&self) -> usize {
+        self.pending_queue.len()
+    }
+}
+
+impl FeeTransactionQueue {
     fn promote_txs_to_priority(&mut self, threshold: GasPrice) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
             max_l2_gas_price: threshold,
@@ -154,17 +180,6 @@ impl TransactionQueue {
             self.priority_queue.remove(tx);
         }
         self.pending_queue.extend(txs_to_remove.iter().map(|tx| PendingTransaction::from(tx.0)));
-    }
-
-    pub fn queue_snapshot(&self) -> TransactionQueueSnapshot {
-        let priority_queue = self.priority_queue.iter().map(|tx| tx.0.tx_hash).collect();
-        let pending_queue = self.pending_queue.iter().map(|tx| tx.0.tx_hash).collect();
-
-        TransactionQueueSnapshot {
-            gas_price_threshold: self.gas_price_threshold,
-            priority_queue,
-            pending_queue,
-        }
     }
 }
 

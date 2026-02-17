@@ -1,3 +1,5 @@
+# TODO(Tsabary): remove this entire module.
+
 from enum import Enum
 
 
@@ -8,7 +10,6 @@ class EnvironmentName(Enum):
     MAINNET = "mainnet"
 
 
-# TODO(Tsabary): remove this enum and use the placeholder mechanism instead.
 # Translates the environment name to a suffix for alert filenames. We use the `mainnet` setting for development and the mainnet environment.
 # The `testnet` setting is used for integration and testnet environments.
 def alert_env_filename_suffix(env: EnvironmentName) -> str:

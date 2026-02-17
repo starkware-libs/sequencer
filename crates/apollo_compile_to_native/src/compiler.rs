@@ -39,9 +39,9 @@ impl SierraToNativeCompiler {
         let optimization_level = self.config.optimization_level.to_string();
         let additional_args = [output_file_path, "--opt-level", &optimization_level];
         let resource_limits = ResourceLimits::new(
-            self.config.max_cpu_time,
+            Some(self.config.max_cpu_time),
             self.config.max_file_size,
-            self.config.max_memory_usage,
+            Some(self.config.max_memory_usage),
         );
         let _stdout = compile_with_args(
             compiler_binary_path,

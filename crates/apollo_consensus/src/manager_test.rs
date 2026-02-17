@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
 
@@ -20,6 +20,13 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalCommitment, Vote, DEFAULT_VALIDATOR_ID};
+use apollo_staking::committee_provider::{
+    CommitteeProvider,
+    CommitteeTrait,
+    MockCommitteeProvider,
+    MockCommitteeTrait,
+    Staker,
+};
 use apollo_storage::StorageConfig;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
@@ -29,14 +36,16 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
+use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
+use tokio::sync::Mutex;
 
 use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::storage::MockHeightVotedStorageTrait;
 use crate::test_utils::{
-    block_info,
     precommit,
     prevote,
+    proposal_init,
     MockTestContext,
     NoOpHeightVotedStorage,
     TestProposalPart,
@@ -44,6 +53,32 @@ use crate::test_utils::{
 use crate::types::{ConsensusError, Round, ValidatorId};
 use crate::votes_threshold::QuorumType;
 use crate::RunConsensusArguments;
+
+fn mock_committee_with_members_and_proposer(
+    member_ids: Vec<ValidatorId>,
+    proposer_id: ValidatorId,
+) -> Arc<dyn CommitteeTrait> {
+    let members = member_ids
+        .into_iter()
+        .map(|address| Staker { address, weight: StakingWeight(1), public_key: Felt::ZERO })
+        .collect::<Vec<_>>();
+    let mut mock_committee = MockCommitteeTrait::new();
+    mock_committee.expect_members().return_const(members);
+    mock_committee.expect_get_proposer().returning(move |_, _| Ok(proposer_id));
+    mock_committee.expect_get_actual_proposer().returning(move |_, _| proposer_id);
+    Arc::new(mock_committee)
+}
+
+fn mock_committee_provider_with_members(
+    member_ids: Vec<ValidatorId>,
+) -> Arc<dyn CommitteeProvider> {
+    let committee = mock_committee_with_members_and_proposer(member_ids, *PROPOSER_ID);
+    let mut committee_provider = MockCommitteeProvider::new();
+    committee_provider
+        .expect_get_committee()
+        .returning(move |_| Box::pin(std::future::ready(Ok(Arc::clone(&committee)))));
+    Arc::new(committee_provider)
+}
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
@@ -89,6 +124,7 @@ fn consensus_config() -> ConsensusConfig {
             timeouts: TIMEOUTS.clone(),
             sync_retry_interval: SYNC_RETRY_INTERVAL,
             future_msg_limit: FutureMsgLimitsConfig::default(),
+            require_virtual_proposer_vote: true,
         },
         ConsensusStaticConfig {
             storage_config: StorageConfig::default(),
@@ -148,7 +184,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     // Send messages for height 2 followed by those for height 1.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::TWO), HEIGHT_2, ROUND_0, *PROPOSER_ID)).await;
@@ -156,7 +192,7 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
 
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
@@ -166,9 +202,6 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
     // Run the manager for height 1.
     context.expect_try_sync().returning(|_| false);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
-    context.expect_validators().returning(move |_| Ok(vec![*PROPOSER_ID, *VALIDATOR_ID]));
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
@@ -179,12 +212,15 @@ async fn manager_multiple_heights_unordered(consensus_config: ConsensusConfig) {
         .expect_decision_reached()
         .withf(move |_, c| *c == ProposalCommitment(Felt::TWO))
         .return_once(move |_, _| Ok(()));
-
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+        committee_provider,
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -221,9 +257,6 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     expect_validate_proposal(&mut context, Felt::TWO, 1);
-    context.expect_validators().returning(move |_| Ok(vec![*PROPOSER_ID, *VALIDATOR_ID]));
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
@@ -239,7 +272,7 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     // Send messages for height 2.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -247,12 +280,15 @@ async fn run_consensus_sync(consensus_config: ConsensusConfig) {
     let mut network_sender = mock_network.broadcasted_messages_sender;
     send(&mut network_sender, prevote(Some(Felt::TWO), HEIGHT_2, ROUND_0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), HEIGHT_2, ROUND_0, *PROPOSER_ID)).await;
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let run_consensus_args = RunConsensusArguments {
         consensus_config,
         start_active_height: HEIGHT_1,
         quorum_type: QuorumType::Byzantine,
         config_manager_client: None,
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        committee_provider,
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -281,7 +317,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
 
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(None, HEIGHT_1, ROUND_0, *VALIDATOR_ID_2)).await;
@@ -290,13 +326,8 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     send(&mut sender, precommit(None, HEIGHT_1, ROUND_0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     expect_validate_proposal(&mut context, Felt::ONE, 2);
-    context.expect_validators().returning(move |_| {
-        Ok(vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3])
-    });
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_try_sync().returning(|_| false);
 
     let (timeout_send, timeout_receive) = oneshot::channel();
@@ -314,13 +345,20 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
         .expect_decision_reached()
         .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
         .return_once(move |_, _| Ok(()));
-
+    let committee_provider = mock_committee_provider_with_members(vec![
+        *PROPOSER_ID,
+        *VALIDATOR_ID,
+        *VALIDATOR_ID_2,
+        *VALIDATOR_ID_3,
+    ]);
     // Ensure our validator id matches the expectation in the broadcast assertion.
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+        committee_provider,
+    )
+    .await;
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -340,7 +378,7 @@ async fn test_timeouts(consensus_config: ConsensusConfig) {
     // reach a decision.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_1, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_1, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_1, *PROPOSER_ID)).await;
@@ -359,13 +397,12 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     // Check that, even when sync is immediately ready, consensus still handles queued messages.
     let mut context = MockTestContext::new();
     context.expect_try_sync().returning(|_| true);
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
 
     // Send messages
     let (mut proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(0);
     let (mut content_sender, content_receiver) = mpsc::channel(0);
     content_sender
-        .try_send(TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID)))
+        .try_send(TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID)))
         .unwrap();
     proposal_receiver_sender.try_send(content_receiver).unwrap();
 
@@ -378,12 +415,15 @@ async fn timely_message_handling(consensus_config: ConsensusConfig) {
     let vote = prevote(Some(Felt::TWO), HEIGHT_1, ROUND_0, *PROPOSER_ID);
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
-
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+        committee_provider,
+    )
+    .await;
     let res = manager
         .run_height(
             &mut context,
@@ -420,7 +460,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     // Send proposal and votes for height 2 (should be dropped when processing height 0).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_2, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::TWO), HEIGHT_2, ROUND_0, *PROPOSER_ID)).await;
@@ -429,7 +469,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     // Send proposal and votes for height 1 (should be cached when processing height 0).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
@@ -438,7 +478,7 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     // Send proposal and votes for height 0 (current height - needed to reach consensus).
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_0, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_0, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ZERO), HEIGHT_0, ROUND_0, *PROPOSER_ID)).await;
@@ -448,9 +488,6 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
     context.expect_try_sync().returning(|_| false);
     expect_validate_proposal(&mut context, Felt::ZERO, 1); // Height 0 validation
     expect_validate_proposal(&mut context, Felt::ONE, 1); // Height 1 validation
-    context.expect_validators().returning(move |_| Ok(vec![*PROPOSER_ID, *VALIDATOR_ID]));
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     // Set up coordination to detect when node votes Nil for height 2 (indicating proposal was
     // dropped, so the node didn't received the proposal and votes Nil).
@@ -473,12 +510,15 @@ async fn future_height_limit_caching_and_dropping(mut consensus_config: Consensu
         .expect_decision_reached()
         .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
         .return_once(move |_, _| Ok(()));
-
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+        committee_provider,
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
 
     // Run height 0 - should drop height 2 messages, cache height 1 messages, and reach consensus.
@@ -548,12 +588,12 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     // Send proposals for rounds 0 and 1, proposal for round 1 should be dropped.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_1, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_1, *PROPOSER_ID))],
     )
     .await;
 
@@ -574,11 +614,6 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
     context.expect_try_sync().returning(|_| false);
     // Will be called twice for round 0 and 2 (will send the proposal when advancing to round 2).
     expect_validate_proposal(&mut context, Felt::ONE, 2);
-    context
-        .expect_validators()
-        .returning(move |_| Ok(vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2]));
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_broadcast().returning(move |_| Ok(()));
 
     // Set up coordination for round advancement.
@@ -607,12 +642,15 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         .expect_decision_reached()
         .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
         .return_once(move |_, _| Ok(()));
-
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+        committee_provider,
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
 
     // Spawn tasks to send messages when rounds advance.
@@ -633,7 +671,7 @@ async fn current_height_round_limit_caching_and_dropping(mut consensus_config: C
         // Send proposal for round 2.
         send_proposal(
             &mut proposal_sender_clone,
-            vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_2, *PROPOSER_ID))],
+            vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_2, *PROPOSER_ID))],
         )
         .await;
         // Send votes for round 2.
@@ -674,19 +712,9 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     let _vote_sender = mock_network.broadcasted_messages_sender;
     let (_proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    // Context with expectations: H1 we are the validator, learn height via sync; at H2 we are the
-    // proposer.
+    // Context: H1 we sync (try_sync returns true); at H2 we run consensus as the proposer.
     let mut context = MockTestContext::new();
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
-    context.expect_validators().returning(move |h: BlockNumber| {
-        Ok(if h == HEIGHT_1 { vec![*VALIDATOR_ID] } else { vec![*PROPOSER_ID] })
-    });
-    context.expect_proposer().returning(move |h: BlockNumber, _| {
-        Ok(if h == HEIGHT_1 { *VALIDATOR_ID } else { *PROPOSER_ID })
-    });
-    context.expect_virtual_proposer().returning(move |h: BlockNumber, _| {
-        Ok(if h == HEIGHT_1 { *VALIDATOR_ID } else { *PROPOSER_ID })
-    });
     context.expect_try_sync().withf(move |h| *h == HEIGHT_1).times(1).returning(|_| true);
     context.expect_try_sync().returning(|_| false);
     context.expect_broadcast().returning(move |_| Ok(()));
@@ -721,12 +749,26 @@ async fn run_consensus_dynamic_client_updates_validator_between_heights(
     mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(validator_config));
     mock_client.expect_get_consensus_dynamic_config().times(1).return_const(Ok(proposer_config));
 
+    // Prepare committee provider.
+    let mut committee_provider = MockCommitteeProvider::new();
+    let committee_height_1 =
+        mock_committee_with_members_and_proposer(vec![*VALIDATOR_ID], *VALIDATOR_ID);
+    let committee_height_2 =
+        mock_committee_with_members_and_proposer(vec![*PROPOSER_ID], *PROPOSER_ID);
+    committee_provider.expect_get_committee().returning(move |h: BlockNumber| {
+        Box::pin(std::future::ready(Ok(Arc::clone(if h == HEIGHT_1 {
+            &committee_height_1
+        } else {
+            &committee_height_2
+        }))))
+    });
     let run_consensus_args = RunConsensusArguments {
         start_active_height: HEIGHT_1,
         consensus_config,
         quorum_type: QuorumType::Byzantine,
         config_manager_client: Some(Arc::new(mock_client)),
         last_voted_height_storage: Arc::new(Mutex::new(NoOpHeightVotedStorage)),
+        committee_provider: Arc::new(committee_provider),
     };
 
     // Spawn consensus and wait for a decision at height 2.
@@ -766,12 +808,15 @@ async fn manager_successfully_syncs_when_higher_than_last_voted_height(
 
     let mut context = MockTestContext::new();
     context.expect_try_sync().with(eq(CURRENT_HEIGHT)).times(1).returning(|_| true);
-
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
-    );
+        committee_provider,
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -816,7 +861,7 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     // Send a proposal for the height we already voted on:
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(CURRENT_HEIGHT, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(CURRENT_HEIGHT, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), CURRENT_HEIGHT, ROUND_0, *PROPOSER_ID)).await;
@@ -827,21 +872,21 @@ async fn manager_runs_normally_when_height_is_greater_than_last_voted_height(
     // periodically regardless of last voted height functionality).
     context.expect_try_sync().with(eq(CURRENT_HEIGHT)).returning(|_| false);
     expect_validate_proposal(&mut context, Felt::ONE, 1);
-    context.expect_validators().returning(move |_| Ok(vec![*PROPOSER_ID, *VALIDATOR_ID]));
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_broadcast().returning(move |_| Ok(()));
     context
         .expect_decision_reached()
         .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
         .return_once(move |_, _| Ok(()));
-
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
-    );
+        committee_provider,
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -876,7 +921,7 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
     // Send a proposal for the height we already voted on:
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(LAST_VOTED_HEIGHT, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(LAST_VOTED_HEIGHT, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), LAST_VOTED_HEIGHT, ROUND_0, *PROPOSER_ID)).await;
@@ -887,13 +932,15 @@ async fn manager_waits_until_height_passes_last_voted_height(consensus_config: C
     // from storage. We wait 3 retries to make sure it retries.
     context.expect_try_sync().with(eq(LAST_VOTED_HEIGHT)).times(3).returning(|_| false);
     context.expect_try_sync().with(eq(LAST_VOTED_HEIGHT)).times(1).returning(|_| true);
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
-    );
+        committee_provider,
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -930,11 +977,6 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         mpsc::channel(CHANNEL_SIZE);
 
     let mut context = MockTestContext::new();
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_validators().returning(move |_| {
-        Ok(vec![*PROPOSER_ID, *VALIDATOR_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3])
-    });
     context.expect_set_height_and_round().returning(move |_, _| Ok(()));
     context.expect_try_sync().returning(|_| false);
 
@@ -949,15 +991,14 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     // Set up broadcast expectation for prevote - must happen after storage write
     // Use a channel to signal when prevote is broadcast so we can send other votes
     let (prevote_tx, prevote_rx) = oneshot::channel();
-    let prevote_tx_shared = Arc::new(Mutex::new(Some(prevote_tx)));
-    let prevote_tx_for_callback = prevote_tx_shared.clone();
+    let mut prevote_tx = Some(prevote_tx);
     context
         .expect_broadcast()
         .times(1)
         .withf(move |msg: &Vote| msg == &prevote(Some(block_id.0), HEIGHT, ROUND_0, *VALIDATOR_ID))
         .in_sequence(&mut storage_before_broadcast_sequence)
         .returning(move |_| {
-            if let Some(tx) = prevote_tx_for_callback.lock().unwrap().take() {
+            if let Some(tx) = prevote_tx.take() {
                 let _ = tx.send(());
             }
             Ok(())
@@ -974,8 +1015,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     // Set up broadcast expectation for precommit - must happen after storage write
     // Use a channel to signal when precommit is broadcast
     let (precommit_tx, precommit_rx) = oneshot::channel();
-    let precommit_tx_shared = Arc::new(Mutex::new(Some(precommit_tx)));
-    let precommit_tx_for_callback = precommit_tx_shared.clone();
+    let mut precommit_tx_shared = Some(precommit_tx);
     context
         .expect_broadcast()
         .times(1)
@@ -984,7 +1024,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         })
         .in_sequence(&mut storage_before_broadcast_sequence)
         .returning(move |_| {
-            if let Some(tx) = precommit_tx_for_callback.lock().unwrap().take() {
+            if let Some(tx) = precommit_tx_shared.take() {
                 let _ = tx.send(());
             }
             Ok(())
@@ -1000,7 +1040,7 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
     // Send proposal first
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT, ROUND_0, *PROPOSER_ID))],
     )
     .await;
 
@@ -1009,11 +1049,19 @@ async fn writes_voted_height_to_storage(consensus_config: ConsensusConfig) {
         .withf(move |_, c| *c == block_id)
         .return_once(move |_, _| Ok(()));
 
+    let committee_provider = mock_committee_provider_with_members(vec![
+        *PROPOSER_ID,
+        *VALIDATOR_ID,
+        *VALIDATOR_ID_2,
+        *VALIDATOR_ID_3,
+    ]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(mock_height_voted_storage)),
-    );
+        committee_provider,
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
 
     // Spawn a task to send votes after validator votes
@@ -1072,9 +1120,6 @@ async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: Conse
         mpsc::channel(CHANNEL_SIZE);
 
     let mut context = MockTestContext::new();
-    context.expect_validators().returning(move |_| Ok(vec![*PROPOSER_ID, *VALIDATOR_ID]));
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
 
     // Sync should first fail, so consensus will try to run.
     context.expect_try_sync().times(1).returning(|_| false);
@@ -1089,11 +1134,15 @@ async fn manager_fallback_to_sync_on_height_level_errors(consensus_config: Conse
     // Now sync should be called and succeed.
     context.expect_try_sync().withf(move |height| *height == HEIGHT_1).times(1).returning(|_| true);
 
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+        committee_provider,
+    )
+    .await;
     let res = manager
         .run_height(
             &mut context,
@@ -1116,9 +1165,6 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
         mpsc::channel(CHANNEL_SIZE);
 
     let mut context = MockTestContext::new();
-    context.expect_validators().returning(move |_| Ok(vec![*PROPOSER_ID, *VALIDATOR_ID]));
-    context.expect_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
-    context.expect_virtual_proposer().returning(move |_, _| Ok(*PROPOSER_ID));
     context.expect_try_sync().returning(|_| false);
 
     // Send proposal with no content.
@@ -1130,7 +1176,7 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
     // Send a valid proposal and valid votes.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![TestProposalPart::BlockInfo(block_info(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(HEIGHT_1, ROUND_0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), HEIGHT_1, ROUND_0, *PROPOSER_ID)).await;
@@ -1146,11 +1192,15 @@ async fn manager_ignores_invalid_network_messages(consensus_config: ConsensusCon
         .expect_decision_reached()
         .withf(move |_, c| *c == ProposalCommitment(Felt::ONE))
         .return_once(move |_, _| Ok(()));
+    let committee_provider =
+        mock_committee_provider_with_members(vec![*PROPOSER_ID, *VALIDATOR_ID]);
     let mut manager = MultiHeightManager::new(
         consensus_config,
         QuorumType::Byzantine,
         Arc::new(Mutex::new(NoOpHeightVotedStorage)),
-    );
+        committee_provider,
+    )
+    .await;
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(

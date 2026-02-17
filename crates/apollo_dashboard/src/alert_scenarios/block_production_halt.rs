@@ -6,8 +6,9 @@ use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_infra_utils::template::Template;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::alert_definitions::BLOCK_TIME_SEC;
 use crate::alert_placeholders::{
+    format_sampling_window,
+    ComparisonValueOrPlaceholder,
     ExpressionOrExpressionWithPlaceholder,
     SeverityValueOrPlaceholder,
 };
@@ -15,7 +16,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -26,118 +26,73 @@ use crate::alerts::{
 };
 
 /// Block number is stuck for more than duration minutes.
-fn get_consensus_block_number_stuck(
-    alert_name: &'static str,
-    alert_env_filtering: AlertEnvFiltering,
-    // TODO(Tsabary): remove the `_duration` argument.
-    _duration: Duration,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_consensus_block_number_stuck(title: &'static str, alert_severity: AlertSeverity) -> Alert {
+    let name = title.to_lowercase().replace(' ', "_");
     let expr_template_string = format!(
         "sum(increase({}[{{}}s])) or vector(0)",
         CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
     );
     Alert::new(
-        alert_name,
-        "Consensus block number stuck",
+        &name,
+        title,
         AlertGroup::Consensus,
         ExpressionOrExpressionWithPlaceholder::Placeholder(
             Template::new(expr_template_string),
-            vec![alert_name.to_string()],
+            vec![format_sampling_window(&name)],
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
     vec![
+        get_consensus_block_number_stuck("Consensus Block Number Stuck", AlertSeverity::Sos),
         get_consensus_block_number_stuck(
-            "consensus_block_number_stuck",
-            AlertEnvFiltering::MainnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::Sos,
-        ),
-        get_consensus_block_number_stuck(
-            "consensus_block_number_stuck",
-            AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::DayOnly,
-        ),
-        get_consensus_block_number_stuck(
-            "consensus_block_number_stuck_long_time",
-            AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(30 * SECS_IN_MIN),
+            "Consensus Block Number Stuck Long Time",
             AlertSeverity::Regular,
         ),
     ]
 }
 
-// TODO(Tsabary): settle all the required parameters that are different among envs using the
-// placeholder mechanism.
-// TODO(Tsabary): remove `AlertEnvFiltering` throughout and use the placeholder mechanism instead.
-
-fn get_batched_transactions_stuck(
-    alert_name: &'static str,
-    alert_env_filtering: AlertEnvFiltering,
-    duration: Duration,
-    // TODO(Tsabary): remove the `_alert_severity` argument.
-    _alert_severity: AlertSeverity,
-) -> Alert {
+fn get_batched_transactions_stuck(title: &'static str) -> Alert {
+    let name = title.to_lowercase().replace(' ', "_");
+    let expr_template_string =
+        format!("changes({}[{{}}s])", BATCHED_TRANSACTIONS.get_name_with_filter());
     Alert::new(
-        alert_name,
-        "Batched transactions stuck",
+        &name,
+        title,
         AlertGroup::Batcher,
-        format!(
-            "changes({}[{}s])",
-            BATCHED_TRANSACTIONS.get_name_with_filter(),
-            duration.as_secs()
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![format_sampling_window(&name)],
         ),
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 1.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        SeverityValueOrPlaceholder::Placeholder(alert_name.to_string()),
+        SeverityValueOrPlaceholder::Placeholder(name.clone()),
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_batched_transactions_stuck_vec() -> Vec<Alert> {
     vec![
-        get_batched_transactions_stuck(
-            "batched_transactions_stuck",
-            AlertEnvFiltering::MainnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::Sos,
-        ),
-        get_batched_transactions_stuck(
-            "batched_transactions_stuck",
-            AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::DayOnly,
-        ),
-        get_batched_transactions_stuck(
-            "batched_transactions_stuck_long_time",
-            AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(30 * SECS_IN_MIN),
-            AlertSeverity::Regular,
-        ),
+        get_batched_transactions_stuck("Batched Transactions Stuck"),
+        get_batched_transactions_stuck("Batched Transactions Stuck Long Time"),
     ]
 }
 
 fn get_consensus_p2p_not_enough_peers_for_quorum(
-    alert_name: &'static str,
-    alert_env_filtering: AlertEnvFiltering,
+    title: &'static str,
     duration: Duration,
     alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
-        alert_name,
-        "Consensus p2p not enough peers for quorum",
+        title.to_lowercase().replace(' ', "_"),
+        title,
         AlertGroup::Consensus,
         format!(
             "max_over_time({}[{}s])",
@@ -155,61 +110,43 @@ fn get_consensus_p2p_not_enough_peers_for_quorum(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::Applicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_consensus_p2p_not_enough_peers_for_quorum_vec() -> Vec<Alert> {
     vec![
         get_consensus_p2p_not_enough_peers_for_quorum(
-            "consensus_p2p_not_enough_peers_for_quorum",
-            AlertEnvFiltering::MainnetStyleAlerts,
+            "Consensus P2P Not Enough Peers For Quorum",
             Duration::from_secs(2 * SECS_IN_MIN),
             AlertSeverity::Sos,
         ),
         get_consensus_p2p_not_enough_peers_for_quorum(
-            "consensus_p2p_not_enough_peers_for_quorum",
-            AlertEnvFiltering::TestnetStyleAlerts,
-            Duration::from_secs(2 * SECS_IN_MIN),
-            AlertSeverity::WorkingHours,
-        ),
-        get_consensus_p2p_not_enough_peers_for_quorum(
-            "consensus_p2p_not_enough_peers_for_quorum_long_time",
-            AlertEnvFiltering::TestnetStyleAlerts,
+            "Consensus P2P Not Enough Peers For Quorum Long Time",
             Duration::from_secs(30 * SECS_IN_MIN),
             AlertSeverity::Regular,
         ),
     ]
 }
 
-fn get_consensus_round_high(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_consensus_round_high(alert_severity: AlertSeverity) -> Alert {
+    const ALERT_NAME: &str = "consensus_round_high";
     Alert::new(
-        "consensus_round_high",
+        ALERT_NAME,
         "Consensus round high",
         AlertGroup::Consensus,
         format!("max_over_time({}[2m])", CONSENSUS_ROUND.get_name_with_filter()),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
-            120.0 / BLOCK_TIME_SEC,
+            ComparisonValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_consensus_round_high_vec() -> Vec<Alert> {
-    vec![
-        get_consensus_round_high(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Sos),
-        get_consensus_round_high(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_consensus_round_high(AlertSeverity::Sos)]
 }

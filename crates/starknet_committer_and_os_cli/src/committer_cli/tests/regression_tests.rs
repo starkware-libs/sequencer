@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 use starknet_api::core::ContractAddress;
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::db::external_test_utils::single_tree_flow_test;
-use starknet_committer::db::facts_db::db::FactsNodeLayout;
+use starknet_committer::db::facts_db::FactsNodeLayout;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
 use tempfile::NamedTempFile;

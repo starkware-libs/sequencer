@@ -3,8 +3,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::future::Future;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_config::dumping::SerializeConfig;
+use apollo_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use validator::Validate;
@@ -161,11 +161,7 @@ impl<S: Storage + Clone + 'static> AsyncStorage for S {}
 
 /// Empty config struct for storage implementations that don't require configuration.
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
-pub struct EmptyStorageConfig {
-    // TODO(yoav): Remove this field once the apollo committer config has non-empty storage config.
-    /// Dummy field for including this struct in the config json file.
-    pub dummy_field: u8,
-}
+pub struct EmptyStorageConfig {}
 
 impl Validate for EmptyStorageConfig {
     fn validate(&self) -> Result<(), validator::ValidationErrors> {
@@ -175,12 +171,7 @@ impl Validate for EmptyStorageConfig {
 
 impl SerializeConfig for EmptyStorageConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "dummy_field",
-            &self.dummy_field,
-            "Dummy field for including this struct in the config json file.",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::new()
     }
 }
 
@@ -227,7 +218,7 @@ impl Storage for NullStorage {
 pub struct DbKeyPrefix(Cow<'static, [u8]>);
 
 impl DbKeyPrefix {
-    pub fn new(prefix: Cow<'static, [u8]>) -> Self {
+    pub const fn new(prefix: Cow<'static, [u8]>) -> Self {
         Self(prefix)
     }
 

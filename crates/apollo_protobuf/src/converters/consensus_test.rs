@@ -13,8 +13,8 @@ use starknet_api::rpc_transaction::{
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 
 use crate::consensus::{
-    ConsensusBlockInfo,
     ProposalFin,
+    ProposalInit,
     ProposalPart,
     StreamMessage,
     StreamMessageBody,
@@ -78,14 +78,14 @@ fn convert_vote_to_vec_u8_and_back() {
 }
 
 #[test]
-fn convert_block_info_to_vec_u8_and_back() {
+fn convert_init_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
-    let block_info = ConsensusBlockInfo::get_test_instance(&mut rng);
+    let init = ProposalInit::get_test_instance(&mut rng);
 
-    let bytes_data: Vec<u8> = block_info.clone().into();
-    let res_data = ConsensusBlockInfo::try_from(bytes_data).unwrap();
-    assert_eq!(block_info, res_data);
+    let bytes_data: Vec<u8> = init.clone().into();
+    let res_data = ProposalInit::try_from(bytes_data).unwrap();
+    assert_eq!(init, res_data);
 }
 
 // Tests TransactionBatch byte serialization for consensus p2p communication.

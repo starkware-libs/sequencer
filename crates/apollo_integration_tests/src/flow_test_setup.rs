@@ -193,6 +193,7 @@ impl FlowTestSetup {
             .batcher_config
             .as_ref()
             .unwrap()
+            .static_config
             .block_builder_config
             .chain_info
             .chain_id
@@ -393,7 +394,7 @@ impl TxCollector {
 
         let StreamMessage {
             stream_id: first_stream_id,
-            message: block_info_message,
+            message: init_message,
             message_id: incoming_message_id,
         } = messages_cache.remove(&0).expect("Stream is missing its first message");
 
@@ -401,16 +402,11 @@ impl TxCollector {
             incoming_message_id, 0,
             "Expected the first message in the stream to have id 0, got {incoming_message_id}"
         );
-        let StreamMessageBody::Content(ProposalPart::BlockInfo(incoming_block_info)) =
-            block_info_message
-        else {
-            panic!("Expected a block info message. Got: {block_info_message:?}")
+        let StreamMessageBody::Content(ProposalPart::Init(incoming_init)) = init_message else {
+            panic!("Expected a init message. Got: {init_message:?}")
         };
 
-        self.accumulated_txs
-            .lock()
-            .await
-            .start_round(incoming_block_info.height, incoming_block_info.round);
+        self.accumulated_txs.lock().await.start_round(incoming_init.height, incoming_init.round);
 
         let mut got_proposal_fin = false;
         let mut got_channel_fin = false;
@@ -419,8 +415,8 @@ impl TxCollector {
                 messages_cache.remove(&i).expect("Stream should have all consecutive messages");
             assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
             match message {
-                StreamMessageBody::Content(ProposalPart::BlockInfo(block_info)) => {
-                    panic!("Unexpected block info: {block_info:?}")
+                StreamMessageBody::Content(ProposalPart::Init(incoming_init)) => {
+                    panic!("Unexpected init: {incoming_init:?}")
                 }
                 StreamMessageBody::Content(ProposalPart::Fin(..)) => {
                     got_proposal_fin = true;

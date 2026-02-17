@@ -16,7 +16,7 @@ use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
+    BuildParam,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -43,6 +43,7 @@ use crate::utils::{
     truncate_to_executed_txs,
     wait_for_retrospective_block_hash,
     GasPriceParams,
+    PreviousBlockInfo,
     RetrospectiveBlockHashError,
     StreamSender,
 };
@@ -52,7 +53,7 @@ const MIN_WAIT_DURATION: Duration = Duration::from_millis(1);
 pub(crate) struct ProposalBuildArguments {
     pub deps: SequencerConsensusContextDeps,
     pub batcher_deadline: DateTime,
-    pub proposal_init: ProposalInit,
+    pub build_param: BuildParam,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
     pub gas_price_params: GasPriceParams,
@@ -62,7 +63,7 @@ pub(crate) struct ProposalBuildArguments {
     pub l2_gas_price: GasPrice,
     pub builder_address: ContractAddress,
     pub cancel_token: CancellationToken,
-    pub previous_block_info: Option<ConsensusBlockInfo>,
+    pub previous_block_info: Option<PreviousBlockInfo>,
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
@@ -105,13 +106,13 @@ pub(crate) enum BuildProposalError {
 pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
-    let block_info = initiate_build(&mut args).await?;
-    let height = block_info.height;
+    let init = initiate_build(&mut args).await?;
+    let height = init.height;
 
     args.stream_sender
-        .send(ProposalPart::BlockInfo(block_info.clone()))
+        .send(ProposalPart::Init(init.clone()))
         .await
-        .map_err(|e| BuildProposalError::SendError(format!("Failed to send block info: {e:?}")))?;
+        .map_err(|e| BuildProposalError::SendError(format!("Failed to send init: {e:?}")))?;
 
     let (proposal_commitment, content) = get_proposal_content(&mut args).await?;
 
@@ -121,7 +122,7 @@ pub(crate) async fn build_proposal(
     valid_proposals.insert_proposal_for_height(
         &height,
         &proposal_commitment,
-        block_info,
+        init,
         content,
         &args.proposal_id,
     );
@@ -142,9 +143,7 @@ async fn get_proposal_timestamp(
     clock.unix_now()
 }
 
-async fn initiate_build(
-    args: &mut ProposalBuildArguments,
-) -> BuildProposalResult<ConsensusBlockInfo> {
+async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
     let timestamp = get_proposal_timestamp(
         args.use_state_sync_block_timestamp,
         &args.deps.state_sync_client,
@@ -158,11 +157,11 @@ async fn initiate_build(
         &args.gas_price_params,
     )
     .await;
-    let block_info = ConsensusBlockInfo {
-        height: args.proposal_init.height,
-        round: args.proposal_init.round,
-        valid_round: args.proposal_init.valid_round,
-        proposer: args.proposal_init.proposer,
+    let init = ProposalInit {
+        height: args.build_param.height,
+        round: args.build_param.round,
+        valid_round: args.build_param.valid_round,
+        proposer: args.build_param.proposer,
         builder: args.builder_address,
         timestamp,
         l1_da_mode: args.l1_da_mode,
@@ -171,12 +170,15 @@ async fn initiate_build(
         l1_data_gas_price_wei: l1_prices_wei.l1_data_gas_price,
         l1_gas_price_fri: l1_prices_fri.l1_gas_price,
         l1_data_gas_price_fri: l1_prices_fri.l1_data_gas_price,
+        starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        // TODO(Asmaa): Put the real value once we have it.
+        version_constant_commitment: Default::default(),
     };
 
     let retrospective_block_hash = wait_for_retrospective_block_hash(
         args.deps.batcher.clone(),
         args.deps.state_sync_client.clone(),
-        &block_info,
+        &init,
         args.deps.clock.as_ref(),
         args.retrospective_block_hash_deadline,
         args.retrospective_block_hash_retry_interval_millis,
@@ -187,7 +189,7 @@ async fn initiate_build(
         proposal_id: args.proposal_id,
         deadline: args.batcher_deadline,
         retrospective_block_hash,
-        block_info: convert_to_sn_api_block_info(&block_info)?,
+        block_info: convert_to_sn_api_block_info(&init)?,
         proposal_round: args.proposal_round,
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
@@ -197,7 +199,7 @@ async fn initiate_build(
             err,
         )
     })?;
-    Ok(block_info)
+    Ok(init)
 }
 /// 1. Receive chunks of content from the batcher.
 /// 2. Forward these to the stream handler to be streamed out to the network.
@@ -300,7 +302,11 @@ async fn get_proposal_content(
                 let executed_transaction_count: u64 = final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                let fin = ProposalFin { proposal_commitment, executed_transaction_count };
+                let fin = ProposalFin {
+                    proposal_commitment,
+                    executed_transaction_count,
+                    commitment_parts: None,
+                };
                 info!("Sending fin={fin:?}");
                 args.stream_sender.send(ProposalPart::Fin(fin)).await.map_err(|e| {
                     BuildProposalError::SendError(format!("Failed to send proposal fin: {e:?}"))

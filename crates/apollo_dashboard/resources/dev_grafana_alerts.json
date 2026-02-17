@@ -424,7 +424,7 @@
       "name": "gateway_add_tx_idle_p2p_rpc",
       "title": "Gateway add_tx idle (p2p+rpc)",
       "ruleGroup": "gateway",
-      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
+      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$gateway_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -620,7 +620,7 @@
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$http_server_no_successful_transactions-sampling_window_secs-expression$$$s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -760,7 +760,7 @@
       "name": "mempool_add_tx_idle_p2p_rpc",
       "title": "Mempool add_tx idle (p2p+rpc)",
       "ruleGroup": "mempool",
-      "expr": "sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
+      "expr": "sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$mempool_add_tx_idle_p2p_rpc-sampling_window_secs-expression$$$s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -898,9 +898,9 @@
     },
     {
       "name": "batched_transactions_stuck",
-      "title": "Batched transactions stuck",
+      "title": "Batched Transactions Stuck",
       "ruleGroup": "batcher",
-      "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
+      "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$batched_transactions_stuck-sampling_window_secs-expression$$$s])",
       "conditions": [
         {
           "evaluator": {
@@ -922,6 +922,34 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "$$$batched_transactions_stuck-severity$$$",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "batched_transactions_stuck_long_time",
+      "title": "Batched Transactions Stuck Long Time",
+      "ruleGroup": "batcher",
+      "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$batched_transactions_stuck_long_time-sampling_window_secs-expression$$$s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "$$$batched_transactions_stuck_long_time-severity$$$",
       "observer_applicable": "false"
     },
     {
@@ -982,9 +1010,9 @@
     },
     {
       "name": "consensus_block_number_stuck",
-      "title": "Consensus block number stuck",
+      "title": "Consensus Block Number Stuck",
       "ruleGroup": "consensus",
-      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck-expression$$$s])) or vector(0)",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck-sampling_window_secs-expression$$$s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -1009,8 +1037,36 @@
       "observer_applicable": "false"
     },
     {
+      "name": "consensus_block_number_stuck_long_time",
+      "title": "Consensus Block Number Stuck Long Time",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_block_number_stuck_long_time-sampling_window_secs-expression$$$s])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "false"
+    },
+    {
       "name": "consensus_p2p_not_enough_peers_for_quorum",
-      "title": "Consensus p2p not enough peers for quorum",
+      "title": "Consensus P2P Not Enough Peers For Quorum",
       "ruleGroup": "consensus",
       "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
       "conditions": [
@@ -1034,6 +1090,34 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p1",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "consensus_p2p_not_enough_peers_for_quorum_long_time",
+      "title": "Consensus P2P Not Enough Peers For Quorum Long Time",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
       "observer_applicable": "true"
     },
     {
@@ -1068,12 +1152,12 @@
       "name": "consensus_round_above_zero_multiple_times",
       "title": "Consensus round above zero multiple times",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
+      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$consensus_round_above_zero_multiple_times-sampling_window_secs-expression$$$s])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              20.0
+              "$$$consensus_round_above_zero_multiple_times-comparison_value$$$"
             ],
             "type": "gt"
           },
@@ -1101,7 +1185,7 @@
         {
           "evaluator": {
             "params": [
-              13.333333333333334
+              "$$$consensus_round_high-comparison_value$$$"
             ],
             "type": "gt"
           },
@@ -1404,7 +1488,7 @@
       "name": "high_empty_blocks_ratio",
       "title": "High ratio of empty blocks",
       "ruleGroup": "batcher",
-      "expr": "sum(increase(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", le=\"0.001\"}[120s])) / clamp_min(sum(increase(batcher_num_transaction_in_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])), 1)",
+      "expr": "sum(increase(batcher_num_transaction_in_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", le=\"0.001\"}[$$$high_empty_blocks_ratio-zero_bucket-sampling_window_secs-expression$$$s])) / clamp_min(sum(increase(batcher_num_transaction_in_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[$$$high_empty_blocks_ratio-total_count-sampling_window_secs-expression$$$s])), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -1682,9 +1766,37 @@
     },
     {
       "name": "state_sync_stuck",
-      "title": "State sync stuck",
+      "title": "State Sync Stuck",
       "ruleGroup": "state_sync",
       "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2",
+      "observer_applicable": "true"
+    },
+    {
+      "name": "state_sync_stuck_long_time",
+      "title": "State Sync Stuck Long Time",
+      "ruleGroup": "state_sync",
+      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])",
       "conditions": [
         {
           "evaluator": {

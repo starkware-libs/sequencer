@@ -1,5 +1,5 @@
 use apollo_gateway::test_utils::{gateway_for_benchmark, GatewayForBenchmark};
-use apollo_gateway_config::config::GatewayConfig;
+use apollo_gateway_config::config::{GatewayConfig, GatewayStaticConfig};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
@@ -49,8 +49,10 @@ impl Default for BenchTestSetupConfig {
         Self {
             n_txs: N_TXS,
             gateway_config: GatewayConfig {
-                chain_info: ChainInfo::create_for_testing(),
-                ..Default::default()
+                static_config: GatewayStaticConfig {
+                    chain_info: ChainInfo::create_for_testing(),
+                    ..Default::default()
+                },
             },
         }
     }

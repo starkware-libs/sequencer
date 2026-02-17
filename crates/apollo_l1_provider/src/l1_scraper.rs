@@ -8,6 +8,7 @@ use apollo_infra_utils::{debug_every_n, info_every_n_ms};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use apollo_l1_scraper_config::config::L1ScraperConfig;
+use apollo_metrics::metrics::set_unix_now_seconds;
 use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
 use futures::future::{BoxFuture, FutureExt};
@@ -24,6 +25,7 @@ use tracing::{debug, info, instrument, trace, warn};
 use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
@@ -107,6 +109,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1Scraper<BaseLayer
                 }
                 Ok(_) => {
                     L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
+                    set_unix_now_seconds(&L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS);
                 }
                 Err(e) => return Err(e),
             }

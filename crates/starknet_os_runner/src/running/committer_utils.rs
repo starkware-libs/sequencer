@@ -14,17 +14,14 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::block_committer::measurements_util::NoMeasurements;
-use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::db::{FactDbFilledNode, FactsDb};
+use starknet_committer::db::facts_db::node_serde::{PatriciaPrefix, FACT_LAYOUT_DB_KEY_SEPARATOR};
 use starknet_committer::db::facts_db::types::FactsDbInitialRead;
 use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::{
-    PatriciaPrefix,
-    FACT_LAYOUT_DB_KEY_SEPARATOR,
-};
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, NodeData};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::Leaf;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
@@ -143,10 +140,8 @@ fn insert_inner_nodes<S: std::hash::BuildHasher>(
     nodes: &IndexMap<Felt, MerkleNode, S>,
 ) -> Result<(), ProofProviderError> {
     for (hash, node) in nodes {
-        let node_data: NodeData<StarknetStorageValue, HashOutput> = NodeData::from(node);
         // The leaf type is irrelevant here because we only serialize Binary/Edge nodes.
-        let filled_node =
-            FactDbFilledNode::<StarknetStorageValue> { hash: HashOutput(*hash), data: node_data };
+        let filled_node = FactDbFilledNode::<StarknetStorageValue>::from((HashOutput(*hash), node));
         let value = filled_node.serialize()?;
         let node_prefix: DbKeyPrefix = PatriciaPrefix::InnerNode.into();
         let key = create_db_key(node_prefix, FACT_LAYOUT_DB_KEY_SEPARATOR, &hash.to_bytes_be());
@@ -166,7 +161,8 @@ fn insert_leaf_node<L: Leaf>(
     leaf: L,
     key_context: &<L as HasStaticPrefix>::KeyContext,
 ) -> Result<(), ProofProviderError> {
-    let filled_node = FactDbFilledNode { hash: leaf_hash, data: NodeData::Leaf(leaf) };
+    let filled_node =
+        FactDbFilledNode::<L>(FilledNode { hash: leaf_hash, data: NodeData::Leaf(leaf) });
     let key = filled_node.get_db_key(key_context, &leaf_hash.0.to_bytes_be());
     let serialized = filled_node.serialize()?;
     db_map.insert(key, serialized);
@@ -263,10 +259,10 @@ fn add_dummy_nodes_for_orphan_hashes(
 
     // Create dummy binary node value (both children point to zero hash).
     let dummy_hash = HashOutput(Felt::ZERO);
-    let dummy_binary = FactDbFilledNode::<StarknetStorageValue> {
-        hash: dummy_hash, // Hash field not used for serialization
+    let dummy_binary = FactDbFilledNode::<StarknetStorageValue>(FilledNode {
+        hash: dummy_hash,
         data: NodeData::Binary(BinaryData { left_data: dummy_hash, right_data: dummy_hash }),
-    };
+    });
     let dummy_value = dummy_binary.serialize()?;
 
     // Insert dummy nodes for orphan child hashes.

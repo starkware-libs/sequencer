@@ -31,6 +31,7 @@ use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonc
 
 use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;
+use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::mempool::{
     AccountsWithGap,
     Mempool,
@@ -49,7 +50,6 @@ use crate::test_utils::{
     MempoolMetrics,
 };
 use crate::transaction_pool::TransactionPool;
-use crate::transaction_queue::TransactionQueue;
 use crate::{add_tx_input, tx};
 
 // Utils.
@@ -152,7 +152,7 @@ impl MempoolTestContentBuilder {
             config: self.config.clone(),
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: self.content.tx_pool.unwrap_or_default().into_values().collect(),
-            tx_queue: TransactionQueue::new(
+            tx_queue: FeeTransactionQueue::new(
                 self.content.priority_txs.unwrap_or_default(),
                 self.content.pending_txs.unwrap_or_default(),
                 self.gas_price_threshold,

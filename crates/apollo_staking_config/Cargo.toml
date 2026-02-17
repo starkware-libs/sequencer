@@ -13,5 +13,8 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 validator.workspace = true
 
+[dev-dependencies]
+serde_json.workspace = true
+
 [lints]
 workspace = true

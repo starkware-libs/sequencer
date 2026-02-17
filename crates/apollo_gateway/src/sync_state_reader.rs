@@ -88,10 +88,12 @@ impl SyncStateReader {
             .runtime
             .block_on(self.class_manager_client.get_executable(class_hash))
             .map_err(|e| StateError::StateReadError(e.to_string()))?
-            .expect(
-                "Class with hash {class_hash:?} doesn't appear in class manager even though it \
-                 was declared",
-            );
+            .unwrap_or_else(|| {
+                panic!(
+                    "Class with hash {class_hash:?} doesn't appear in class manager even though \
+                     it was declared"
+                )
+            });
 
         Ok(contract_class)
     }

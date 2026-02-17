@@ -53,7 +53,11 @@ jobs:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     if: ${{ github.event_name == 'pull_request' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       # Python + requirements are needed to compile the OS.
@@ -61,16 +65,12 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
 
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - id: auth
         uses: "google-github-actions/auth@v2"
@@ -102,16 +102,20 @@ jobs:
       # PR-only: Checkout the base branch to benchmark the old code.
       - name: Checkout base branch (PR only)
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.base_ref }}
 
       # Push/dispatch: Checkout the specified or current branch.
       - name: Checkout repository (push/dispatch)
         if: github.event_name != 'pull_request'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch || github.ref }}
+
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       # Python + requirements are needed to compile the OS.
@@ -119,16 +123,11 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
       - run: pip install -r scripts/requirements.txt
-
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Auth with GCS for bench_tools to download inputs.
       - id: auth
@@ -147,22 +146,32 @@ jobs:
         if: github.event_name == 'pull_request'
         run: cp -r crates/starknet_committer_and_os_cli/test_inputs /tmp/test_inputs
 
-      # PR-only: Checkout the current branch to benchmark the new code.
+      # PR-only: Checkout the current branch into a subdirectory to avoid overwriting
+      # the base branch's composite action files at the workspace root.
       - name: Checkout current branch (PR only)
         if: github.event_name == 'pull_request'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          clean: false
+          path: pr-${{ github.run_id }}
+
+      # PR-only: Copy base branch Criterion baseline into PR dir so run-and-compare finds it.
+      - name: Copy Criterion baseline (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p pr-${{ github.run_id }}/target
+          cp -r target/criterion pr-${{ github.run_id }}/target/
 
       # PR-only: Re-install pip requirements in case they changed between branches.
       - name: Re-install pip requirements (PR only)
         if: github.event_name == 'pull_request'
+        working-directory: pr-${{ github.run_id }}
         run: pip install -r scripts/requirements.txt
 
       # PR-only: Benchmark the current branch and compare to the previous run.
       # Use the saved inputs and enforce absolute time limits and regression limit.
       - name: Benchmark and compare (PR only)
         if: github.event_name == 'pull_request'
+        working-directory: pr-${{ github.run_id }}
         run: |
           cargo run -p bench_tools -- run-and-compare \
             --package starknet_committer_and_os_cli \

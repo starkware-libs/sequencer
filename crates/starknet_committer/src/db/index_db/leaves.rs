@@ -13,7 +13,7 @@ use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
-use crate::db::index_db::db::{CLASSES_TREE_PREFIX, CONTRACTS_TREE_PREFIX};
+use crate::db::index_db::{CLASSES_TREE_PREFIX, CONTRACTS_TREE_PREFIX};
 use crate::db::mock_forest_storage::EMPTY_DB_KEY_SEPARATOR;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;

@@ -450,7 +450,7 @@ pub mod stream_message {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BlockInfo {
+pub struct ProposalInit {
     #[prost(uint64, tag = "1")]
     pub height: u64,
     #[prost(uint32, tag = "2")]
@@ -475,12 +475,26 @@ pub struct BlockInfo {
     pub l1_gas_price_wei: ::core::option::Option<Uint128>,
     #[prost(message, optional, tag = "12")]
     pub l1_data_gas_price_wei: ::core::option::Option<Uint128>,
+    #[prost(string, tag = "13")]
+    pub starknet_version: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "14")]
+    pub version_constant_commitment: ::core::option::Option<Hash>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TransactionBatch {
     #[prost(message, repeated, tag = "1")]
     pub transactions: ::prost::alloc::vec::Vec<ConsensusTransaction>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CommitmentParts {
+    #[prost(message, optional, tag = "1")]
+    pub next_l2_gas_price_fri: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "2")]
+    pub concatenated_counts: ::core::option::Option<Felt252>,
+    #[prost(message, optional, tag = "3")]
+    pub parent_commitment: ::core::option::Option<Hash>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -491,9 +505,11 @@ pub struct ProposalFin {
     /// Number of executed transactions in the proposal.
     #[prost(uint64, tag = "2")]
     pub executed_transaction_count: u64,
+    #[prost(message, optional, tag = "3")]
+    pub commitment_parts: ::core::option::Option<CommitmentParts>,
 }
 /// Network format:
-/// 1. First message is BlockInfo (includes all block metadata)
+/// 1. First message is ProposalInit (init, includes all block metadata)
 /// 2. transactions is sent repeatedly (for non-empty blocks)
 /// 3. Last message is ProposalFin
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -508,7 +524,7 @@ pub mod proposal_part {
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Message {
         #[prost(message, tag = "1")]
-        BlockInfo(super::BlockInfo),
+        Init(super::ProposalInit),
         #[prost(message, tag = "2")]
         Fin(super::ProposalFin),
         #[prost(message, tag = "3")]

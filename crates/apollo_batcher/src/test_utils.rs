@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use apollo_batcher_config::config::{BatcherConfig, FirstBlockWithPartialBlockHash};
+use apollo_batcher_config::config::{
+    BatcherConfig,
+    BatcherStaticConfig,
+    FirstBlockWithPartialBlockHash,
+};
 use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
-use apollo_committer_types::communication::{MockCommitterClient, SharedCommitterClient};
+use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
 use apollo_l1_provider_types::MockL1ProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
@@ -27,8 +31,7 @@ use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, contract_address, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
-use tokio::sync::mpsc::{channel, Receiver, Sender, UnboundedSender};
-use tokio::task::JoinHandle;
+use tokio::sync::mpsc::UnboundedSender;
 
 use crate::batcher::{MockBatcherStorageReader, MockBatcherStorageWriter};
 use crate::block_builder::{
@@ -39,13 +42,6 @@ use crate::block_builder::{
     BlockTransactionExecutionData,
     FailOnErrorCause,
     MockBlockBuilderFactoryTrait,
-};
-use crate::commitment_manager::state_committer::StateCommitterTrait;
-use crate::commitment_manager::types::{
-    CommitmentTaskOutput,
-    CommitterTaskInput,
-    CommitterTaskOutput,
-    RevertTaskOutput,
 };
 use crate::pre_confirmed_block_writer::{
     MockPreconfirmedBlockWriterFactoryTrait,
@@ -302,12 +298,15 @@ impl Default for MockDependencies {
         storage_reader.expect_get_state_diff().returning(|_| Ok(Some(test_state_diff())));
 
         let batcher_config = BatcherConfig {
-            outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
-            first_block_with_partial_block_hash: Some(FirstBlockWithPartialBlockHash {
-                block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
-                parent_block_hash: DUMMY_BLOCK_HASH,
+            static_config: BatcherStaticConfig {
+                outstream_content_buffer_size: STREAMING_CHUNK_SIZE,
+                first_block_with_partial_block_hash: Some(FirstBlockWithPartialBlockHash {
+                    block_number: FIRST_BLOCK_NUMBER_WITH_PARTIAL_BLOCK_HASH,
+                    parent_block_hash: DUMMY_BLOCK_HASH,
+                    ..Default::default()
+                }),
                 ..Default::default()
-            }),
+            },
             ..Default::default()
         };
         Self {
@@ -316,61 +315,5 @@ impl Default for MockDependencies {
             clients: MockClients::default(),
             batcher_config,
         }
-    }
-}
-
-/// A mock state committer that allows controlling when tasks are "processed".
-pub(crate) struct MockStateCommitter {
-    _task_performer_handle: JoinHandle<()>,
-    mock_task_sender: Sender<()>,
-}
-
-impl StateCommitterTrait for MockStateCommitter {
-    fn create(
-        tasks_receiver: Receiver<CommitterTaskInput>,
-        results_sender: Sender<CommitterTaskOutput>,
-        _committer_client: SharedCommitterClient,
-    ) -> Self {
-        let (mock_task_sender, mock_task_receiver) = channel(10);
-        let handle = tokio::spawn(async move {
-            Self::wait_for_mock_tasks(tasks_receiver, results_sender, mock_task_receiver).await;
-        });
-        Self { _task_performer_handle: handle, mock_task_sender }
-    }
-    fn get_handle(&self) -> &JoinHandle<()> {
-        &self._task_performer_handle
-    }
-}
-
-impl MockStateCommitter {
-    /// Does nothing until a message is received on the mock task receiver, then pops one task
-    /// from the task receiver and sends a result to the results sender.
-    pub(crate) async fn wait_for_mock_tasks(
-        mut tasks_receiver: Receiver<CommitterTaskInput>,
-        results_sender: Sender<CommitterTaskOutput>,
-        mut mock_task_receiver: Receiver<()>,
-    ) {
-        while mock_task_receiver.recv().await.is_some() {
-            let task = tasks_receiver.try_recv().unwrap();
-            let result = match task {
-                CommitterTaskInput::Commit(commit_request) => {
-                    CommitterTaskOutput::Commit(CommitmentTaskOutput {
-                        response: CommitBlockResponse { global_root: GlobalRoot::default() },
-                        height: commit_request.height,
-                    })
-                }
-                CommitterTaskInput::Revert(revert_request) => {
-                    CommitterTaskOutput::Revert(RevertTaskOutput {
-                        response: RevertBlockResponse::RevertedTo(GlobalRoot::default()),
-                        height: revert_request.height,
-                    })
-                }
-            };
-            results_sender.try_send(result).unwrap();
-        }
-    }
-
-    pub(crate) async fn pop_task_and_insert_result(&self) {
-        self.mock_task_sender.send(()).await.unwrap();
     }
 }

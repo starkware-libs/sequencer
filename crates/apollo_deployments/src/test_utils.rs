@@ -32,12 +32,11 @@ pub struct SecretsConfigOverride {
         serialize_with = "serialize_optional_vec_u8_wrapper"
     )]
     mempool_p2p_config_network_config_secret_key: Option<Vec<u8>>,
-    #[serde(
-        rename = "state_sync_config.central_sync_client_config.central_source_config.http_headers"
-    )]
+    #[serde(rename = "state_sync_config.static_config.central_sync_client_config.\
+                      central_source_config.http_headers")]
     state_sync_config_central_sync_client_config_central_source_config_http_headers: String,
     #[serde(
-        rename = "state_sync_config.network_config.secret_key",
+        rename = "state_sync_config.static_config.network_config.secret_key",
         serialize_with = "serialize_optional_vec_u8_wrapper"
     )]
     state_sync_config_network_config_secret_key: Option<Vec<u8>>,

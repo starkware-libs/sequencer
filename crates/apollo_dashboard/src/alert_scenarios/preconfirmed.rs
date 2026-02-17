@@ -5,7 +5,6 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -15,10 +14,7 @@ use crate::alerts::{
 };
 
 /// No preconfirmed block was written in the last 10 minutes.
-fn get_preconfirmed_block_not_written(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_preconfirmed_block_not_written(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "preconfirmed_block_not_written",
         "Preconfirmed block not written",
@@ -29,19 +25,9 @@ fn get_preconfirmed_block_not_written(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_preconfirmed_block_not_written_vec() -> Vec<Alert> {
-    vec![
-        get_preconfirmed_block_not_written(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Sos,
-        ),
-        get_preconfirmed_block_not_written(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_preconfirmed_block_not_written(AlertSeverity::Sos)]
 }

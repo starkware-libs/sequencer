@@ -5,7 +5,7 @@ use std::time::Duration;
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_batcher::metrics::REVERTED_TRANSACTIONS;
 use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
-use apollo_batcher_config::config::{BatcherConfig, BlockBuilderConfig};
+use apollo_batcher_config::config::{BatcherConfig, BatcherStaticConfig, BlockBuilderConfig};
 use apollo_class_manager_config::config::{
     CachedClassStorageConfig,
     ClassManagerConfig,
@@ -31,6 +31,7 @@ use apollo_consensus_orchestrator_config::config::{
 };
 use apollo_gateway_config::config::{
     GatewayConfig,
+    GatewayStaticConfig,
     ProofArchiveWriterConfig,
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
@@ -57,9 +58,20 @@ use apollo_node_config::component_execution_config::ExpectedComponentConfig;
 use apollo_node_config::definitions::ConfigPointersMap;
 use apollo_node_config::monitoring::MonitoringConfig;
 use apollo_node_config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
+use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use apollo_rpc::RpcConfig;
 use apollo_sierra_compilation_config::config::SierraCompilationConfig;
-use apollo_state_sync_config::config::StateSyncConfig;
+use apollo_staking_config::config::{
+    CommitteeConfig,
+    ConfiguredStaker,
+    StakingManagerConfig,
+    StakingManagerDynamicConfig,
+};
+use apollo_state_sync_config::config::{
+    StateSyncConfig,
+    StateSyncDynamicConfig,
+    StateSyncStaticConfig,
+};
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
@@ -83,6 +95,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::staking::StakingWeight;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_types_core::felt::Felt;
@@ -240,9 +253,9 @@ pub fn create_node_config(
     let class_manager_config =
         create_class_manager_config(storage_config.class_manager_storage_config);
     let proof_manager_config = storage_config.proof_manager_config.clone();
-    state_sync_config.storage_config = storage_config.state_sync_storage_config;
-    state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
-    let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
+    state_sync_config.static_config.storage_config = storage_config.state_sync_storage_config;
+    state_sync_config.static_config.rpc_config.chain_id = chain_info.chain_id.clone();
+    let starknet_url = state_sync_config.static_config.rpc_config.starknet_url.clone();
 
     consensus_manager_config.consensus_manager_config.static_config.storage_config =
         storage_config.consensus_storage_config.clone();
@@ -354,10 +367,34 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     n_composed_nodes: usize,
     chain_id: &ChainId,
 ) -> Vec<ConsensusManagerConfig> {
-    let num_validators = u64::try_from(n_composed_nodes).unwrap();
     let mut timeouts = TimeoutsConfig::default();
     // Scale by 2.0 for integration runs to avoid timeouts.
     timeouts.scale_by(2.0);
+
+    // Create stakers config for epoch 0 with all validators.
+    let stakers = (0..n_composed_nodes)
+        .map(|i| {
+            let address = ContractAddress::from(DEFAULT_VALIDATOR_ID + u64::try_from(i).unwrap());
+            ConfiguredStaker {
+                address,
+                weight: StakingWeight(1),
+                public_key: Felt::from(i),
+                can_propose: true,
+            }
+        })
+        .collect();
+    let staking_manager_config = StakingManagerConfig {
+        dynamic_config: StakingManagerDynamicConfig {
+            default_committee: CommitteeConfig {
+                start_epoch: 0,
+                committee_size: n_composed_nodes,
+                stakers,
+            },
+            override_committee: None,
+        },
+        static_config: Default::default(),
+    };
+
     network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
@@ -381,7 +418,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             },
             context_config: ContextConfig {
                 static_config: ContextStaticConfig {
-                    num_validators,
                     chain_id: chain_id.clone(),
                     builder_address: ContractAddress::from(4_u128),
                     ..Default::default()
@@ -392,6 +428,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 ..Default::default()
             },
             assume_no_malicious_validators: true,
+            staking_manager_config: staking_manager_config.clone(),
             ..Default::default()
         })
         .collect()
@@ -649,13 +686,15 @@ pub fn create_gateway_config(
     let proof_archive_writer_config = ProofArchiveWriterConfig::create_for_testing();
 
     GatewayConfig {
-        stateless_tx_validator_config,
-        stateful_tx_validator_config,
-        contract_class_manager_config,
-        chain_info,
-        block_declare: false,
-        authorized_declarer_accounts: None,
-        proof_archive_writer_config,
+        static_config: GatewayStaticConfig {
+            stateless_tx_validator_config,
+            stateful_tx_validator_config,
+            contract_class_manager_config,
+            chain_info,
+            block_declare: false,
+            authorized_declarer_accounts: None,
+            proof_archive_writer_config,
+        },
     }
 }
 
@@ -666,23 +705,26 @@ pub fn create_batcher_config(
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     BatcherConfig {
-        storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig {
-            chain_info,
-            bouncer_config: BouncerConfig {
-                block_max_capacity: BouncerWeights {
-                    sierra_gas: block_max_capacity_gas,
-                    proving_gas: block_max_capacity_gas,
+        static_config: BatcherStaticConfig {
+            storage: batcher_storage_config,
+            block_builder_config: BlockBuilderConfig {
+                chain_info,
+                bouncer_config: BouncerConfig {
+                    block_max_capacity: BouncerWeights {
+                        sierra_gas: block_max_capacity_gas,
+                        proving_gas: block_max_capacity_gas,
+                        ..Default::default()
+                    },
                     ..Default::default()
                 },
+                execute_config: WorkerPoolConfig::create_for_testing(),
+                n_concurrent_txs: 3,
                 ..Default::default()
             },
-            execute_config: WorkerPoolConfig::create_for_testing(),
-            n_concurrent_txs: 3,
+            #[cfg(feature = "cairo_native")]
+            contract_class_manager_config: cairo_native_class_manager_config(),
             ..Default::default()
         },
-        #[cfg(feature = "cairo_native")]
-        contract_class_manager_config: cairo_native_class_manager_config(),
         ..Default::default()
     }
 }
@@ -724,15 +766,18 @@ pub fn create_state_sync_configs(
 ) -> Vec<StateSyncConfig> {
     create_connected_network_configs(ports)
         .into_iter()
-        .map(|network_config| StateSyncConfig {
-            storage_config: state_sync_storage_config.clone(),
-            network_config: Some(network_config),
-            rpc_config: RpcConfig {
-                ip: Ipv4Addr::LOCALHOST.into(),
-                port: rpc_ports.remove(0),
+        .map(|network_config| {
+            let static_config = StateSyncStaticConfig {
+                storage_config: state_sync_storage_config.clone(),
+                network_config: Some(network_config),
+                rpc_config: RpcConfig {
+                    ip: Ipv4Addr::LOCALHOST.into(),
+                    port: rpc_ports.remove(0),
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            ..Default::default()
+            };
+            StateSyncConfig { static_config, dynamic_config: StateSyncDynamicConfig::default() }
         })
         .collect()
 }

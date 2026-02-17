@@ -13,7 +13,12 @@ use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
-use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextDynamicConfig};
+use apollo_consensus_orchestrator_config::config::{
+    ContextConfig,
+    ContextDynamicConfig,
+    ContextStaticConfig,
+    PricePerHeight,
+};
 use apollo_infra::component_client::ClientError;
 use apollo_l1_gas_price_types::errors::{
     EthToStrkOracleClientError,
@@ -22,9 +27,9 @@ use apollo_l1_gas_price_types::errors::{
 };
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{
+    BuildParam,
     ProposalCommitment,
     ProposalFin,
-    ProposalInit,
     ProposalPart,
     TransactionBatch,
 };
@@ -52,11 +57,17 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use crate::cende::MockCendeContext;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
+use crate::sequencer_consensus_context::{
+    SequencerConsensusContext,
+    SequencerConsensusContextDeps,
+};
 use crate::test_utils::{
     block_info,
     create_test_and_network_deps,
     send_proposal_to_validator_context,
     SetupDepsArgs,
+    CHAIN_ID,
+    CHANNEL_SIZE,
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
     STATE_DIFF_COMMITMENT,
@@ -74,7 +85,7 @@ async fn cancelled_proposal_aborts() {
     deps.batcher.expect_start_height().times(1).return_const(Ok(()));
 
     let mut context = deps.build_context();
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
 
     // Now we intrrupt the proposal and verify that the fin_receiever is dropped.
     context.set_height_and_round(BlockNumber(0), 1).await.unwrap();
@@ -117,24 +128,24 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let block_info = block_info(BlockNumber(0), 0);
+    let init = block_info(BlockNumber(0), 0);
     let transactions =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
+        commitment_parts: None,
     });
     content_sender.send(fin.clone()).await.unwrap();
-    let fin_receiver =
-        context.validate_proposal(block_info.clone(), TIMEOUT, content_receiver).await;
+    let fin_receiver = context.validate_proposal(init.clone(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
-    let init = ProposalInit { round: 1, ..Default::default() };
-    context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), init).await;
+    let build_param = BuildParam { round: 1, ..Default::default() };
+    context.repropose(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0), build_param).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), ProposalPart::BlockInfo(block_info));
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: executed_transactions })
@@ -158,6 +169,7 @@ async fn proposals_from_different_rounds() {
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
         executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+        commitment_parts: None,
     });
 
     // The proposal from the past round is ignored.
@@ -256,14 +268,14 @@ async fn build_proposal() {
     let (mut deps, mut network) = create_test_and_network_deps();
     deps.setup_deps_for_build(SetupDepsArgs::default());
     let mut context = deps.build_context();
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
     // Test proposal parts.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    let block_info = receiver.next().await.unwrap();
+    let part = receiver.next().await.unwrap();
     let after: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
-    let ProposalPart::BlockInfo(info) = block_info else {
-        panic!("Expected ProposalPart::BlockInfo");
+    let ProposalPart::Init(info) = part else {
+        panic!("Expected ProposalPart::Init");
     };
     assert!(info.timestamp >= before && info.timestamp <= after);
     assert_eq!(
@@ -275,6 +287,7 @@ async fn build_proposal() {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+            commitment_parts: None,
         })
     );
     assert!(receiver.next().await.is_none());
@@ -296,7 +309,7 @@ async fn build_proposal_skips_write_for_height_0() {
 
     let mut context = deps.build_context();
     let _fin_receiver = context
-        .build_proposal(ProposalInit { height: BlockNumber(0), ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: BlockNumber(0), ..Default::default() }, TIMEOUT)
         .await;
 }
 
@@ -320,9 +333,8 @@ async fn build_proposal_skips_write_for_height_above_0() {
     deps.cende_ambassador = MockCendeContext::new();
 
     let mut context = deps.build_context();
-    let _fin_receiver = context
-        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
-        .await;
+    let _fin_receiver =
+        context.build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT).await;
 }
 
 #[tokio::test]
@@ -350,7 +362,7 @@ async fn build_proposal_writes_prev_blob_if_cannot_get_latest_block_number() {
 
     let mut context = deps.build_context();
     let fin_receiver = context
-        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
         .await
         .unwrap();
 
@@ -382,7 +394,7 @@ async fn build_proposal_cende_failure() {
     let mut context = deps.build_context();
 
     let fin_receiver = context
-        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
         .await
         .unwrap();
     assert_eq!(fin_receiver.await, Err(Canceled));
@@ -413,7 +425,7 @@ async fn build_proposal_cende_incomplete() {
     let mut context = deps.build_context();
 
     let fin_receiver = context
-        .build_proposal(ProposalInit { height: HEIGHT, ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: HEIGHT, ..Default::default() }, TIMEOUT)
         .await
         .unwrap();
     assert_eq!(fin_receiver.await, Err(Canceled));
@@ -442,7 +454,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
     context.set_height_and_round(BlockNumber::default(), Round::default()).await.unwrap();
 
     if proposer {
-        let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
+        let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
         assert_eq!(fin_receiver.await, Err(Canceled));
     } else {
         let (_content_sender, content_receiver) =
@@ -471,10 +483,10 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     });
     let mut context = deps.build_context();
     // Build proposal.
-    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Receive the proposal parts.
-    let block_info = receiver.next().await.unwrap();
+    let part = receiver.next().await.unwrap();
     let _txs = receiver.next().await.unwrap();
     let fin = receiver.next().await.unwrap();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
@@ -483,12 +495,12 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     context
         .repropose(
             ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
-            ProposalInit { round: 1, ..Default::default() },
+            BuildParam { round: 1, ..Default::default() },
         )
         .await;
     // Re-propose sends the same proposal.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), block_info);
+    assert_eq!(receiver.next().await.unwrap(), part);
 
     let reproposed_txs = ProposalPart::Transactions(TransactionBatch { transactions });
     assert_eq!(receiver.next().await.unwrap(), reproposed_txs);
@@ -512,22 +524,20 @@ async fn gas_price_fri_out_of_range() {
     let (_content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     // Receive a block info with l1_gas_price_fri that is outside the margin of error.
-    let mut block_info_1 = block_info(BlockNumber(0), 0);
-    block_info_1.l1_gas_price_fri = block_info_1.l1_gas_price_fri.checked_mul_u128(2).unwrap();
-    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid block_info,
+    let mut init_1 = block_info(BlockNumber(0), 0);
+    init_1.l1_gas_price_fri = init_1.l1_gas_price_fri.checked_mul_u128(2).unwrap();
+    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
-    let fin_receiver =
-        context.validate_proposal(block_info_1, TIMEOUT * 100, content_receiver).await;
+    let fin_receiver = context.validate_proposal(init_1, TIMEOUT * 100, content_receiver).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 
     // Do the same for data gas price.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let mut block_info_2 = block_info(BlockNumber(0), 0);
-    block_info_2.l1_data_gas_price_fri =
-        block_info_2.l1_data_gas_price_fri.checked_mul_u128(2).unwrap();
-    content_sender.send(ProposalPart::BlockInfo(block_info_2).clone()).await.unwrap();
-    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid block_info,
+    let mut init_2 = block_info(BlockNumber(0), 0);
+    init_2.l1_data_gas_price_fri = init_2.l1_data_gas_price_fri.checked_mul_u128(2).unwrap();
+    content_sender.send(ProposalPart::Init(init_2).clone()).await.unwrap();
+    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
     let fin_receiver = context
         .validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT * 100, content_receiver)
@@ -571,24 +581,22 @@ async fn gas_price_limits(#[case] maximum: bool) {
 
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
 
-    let mut block_info = block_info(BlockNumber(0), 0);
+    let mut init = block_info(BlockNumber(0), 0);
 
     if maximum {
         // Set the gas price to the maximum value.
-        block_info.l1_gas_price_wei = GasPrice(max_gas_price);
-        block_info.l1_data_gas_price_wei = GasPrice(max_data_price);
-        block_info.l1_gas_price_fri =
-            block_info.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
-        block_info.l1_data_gas_price_fri =
-            block_info.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        init.l1_gas_price_wei = GasPrice(max_gas_price);
+        init.l1_data_gas_price_wei = GasPrice(max_data_price);
+        init.l1_gas_price_fri = init.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        init.l1_data_gas_price_fri =
+            init.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
     } else {
         // Set the gas price to the minimum value.
-        block_info.l1_gas_price_wei = GasPrice(min_gas_price);
-        block_info.l1_data_gas_price_wei = GasPrice(min_data_price);
-        block_info.l1_gas_price_fri =
-            block_info.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
-        block_info.l1_data_gas_price_fri =
-            block_info.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        init.l1_gas_price_wei = GasPrice(min_gas_price);
+        init.l1_data_gas_price_wei = GasPrice(min_data_price);
+        init.l1_gas_price_fri = init.l1_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
+        init.l1_data_gas_price_fri =
+            init.l1_data_gas_price_wei.wei_to_fri(ETH_TO_FRI_RATE).unwrap();
     }
 
     // Send transactions and then fin.
@@ -596,7 +604,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
 
     // Even though we used the minimum/maximum gas price, not the values we gave the provider,
     // the proposal should be still be valid due to the clamping of limit prices.
-    let fin_receiver = context.validate_proposal(block_info, TIMEOUT, content_receiver).await;
+    let fin_receiver = context.validate_proposal(init, TIMEOUT, content_receiver).await;
     assert_eq!(fin_receiver.await, Ok(ProposalCommitment(STATE_DIFF_COMMITMENT.0.0)));
 }
 
@@ -640,7 +648,7 @@ async fn decision_reached_sends_correct_values() {
     let mut context = deps.build_context();
 
     // This sets up the required state for the test, prior to running the code being tested.
-    let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap().await;
+    let _fin = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
     // At this point we should have a valid proposal in the context which contains the timestamp.
 
     context
@@ -689,15 +697,15 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
 
     let mut context = deps.build_context();
 
-    let init = ProposalInit::default();
+    let build_param = BuildParam::default();
 
-    let fin_receiver = context.build_proposal(init, TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(build_param, TIMEOUT).await.unwrap();
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
-    let block_info = receiver.next().await.unwrap();
-    let ProposalPart::BlockInfo(info) = block_info else {
-        panic!("Expected ProposalPart::BlockInfo");
+    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(info) = part else {
+        panic!("Expected ProposalPart::Init");
     };
 
     let default_context_config = ContextDynamicConfig::default();
@@ -715,6 +723,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+            commitment_parts: None,
         })
     );
     assert!(receiver.next().await.is_none());
@@ -807,24 +816,24 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     context.decision_reached(BlockNumber(0), proposal_commitment).await.unwrap();
 
     // Build proposal for block number 1.
-    let init = ProposalInit { height: BlockNumber(1), ..Default::default() };
+    let build_param = BuildParam { height: BlockNumber(1), ..Default::default() };
 
-    let fin_receiver = context.build_proposal(init, TIMEOUT).await.unwrap();
+    let fin_receiver = context.build_proposal(build_param, TIMEOUT).await.unwrap();
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
-    let info = receiver.next().await.unwrap();
-    let ProposalPart::BlockInfo(info) = info else {
-        panic!("Expected ProposalPart::BlockInfo");
+    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(info) = part else {
+        panic!("Expected ProposalPart::Init");
     };
     assert_eq!(info.height, BlockNumber(1));
 
-    let previous_block_info = block_info(BlockNumber(0), 0);
+    let previous_init = block_info(BlockNumber(0), 0);
 
-    assert_eq!(info.l1_gas_price_wei, previous_block_info.l1_gas_price_wei);
-    assert_eq!(info.l1_data_gas_price_wei, previous_block_info.l1_data_gas_price_wei);
-    assert_eq!(info.l1_gas_price_fri, previous_block_info.l1_gas_price_fri);
-    assert_eq!(info.l1_data_gas_price_fri, previous_block_info.l1_data_gas_price_fri);
+    assert_eq!(info.l1_gas_price_wei, previous_init.l1_gas_price_wei);
+    assert_eq!(info.l1_data_gas_price_wei, previous_init.l1_data_gas_price_wei);
+    assert_eq!(info.l1_gas_price_fri, previous_init.l1_gas_price_fri);
+    assert_eq!(info.l1_data_gas_price_fri, previous_init.l1_data_gas_price_fri);
 
     assert_eq!(
         receiver.next().await.unwrap(),
@@ -835,6 +844,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+            commitment_parts: None,
         })
     );
     assert!(receiver.next().await.is_none());
@@ -954,7 +964,7 @@ async fn override_prices_behavior(
     apply_fee_transformations(&mut expected_l1_prices, &gas_price_params);
 
     // Run proposal and decision logic.
-    let fin_result = context.build_proposal(ProposalInit::default(), TIMEOUT).await.unwrap().await;
+    let fin_result = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap().await;
 
     // In cases where we expect the batcher to fail the block build.
     if build_success {
@@ -974,14 +984,15 @@ async fn override_prices_behavior(
     let actual_l2_gas_price = context.l2_gas_price.0;
 
     let previous_block = context.previous_block_info.clone().unwrap();
-    let actual_l1_gas_price = previous_block.l1_gas_price_fri.0;
-    let actual_l1_data_gas_price = previous_block.l1_data_gas_price_fri.0;
+    let actual_l1_gas_price = previous_block.l1_prices_fri.l1_gas_price.0;
+    let actual_l1_data_gas_price = previous_block.l1_prices_fri.l1_data_gas_price.0;
     let actual_conversion_rate = previous_block
-        .l1_gas_price_fri
+        .l1_prices_fri
+        .l1_gas_price
         .0
         .checked_mul(WEI_PER_ETH)
         .unwrap()
-        .checked_div(previous_block.l1_gas_price_wei.0)
+        .checked_div(previous_block.l1_prices_wei.l1_gas_price.0)
         .unwrap();
 
     let expected_wei_to_fri_rate = override_eth_to_fri_rate.unwrap_or(ETH_TO_FRI_RATE);
@@ -1118,13 +1129,12 @@ async fn change_gas_price_overrides() {
     let proposal_commitment = fin_receiver.await.unwrap_err();
     assert!(matches!(proposal_commitment, Canceled));
 
-    // Modify the incoming block info to make sure it matches the overrides. Now it passes.
-    let mut modified_block_info = block_info(BlockNumber(1), 0);
-    modified_block_info.l2_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L2_GAS_PRICE);
+    // Modify the incoming init to make sure it matches the overrides. Now it passes.
+    let mut modified_init = block_info(BlockNumber(1), 0);
+    modified_init.l2_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L2_GAS_PRICE);
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(modified_block_info, TIMEOUT, content_receiver).await;
+    let fin_receiver = context.validate_proposal(modified_init, TIMEOUT, content_receiver).await;
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -1146,15 +1156,14 @@ async fn change_gas_price_overrides() {
     assert!(matches!(proposal_commitment, Canceled));
 
     // Add the new overrides so validation passes.
-    let mut modified_block_info = block_info(BlockNumber(1), 1);
-    modified_block_info.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
+    let mut modified_init = block_info(BlockNumber(1), 1);
+    modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
     // Note that the eth to fri conversion rate by default is 10^18 so we can just replace wei to
     // fri 1:1.
-    modified_block_info.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
+    modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(modified_block_info, TIMEOUT, content_receiver).await;
+    let fin_receiver = context.validate_proposal(modified_init, TIMEOUT, content_receiver).await;
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -1169,7 +1178,7 @@ async fn change_gas_price_overrides() {
     context.deps.config_manager_client = Some(Arc::new(config_manager_client));
 
     let fin_receiver = context
-        .build_proposal(ProposalInit { height: BlockNumber(2), ..Default::default() }, TIMEOUT)
+        .build_proposal(BuildParam { height: BlockNumber(2), ..Default::default() }, TIMEOUT)
         .await
         .unwrap()
         .await
@@ -1178,9 +1187,9 @@ async fn change_gas_price_overrides() {
     assert_eq!(fin_receiver.0, STATE_DIFF_COMMITMENT.0.0);
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
-    let info = receiver.next().await.unwrap();
-    let ProposalPart::BlockInfo(_) = info else {
-        panic!("Expected ProposalPart::BlockInfo");
+    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(_) = part else {
+        panic!("Expected ProposalPart::Init");
     };
 }
 
@@ -1191,4 +1200,136 @@ fn make_config_manager_client(provider_config: ContextDynamicConfig) -> MockConf
         .returning(move || Ok(provider_config.clone()));
     config_manager_client.expect_set_node_dynamic_config().returning(|_| Ok(()));
     config_manager_client
+}
+
+#[tokio::test]
+async fn test_dynamic_config_updates_min_gas_price() {
+    // Test constants
+    const FIRST_CONFIG_HEIGHT: u64 = 100;
+    const FIRST_CONFIG_MIN_PRICE: u128 = 10_000_000_000;
+    const SECOND_CONFIG_HEIGHT: u64 = 200;
+    const SECOND_CONFIG_MIN_PRICE: u128 = 20_000_000_000;
+
+    const INITIAL_GAS_PRICE: u128 = 8_000_000_000; // below first minimum
+    const FIRST_TEST_HEIGHT: u64 = 150; // Between 100 and 200
+    const SECOND_TEST_HEIGHT: u64 = 250; // Above 200
+    const INTERMEDIATE_GAS_PRICE: u128 = 15_000_000_000; // Below second minimum
+
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+
+    // Create a mock config manager client that will return dynamic config
+    let mut mock_config_manager = MockConfigManagerClient::new();
+
+    // Mock expects get_context_dynamic_config to be called twice (once per height change)
+    // This is called inside set_height_and_round() -> update_dynamic_config() ->
+    // client.get_context_dynamic_config()
+
+    // First call returns config with min price at FIRST_CONFIG_HEIGHT
+    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
+        Ok(ContextDynamicConfig {
+            min_l2_gas_price_per_height: vec![PricePerHeight {
+                height: FIRST_CONFIG_HEIGHT,
+                price: FIRST_CONFIG_MIN_PRICE,
+            }],
+            ..Default::default()
+        })
+    });
+
+    // Second call returns config with additional min price at SECOND_CONFIG_HEIGHT
+    mock_config_manager.expect_get_context_dynamic_config().times(1).returning(move || {
+        Ok(ContextDynamicConfig {
+            min_l2_gas_price_per_height: vec![
+                PricePerHeight { height: FIRST_CONFIG_HEIGHT, price: FIRST_CONFIG_MIN_PRICE },
+                PricePerHeight { height: SECOND_CONFIG_HEIGHT, price: SECOND_CONFIG_MIN_PRICE },
+            ],
+            ..Default::default()
+        })
+    });
+
+    // Setup batcher expectations for two heights
+    // set_height_and_round() calls batcher.start_height() to notify the batcher
+    deps.batcher.expect_start_height().times(2).returning(|_| Ok(()));
+
+    // Convert TestDeps to SequencerConsensusContextDeps and add config manager
+    let mut context_deps: SequencerConsensusContextDeps = deps.into();
+    context_deps.config_manager_client = Some(Arc::new(mock_config_manager));
+
+    let mut context = SequencerConsensusContext::new(
+        ContextConfig {
+            static_config: ContextStaticConfig {
+                proposal_buffer_size: CHANNEL_SIZE,
+                chain_id: CHAIN_ID,
+                ..Default::default()
+            },
+            dynamic_config: ContextDynamicConfig { ..Default::default() },
+        },
+        context_deps,
+    );
+
+    // Set initial L2 gas price below minimum
+    context.l2_gas_price = GasPrice(INITIAL_GAS_PRICE);
+
+    // Test at FIRST_TEST_HEIGHT: Should use min price from first config.
+    // This calls set_height_and_round which triggers update_dynamic_config() internally
+    context.set_height_and_round(BlockNumber(FIRST_TEST_HEIGHT), 0).await.unwrap();
+
+    // Verify dynamic config was updated
+    assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 1);
+    assert_eq!(
+        context.config.dynamic_config.min_l2_gas_price_per_height[0].price,
+        FIRST_CONFIG_MIN_PRICE
+    );
+
+    // Simulate gas price update - this calls the fee market logic with min_l2_gas_price_per_height
+    context.update_l2_gas_price(BlockNumber(FIRST_TEST_HEIGHT), GasAmount(1000));
+
+    // Gas price should have increased towards minimum (gradual adjustment)
+    // Formula: new_price = min(price + price/333, min_gas_price)
+    // Starting at INITIAL_GAS_PRICE (8 Gwei), with MIN_GAS_PRICE_INCREASE_DENOMINATOR = 333
+    // max_increase = 8_000_000_000 / 333 = 24_024_024
+    // expected = 8_000_000_000 + 24_024_024 = 8_024_024_024
+    const MIN_GAS_PRICE_INCREASE_DENOMINATOR: u128 = 333;
+    let expected_price_after_first =
+        INITIAL_GAS_PRICE + (INITIAL_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
+    let expected_price_after_first = expected_price_after_first.min(FIRST_CONFIG_MIN_PRICE);
+
+    let price_after_first_update = context.l2_gas_price.0;
+    assert_eq!(
+        price_after_first_update, expected_price_after_first,
+        "Gas price should be exactly {} (8 Gwei + 8/333), got {}",
+        expected_price_after_first, price_after_first_update
+    );
+
+    // Test at SECOND_TEST_HEIGHT: Should use min price from config2
+    context.set_height_and_round(BlockNumber(SECOND_TEST_HEIGHT), 0).await.unwrap();
+
+    // Verify dynamic config was updated again
+    assert_eq!(context.config.dynamic_config.min_l2_gas_price_per_height.len(), 2);
+    assert_eq!(
+        context.config.dynamic_config.min_l2_gas_price_per_height[1].price,
+        SECOND_CONFIG_MIN_PRICE
+    );
+
+    // Set gas price below new minimum
+    context.l2_gas_price = GasPrice(INTERMEDIATE_GAS_PRICE);
+
+    // Simulate gas price update
+    context.update_l2_gas_price(BlockNumber(SECOND_TEST_HEIGHT), GasAmount(1000));
+
+    // Gas price should have increased towards new minimum
+    // Formula: new_price = min(price + price/333, min_gas_price)
+    // Starting at INTERMEDIATE_GAS_PRICE (15 Gwei)
+    // max_increase = 15_000_000_000 / 333 = 45_045_045
+    // expected = 15_000_000_000 + 45_045_045 = 15_045_045_045
+    let expected_price_after_second =
+        INTERMEDIATE_GAS_PRICE + (INTERMEDIATE_GAS_PRICE / MIN_GAS_PRICE_INCREASE_DENOMINATOR);
+    let expected_price_after_second = expected_price_after_second.min(SECOND_CONFIG_MIN_PRICE);
+
+    let price_after_second_update = context.l2_gas_price.0;
+    assert_eq!(
+        price_after_second_update, expected_price_after_second,
+        "Gas price should be exactly {} (15 Gwei + 15/333), got {}",
+        expected_price_after_second, price_after_second_update
+    );
 }

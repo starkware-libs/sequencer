@@ -42,7 +42,7 @@ jobs:
     outputs:
       should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.system_check.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: github.event_name != 'workflow_dispatch'
         with:
           fetch-depth: 0
@@ -96,7 +96,7 @@ jobs:
           - svc: dummy_eth_to_strk_oracle
             dockerfile: dummy_eth_to_strk_oracle.Dockerfile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build ${{ matrix.svc }} image remotely
         uses: docker/build-push-action@v6.18.0
@@ -113,7 +113,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Create registries.yaml for nscr.io
         run: |
@@ -298,7 +298,12 @@ jobs:
         run: kubectl config set-context --current --namespace ${{ env.namespace }}
 
       - name: Run readiness check
-        run: pipenv run python ./scripts/system_tests/readiness_check.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }}
+        run: |
+          pipenv run python ./scripts/system_tests/readiness_check.py \
+            --layout ${{ env.layout }} \
+            --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
+            --verbose
 
       - name: Test sequencer is alive
         env:
@@ -307,17 +312,30 @@ jobs:
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
           pipenv run python ./scripts/system_tests/liveness_check.py \
-            --namespace ${{ env.namespace }} \
             --layout ${{ env.layout }} \
             --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
             --timeout ${{ env.check_timeout_sec }} \
-            --interval ${{ env.check_interval_sec }}
+            --interval ${{ env.check_interval_sec }} \
+            --initial-delay ${{ env.initial_delay_sec }} \
+            --verbose
 
       - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }} --data-dir "./output/data/node_0"
+        run: |
+          pipenv run python ./scripts/system_tests/copy_state_and_restart.py \
+            --layout ${{ env.layout }} \
+            --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
+            --data-dir "./output/data/node_0" \
+            --verbose
 
       - name: Run readiness check
-        run: pipenv run python ./scripts/system_tests/readiness_check.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }}
+        run: |
+          pipenv run python ./scripts/system_tests/readiness_check.py \
+            --layout ${{ env.layout }} \
+            --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
+            --verbose
 
       - name: Port-forward Anvil pod to localhost:${{ env.anvil_port }}
         run: |

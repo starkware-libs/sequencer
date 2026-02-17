@@ -18,6 +18,7 @@ use crate::panels::batcher::{
     get_panel_consensus_block_time_avg,
 };
 use crate::panels::blockifier::get_blockifier_row;
+use crate::panels::committer::get_committer_row;
 use crate::panels::consensus::{
     get_cende_row,
     get_consensus_p2p_row,
@@ -86,6 +87,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_consensus_row(),
             get_cende_row(),
             get_batcher_row(),
+            get_committer_row(),
             get_state_sync_row(),
             get_http_server_row(),
             get_gateway_row(),

@@ -1,5 +1,5 @@
 use serde::Serialize;
-use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::FactsDb;
 use starknet_committer::db::forest_trait::{ForestWriter, StorageInitializer};
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_patricia_storage::errors::SerializationResult;
@@ -27,7 +27,7 @@ impl SerializedForest {
         let contract_storage_root_hash = self.0.get_contract_root_hash().0;
         let compiled_class_root_hash = self.0.get_compiled_class_root_hash().0;
         Ok(Output {
-            storage: output_facts_db.storage,
+            storage: output_facts_db.consume_storage(),
             contract_storage_root_hash: contract_storage_root_hash.to_hex_string(),
             compiled_class_root_hash: compiled_class_root_hash.to_hex_string(),
         })

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_consensus::types::Round;
+use apollo_protobuf::consensus::Round;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
@@ -11,7 +11,7 @@ use thiserror::Error;
 
 use crate::staking_contract::StakingContractError;
 
-pub type Committee = Vec<Staker>;
+pub type StakerSet = Vec<Staker>;
 
 #[cfg_attr(test, derive(Clone))]
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -33,40 +33,52 @@ pub enum CommitteeProviderError {
     EmptyCommittee,
     #[error("Committee info unavailable for height {height}.")]
     InvalidHeight { height: BlockNumber },
+    #[error("Missing epoch information for epoch {epoch_id}.")]
+    MissingInformation { epoch_id: u64 },
     #[error(transparent)]
     StakingContractError(#[from] StakingContractError),
 }
 
 pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;
 
-/// Trait for managing committee operations including fetching and selecting committee members
-/// and proposers for consensus.
-/// The committee is a subset of nodes (proposer and validators) that are selected to participate in
-/// the consensus at a given epoch, responsible for proposing blocks and voting on them.
-#[async_trait]
-pub trait CommitteeProvider: Send + Sync {
-    /// Returns a list of the committee members at the epoch of the given height.
-    // TODO(Dafna): Consider including the total weight in the returned `Committee` type.
-    async fn get_committee(&self, height: BlockNumber) -> CommitteeProviderResult<Arc<Committee>>;
+#[derive(Debug, Error)]
+pub enum CommitteeError {
+    #[error("Committee is empty.")]
+    EmptyCommittee,
+}
+
+pub type CommitteeResult<T> = Result<T, CommitteeError>;
+
+/// Trait for committee operations including proposer selection.
+/// This trait is implemented by committee instances and provides synchronous methods
+/// for determining proposers based on height and round.
+#[cfg_attr(feature = "testing", mockall::automock)]
+pub trait CommitteeTrait: Send + Sync {
+    /// Returns a reference to the committee members.
+    fn members(&self) -> &StakerSet;
 
     /// Returns the address of the proposer for the specified height and round.
     ///
-    /// The proposer is deterministically selected for a given height and round, from the committee
-    /// corresponding to the epoch associated with that height.
-    async fn get_proposer(
-        &self,
-        height: BlockNumber,
-        round: Round,
-    ) -> CommitteeProviderResult<ContractAddress>;
+    /// The proposer is deterministically selected for a given height and round using
+    /// weighted random selection based on staker weights.
+    fn get_proposer(&self, height: BlockNumber, round: Round) -> CommitteeResult<ContractAddress>;
 
     /// Returns the address of the actual proposer for the specified height and round.
     ///
-    /// 1. Filters the committee to only include stakers eligible to propose (based on `can_propose`
-    ///    field in StakerConfig).
-    /// 2. Uses deterministic round-robin selection: `(height + round) % eligible_count`.
-    async fn get_actual_proposer(
+    /// Uses deterministic round-robin selection from eligible proposers:
+    /// `(height + round) % eligible_count`.
+    fn get_actual_proposer(&self, height: BlockNumber, round: Round) -> ContractAddress;
+}
+
+/// Trait for managing committee operations including fetching committee instances.
+/// The committee is a subset of nodes (proposer and validators) that are selected to participate in
+/// the consensus at a given epoch, responsible for proposing blocks and voting on them.
+#[async_trait]
+#[cfg_attr(feature = "testing", mockall::automock)]
+pub trait CommitteeProvider: Send + Sync {
+    /// Returns a committee instance for the epoch of the given height.
+    async fn get_committee(
         &self,
         height: BlockNumber,
-        round: Round,
-    ) -> CommitteeProviderResult<ContractAddress>;
+    ) -> CommitteeProviderResult<Arc<dyn CommitteeTrait>>;
 }

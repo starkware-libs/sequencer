@@ -1,8 +1,7 @@
 use async_recursion::async_recursion;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::{HashOutput, StateRoots};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node::{FactDbFilledNode, FilledNode};
-use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::FactNodeDeserializationContext;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
@@ -19,14 +18,16 @@ use starknet_patricia_storage::storage_trait::{DbHashMap, DbValue, Storage};
 use crate::block_committer::input::try_node_index_into_contract_address;
 use crate::db::db_layout::DbLayout;
 use crate::db::facts_db::db::FactsNodeLayout;
+use crate::db::facts_db::node_serde::FactNodeDeserializationContext;
 use crate::db::facts_db::types::FactsSubTree;
+use crate::db::facts_db::FactDbFilledNode;
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
     IndexLayoutContractState,
     IndexLayoutStarknetStorageValue,
 };
-use crate::db::index_db::types::{EmptyNodeData, IndexFilledNode, IndexLayoutSubTree};
-use crate::hash_function::hash::TreeHashFunctionImpl;
+use crate::db::index_db::types::{EmptyNodeData, IndexFilledNodeWithHasher, IndexLayoutSubTree};
+use crate::hash_function::mock_hash::MockTreeHashFunction;
 
 type FactsStorageValueDbLeaf = <FactsNodeLayout as DbLayout>::StarknetStorageValueDbLeaf;
 type FactsCompiledClassHashDbLeaf = <FactsNodeLayout as DbLayout>::CompiledClassHashDbLeaf;
@@ -97,7 +98,7 @@ pub async fn convert_facts_db_to_index_db<FactsLeaf, IndexLeaf, KeyContext>(
 where
     FactsLeaf: Leaf + Into<IndexLeaf> + HasStaticPrefix<KeyContext = KeyContext>,
     IndexLeaf: Leaf + HasStaticPrefix<KeyContext = KeyContext>,
-    TreeHashFunctionImpl: TreeHashFunction<IndexLeaf>,
+    MockTreeHashFunction: TreeHashFunction<IndexLeaf>,
     KeyContext: Sync,
 {
     convert_single_trie(storage, root_hash, key_context, current_leaves, true).await
@@ -114,7 +115,7 @@ async fn convert_single_trie<FactsLeaf, IndexLeaf, KeyContext>(
 where
     FactsLeaf: Leaf + Into<IndexLeaf> + HasStaticPrefix<KeyContext = KeyContext>,
     IndexLeaf: Leaf + HasStaticPrefix<KeyContext = KeyContext>,
-    TreeHashFunctionImpl: TreeHashFunction<IndexLeaf>,
+    MockTreeHashFunction: TreeHashFunction<IndexLeaf>,
     KeyContext: Sync,
 {
     let mut index_layout_storage = MapStorage(DbHashMap::new());
@@ -145,7 +146,7 @@ async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
 ) where
     FactsLeaf: Leaf + Into<IndexLeaf> + HasStaticPrefix<KeyContext = KeyContext>,
     IndexLeaf: Leaf + HasStaticPrefix<KeyContext = KeyContext>,
-    TreeHashFunctionImpl: TreeHashFunction<IndexLeaf>,
+    MockTreeHashFunction: TreeHashFunction<IndexLeaf>,
     KeyContext: Sync,
 {
     if subtree.root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
@@ -179,68 +180,69 @@ async fn traverse_and_convert<FactsLeaf, IndexLeaf, KeyContext>(
     )
     .unwrap();
 
-    let index_filled_node: IndexFilledNode<IndexLeaf> = match facts_filled_node.data {
-        NodeData::Binary(binary_data) => {
-            let (left_subtree, right_subtree) =
-                subtree.get_children_subtrees(binary_data.left_data, binary_data.right_data);
-            traverse_and_convert::<FactsLeaf, IndexLeaf, KeyContext>(
-                facts_storage,
-                index_layout_storage,
-                left_subtree,
-                key_context,
-                current_leaves,
-                panic_on_missing_node,
-            )
-            .await;
-            traverse_and_convert::<FactsLeaf, IndexLeaf, KeyContext>(
-                facts_storage,
-                index_layout_storage,
-                right_subtree,
-                key_context,
-                current_leaves,
-                panic_on_missing_node,
-            )
-            .await;
-            IndexFilledNode(FilledNode {
-                hash: subtree.root_hash,
-                data: NodeData::Binary(BinaryData {
-                    left_data: EmptyNodeData,
-                    right_data: EmptyNodeData,
-                }),
-            })
-        }
-        NodeData::Edge(edge_data) => {
-            let (bottom_subtree, _) =
-                subtree.get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_data);
-
-            traverse_and_convert::<FactsLeaf, IndexLeaf, KeyContext>(
-                facts_storage,
-                index_layout_storage,
-                bottom_subtree,
-                key_context,
-                current_leaves,
-                panic_on_missing_node,
-            )
-            .await;
-            IndexFilledNode(FilledNode {
-                hash: subtree.root_hash,
-                data: NodeData::Edge(EdgeData {
-                    bottom_data: EmptyNodeData,
-                    path_to_bottom: edge_data.path_to_bottom,
-                }),
-            })
-        }
-        NodeData::Leaf(leaf) => {
-            if let Some(leaves) = current_leaves {
-                leaves.push((subtree.root_index, leaf.clone()));
+    let index_filled_node: IndexFilledNodeWithHasher<IndexLeaf, MockTreeHashFunction> =
+        match facts_filled_node.0.data {
+            NodeData::Binary(binary_data) => {
+                let (left_subtree, right_subtree) =
+                    subtree.get_children_subtrees(binary_data.left_data, binary_data.right_data);
+                traverse_and_convert::<FactsLeaf, IndexLeaf, KeyContext>(
+                    facts_storage,
+                    index_layout_storage,
+                    left_subtree,
+                    key_context,
+                    current_leaves,
+                    panic_on_missing_node,
+                )
+                .await;
+                traverse_and_convert::<FactsLeaf, IndexLeaf, KeyContext>(
+                    facts_storage,
+                    index_layout_storage,
+                    right_subtree,
+                    key_context,
+                    current_leaves,
+                    panic_on_missing_node,
+                )
+                .await;
+                IndexFilledNodeWithHasher::new(FilledNode {
+                    hash: subtree.root_hash,
+                    data: NodeData::Binary(BinaryData {
+                        left_data: EmptyNodeData,
+                        right_data: EmptyNodeData,
+                    }),
+                })
             }
+            NodeData::Edge(edge_data) => {
+                let (bottom_subtree, _) =
+                    subtree.get_bottom_subtree(&edge_data.path_to_bottom, edge_data.bottom_data);
 
-            IndexFilledNode(FilledNode {
-                hash: subtree.root_hash,
-                data: NodeData::Leaf(leaf.into()),
-            })
-        }
-    };
+                traverse_and_convert::<FactsLeaf, IndexLeaf, KeyContext>(
+                    facts_storage,
+                    index_layout_storage,
+                    bottom_subtree,
+                    key_context,
+                    current_leaves,
+                    panic_on_missing_node,
+                )
+                .await;
+                IndexFilledNodeWithHasher::new(FilledNode {
+                    hash: subtree.root_hash,
+                    data: NodeData::Edge(EdgeData {
+                        bottom_data: EmptyNodeData,
+                        path_to_bottom: edge_data.path_to_bottom,
+                    }),
+                })
+            }
+            NodeData::Leaf(leaf) => {
+                if let Some(leaves) = current_leaves {
+                    leaves.push((subtree.root_index, leaf.clone()));
+                }
+
+                IndexFilledNodeWithHasher::new(FilledNode {
+                    hash: subtree.root_hash,
+                    data: NodeData::Leaf(leaf.into()),
+                })
+            }
+        };
 
     let index_db_key =
         IndexLayoutSubTree::create(SortedLeafIndices::default(), subtree.root_index, EmptyNodeData)

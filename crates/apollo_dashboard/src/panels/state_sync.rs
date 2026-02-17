@@ -7,7 +7,8 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_HEADER_LATENCY_SEC,
 };
 
-use crate::dashboard::{Panel, PanelType, Row, Unit};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::DEFAULT_DURATION;
 
 fn get_panel_central_sync_central_block_marker() -> Panel {
@@ -76,7 +77,7 @@ fn get_panel_time_to_complete_sync() -> Panel {
         ),
         format!(
             "({target_total} - {sync_state}) / clamp_min(rate({sync_state}[{d}]) - \
-             rate({target_total}[{d}]), 1e-6)",
+             rate({target_total}[{d}]), 1)",
             target_total = CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
             sync_state = STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter(),
             d = DEFAULT_DURATION

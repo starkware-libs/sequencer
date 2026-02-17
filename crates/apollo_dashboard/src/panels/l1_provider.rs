@@ -1,14 +1,15 @@
 use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
     L1_PROVIDER_NUM_PENDING_TXS,
 };
-use apollo_metrics::metrics::MetricQueryName;
 
-use crate::dashboard::{get_time_since_last_increase_expr, Panel, PanelType, Row, Unit};
-use crate::query_builder::{increase, DEFAULT_DURATION};
+use crate::dashboard::Row;
+use crate::panel::{Panel, PanelType, Unit};
+use crate::query_builder::{increase, seconds_since_last_timestamp, DEFAULT_DURATION};
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
     Panel::new(
@@ -46,12 +47,13 @@ fn get_panel_l1_message_scraper_latest_scraped_block() -> Panel {
 fn get_panel_l1_provider_num_pending_txs() -> Panel {
     Panel::from_gauge(&L1_PROVIDER_NUM_PENDING_TXS, PanelType::TimeSeries)
 }
+
 fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
     Panel::new(
         "Seconds since last successful l1 event scrape",
         "The number of seconds since the last successful scrape of the L1 message scraper \
          (assuming there was a scrape in the last 12 hours)",
-        get_time_since_last_increase_expr(&L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
+        seconds_since_last_timestamp(&L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS),
         PanelType::TimeSeries,
     )
     .with_unit(Unit::Seconds)

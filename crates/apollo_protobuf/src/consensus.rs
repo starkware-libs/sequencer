@@ -13,6 +13,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::hash::StarkHash;
+use starknet_types_core::felt::Felt;
 
 use crate::converters::ProtobufConversionError;
 
@@ -73,7 +74,7 @@ pub struct StreamMessage<T: IntoFromProto, StreamId: IntoFromProto + Clone> {
 
 /// Contains the minimal information needed to start building a proposal.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ProposalInit {
+pub struct BuildParam {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
     /// The current round of the consensus.
@@ -90,7 +91,7 @@ pub struct ProposalInit {
 /// distinguish whether an issue comes from the L1 price reading or the conversion rate instead of
 /// comparing after multiplication.
 #[derive(Clone, Debug, PartialEq)]
-pub struct ConsensusBlockInfo {
+pub struct ProposalInit {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
     /// The current round of the consensus.
@@ -116,15 +117,19 @@ pub struct ConsensusBlockInfo {
     pub l1_gas_price_wei: GasPrice,
     /// L1 data gas price in WEI.
     pub l1_data_gas_price_wei: GasPrice,
+    /// Starknet protocol version.
+    pub starknet_version: starknet_api::block::StarknetVersion,
+    /// Version constant commitment.
+    pub version_constant_commitment: StarkHash,
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
 // TODO(Matan): Remove this once we have a proper validator set.
 pub const DEFAULT_VALIDATOR_ID: u64 = 100;
 
-impl Default for ProposalInit {
+impl Default for BuildParam {
     fn default() -> Self {
-        ProposalInit {
+        BuildParam {
             height: Default::default(),
             round: Default::default(),
             valid_round: Default::default(),
@@ -133,9 +138,9 @@ impl Default for ProposalInit {
     }
 }
 
-impl Default for ConsensusBlockInfo {
+impl Default for ProposalInit {
     fn default() -> Self {
-        ConsensusBlockInfo {
+        ProposalInit {
             height: Default::default(),
             round: Default::default(),
             valid_round: Default::default(),
@@ -148,6 +153,8 @@ impl Default for ConsensusBlockInfo {
             l1_data_gas_price_fri: Default::default(),
             l1_gas_price_wei: Default::default(),
             l1_data_gas_price_wei: Default::default(),
+            starknet_version: starknet_api::block::StarknetVersion::LATEST,
+            version_constant_commitment: Default::default(),
         }
     }
 }
@@ -159,6 +166,14 @@ pub struct TransactionBatch {
     pub transactions: Vec<ConsensusTransaction>,
 }
 
+/// Optional parts of a commitment carried in ProposalFin.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CommitmentParts {
+    pub next_l2_gas_price_fri: GasPrice,
+    pub concatenated_counts: Felt,
+    pub parent_commitment: ProposalCommitment,
+}
+
 /// The proposal is done when receiving this fin message, which contains the proposal commitment.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProposalFin {
@@ -167,37 +182,39 @@ pub struct ProposalFin {
     pub proposal_commitment: ProposalCommitment,
     /// Number of executed transactions in the proposal.
     pub executed_transaction_count: u64,
+    /// Optional commitment parts.
+    pub commitment_parts: Option<CommitmentParts>,
 }
 
 /// A part of the proposal.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProposalPart {
-    /// The block info part of the proposal.
-    BlockInfo(ConsensusBlockInfo),
+    /// The init part of the proposal (block metadata).
+    Init(ProposalInit),
     /// Identifies the content of the proposal; contains `id(v)` in Tendermint terms.
     Fin(ProposalFin),
     /// A part of the proposal that contains one or more transactions.
     Transactions(TransactionBatch),
 }
 
-impl TryInto<ConsensusBlockInfo> for ProposalPart {
+impl TryInto<ProposalInit> for ProposalPart {
     type Error = ProtobufConversionError;
 
-    fn try_into(self: ProposalPart) -> Result<ConsensusBlockInfo, Self::Error> {
+    fn try_into(self: ProposalPart) -> Result<ProposalInit, Self::Error> {
         match self {
-            ProposalPart::BlockInfo(block_info) => Ok(block_info),
+            ProposalPart::Init(init) => Ok(init),
             _ => Err(ProtobufConversionError::WrongEnumVariant {
                 type_description: "ProposalPart",
-                expected: "BlockInfo",
+                expected: "Init",
                 value_as_str: format!("{self:?}"),
             }),
         }
     }
 }
 
-impl From<ConsensusBlockInfo> for ProposalPart {
-    fn from(value: ConsensusBlockInfo) -> Self {
-        ProposalPart::BlockInfo(value)
+impl From<ProposalInit> for ProposalPart {
+    fn from(value: ProposalInit) -> Self {
+        ProposalPart::Init(value)
     }
 }
 

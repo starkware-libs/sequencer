@@ -1,15 +1,18 @@
 use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND_ABOVE_ZERO};
 use apollo_consensus_manager::metrics::CONSENSUS_NUM_CONNECTED_PEERS;
 use apollo_consensus_orchestrator::metrics::CENDE_WRITE_BLOB_FAILURE;
+use apollo_infra_utils::template::Template;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::alert_definitions::BLOCK_TIME_SEC;
-use crate::alert_placeholders::ComparisonValueOrPlaceholder;
+use crate::alert_placeholders::{
+    format_sampling_window,
+    ComparisonValueOrPlaceholder,
+    ExpressionOrExpressionWithPlaceholder,
+};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
-    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
@@ -30,49 +33,38 @@ pub(crate) fn get_consensus_round_above_zero() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
-fn get_consensus_round_above_zero_multiple_times(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_consensus_round_above_zero_multiple_times(alert_severity: AlertSeverity) -> Alert {
+    const ALERT_NAME: &str = "consensus_round_above_zero_multiple_times";
+    let expr_template_string =
+        format!("increase({}[{{}}s])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter());
     Alert::new(
-        "consensus_round_above_zero_multiple_times",
+        ALERT_NAME,
         "Consensus round above zero multiple times",
         AlertGroup::Consensus,
-        format!("increase({}[10m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
+        ExpressionOrExpressionWithPlaceholder::Placeholder(
+            Template::new(expr_template_string),
+            vec![format_sampling_window(ALERT_NAME)],
+        ),
         vec![AlertCondition::new(
             AlertComparisonOp::GreaterThan,
-            180.0 / BLOCK_TIME_SEC,
+            ComparisonValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
             AlertLogicalOp::And,
         )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_consensus_round_above_zero_multiple_times_vec() -> Vec<Alert> {
-    vec![
-        get_consensus_round_above_zero_multiple_times(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Sos,
-        ),
-        get_consensus_round_above_zero_multiple_times(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_consensus_round_above_zero_multiple_times(AlertSeverity::Sos)]
 }
 
-fn get_cende_write_blob_failure_alert(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_cende_write_blob_failure_alert(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "cende_write_blob_failure",
         "Cende write blob failure",
@@ -83,27 +75,14 @@ fn get_cende_write_blob_failure_alert(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::NotApplicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_cende_write_blob_failure_alert_vec() -> Vec<Alert> {
-    vec![
-        get_cende_write_blob_failure_alert(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::DayOnly,
-        ),
-        get_cende_write_blob_failure_alert(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_cende_write_blob_failure_alert(AlertSeverity::DayOnly)]
 }
 
-fn get_consensus_p2p_peer_down(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_consensus_p2p_peer_down(alert_severity: AlertSeverity) -> Alert {
     Alert::new(
         "consensus_p2p_peer_down",
         "Consensus p2p peer down",
@@ -119,18 +98,11 @@ fn get_consensus_p2p_peer_down(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::Applicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_consensus_p2p_peer_down_vec() -> Vec<Alert> {
-    vec![
-        get_consensus_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Regular),
-        get_consensus_p2p_peer_down(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_consensus_p2p_peer_down(AlertSeverity::Regular)]
 }
 
 pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
@@ -144,14 +116,10 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
         ObserverApplicability::NotApplicable,
-        AlertEnvFiltering::All,
     )
 }
 
-fn get_consensus_block_number_progress_is_slow(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
+fn get_consensus_block_number_progress_is_slow(alert_severity: AlertSeverity) -> Alert {
     const ALERT_NAME: &str = "get_consensus_block_number_progress_is_slow";
     Alert::new(
         ALERT_NAME,
@@ -170,19 +138,9 @@ fn get_consensus_block_number_progress_is_slow(
         EVALUATION_INTERVAL_SEC_DEFAULT,
         alert_severity,
         ObserverApplicability::Applicable,
-        alert_env_filtering,
     )
 }
 
 pub(crate) fn get_consensus_block_number_progress_is_slow_vec() -> Vec<Alert> {
-    vec![
-        get_consensus_block_number_progress_is_slow(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Regular,
-        ),
-        get_consensus_block_number_progress_is_slow(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
+    vec![get_consensus_block_number_progress_is_slow(AlertSeverity::Regular)]
 }

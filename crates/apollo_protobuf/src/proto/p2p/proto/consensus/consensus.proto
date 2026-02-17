@@ -44,7 +44,7 @@ message StreamMessage {
     uint64 message_id = 4;
 }
 
-message BlockInfo {
+message ProposalInit {
     uint64 height                     = 1;
     uint32 round                      = 2;
     optional uint32 valid_round       = 3;
@@ -57,10 +57,18 @@ message BlockInfo {
     Uint128 l1_data_gas_price_fri     = 10;
     Uint128 l1_gas_price_wei          = 11;
     Uint128 l1_data_gas_price_wei     = 12;
+    string starknet_version           = 13;
+    Hash version_constant_commitment   = 14;
 }
 
 message TransactionBatch {
     repeated ConsensusTransaction transactions = 1;
+}
+
+message CommitmentParts {
+    Uint128 next_l2_gas_price_fri = 1;
+    Felt252 concatenated_counts = 2;
+    Hash parent_commitment = 3;
 }
 
 message ProposalFin {
@@ -68,15 +76,16 @@ message ProposalFin {
     Hash proposal_commitment = 1;
     // Number of executed transactions in the proposal.
     uint64 executed_transaction_count = 2;
+    optional CommitmentParts commitment_parts = 3;
 }
 
 // Network format:
-// 1. First message is BlockInfo (includes all block metadata)
+// 1. First message is ProposalInit (init, includes all block metadata)
 // 2. transactions is sent repeatedly (for non-empty blocks)
 // 3. Last message is ProposalFin
 message ProposalPart {
     oneof message {
-        BlockInfo block_info          = 1;
+        ProposalInit init             = 1;
         ProposalFin fin               = 2;
         TransactionBatch transactions = 3;
     }

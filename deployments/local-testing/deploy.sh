@@ -1511,7 +1511,7 @@ for rule in rules:
         
         upload_output=$("$venv_python" "${monitoring_dir}/src/main.py" \
             --dev-dashboards-file "${SEQUENCER_ROOT_DIR}/crates/apollo_dashboard/resources/dev_grafana.json" \
-            --dev-alerts-file "${SEQUENCER_ROOT_DIR}/crates/apollo_dashboard/resources/dev_grafana_alerts_testnet.json" \
+            --dev-alerts-file "${SEQUENCER_ROOT_DIR}/crates/apollo_dashboard/resources/dev_grafana_alerts.json" \
             --out-dir /tmp/grafana_builder \
             --env dev \
             --grafana-url "http://localhost:3000" \
@@ -1707,22 +1707,7 @@ else:
 # Upload Grafana alert rules only (for quick iteration on alerts)
 # Usage: upload_alerts [dev|testnet|mainnet]
 upload_alerts() {
-    local alert_env="${1:-dev}"  # Default to dev
-    
-    # Validate environment
-    case "$alert_env" in
-        dev|testnet|mainnet)
-            ;;
-        *)
-            log_error "Invalid alert environment: $alert_env"
-            log_error "Valid options: dev, testnet, mainnet"
-            return 1
-            ;;
-    esac
-    
-    # Use the base alerts file path - the Python script will resolve to the correct
-    # environment-specific file (_mainnet or _testnet) based on the --env parameter
-    # dev -> mainnet, testnet -> testnet, mainnet -> mainnet (see helpers.py alert_env_filename_suffix)
+    # Use the base alerts file path
     local alerts_file="${SEQUENCER_ROOT_DIR}/crates/apollo_dashboard/resources/dev_grafana_alerts.json"
     
     verify_k3d_cluster
@@ -1834,7 +1819,7 @@ for rule in rules:
     fi
     
     # Upload alert rules only (no dashboards file)
-    # The Python script will resolve to dev_grafana_alerts_<suffix>.json based on env
+    # The Python script will resolve to dev_grafana_alerts.json based on env
     # dev->mainnet, testnet->testnet, mainnet->mainnet
     local resolved_suffix
     case "$alert_env" in
@@ -1842,7 +1827,7 @@ for rule in rules:
         testnet) resolved_suffix="testnet" ;;
         mainnet) resolved_suffix="mainnet" ;;
     esac
-    log_info "Uploading alert rules (env: ${alert_env} -> dev_grafana_alerts_${resolved_suffix}.json)"
+    log_info "Uploading alert rules (env: ${alert_env} -> dev_grafana_alerts.json)"
     local upload_output=""
     upload_output=$("$venv_python" "${monitoring_dir}/src/main.py" \
         --dev-alerts-file "$alerts_file" \
