@@ -271,7 +271,7 @@ pub fn finalize_execution(
         vm_resources: vm_resources_without_inner_calls,
         opcode_instance_counter: Default::default(),
     };
-    let vm_resources = &extended_resources_without_inner_calls
+    let resources = &extended_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
 
     Ok(CallInfo {
@@ -286,7 +286,7 @@ pub fn finalize_execution(
         },
         inner_calls: syscall_handler.inner_calls,
         tracked_resource: TrackedResource::CairoSteps,
-        resources: vm_resources,
+        resources,
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: syscall_handler.read_values,
             accessed_storage_keys: syscall_handler.accessed_keys,
