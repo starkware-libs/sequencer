@@ -55,6 +55,9 @@ COPY --from=builder /usr/bin/tini /usr/bin/tini
 # Copy apollo config schema, used when it loads its configuration.
 COPY crates/apollo_node/resources/config_schema.json crates/apollo_node/resources/config_schema.json
 
+# Copy blockifier test utils resources, required for batcher bootstrap contracts.
+COPY --from=builder /app/crates/blockifier_test_utils/resources ./crates/blockifier_test_utils/resources
+
 # Create a new user "sequencer".
 RUN set -ex; \
     groupadd --gid ${ID} sequencer; \

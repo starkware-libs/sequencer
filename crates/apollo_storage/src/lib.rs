@@ -195,22 +195,32 @@ pub fn open_storage(
     open_storage_internal(storage_config, None)
 }
 
+/// Same as [`open_storage`], but also updates the given metric for the number of open readers.
+pub fn open_storage_with_metric(
+    storage_config: StorageConfig,
+    open_readers_metric: &'static MetricGauge,
+) -> StorageResult<(StorageReader, StorageWriter)> {
+    open_storage_internal(storage_config, Some(open_readers_metric))
+}
+
 /// Same as [`open_storage`], but also updates the given metric for the number of open readers and
 /// creates a storage reader server.
-pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response>(
+pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response, ExtraState>(
     storage_config: StorageConfig,
     open_readers_metric: &'static MetricGauge,
     storage_reader_server_config: ServerConfig,
-) -> StorageResult<StorageWithServer<RequestHandler, Request, Response>>
+    extra_state: ExtraState,
+) -> StorageResult<StorageWithServer<RequestHandler, Request, Response, ExtraState>>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response>,
+    RequestHandler: StorageReaderServerHandler<Request, Response, ExtraState>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
+    ExtraState: Clone + Send + Sync + 'static,
 {
     let (reader, writer) =
         open_storage_internal(storage_config, Some(open_readers_metric)).expect("");
     let storage_reader_server =
-        create_storage_reader_server(reader.clone(), storage_reader_server_config);
+        create_storage_reader_server(reader.clone(), storage_reader_server_config, extra_state);
     Ok((reader, writer, storage_reader_server))
 }
 
@@ -775,8 +785,11 @@ pub type StorageResult<V> = std::result::Result<V, StorageError>;
 
 /// A type alias for the return type of storage operations that include an optional storage reader
 /// server.
-pub type StorageWithServer<RequestHandler, Request, Response> =
-    (StorageReader, StorageWriter, Option<StorageReaderServer<RequestHandler, Request, Response>>);
+pub type StorageWithServer<RequestHandler, Request, Response, ExtraState = ()> = (
+    StorageReader,
+    StorageWriter,
+    Option<StorageReaderServer<RequestHandler, Request, Response, ExtraState>>,
+);
 
 /// A struct for the configuration of the storage.
 #[allow(missing_docs)]

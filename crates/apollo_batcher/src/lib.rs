@@ -5,6 +5,7 @@ pub mod block_builder;
 #[cfg(test)]
 mod block_builder_test;
 pub mod bootstrap;
+pub mod bootstrap_server;
 #[cfg(test)]
 mod bootstrap_test;
 pub mod cende_client_types;
