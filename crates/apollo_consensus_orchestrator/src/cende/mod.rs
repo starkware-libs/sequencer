@@ -266,6 +266,18 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
             if let Err(err) = tokio::fs::write(&path, body).await {
                 warn!("Failed to save blob to {path}: {err}");
             }
+
+            if let Ok(serde_json::Value::Object(map)) = serde_json::from_slice(body) {
+                let mut sizes_content = String::new();
+                for (key, value) in &map {
+                    let size = serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
+                    sizes_content.push_str(&format!("{key}: {size} bytes\n"));
+                }
+                let sizes_path = format!("/tmp/blob_{}_sizes.txt", blob.block_number);
+                if let Err(err) = tokio::fs::write(&sizes_path, sizes_content).await {
+                    warn!("Failed to save blob sizes to {sizes_path}: {err}");
+                }
+            }
         }
     }
 
