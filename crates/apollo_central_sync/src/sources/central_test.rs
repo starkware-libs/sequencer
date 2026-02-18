@@ -17,8 +17,10 @@ use apollo_starknet_client::reader::{
 };
 use apollo_starknet_client::ClientError;
 use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::class_manager::ClassManagerStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
+use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures_util::pin_mut;
@@ -35,6 +37,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass as sn_api_ContractClass, ThinStateDiff};
 use starknet_api::{class_hash, contract_address, felt, storage_key};
+use static_assertions::const_assert;
 use tokio_stream::StreamExt;
 
 use super::state_update_stream::StateUpdateStreamConfig;
@@ -274,6 +277,11 @@ async fn stream_block_headers_error() {
 async fn stream_state_updates() {
     const START_BLOCK_NUMBER: u64 = 5;
     const END_BLOCK_NUMBER: u64 = 7;
+    const FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER: BlockNumber = BlockNumber(6);
+    const_assert!(
+        START_BLOCK_NUMBER < FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER.0
+            && FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER.0 < END_BLOCK_NUMBER
+    );
 
     let class_hash1 = class_hash!("0x123");
     let class_hash2 = class_hash!("0x456");
@@ -319,7 +327,7 @@ async fn stream_state_updates() {
             DeployedContract { address: contract_address2, class_hash: class_hash3 },
         ],
         old_declared_contracts: vec![class_hash1, class_hash3],
-        declared_classes: vec![class_hash_entry1, class_hash_entry2],
+        declared_classes: vec![class_hash_entry1],
         migrated_compiled_classes: vec![MigratedCompiledClassHashEntry {
             class_hash: migrated_class_hash,
             compiled_class_hash: migrated_compiled_class_hash,
@@ -330,7 +338,10 @@ async fn stream_state_updates() {
             class_hash: class_hash4,
         }],
     };
-    let client_state_diff2 = apollo_starknet_client::reader::StateDiff::default();
+    let client_state_diff2 = apollo_starknet_client::reader::StateDiff {
+        declared_classes: vec![class_hash_entry2],
+        ..Default::default()
+    };
 
     let block_state_update1 = StateUpdate {
         block_hash: block_hash1,
@@ -368,6 +379,12 @@ async fn stream_state_updates() {
             Ok(Some(GenericContractClass::Cairo1ContractClass(new_contract_class2_clone.clone())))
         },
     );
+    let non_backward_compatible_casm = CasmContractClass::get_test_instance(&mut get_rng());
+    let non_backward_compatible_casm_clone = non_backward_compatible_casm.clone();
+    mock.expect_compiled_class_by_hash()
+        .with(predicate::eq(new_class_hash1))
+        .times(1)
+        .return_once(move |_x| Ok(Some(non_backward_compatible_casm_clone)));
     let contract_class1_clone = deprecated_contract_class1.clone();
     mock.expect_class_by_hash().with(predicate::eq(class_hash1)).times(1).returning(move |_x| {
         Ok(Some(GenericContractClass::Cairo0ContractClass(contract_class1_clone.clone())))
@@ -380,12 +397,23 @@ async fn stream_state_updates() {
     mock.expect_class_by_hash().with(predicate::eq(class_hash3)).times(1).returning(move |_x| {
         Ok(Some(GenericContractClass::Cairo0ContractClass(contract_class3_clone.clone())))
     });
-    let ((reader, _), _temp_dir) = get_test_storage();
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .update_compiler_backward_compatibility_marker(&FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER)
+        .unwrap()
+        .commit()
+        .unwrap();
+    let mut state_update_stream_config = state_update_stream_config_for_test();
+    // Ensure all state updates can be scheduled together.
+    state_update_stream_config.max_state_updates_to_download =
+        ((END_BLOCK_NUMBER - START_BLOCK_NUMBER) as usize) + 1;
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
         apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
-        state_update_stream_config: state_update_stream_config_for_test(),
+        state_update_stream_config,
         // TODO(shahak): Check that downloaded classes appear in the cache.
         class_cache: get_test_class_cache(),
         compiled_class_cache: get_test_compiled_class_cache(),
@@ -404,7 +432,7 @@ async fn stream_state_updates() {
         current_block_hash,
         state_diff,
         deployed_contract_class_definitions,
-        _non_backward_compatible_casms,
+        non_backward_compatible_casms,
     ) = state_diff_tuple;
 
     assert_eq!(initial_block_num, current_block_num);
@@ -434,23 +462,15 @@ async fn stream_state_updates() {
         state_diff.deprecated_declared_classes,
     );
     assert_eq!(
-        IndexMap::from([
-            (
-                new_class_hash1,
-                (
-                    compiled_class_hash1,
-                    starknet_api::state::SierraContractClass::from(contract_class1)
-                )
-            ),
-            (
-                new_class_hash2,
-                (
-                    compiled_class_hash2,
-                    starknet_api::state::SierraContractClass::from(contract_class2)
-                )
-            ),
-        ]),
+        IndexMap::from([(
+            new_class_hash1,
+            (compiled_class_hash1, starknet_api::state::SierraContractClass::from(contract_class1))
+        ),]),
         state_diff.declared_classes,
+    );
+    assert_eq!(
+        IndexMap::from([(new_class_hash1, non_backward_compatible_casm)]),
+        non_backward_compatible_casms
     );
     assert_eq!(IndexMap::from([(contract_address1, nonce1)]), state_diff.nonces);
     assert_eq!(
@@ -461,12 +481,24 @@ async fn stream_state_updates() {
     let Some(Ok(state_diff_tuple)) = stream.next().await else {
         panic!("Match of streamed state_update failed!");
     };
-    let (current_block_num, current_block_hash, state_diff, _deployed_classes, _) =
-        state_diff_tuple;
+    let (
+        current_block_num,
+        current_block_hash,
+        state_diff,
+        _deployed_classes,
+        non_backward_compatible_casms,
+    ) = state_diff_tuple;
 
     assert_eq!(initial_block_num.unchecked_next(), current_block_num);
     assert_eq!(block_hash2, current_block_hash);
-    assert_eq!(state_diff, starknet_api::state::StateDiff::default());
+    assert_eq!(
+        IndexMap::from([(
+            new_class_hash2,
+            (compiled_class_hash2, starknet_api::state::SierraContractClass::from(contract_class2))
+        )]),
+        state_diff.declared_classes
+    );
+    assert!(non_backward_compatible_casms.is_empty());
 
     assert!(stream.next().await.is_none());
 }
