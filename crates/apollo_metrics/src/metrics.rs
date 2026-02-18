@@ -26,6 +26,7 @@ pub enum MetricScope {
     Blockifier,
     ClassManager,
     Committer,
+    ConfigManager,
     Consensus,
     ConsensusManager,
     ConsensusOrchestrator,
