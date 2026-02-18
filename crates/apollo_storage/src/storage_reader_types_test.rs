@@ -19,6 +19,7 @@ use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonc
 use tempfile::TempDir;
 
 use crate::base_layer::BaseLayerStorageReader;
+use crate::block_hash::{BlockHashStorageReader, BlockHashStorageWriter};
 use crate::body::{BodyStorageReader, BodyStorageWriter, TransactionIndex};
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::class_hash::ClassHashStorageWriter;
@@ -132,6 +133,8 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         .append_casm(&casm_class_hash, &expected_casm)
         .unwrap()
         .append_header(block_number, &block.header)
+        .unwrap()
+        .set_block_hash(&block_number, block.header.block_hash)
         .unwrap()
         .append_block_signature(block_number, &block_signature)
         .unwrap()
@@ -551,6 +554,24 @@ async fn headers_request() {
     let response: StorageReaderResponse = setup.get_success_response(&request).await;
 
     assert_eq!(response, StorageReaderResponse::Headers(expected_header));
+}
+
+#[tokio::test]
+async fn block_hash_request() {
+    let setup = setup_test_server(TEST_BLOCK_NUMBER, unique_u16!());
+
+    let expected_block_hash = setup
+        .reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_hash(&TEST_BLOCK_NUMBER)
+        .unwrap()
+        .expect("Block hash should exist");
+
+    let request = StorageReaderRequest::BlockHash(TEST_BLOCK_NUMBER);
+    let response: StorageReaderResponse = setup.get_success_response(&request).await;
+
+    assert_eq!(response, StorageReaderResponse::BlockHash(expected_block_hash));
 }
 
 #[tokio::test]
