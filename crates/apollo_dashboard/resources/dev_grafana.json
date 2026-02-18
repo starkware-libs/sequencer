@@ -2323,6 +2323,100 @@
       ],
       "collapsed": true
     },
+    "Committer Infra": {
+      "panels": [
+        {
+          "title": "Local request receiving rate",
+          "description": "Increase of received local requests (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(committer_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Processing queue depths",
+          "description": "The depth of the local priority queues",
+          "type": "timeseries",
+          "exprs": [
+            "committer_local_high_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
+            "committer_local_normal_priority_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Remote request receiving rate",
+          "description": "Increase of received remote requests (1m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(committer_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Number of remote connections",
+          "description": "Number of currently-open remote connections",
+          "type": "timeseries",
+          "exprs": [
+            "committer_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "commit_block (client-side)",
+          "description": "client-side infra metrics for request type commit_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "commit_block (server-side)",
+          "description": "server-side infra metrics for request type commit_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.50 committer_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"commit_block\"}[5m])), \"label_name\", \"0.95 committer_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "revert_block (client-side)",
+          "description": "client-side infra metrics for request type revert_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "revert_block (server-side)",
+          "description": "server-side infra metrics for request type revert_block",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(committer_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.50 committer_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(committer_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"revert_block\"}[5m])), \"label_name\", \"0.95 committer_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        }
+      ],
+      "collapsed": true
+    },
     "Config Manager Infra": {
       "panels": [
         {
