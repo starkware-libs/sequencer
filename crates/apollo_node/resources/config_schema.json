@@ -2684,6 +2684,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "gateway_config.static_config.batcher_storage_reader_url": {
+    "description": "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
+    "privacy": "Public",
+    "value": ""
+  },
   "gateway_config.static_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
     "privacy": "Public",
@@ -3108,6 +3113,11 @@
     "description": "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
     "pointer_target": "behavior_mode",
     "privacy": "Public"
+  },
+  "mempool_config.static_config.batcher_storage_reader_url": {
+    "description": "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
+    "privacy": "Public",
+    "value": ""
   },
   "mempool_config.static_config.capacity_in_bytes": {
     "description": "Maximum size of the mempool, in bytes.",

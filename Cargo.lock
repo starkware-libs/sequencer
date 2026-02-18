@@ -1919,6 +1919,7 @@ dependencies = [
 name = "apollo_mempool"
 version = "0.18.0-rc.1"
 dependencies = [
+ "apollo_batcher",
  "apollo_config",
  "apollo_config_manager_types",
  "apollo_infra",

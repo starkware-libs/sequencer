@@ -19,4 +19,6 @@ pub enum MempoolError {
     TransactionNotFound { tx_hash: TransactionHash },
     #[error("Transaction rejected: mempool capacity exceeded.")]
     MempoolFull,
+    #[error("Bootstrap validation failed: {message}")]
+    BootstrapValidationFailed { message: String },
 }
