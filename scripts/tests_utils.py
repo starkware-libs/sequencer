@@ -65,8 +65,11 @@ def get_modified_packages(files: List[str]) -> Set[str]:
 
 
 def get_package_dependencies(package_name: str) -> Set[str]:
+    # TODO(Yoav): Remove the env override once hybrid_system_test uses bootstrap.
+    env = os.environ.copy()
+    env["RUSTC_WRAPPER"] = ""
     res = (
-        subprocess.check_output(f"cargo tree -i {package_name} --prefix none".split())
+        subprocess.check_output(f"cargo tree -i {package_name} --prefix none".split(), env=env)
         .decode("utf-8")
         .splitlines()
     )
