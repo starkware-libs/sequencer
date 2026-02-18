@@ -16,15 +16,13 @@ use apollo_starknet_client::reader::{
     StorageEntry,
 };
 use apollo_starknet_client::ClientError;
-use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::class_manager::ClassManagerStorageWriter;
-use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures_util::pin_mut;
-use indexmap::{indexmap, IndexMap};
+use indexmap::IndexMap;
 use lru::LruCache;
 use mockall::predicate;
 use papyrus_common::state::MigratedCompiledClassHashEntry;
@@ -35,7 +33,6 @@ use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce, Sequen
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{SierraContractClass as sn_api_ContractClass, ThinStateDiff};
 use starknet_api::{class_hash, contract_address, felt, storage_key};
 use static_assertions::const_assert;
 use tokio_stream::StreamExt;
@@ -503,114 +500,6 @@ async fn stream_state_updates() {
     assert!(non_backward_compatible_casms.is_empty());
 
     assert!(stream.next().await.is_none());
-}
-
-#[tokio::test]
-async fn stream_compiled_classes() {
-    let ((reader, mut writer), _temp_dir) = get_test_storage();
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_state_diff(
-            BlockNumber(0),
-            ThinStateDiff {
-                deployed_contracts: indexmap! {},
-                storage_diffs: indexmap! {},
-                class_hash_to_compiled_class_hash: indexmap! {
-                    class_hash!("0x0") => CompiledClassHash(felt!("0x0")),
-                    class_hash!("0x1") => CompiledClassHash(felt!("0x1")),
-                },
-                deprecated_declared_classes: vec![],
-                nonces: indexmap! {},
-            },
-        )
-        .unwrap()
-        .append_state_diff(
-            BlockNumber(1),
-            ThinStateDiff {
-                deployed_contracts: indexmap! {},
-                storage_diffs: indexmap! {},
-                class_hash_to_compiled_class_hash: indexmap! {
-                    class_hash!("0x2") => CompiledClassHash(felt!("0x2")),
-                    class_hash!("0x3") => CompiledClassHash(felt!("0x3")),
-                },
-                deprecated_declared_classes: vec![],
-                nonces: indexmap! {},
-            },
-        )
-        .unwrap()
-        .append_classes(
-            BlockNumber(0),
-            &[
-                (class_hash!("0x0"), &sn_api_ContractClass::default()),
-                (class_hash!("0x1"), &sn_api_ContractClass::default()),
-            ],
-            &[],
-        )
-        .unwrap()
-        .append_classes(
-            BlockNumber(1),
-            &[
-                (class_hash!("0x2"), &sn_api_ContractClass::default()),
-                (class_hash!("0x3"), &sn_api_ContractClass::default()),
-            ],
-            &[],
-        )
-        .unwrap()
-        .commit()
-        .unwrap();
-
-    let felts: Vec<_> = (0..4).map(|i| felt!(format!("0x{i}").as_str())).collect();
-    let mut mock = MockStarknetReader::new();
-    for felt in felts.clone() {
-        mock.expect_compiled_class_by_hash()
-            .with(predicate::eq(ClassHash(felt)))
-            .times(1)
-            .returning(move |_x| {
-                Ok(Some(CasmContractClass {
-                    prime: Default::default(),
-                    compiler_version: Default::default(),
-                    bytecode: Default::default(),
-                    bytecode_segment_lengths: Default::default(),
-                    hints: Default::default(),
-                    pythonic_hints: Default::default(),
-                    entry_points_by_type: Default::default(),
-                }))
-            });
-    }
-
-    let central_source = GenericCentralSource {
-        concurrent_requests: TEST_CONCURRENT_REQUESTS,
-        apollo_starknet_client: Arc::new(mock),
-        storage_reader: reader,
-        state_update_stream_config: state_update_stream_config_for_test(),
-        class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
-    };
-
-    let stream = central_source.stream_compiled_classes(BlockNumber(0), BlockNumber(2));
-    pin_mut!(stream);
-
-    let expected_compiled_class = CasmContractClass {
-        prime: Default::default(),
-        compiler_version: Default::default(),
-        bytecode: Default::default(),
-        bytecode_segment_lengths: Default::default(),
-        hints: Default::default(),
-        pythonic_hints: Default::default(),
-        entry_points_by_type: Default::default(),
-    };
-    let expected_block_numbers = [BlockNumber(0), BlockNumber(0), BlockNumber(1), BlockNumber(1)];
-    for (i, felt) in felts.into_iter().enumerate() {
-        let (block_number, class_hash, compiled_class_hash, compiled_class) =
-            stream.next().await.unwrap().unwrap();
-        let expected_class_hash = ClassHash(felt);
-        let expected_compiled_class_hash = CompiledClassHash(felt);
-        assert_eq!(block_number, expected_block_numbers[i]);
-        assert_eq!(class_hash, expected_class_hash);
-        assert_eq!(compiled_class_hash, expected_compiled_class_hash);
-        assert_eq!(compiled_class, expected_compiled_class);
-    }
 }
 
 #[tokio::test]
