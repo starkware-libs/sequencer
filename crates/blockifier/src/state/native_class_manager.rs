@@ -12,6 +12,7 @@ use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 use thiserror::Error;
+use validator::Validate;
 
 use crate::blockifier::config::{
     CairoNativeRunConfig,
@@ -68,6 +69,7 @@ impl NativeClassManager {
     /// 2. `config.run_cairo_native` is `false`.
     /// 3. `config.wait_on_native_compilation` is `true`.
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
+        config.validate().expect("Invalid contract class manager config");
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let class_cache = RawClassCache::new(config.contract_cache_size);
         let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
@@ -130,8 +132,6 @@ impl NativeClassManager {
         if let CompiledClasses::V1(..) = cached_class {
             // When `wait_on_native_compilation` is active, all V1 classes should have been compiled
             // to native synchronously. A V1 cache entry indicates a pipeline bug.
-            // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
-            // `run_cairo_native` is false.
             assert!(
                 !self.wait_on_native_compilation(),
                 "Manager did not wait on native compilation."
@@ -162,7 +162,6 @@ impl NativeClassManager {
             CompiledClasses::V1(compiled_class_v1, sierra_contract_class) => {
                 // TODO(Yoni): instead of these two flag, use an enum.
                 if self.wait_on_native_compilation() {
-                    assert!(self.run_cairo_native(), "Native compilation is disabled.");
                     let compiler = self.compiler.as_ref().expect("Compiler not available.");
                     // After this point, the Native class should be cached and available through
                     // `get_runnable` access.

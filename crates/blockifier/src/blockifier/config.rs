@@ -139,6 +139,7 @@ impl SerializeConfig for WorkerPoolConfig {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct ContractClassManagerConfig {
+    #[validate(nested)]
     pub cairo_native_run_config: CairoNativeRunConfig,
     pub contract_cache_size: usize,
     #[validate(nested)]
@@ -241,7 +242,8 @@ impl NativeClassesWhitelist {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
+#[validate(schema(function = "validate_run_cairo_native"))]
 pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
@@ -302,4 +304,17 @@ impl SerializeConfig for CairoNativeRunConfig {
             ),
         ])
     }
+}
+
+fn validate_run_cairo_native(
+    cairo_native_run_config: &CairoNativeRunConfig,
+) -> Result<(), validator::ValidationError> {
+    if cairo_native_run_config.wait_on_native_compilation
+        && !cairo_native_run_config.run_cairo_native
+    {
+        return Err(validator::ValidationError::new(
+            "`wait_on_native_compilation` requires `run_cairo_native` to be enabled",
+        ));
+    }
+    Ok(())
 }
