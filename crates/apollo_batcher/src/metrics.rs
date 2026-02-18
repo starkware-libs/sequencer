@@ -15,7 +15,7 @@ use blockifier::metrics::{
     TOTAL_CALLS,
 };
 use starknet_api::block::BlockNumber;
-use strum::{EnumVariantNames, VariantNames};
+use strum::EnumVariantNames;
 use strum_macros::IntoStaticStr;
 
 define_infra_metrics!(batcher);

@@ -2,7 +2,6 @@ use std::cmp::Eq;
 use std::collections::HashSet;
 use std::hash::Hash;
 
-use strum::VariantNames;
 use strum_macros::EnumVariantNames;
 
 #[allow(dead_code)]

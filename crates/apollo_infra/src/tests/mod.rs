@@ -19,7 +19,7 @@ use apollo_metrics::metrics::{
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use strum::{EnumVariantNames, VariantNames};
+use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio::sync::Semaphore;
 

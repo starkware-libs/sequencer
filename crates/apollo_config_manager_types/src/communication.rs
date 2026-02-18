@@ -17,7 +17,7 @@ use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use strum::{EnumVariantNames, VariantNames};
+use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 

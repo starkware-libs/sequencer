@@ -1,5 +1,5 @@
 use apollo_metrics::{define_metrics, generate_permutation_labels};
-use strum::{EnumVariantNames, VariantNames};
+use strum::EnumVariantNames;
 use strum_macros::{EnumIter, IntoStaticStr};
 
 define_metrics!(
