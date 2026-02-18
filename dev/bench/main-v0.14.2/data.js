@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771402123488,
+  "lastUpdate": 1771404130061,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -781,6 +781,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1192.6021776,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aviv.g@starkware.co",
+            "name": "avivg-starkware",
+            "username": "avivg-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "144c45faeead5c6584478d88abe771c68de24884",
+          "message": "blockifier: in CallInfo replace resources type with ExtendedExecutionResources (#12493)",
+          "timestamp": "2026-02-18T08:21:41Z",
+          "tree_id": "af43e8b9a4e9e147a9c27cc9586a7289d508cdbe",
+          "url": "https://github.com/starkware-libs/sequencer/commit/144c45faeead5c6584478d88abe771c68de24884"
+        },
+        "date": 1771404129725,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 855.5330235399999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1306.23206357,
             "unit": "ms"
           }
         ]
