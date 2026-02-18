@@ -244,6 +244,7 @@ pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
+    // TODO(Arni): Remove this field when the value is held in the batcher's dynamic config.
     pub native_classes_whitelist: NativeClassesWhitelist,
     pub panic_on_compilation_failure: bool,
 }

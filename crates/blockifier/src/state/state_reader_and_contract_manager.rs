@@ -1,6 +1,7 @@
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier::config::NativeClassesWhitelist;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::metrics::CacheMetrics;
 use crate::state::contract_class_manager::ContractClassManager;
@@ -33,6 +34,7 @@ impl<T: FetchCompiledClasses + ?Sized> FetchCompiledClasses for Box<T> {
 pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
     pub state_reader: S,
     contract_class_manager: ContractClassManager,
+    native_classes_whitelist: NativeClassesWhitelist,
     class_cache_metrics: Option<CacheMetrics>,
 }
 
@@ -42,7 +44,21 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
         contract_class_manager: ContractClassManager,
         class_cache_metrics: Option<CacheMetrics>,
     ) -> Self {
-        Self { state_reader, contract_class_manager, class_cache_metrics }
+        Self::new_with_native_classes_whitelist(
+            state_reader,
+            contract_class_manager,
+            NativeClassesWhitelist::All,
+            class_cache_metrics,
+        )
+    }
+
+    pub fn new_with_native_classes_whitelist(
+        state_reader: S,
+        contract_class_manager: ContractClassManager,
+        native_classes_whitelist: NativeClassesWhitelist,
+        class_cache_metrics: Option<CacheMetrics>,
+    ) -> Self {
+        Self { state_reader, contract_class_manager, native_classes_whitelist, class_cache_metrics }
     }
 }
 
@@ -51,7 +67,9 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<RunnableCompiledClass> {
-        if let Some(runnable_class) = self.contract_class_manager.get_runnable(&class_hash) {
+        if let Some(runnable_class) =
+            self.contract_class_manager.get_runnable(&class_hash, &self.native_classes_whitelist)
+        {
             match &runnable_class {
                 RunnableCompiledClass::V0(_) => {}
                 _ => {
@@ -72,8 +90,10 @@ impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
         let compiled_class = self.state_reader.get_compiled_classes(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, compiled_class.clone());
         // Access the cache again in case the class was compiled.
-        let runnable_class =
-            self.contract_class_manager.get_runnable(&class_hash).unwrap_or_else(|| {
+        let runnable_class = self
+            .contract_class_manager
+            .get_runnable(&class_hash, &self.native_classes_whitelist)
+            .unwrap_or_else(|| {
                 // Edge case that should not be happen if the cache size is big enough.
                 // TODO(Yoni): consider having an atomic set-and-get.
                 log::error!("Class is missing immediately after being cached.");
