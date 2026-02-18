@@ -11,12 +11,13 @@ use libp2p::{Multiaddr, PeerId};
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 
+use crate::explore_config::{extract_explore_params, ExploreConfiguration, ExplorePhase};
 use crate::handlers::{
     receive_stress_test_message,
     record_indexed_message,
-    send_stress_test_messages,
+    send_stress_test_messages_impl,
 };
-use crate::metrics::create_network_metrics;
+use crate::metrics::{create_network_metrics, BROADCAST_MESSAGE_THROUGHPUT, NETWORK_RESET_TOTAL};
 use crate::protocol::{register_protocol_channels, MessageReceiver, MessageSender};
 
 /// The main stress test node that manages network communication and monitoring
@@ -26,12 +27,16 @@ pub struct BroadcastNetworkStressTestNode {
     network_manager: Option<NetworkManager>,
     message_sender: Option<MessageSender>,
     message_receiver: Option<MessageReceiver>,
+    explore_config: Option<ExploreConfiguration>,
 }
 
 impl BroadcastNetworkStressTestNode {
     /// Creates network configuration from arguments
     fn create_network_config(args: &NodeArgs) -> NetworkConfig {
         let peer_private_key = create_peer_private_key(args.runner.id);
+        let peer_private_key_hex =
+            peer_private_key.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+        info!("Secret Key: {peer_private_key_hex:#?}");
 
         let mut network_config = NetworkConfig {
             port: args.runner.p2p_port,
@@ -39,8 +44,7 @@ impl BroadcastNetworkStressTestNode {
             ..Default::default()
         };
 
-        // disable Kademlia discovery
-        network_config.discovery_config.heartbeat_interval = Duration::from_secs(u64::MAX);
+        network_config.discovery_config.heartbeat_interval = Duration::from_secs(99999999);
 
         if !args.runner.bootstrap.is_empty() {
             let bootstrap_peers: Vec<Multiaddr> = args
@@ -53,6 +57,23 @@ impl BroadcastNetworkStressTestNode {
         }
 
         network_config
+    }
+
+    /// Creates explore configuration and initializes message parameters
+    fn setup_explore_config(args: &NodeArgs) -> Option<ExploreConfiguration> {
+        if let Mode::Explore = args.user.mode {
+            let (cool_down, run_duration, min_throughput, min_message_size) =
+                extract_explore_params(args);
+            let explore_config = ExploreConfiguration::new(
+                cool_down,
+                run_duration,
+                min_throughput,
+                min_message_size,
+            );
+            Some(explore_config)
+        } else {
+            None
+        }
     }
 
     /// Creates a new BroadcastNetworkStressTestNode instance
@@ -70,13 +91,20 @@ impl BroadcastNetworkStressTestNode {
             &mut network_manager,
             args.user.buffer_size,
             &args.user.network_protocol,
-        );
+            &args.runner.bootstrap,
+        )
+        .await;
+
+        // Setup explore configuration if needed
+        let explore_config = Self::setup_explore_config(&args);
+
         Self {
             args,
             network_config,
             network_manager: Some(network_manager),
             message_sender: Some(message_sender),
             message_receiver: Some(message_receiver),
+            explore_config,
         }
     }
 
@@ -90,16 +118,40 @@ impl BroadcastNetworkStressTestNode {
         .boxed()
     }
 
+    /// Recreates the network manager with fresh state
+    pub async fn recreate_network_manager(&mut self) {
+        // Create new network manager
+        let network_metrics = create_network_metrics();
+        let mut network_manager =
+            NetworkManager::new(self.network_config.clone(), None, Some(network_metrics));
+
+        // Register protocol channels
+        let (message_sender, message_receiver) = register_protocol_channels(
+            &mut network_manager,
+            self.args.user.buffer_size,
+            &self.args.user.network_protocol,
+            &self.args.runner.bootstrap,
+        )
+        .await;
+
+        info!("Recreated Network Manager");
+
+        // Update the struct with new components
+        self.network_manager = Some(network_manager);
+        self.message_sender = Some(message_sender);
+        self.message_receiver = Some(message_receiver);
+    }
+
     /// Gets the broadcaster ID with validation for modes that require it
     fn get_broadcaster_id(args: &NodeArgs) -> u64 {
-        args.user.broadcaster.expect("broadcaster required for OneBroadcast mode")
+        args.user.broadcaster.expect("broadcaster required for one/explore mode")
     }
 
     /// Determines if this node should broadcast messages based on the mode
     pub fn should_broadcast(&self) -> bool {
         match self.args.user.mode {
             Mode::AllBroadcast | Mode::RoundRobin => true,
-            Mode::OneBroadcast => {
+            Mode::OneBroadcast | Mode::Explore => {
                 let broadcaster_id = Self::get_broadcaster_id(&self.args);
                 self.args.runner.id == broadcaster_id
             }
@@ -130,20 +182,21 @@ impl BroadcastNetworkStressTestNode {
 
         let message_sender =
             self.message_sender.take().expect("message_sender should be available");
-
         let args_clone = self.args.clone();
+        let explore_config = self.explore_config.clone();
         let peers = self.get_peers();
 
         Some(
             async move {
-                send_stress_test_messages(message_sender, &args_clone, peers).await;
+                send_stress_test_messages_impl(message_sender, &args_clone, peers, &explore_config)
+                    .await;
             }
             .boxed(),
         )
     }
 
-    /// Starts the message receiving tasks (receiver + index tracker)
-    pub async fn make_message_receiver_tasks(&mut self) -> Vec<BoxFuture<'static, ()>> {
+    /// Starts the message receiving task
+    pub fn start_message_receiver(&mut self) -> Vec<BoxFuture<'static, ()>> {
         let message_receiver =
             self.message_receiver.take().expect("message_receiver should be available");
 
@@ -159,9 +212,9 @@ impl BroadcastNetworkStressTestNode {
                 info!("Starting message receiver");
                 let tx_clone = tx.clone();
                 message_receiver
-                    .for_each(|message, peer_id| {
+                    .for_each(|message, _| {
                         let tx_clone = tx_clone.clone();
-                        receive_stress_test_message(message, peer_id, tx_clone);
+                        receive_stress_test_message(message, tx_clone);
                     })
                     .await;
                 info!("Message receiver task ended");
@@ -170,11 +223,11 @@ impl BroadcastNetworkStressTestNode {
         ]
     }
 
-    /// Gets all the tasks that need to be run
-    async fn get_tasks(&mut self) -> Vec<BoxFuture<'static, ()>> {
+    /// Sets up and starts all tasks common to both simple and network reset modes
+    async fn setup_tasks(&mut self) -> Vec<BoxFuture<'static, ()>> {
         let mut tasks = Vec::new();
         tasks.push(self.start_network_manager().await);
-        tasks.extend(self.make_message_receiver_tasks().await);
+        tasks.extend(self.start_message_receiver());
 
         if let Some(sender_task) = self.start_message_sender().await {
             tasks.push(sender_task);
@@ -183,29 +236,77 @@ impl BroadcastNetworkStressTestNode {
         tasks
     }
 
+    async fn wait_for_next_running_phase(&mut self) {
+        if let Some(explore_config) = &mut self.explore_config {
+            if self.args.runner.id == Self::get_broadcaster_id(&self.args) {
+                BROADCAST_MESSAGE_THROUGHPUT.set(0);
+            }
+            while explore_config.get_current_phase() == ExplorePhase::CoolDown {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            let (size, duration) = explore_config.get_current_size_and_heartbeat();
+            self.args.user.message_size_bytes = size;
+            self.args.user.heartbeat_millis = duration.as_millis().try_into().unwrap();
+        }
+    }
+
     /// Unified run function that handles both simple and network reset modes
     pub async fn run(mut self) -> Result<(), Box<dyn std::error::Error>> {
         let test_timeout = Duration::from_secs(self.args.user.timeout);
         let start_time = tokio::time::Instant::now();
+
+        self.wait_for_next_running_phase().await;
+
         // Main loop - restart if network reset is enabled, otherwise run once
+        loop {
+            info!("Starting/restarting all tasks");
 
-        info!("Starting/restarting all tasks");
+            // Start all common tasks
+            let mut tasks = self.setup_tasks().await;
 
-        // Start all common tasks
-        let tasks = self.get_tasks().await;
+            // Add reset coordination task only for explore mode
+            if let Some(explore_config) = &self.explore_config {
+                let explore_config_clone = explore_config.clone();
+                assert_eq!(explore_config_clone.get_current_phase(), ExplorePhase::Running);
+                let reset_task = async move {
+                    while explore_config_clone.get_current_phase() == ExplorePhase::Running {
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                    }
+                    info!("Explore mode: CoolDown phase detected - triggering network reset");
+                    NETWORK_RESET_TOTAL.increment(1);
+                }
+                .boxed();
+                tasks.push(reset_task);
+            }
 
-        // Wait for either timeout or any task completion
-        let remaining_time = test_timeout.saturating_sub(start_time.elapsed());
-        let spawned_tasks: Vec<_> = tasks.into_iter().map(|task| tokio::spawn(task)).collect();
-        let task_completed =
-            tokio::time::timeout(remaining_time, race_and_kill_tasks(spawned_tasks)).await.is_ok();
+            // Wait for either timeout or any task completion
+            let remaining_time = test_timeout.saturating_sub(start_time.elapsed());
+            let spawned_tasks: Vec<_> = tasks.into_iter().map(|task| tokio::spawn(task)).collect();
+            let task_completed =
+                tokio::time::timeout(remaining_time, race_and_kill_tasks(spawned_tasks))
+                    .await
+                    .is_ok();
 
-        if !task_completed {
-            info!("Test timeout reached");
-            return Err("Test timeout".into());
+            if !task_completed {
+                info!("Test timeout reached");
+                return Err("Test timeout".into());
+            }
+
+            // Handle task completion
+            if self.explore_config.is_none() {
+                return Err("Tasks should never end in simple mode".into());
+            }
+
+            // Reset mode: any task completing means restart is needed
+            info!("Task completed - triggering restart");
+            if let Some(explore_config) = &mut self.explore_config {
+                assert_eq!(explore_config.get_current_phase(), ExplorePhase::CoolDown);
+            }
+
+            self.wait_for_next_running_phase().await;
+            // Recreate network manager for clean state
+            self.recreate_network_manager().await;
         }
-
-        Err("Tasks should never end".into())
     }
 }
 
@@ -233,11 +334,5 @@ fn create_peer_private_key(peer_index: u64) -> [u8; 32] {
     assert_eq!(array.len(), 8);
     let mut private_key = [0u8; 32];
     private_key[0..8].copy_from_slice(&array);
-
-    // Log the secret key
-    let peer_private_key_hex =
-        private_key.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
-    info!("Secret Key: {peer_private_key_hex:#?}");
-
     private_key
 }

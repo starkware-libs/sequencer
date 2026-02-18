@@ -1,4 +1,5 @@
 //! Runs a node that stress tests the p2p communication of the network.
+#![allow(clippy::as_conversions)]
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::Duration;
 
@@ -11,6 +12,7 @@ use tracing::Level;
 #[cfg(test)]
 mod message_test;
 
+mod explore_config;
 mod handlers;
 mod message;
 mod message_index_detector;
@@ -19,7 +21,6 @@ mod protocol;
 mod stress_test_node;
 
 use apollo_network_benchmark::node_args::NodeArgs;
-use metrics::register_metrics;
 use stress_test_node::BroadcastNetworkStressTestNode;
 
 #[tokio::main]
@@ -54,8 +55,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )));
 
     builder.install().expect("Failed to install prometheus recorder/exporter");
-
-    register_metrics();
 
     // Start the tokio runtime metrics reporter to automatically collect and export runtime metrics
     tokio::spawn(

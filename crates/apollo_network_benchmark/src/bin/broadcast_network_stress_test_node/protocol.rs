@@ -1,12 +1,14 @@
-// TODO(AndrewL): Remove this once the sender and receiver are used
-#![allow(dead_code)]
-
 use apollo_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,
     BroadcastTopicClientTrait,
     BroadcastTopicServer,
     NetworkManager,
+    PropellerChannels,
+    PropellerClient,
+    PropellerClientTrait,
+    PropellerMessageServer,
+    ReceivedPropellerMessage,
     SqmrClientSender,
     SqmrServerReceiver,
 };
@@ -30,10 +32,11 @@ pub const SQMR_PROTOCOL_NAME: &str = "/stress-test/1.0.0";
 
 /// Registers protocol channels on an existing network manager.
 /// Returns a sender and receiver for the configured protocol.
-pub fn register_protocol_channels(
+pub async fn register_protocol_channels(
     network_manager: &mut NetworkManager,
     buffer_size: usize,
     protocol: &NetworkProtocol,
+    bootstrap_addrs: &[String],
 ) -> (MessageSender, MessageReceiver) {
     match protocol {
         NetworkProtocol::Gossipsub => {
@@ -79,6 +82,37 @@ pub fn register_protocol_channels(
                 MessageReceiver::ReveresedSqmr(sqmr_client),
             )
         }
+        NetworkProtocol::Propeller => {
+            use std::str::FromStr;
+
+            use libp2p::Multiaddr;
+
+            let peers: Vec<_> = bootstrap_addrs
+                .iter()
+                .map(|addr| {
+                    let multiaddr = Multiaddr::from_str(addr.trim()).unwrap();
+                    let peer_id = multiaddr
+                        .iter()
+                        .find_map(|p| match p {
+                            libp2p::multiaddr::Protocol::P2p(id) => Some(id),
+                            _ => None,
+                        })
+                        .expect("No peer ID in bootstrap address");
+                    (peer_id, 1000)
+                })
+                .collect();
+
+            let PropellerChannels { propeller_messages_receiver, propeller_client } =
+                network_manager
+                    .register_propeller_channels::<TopicType>(buffer_size, peers)
+                    .await
+                    .expect("Failed to register propeller channels");
+
+            (
+                MessageSender::Propeller(PropellerSender::new(propeller_client)),
+                MessageReceiver::Propeller(propeller_messages_receiver),
+            )
+        }
     }
 }
 
@@ -91,6 +125,26 @@ pub enum MessageSender {
     Gossipsub(BroadcastTopicClient<TopicType>),
     Sqmr(SqmrClientSender<TopicType, TopicType>),
     ReveresedSqmr(ReveresedSqmrSender),
+    Propeller(PropellerSender),
+}
+
+/// Wrapper for Propeller client that handles message sending
+pub struct PropellerSender {
+    client: PropellerClient<TopicType>,
+}
+
+impl PropellerSender {
+    pub fn new(client: PropellerClient<TopicType>) -> Self {
+        Self { client }
+    }
+
+    async fn send_message(&mut self, message: TopicType) {
+        if let Err(e) = self.client.send_message(message).await {
+            error!("Failed to send Propeller message: {:?}", e);
+        } else {
+            trace!("Sent Propeller message");
+        }
+    }
 }
 
 /// Wrapper for ReveresedSqmr that maintains the last active query
@@ -140,21 +194,31 @@ impl MessageSender {
             MessageSender::Gossipsub(client) => {
                 client.broadcast_message(message).await.unwrap();
             }
-            MessageSender::Sqmr(client) => match client.send_new_query(message).await {
-                Ok(mut response_manager) => {
-                    tokio::spawn(async move {
-                        while let Some(_response) = response_manager.next().await {}
-                    });
+            MessageSender::Sqmr(client) => {
+                // Send query and properly handle the response manager to avoid session warnings
+                match client.send_new_query(message).await {
+                    Ok(mut response_manager) => {
+                        // Consume the response manager to properly close the session
+                        // This prevents the "finished with no messages" warning
+                        tokio::spawn(async move {
+                            while let Some(_response) = response_manager.next().await {
+                                // Process any responses if they come, but don't block the sender
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        error!("Failed to send SQMR query: {:?}", e);
+                    }
                 }
-                Err(e) => {
-                    error!("Failed to send SQMR query: {:?}", e);
-                }
-            },
+            }
             MessageSender::ReveresedSqmr(sender) => {
                 // Collect any new queries first
                 sender.collect_new_queries().await;
                 // Then broadcast the message to all active queries
                 sender.broadcast_to_queries(message).await;
+            }
+            MessageSender::Propeller(sender) => {
+                sender.send_message(message).await;
             }
         }
     }
@@ -168,6 +232,7 @@ pub enum MessageReceiver {
     Gossipsub(BroadcastTopicServer<TopicType>),
     Sqmr(SqmrServerReceiver<TopicType, TopicType>),
     ReveresedSqmr(SqmrClientSender<TopicType, TopicType>),
+    Propeller(PropellerMessageServer<TopicType>),
 }
 
 impl MessageReceiver {
@@ -179,11 +244,8 @@ impl MessageReceiver {
             MessageReceiver::Gossipsub(receiver) => {
                 receiver
                     .for_each(|message| async move {
-                        let (payload_opt, meta) = message;
-                        let peer_id = meta.originator_id.private_get_peer_id();
-                        let payload =
-                            payload_opt.expect("Broadcasted message should contain payload");
-                        f(payload, Some(peer_id));
+                        let peer_id = message.1.originator_id.private_get_peer_id();
+                        f(message.0.unwrap(), Some(peer_id));
                     })
                     .await
             }
@@ -221,6 +283,26 @@ impl MessageReceiver {
                     }
                 }
             },
+            MessageReceiver::Propeller(receiver) => {
+                receiver
+                    .for_each(
+                        |(sender, message_root, result): ReceivedPropellerMessage<TopicType>| async move {
+                            match result {
+                                Ok(message) => {
+                                    trace!("Received Propeller message with ID: {}", message_root);
+                                    f(message, Some(sender));
+                                }
+                                Err(e) => {
+                                    error!(
+                                        "Failed to deserialize Propeller message {}: {:?}",
+                                        message_root, e
+                                    );
+                                }
+                            }
+                        },
+                    )
+                    .await
+            }
         }
     }
 }

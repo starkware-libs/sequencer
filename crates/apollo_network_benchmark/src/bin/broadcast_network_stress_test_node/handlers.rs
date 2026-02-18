@@ -5,6 +5,7 @@ use apollo_network_benchmark::node_args::{Mode, NodeArgs};
 use libp2p::PeerId;
 use tracing::trace;
 
+use crate::explore_config::{ExploreConfiguration, ExplorePhase};
 use crate::message::{StressTestMessage, METADATA_SIZE};
 use crate::message_index_detector::MessageIndexTracker;
 use crate::metrics::{
@@ -20,6 +21,7 @@ use crate::metrics::{
     RECEIVE_MESSAGE_BYTES_SUM,
     RECEIVE_MESSAGE_COUNT,
     RECEIVE_MESSAGE_DELAY_SECONDS,
+    RECEIVE_MESSAGE_NEGATIVE_DELAY_SECONDS,
     RECEIVE_MESSAGE_PENDING_COUNT,
 };
 use crate::protocol::MessageSender;
@@ -44,10 +46,11 @@ fn should_broadcast_round_robin(args: &NodeArgs) -> bool {
 }
 
 /// Unified implementation for sending stress test messages via any protocol
-pub async fn send_stress_test_messages(
+pub async fn send_stress_test_messages_impl(
     mut message_sender: MessageSender,
     args: &NodeArgs,
     peers: Vec<PeerId>,
+    explore_config: &Option<ExploreConfiguration>,
 ) {
     let size_bytes = args.user.message_size_bytes;
     let heartbeat = Duration::from_millis(args.user.heartbeat_millis);
@@ -64,6 +67,10 @@ pub async fn send_stress_test_messages(
         let should_broadcast_now = match args.user.mode {
             Mode::AllBroadcast | Mode::OneBroadcast => true,
             Mode::RoundRobin => should_broadcast_round_robin(args),
+            Mode::Explore => {
+                explore_config.as_ref().expect("ExploreConfig not available").get_current_phase()
+                    == ExplorePhase::Running
+            }
         };
 
         if should_broadcast_now {
@@ -73,10 +80,9 @@ pub async fn send_stress_test_messages(
             let start_time = std::time::Instant::now();
             message_sender.send_message(&peers, message_clone).await;
             BROADCAST_MESSAGE_SEND_DELAY_SECONDS.record(start_time.elapsed().as_secs_f64());
-            BROADCAST_MESSAGE_BYTES.set(message.len().into_f64());
+            BROADCAST_MESSAGE_BYTES.set(message.len() as f64);
             BROADCAST_MESSAGE_COUNT.increment(1);
-            BROADCAST_MESSAGE_BYTES_SUM
-                .increment(u64::try_from(message.len()).expect("Message length too large for u64"));
+            BROADCAST_MESSAGE_BYTES_SUM.increment(message.len() as u64);
             trace!(
                 "Node {} sent message {message_index} in mode `{}`",
                 args.runner.id,
@@ -89,17 +95,19 @@ pub async fn send_stress_test_messages(
 
 pub fn receive_stress_test_message(
     received_message: Vec<u8>,
-    _sender_peer_id: Option<PeerId>,
     tx: tokio::sync::mpsc::UnboundedSender<(usize, u64)>,
 ) {
     let end_time = SystemTime::now();
 
     let received_message: StressTestMessage = received_message.into();
     let start_time = received_message.metadata.time;
-    let delay_seconds = end_time
-        .duration_since(start_time)
-        .expect("End time should be after start time (Probably clock misalignment)")
-        .as_secs_f64();
+    let delay_seconds = match end_time.duration_since(start_time) {
+        Ok(duration) => duration.as_secs_f64(),
+        Err(_) => {
+            let negative_duration = start_time.duration_since(end_time).unwrap();
+            -negative_duration.as_secs_f64()
+        }
+    };
 
     // Use apollo_metrics for all metrics including labeled ones
     RECEIVE_MESSAGE_BYTES.set(received_message.len().into_f64());
@@ -109,12 +117,14 @@ pub fn receive_stress_test_message(
     );
 
     // Use apollo_metrics histograms for latency measurements
-    RECEIVE_MESSAGE_DELAY_SECONDS.record(delay_seconds);
+    if delay_seconds.is_sign_positive() {
+        RECEIVE_MESSAGE_DELAY_SECONDS.record(delay_seconds);
+    } else {
+        RECEIVE_MESSAGE_NEGATIVE_DELAY_SECONDS.record(-delay_seconds);
+    }
 
-    // Send to index tracker
     tx.send((
-        usize::try_from(received_message.metadata.sender_id)
-            .expect("sender_id too large for usize"),
+        received_message.metadata.sender_id as usize,
         received_message.metadata.message_index,
     ))
     .unwrap();

@@ -14,6 +14,13 @@ pub enum Mode {
     /// Nodes take turns broadcasting in round-robin fashion
     #[value(name = "rr")]
     RoundRobin,
+    /// Only the node specified by --broadcaster broadcasts messages,
+    /// Every explore_run_duration_seconds + explore_cool_down_duration_seconds seconds
+    /// a new combination of MPS and message size is explored.
+    /// Increases the throughput with each new trial.
+    /// Configurations are filtered by minimum throughput and minimum message size.
+    #[value(name = "explore")]
+    Explore,
 }
 
 #[derive(Debug, Clone, ValueEnum, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,6 +34,9 @@ pub enum NetworkProtocol {
     /// Use Reversed SQMR where receivers initiate requests to broadcasters
     #[value(name = "reversed-sqmr")]
     ReveresedSqmr,
+    /// Use Propeller for leader-based erasure-coded broadcasting
+    #[value(name = "propeller")]
+    Propeller,
 }
 
 impl Display for Mode {
@@ -62,7 +72,7 @@ pub struct RunnerArgs {
     pub bootstrap: Vec<String>,
 }
 
-#[derive(Parser, Debug, Clone)]
+#[derive(Parser, Debug, Clone, Serialize)]
 #[command(version, about, long_about = None)]
 /// Arguments from the user.
 pub struct UserArgs {
@@ -75,15 +85,15 @@ pub struct UserArgs {
     pub buffer_size: usize,
 
     /// The mode to use for the stress test.
-    #[arg(long, env, default_value = "all")]
+    #[arg(long, env, default_value = "one")]
     pub mode: Mode,
 
     /// The network protocol to use for communication (default: gossipsub)
     #[arg(long, env, default_value = "gossipsub")]
     pub network_protocol: NetworkProtocol,
 
-    /// Which node ID should do the broadcasting - for OneBroadcast mode
-    #[arg(long, env, required_if_eq("mode", "one"))]
+    /// Which node ID should do the broadcasting - for OneBroadcast and Explore modes
+    #[arg(long, env, required_if_eq_any([("mode", "one"), ("mode", "explore")]))]
     pub broadcaster: Option<u64>,
 
     /// Duration each node broadcasts before switching (in seconds) - for RoundRobin mode
@@ -97,6 +107,22 @@ pub struct UserArgs {
     /// The time to sleep between broadcasts of StressTestMessage in milliseconds
     #[arg(long, env, default_value = "1000")]
     pub heartbeat_millis: u64,
+
+    /// Cool down duration between configuration changes in seconds - for Explore mode
+    #[arg(long, env, default_value = "100")]
+    pub explore_cool_down_duration_seconds: u64,
+
+    /// Duration to run each configuration in seconds - for Explore mode
+    #[arg(long, env, default_value = "100")]
+    pub explore_run_duration_seconds: u64,
+
+    /// Minimum throughput in bytes per second - for Explore mode
+    #[arg(long, env, default_value = "102400.0")]
+    pub explore_min_throughput_byte_per_seconds: f64,
+
+    /// Minimum message size in bytes - for Explore mode
+    #[arg(long, env, default_value = "1024")]
+    pub explore_min_message_size_bytes: usize,
 
     /// The timeout in seconds for the node.
     /// When the node runs for longer than this, it will be killed.
