@@ -32,6 +32,8 @@ define_metrics!(
         LabeledMetricCounter { CONSENSUS_BUILD_PROPOSAL_FAILURE , "consensus_build_proposal_failure", "Number of failures while building a proposal", init = 0, labels = BUILD_PROPOSAL_FAILURE_REASON },
         // Proposal validation failure metrics
         LabeledMetricCounter { CONSENSUS_VALIDATE_PROPOSAL_FAILURE , "consensus_validate_proposal_failure", "Number of failures while validating a proposal", init = 0, labels = VALIDATE_PROPOSAL_FAILURE_REASON },
+
+        MetricHistogram { CONSENSUS_PROOF_MANAGER_STORE_LATENCY, "consensus_proof_manager_store_latency", "Latency of storing a proof in the proof manager in secs" },
     }
 );
 
@@ -98,4 +100,5 @@ pub(crate) fn register_metrics() {
     CENDE_WRITE_BLOB_FAILURE.register();
     CONSENSUS_BUILD_PROPOSAL_FAILURE.register();
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE.register();
+    CONSENSUS_PROOF_MANAGER_STORE_LATENCY.register();
 }

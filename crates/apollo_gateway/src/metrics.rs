@@ -51,6 +51,7 @@ define_metrics!(
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME, "gateway_validate_stateful_tx_storage_time", "Total time spent in storage operations in secs during stateful tx validation" },
         MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS, "gateway_validate_stateful_tx_storage_operations", "Total number of storage operations during stateful tx validation"},
+        MetricHistogram { GATEWAY_PROOF_MANAGER_STORE_LATENCY, "gateway_proof_manager_store_latency", "Latency of storing a proof in the proof manager in secs" },
     },
 );
 
@@ -263,4 +264,5 @@ pub(crate) fn register_metrics() {
     GATEWAY_VALIDATE_TX_LATENCY.register();
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME.register();
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS.register();
+    GATEWAY_PROOF_MANAGER_STORE_LATENCY.register();
 }

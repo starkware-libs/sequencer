@@ -1,6 +1,7 @@
 use apollo_gateway::metrics::{
     GATEWAY_ADD_TX_FAILURE,
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_PROOF_MANAGER_STORE_LATENCY,
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
@@ -147,6 +148,15 @@ fn get_panel_proof_verification_latency() -> Panel {
     .with_unit(Unit::Seconds)
 }
 
+fn get_panel_gateway_proof_manager_store_latency() -> Panel {
+    Panel::from_hist(
+        &GATEWAY_PROOF_MANAGER_STORE_LATENCY,
+        "Proof Manager Store Latency",
+        "The time it takes to store a proof in the proof manager",
+    )
+    .with_unit(Unit::Seconds)
+}
+
 fn get_panel_gateway_validate_stateful_tx_storage_operations() -> Panel {
     Panel::from_hist(
         &GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
@@ -170,6 +180,7 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_validate_stateful_tx_storage_time(),
             get_panel_gateway_validate_stateful_tx_storage_operations(),
             get_panel_proof_verification_latency(),
+            get_panel_gateway_proof_manager_store_latency(),
         ],
     )
 }

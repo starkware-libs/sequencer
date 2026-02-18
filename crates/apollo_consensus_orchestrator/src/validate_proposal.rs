@@ -37,6 +37,7 @@ use tracing::{debug, info, instrument, warn};
 use crate::metrics::{
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
+    CONSENSUS_PROOF_MANAGER_STORE_LATENCY,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
@@ -372,6 +373,7 @@ async fn await_verification_and_store_proof(
         .map_err(|e| {
             format!("Failed to store proof for proof facts hash: {proof_facts_hash:?}: {e}")
         })?;
+    CONSENSUS_PROOF_MANAGER_STORE_LATENCY.record(proof_manager_store_duration.as_secs_f64());
     info!(
         "Proof manager store in the consensus took: {proof_manager_store_duration:?} for proof \
          facts hash: {proof_facts_hash:?}"
