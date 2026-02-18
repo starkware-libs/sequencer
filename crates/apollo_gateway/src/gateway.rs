@@ -106,13 +106,6 @@ impl Gateway {
     ) -> GatewayResult<GatewayOutput> {
         self.0.add_tx(tx, p2p_message_metadata).await
     }
-
-    pub async fn update_timestamps(
-        &self,
-        mappings: HashMap<TransactionHash, UnixTimestamp>,
-    ) -> GatewayResult<()> {
-        self.0.update_timestamps(mappings).await
-    }
 }
 
 #[derive(Clone)]
@@ -384,16 +377,6 @@ impl<
             })?;
 
         Ok(Some((handle.proof_facts, handle.proof)))
-    }
-
-    pub(crate) async fn update_timestamps(
-        &self,
-        mappings: HashMap<TransactionHash, UnixTimestamp>,
-    ) -> GatewayResult<()> {
-        self.mempool_client
-            .update_timestamps(mappings)
-            .await
-            .map_err(|e| StarknetError::internal_with_logging("Mempool client error", &e))
     }
 }
 
