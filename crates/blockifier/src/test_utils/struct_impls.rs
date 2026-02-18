@@ -10,6 +10,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::contract_address;
 #[cfg(feature = "cairo_native")]
@@ -28,7 +29,7 @@ use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, ExtendedExecutionResources, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 #[cfg(feature = "cairo_native")]
 use crate::execution::contract_class::CompiledClassV1;
@@ -337,5 +338,14 @@ impl NativeCompiledClassV1 {
         let mut cache = COMPILED_NATIVE_CONTRACT_CACHE.write().unwrap();
         cache.insert(path.to_string(), class.clone());
         class
+    }
+}
+
+impl From<ExecutionResources> for ExtendedExecutionResources {
+    fn from(execution_resources: ExecutionResources) -> Self {
+        ExtendedExecutionResources {
+            vm_resources: execution_resources,
+            opcode_instance_counter: Default::default(),
+        }
     }
 }
