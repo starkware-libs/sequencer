@@ -1,20 +1,31 @@
 use std::env;
 
+#[cfg(feature = "stwo_proving")]
 use blockifier::blockifier::config::ContractClassManagerConfig;
+#[cfg(feature = "stwo_proving")]
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use blockifier_reexecution::utils::get_chain_info;
 use rstest::fixture;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::BlockNumber;
+#[cfg(feature = "stwo_proving")]
+use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
+#[cfg(feature = "stwo_proving")]
 use starknet_api::execution_resources::GasAmount;
+#[cfg(feature = "stwo_proving")]
 use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
 use url::Url;
 
-use crate::running::runner::{RpcRunnerFactory, RunnerConfig};
-use crate::running::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig};
+#[cfg(feature = "stwo_proving")]
+use crate::running::runner::RpcRunnerFactory;
+#[cfg(feature = "stwo_proving")]
+use crate::running::runner::RunnerConfig;
+use crate::running::storage_proofs::RpcStorageProofsProvider;
+#[cfg(feature = "stwo_proving")]
+use crate::running::storage_proofs::StorageProofConfig;
 use crate::running::virtual_block_executor::RpcVirtualBlockExecutor;
 
 // ================================================================================================
@@ -101,6 +112,7 @@ pub fn rpc_provider() -> RpcStorageProofsProvider {
 /// - Build a FactsDb from RPC proofs and execution data.
 /// - Execute the committer to compute new state roots.
 /// - Generate commitment infos with actual root changes.
+#[cfg(feature = "stwo_proving")]
 #[fixture]
 pub fn sepolia_runner_factory() -> RpcRunnerFactory {
     let rpc_url = Url::parse(&get_sepolia_rpc_url()).expect("Invalid Sepolia RPC URL");
@@ -117,6 +129,7 @@ pub fn sepolia_runner_factory() -> RpcRunnerFactory {
 // Transaction Helpers
 // ================================================================================================
 
+#[cfg(feature = "stwo_proving")]
 pub(crate) fn default_resource_bounds_for_client_side_tx() -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(0) },
