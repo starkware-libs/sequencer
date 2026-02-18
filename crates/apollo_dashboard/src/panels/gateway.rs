@@ -12,6 +12,7 @@ use apollo_gateway::metrics::{
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
 };
 use apollo_metrics::metrics::MetricQueryName;
+use apollo_transaction_converter::metrics::PROOF_VERIFICATION_LATENCY;
 
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
@@ -137,6 +138,15 @@ fn get_panel_gateway_validate_stateful_tx_storage_time() -> Panel {
     .with_unit(Unit::Seconds)
 }
 
+fn get_panel_proof_verification_latency() -> Panel {
+    Panel::from_hist(
+        &PROOF_VERIFICATION_LATENCY,
+        "Proof Verification Latency",
+        "Time taken to verify a proof",
+    )
+    .with_unit(Unit::Seconds)
+}
+
 fn get_panel_gateway_validate_stateful_tx_storage_operations() -> Panel {
     Panel::from_hist(
         &GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS,
@@ -159,6 +169,7 @@ pub(crate) fn get_gateway_row() -> Row {
             get_panel_gateway_transactions_sent_to_mempool(),
             get_panel_gateway_validate_stateful_tx_storage_time(),
             get_panel_gateway_validate_stateful_tx_storage_operations(),
+            get_panel_proof_verification_latency(),
         ],
     )
 }

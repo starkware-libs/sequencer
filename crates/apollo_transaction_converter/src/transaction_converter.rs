@@ -34,6 +34,7 @@ use thiserror::Error;
 use tokio::task::JoinHandle;
 use tracing::info;
 
+use crate::metrics::PROOF_VERIFICATION_LATENCY;
 use crate::proof_verification::{stwo_verify, VerifyProofError};
 
 /// The expected bootloader program hash for proof verification.
@@ -429,6 +430,7 @@ impl TransactionConverter {
             let proof_facts_hash = task_proof_facts.hash();
             Self::verify_proof(task_proof_facts, task_proof)?;
             let verify_duration = verify_start.elapsed();
+            PROOF_VERIFICATION_LATENCY.record(verify_duration.as_secs_f64());
             info!(
                 "Proof verification took: {verify_duration:?} for proof facts hash: \
                  {proof_facts_hash:?}"

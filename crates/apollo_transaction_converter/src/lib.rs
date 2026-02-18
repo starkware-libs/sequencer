@@ -1,3 +1,4 @@
+pub mod metrics;
 pub mod proof_verification;
 pub mod transaction_converter;
 
