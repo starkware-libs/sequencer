@@ -11,7 +11,11 @@ use rstest::rstest;
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::ClassHash;
 
-use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
+use crate::blockifier::config::{
+    CairoNativeRunConfig,
+    ContractClassManagerConfig,
+    NativeClassesWhitelist,
+};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::global_cache::{
     CachedCairoNative,
@@ -28,6 +32,25 @@ use crate::state::native_class_manager::{
 use crate::test_utils::contracts::FeatureContractTrait;
 
 const TEST_CHANNEL_SIZE: usize = 10;
+
+#[rstest]
+#[should_panic(expected = "Invalid contract class manager config:")]
+#[case::invalid_contract_cache_size(ContractClassManagerConfig { contract_cache_size: 0, ..Default::default() })]
+#[should_panic(expected = "Invalid contract class manager config:")]
+#[case::invalid_cairo_native_run_config(ContractClassManagerConfig {
+    cairo_native_run_config: CairoNativeRunConfig {
+        run_cairo_native: false,
+        wait_on_native_compilation: true,
+        ..Default::default()
+    },
+    ..Default::default()
+})]
+fn test_start_invalid_contract_class_manager_config_panics(
+    #[case] config: ContractClassManagerConfig,
+) {
+    // This should panic after failing validation.
+    let _manager = NativeClassManager::start(config.clone());
+}
 
 fn get_casm(test_contract: FeatureContract) -> CompiledClassV1 {
     match test_contract.get_runnable_class() {
