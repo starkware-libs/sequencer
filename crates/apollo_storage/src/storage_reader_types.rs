@@ -13,6 +13,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::base_layer::BaseLayerStorageReader;
+use crate::block_hash::BlockHashStorageReader;
 use crate::body::events::EventsReader;
 use crate::body::{BodyStorageReader, TransactionIndex};
 use crate::class::ClassStorageReader;
@@ -79,6 +80,8 @@ pub enum StorageReaderRequest {
     // ============ Block-Related Requests ============
     /// A block header by block number.
     Headers(BlockNumber),
+    /// Block hash by block number.
+    BlockHash(BlockNumber),
     /// Block number by block hash.
     BlockHashToNumber(BlockHash),
     /// Block signature by block number.
@@ -147,6 +150,8 @@ pub enum StorageReaderResponse {
     // ============ Block-Related Responses ============
     /// A block header.
     Headers(StorageBlockHeader),
+    /// A block hash.
+    BlockHash(BlockHash),
     /// A block number.
     BlockHashToNumber(BlockNumber),
     /// A block signature.
@@ -331,6 +336,14 @@ impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
                         resource_id: format!("block: {}", block_number),
                     })?;
                 Ok(StorageReaderResponse::Headers(storage_block_header))
+            }
+            StorageReaderRequest::BlockHash(block_number) => {
+                let block_hash =
+                    txn.get_block_hash(&block_number)?.ok_or(StorageError::NotFound {
+                        resource_type: "Block hash".to_string(),
+                        resource_id: format!("block: {}", block_number),
+                    })?;
+                Ok(StorageReaderResponse::BlockHash(block_hash))
             }
             StorageReaderRequest::BlockHashToNumber(block_hash) => {
                 let block_number =
