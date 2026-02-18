@@ -404,9 +404,14 @@ class SharedContext:
         self._l2_gas_mismatches = _ReportL2GasMismatchTracker.empty()
         self._blocks = _BlockStore.empty()
         self._progress = _ProgressMarkers.empty()
+        self._epoch = 0
 
     def get_uptime_seconds(self) -> int:
         return int(time.monotonic() - self._started_at_monotonic)
+
+    def get_epoch(self) -> int:
+        with self._lock:
+            return self._epoch
 
     # --- Tx lifecycle ---
     def record_sent_tx(self, tx_hash: str, source_block_number: int) -> None:
@@ -472,6 +477,7 @@ class SharedContext:
     def clear_for_resync(self) -> None:
         """Clear live state for a new run while preserving cumulative stats."""
         with self._lock:
+            self._epoch += 1
             snapshot_items = self._blocks.snapshot_items()
             archive_dir = self._blocks._ensure_archive_dir()
             self._tx.currently_pending.clear()

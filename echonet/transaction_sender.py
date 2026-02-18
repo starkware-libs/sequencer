@@ -113,6 +113,7 @@ class TxData:
     tx: JsonObject
     source_block_number: int
     source_timestamp: Optional[int]
+    epoch: int
 
 
 class TxSelector:
@@ -215,6 +216,7 @@ class TransactionSenderService:
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             tx_queue: "asyncio.Queue[Optional[TxData]]" = asyncio.Queue(maxsize=config.queue_size)
+            forwarding_lock = asyncio.Lock()
 
             transformer = TxTransformer(feeder)
             forwarder = HttpForwarder(
@@ -259,6 +261,8 @@ class TransactionSenderService:
 
                     timestamp = block["timestamp"]
                     shared.store_fgw_block(block_number, block)
+
+                    epoch = shared.get_epoch()
                     revert_errors = _extract_revert_errors_by_tx_hash(block)
                     if revert_errors:
                         shared.record_mainnet_revert_errors(block_number, revert_errors)
@@ -274,6 +278,7 @@ class TransactionSenderService:
                             tx=tx,
                             source_block_number=block_number,
                             source_timestamp=timestamp,
+                            epoch=epoch,
                         )
                         await tx_queue.put(tx_data)
 
@@ -292,8 +297,9 @@ class TransactionSenderService:
                             f"Resync triggered by tx {trigger['tx_hash']} at block {trigger['block_number']}: "
                             f"{trigger['reason']}"
                         )
-                        await drain_queue()
-                        block_number = await resync_executor.execute(trigger=trigger)
+                        async with forwarding_lock:
+                            await drain_queue()
+                            block_number = await resync_executor.execute(trigger=trigger)
                         continue
 
                     block_number += 1
@@ -317,9 +323,13 @@ class TransactionSenderService:
                         ):
                             await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
 
-                        await forwarder.forward(
-                            prepared, source_block_number=item.source_block_number
-                        )
+                        async with forwarding_lock:
+                            if item.epoch != shared.get_epoch():
+                                continue
+                            await forwarder.forward(
+                                prepared,
+                                source_block_number=item.source_block_number,
+                            )
                     finally:
                         tx_queue.task_done()
 
