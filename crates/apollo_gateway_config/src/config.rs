@@ -37,6 +37,9 @@ pub struct GatewayStaticConfig {
     #[serde(default, deserialize_with = "deserialize_comma_separated_str")]
     pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
     pub proof_archive_writer_config: ProofArchiveWriterConfig,
+    /// URL of the batcher storage reader server for bootstrap queries. Empty to disable.
+    #[serde(default)]
+    pub batcher_storage_reader_url: String,
 }
 
 impl Default for GatewayStaticConfig {
@@ -52,6 +55,7 @@ impl Default for GatewayStaticConfig {
             block_declare: false,
             authorized_declarer_accounts: None,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+            batcher_storage_reader_url: String::new(),
         }
     }
 }
@@ -89,6 +93,12 @@ impl SerializeConfig for GatewayStaticConfig {
             self.proof_archive_writer_config.dump(),
             "proof_archive_writer_config",
         ));
+        dump.extend(BTreeMap::from_iter([ser_param(
+            "batcher_storage_reader_url",
+            &self.batcher_storage_reader_url,
+            "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
+            ParamPrivacyInput::Public,
+        )]));
         dump
     }
 }
