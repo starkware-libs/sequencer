@@ -8,60 +8,6 @@ anyOf:
   - $ref: "#/$defs/CoreHint"
   - $ref: "#/$defs/DeprecatedHint"
 $defs:
-  BigInt:
-    type: object
-    properties:
-      data:
-        $ref: "#/$defs/BigUint"
-      sign:
-        $ref: "#/$defs/Sign"
-    required:
-      - sign
-      - data
-  BigIntAsHex:
-    description: A field element that encodes the signature of the called function.
-    $ref: "#/$defs/BigInt"
-  BigUint:
-    type: object
-    properties:
-      data:
-        type: array
-        items:
-          type: integer
-          format: uint64
-          minimum:
-            "$serde_json::private::Number": "0"
-    required:
-      - data
-  BinOpOperand:
-    type: object
-    properties:
-      a:
-        $ref: "#/$defs/CellRef"
-      b:
-        $ref: "#/$defs/DerefOrImmediate"
-      op:
-        $ref: "#/$defs/Operation"
-    required:
-      - op
-      - a
-      - b
-  CellRef:
-    description: "Represents an operand of the form [reg + offset]."
-    type: object
-    properties:
-      offset:
-        type: integer
-        format: int16
-        maximum:
-          "$serde_json::private::Number": "32767"
-        minimum:
-          "$serde_json::private::Number": "-32768"
-      register:
-        $ref: "#/$defs/Register"
-    required:
-      - register
-      - offset
   CoreHint:
     oneOf:
       - type: object
@@ -73,86 +19,86 @@ $defs:
                 $ref: "#/$defs/CellRef"
             required:
               - dst
-        additionalProperties: false
         required:
           - AllocSegment
+        additionalProperties: false
       - type: object
         properties:
           TestLessThan:
             type: object
             properties:
-              dst:
-                $ref: "#/$defs/CellRef"
               lhs:
                 $ref: "#/$defs/ResOperand"
               rhs:
                 $ref: "#/$defs/ResOperand"
+              dst:
+                $ref: "#/$defs/CellRef"
             required:
               - lhs
               - rhs
               - dst
-        additionalProperties: false
         required:
           - TestLessThan
+        additionalProperties: false
       - type: object
         properties:
           TestLessThanOrEqual:
             type: object
             properties:
-              dst:
-                $ref: "#/$defs/CellRef"
               lhs:
                 $ref: "#/$defs/ResOperand"
               rhs:
                 $ref: "#/$defs/ResOperand"
+              dst:
+                $ref: "#/$defs/CellRef"
             required:
               - lhs
               - rhs
               - dst
-        additionalProperties: false
         required:
           - TestLessThanOrEqual
+        additionalProperties: false
       - description: Variant of TestLessThanOrEqual that compares addresses.
         type: object
         properties:
           TestLessThanOrEqualAddress:
             type: object
             properties:
-              dst:
-                $ref: "#/$defs/CellRef"
               lhs:
                 $ref: "#/$defs/ResOperand"
               rhs:
                 $ref: "#/$defs/ResOperand"
+              dst:
+                $ref: "#/$defs/CellRef"
             required:
               - lhs
               - rhs
               - dst
-        additionalProperties: false
         required:
           - TestLessThanOrEqualAddress
+        additionalProperties: false
       - description: "Multiplies two 128-bit integers and returns two 128-bit integers: the high and low parts of\nthe product."
         type: object
         properties:
           WideMul128:
             type: object
             properties:
-              high:
-                $ref: "#/$defs/CellRef"
               lhs:
                 $ref: "#/$defs/ResOperand"
-              low:
-                $ref: "#/$defs/CellRef"
               rhs:
                 $ref: "#/$defs/ResOperand"
+              high:
+                $ref: "#/$defs/CellRef"
+              low:
+                $ref: "#/$defs/CellRef"
             required:
               - lhs
               - rhs
               - high
               - low
-        additionalProperties: false
         required:
           - WideMul128
+        additionalProperties: false
       - description: "Computes lhs/rhs and returns the quotient and remainder.\n\nNote: the hint may be used to write an already assigned memory cell."
         type: object
         properties:
@@ -161,20 +107,20 @@ $defs:
             properties:
               lhs:
                 $ref: "#/$defs/ResOperand"
+              rhs:
+                $ref: "#/$defs/ResOperand"
               quotient:
                 $ref: "#/$defs/CellRef"
               remainder:
                 $ref: "#/$defs/CellRef"
-              rhs:
-                $ref: "#/$defs/ResOperand"
             required:
               - lhs
               - rhs
               - quotient
               - remainder
-        additionalProperties: false
         required:
           - DivMod
+        additionalProperties: false
       - description: "Divides dividend (represented by 2 128-bit limbs) by divisor (represented by 2 128-bit\nlimbs). Returns the quotient (represented by 2 128-bit limbs) and remainder (represented by\n2 128-bit limbs). In all cases, `name`0 is the least significant limb."
         type: object
         properties:
@@ -206,9 +152,9 @@ $defs:
               - quotient1
               - remainder0
               - remainder1
-        additionalProperties: false
         required:
           - Uint256DivMod
+        additionalProperties: false
       - description: "Divides dividend (represented by 4 128-bit limbs) by divisor (represented by 2 128-bit\nlimbs). Returns the quotient (represented by 4 128-bit limbs) and remainder (represented\nby 2 128-bit limbs).\nIn all cases, `name`0 is the least significant limb."
         type: object
         properties:
@@ -252,44 +198,44 @@ $defs:
               - quotient3
               - remainder0
               - remainder1
-        additionalProperties: false
         required:
           - Uint512DivModByUint256
+        additionalProperties: false
       - type: object
         properties:
           SquareRoot:
             type: object
             properties:
-              dst:
-                $ref: "#/$defs/CellRef"
               value:
                 $ref: "#/$defs/ResOperand"
+              dst:
+                $ref: "#/$defs/CellRef"
             required:
               - value
               - dst
-        additionalProperties: false
         required:
           - SquareRoot
+        additionalProperties: false
       - description: "Computes the square root of value_low<<128+value_high, stores the 64-bit limbs of the result\nin sqrt0 and sqrt1 as well as the 128-bit limbs of the remainder in remainder_low and\nremainder_high. The remainder is defined as `value - sqrt**2`.\nLastly, it checks whether `2*sqrt - remainder >= 2**128`."
         type: object
         properties:
           Uint256SquareRoot:
             type: object
             properties:
-              remainder_high:
-                $ref: "#/$defs/CellRef"
-              remainder_low:
-                $ref: "#/$defs/CellRef"
+              value_low:
+                $ref: "#/$defs/ResOperand"
+              value_high:
+                $ref: "#/$defs/ResOperand"
               sqrt0:
                 $ref: "#/$defs/CellRef"
               sqrt1:
                 $ref: "#/$defs/CellRef"
+              remainder_low:
+                $ref: "#/$defs/CellRef"
+              remainder_high:
+                $ref: "#/$defs/CellRef"
               sqrt_mul_2_minus_remainder_ge_u128:
                 $ref: "#/$defs/CellRef"
-              value_high:
-                $ref: "#/$defs/ResOperand"
-              value_low:
-                $ref: "#/$defs/ResOperand"
             required:
               - value_low
               - value_high
@@ -298,20 +244,20 @@ $defs:
               - remainder_low
               - remainder_high
               - sqrt_mul_2_minus_remainder_ge_u128
-        additionalProperties: false
         required:
           - Uint256SquareRoot
+        additionalProperties: false
       - description: "Finds some `x` and `y` such that `x * scalar + y = value` and `x <= max_x`."
         type: object
         properties:
           LinearSplit:
             type: object
             properties:
-              max_x:
+              value:
                 $ref: "#/$defs/ResOperand"
               scalar:
                 $ref: "#/$defs/ResOperand"
-              value:
+              max_x:
                 $ref: "#/$defs/ResOperand"
               x:
                 $ref: "#/$defs/CellRef"
@@ -323,9 +269,9 @@ $defs:
               - max_x
               - x
               - y
-        additionalProperties: false
         required:
           - LinearSplit
+        additionalProperties: false
       - description: Allocates a new dict segment and writes its start address into the dict_infos segment.
         type: object
         properties:
@@ -336,9 +282,9 @@ $defs:
                 $ref: "#/$defs/ResOperand"
             required:
               - segment_arena_ptr
-        additionalProperties: false
         required:
           - AllocFelt252Dict
+        additionalProperties: false
       - description: Fetches the previous value of a key in a dict and writes it in a new dict access.
         type: object
         properties:
@@ -352,9 +298,9 @@ $defs:
             required:
               - dict_ptr
               - key
-        additionalProperties: false
         required:
           - Felt252DictEntryInit
+        additionalProperties: false
       - description: "Similar to Felt252DictWrite, but updates an existing entry and does not write the previous\nvalue to the stack."
         type: object
         properties:
@@ -368,9 +314,9 @@ $defs:
             required:
               - dict_ptr
               - value
-        additionalProperties: false
         required:
           - Felt252DictEntryUpdate
+        additionalProperties: false
       - description: Retrieves the index of the given dict in the dict_infos segment.
         type: object
         properties:
@@ -384,34 +330,34 @@ $defs:
             required:
               - dict_end_ptr
               - dict_index
-        additionalProperties: false
         required:
           - GetSegmentArenaIndex
+        additionalProperties: false
       - description: Initializes the lists of accesses for each key in a dict in preparation for squash_dict.
         type: object
         properties:
           InitSquashData:
             type: object
             properties:
-              big_keys:
-                $ref: "#/$defs/CellRef"
               dict_accesses:
-                $ref: "#/$defs/ResOperand"
-              first_key:
-                $ref: "#/$defs/CellRef"
-              n_accesses:
                 $ref: "#/$defs/ResOperand"
               ptr_diff:
                 $ref: "#/$defs/ResOperand"
+              n_accesses:
+                $ref: "#/$defs/ResOperand"
+              big_keys:
+                $ref: "#/$defs/CellRef"
+              first_key:
+                $ref: "#/$defs/CellRef"
             required:
               - dict_accesses
               - ptr_diff
               - n_accesses
               - big_keys
               - first_key
-        additionalProperties: false
         required:
           - InitSquashData
+        additionalProperties: false
       - description: Retrieves the current index of a dict access to process.
         type: object
         properties:
@@ -422,9 +368,9 @@ $defs:
                 $ref: "#/$defs/ResOperand"
             required:
               - range_check_ptr
-        additionalProperties: false
         required:
           - GetCurrentAccessIndex
+        additionalProperties: false
       - description: Writes whether the squash_dict loop should be skipped.
         type: object
         properties:
@@ -435,9 +381,9 @@ $defs:
                 $ref: "#/$defs/CellRef"
             required:
               - should_skip_loop
-        additionalProperties: false
         required:
           - ShouldSkipSquashLoop
+        additionalProperties: false
       - description: Writes the delta from the current access index to the next one.
         type: object
         properties:
@@ -448,9 +394,9 @@ $defs:
                 $ref: "#/$defs/CellRef"
             required:
               - index_delta_minus1
-        additionalProperties: false
         required:
           - GetCurrentAccessDelta
+        additionalProperties: false
       - description: Writes whether the squash_dict loop should continue.
         type: object
         properties:
@@ -461,9 +407,9 @@ $defs:
                 $ref: "#/$defs/CellRef"
             required:
               - should_continue
-        additionalProperties: false
         required:
           - ShouldContinueSquashLoop
+        additionalProperties: false
       - description: Writes the next dict key to process.
         type: object
         properties:
@@ -474,28 +420,28 @@ $defs:
                 $ref: "#/$defs/CellRef"
             required:
               - next_key
-        additionalProperties: false
         required:
           - GetNextDictKey
+        additionalProperties: false
       - description: "Finds the two small arcs from within [(0,a),(a,b),(b,PRIME)] and writes them to the\nrange_check segment."
         type: object
         properties:
           AssertLeFindSmallArcs:
             type: object
             properties:
+              range_check_ptr:
+                $ref: "#/$defs/ResOperand"
               a:
                 $ref: "#/$defs/ResOperand"
               b:
-                $ref: "#/$defs/ResOperand"
-              range_check_ptr:
                 $ref: "#/$defs/ResOperand"
             required:
               - range_check_ptr
               - a
               - b
-        additionalProperties: false
         required:
           - AssertLeFindSmallArcs
+        additionalProperties: false
       - description: "Writes whether the arc (0,a) was excluded."
         type: object
         properties:
@@ -506,9 +452,9 @@ $defs:
                 $ref: "#/$defs/CellRef"
             required:
               - skip_exclude_a_flag
-        additionalProperties: false
         required:
           - AssertLeIsFirstArcExcluded
+        additionalProperties: false
       - description: "Writes whether the arc (a,b) was excluded."
         type: object
         properties:
@@ -519,9 +465,9 @@ $defs:
                 $ref: "#/$defs/CellRef"
             required:
               - skip_exclude_b_minus_a
-        additionalProperties: false
         required:
           - AssertLeIsSecondArcExcluded
+        additionalProperties: false
       - description: Samples a random point on the EC.
         type: object
         properties:
@@ -535,57 +481,57 @@ $defs:
             required:
               - x
               - y
-        additionalProperties: false
         required:
           - RandomEcPoint
+        additionalProperties: false
       - description: "Computes the square root of `val`, if `val` is a quadratic residue, and of `3 * val`\notherwise.\n\nSince 3 is not a quadratic residue, exactly one of `val` and `3 * val` is a quadratic\nresidue (unless `val` is 0). This allows proving that `val` is not a quadratic residue."
         type: object
         properties:
           FieldSqrt:
             type: object
             properties:
-              sqrt:
-                $ref: "#/$defs/CellRef"
               val:
                 $ref: "#/$defs/ResOperand"
+              sqrt:
+                $ref: "#/$defs/CellRef"
             required:
               - val
               - sqrt
-        additionalProperties: false
         required:
           - FieldSqrt
+        additionalProperties: false
       - description: "Prints the values from start to end.\nBoth must be pointers."
         type: object
         properties:
           DebugPrint:
             type: object
             properties:
-              end:
-                $ref: "#/$defs/ResOperand"
               start:
+                $ref: "#/$defs/ResOperand"
+              end:
                 $ref: "#/$defs/ResOperand"
             required:
               - start
               - end
-        additionalProperties: false
         required:
           - DebugPrint
+        additionalProperties: false
       - description: "Returns an address with `size` free locations afterwards."
         type: object
         properties:
           AllocConstantSize:
             type: object
             properties:
-              dst:
-                $ref: "#/$defs/CellRef"
               size:
                 $ref: "#/$defs/ResOperand"
+              dst:
+                $ref: "#/$defs/CellRef"
             required:
               - size
               - dst
-        additionalProperties: false
         required:
           - AllocConstantSize
+        additionalProperties: false
       - description: "Provides the inverse of b (represented by 2 128-bit limbs) modulo n (represented by 2\n128-bit limbs), or a proof that b has no inverse.\n\nIn case b has an inverse: Returns `r` and `k` such that:\n  * `r = 1 / b (mod n)`\n  * `k = (r * b - 1) / n`\n  * `g0_or_no_inv = 0`\n\nIn case b has no inverse: Returns `g`, `s`, and `t`, such that:\n`g > 1`\n`g == 2 || g % 2 == 1` (in particular, `g0_or_no_inv = g0 != 0`)\n`g * s = b`\n`g * t = n`\n\nThe case `n == 1` is considered \"no-inverse\" (special case).\nIn this case: Returns `g == 1`, `s == b` and `t == 1`.\nAll no-inverse requirements are satisfied, except for `g > 1`.\n\nIn all cases, `name`0 is the least significant limb."
         type: object
         properties:
@@ -596,14 +542,14 @@ $defs:
                 $ref: "#/$defs/ResOperand"
               b1:
                 $ref: "#/$defs/ResOperand"
-              g0_or_no_inv:
-                $ref: "#/$defs/CellRef"
-              g1_option:
-                $ref: "#/$defs/CellRef"
               n0:
                 $ref: "#/$defs/ResOperand"
               n1:
                 $ref: "#/$defs/ResOperand"
+              g0_or_no_inv:
+                $ref: "#/$defs/CellRef"
+              g1_option:
+                $ref: "#/$defs/CellRef"
               s_or_r0:
                 $ref: "#/$defs/CellRef"
               s_or_r1:
@@ -623,30 +569,158 @@ $defs:
               - s_or_r1
               - t_or_k0
               - t_or_k1
-        additionalProperties: false
         required:
           - U256InvModN
+        additionalProperties: false
       - type: object
         properties:
           EvalCircuit:
             type: object
             properties:
-              add_mod_builtin:
-                $ref: "#/$defs/ResOperand"
-              mul_mod_builtin:
-                $ref: "#/$defs/ResOperand"
               n_add_mods:
                 $ref: "#/$defs/ResOperand"
+              add_mod_builtin:
+                $ref: "#/$defs/ResOperand"
               n_mul_mods:
+                $ref: "#/$defs/ResOperand"
+              mul_mod_builtin:
                 $ref: "#/$defs/ResOperand"
             required:
               - n_add_mods
               - add_mod_builtin
               - n_mul_mods
               - mul_mod_builtin
-        additionalProperties: false
         required:
           - EvalCircuit
+        additionalProperties: false
+  CellRef:
+    description: "Represents an operand of the form [reg + offset]."
+    type: object
+    properties:
+      register:
+        $ref: "#/$defs/Register"
+      offset:
+        type: integer
+        format: int16
+        minimum:
+          "$serde_json::private::Number": "-32768"
+        maximum:
+          "$serde_json::private::Number": "32767"
+    required:
+      - register
+      - offset
+  Register:
+    type: string
+    enum:
+      - AP
+      - FP
+  ResOperand:
+    oneOf:
+      - type: object
+        properties:
+          Deref:
+            $ref: "#/$defs/CellRef"
+        required:
+          - Deref
+        additionalProperties: false
+      - type: object
+        properties:
+          DoubleDeref:
+            type: array
+            prefixItems:
+              - $ref: "#/$defs/CellRef"
+              - type: integer
+                format: int16
+                minimum:
+                  "$serde_json::private::Number": "-32768"
+                maximum:
+                  "$serde_json::private::Number": "32767"
+            minItems:
+              "$serde_json::private::Number": "2"
+            maxItems:
+              "$serde_json::private::Number": "2"
+        required:
+          - DoubleDeref
+        additionalProperties: false
+      - type: object
+        properties:
+          Immediate:
+            $ref: "#/$defs/BigIntAsHex"
+        required:
+          - Immediate
+        additionalProperties: false
+      - type: object
+        properties:
+          BinOp:
+            $ref: "#/$defs/BinOpOperand"
+        required:
+          - BinOp
+        additionalProperties: false
+  BigIntAsHex:
+    description: The underlying signed big integer value.
+    $ref: "#/$defs/BigInt"
+  BigInt:
+    type: object
+    properties:
+      sign:
+        $ref: "#/$defs/Sign"
+      data:
+        $ref: "#/$defs/BigUint"
+    required:
+      - sign
+      - data
+  Sign:
+    type: string
+    enum:
+      - Minus
+      - NoSign
+      - Plus
+  BigUint:
+    type: object
+    properties:
+      data:
+        type: array
+        items:
+          type: integer
+          format: uint64
+          minimum:
+            "$serde_json::private::Number": "0"
+    required:
+      - data
+  BinOpOperand:
+    type: object
+    properties:
+      op:
+        $ref: "#/$defs/Operation"
+      a:
+        $ref: "#/$defs/CellRef"
+      b:
+        $ref: "#/$defs/DerefOrImmediate"
+    required:
+      - op
+      - a
+      - b
+  Operation:
+    type: string
+    enum:
+      - Add
+      - Mul
+  DerefOrImmediate:
+    oneOf:
+      - type: object
+        properties:
+          Deref:
+            $ref: "#/$defs/CellRef"
+        required:
+          - Deref
+        additionalProperties: false
+      - type: object
+        properties:
+          Immediate:
+            $ref: "#/$defs/BigIntAsHex"
+        required:
+          - Immediate
+        additionalProperties: false
   DeprecatedHint:
     description: "Represents a deprecated hint that is kept for backward compatibility with previously deployed\ncontracts."
     oneOf:
@@ -663,9 +737,9 @@ $defs:
                 $ref: "#/$defs/CellRef"
             required:
               - n_used_accesses
-        additionalProperties: false
         required:
           - AssertAllAccessesUsed
+        additionalProperties: false
       - description: Asserts that the keys list is empty.
         type: string
         const: AssertAllKeysUsed
@@ -685,9 +759,9 @@ $defs:
             required:
               - a
               - b
-        additionalProperties: false
         required:
           - AssertLtAssertValidInput
+        additionalProperties: false
       - description: "Retrieves and writes the value corresponding to the given dict and key from the VM\ndict_manager."
         type: object
         properties:
@@ -704,9 +778,9 @@ $defs:
               - dict_ptr
               - key
               - value_dst
-        additionalProperties: false
         required:
           - Felt252DictRead
+        additionalProperties: false
       - description: Sets the value corresponding to the key in the VM dict_manager.
         type: object
         properties:
@@ -723,80 +797,6 @@ $defs:
               - dict_ptr
               - key
               - value
-        additionalProperties: false
         required:
           - Felt252DictWrite
-  DerefOrImmediate:
-    oneOf:
-      - type: object
-        properties:
-          Deref:
-            $ref: "#/$defs/CellRef"
         additionalProperties: false
-        required:
-          - Deref
-      - type: object
-        properties:
-          Immediate:
-            $ref: "#/$defs/BigIntAsHex"
-        additionalProperties: false
-        required:
-          - Immediate
-  Operation:
-    type: string
-    enum:
-      - Add
-      - Mul
-  Register:
-    type: string
-    enum:
-      - AP
-      - FP
-  ResOperand:
-    oneOf:
-      - type: object
-        properties:
-          Deref:
-            $ref: "#/$defs/CellRef"
-        additionalProperties: false
-        required:
-          - Deref
-      - type: object
-        properties:
-          DoubleDeref:
-            type: array
-            maxItems:
-              "$serde_json::private::Number": "2"
-            minItems:
-              "$serde_json::private::Number": "2"
-            prefixItems:
-              - $ref: "#/$defs/CellRef"
-              - type: integer
-                format: int16
-                maximum:
-                  "$serde_json::private::Number": "32767"
-                minimum:
-                  "$serde_json::private::Number": "-32768"
-        additionalProperties: false
-        required:
-          - DoubleDeref
-      - type: object
-        properties:
-          Immediate:
-            $ref: "#/$defs/BigIntAsHex"
-        additionalProperties: false
-        required:
-          - Immediate
-      - type: object
-        properties:
-          BinOp:
-            $ref: "#/$defs/BinOpOperand"
-        additionalProperties: false
-        required:
-          - BinOp
-  Sign:
-    type: string
-    enum:
-      - Minus
-      - NoSign
-      - Plus

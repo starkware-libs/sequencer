@@ -68,7 +68,7 @@ fn remove_path_from_json(
     }
     // Remove entry_to_remove from inner_json
     if let Some(obj) = inner_json.as_object_mut() {
-        obj.remove(entry_to_remove);
+        obj.shift_remove(entry_to_remove);
     }
     Ok(())
 }
