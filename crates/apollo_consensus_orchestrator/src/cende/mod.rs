@@ -289,6 +289,39 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                     for (key, size) in &field_sizes {
                         sizes_content.push_str(&format!("  {key}: {size} bytes\n"));
                     }
+
+                    let accumulate_subfield_sizes =
+                        |field_name: &str| -> std::collections::HashMap<String, usize> {
+                            let mut sizes: std::collections::HashMap<String, usize> =
+                                Default::default();
+                            for info in infos {
+                                if let serde_json::Value::Object(info_map) = info {
+                                    if let Some(serde_json::Value::Object(call_info)) =
+                                        info_map.get(field_name)
+                                    {
+                                        for (key, value) in call_info {
+                                            let size = serde_json::to_vec(value)
+                                                .map(|v| v.len())
+                                                .unwrap_or(0);
+                                            *sizes.entry(key.clone()).or_insert(0) += size;
+                                        }
+                                    }
+                                }
+                            }
+                            sizes
+                        };
+
+                    for field_name in ["validate_call_info", "execute_call_info"] {
+                        let subfield_sizes = accumulate_subfield_sizes(field_name);
+                        if !subfield_sizes.is_empty() {
+                            sizes_content.push_str(&format!(
+                                "\n{field_name} fields (total across all txs):\n"
+                            ));
+                            for (key, size) in &subfield_sizes {
+                                sizes_content.push_str(&format!("  {key}: {size} bytes\n"));
+                            }
+                        }
+                    }
                 }
 
                 let sizes_path = format!("/tmp/blob_{}_sizes.txt", blob.block_number);
