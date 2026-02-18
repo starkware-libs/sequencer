@@ -1,3 +1,4 @@
+pub(crate) mod bootstrap_client;
 pub mod communication;
 pub(crate) mod fee_transaction_queue;
 pub mod mempool;

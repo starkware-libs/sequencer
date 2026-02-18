@@ -2504,6 +2504,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "gateway_config.static_config.batcher_storage_reader_url": {
+    "description": "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
+    "privacy": "Public",
+    "value": ""
+  },
   "gateway_config.static_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
     "privacy": "Public",
@@ -2734,6 +2739,16 @@
     "privacy": "Public",
     "value": 4194304
   },
+  "http_server_config.static_config.batcher_storage_reader_url": {
+    "description": "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "http_server_config.static_config.bootstrap_poll_interval": {
+    "description": "Polling interval (in milliseconds) for bootstrap state.",
+    "privacy": "Public",
+    "value": 2000
+  },
   "http_server_config.static_config.dynamic_config_poll_interval": {
     "description": "Polling interval (in milliseconds) for dynamic config.",
     "privacy": "Public",
@@ -2913,6 +2928,11 @@
     "description": "Time-to-live for transactions in the mempool, in seconds.",
     "privacy": "Public",
     "value": 60
+  },
+  "mempool_config.static_config.batcher_storage_reader_url": {
+    "description": "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
+    "privacy": "Public",
+    "value": ""
   },
   "mempool_config.static_config.capacity_in_bytes": {
     "description": "Maximum size of the mempool, in bytes.",

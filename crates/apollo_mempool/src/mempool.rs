@@ -253,6 +253,9 @@ pub struct Mempool {
     accounts_with_gap: AccountsWithGap,
     state: MempoolState,
     clock: Arc<dyn Clock>,
+    /// When true, resource bounds validation is skipped for the current transaction.
+    /// Set by the communication wrapper during bootstrap tx processing.
+    pub(crate) bootstrap_active: bool,
 }
 
 impl Mempool {
@@ -265,6 +268,7 @@ impl Mempool {
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
+            bootstrap_active: false,
         }
     }
 
@@ -435,8 +439,12 @@ impl Mempool {
         Ok(())
     }
 
+    fn should_validate_resource_bounds(&self) -> bool {
+        self.config.static_config.validate_resource_bounds && !self.bootstrap_active
+    }
+
     fn insert_to_tx_queue(&mut self, tx_reference: TransactionReference) {
-        self.tx_queue.insert(tx_reference, self.config.static_config.validate_resource_bounds);
+        self.tx_queue.insert(tx_reference, self.should_validate_resource_bounds());
     }
 
     fn rewind_fee_priority_mempool(&mut self, addresses_to_rewind: &[ContractAddress]) {
@@ -446,8 +454,7 @@ impl Mempool {
                 next_txs_by_address.insert(address, *tx_reference);
             }
         }
-        self.tx_queue
-            .rewind_txs(next_txs_by_address, self.config.static_config.validate_resource_bounds);
+        self.tx_queue.rewind_txs(next_txs_by_address, self.should_validate_resource_bounds());
     }
 
     fn remove_rejected_txs(

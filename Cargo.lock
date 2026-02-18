@@ -1906,6 +1906,7 @@ dependencies = [
 name = "apollo_mempool"
 version = "0.18.0-dev.0"
 dependencies = [
+ "apollo_batcher_types",
  "apollo_config_manager_types",
  "apollo_infra",
  "apollo_mempool_config",
@@ -1931,7 +1932,10 @@ dependencies = [
  "mockall",
  "pretty_assertions",
  "rand 0.8.5",
+ "reqwest 0.12.24",
  "rstest",
+ "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
