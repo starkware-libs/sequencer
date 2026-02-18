@@ -1,12 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
-<<<<<<< HEAD
-||||||| 829d7d24fa
-use std::sync::Arc;
-=======
 use std::sync::Arc;
 use std::time::Duration;
->>>>>>> origin/main-v0.14.1-committer
 
 use apollo_batcher_config::config::{
     BatcherConfig,
