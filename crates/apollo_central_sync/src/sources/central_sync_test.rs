@@ -296,6 +296,7 @@ async fn sync_happy_flow() {
                     create_block_hash(block_number, false),
                     state_diff,
                     deployed_contract_class_definitions,
+                    IndexMap::new(),
                 ));
             }
         }
@@ -527,6 +528,7 @@ async fn test_unrecoverable_sync_error_flow() {
                 BLOCK_NUMBER,
                 create_block_hash(BLOCK_NUMBER, false),
                 StateDiff::default(),
+                IndexMap::new(),
                 IndexMap::new(),
             ));
         }
