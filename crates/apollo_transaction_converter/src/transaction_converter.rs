@@ -34,7 +34,7 @@ use thiserror::Error;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::metrics::PROOF_VERIFICATION_LATENCY;
+use crate::metrics::{CONSENSUS_PROOF_MANAGER_STORE_LATENCY, PROOF_VERIFICATION_LATENCY};
 use crate::proof_verification::{stwo_verify, VerifyProofError};
 
 /// The expected bootloader program hash for proof verification.
@@ -61,11 +61,15 @@ pub enum TransactionConverterError {
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
     ValidateCompiledClassHashError(#[from] ValidateCompiledClassHashError),
+    #[error("Verify and store proof task failed: {0}")]
+    VerifyAndStoreProofTaskFailed(String),
 }
 
 pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
 
 pub type VerificationTask = JoinHandle<Result<(), TransactionConverterError>>;
+
+pub type VerifyAndStoreProofTask = JoinHandle<Result<(), TransactionConverterError>>;
 
 #[derive(Debug)]
 pub struct VerificationHandle {
@@ -86,7 +90,7 @@ pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
         tx: ConsensusTransaction,
-    ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerificationHandle>)>;
+    ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerifyAndStoreProofTask>)>;
 
     async fn convert_internal_rpc_tx_to_rpc_tx(
         &self,
@@ -189,13 +193,18 @@ impl TransactionConverterTrait for TransactionConverter {
     async fn convert_consensus_tx_to_internal_consensus_tx(
         &self,
         tx: ConsensusTransaction,
-    ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerificationHandle>)>
+    ) -> TransactionConverterResult<(InternalConsensusTransaction, Option<VerifyAndStoreProofTask>)>
     {
         match tx {
             ConsensusTransaction::RpcTransaction(tx) => {
                 let (internal_tx, verification_handle) =
                     self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
-                Ok((InternalConsensusTransaction::RpcTransaction(internal_tx), verification_handle))
+                let verify_and_store_proof_task =
+                    verification_handle.map(|handle| self.spawn_verify_and_store_task(handle));
+                Ok((
+                    InternalConsensusTransaction::RpcTransaction(internal_tx),
+                    verify_and_store_proof_task,
+                ))
             }
             ConsensusTransaction::L1Handler(tx) => {
                 let internal_tx = self.convert_consensus_l1_handler_to_internal_l1_handler(tx)?;
@@ -386,6 +395,31 @@ impl TransactionConverterTrait for TransactionConverter {
 }
 
 impl TransactionConverter {
+    fn spawn_verify_and_store_task(&self, handle: VerificationHandle) -> VerifyAndStoreProofTask {
+        let proof_manager_client = self.proof_manager_client.clone();
+        let proof_facts_hash = handle.proof_facts.hash();
+        let proof_facts = handle.proof_facts;
+        let proof = handle.proof;
+        let verification_task = handle.verification_task;
+
+        tokio::spawn(async move {
+            verification_task.await.map_err(|e| {
+                TransactionConverterError::VerifyAndStoreProofTaskFailed(format!(
+                    "panicked for proof facts hash {proof_facts_hash:?}: {e}"
+                ))
+            })??;
+
+            let start = Instant::now();
+            proof_manager_client.set_proof(proof_facts, proof).await?;
+            let duration = start.elapsed();
+            CONSENSUS_PROOF_MANAGER_STORE_LATENCY.record(duration.as_secs_f64());
+            info!(
+                "Proof manager store took: {duration:?} for proof facts hash: {proof_facts_hash:?}"
+            );
+            Ok(())
+        })
+    }
+
     fn convert_consensus_l1_handler_to_internal_l1_handler(
         &self,
         tx: transaction::L1HandlerTransaction,

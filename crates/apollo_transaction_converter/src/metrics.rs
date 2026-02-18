@@ -8,4 +8,11 @@ define_metrics!(
             "Time taken to verify a proof in seconds"
         },
     },
+    ConsensusOrchestrator => {
+        MetricHistogram {
+            CONSENSUS_PROOF_MANAGER_STORE_LATENCY,
+            "consensus_proof_manager_store_latency",
+            "Time taken to store a proof in the proof manager during consensus orchestration, in seconds"
+        },
+    },
 );

@@ -40,7 +40,6 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_BUILD_PROPOSAL_FAILURE,
     CONSENSUS_L2_GAS_PRICE,
-    CONSENSUS_PROOF_MANAGER_STORE_LATENCY,
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE,
     LABEL_BUILD_PROPOSAL_FAILURE_REASON,
     LABEL_CENDE_FAILURE_REASON,
@@ -49,6 +48,7 @@ use apollo_consensus_orchestrator::metrics::{
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_network::metrics::{LABEL_NAME_BROADCAST_DROP_REASON, LABEL_NAME_EVENT_TYPE};
 use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
+use apollo_transaction_converter::metrics::CONSENSUS_PROOF_MANAGER_STORE_LATENCY;
 
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
@@ -267,7 +267,7 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
 fn get_panel_consensus_proof_manager_store_latency() -> Panel {
     Panel::from_hist(
         &CONSENSUS_PROOF_MANAGER_STORE_LATENCY,
-        "Proof Manager Store Latency",
+        "Consensus Proof Manager Store Latency",
         "The time it takes to store a proof in the proof manager during proposal validation",
     )
     .with_unit(Unit::Seconds)
