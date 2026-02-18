@@ -5,13 +5,10 @@ mod pending_test;
 use std::sync::Arc;
 
 use apollo_central_sync_config::config::CentralSourceConfig;
-use apollo_starknet_client::reader::{
-    PendingData,
-    ReaderClientError,
-    StarknetFeederGatewayClient,
-    StarknetReader,
-};
 use apollo_starknet_client::ClientCreationError;
+use apollo_starknet_client::reader::{
+    PendingData, ReaderClientError, StarknetFeederGatewayClient, StarknetReader,
+};
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;

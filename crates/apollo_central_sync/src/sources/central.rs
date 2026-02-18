@@ -7,13 +7,10 @@ use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
 use apollo_central_sync_config::config::CentralSourceConfig;
-use apollo_starknet_client::reader::{
-    BlockSignatureData,
-    ReaderClientError,
-    StarknetFeederGatewayClient,
-    StarknetReader,
-};
 use apollo_starknet_client::ClientCreationError;
+use apollo_starknet_client::reader::{
+    BlockSignatureData, ReaderClientError, StarknetFeederGatewayClient, StarknetReader,
+};
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageReader};
 use async_stream::stream;
@@ -26,12 +23,12 @@ use lru::LruCache;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
+use starknet_api::StarknetApiError;
 use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::StateDiff;
-use starknet_api::StarknetApiError;
 use tracing::{debug, trace};
 
 use self::state_update_stream::{StateUpdateStream, StateUpdateStreamConfig};
