@@ -1,5 +1,7 @@
 {
+  "batcher_storage_reader_url": "",
   "behavior_mode": "starknet",
+  "bootstrap_enabled": false,
   "chain_id": "$$$_CHAIN_ID_$$$",
   "eth_fee_token_address": "$$$_ETH_FEE_TOKEN_ADDRESS_$$$",
   "max_cpu_time": 600,
