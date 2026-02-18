@@ -14,6 +14,7 @@ pub const DEFAULT_MAX_SIERRA_PROGRAM_SIZE: usize = 4 * 1024 * 1024; // 4MB
 // protocol.
 const DEFAULT_MAX_REQUEST_BODY_SIZE: usize = 5 * 1024 * 1024; // 5MB
 const DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS: u64 = 1_000; // 1 second.
+const DEFAULT_BOOTSTRAP_POLL_INTERVAL_MS: u64 = 2_000; // 2 seconds.
 
 /// The http server connection related configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
@@ -55,6 +56,10 @@ pub struct HttpServerStaticConfig {
     pub max_request_body_size: usize,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub dynamic_config_poll_interval: Duration,
+    pub bootstrap_enabled: bool,
+    pub batcher_storage_reader_url: String,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub bootstrap_poll_interval: Duration,
 }
 
 impl SerializeConfig for HttpServerStaticConfig {
@@ -74,6 +79,24 @@ impl SerializeConfig for HttpServerStaticConfig {
                 "Polling interval (in milliseconds) for dynamic config.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "bootstrap_enabled",
+                &self.bootstrap_enabled,
+                "Whether bootstrap mode is enabled.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "batcher_storage_reader_url",
+                &self.batcher_storage_reader_url,
+                "URL of the batcher storage reader server for bootstrap queries.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bootstrap_poll_interval",
+                &self.bootstrap_poll_interval.as_millis(),
+                "Polling interval (in milliseconds) for bootstrap state.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -87,6 +110,9 @@ impl Default for HttpServerStaticConfig {
             dynamic_config_poll_interval: Duration::from_millis(
                 DEFAULT_DYNAMIC_CONFIG_POLL_INTERVAL_MS,
             ),
+            bootstrap_enabled: false,
+            batcher_storage_reader_url: String::new(),
+            bootstrap_poll_interval: Duration::from_millis(DEFAULT_BOOTSTRAP_POLL_INTERVAL_MS),
         }
     }
 }
