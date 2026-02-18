@@ -832,6 +832,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                     block_hash,
                     mut state_diff,
                     deployed_contract_class_definitions,
+                    _non_backward_compatible_casms,
                 ) = maybe_state_diff?;
                 sort_state_diff(&mut state_diff);
                 yield SyncEvent::StateDiffAvailable {
