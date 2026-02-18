@@ -3,6 +3,8 @@ use std::net::SocketAddr;
 use std::string::String;
 use std::time::Duration;
 
+use apollo_batcher::bootstrap_server::{BatcherStorageReaderRequest, BatcherStorageReaderResponse};
+use apollo_batcher_types::bootstrap_types::{BootstrapRequest, BootstrapResponse, BootstrapState};
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
@@ -63,12 +65,14 @@ pub struct HttpServer {
     app_state: AppState,
     config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<HttpServerDynamicConfig>,
+    bootstrap_state_tx: Sender<BootstrapState>,
 }
 
 #[derive(Clone)]
 pub struct AppState {
     gateway_client: SharedGatewayClient,
     dynamic_config_rx: Receiver<HttpServerDynamicConfig>,
+    bootstrap_state_rx: Receiver<BootstrapState>,
 }
 
 impl AppState {
@@ -90,8 +94,21 @@ impl HttpServer {
     ) -> Self {
         let (dynamic_config_tx, dynamic_config_rx) =
             channel::<HttpServerDynamicConfig>(config.dynamic_config.clone());
-        let app_state = AppState { gateway_client, dynamic_config_rx };
-        HttpServer { config, app_state, config_manager_client, dynamic_config_tx }
+        let initial_bootstrap_state = if config.static_config.bootstrap_enabled {
+            BootstrapState::DeclareContracts
+        } else {
+            BootstrapState::NotInBootstrap
+        };
+        let (bootstrap_state_tx, bootstrap_state_rx) =
+            channel::<BootstrapState>(initial_bootstrap_state);
+        let app_state = AppState { gateway_client, dynamic_config_rx, bootstrap_state_rx };
+        HttpServer {
+            config,
+            app_state,
+            config_manager_client,
+            dynamic_config_tx,
+            bootstrap_state_tx,
+        }
     }
 
     pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
@@ -108,6 +125,17 @@ impl HttpServer {
             self.config_manager_client.clone(),
             self.config.static_config.dynamic_config_poll_interval,
         ));
+
+        if self.config.static_config.bootstrap_enabled {
+            let batcher_url = &self.config.static_config.batcher_storage_reader_url;
+            info!("Bootstrap polling enabled, batcher storage reader URL: {}", batcher_url);
+            tokio::spawn(bootstrap_poll(
+                self.bootstrap_state_tx.clone(),
+                self.app_state.gateway_client.clone(),
+                batcher_url.clone(),
+                self.config.static_config.bootstrap_poll_interval,
+            ));
+        }
 
         // TODO(Tsabary): update the http server struct to hold optional fields of the
         // dynamic_config_tx, config_manager_client, and a JoinHandle for the polling task.
@@ -164,6 +192,7 @@ async fn add_rpc_tx(
 ) -> HttpServerResult<Json<GatewayOutput>> {
     debug!("ADD_TX_START: Http server received a new transaction.");
 
+    check_bootstrap_allows_external_txs(&app_state)?;
     let HttpServerDynamicConfig { accept_new_txs, .. } = app_state.get_dynamic_config();
     check_new_transactions_are_allowed(accept_new_txs)?;
 
@@ -181,6 +210,7 @@ async fn add_tx(
 ) -> HttpServerResult<Json<GatewayOutput>> {
     debug!("ADD_TX_START: Http server received a new transaction.");
 
+    check_bootstrap_allows_external_txs(&app_state)?;
     let HttpServerDynamicConfig { accept_new_txs, max_sierra_program_size } =
         app_state.get_dynamic_config();
     check_new_transactions_are_allowed(accept_new_txs)?;
@@ -206,6 +236,14 @@ async fn add_tx(
     })?;
 
     add_tx_inner(app_state, headers, rpc_tx).await
+}
+
+fn check_bootstrap_allows_external_txs(app_state: &AppState) -> HttpServerResult<()> {
+    let state = *app_state.bootstrap_state_rx.borrow();
+    match state {
+        BootstrapState::NotInBootstrap => Ok(()),
+        _ => Err(HttpServerError::BootstrapInProgress),
+    }
 }
 
 fn check_new_transactions_are_allowed(accept_new_txs: bool) -> HttpServerResult<()> {
@@ -367,5 +405,142 @@ async fn dynamic_config_poll(
         if let Ok(dynamic_config) = dynamic_config_result {
             let _ = tx.send(dynamic_config);
         }
+    }
+}
+
+/// Polls the batcher storage reader for bootstrap state, submitting bootstrap transactions through
+/// the gateway when active. Exits when bootstrap completes or is not active.
+async fn bootstrap_poll(
+    state_tx: Sender<BootstrapState>,
+    gateway_client: SharedGatewayClient,
+    batcher_storage_reader_url: String,
+    poll_interval: Duration,
+) {
+    let client = reqwest::Client::new();
+    let url = format!("{}/storage/query", batcher_storage_reader_url);
+    let mut interval = time::interval(poll_interval);
+    let mut last_state: Option<BootstrapState> = None;
+    let mut txs_submitted_for_state = false;
+
+    loop {
+        interval.tick().await;
+
+        let state = match query_bootstrap_state(&client, &url).await {
+            Ok(state) => state,
+            Err(e) => {
+                warn!("Failed to query bootstrap state: {}", e);
+                continue;
+            }
+        };
+
+        let _ = state_tx.send(state);
+
+        match state {
+            BootstrapState::NotInBootstrap => {
+                info!("Bootstrap complete, stopping bootstrap poll.");
+                return;
+            }
+            _ => {}
+        }
+
+        if last_state != Some(state) {
+            info!("Bootstrap state transitioned to {:?}", state);
+            txs_submitted_for_state = false;
+            last_state = Some(state);
+        }
+
+        if txs_submitted_for_state {
+            continue;
+        }
+
+        let txs = match query_bootstrap_transactions(&client, &url).await {
+            Ok(txs) => txs,
+            Err(e) => {
+                warn!("Failed to get bootstrap transactions: {}", e);
+                continue;
+            }
+        };
+
+        info!("Submitting {} bootstrap transaction(s) for state {:?}", txs.len(), state);
+        let mut all_submitted = true;
+        for tx in txs {
+            let gateway_input = GatewayInput { rpc_tx: tx, message_metadata: None };
+            match gateway_client.add_tx(gateway_input).await {
+                Ok(output) => {
+                    info!(
+                        "Bootstrap transaction submitted successfully: {}",
+                        output.transaction_hash()
+                    );
+                }
+                Err(e) => {
+                    warn!("Failed to submit bootstrap transaction: {}", e);
+                    all_submitted = false;
+                }
+            }
+        }
+        txs_submitted_for_state = all_submitted;
+    }
+}
+
+async fn query_bootstrap_state(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<BootstrapState, String> {
+    let request = BatcherStorageReaderRequest::Bootstrap(BootstrapRequest::GetBootstrapState);
+    let body = serde_json::to_string(&request).map_err(|e| format!("Serialization error: {e}"))?;
+
+    let resp = client
+        .post(url)
+        .header("content-type", "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("HTTP request returned status {}", resp.status()));
+    }
+
+    let text = resp.text().await.map_err(|e| format!("Failed to read response body: {e}"))?;
+    let response: BatcherStorageReaderResponse =
+        serde_json::from_str(&text).map_err(|e| format!("Failed to parse response: {e}"))?;
+
+    match response {
+        BatcherStorageReaderResponse::Bootstrap(BootstrapResponse::BootstrapState(state)) => {
+            Ok(state)
+        }
+        _ => Err("Unexpected response type for GetBootstrapState".to_string()),
+    }
+}
+
+async fn query_bootstrap_transactions(
+    client: &reqwest::Client,
+    url: &str,
+) -> Result<Vec<RpcTransaction>, String> {
+    let request =
+        BatcherStorageReaderRequest::Bootstrap(BootstrapRequest::GetBootstrapTransactions);
+    let body = serde_json::to_string(&request).map_err(|e| format!("Serialization error: {e}"))?;
+
+    let resp = client
+        .post(url)
+        .header("content-type", "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {e}"))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("HTTP request returned status {}", resp.status()));
+    }
+
+    let text = resp.text().await.map_err(|e| format!("Failed to read response body: {e}"))?;
+    let response: BatcherStorageReaderResponse =
+        serde_json::from_str(&text).map_err(|e| format!("Failed to parse response: {e}"))?;
+
+    match response {
+        BatcherStorageReaderResponse::Bootstrap(BootstrapResponse::BootstrapTransactions(txs)) => {
+            Ok(txs)
+        }
+        _ => Err("Unexpected response type for GetBootstrapTransactions".to_string()),
     }
 }
