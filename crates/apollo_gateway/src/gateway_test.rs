@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fs::File;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, LazyLock};
 
 use apollo_config::dumping::SerializeConfig;
@@ -138,6 +139,7 @@ fn mock_dependencies() -> MockDependencies {
             block_declare: false,
             authorized_declarer_accounts: None,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
+            batcher_storage_reader_url: String::new(),
         },
     };
     let state_reader_factory =
@@ -177,6 +179,7 @@ impl MockDependencies {
             Arc::new(self.mock_transaction_converter),
             Arc::new(self.mock_stateless_transaction_validator),
             Arc::new(self.mock_proof_archive_writer),
+            None,
         )
     }
 
@@ -737,6 +740,8 @@ async fn add_tx_returns_error_when_extract_state_nonce_and_run_validations_fails
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        bootstrap_client: None,
+        bootstrap_active: Arc::new(AtomicBool::new(false)),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;
@@ -793,6 +798,8 @@ async fn add_tx_returns_error_when_instantiating_validator_fails(
         mempool_client: Arc::new(mock_dependencies.mock_mempool_client),
         transaction_converter: Arc::new(mock_dependencies.mock_transaction_converter),
         proof_archive_writer: Arc::new(mock_dependencies.mock_proof_archive_writer),
+        bootstrap_client: None,
+        bootstrap_active: Arc::new(AtomicBool::new(false)),
     };
 
     let result = gateway.add_tx(tx_args.get_rpc_tx(), None).await;

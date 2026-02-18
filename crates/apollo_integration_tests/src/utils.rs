@@ -733,6 +733,7 @@ pub fn create_gateway_config(
             block_declare: false,
             authorized_declarer_accounts: None,
             proof_archive_writer_config,
+            batcher_storage_reader_url: String::new(),
         },
     }
 }

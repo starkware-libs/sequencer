@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use apollo_gateway_config::config::StatefulTransactionValidatorConfig;
@@ -53,6 +54,11 @@ pub struct StatefulTransactionValidatorFactory<TStateReaderFactory: StateReaderF
     pub chain_info: ChainInfo,
     pub state_reader_factory: Arc<TStateReaderFactory>,
     pub contract_class_manager: ContractClassManager,
+    /// Shared flag indicating whether bootstrap is still active. During bootstrap, resource bounds
+    /// validation is skipped to allow bootstrap transactions with zero gas bounds. Once the
+    /// gateway detects `NotInBootstrap`, this flips to `false` permanently and normal validation
+    /// resumes for all subsequent validators.
+    pub bootstrap_active: Arc<AtomicBool>,
 }
 
 #[async_trait]
@@ -83,8 +89,16 @@ impl<TStateReaderFactory: StateReaderFactory> StatefulTransactionValidatorFactor
             Some(GATEWAY_CLASS_CACHE_METRICS),
         );
 
+        // During bootstrap, dynamically disable resource bounds validation so that bootstrap
+        // transactions with zero gas bounds are accepted. Once bootstrap_active flips to false
+        // (permanently), validators are created with the original config value.
+        let mut config = self.config.clone();
+        if self.bootstrap_active.load(Ordering::Relaxed) {
+            config.validate_resource_bounds = false;
+        }
+
         Ok(Box::new(StatefulTransactionValidator::new(
-            self.config.clone(),
+            config,
             self.chain_info.clone(),
             state_reader_and_contract_manager,
             gateway_fixed_block_state_reader,

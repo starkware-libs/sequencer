@@ -1520,6 +1520,7 @@ dependencies = [
 name = "apollo_gateway"
 version = "0.18.0-rc.1"
 dependencies = [
+ "apollo_batcher",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_gateway_config",
