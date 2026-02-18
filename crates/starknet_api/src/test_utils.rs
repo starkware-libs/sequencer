@@ -411,7 +411,7 @@ impl ProofFacts {
              block_hash_history_start: {block_hash_history_start}"
         );
         // These fields are not verified by the OS (they are application-related).
-        let messages_to_l1_segment_size = Felt::ZERO;
+        let l2_to_l1_messages_segment_size = Felt::ZERO;
         proof_facts![
             PROOF_VERSION,
             VIRTUAL_SNOS,
@@ -420,7 +420,7 @@ impl ProofFacts {
             block_number,
             block_hash,
             config_hash,
-            messages_to_l1_segment_size
+            l2_to_l1_messages_segment_size
         ]
     }
 }

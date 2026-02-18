@@ -98,7 +98,7 @@ func process_os_output{
     );
 
     // Calculate the number of messages from the pointer difference.
-    let n_messages_to_l1 = output_ptr - messages_to_l1_hashes_ptr_start;
+    let n_l2_to_l1_messages = output_ptr - messages_to_l1_hashes_ptr_start;
 
     // Create the virtual OS output header with count of messages.
     assert [output_header_placeholder] = VirtualOsOutputHeader(
@@ -106,7 +106,7 @@ func process_os_output{
         base_block_number=header.prev_block_number,
         base_block_hash=header.prev_block_hash,
         starknet_os_config_hash=header.starknet_os_config_hash,
-        n_messages_to_l1=n_messages_to_l1,
+        n_l2_to_l1_messages=n_l2_to_l1_messages,
     );
 
     return ();
