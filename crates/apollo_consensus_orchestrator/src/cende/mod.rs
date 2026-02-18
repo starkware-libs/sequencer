@@ -9,6 +9,7 @@ use apollo_config::secrets::Sensitive;
 use apollo_consensus::types::ProposalCommitment;
 use apollo_consensus_orchestrator_config::config::CendeConfig;
 use apollo_proc_macros::sequencer_latency_histogram;
+use apollo_sizeof::SizeOf;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -37,7 +38,8 @@ use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
@@ -204,11 +206,34 @@ impl CendeContext for CendeAmbassador {
     }
 }
 
+impl SizeOf for AerospikeBlob {
+    fn dynamic_size(&self) -> usize {
+        self.transactions.len() * std::mem::size_of::<CentralTransactionWritten>()
+            + self.execution_infos.len() * std::mem::size_of::<CentralTransactionExecutionInfo>()
+            + self.contract_classes.len() * std::mem::size_of::<CentralSierraContractClassEntry>()
+            + self.compiled_classes.len() * std::mem::size_of::<CentralCasmContractClassEntry>()
+            + self.state_diff.dynamic_size()
+            + self.compressed_state_diff.as_ref().map_or(0, |d| d.dynamic_size())
+            + self
+                .casm_hash_computation_data_sierra_gas
+                .class_hash_to_casm_hash_computation_gas
+                .len()
+                * std::mem::size_of::<(ClassHash, GasAmount)>()
+            + self
+                .casm_hash_computation_data_proving_gas
+                .class_hash_to_casm_hash_computation_gas
+                .len()
+                * std::mem::size_of::<(ClassHash, GasAmount)>()
+            + self.compiled_class_hashes_for_migration.len()
+                * std::mem::size_of::<(CompiledClassHash, CompiledClassHash)>()
+    }
+}
+
 static BLOB_DUMPED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[sequencer_latency_histogram(CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, false)]
 async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) -> bool {
-    let in_memory_size = std::mem::size_of_val(blob);
+    let in_memory_size = blob.size_bytes();
 
     let (client, request) = request_builder.json(blob).build_split();
     let request = match request {

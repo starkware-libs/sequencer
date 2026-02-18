@@ -1,4 +1,5 @@
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_sizeof::SizeOf;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
@@ -114,6 +115,38 @@ pub(crate) struct CentralStateDiff {
         IndexMap<DataAvailabilityMode, IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>>,
     class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
     block_info: CentralBlockInfo,
+}
+
+impl SizeOf for CentralStateDiff {
+    fn dynamic_size(&self) -> usize {
+        self.address_to_class_hash.len() * std::mem::size_of::<(ContractAddress, ClassHash)>()
+            + self.nonces.len()
+                * std::mem::size_of::<(DataAvailabilityMode, IndexMap<ContractAddress, Nonce>)>()
+            + self
+                .nonces
+                .values()
+                .map(|inner| inner.len() * std::mem::size_of::<(ContractAddress, Nonce)>())
+                .sum::<usize>()
+            + self.storage_updates.len()
+                * std::mem::size_of::<(
+                    DataAvailabilityMode,
+                    IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
+                )>()
+            + self
+                .storage_updates
+                .values()
+                .map(|middle| {
+                    middle.len()
+                        * std::mem::size_of::<(ContractAddress, IndexMap<StorageKey, Felt>)>()
+                        + middle
+                            .values()
+                            .map(|inner| inner.len() * std::mem::size_of::<(StorageKey, Felt)>())
+                            .sum::<usize>()
+                })
+                .sum::<usize>()
+            + self.class_hash_to_compiled_class_hash.len()
+                * std::mem::size_of::<(ClassHash, CompiledClassHash)>()
+    }
 }
 
 // We convert to CentralStateDiff from ThinStateDiff since this object is already sent to consensus
