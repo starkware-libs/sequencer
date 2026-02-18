@@ -13,6 +13,11 @@ INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}
 # Set of crates which - if changed - should trigger re-running the integration tests with `cairo_native` feature.
 CAIRO_NATIVE_CRATE_TRIGGERS: Set[str] = {"blockifier"}
 
+# Packages that have features requiring a nightly Rust toolchain.  These are excluded from the
+# main CI clippy run (which uses --all-features on stable) and are instead checked by their own
+# dedicated CI workflow with the appropriate toolchain.
+NIGHTLY_FEATURES_PACKAGES: Set[str] = {"starknet_os_runner"}
+
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "apollo_node"
 
@@ -49,8 +54,28 @@ class BaseCommand(Enum):
                 ["cargo", "nextest", "run"] + package_args + ["--no-fail-fast", "--no-tests=pass"]
             ]
         elif self == BaseCommand.CLIPPY:
-            clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return [["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]]
+            stable_crates = crates - NIGHTLY_FEATURES_PACKAGES
+            # When workspace-wide (crates is empty), check all nightly packages.
+            nightly_crates = (
+                crates & NIGHTLY_FEATURES_PACKAGES if crates else NIGHTLY_FEATURES_PACKAGES
+            )
+
+            cmds = []
+            if stable_crates:
+                stable_args = [arg for p in stable_crates for arg in ("--package", p)]
+                cmds.append(["cargo", "clippy"] + stable_args + ["--all-targets", "--all-features"])
+            elif not crates:
+                exclude_args = [arg for p in NIGHTLY_FEATURES_PACKAGES for arg in ("--exclude", p)]
+                cmds.append(
+                    ["cargo", "clippy", "--workspace"]
+                    + exclude_args
+                    + ["--all-targets", "--all-features"]
+                )
+            # Nightly packages: omit --all-features since they have features requiring a nightly
+            # toolchain. A dedicated nightly CI workflow checks them with full features.
+            for p in nightly_crates:
+                cmds.append(["cargo", "clippy", "--package", p, "--all-targets"])
+            return cmds
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
             return [["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args]
