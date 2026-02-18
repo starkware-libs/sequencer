@@ -1,5 +1,6 @@
 pub mod block_production_delay;
 pub mod block_production_halt;
+pub mod config_manager;
 pub mod infra_alerts;
 pub mod l1_gas_prices;
 pub mod l1_handlers;

@@ -46,6 +46,7 @@ use crate::alert_scenarios::block_production_halt::{
     get_consensus_p2p_not_enough_peers_for_quorum_vec,
     get_consensus_round_high_vec,
 };
+use crate::alert_scenarios::config_manager::get_config_manager_update_error_increase;
 use crate::alert_scenarios::infra_alerts::{
     get_general_pod_disk_utilization_vec,
     get_general_pod_high_cpu_utilization,
@@ -477,6 +478,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let mut alerts = vec![
         get_batcher_storage_open_read_transactions_alert(),
         get_class_manager_storage_open_read_transactions_alert(),
+        get_config_manager_update_error_increase(),
         get_consensus_proposal_fin_mismatch_once(),
         get_cende_write_blob_failure_once_alert(),
         get_cende_write_prev_height_blob_latency_too_high(),
