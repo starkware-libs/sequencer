@@ -54,6 +54,7 @@ use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{Mutex, MutexGuard};
+use tokio::task::spawn_blocking;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
@@ -376,7 +377,12 @@ impl BlockBuilder {
             // Check if the block is full. This is only relevant in propose mode.
             // In validate mode, this is ignored and we simply wait for the proposer to send the
             // final number of transactions in the block.
-            if !self.execution_params.is_validator && lock_executor(&self.executor).is_done() {
+            let executor = self.executor.clone();
+            if !self.execution_params.is_validator
+                && spawn_blocking(move || lock_executor(&executor).is_done())
+                    .await
+                    .expect("Checking completion should succeed.")
+            {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
@@ -445,7 +451,7 @@ impl BlockBuilder {
 
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
-        let block_summary = tokio::task::spawn_blocking(move || {
+        let block_summary = spawn_blocking(move || {
             lock_executor(&executor).close_block(final_n_executed_txs_nonopt)
         })
         .await
@@ -532,7 +538,12 @@ impl BlockBuilder {
 
         // Start the execution of the transactions on the worker pool.
         info!("Starting execution of {} transactions.", n_txs);
-        lock_executor(&self.executor).add_txs_to_block(executor_input_chunk.as_slice());
+        let executor = self.executor.clone();
+        spawn_blocking(move || {
+            lock_executor(&executor).add_txs_to_block(executor_input_chunk.as_slice())
+        })
+        .await
+        .expect("Adding txs to block should succeed.");
 
         if let Some(output_content_sender) = &self.output_content_sender {
             // Send the transactions to the validators.
@@ -547,7 +558,10 @@ impl BlockBuilder {
 
     /// Handles the transactions that were executed so far by the executor.
     async fn handle_executed_txs(&mut self) -> BlockBuilderResult<()> {
-        let results = lock_executor(&self.executor).get_new_results();
+        let executor = self.executor.clone();
+        let results = spawn_blocking(move || lock_executor(&executor).get_new_results())
+            .await
+            .expect("Getting new results should succeed.");
 
         if results.is_empty() {
             return Ok(());
@@ -629,6 +643,8 @@ impl BlockBuilder {
     }
 }
 
+// TODO(Tsabary): consider converting this to an async function and calling spawn_blocking
+// internally.
 fn lock_executor(
     executor: &Arc<Mutex<dyn TransactionExecutorTrait>>,
 ) -> MutexGuard<'_, dyn TransactionExecutorTrait> {
