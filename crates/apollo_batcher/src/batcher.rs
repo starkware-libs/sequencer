@@ -181,6 +181,10 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
+    // TODO(Yoav): Use `apollo_proc_macros::make_visibility` once it supports fields.
+    #[cfg(test)]
+    pub(crate) commitment_manager: ApolloCommitmentManager,
+    #[cfg(not(test))]
     commitment_manager: ApolloCommitmentManager,
 
     // Kept alive to maintain the server running.
@@ -1234,7 +1238,8 @@ impl Batcher {
         }
     }
 
-    pub fn get_block_hash(&self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
+    pub fn get_block_hash(&mut self, block_number: BlockNumber) -> BatcherResult<BlockHash> {
+        self.get_commitment_results_and_write_to_storage()?;
         self.storage_reader
             .get_block_hash(block_number)
             .map_err(|err| {
@@ -1243,12 +1248,8 @@ impl Batcher {
             })?
             .ok_or(BatcherError::BlockHashNotFound(block_number))
     }
-    async fn write_commitment_results_and_add_new_task(
-        &mut self,
-        height: BlockNumber,
-        state_diff: ThinStateDiff,
-        optional_state_diff_commitment: Option<StateDiffCommitment>,
-    ) -> BatcherResult<()> {
+
+    fn get_commitment_results_and_write_to_storage(&mut self) -> BatcherResult<()> {
         self.commitment_manager
             .get_commitment_results_and_write_to_storage(
                 &self.config.static_config.first_block_with_partial_block_hash,
@@ -1259,6 +1260,16 @@ impl Batcher {
                 error!("Failed to get commitment results and write to storage: {err}");
                 BatcherError::InternalError
             })?;
+        Ok(())
+    }
+
+    async fn write_commitment_results_and_add_new_task(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        optional_state_diff_commitment: Option<StateDiffCommitment>,
+    ) -> BatcherResult<()> {
+        self.get_commitment_results_and_write_to_storage()?;
         self.commitment_manager
             .add_commitment_task(
                 height,
@@ -1359,12 +1370,25 @@ pub async fn create_batcher(
         worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
+<<<<<<< HEAD
     let mut storage_writer = Box::new(storage_writer);
+||||||| 829d7d24fa
+    let mut storage_writer = Box::new(storage_writer);
+    let transaction_converter = TransactionConverter::new(
+        class_manager_client,
+        config.static_config.storage.db_config.chain_id.clone(),
+    );
+=======
+    let storage_writer = Box::new(storage_writer);
+    let transaction_converter = TransactionConverter::new(
+        class_manager_client,
+        config.static_config.storage.db_config.chain_id.clone(),
+    );
+>>>>>>> origin/main-v0.14.1-committer
 
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config.static_config.commitment_manager_config,
         storage_reader.clone(),
-        &mut storage_writer,
         committer_client.clone(),
     )
     .await;
@@ -1567,6 +1591,10 @@ impl BatcherStorageWriter for StorageWriter {
         global_root: GlobalRoot,
         block_hash: Option<BlockHash>,
     ) -> StorageResult<()> {
+        info!(
+            "Setting global root and block hash for height {height}. Root: {global_root:?}, Block \
+             hash: {block_hash:?}."
+        );
         let mut txn = self
             .begin_rw_txn()?
             .set_global_root(&height, global_root)?
@@ -1590,10 +1618,13 @@ impl ComponentStarter for Batcher {
             .storage_reader
             .state_diff_height()
             .expect("Failed to get height from storage during batcher creation.");
+
         let global_root_height = self
             .storage_reader
             .global_root_height()
             .expect("Failed to get global roots height from storage during batcher creation.");
+
+        register_metrics(storage_height, global_root_height);
 
         self.commitment_manager
             .add_missing_commitment_tasks(
@@ -1603,8 +1634,6 @@ impl ComponentStarter for Batcher {
                 &mut self.storage_writer,
             )
             .await;
-
-        register_metrics(storage_height, global_root_height);
     }
 }
 

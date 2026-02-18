@@ -588,11 +588,10 @@
         },
         {
           "title": "Total Block Duration",
-          "description": "Total block duration",
+          "description": "Average total block duration over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(total_block_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(total_block_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(total_block_duration{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(1000 * increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "unit": "s",
@@ -600,25 +599,23 @@
           }
         },
         {
-          "title": "Total Block Duration Per Modification",
-          "description": "Total block duration normalized by the number of modifications",
+          "title": "Total Block Duration per Modification",
+          "description": "Average total block duration per modification over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(total_block_duration_per_modification_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(total_block_duration_per_modification_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(total_block_duration_per_modification{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(1000000 * increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "unit": "s",
-            "log_query": "\"Block\" AND \"durations in ms\""
+            "log_query": "\"total block duration per modification\""
           }
         },
         {
-          "title": "Read Duration Per Block",
-          "description": "Read duration per block",
+          "title": "Read Duration per Block",
+          "description": "Average read duration per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(read_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(read_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(read_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(1000 * increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "unit": "s",
@@ -627,23 +624,21 @@
         },
         {
           "title": "Average Read Rate (entries/sec)",
-          "description": "Average read rate over a block",
+          "description": "Average read rate over a 1m window (per block)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(average_read_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(average_read_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(average_read_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "log_query": "\"Block\" AND \"rates\""
           }
         },
         {
-          "title": "Compute Duration Per Block",
-          "description": "Compute duration per block",
+          "title": "Compute Duration per Block",
+          "description": "Average compute duration per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(compute_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(compute_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(compute_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(1000 * increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "unit": "s",
@@ -652,23 +647,21 @@
         },
         {
           "title": "Average Compute Rate (entries/sec)",
-          "description": "Average compute rate over a block",
+          "description": "Average compute rate over a 1m window (per block)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(average_compute_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(average_compute_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(average_compute_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "log_query": "\"Block\" AND \"rates\""
           }
         },
         {
-          "title": "Write Duration Per Block",
-          "description": "Write duration per block",
+          "title": "Write Duration per Block",
+          "description": "Average write duration per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(write_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(write_duration_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(write_duration_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(1000 * increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "unit": "s",
@@ -677,73 +670,68 @@
         },
         {
           "title": "Average Write Rate (entries/sec)",
-          "description": "Average write rate over a block",
+          "description": "Average write rate over a 1m window (per block)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(average_write_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(average_write_rate_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(average_write_rate{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "log_query": "\"Block\" AND \"rates\""
           }
         },
         {
-          "title": "Storage Tries Modifications Per Block",
-          "description": "Count of storage tries modifications per block",
+          "title": "Storage Tries Modifications per Block",
+          "description": "Average count of storage tries modifications per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(count_storage_tries_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(count_storage_tries_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(count_storage_tries_modifications_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "log_query": "\"Block\" AND \"modifications count\""
           }
         },
         {
-          "title": "Contracts Trie Modifications Per Block",
-          "description": "Count of contracts trie modifications per block",
+          "title": "Contracts Trie Modifications per Block",
+          "description": "Average count of contracts trie modifications per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(count_contracts_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(count_contracts_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(count_contracts_trie_modifications_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "log_query": "\"Block\" AND \"modifications count\""
           }
         },
         {
-          "title": "Classes Trie Modifications Per Block",
-          "description": "Count of classes trie modifications per block",
+          "title": "Classes Trie Modifications per Block",
+          "description": "Average count of classes trie modifications per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(count_classes_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(count_classes_trie_modifications_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(count_classes_trie_modifications_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "log_query": "\"Block\" AND \"modifications count\""
           }
         },
         {
-          "title": "Emptied Leaves Per Block",
-          "description": "Count of storage tries leaves emptied per block",
+          "title": "Emptied Leaves per Block",
+          "description": "Average count of storage tries leaves emptied per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(count_emptied_leaves_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(count_emptied_leaves_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(count_emptied_leaves_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min(increase(blocks_committed{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1)"
           ],
           "extra_params": {
             "log_query": "\"Block\" AND \"modifications count\""
           }
         },
         {
-          "title": "Percentage Emptied Leaves Per Block",
-          "description": "Percentage of storage tries leaves emptied over the total number of storage tries leaves per block",
+          "title": "Percentage of Emptied Leaves",
+          "description": "Average percentage of storage tries leaves emptied per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(emptied_leaves_percentage_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(emptied_leaves_percentage_per_block_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(count_emptied_leaves_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]) / clamp_min((increase(count_storage_tries_modifications_per_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])), 1))"
           ],
           "extra_params": {
+            "unit": "percentunit",
             "log_query": "\"Block\" AND \"modifications count\""
           }
         }
@@ -2437,6 +2425,32 @@
           "extra_params": {}
         },
         {
+          "title": "get_class_manager_dynamic_config (client-side)",
+          "description": "client-side infra metrics for request type get_class_manager_dynamic_config",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_class_manager_dynamic_config (server-side)",
+          "description": "server-side infra metrics for request type get_class_manager_dynamic_config",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_class_manager_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "get_consensus_dynamic_config (client-side)",
           "description": "client-side infra metrics for request type get_consensus_dynamic_config",
           "type": "timeseries",
@@ -2563,6 +2577,32 @@
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_staking_manager_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_staking_manager_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
             "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_staking_manager_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_state_sync_dynamic_config (client-side)",
+          "description": "client-side infra metrics for request type get_state_sync_dynamic_config",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_local_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_local_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_remote_response_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_remote_response_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_remote_client_communication_failure_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_remote_client_communication_failure_times_secs\", \"le\", \".*\"))"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "get_state_sync_dynamic_config (server-side)",
+          "description": "server-side infra metrics for request type get_state_sync_dynamic_config",
+          "type": "timeseries",
+          "exprs": [
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_processing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.50,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.50 config_manager_queueing_times_secs\", \"le\", \".*\"))",
+            "histogram_quantile(0.95,label_replace(sum by (le) (rate(config_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", request_variant=\"get_state_sync_dynamic_config\"}[5m])), \"label_name\", \"0.95 config_manager_queueing_times_secs\", \"le\", \".*\"))"
           ],
           "extra_params": {}
         },
@@ -4136,7 +4176,7 @@
           "description": "Pod disk utilization (used / capacity)",
           "type": "timeseries",
           "exprs": [
-            "\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
+            "\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
           ],
           "extra_params": {
             "unit": "percentunit",
@@ -4158,7 +4198,7 @@
               ]
             },
             "legends": [
-              "{{pod}}"
+              "{{persistentvolumeclaim}}"
             ]
           }
         },
@@ -4167,7 +4207,7 @@
           "description": "Pod disk limit utilization (used / capacity)",
           "type": "timeseries",
           "exprs": [
-            "\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, pod) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
+            "\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            /\n            (\n                sum by (namespace, persistentvolumeclaim) (\n                    kubelet_volume_stats_capacity_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}\n                )\n            )\n            "
           ],
           "extra_params": {
             "unit": "percentunit",
@@ -4189,7 +4229,7 @@
               ]
             },
             "legends": [
-              "{{pod}}"
+              "{{persistentvolumeclaim}}"
             ]
           }
         }

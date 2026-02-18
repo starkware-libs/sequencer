@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use starknet_types_core::felt::Felt;
-use tracing::{info, warn};
+use tracing::{debug, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
 use crate::block_committer::input::{
@@ -73,7 +73,7 @@ pub trait CommitBlockTrait: Send {
         let n_read_entries =
             original_forest.storage_tries.values().map(|trie| trie.nodes.len()).sum();
         measurements.attempt_to_stop_measurement(Action::Read, n_read_entries).ok();
-        info!("Original skeleton forest created successfully.");
+        debug!("Original skeleton forest created successfully.");
 
         if input.config.warn_on_trivial_modifications() {
             check_trivial_nonce_and_class_hash_updates(
@@ -93,7 +93,7 @@ pub trait CommitBlockTrait: Send {
             &input.state_diff.address_to_class_hash,
             &input.state_diff.address_to_nonce,
         )?;
-        info!("Updated skeleton forest created successfully.");
+        debug!("Updated skeleton forest created successfully.");
 
         // Compute the new hashes.
         let filled_forest = FilledForest::create::<TreeHashFunctionImpl>(
@@ -106,7 +106,7 @@ pub trait CommitBlockTrait: Send {
         )
         .await?;
         measurements.attempt_to_stop_measurement(Action::Compute, 0).ok();
-        info!("Filled forest created successfully.");
+        debug!("Filled forest created successfully.");
 
         Ok(filled_forest)
     }

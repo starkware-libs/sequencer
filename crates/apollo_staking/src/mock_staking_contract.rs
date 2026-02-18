@@ -1,12 +1,11 @@
-use std::sync::Arc;
-
-use apollo_config_manager_types::communication::SharedConfigManagerClient;
-use apollo_staking_config::config::{get_config_for_epoch, CommitteeConfig, ConfiguredStaker};
+use apollo_staking_config::config::{
+    get_config_for_epoch,
+    ConfiguredStaker,
+    StakingManagerDynamicConfig,
+};
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use starknet_api::block::BlockNumber;
-use tokio::sync::Mutex;
-use tracing::warn;
 
 use crate::committee_provider::Staker;
 use crate::staking_contract::{StakingContract, StakingContractResult};
@@ -29,13 +28,8 @@ impl From<&ConfiguredStaker> for Staker {
 /// Mock implementation of the staking contract backed by static in-memory configuration.
 pub struct MockStakingContract {
     state_sync_client: SharedStateSyncClient,
-
-    // A dynamically updateable committee configuration with default and optional override.
-    // The default applies to all epochs, while the override takes precedence
-    // for epochs >= override.start_epoch.
-    default_committee: Arc<Mutex<CommitteeConfig>>,
-    override_committee: Arc<Mutex<Option<CommitteeConfig>>>,
-    config_manager_client: Option<SharedConfigManagerClient>,
+    // Default configuration used when no other configuration is provided.
+    default_config: StakingManagerDynamicConfig,
 }
 
 impl MockStakingContract {
@@ -44,50 +38,26 @@ impl MockStakingContract {
 
     pub fn new(
         state_sync_client: SharedStateSyncClient,
-        default_committee: CommitteeConfig,
-        override_committee: Option<CommitteeConfig>,
-        config_manager_client: Option<SharedConfigManagerClient>,
+        default_config: StakingManagerDynamicConfig,
     ) -> Self {
-        Self {
-            state_sync_client,
-            default_committee: Arc::new(Mutex::new(default_committee)),
-            override_committee: Arc::new(Mutex::new(override_committee)),
-            config_manager_client,
-        }
-    }
-
-    /// Updates the committee config from the config manager if available.
-    async fn update_committee_config(
-        &self,
-        default_committee: &mut CommitteeConfig,
-        override_committee: &mut Option<CommitteeConfig>,
-    ) {
-        let Some(client) = &self.config_manager_client else {
-            return;
-        };
-        let dynamic_config = client.get_staking_manager_dynamic_config().await;
-        match dynamic_config {
-            Ok(dynamic_config) => {
-                *default_committee = dynamic_config.default_committee;
-                *override_committee = dynamic_config.override_committee;
-            }
-            Err(e) => {
-                warn!("Failed to get committee config from config manager: {e}");
-            }
-        }
+        Self { state_sync_client, default_config }
     }
 }
 
 #[async_trait]
 impl StakingContract for MockStakingContract {
     async fn get_stakers(&self, epoch: u64) -> StakingContractResult<Vec<Staker>> {
-        let mut default_committee = self.default_committee.lock().await;
-        let mut override_committee = self.override_committee.lock().await;
-        self.update_committee_config(&mut default_committee, &mut override_committee).await;
+        self.get_stakers_with_config(epoch, &self.default_config).await
+    }
 
-        let config = get_config_for_epoch(&default_committee, &override_committee, epoch);
-
-        Ok(config.stakers.iter().map(Staker::from).collect())
+    async fn get_stakers_with_config(
+        &self,
+        epoch: u64,
+        config: &StakingManagerDynamicConfig,
+    ) -> StakingContractResult<Vec<Staker>> {
+        let active_config =
+            get_config_for_epoch(&config.default_committee, &config.override_committee, epoch);
+        Ok(active_config.stakers.iter().map(Staker::from).collect())
     }
 
     async fn get_current_epoch(&self) -> StakingContractResult<Epoch> {

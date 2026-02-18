@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables, unused_mut)]
-
 use std::time::Duration;
 
 use apollo_committer_types::committer_types::{CommitBlockRequest, RevertBlockRequest};
@@ -7,7 +5,7 @@ use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_committer_types::errors::CommitterClientResult;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::task::JoinHandle;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::commitment_manager::types::{
     CommitmentTaskOutput,
@@ -24,11 +22,14 @@ pub(crate) trait StateCommitterTrait {
         results_sender: Sender<CommitterTaskOutput>,
         committer_client: SharedCommitterClient,
     ) -> Self;
+
+    #[allow(dead_code)]
     /// Returns a handle to the thread performing commitment tasks.
     fn get_handle(&self) -> &JoinHandle<()>;
 }
 
 pub(crate) struct StateCommitter {
+    #[allow(dead_code)]
     task_performer_handle: JoinHandle<()>,
 }
 
@@ -52,13 +53,13 @@ impl StateCommitter {
     /// Performs the tasks in the channel. Retries at recoverable errors.
     pub(crate) async fn perform_tasks(
         mut tasks_receiver: Receiver<CommitterTaskInput>,
-        mut results_sender: Sender<CommitterTaskOutput>,
+        results_sender: Sender<CommitterTaskOutput>,
         committer_client: SharedCommitterClient,
     ) {
         // TODO(Yoav): Test this function.
         info!("StateCommitter task loop running.");
         while let Some(request) = tasks_receiver.recv().await {
-            info!(
+            debug!(
                 "Processing task of type {:?} for height {:?}",
                 request.task_type(),
                 request.height(),
@@ -67,7 +68,7 @@ impl StateCommitter {
             let height = output.height();
             match results_sender.send(output.clone()).await {
                 Ok(_) => {
-                    info!(
+                    debug!(
                         "Successfully sent the committer result to the results channel: \
                          {output:?}."
                     );

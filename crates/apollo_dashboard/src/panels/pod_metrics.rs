@@ -1,7 +1,7 @@
 use apollo_metrics::metric_definitions::METRIC_LABEL_FILTER;
 
 use crate::dashboard::Row;
-use crate::infra_panels::POD_LEGEND;
+use crate::infra_panels::{POD_LEGEND, PVC_LEGEND};
 use crate::panel::{Panel, PanelType, Unit};
 
 // TODO(Tsabary): replace query building with relevant functions and templates.
@@ -160,8 +160,8 @@ fn get_pod_memory_limit_utilization_panel() -> Panel {
 //   total volume bytes used by the pod
 //   ----------------------------------
 //   total volume capacity bytes of the pod
-// Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
-// Interpreted as: "How much of the provisioned PVC capacity is this pod using?"
+// Aggregated per (namespace, persistentvolumeclaim), the result is a value between 0.0 and 1.0 per
+// PVC. Interpreted as: "How much of the provisioned PVC capacity is this pod using?"
 fn get_pod_disk_utilization_panel() -> Panel {
     Panel::new(
         "Pod Disk Utilization",
@@ -169,13 +169,13 @@ fn get_pod_disk_utilization_panel() -> Panel {
         format!(
             "
             (
-                sum by (namespace, pod) (
+                sum by (namespace, persistentvolumeclaim) (
                     kubelet_volume_stats_used_bytes{METRIC_LABEL_FILTER}
                 )
             )
             /
             (
-                sum by (namespace, pod) (
+                sum by (namespace, persistentvolumeclaim) (
                     kubelet_volume_stats_capacity_bytes{METRIC_LABEL_FILTER}
                 )
             )
@@ -183,7 +183,7 @@ fn get_pod_disk_utilization_panel() -> Panel {
         ),
         PanelType::TimeSeries,
     )
-    .with_legends(POD_LEGEND)
+    .with_legends(PVC_LEGEND)
     .with_unit(Unit::PercentUnit)
     .with_absolute_thresholds(pod_metric_thresholds())
 }
@@ -192,8 +192,9 @@ fn get_pod_disk_utilization_panel() -> Panel {
 //   total volume bytes used by the pod
 //   ----------------------------------
 //   total volume capacity bytes of the pod (effective disk limit)
-// Aggregated per (namespace, pod), the result is a value between 0.0 and 1.0 per pod.
-// Interpreted as: "How close is this pod's PVC storage to being full (disk *limit* saturation)?"
+// Aggregated per (namespace, persistentvolumeclaim), the result is a value between 0.0 and 1.0 per
+// PVC. Interpreted as: "How close is this pod's PVC storage to being full (disk *limit*
+// saturation)?"
 fn get_pod_disk_limit_utilization_panel() -> Panel {
     Panel::new(
         "Pod Disk Limit Utilization",
@@ -201,13 +202,13 @@ fn get_pod_disk_limit_utilization_panel() -> Panel {
         format!(
             "
             (
-                sum by (namespace, pod) (
+                sum by (namespace, persistentvolumeclaim) (
                     kubelet_volume_stats_used_bytes{METRIC_LABEL_FILTER}
                 )
             )
             /
             (
-                sum by (namespace, pod) (
+                sum by (namespace, persistentvolumeclaim) (
                     kubelet_volume_stats_capacity_bytes{METRIC_LABEL_FILTER}
                 )
             )
@@ -215,7 +216,7 @@ fn get_pod_disk_limit_utilization_panel() -> Panel {
         ),
         PanelType::TimeSeries,
     )
-    .with_legends(POD_LEGEND)
+    .with_legends(PVC_LEGEND)
     .with_unit(Unit::PercentUnit)
     .with_absolute_thresholds(pod_metric_thresholds())
 }

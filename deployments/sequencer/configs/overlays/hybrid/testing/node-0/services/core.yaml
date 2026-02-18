@@ -15,7 +15,8 @@ config:
     batcher_config.static_config.first_block_with_partial_block_hash.parent_block_hash: "0x0"
     batcher_config.static_config.contract_class_manager_config.native_compiler_config.max_cpu_time: 600
     batcher_config.static_config.storage_reader_server_static_config.port: 55011
-    class_manager_config.class_manager_config.max_compiled_contract_class_object_size: 4089446
+    class_manager_config.static_config.class_manager_config.max_compiled_contract_class_object_size: 4089446
+    class_manager_config.static_config.class_storage_config.storage_reader_server_static_config.port: 8091
     components.batcher.port: 55000
     components.batcher.url: sequencer-core-service
     components.class_manager.port: 55001
@@ -55,7 +56,10 @@ config:
     consensus_manager_config.network_config.bootstrap_peer_multiaddr: ""
     consensus_manager_config.network_config.port: 53080
     consensus_manager_config.staking_manager_config.dynamic_config.default_committee: "0,100:0x64,1,0x1,true"
+    consensus_manager_config.staking_manager_config.dynamic_config.override_committee.#is_none: true
+    consensus_manager_config.staking_manager_config.dynamic_config.override_committee: ""
     state_sync_config.static_config.central_sync_client_config.#is_none: true
+    state_sync_config.static_config.central_sync_client_config.sync_config.store_sierras_and_casms_block_threshold: 0
     state_sync_config.static_config.network_config.#is_none: false
     state_sync_config.static_config.network_config.port: 55010
     state_sync_config.static_config.p2p_sync_client_config.#is_none: false

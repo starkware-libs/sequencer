@@ -50,13 +50,13 @@ use crate::metrics::{
     AVERAGE_COMPUTE_RATE,
     AVERAGE_READ_RATE,
     AVERAGE_WRITE_RATE,
+    BLOCKS_COMMITTED,
     COMMITTER_OFFSET,
     COMPUTE_DURATION_PER_BLOCK,
     COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK,
     COUNT_EMPTIED_LEAVES_PER_BLOCK,
     COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK,
-    EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK,
     READ_DURATION_PER_BLOCK,
     TOTAL_BLOCK_DURATION,
     TOTAL_BLOCK_DURATION_PER_MODIFICATION,
@@ -134,7 +134,7 @@ where
             .await;
         match &result {
             Ok(_) => {
-                info!("Committed block number {height} with state diff {state_diff_commitment:?}");
+                debug!("Committed block number {height} with state diff {state_diff_commitment:?}");
             }
             Err(err) => {
                 error!("Failed to commit block number {height}: {err:?}");
@@ -424,50 +424,55 @@ fn update_metrics(
     height: BlockNumber,
     BlockMeasurement { n_reads, n_writes, durations, modifications_counts }: &BlockMeasurement,
 ) {
-    TOTAL_BLOCK_DURATION.record_lossy(durations.block);
+    BLOCKS_COMMITTED.increment(1);
+    TOTAL_BLOCK_DURATION.increment((durations.block * 1000.0) as u64);
     let n_modifications = modifications_counts.total();
+    // Microseconds.
     let total_block_duration_per_modification = if n_modifications > 0 {
-        let total_block_duration_per_modification = durations.block / n_modifications as f64;
-        TOTAL_BLOCK_DURATION_PER_MODIFICATION.record_lossy(total_block_duration_per_modification);
+        let total_block_duration_per_modification =
+            durations.block / n_modifications as f64 * 1_000_000.0;
+        TOTAL_BLOCK_DURATION_PER_MODIFICATION
+            .increment(total_block_duration_per_modification as u64);
         Some(total_block_duration_per_modification)
     } else {
         None
     };
-    READ_DURATION_PER_BLOCK.record_lossy(durations.read);
-    COMPUTE_DURATION_PER_BLOCK.record_lossy(durations.compute);
-    WRITE_DURATION_PER_BLOCK.record_lossy(durations.write);
+    READ_DURATION_PER_BLOCK.increment((durations.read * 1000.0) as u64);
+    COMPUTE_DURATION_PER_BLOCK.increment((durations.compute * 1000.0) as u64);
+    WRITE_DURATION_PER_BLOCK.increment((durations.write * 1000.0) as u64);
 
     let read_rate = if durations.read > 0.0 {
         let rate = *n_reads as f64 / durations.read;
-        AVERAGE_READ_RATE.record_lossy(rate);
+        AVERAGE_READ_RATE.increment(rate as u64);
         Some(rate)
     } else {
         None
     };
     let compute_rate = if durations.compute > 0.0 {
         let rate = *n_writes as f64 / durations.compute;
-        AVERAGE_COMPUTE_RATE.record_lossy(rate);
+        AVERAGE_COMPUTE_RATE.increment(rate as u64);
         Some(rate)
     } else {
         None
     };
     let write_rate = if durations.write > 0.0 {
         let rate = *n_writes as f64 / durations.write;
-        AVERAGE_WRITE_RATE.record_lossy(rate);
+        AVERAGE_WRITE_RATE.increment(rate as u64);
         Some(rate)
     } else {
         None
     };
 
-    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.storage_tries);
-    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.contracts_trie);
-    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.record_lossy(modifications_counts.classes_trie);
-    COUNT_EMPTIED_LEAVES_PER_BLOCK.record_lossy(modifications_counts.emptied_storage_leaves);
+    COUNT_STORAGE_TRIES_MODIFICATIONS_PER_BLOCK
+        .increment(modifications_counts.storage_tries as u64);
+    COUNT_CONTRACTS_TRIE_MODIFICATIONS_PER_BLOCK
+        .increment(modifications_counts.contracts_trie as u64);
+    COUNT_CLASSES_TRIE_MODIFICATIONS_PER_BLOCK.increment(modifications_counts.classes_trie as u64);
+    COUNT_EMPTIED_LEAVES_PER_BLOCK.increment(modifications_counts.emptied_storage_leaves as u64);
 
     let emptied_leaves_percentage = if modifications_counts.storage_tries > 0 {
         let percentage = modifications_counts.emptied_storage_leaves as f64
             / modifications_counts.storage_tries as f64;
-        EMPTIED_LEAVES_PERCENTAGE_PER_BLOCK.record_lossy(percentage);
         Some(percentage * 100.0)
     } else {
         None
@@ -496,19 +501,19 @@ fn log_block_measurements(
     modifications_counts: &BlockModificationsCounts,
     emptied_leaves_percentage: Option<f64>,
 ) {
-    info!(
+    debug!(
         "Block {height} stats: durations in ms (total/read/compute/write): \
-         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification: {}, rates \
+         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates \
          (read/compute/write): {}/{}/{}, modifications count \
          (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}",
         durations.block * 1000.0,
         durations.read * 1000.0,
         durations.compute * 1000.0,
         durations.write * 1000.0,
-        total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.2}s")),
-        read_rate.map_or(String::new(), |r| format!("{r:.2}")),
-        compute_rate.map_or(String::new(), |r| format!("{r:.2}")),
-        write_rate.map_or(String::new(), |r| format!("{r:.2}")),
+        total_block_duration_per_modification.map_or(String::new(), |d| format!("{d:.0}µs")),
+        read_rate.map_or(String::new(), |r| format!("{r:.0}")),
+        compute_rate.map_or(String::new(), |r| format!("{r:.0}")),
+        write_rate.map_or(String::new(), |r| format!("{r:.0}")),
         modifications_counts.storage_tries,
         modifications_counts.contracts_trie,
         modifications_counts.classes_trie,
