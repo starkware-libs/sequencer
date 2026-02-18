@@ -1579,7 +1579,12 @@ impl BatcherStorageWriter for StorageWriter {
         if let Some(block_hash) = block_hash {
             txn = txn.set_block_hash(&height, block_hash)?;
         }
-        txn.commit()
+        let result = txn.commit();
+        println!(
+            "set_global_root_and_block_hash result: {result:?}, height: {height}, global_root: \
+             {global_root}, block_hash: {block_hash:?}",
+        );
+        result
     }
 
     fn set_block_hash(&mut self, height: BlockNumber, block_hash: BlockHash) -> StorageResult<()> {
