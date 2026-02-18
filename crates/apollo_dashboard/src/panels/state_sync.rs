@@ -1,3 +1,4 @@
+use apollo_committer::metrics::COMMITTER_OFFSET;
 use apollo_metrics::metrics::MetricQueryName;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
@@ -70,16 +71,16 @@ fn get_panel_time_to_complete_sync() -> Panel {
         "Time to Complete Sync",
         format!(
             "Estimated time to complete syncing to the latest block (based on a {} window \
-             rate).\nThe value is computed from the sync rate of the `class manager marker` \
-             (which is the last component to finish downloading among all state sync parts), \
-             compared against the `central block marker` (the latest block known to central).",
+             rate).\nThe value is computed from the sync rate of the `committer offset` (the next \
+             block to commit, representing the current committed state), compared against the \
+             `central block marker` (the latest block known to central).",
             DEFAULT_DURATION
         ),
         format!(
-            "({target_total} - {sync_state}) / clamp_min(rate({sync_state}[{d}]) - \
+            "({target_total} - {committer_offset}) / clamp_min(rate({committer_offset}[{d}]) - \
              rate({target_total}[{d}]), 1)",
             target_total = CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
-            sync_state = STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter(),
+            committer_offset = COMMITTER_OFFSET.get_name_with_filter(),
             d = DEFAULT_DURATION
         ),
         PanelType::TimeSeries,
