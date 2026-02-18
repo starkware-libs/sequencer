@@ -8,6 +8,9 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
+# Enables in-memory stwo proving.  Requires a nightly Rust toolchain because the
+# stwo prover crate uses unstable features (array_chunks, portable_simd, …).
+stwo_proving = []
 
 [dependencies]
 anyhow.workspace = true

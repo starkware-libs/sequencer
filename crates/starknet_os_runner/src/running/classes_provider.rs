@@ -26,7 +26,6 @@ use crate::errors::ClassesProviderError;
 /// Note: Some fields are not preserved in `CompiledClassV1` and are set to default values:
 /// - `compiler_version`: Set to empty string
 /// - `pythonic_hints`: Set to None
-#[allow(dead_code)]
 pub(crate) fn compiled_class_v1_to_casm(
     class: &CompiledClassV1,
 ) -> Result<CasmContractClass, ClassesProviderError> {
@@ -61,7 +60,6 @@ pub(crate) fn compiled_class_v1_to_casm(
 
 /// Fetch class from the state reader and contract manager.
 /// Returns error if the class is deprecated.
-#[allow(dead_code)]
 fn fetch_class<S>(
     state_reader_and_contract_manager: Arc<StateReaderAndContractManager<S>>,
     class_hash: ClassHash,
@@ -96,7 +94,6 @@ where
 }
 
 /// The classes required for a Starknet OS run.
-#[allow(dead_code)]
 pub(crate) struct ClassesInput {
     /// Cairo 1+ contract classes (CASM).
     /// Maps CompiledClassHash to the CASM contract class definition.
@@ -106,7 +103,6 @@ pub(crate) struct ClassesInput {
 }
 
 #[async_trait]
-#[allow(dead_code)]
 pub(crate) trait ClassesProvider {
     /// Fetches all classes required for the OS run based on the executed class hashes.
     async fn get_classes(
