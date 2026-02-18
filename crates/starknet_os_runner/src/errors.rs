@@ -78,6 +78,9 @@ pub enum ProvingError {
     #[error("Failed to create temporary file: {0}")]
     CreateTempFile(#[source] std::io::Error),
 
+    #[error("Failed to write prover params: {0}")]
+    WriteProverParams(#[source] std::io::Error),
+
     #[error("Failed to resolve resource path for {file_name}: {source}")]
     ResolveResourcePath {
         file_name: String,
