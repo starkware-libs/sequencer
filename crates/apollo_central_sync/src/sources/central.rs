@@ -14,7 +14,6 @@ use apollo_starknet_client::reader::{
     StarknetReader,
 };
 use apollo_starknet_client::ClientCreationError;
-use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageReader};
 use async_stream::stream;
 use async_trait::async_trait;
@@ -27,7 +26,7 @@ use lru::LruCache;
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
 use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
-use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
+use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::StateDiff;
@@ -93,12 +92,6 @@ pub trait CentralSourceTrait {
         block_number: BlockNumber,
     ) -> Result<Option<BlockHash>, CentralError>;
 
-    fn stream_compiled_classes(
-        &self,
-        initial_block_number: BlockNumber,
-        up_to_block_number: BlockNumber,
-    ) -> CompiledClassesStream<'_>;
-
     // TODO(shahak): Remove once pending block is removed.
     async fn get_class(&self, class_hash: ClassHash) -> Result<ApiContractClass, CentralError>;
 
@@ -125,8 +118,6 @@ type CentralStateUpdate = (
     IndexMap<ClassHash, CasmContractClass>,
 );
 pub(crate) type StateUpdatesStream<'a> = BoxStream<'a, CentralResult<CentralStateUpdate>>;
-type CentralCompiledClass = (BlockNumber, ClassHash, CompiledClassHash, CasmContractClass);
-pub(crate) type CompiledClassesStream<'a> = BoxStream<'a, CentralResult<CentralCompiledClass>>;
 
 #[async_trait]
 impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
@@ -195,64 +186,6 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
                     }
                     Err(err) => {
                         yield (Err(err));
-                        return;
-                    }
-                }
-            }
-        }
-        .boxed()
-    }
-
-    // Returns a stream of compiled classes downloaded from the central source.
-    fn stream_compiled_classes(
-        &self,
-        initial_block_number: BlockNumber,
-        up_to_block_number: BlockNumber,
-    ) -> CompiledClassesStream<'_> {
-        stream! {
-            let txn = self.storage_reader.begin_ro_txn().map_err(CentralError::StorageError)?;
-            // TODO(Aviv): Now the class hashes include both declared classes and migrated compiled class hashes.
-            // Consider refactoring it.
-            let class_hashes_iter = initial_block_number
-                .iter_up_to(up_to_block_number)
-                .map(|bn| {
-                    match txn.get_state_diff(bn) {
-                        Err(err) => Err(CentralError::StorageError(err)),
-                        // TODO(yair): Consider expecting, since the state diffs should not contain
-                        // holes and we suppose to never exceed the state marker.
-                        Ok(None) => Err(CentralError::StateUpdateNotFound),
-                        Ok(Some(state_diff)) => Ok((bn, state_diff)),
-                    }
-                })
-                .flat_map(|maybe_state_diff| match maybe_state_diff {
-                    Ok((bn, state_diff)) => state_diff
-                        .class_hash_to_compiled_class_hash
-                        .into_iter()
-                        .map(move |(class_hash, compiled_class_hash)| Ok((bn, class_hash, compiled_class_hash)))
-                        .collect::<Vec<_>>(),
-                    Err(err) => vec![Err(err)],
-                });
-
-            let mut compiled_classes = futures_util::stream::iter(class_hashes_iter)
-                .map(|maybe_item| async move {
-                    match maybe_item {
-                        Ok((block_number, class_hash, compiled_class_hash)) => {
-                            trace!("Downloading compiled class {:?}.", class_hash);
-                            let compiled_class = self.get_compiled_class(class_hash).await?;
-                            Ok((block_number, class_hash, compiled_class_hash, compiled_class))
-                        },
-                        Err(err) => Err(err),
-                    }
-                })
-                .buffered(self.concurrent_requests);
-
-            while let Some(maybe_compiled_class) = compiled_classes.next().await {
-                match maybe_compiled_class {
-                    Ok((block_number, class_hash, compiled_class_hash, compiled_class)) => {
-                        yield Ok((block_number, class_hash, compiled_class_hash, compiled_class));
-                    }
-                    Err(err) => {
-                        yield Err(err);
                         return;
                     }
                 }
