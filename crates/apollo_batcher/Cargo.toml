@@ -66,6 +66,7 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
+http-body-util.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true
@@ -74,6 +75,8 @@ mockall.workspace = true
 mockito.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
+tower.workspace = true

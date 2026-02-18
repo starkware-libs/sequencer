@@ -122,51 +122,67 @@ impl SerializeConfig for ServerConfig {
 
 #[async_trait]
 /// Handler trait for processing storage reader requests.
-pub trait StorageReaderServerHandler<Request, Response> {
+pub trait StorageReaderServerHandler<Request, Response, ExtraState = ()> {
     /// Handles an incoming request and returns a response.
     async fn handle_request(
         storage_reader: &StorageReader,
+        extra_state: &ExtraState,
         request: Request,
     ) -> Result<Response, StorageError>;
 }
 
 /// A server for handling remote storage reader queries via a configurable request handler.
-pub struct StorageReaderServer<RequestHandler, Request, Response>
+pub struct StorageReaderServer<RequestHandler, Request, Response, ExtraState = ()>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response>,
+    RequestHandler: StorageReaderServerHandler<Request, Response, ExtraState>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
+    ExtraState: Clone + Send + Sync + 'static,
 {
-    app_state: AppState<RequestHandler, Request, Response>,
+    app_state: AppState<RequestHandler, Request, Response, ExtraState>,
     config: ServerConfig,
 }
 
-struct AppState<RequestHandler, Request, Response>
+struct AppState<RequestHandler, Request, Response, ExtraState = ()>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response>,
+    RequestHandler: StorageReaderServerHandler<Request, Response, ExtraState>,
+    ExtraState: Clone + Send + Sync + 'static,
 {
     storage_reader: StorageReader,
+    extra_state: ExtraState,
     _phantom: PhantomData<(RequestHandler, Request, Response)>,
 }
 
-impl<RequestHandler, Request, Response> Clone for AppState<RequestHandler, Request, Response>
+impl<RequestHandler, Request, Response, ExtraState> Clone
+    for AppState<RequestHandler, Request, Response, ExtraState>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response>,
+    RequestHandler: StorageReaderServerHandler<Request, Response, ExtraState>,
+    ExtraState: Clone + Send + Sync + 'static,
 {
     fn clone(&self) -> Self {
-        Self { storage_reader: self.storage_reader.clone(), _phantom: PhantomData }
+        Self {
+            storage_reader: self.storage_reader.clone(),
+            extra_state: self.extra_state.clone(),
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl<RequestHandler, Request, Response> StorageReaderServer<RequestHandler, Request, Response>
+impl<RequestHandler, Request, Response, ExtraState>
+    StorageReaderServer<RequestHandler, Request, Response, ExtraState>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response>,
+    RequestHandler: StorageReaderServerHandler<Request, Response, ExtraState>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
+    ExtraState: Clone + Send + Sync + 'static,
 {
     /// Creates a new storage reader server with the given handler and configuration.
-    pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
-        let app_state = AppState { storage_reader, _phantom: PhantomData };
+    pub fn new(
+        storage_reader: StorageReader,
+        config: ServerConfig,
+        extra_state: ExtraState,
+    ) -> Self {
+        let app_state = AppState { storage_reader, extra_state, _phantom: PhantomData };
         Self { app_state, config }
     }
 
@@ -176,11 +192,12 @@ where
         RequestHandler: Send + Sync + 'static,
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
+        ExtraState: Send + Sync + 'static,
     {
         Router::new()
             .route(
                 "/storage/query",
-                post(handle_request_endpoint::<RequestHandler, Request, Response>),
+                post(handle_request_endpoint::<RequestHandler, Request, Response, ExtraState>),
             )
             .with_state(self.app_state.clone())
     }
@@ -191,6 +208,7 @@ where
         RequestHandler: Send + Sync + 'static,
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
+        ExtraState: Send + Sync + 'static,
     {
         if !self.config.is_enabled() {
             info!("Storage reader server is disabled, not starting");
@@ -218,6 +236,7 @@ where
         RequestHandler: Send + Sync + 'static,
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
+        ExtraState: Send + Sync + 'static,
     {
         server.map(|server| {
             tokio::spawn(async move {
@@ -231,16 +250,19 @@ where
 }
 
 /// Axum handler for storage query requests.
-async fn handle_request_endpoint<RequestHandler, Request, Response>(
-    State(app_state): State<AppState<RequestHandler, Request, Response>>,
+async fn handle_request_endpoint<RequestHandler, Request, Response, ExtraState>(
+    State(app_state): State<AppState<RequestHandler, Request, Response, ExtraState>>,
     Json(request): Json<Request>,
 ) -> Result<Json<Response>, StorageServerError>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response>,
+    RequestHandler: StorageReaderServerHandler<Request, Response, ExtraState>,
     Request: Send + Sync + 'static,
     Response: Send + Sync + 'static,
+    ExtraState: Clone + Send + Sync + 'static,
 {
-    let response = RequestHandler::handle_request(&app_state.storage_reader, request).await?;
+    let response =
+        RequestHandler::handle_request(&app_state.storage_reader, &app_state.extra_state, request)
+            .await?;
 
     Ok(Json(response))
 }
@@ -264,17 +286,19 @@ impl IntoResponse for StorageServerError {
 }
 
 /// Creates and returns an optional StorageReaderServer based on the enable flag.
-pub fn create_storage_reader_server<RequestHandler, Request, Response>(
+pub fn create_storage_reader_server<RequestHandler, Request, Response, ExtraState>(
     storage_reader: StorageReader,
     storage_reader_server_config: ServerConfig,
-) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
+    extra_state: ExtraState,
+) -> Option<StorageReaderServer<RequestHandler, Request, Response, ExtraState>>
 where
-    RequestHandler: StorageReaderServerHandler<Request, Response>,
+    RequestHandler: StorageReaderServerHandler<Request, Response, ExtraState>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
+    ExtraState: Clone + Send + Sync + 'static,
 {
     if storage_reader_server_config.is_enabled() {
-        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
+        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config, extra_state))
     } else {
         None
     }

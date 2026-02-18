@@ -263,6 +263,7 @@ impl ClassHashStorage {
                 storage_config,
                 &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                (),
             )?;
 
         let storage_reader_server_handle =

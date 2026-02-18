@@ -118,6 +118,7 @@ impl StateSyncResources {
                 storage_config.clone(),
                 &SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                (),
             )
             .expect("StateSyncRunner failed opening storage");
         let storage_reader_server_handle =
