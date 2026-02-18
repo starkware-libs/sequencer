@@ -76,6 +76,9 @@ pub struct MempoolStaticConfig {
     pub behavior_mode: BehaviorMode,
     // The URL of the recorder service (used for FIFO queue timestamp fetching).
     pub recorder_url: Url,
+    /// URL of the batcher storage reader server for bootstrap queries. Empty to disable.
+    #[serde(default)]
+    pub batcher_storage_reader_url: String,
 }
 
 impl Default for MempoolStaticConfig {
@@ -91,6 +94,7 @@ impl Default for MempoolStaticConfig {
             recorder_url: "https://recorder_url"
                 .parse::<Url>()
                 .expect("recorder_url must be a valid Recorder URL"),
+            batcher_storage_reader_url: String::new(),
         }
     }
 }
@@ -147,6 +151,12 @@ impl SerializeConfig for MempoolStaticConfig {
                 "recorder_url",
                 &self.recorder_url,
                 "The URL of the recorder service (used for FIFO queue timestamp fetching).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "batcher_storage_reader_url",
+                &self.batcher_storage_reader_url,
+                "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
                 ParamPrivacyInput::Public,
             ),
         ])
