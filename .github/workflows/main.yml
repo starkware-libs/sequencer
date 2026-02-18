@@ -108,6 +108,7 @@ jobs:
           scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
+      - run: sccache --show-stats
 
   run-integration-tests:
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
