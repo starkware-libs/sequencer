@@ -2904,6 +2904,21 @@
     "privacy": "Public",
     "value": 4194304
   },
+  "http_server_config.static_config.batcher_storage_reader_url": {
+    "description": "URL of the batcher storage reader server for bootstrap queries.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "http_server_config.static_config.bootstrap_enabled": {
+    "description": "Whether bootstrap mode is enabled.",
+    "privacy": "Public",
+    "value": false
+  },
+  "http_server_config.static_config.bootstrap_poll_interval": {
+    "description": "Polling interval (in milliseconds) for bootstrap state.",
+    "privacy": "Public",
+    "value": 2000
+  },
   "http_server_config.static_config.dynamic_config_poll_interval": {
     "description": "Polling interval (in milliseconds) for dynamic config.",
     "privacy": "Public",

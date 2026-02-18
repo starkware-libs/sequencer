@@ -25,6 +25,8 @@ pub enum HttpServerRunError {
 /// Errors that may occur during the runtime of the HTTP server.
 #[derive(Error, Debug)]
 pub enum HttpServerError {
+    #[error("Server is bootstrapping, external transactions are not accepted.")]
+    BootstrapInProgress,
     #[error(transparent)]
     ConfigManagerClientError(#[from] ConfigManagerClientError),
     #[error(transparent)]
@@ -40,6 +42,7 @@ pub enum HttpServerError {
 impl IntoResponse for HttpServerError {
     fn into_response(self) -> Response {
         match self {
+            HttpServerError::BootstrapInProgress => bootstrap_in_progress_into_response(),
             HttpServerError::ConfigManagerClientError(e) => {
                 config_manager_client_err_into_response(e)
             }
@@ -76,6 +79,19 @@ fn serde_error_into_response(err: serde_json::Error) -> Response {
         },
     );
     let response_body = serialize_error(&deprecated_gateway_error);
+    (response_code, response_body).into_response()
+}
+
+fn bootstrap_in_progress_into_response() -> Response {
+    debug!("Server is bootstrapping, rejecting external transaction.");
+    let (response_code, starknet_error) = (
+        StatusCode::SERVICE_UNAVAILABLE,
+        StarknetError {
+            code: StarknetErrorCode::UnknownErrorCode("Server bootstrapping.".to_string()),
+            message: "Server is bootstrapping, external transactions are not accepted.".to_string(),
+        },
+    );
+    let response_body = serialize_error(&starknet_error);
     (response_code, response_body).into_response()
 }
 

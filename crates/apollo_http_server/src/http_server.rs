@@ -3,6 +3,8 @@ use std::net::SocketAddr;
 use std::string::String;
 use std::time::Duration;
 
+use apollo_batcher::bootstrap_client::BootstrapClient;
+use apollo_batcher_types::bootstrap_types::BootstrapState;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::deprecated_gateway_error::{
@@ -65,12 +67,20 @@ pub struct HttpServer {
     app_state: AppState,
     config_manager_client: SharedConfigManagerClient,
     dynamic_config_tx: Sender<HttpServerDynamicConfig>,
+    /// Sends bootstrap state updates from the polling loop. Starts at `DeclareContracts` when
+    /// bootstrap is enabled, and is set to `NotInBootstrap` once the batcher reports that
+    /// bootstrap is complete. At that point the polling task exits permanently.
+    bootstrap_state_tx: Sender<BootstrapState>,
 }
 
 #[derive(Clone)]
 pub struct AppState {
     gateway_client: SharedGatewayClient,
     dynamic_config_rx: Receiver<HttpServerDynamicConfig>,
+    /// Receives the latest bootstrap state from the background polling loop. Handlers use this to
+    /// reject external transactions while bootstrap is still in progress. Once the batcher reports
+    /// `NotInBootstrap`, this channel permanently holds that value and the polling loop exits.
+    bootstrap_state_rx: Receiver<BootstrapState>,
 }
 
 impl AppState {
@@ -92,8 +102,21 @@ impl HttpServer {
     ) -> Self {
         let (dynamic_config_tx, dynamic_config_rx) =
             channel::<HttpServerDynamicConfig>(config.dynamic_config.clone());
-        let app_state = AppState { gateway_client, dynamic_config_rx };
-        HttpServer { config, app_state, config_manager_client, dynamic_config_tx }
+        let initial_bootstrap_state = if config.static_config.bootstrap_enabled {
+            BootstrapState::DeclareContracts
+        } else {
+            BootstrapState::NotInBootstrap
+        };
+        let (bootstrap_state_tx, bootstrap_state_rx) =
+            channel::<BootstrapState>(initial_bootstrap_state);
+        let app_state = AppState { gateway_client, dynamic_config_rx, bootstrap_state_rx };
+        HttpServer {
+            config,
+            app_state,
+            config_manager_client,
+            dynamic_config_tx,
+            bootstrap_state_tx,
+        }
     }
 
     pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
@@ -110,6 +133,17 @@ impl HttpServer {
             self.config_manager_client.clone(),
             self.config.static_config.dynamic_config_poll_interval,
         ));
+
+        if self.config.static_config.bootstrap_enabled {
+            let batcher_url = &self.config.static_config.batcher_storage_reader_url;
+            info!("Bootstrap polling enabled, batcher storage reader URL: {}", batcher_url);
+            tokio::spawn(bootstrap_poll(
+                self.bootstrap_state_tx.clone(),
+                self.app_state.gateway_client.clone(),
+                batcher_url.clone(),
+                self.config.static_config.bootstrap_poll_interval,
+            ));
+        }
 
         // TODO(Tsabary): update the http server struct to hold optional fields of the
         // dynamic_config_tx, config_manager_client, and a JoinHandle for the polling task.
@@ -173,6 +207,7 @@ async fn add_rpc_tx(
 ) -> HttpServerResult<Json<GatewayOutput>> {
     debug!("ADD_TX_START: Http server received a new transaction.");
 
+    check_bootstrap_allows_external_txs(&app_state)?;
     let HttpServerDynamicConfig { accept_new_txs, .. } = app_state.get_dynamic_config();
     check_new_transactions_are_allowed(accept_new_txs)?;
 
@@ -190,6 +225,7 @@ async fn add_tx(
 ) -> HttpServerResult<Json<GatewayOutput>> {
     debug!("ADD_TX_START: Http server received a new transaction.");
 
+    check_bootstrap_allows_external_txs(&app_state)?;
     let HttpServerDynamicConfig { accept_new_txs, max_sierra_program_size } =
         app_state.get_dynamic_config();
     check_new_transactions_are_allowed(accept_new_txs)?;
@@ -215,6 +251,18 @@ async fn add_tx(
     })?;
 
     add_tx_inner(app_state, headers, rpc_tx).await
+}
+
+/// Rejects external transactions while the system is still bootstrapping.
+/// The bootstrap state is updated by a background polling loop that queries the batcher.
+/// Once the batcher reports `NotInBootstrap`, the state flips permanently and this check
+/// becomes a no-op, allowing all subsequent external transactions through.
+fn check_bootstrap_allows_external_txs(app_state: &AppState) -> HttpServerResult<()> {
+    let state = *app_state.bootstrap_state_rx.borrow();
+    match state {
+        BootstrapState::NotInBootstrap => Ok(()),
+        _ => Err(HttpServerError::BootstrapInProgress),
+    }
 }
 
 fn check_new_transactions_are_allowed(accept_new_txs: bool) -> HttpServerResult<()> {
@@ -376,5 +424,84 @@ async fn dynamic_config_poll(
         if let Ok(dynamic_config) = dynamic_config_result {
             let _ = tx.send(dynamic_config);
         }
+    }
+}
+
+/// Bootstrap exit polling: periodically queries the batcher's bootstrap state machine and submits
+/// bootstrap transactions through the gateway when active. Once the batcher reports
+/// `BootstrapState::NotInBootstrap`, this loop sends that final state through the watch channel
+/// and returns, permanently ending the polling. Handlers reading the watch channel will then
+/// immediately see `NotInBootstrap` and stop rejecting external transactions.
+async fn bootstrap_poll(
+    state_tx: Sender<BootstrapState>,
+    gateway_client: SharedGatewayClient,
+    batcher_storage_reader_url: String,
+    poll_interval: Duration,
+) {
+    let bootstrap_client = match BootstrapClient::new(&batcher_storage_reader_url) {
+        Some(client) => client,
+        None => {
+            warn!("Bootstrap polling enabled but batcher_storage_reader_url is empty");
+            return;
+        }
+    };
+    let mut interval = time::interval(poll_interval);
+    let mut last_state: Option<BootstrapState> = None;
+    let mut txs_submitted_for_state = false;
+
+    loop {
+        interval.tick().await;
+
+        let state = match bootstrap_client.get_bootstrap_state().await {
+            Ok(state) => state,
+            Err(e) => {
+                warn!("Failed to query bootstrap state: {}", e);
+                continue;
+            }
+        };
+
+        let _ = state_tx.send(state);
+
+        if state == BootstrapState::NotInBootstrap {
+            info!("Bootstrap complete, stopping bootstrap poll.");
+            return;
+        }
+
+        if last_state != Some(state) {
+            info!("Bootstrap state transitioned to {:?}", state);
+            txs_submitted_for_state = false;
+            last_state = Some(state);
+        }
+
+        if txs_submitted_for_state {
+            continue;
+        }
+
+        let txs = match bootstrap_client.get_bootstrap_transactions().await {
+            Ok(txs) => txs,
+            Err(e) => {
+                warn!("Failed to get bootstrap transactions: {}", e);
+                continue;
+            }
+        };
+
+        info!("Submitting {} bootstrap transaction(s) for state {:?}", txs.len(), state);
+        let mut all_submitted = true;
+        for tx in txs {
+            let gateway_input = GatewayInput { rpc_tx: tx, message_metadata: None };
+            match gateway_client.add_tx(gateway_input).await {
+                Ok(output) => {
+                    info!(
+                        "Bootstrap transaction submitted successfully: {}",
+                        output.transaction_hash()
+                    );
+                }
+                Err(e) => {
+                    warn!("Failed to submit bootstrap transaction: {}", e);
+                    all_submitted = false;
+                }
+            }
+        }
+        txs_submitted_for_state = all_submitted;
     }
 }
