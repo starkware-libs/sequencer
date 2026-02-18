@@ -259,7 +259,7 @@ impl SerializeConfig for ContextStaticConfig {
         ]);
         dump.extend([ser_param(
             "deployment_mode",
-            &format!("{:?}", self.deployment_mode).to_lowercase(),
+            &self.deployment_mode,
             "Deployment mode. 'starknet' for production, 'echonet' when running echonet.",
             ParamPrivacyInput::Public,
         )]);
