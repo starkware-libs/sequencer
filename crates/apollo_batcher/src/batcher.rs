@@ -792,6 +792,14 @@ impl Batcher {
         )
         .await?;
 
+        if self.bootstrap_state_machine.read().await.is_bootstrapping() {
+            let new_state = self.bootstrap_state_machine.write().await.advance();
+            info!(
+                "Bootstrap state machine advanced to {:?} after committing block {}",
+                new_state, height
+            );
+        }
+
         self.write_commitment_results_and_add_new_task(
             height,
             state_diff.clone(), // TODO(Nimrod): Remove the clone here.
