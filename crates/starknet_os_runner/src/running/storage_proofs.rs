@@ -123,8 +123,10 @@ impl RpcStorageProofsProvider {
             execution_data.executed_class_hashes.iter().map(|ch| ch.0).collect();
 
         let initial_reads = &execution_data.initial_reads;
-        let contract_addresses: Vec<ContractAddress> =
+        // Sort contract addresses for deterministic ordering (for offline replay mode).
+        let mut contract_addresses: Vec<ContractAddress> =
             initial_reads.get_contract_addresses().into_iter().collect();
+        contract_addresses.sort();
 
         // Group storage keys by address, then map over all contract_addresses (which may include
         // addresses with no storage reads) to build the output.
