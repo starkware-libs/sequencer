@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771404130061,
+  "lastUpdate": 1771415774554,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -815,6 +815,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1306.23206357,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "49ed47099d227eeb393556872ed00a5e71cf12c7",
+          "message": "starknet_os_runner: apply CORS middleware to JSON-RPC server (#12607)\n\nWire tower-http CorsLayer into the jsonrpsee server using the\ncors_allow_origin config from the previous commit.\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-18T11:33:33Z",
+          "tree_id": "5028ce91013744e05b393f4aa3336e5295f24cb0",
+          "url": "https://github.com/starkware-libs/sequencer/commit/49ed47099d227eeb393556872ed00a5e71cf12c7"
+        },
+        "date": 1771415774257,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 834.06401284,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1337.46558019,
             "unit": "ms"
           }
         ]
