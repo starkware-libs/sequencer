@@ -16,9 +16,11 @@ use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMod
 use serde_json::Value;
 use tokio::sync::mpsc;
 use tokio::time::{interval, Duration as TokioDuration, Interval};
+use tracing::{error, info};
+
+use crate::metrics::{register_metrics, CONFIG_MANAGER_UPDATE_ERRORS};
 
 const FS_EVENT_CHANNEL_CAPACITY: usize = 16;
-use tracing::{error, info};
 
 #[cfg(test)]
 #[path = "config_manager_runner_tests.rs"]
@@ -37,6 +39,8 @@ impl ComponentStarter for ConfigManagerRunner {
         default_component_start_fn::<Self>().await;
 
         info!("ConfigManagerRunner: starting filesystem watcher");
+
+        register_metrics();
 
         if self.config_manager_config.enable_config_updates {
             let update_interval = interval(TokioDuration::from_secs_f64(
@@ -102,7 +106,9 @@ impl ConfigManagerRunner {
                             }
                             _ => {}
                         },
-                        Err(e) => error!("ConfigManagerRunner: watcher error: {e}"),
+                        Err(e) => {
+                            error!("ConfigManagerRunner: watcher error: {e}");
+                        }
                     }
                 }
                 // Periodic tick
@@ -119,6 +125,7 @@ impl ConfigManagerRunner {
         &mut self,
     ) -> Result<NodeDynamicConfig, Box<dyn std::error::Error + Send + Sync>> {
         let config = load_and_validate_config(self.cli_args.clone(), false).map_err(|e| {
+            CONFIG_MANAGER_UPDATE_ERRORS.increment(1);
             error!("ConfigManagerRunner: failed to update config: {e}");
             e
         })?;
