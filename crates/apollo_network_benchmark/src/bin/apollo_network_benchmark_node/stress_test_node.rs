@@ -31,7 +31,8 @@ pub struct BroadcastNetworkStressTestNode {
 impl BroadcastNetworkStressTestNode {
     /// Creates network configuration from arguments
     fn create_network_config(args: &NodeArgs) -> NetworkConfig {
-        let peer_private_key = create_peer_private_key(args.runner.id);
+        let peer_private_key =
+            apollo_network_benchmark::peer_key::private_key_from_node_id(args.runner.id);
 
         let mut network_config = NetworkConfig {
             port: args.runner.p2p_port,
@@ -235,18 +236,4 @@ pub async fn race_and_kill_tasks(spawned_tasks: Vec<JoinHandle<()>>) {
     for task in remaining_tasks {
         task.abort();
     }
-}
-
-fn create_peer_private_key(peer_index: u64) -> [u8; 32] {
-    let array = peer_index.to_le_bytes();
-    assert_eq!(array.len(), 8);
-    let mut private_key = [0u8; 32];
-    private_key[0..8].copy_from_slice(&array);
-
-    // Log the secret key
-    let peer_private_key_hex =
-        private_key.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
-    info!("Secret Key: {peer_private_key_hex:#?}");
-
-    private_key
 }

@@ -2125,6 +2125,7 @@ dependencies = [
 name = "apollo_network_benchmark"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "apollo_metrics",
  "apollo_network",
  "clap",
