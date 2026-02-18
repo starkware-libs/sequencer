@@ -19,35 +19,6 @@ use tracing::{debug, instrument};
 use super::{ApiContractClass, CentralResult, CentralStateUpdate};
 use crate::CentralError;
 
-// #region agent log
-use std::io::Write;
-fn debug_log_stream(location: &str, message: &str, data: &str, hypothesis: &str) {
-    // Try persistent data volume first (survives container restarts), fall back to local path
-    let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
-    for path in &paths {
-        if let Ok(mut file) = std::fs::OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)
-        {
-            let _ = writeln!(
-                file,
-                r#"{{"timestamp":{},"location":"{}","message":"{}","data":{},"hypothesisId":"{}"}}"#,
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis(),
-                location,
-                message,
-                data,
-                hypothesis
-            );
-            break;
-        }
-    }
-}
-// #endregion
-
 type TasksQueue<T> = FuturesOrdered<Pin<Box<dyn Future<Output = T> + Send>>>;
 type NumberOfClasses = usize;
 
@@ -151,15 +122,6 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
         }
         let (block_number, n_classes, state_update) =
             self.downloaded_state_updates.pop_front().expect("Should have a value");
-        // #region agent log
-        let queue_blocks: Vec<u64> = self.downloaded_state_updates.iter().map(|(bn, _, _)| bn.0).collect();
-        debug_log_stream(
-            "state_update_stream.rs:next_output",
-            "Outputting state update",
-            &format!(r#"{{"output_block":{},"remaining_in_queue":{:?}}}"#, block_number.0, queue_blocks),
-            "D"
-        );
-        // #endregion
         let class_hashes = state_update.state_diff.class_hashes();
         let classes = self.downloaded_classes.drain(..n_classes);
         let classes: IndexMap<ClassHash, ApiContractClass> =
@@ -274,15 +236,6 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
                 let hashes = state_update.state_diff.class_hashes();
                 let n_classes = hashes.len();
                 self.classes_to_download.append(&mut VecDeque::from(hashes));
-                // #region agent log
-                let queue_blocks_before: Vec<u64> = self.downloaded_state_updates.iter().map(|(bn, _, _)| bn.0).collect();
-                debug_log_stream(
-                    "state_update_stream.rs:handle_downloaded",
-                    "Adding downloaded state update to queue",
-                    &format!(r#"{{"downloaded_block":{},"queue_before":{:?}}}"#, block_number.0, queue_blocks_before),
-                    "D"
-                );
-                // #endregion
                 self.downloaded_state_updates.push_back((block_number, n_classes, state_update));
                 Ok(())
             }
