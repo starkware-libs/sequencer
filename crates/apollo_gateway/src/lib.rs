@@ -1,3 +1,4 @@
+pub mod bootstrap_client;
 pub mod communication;
 pub mod errors;
 pub mod gateway;
