@@ -7,6 +7,7 @@ use serde::de::{self, Deserializer};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
+use validator::Validate;
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
@@ -136,10 +137,12 @@ impl SerializeConfig for WorkerPoolConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct ContractClassManagerConfig {
     pub cairo_native_run_config: CairoNativeRunConfig,
+    #[validate(range(min = 1, message = "`contract_cache_size` must be greater than 0"))]
     pub contract_cache_size: usize,
+    #[validate(nested)]
     pub native_compiler_config: SierraCompilationConfig,
 }
 
