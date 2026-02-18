@@ -273,6 +273,24 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                     let size = serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
                     sizes_content.push_str(&format!("{key}: {size} bytes\n"));
                 }
+
+                if let Some(serde_json::Value::Array(infos)) = map.get("execution_infos") {
+                    let mut field_sizes: std::collections::HashMap<String, usize> =
+                        Default::default();
+                    for info in infos {
+                        if let serde_json::Value::Object(info_map) = info {
+                            for (key, value) in info_map {
+                                let size = serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
+                                *field_sizes.entry(key.clone()).or_insert(0) += size;
+                            }
+                        }
+                    }
+                    sizes_content.push_str("\nexecution_infos fields (total across all txs):\n");
+                    for (key, size) in &field_sizes {
+                        sizes_content.push_str(&format!("  {key}: {size} bytes\n"));
+                    }
+                }
+
                 let sizes_path = format!("/tmp/blob_{}_sizes.txt", blob.block_number);
                 if let Err(err) = tokio::fs::write(&sizes_path, sizes_content).await {
                     warn!("Failed to save blob sizes to {sizes_path}: {err}");
