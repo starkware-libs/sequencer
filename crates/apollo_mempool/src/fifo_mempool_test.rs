@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_deployment_mode::DeploymentMode;
@@ -208,5 +209,36 @@ fn test_declare_txs_preserve_fifo_order(mut mempool: Mempool) {
             tx4_declare_account4_input.tx,
             tx5_invoke_account5_input.tx,
         ],
+    );
+}
+
+#[rstest]
+fn test_get_timestamp_returns_last_returned_when_queue_empty_after_prior_get_ts(
+    mut mempool: Mempool,
+) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
+
+    // Pre-populate timestamps
+    let mut timestamps = HashMap::new();
+    timestamps.insert(tx_hash!(1), 1000);
+    timestamps.insert(tx_hash!(2), 1000);
+    mempool.update_timestamps(timestamps);
+
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+
+    // First call sets and returns timestamp threshold.
+    let first_timestamp = mempool.get_timestamp();
+    assert_eq!(first_timestamp, 1000, "get_timestamp() should return the first tx timestamp");
+
+    // Drain the queue.
+    get_txs_and_assert_expected(&mut mempool, 2, &[input1.tx, input2.tx]);
+
+    // Queue is now empty; get_ts should return the last returned timestamp.
+    let second_timestamp = mempool.get_timestamp();
+    assert_eq!(
+        second_timestamp, 1000,
+        "get_timestamp() should return last returned timestamp when queue is empty"
     );
 }

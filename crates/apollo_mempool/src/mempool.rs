@@ -24,7 +24,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::fifo_transaction_queue::FifoTransactionQueue;
 use crate::metrics::{
@@ -264,7 +264,7 @@ impl Mempool {
             config.static_config.deployment_mode,
             apollo_deployment_mode::DeploymentMode::Echonet
         ) {
-            Box::new(FifoTransactionQueue::default())
+            Box::new(FifoTransactionQueue::new())
         } else {
             Box::new(TransactionQueue::default())
         };
@@ -280,15 +280,60 @@ impl Mempool {
         }
     }
 
-    fn is_fifo(&self) -> bool {
+    pub fn is_fifo(&self) -> bool {
         matches!(
             self.config.static_config.deployment_mode,
             apollo_deployment_mode::DeploymentMode::Echonet
         )
     }
 
-    pub fn get_timestamp(&self) -> UnixTimestamp {
-        self.clock.unix_now()
+    pub fn get_timestamp(&mut self) -> UnixTimestamp {
+        if self.is_fifo() {
+            // Echonet mode: use FIFO queue timestamp
+            if let Some(timestamp) = self.tx_queue.get_first_tx_timestamp() {
+                // Store this timestamp - get_txs() will only return txs with this exact timestamp
+                info!(
+                    "Mempool get_timestamp (FIFO): timestamp={}, setting as threshold",
+                    timestamp
+                );
+                self.tx_queue.set_last_returned_timestamp(timestamp);
+                timestamp
+            } else {
+                // Queue is empty. If get_timestamp() was never called successfully, return 0.
+                // Otherwise, return the last returned timestamp.
+                match self.tx_queue.get_last_returned_timestamp() {
+                    Some(last_timestamp) => {
+                        info!(
+                            "Mempool get_timestamp (FIFO): queue empty, returning \
+                             last_timestamp={}",
+                            last_timestamp
+                        );
+                        last_timestamp
+                    }
+                    None => {
+                        info!(
+                            "Mempool get_timestamp (FIFO): queue empty, no last timestamp, \
+                             returning 0"
+                        );
+                        0
+                    }
+                }
+            }
+        } else {
+            let timestamp = self.clock.unix_now();
+            debug!("Mempool get_timestamp (Fee): timestamp={}", timestamp);
+            timestamp
+        }
+    }
+
+    pub fn update_timestamps(&mut self, mappings: HashMap<TransactionHash, UnixTimestamp>) {
+        if !self.is_fifo() {
+            warn!(
+                "update_timestamps called in non-Echonet mode. This should only be called in FIFO \
+                 (Echonet) mode."
+            );
+        }
+        self.tx_queue.update_timestamps(mappings);
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their

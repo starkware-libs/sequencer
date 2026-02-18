@@ -1,4 +1,5 @@
 use std::clone::Clone;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -36,7 +37,9 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcTransaction,
 };
+use starknet_api::block::UnixTimestamp;
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
+use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, warn};
 
 use crate::errors::{
@@ -93,6 +96,13 @@ impl Gateway {
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
         self.0.add_tx(tx, p2p_message_metadata).await
+    }
+
+    pub async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, UnixTimestamp>,
+    ) -> GatewayResult<()> {
+        self.0.update_timestamps(mappings).await
     }
 }
 
@@ -329,6 +339,16 @@ impl<
             })?;
 
         Ok(Some((handle.proof_facts, handle.proof)))
+    }
+
+    pub(crate) async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, UnixTimestamp>,
+    ) -> GatewayResult<()> {
+        self.mempool_client
+            .update_timestamps(mappings)
+            .await
+            .map_err(|e| StarknetError::internal_with_logging("Mempool client error", &e))
     }
 }
 
