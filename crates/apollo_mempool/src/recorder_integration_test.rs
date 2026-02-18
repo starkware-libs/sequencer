@@ -58,7 +58,12 @@ fn create_mempool_communication_wrapper(recorder_url: String) -> MempoolCommunic
 
     let mock_config_manager = MockConfigManagerClient::new();
 
-    MempoolCommunicationWrapper::new(mempool, Arc::new(mock_p2p), Arc::new(mock_config_manager))
+    MempoolCommunicationWrapper::new(
+        mempool,
+        Arc::new(mock_p2p),
+        Arc::new(mock_config_manager),
+        None,
+    )
 }
 
 #[rstest]

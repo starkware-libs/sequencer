@@ -409,6 +409,16 @@
     "privacy": "TemporaryValue",
     "value": "starknet"
   },
+  "batcher_storage_reader_url": {
+    "description": "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
+    "privacy": "TemporaryValue",
+    "value": ""
+  },
+  "bootstrap_enabled": {
+    "description": "Whether bootstrap mode is enabled. When true and storage is empty, the node will self-bootstrap by executing hardcoded declare/deploy transactions.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "privacy": "TemporaryValue",
@@ -2686,13 +2696,18 @@
   },
   "gateway_config.static_config.batcher_storage_reader_url": {
     "description": "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
-    "privacy": "Public",
-    "value": ""
+    "pointer_target": "batcher_storage_reader_url",
+    "privacy": "Public"
   },
   "gateway_config.static_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
     "privacy": "Public",
     "value": false
+  },
+  "gateway_config.static_config.bootstrap_enabled": {
+    "description": "Whether bootstrap mode is enabled. When true and storage is empty, the node will self-bootstrap by executing hardcoded declare/deploy transactions.",
+    "pointer_target": "bootstrap_enabled",
+    "privacy": "Public"
   },
   "gateway_config.static_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
@@ -2911,13 +2926,13 @@
   },
   "http_server_config.static_config.batcher_storage_reader_url": {
     "description": "URL of the batcher storage reader server for bootstrap queries.",
-    "privacy": "Public",
-    "value": ""
+    "pointer_target": "batcher_storage_reader_url",
+    "privacy": "Public"
   },
   "http_server_config.static_config.bootstrap_enabled": {
-    "description": "Whether bootstrap mode is enabled.",
-    "privacy": "Public",
-    "value": false
+    "description": "Whether bootstrap mode is enabled. When true and storage is empty, the node will self-bootstrap by executing hardcoded declare/deploy transactions.",
+    "pointer_target": "bootstrap_enabled",
+    "privacy": "Public"
   },
   "http_server_config.static_config.bootstrap_poll_interval": {
     "description": "Polling interval (in milliseconds) for bootstrap state.",
@@ -3116,8 +3131,13 @@
   },
   "mempool_config.static_config.batcher_storage_reader_url": {
     "description": "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
-    "privacy": "Public",
-    "value": ""
+    "pointer_target": "batcher_storage_reader_url",
+    "privacy": "Public"
+  },
+  "mempool_config.static_config.bootstrap_enabled": {
+    "description": "Whether bootstrap mode is enabled. When true and storage is empty, the node will self-bootstrap by executing hardcoded declare/deploy transactions.",
+    "pointer_target": "bootstrap_enabled",
+    "privacy": "Public"
   },
   "mempool_config.static_config.capacity_in_bytes": {
     "description": "Maximum size of the mempool, in bytes.",
