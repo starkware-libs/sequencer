@@ -1,5 +1,4 @@
 use std::clone::Clone;
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::string::String;
 use std::time::Duration;
@@ -30,11 +29,9 @@ use axum::routing::{get, post, MethodRouter};
 use axum::{serve, Extension, Json, Router};
 use blockifier_reexecution::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use serde::de::Error;
-use starknet_api::block::UnixTimestamp;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::ValidResourceBounds;
-use starknet_api::transaction::TransactionHash;
 use tokio::net::TcpListener;
 use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::time;
@@ -134,8 +131,6 @@ impl HttpServer {
                 "/gateway/add_transaction",
                 self.post_method_router(add_tx),
             )
-            // Echonet timestamp update endpoint
-            .route("/gateway/update_timestamps", post(update_timestamps))
             // TODO(shahak): Remove this once we fix the centralized simulator to not use is_alive
             // and is_ready.
             .route(
@@ -328,25 +323,6 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
         }
     }
 }
-
-#[instrument(skip(app_state))]
-async fn update_timestamps(
-    Extension(app_state): Extension<AppState>,
-    Json(mappings): Json<HashMap<TransactionHash, UnixTimestamp>>,
-) -> HttpServerResult<Json<()>> {
-    info!("HTTP Server: received update_timestamps request with {} mappings", mappings.len());
-    let result = tokio::spawn(async move {
-        app_state.gateway_client.update_timestamps(mappings).await.map_err(|e| {
-            warn!("Error while updating timestamps: {}", e);
-            HttpServerError::from(Box::new(e))
-        })
-    })
-    .await
-    .expect("Should be able to get update_timestamps result");
-    result?;
-    Ok(Json(()))
-}
-
 pub fn create_http_server(
     config: HttpServerConfig,
     config_manager_client: SharedConfigManagerClient,
