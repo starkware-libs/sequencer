@@ -1,12 +1,17 @@
 use std::collections::{BTreeMap, HashMap};
+#[cfg(feature = "stwo_proving")]
 use std::sync::Arc;
 
+#[cfg(feature = "stwo_proving")]
 use async_trait::async_trait;
+#[cfg(feature = "stwo_proving")]
 use blockifier::context::ChainInfo;
 use blockifier::state::cached_state::StateMaps;
 use blockifier::state::contract_class_manager::ContractClassManager;
+#[cfg(feature = "stwo_proving")]
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier_reexecution::state_reader::rpc_objects::BlockId;
+#[cfg(feature = "stwo_proving")]
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
@@ -26,20 +31,17 @@ use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOs
 use starknet_os::runner::run_virtual_os;
 use tracing::field::display;
 use tracing::{info, Span};
+#[cfg(feature = "stwo_proving")]
 use url::Url;
 
 use crate::errors::RunnerError;
 use crate::running::classes_provider::ClassesProvider;
-use crate::running::storage_proofs::{
-    RpcStorageProofsProvider,
-    StorageProofConfig,
-    StorageProofProvider,
-};
-use crate::running::virtual_block_executor::{
-    RpcVirtualBlockExecutor,
-    VirtualBlockExecutionData,
-    VirtualBlockExecutor,
-};
+#[cfg(feature = "stwo_proving")]
+use crate::running::storage_proofs::RpcStorageProofsProvider;
+use crate::running::storage_proofs::{StorageProofConfig, StorageProofProvider};
+#[cfg(feature = "stwo_proving")]
+use crate::running::virtual_block_executor::RpcVirtualBlockExecutor;
+use crate::running::virtual_block_executor::{VirtualBlockExecutionData, VirtualBlockExecutor};
 
 // ================================================================================================
 // Virtual Os Types
@@ -346,6 +348,7 @@ where
 /// This trait abstracts the execution of transactions through the virtual OS,
 /// allowing different runner implementations (RPC-based, mock, etc.) to be used
 /// interchangeably.
+#[cfg(feature = "stwo_proving")]
 #[async_trait]
 pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
     /// Runs the Starknet virtual OS with the given transactions on top of the specified block.
@@ -366,6 +369,7 @@ pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
 /// - `Arc<StateReaderAndContractManager<RpcStateReader>>` for class fetching.
 /// - `RpcStorageProofsProvider` for storage proofs.
 /// - `RpcVirtualBlockExecutor` for transaction execution.
+#[cfg(feature = "stwo_proving")]
 pub(crate) type RpcRunner = Runner<
     Arc<StateReaderAndContractManager<RpcStateReader>>,
     RpcStorageProofsProvider,
@@ -391,6 +395,7 @@ pub(crate) type RpcRunner = Runner<
 /// let runner = factory.create_runner(BlockId::Number(BlockNumber(800000)));
 /// let output = runner.run_virtual_os(txs).await?;
 /// ```
+#[cfg(feature = "stwo_proving")]
 #[derive(Clone)]
 pub(crate) struct RpcRunnerFactory {
     /// URL of the RPC node.
@@ -402,6 +407,7 @@ pub(crate) struct RpcRunnerFactory {
     runner_config: RunnerConfig,
 }
 
+#[cfg(feature = "stwo_proving")]
 impl RpcRunnerFactory {
     /// Creates a new RPC runner factory.
     pub(crate) fn new(
@@ -451,6 +457,7 @@ impl RpcRunnerFactory {
     }
 }
 
+#[cfg(feature = "stwo_proving")]
 #[async_trait]
 impl VirtualSnosRunner for RpcRunnerFactory {
     async fn run_virtual_os(
