@@ -64,31 +64,29 @@ def _compress_and_encode_json(value: Any) -> str:
 async def fetch_block_transactions(
     feeder: FeederClient,
     block_number: int,
-    retries: int,
+    attempts: int,
     retry_backoff_seconds: float,
     max_retry_sleep_seconds: float,
 ) -> JsonObject:
     """Fetch a feeder block with a retry loop."""
-    attempt = 0
     last_err: Optional[Exception] = None
 
-    while attempt <= retries:
+    for attempt in range(attempts):
         try:
             return feeder.get_block(block_number)
         except Exception as err:
             last_err = err
-            if attempt == retries:
+            if attempt == attempts - 1:
                 break
             sleep_seconds = min(
                 retry_backoff_seconds * (2**attempt),
                 max_retry_sleep_seconds,
             )
             logger.warning(
-                f"Fetch block {block_number} failed ({attempt + 1}/{retries + 1}): {err}. "
+                f"Fetch block {block_number} failed ({attempt + 1}/{attempts}): {err}. "
                 f"Retrying in {sleep_seconds:.2f}s"
             )
             await asyncio.sleep(sleep_seconds)
-            attempt += 1
 
     assert last_err is not None
     raise last_err
@@ -102,7 +100,7 @@ class SenderConfig:
     end_block: Optional[int] = CONFIG.blocks.end_block
 
     request_timeout_seconds: float = 15.0
-    retries: int = 3
+    attempts: int = 3
     retry_backoff_seconds: float = 0.5
     max_retry_sleep_seconds: float = 30.0
 
@@ -125,16 +123,6 @@ class TxSelector:
         transactions: Sequence[JsonObject], blocked_senders: Set[str]
     ) -> list[JsonObject]:
         return [tx for tx in transactions if tx.get("sender_address") not in blocked_senders]
-
-    @staticmethod
-    def deploy_account_first(transactions: Sequence[JsonObject]) -> list[JsonObject]:
-        deploy_txs: list[JsonObject] = []
-        other_txs: list[JsonObject] = []
-
-        for tx in transactions:
-            (deploy_txs if tx["type"] == TxType.DEPLOY_ACCOUNT else other_txs).append(tx)
-
-        return [*deploy_txs, *other_txs]
 
 
 class TxTransformer:
@@ -173,9 +161,10 @@ class TxTransformer:
 class HttpForwarder:
     """Forward prepared txs into the local node and update `shared` bookkeeping."""
 
-    def __init__(self, session: aiohttp.ClientSession, sequencer_url: str) -> None:
+    def __init__(self, session: aiohttp.ClientSession, sequencer_url: str, attempts: int) -> None:
         self._session = session
         self._sequencer_url = sequencer_url.rstrip("/")
+        self._attempts = attempts
 
     async def _post_tx_timestamp(self, tx_hash: str, source_timestamp: int) -> None:
         url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.update_timestamps}"
@@ -197,22 +186,34 @@ class HttpForwarder:
         url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.add_transaction}"
         headers = {"Content-Type": "application/json"}
         tx_hash = tx["transaction_hash"]
+        tx_type = tx.get("type")
 
         await self._post_tx_timestamp(tx_hash, source_timestamp)
 
-        async with self._session.post(url, json=tx, headers=headers) as response:
-            text = await response.text()
-            if response.status != requests.codes.ok:
-                logger.warning(f"Forward failed ({response.status}): {text}")
+        for attempt in range(self._attempts):
+            async with self._session.post(url, json=tx, headers=headers) as response:
+                text = await response.text()
+                if response.status == requests.codes.ok:
+                    logger.info(f"Forwarded tx: {tx_hash}")
+                    shared.record_sent_tx(tx_hash, source_block_number)
+                    return
+
+                logger.warning(
+                    "Forward failed: "
+                    f"tx={tx_hash} type={tx_type} src_bn={source_block_number} "
+                    f"attempt={attempt + 1}/{self._attempts} "
+                    f"status={response.status} response={text}"
+                )
+
+                if attempt < self._attempts - 1:
+                    # TODO(Ron): Consider adding 'partial gateway errors' to the reports
+                    await asyncio.sleep(CONFIG.sleep.gateway_error_retry_interval_seconds)
+                    continue
+
                 shared.record_gateway_error(
                     tx_hash, response.status, text, block_number=source_block_number
                 )
-            else:
-                logger.info(f"Forwarded tx: {tx_hash}")
-                shared.record_sent_tx(tx_hash, source_block_number)
-
-        if tx["type"] == TxType.DEPLOY_ACCOUNT:
-            await asyncio.sleep(CONFIG.sleep.deploy_account_sleep_time_seconds)
+                return
 
 
 class TransactionSenderService:
@@ -234,7 +235,9 @@ class TransactionSenderService:
             tx_queue: "asyncio.Queue[Optional[TxData]]" = asyncio.Queue(maxsize=config.queue_size)
 
             transformer = TxTransformer(feeder)
-            forwarder = HttpForwarder(session, sequencer_url=config.sequencer_url)
+            forwarder = HttpForwarder(
+                session, sequencer_url=config.sequencer_url, attempts=config.attempts
+            )
             resync_policy = ResyncPolicy(
                 blocks_to_wait_before_failing_tx=config.blocks_to_wait_before_failing_tx
             )
@@ -267,26 +270,24 @@ class TransactionSenderService:
                     block = await fetch_block_transactions(
                         feeder,
                         block_number,
-                        retries=config.retries,
+                        attempts=config.attempts,
                         retry_backoff_seconds=config.retry_backoff_seconds,
                         max_retry_sleep_seconds=config.max_retry_sleep_seconds,
                     )
 
                     timestamp = block["timestamp"]
                     shared.store_fgw_block(block_number, block)
-
                     revert_errors = _extract_revert_errors_by_tx_hash(block)
                     if revert_errors:
                         shared.record_mainnet_revert_errors(block_number, revert_errors)
 
                     all_txs = block["transactions"]
                     valid_txs = TxSelector.filter_blocked(all_txs, CONFIG.tx_filter.blocked_senders)
-                    ordered_txs = TxSelector.deploy_account_first(valid_txs)
                     logger.info(
-                        f"Block {block_number}: total={len(all_txs)} valid={len(ordered_txs)}"
+                        f"Block {block_number}: total={len(all_txs)} valid={len(valid_txs)}"
                     )
 
-                    for tx in ordered_txs:
+                    for tx in valid_txs:
                         tx_data = TxData(
                             tx=tx,
                             source_block_number=block_number,
@@ -294,8 +295,8 @@ class TransactionSenderService:
                         )
                         await tx_queue.put(tx_data)
 
-                    if ordered_txs:
-                        shared.record_forwarded_block(block_number, len(ordered_txs))
+                    if valid_txs:
+                        shared.record_forwarded_block(block_number, len(valid_txs))
                     shared.set_block_timestamp(timestamp)
 
                     gw_errors, sent_tx_hashes = shared.get_resync_evaluation_inputs()
@@ -403,7 +404,7 @@ class TransactionSenderRunner:
                     f"TransactionSenderRunner starting: feeder_url={config.feeder_url} "
                     f"sequencer_url={config.sequencer_url} start_block={config.start_block} "
                     f"end_block={config.end_block} timeout={config.request_timeout_seconds} "
-                    f"retries={config.retries} backoff={config.retry_backoff_seconds}"
+                    f"attempts={config.attempts} backoff={config.retry_backoff_seconds}"
                 )
                 asyncio.run(self._service.run(config))
             finally:
@@ -443,7 +444,7 @@ def start_background_sender(
     start_block: int = CONFIG.blocks.start_block,
     end_block: int = CONFIG.blocks.end_block,
     request_timeout_seconds: float = 15.0,
-    retries: int = 3,
+    attempts: int = 3,
     retry_backoff_seconds: float = 0.5,
 ) -> bool:
     """
@@ -455,7 +456,7 @@ def start_background_sender(
         start_block=start_block,
         end_block=end_block,
         request_timeout_seconds=request_timeout_seconds,
-        retries=retries,
+        attempts=attempts,
         retry_backoff_seconds=retry_backoff_seconds,
     )
     return TransactionSenderRunner.background().start(config=cfg)
