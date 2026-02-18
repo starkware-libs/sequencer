@@ -26,13 +26,7 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::errors::BatcherError;
-<<<<<<< HEAD
-||||||| 829d7d24fa
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
-=======
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_committer_types::committer_types::CommitBlockRequest;
->>>>>>> origin/main-v0.14.1-committer
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
