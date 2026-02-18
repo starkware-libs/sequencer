@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
-use cairo_air::utils::{get_verification_output, to_cairo_proof, VerificationOutput};
+use cairo_air::utils::{get_verification_output, VerificationOutput};
 use cairo_air::verifier::verify_cairo;
-use cairo_air::{CairoProofSorted, PreProcessedTraceVariant};
+use cairo_air::CairoProofForRustVerifier;
 use proving_utils::proof_encoding::{ProofBytes, ProofEncodingError};
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::fields::{Proof, ProofFacts, PROOF_VERSION};
@@ -141,20 +141,15 @@ pub fn stwo_verify(proof: Proof) -> Result<StwoVerifyOutput, StwoVerifyError> {
     let proof_bytes = ProofBytes::try_from(proof)?;
 
     // Deserialize proof from bincode format (using bincode v1 API).
-    let cairo_proof_sorted: CairoProofSorted<Blake2sMerkleHasher> =
+    let cairo_proof: CairoProofForRustVerifier<Blake2sMerkleHasher> =
         bincode::deserialize(&proof_bytes.0)
             .map_err(|e| StwoVerifyError::DeserializeProof(e.to_string()))?;
 
     // Extract verification output from the proof's public memory.
-    let verification_output =
-        get_verification_output(&cairo_proof_sorted.claim.public_data.public_memory);
-
-    // Convert CairoProofSorted to CairoProof for verification.
-    let preprocessed_trace = PreProcessedTraceVariant::Canonical;
-    let cairo_proof = to_cairo_proof(cairo_proof_sorted, preprocessed_trace);
+    let verification_output = get_verification_output(&cairo_proof.claim.public_data.public_memory);
 
     // Verify the proof.
-    verify_cairo::<Blake2sMerkleChannel>(cairo_proof, preprocessed_trace)
+    verify_cairo::<Blake2sMerkleChannel>(cairo_proof)
         .map_err(|e| StwoVerifyError::Verification(format!("{e:?}")))?;
 
     // Convert starknet_ff::FieldElement values to starknet_types_core::felt::Felt.
