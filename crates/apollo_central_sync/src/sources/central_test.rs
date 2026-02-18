@@ -407,7 +407,9 @@ async fn stream_state_updates() {
     let mut state_update_stream_config = state_update_stream_config_for_test();
     // Ensure all state updates can be scheduled together.
     state_update_stream_config.max_state_updates_to_download =
-        ((END_BLOCK_NUMBER - START_BLOCK_NUMBER) as usize) + 1;
+        (END_BLOCK_NUMBER - START_BLOCK_NUMBER + 1)
+            .try_into()
+            .expect("END_BLOCK_NUMBER is bigger than START_BLOCK_NUMBER");
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
         apollo_starknet_client: Arc::new(mock),
