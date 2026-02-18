@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
 
@@ -50,4 +51,20 @@ pub trait TransactionQueueTrait: Send + Sync {
     fn pending_txs(&self) -> Vec<TransactionReference> {
         Vec::new()
     }
+
+    // Default implementation returns None (for queues that don't track first tx timestamp).
+    fn get_first_tx_timestamp(&self) -> Option<UnixTimestamp> {
+        None
+    }
+
+    // Default implementation is a no-op (for queues that don't track last returned timestamp).
+    fn set_last_returned_timestamp(&mut self, _timestamp: UnixTimestamp) {}
+
+    // Default implementation returns None (for queues that don't track last returned timestamp).
+    fn get_last_returned_timestamp(&self) -> Option<UnixTimestamp> {
+        None
+    }
+
+    // Default implementation is a no-op (for queues that don't support timestamp updates).
+    fn update_timestamps(&mut self, _mappings: HashMap<TransactionHash, UnixTimestamp>) {}
 }

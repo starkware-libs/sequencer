@@ -1,4 +1,5 @@
 use std::clone::Clone;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -29,6 +30,7 @@ use apollo_transaction_converter::{
 };
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use starknet_api::block::UnixTimestamp;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -109,6 +111,13 @@ impl Gateway {
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<GatewayOutput> {
         self.0.add_tx(tx, p2p_message_metadata).await
+    }
+
+    pub async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, UnixTimestamp>,
+    ) -> GatewayResult<()> {
+        self.0.update_timestamps(mappings).await
     }
 }
 
@@ -398,6 +407,16 @@ impl<
             })?;
 
         Ok(Some((handle.proof_facts, handle.proof)))
+    }
+
+    pub(crate) async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, UnixTimestamp>,
+    ) -> GatewayResult<()> {
+        self.mempool_client
+            .update_timestamps(mappings)
+            .await
+            .map_err(|e| StarknetError::internal_with_logging("Mempool client error", &e))
     }
 }
 
