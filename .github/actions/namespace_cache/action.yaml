@@ -7,7 +7,16 @@ runs:
     - name: Mount namespace cache volume for rust
       uses: namespacelabs/nscloud-cache-action@v1
       with:
-        path: /home/runner/.cargo
+        path: |
+          /home/runner/.cargo
+          /home/runner/.cache/sccache
+
+    - name: Configure sccache
+      shell: bash
+      run: |
+        mkdir -p /home/runner/.cache/sccache
+        echo "SCCACHE_DIR=/home/runner/.cache/sccache" >> "$GITHUB_ENV"
+        echo "SCCACHE_CACHE_SIZE=50G" >> "$GITHUB_ENV"
 
     - name: Mount namespace cache volume for python
       uses: namespacelabs/nscloud-cache-action@v1
