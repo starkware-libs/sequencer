@@ -61,6 +61,7 @@ use apollo_storage::{
     StorageResult,
     StorageWriter,
 };
+use apollo_transaction_converter::TransactionConverter;
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -1370,21 +1371,11 @@ pub async fn create_batcher(
         worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
-<<<<<<< HEAD
-    let mut storage_writer = Box::new(storage_writer);
-||||||| 829d7d24fa
-    let mut storage_writer = Box::new(storage_writer);
-    let transaction_converter = TransactionConverter::new(
-        class_manager_client,
-        config.static_config.storage.db_config.chain_id.clone(),
-    );
-=======
     let storage_writer = Box::new(storage_writer);
     let transaction_converter = TransactionConverter::new(
         class_manager_client,
         config.static_config.storage.db_config.chain_id.clone(),
     );
->>>>>>> origin/main-v0.14.1-committer
 
     let commitment_manager = CommitmentManager::create_commitment_manager(
         &config.static_config.commitment_manager_config,
