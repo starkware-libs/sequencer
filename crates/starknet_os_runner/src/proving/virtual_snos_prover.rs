@@ -11,14 +11,19 @@ use blockifier_reexecution::state_reader::rpc_objects::BlockId;
 use blockifier_reexecution::utils::get_chain_info;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
-use starknet_api::transaction::fields::{Proof, ProofFacts, VIRTUAL_SNOS};
+#[cfg(feature = "stwo_proving")]
+use starknet_api::transaction::fields::VIRTUAL_SNOS;
+use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_api::transaction::{InvokeTransaction, MessageToL1};
 use starknet_os::io::os_output::OsOutputError;
 use tracing::{info, instrument};
 use url::Url;
 
 use crate::config::ProverConfig;
-use crate::errors::{ProvingError, RunnerError};
+#[cfg(feature = "stwo_proving")]
+use crate::errors::ProvingError;
+use crate::errors::RunnerError;
+#[cfg(feature = "stwo_proving")]
 use crate::proving::prover::prove;
 use crate::running::runner::{RpcRunnerFactory, RunnerOutput, VirtualSnosRunner};
 
@@ -34,6 +39,7 @@ pub enum VirtualSnosProverError {
     #[error(transparent)]
     // Boxed to reduce the size of Result on the stack (RunnerError is >128 bytes).
     RunnerError(#[from] Box<RunnerError>),
+    #[cfg(feature = "stwo_proving")]
     #[error(transparent)]
     ProvingError(#[from] ProvingError),
     #[error(transparent)]
@@ -155,18 +161,34 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
         );
 
         // Run the prover.
-        let prove_start = Instant::now();
-        let result = prove_virtual_snos_run(runner_output).await?;
-        let prove_duration = prove_start.elapsed();
-        let total_duration = start_time.elapsed();
+        #[cfg(feature = "stwo_proving")]
+        let (result, prove_duration) = {
+            let prove_start = Instant::now();
+            let result = prove_virtual_snos_run(runner_output).await?;
+            let prove_duration = prove_start.elapsed();
 
-        info!(
-            prove_duration_ms = %prove_duration.as_millis(),
-            total_duration_ms = %total_duration.as_millis(),
-            "Proving completed"
-        );
+            info!(
+                prove_duration_ms = %prove_duration.as_millis(),
+                "Proving completed"
+            );
+            (result, prove_duration)
+        };
 
-        Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
+        #[cfg(not(feature = "stwo_proving"))]
+        {
+            let _ = (runner_output, os_duration, start_time);
+            unimplemented!(
+                "In-memory proving requires the `stwo_proving` feature flag and a nightly Rust \
+                 toolchain."
+            );
+        }
+
+        #[cfg(feature = "stwo_proving")]
+        {
+            let total_duration = start_time.elapsed();
+            info!(total_duration_ms = %total_duration.as_millis(), "prove_transaction completed");
+            Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
+        }
     }
 }
 
