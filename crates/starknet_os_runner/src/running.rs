@@ -18,6 +18,8 @@ mod classes_provider_test;
 pub mod rpc_records;
 #[cfg(test)]
 mod rpc_records_test;
+#[cfg(all(test, feature = "stwo_proving"))]
+mod runner_test;
 #[cfg(test)]
 mod storage_proofs_test;
 #[cfg(test)]
