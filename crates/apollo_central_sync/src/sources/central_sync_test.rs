@@ -37,11 +37,7 @@ use tracing::{debug, error};
 
 use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
-use crate::sources::central::{
-    BlocksStream,
-    MockCentralSourceTrait,
-    StateUpdatesStream,
-};
+use crate::sources::central::{BlocksStream, MockCentralSourceTrait, StateUpdatesStream};
 use crate::{
     CentralError,
     CentralSourceTrait,

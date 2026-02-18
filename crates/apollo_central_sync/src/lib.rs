@@ -356,6 +356,7 @@ impl<
                 .append_header(block_number, &block.header)?
                 .append_block_signature(block_number, &signature)?
                 .append_body(block_number, block.body)?;
+            // TODO(noamsp): remove compiler backward compatibility marker.
             if block.header.block_header_without_hash.starknet_version
                 < STARKNET_VERSION_TO_COMPILE_FROM
             {
