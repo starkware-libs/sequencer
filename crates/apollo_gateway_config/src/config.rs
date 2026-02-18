@@ -24,10 +24,12 @@ use crate::compiler_version::VersionId;
 
 const DEFAULT_BUCKET_NAME: &str = "proof-archive";
 
+// TODO(Arni): Set nested validation for other members of this struct.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct GatewayStaticConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
+    #[validate(nested)]
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
