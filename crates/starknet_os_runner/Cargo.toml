@@ -8,6 +8,12 @@ description = "Runs transactions through the Starknet OS and returns Cairo PIE a
 
 [features]
 cairo_native = ["blockifier/cairo_native"]
+# Enables in-memory stwo proving.  Requires a nightly Rust toolchain because the
+# stwo prover crate uses unstable features (array_chunks, portable_simd, …).
+stwo_proving = [
+  "dep:cairo-program-runner-lib",
+  "dep:stwo_run_and_prove_lib",
+]
 
 [dependencies]
 anyhow.workspace = true
@@ -18,6 +24,8 @@ blockifier.workspace = true
 blockifier_reexecution.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+cairo-air.workspace = true
+cairo-program-runner-lib = { workspace = true, optional = true }
 cairo-vm.workspace = true
 clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
@@ -25,6 +33,7 @@ http.workspace = true
 indexmap.workspace = true
 jsonrpsee = { workspace = true, features = ["macros", "server"] }
 proving_utils.workspace = true
+stwo_run_and_prove_lib = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 shared_execution_objects.workspace = true

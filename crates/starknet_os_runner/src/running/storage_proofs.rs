@@ -48,7 +48,6 @@ pub struct StorageProofConfig {
     /// When `false`, the provider only provides proofs for the initial state and assumes
     /// no state changes occur. This mode is suitable for read-only operations or when
     /// state verification is not required.
-    #[allow(dead_code)]
     pub(crate) include_state_changes: bool,
 }
 
@@ -68,7 +67,6 @@ impl Default for StorageProofConfig {
 /// - `contract_leaf_state`: Nonces and class hashes extracted from contract leaves.
 /// - `commitment_infos`: The Patricia Merkle proof nodes for contracts, classes, and storage tries.
 #[async_trait]
-#[allow(dead_code)]
 pub(crate) trait StorageProofProvider {
     async fn get_storage_proofs(
         &self,
@@ -79,7 +77,6 @@ pub(crate) trait StorageProofProvider {
 }
 
 /// Query parameters for fetching storage proofs from RPC.
-#[allow(dead_code)]
 pub(crate) struct RpcStorageProofsQuery {
     pub(crate) class_hashes: Vec<Felt>,
     pub(crate) contract_addresses: Vec<ContractAddress>,
@@ -87,7 +84,6 @@ pub(crate) struct RpcStorageProofsQuery {
 }
 
 /// Complete OS input data built from RPC proofs.
-#[allow(dead_code)]
 pub(crate) struct StorageProofs {
     /// Extended initial reads with class hashes and nonces from the proof.
     /// Required by the OS to verify contract state.
@@ -97,10 +93,8 @@ pub(crate) struct StorageProofs {
 }
 
 /// Wrapper around `JsonRpcClient` for fetching storage proofs.
-#[allow(dead_code)]
 pub(crate) struct RpcStorageProofsProvider(pub(crate) JsonRpcClient<HttpTransport>);
 
-#[allow(dead_code)]
 impl RpcStorageProofsProvider {
     pub(crate) fn new(rpc_url: url::Url) -> Self {
         let transport = HttpTransport::new(rpc_url);

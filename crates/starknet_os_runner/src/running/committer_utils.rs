@@ -106,7 +106,6 @@ pub(crate) fn validate_virtual_os_state_diff(
 /// - Contract state leaves from the RPC proof.
 /// - Storage leaves and compiled class leaves from initial reads.
 /// - Dummy binary nodes for orphan child hashes (sibling hashes without preimages).
-#[allow(dead_code)]
 pub(crate) fn create_facts_db_from_storage_proof(
     rpc_proof: &RpcStorageProof,
     query: &RpcStorageProofsQuery,
