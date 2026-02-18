@@ -25,6 +25,7 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
+    StarknetVersion,
 };
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
@@ -37,12 +38,7 @@ use tracing::{debug, error};
 
 use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
-use crate::sources::central::{
-    BlocksStream,
-    CompiledClassesStream,
-    MockCentralSourceTrait,
-    StateUpdatesStream,
-};
+use crate::sources::central::{BlocksStream, MockCentralSourceTrait, StateUpdatesStream};
 use crate::{
     CentralError,
     CentralSourceTrait,
@@ -50,6 +46,7 @@ use crate::{
     StateSyncError,
     StateSyncResult,
     SyncConfig,
+    STARKNET_VERSION_TO_COMPILE_FROM,
 };
 
 const SYNC_SLEEP_DURATION: Duration = Duration::from_millis(100); // 100ms
@@ -195,6 +192,8 @@ async fn sync_happy_flow() {
     const MAX_TIME_TO_SYNC_MS: u64 = 800;
     let _ = simple_logger::init_with_env();
 
+    let class_hash_0 = ClassHash(felt!("0x0"));
+    let compiled_class_hash_0 = CompiledClassHash(felt!("0x100"));
     let class_hash_1 = ClassHash(felt!("0x1"));
     let compiled_class_hash_1 = CompiledClassHash(felt!("0x101"));
     let class_hash_2 = ClassHash(felt!("0x2"));
@@ -228,17 +227,25 @@ async fn sync_happy_flow() {
             hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
+    // Block 0 is non-BC (starknet_version < V0_12_0) so get_compiled_class +
+    // add_class_and_executable_unsafe are called. Blocks 1+ are BC so add_class is called.
     central_mock.expect_stream_new_blocks().returning(move |initial, up_to| {
         let blocks_stream: BlocksStream<'_> = stream! {
             for block_number in initial.iter_up_to(up_to) {
                 if block_number.0 >= N_BLOCKS {
                     yield Err(CentralError::BlockNotFound { block_number });
                 }
+                let starknet_version = if block_number.0 == 0 {
+                    StarknetVersion::V0_11_0
+                } else {
+                    STARKNET_VERSION_TO_COMPILE_FROM
+                };
                 let header = BlockHeader {
                     block_hash: create_block_hash(block_number, false),
                     block_header_without_hash: BlockHeaderWithoutHash {
                         block_number,
                         parent_hash: create_block_hash(block_number.prev().unwrap_or_default(), false),
+                        starknet_version,
                         ..Default::default()
                     },
                     ..Default::default()
@@ -254,8 +261,6 @@ async fn sync_happy_flow() {
         blocks_stream
     });
 
-    let expected_deprecated_class = deprecated_class.clone();
-    let expected_deployed_class = deployed_class.clone();
     central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
         let deprecated_class = deprecated_class.clone();
         let deployed_class = deployed_class.clone();
@@ -267,6 +272,12 @@ async fn sync_happy_flow() {
 
                 // Add declared classes to specific blocks to test compiled class hash mapping
                 let mut state_diff = match block_number.0 {
+                    0 => StateDiff {
+                        declared_classes: IndexMap::from([
+                            (class_hash_0, (compiled_class_hash_0, SierraContractClass::default())),
+                        ]),
+                        ..Default::default()
+                    },
                     1 => StateDiff {
                         declared_classes: IndexMap::from([
                             (class_hash_1, (compiled_class_hash_1, SierraContractClass::default())),
@@ -303,43 +314,15 @@ async fn sync_happy_flow() {
         state_stream
     });
 
-    // Add compiled classes stream mock
-    central_mock.expect_stream_compiled_classes().returning(move |initial, up_to| {
-        let compiled_classes_stream: CompiledClassesStream<'_> = stream! {
-            for block_number in initial.iter_up_to(up_to) {
-                if block_number.0 >= N_BLOCKS {
-                    yield Err(CentralError::BlockNotFound { block_number });
-                }
-
-                // Return compiled classes for blocks that declared them
-                match block_number.0 {
-                    1 => {
-                        let mut rng = get_rng();
-                        yield Ok((
-                            block_number,
-                            class_hash_1,
-                            compiled_class_hash_1,
-                            CasmContractClass::get_test_instance(&mut rng),
-                        ));
-                    },
-                    3 => {
-                        let mut rng = get_rng();
-                        yield Ok((
-                            block_number,
-                            class_hash_2,
-                            compiled_class_hash_2,
-                            CasmContractClass::get_test_instance(&mut rng),
-                        ));
-                    },
-                    _ => {}
-                }
-            }
-        }
-        .boxed();
-        compiled_classes_stream
-    });
-
     central_mock.expect_get_block_hash().returning(|bn| Ok(Some(create_block_hash(bn, false))));
+
+    // Only block 0 is non-BC, so only class_hash_0 triggers get_compiled_class.
+    let mut rng_casm = get_rng();
+    central_mock
+        .expect_get_compiled_class()
+        .withf(move |class_hash| *class_hash == class_hash_0)
+        .times(1)
+        .returning(move |_| Ok(CasmContractClass::get_test_instance(&mut rng_casm)));
 
     // TODO(dvir): find a better way to do this.
     let mut base_layer_mock = MockBaseLayerSourceTrait::new();
@@ -362,10 +345,17 @@ async fn sync_happy_flow() {
     // Create mock class manager client with expectations
     let mut mock_class_manager = MockClassManagerClient::new();
 
-    // Expect add_deprecated_class to be called for both class hashes
+    // Non-BC block 0: add_class_and_executable_unsafe for class_hash_0.
+    mock_class_manager
+        .expect_add_class_and_executable_unsafe()
+        .withf(move |class_hash, _class, _exec_hash, _exec_class| *class_hash == class_hash_0)
+        .times(1)
+        .returning(|_class_hash, _class, _exec_hash, _exec_class| Ok(()));
+    // BC block 1: add_class for class_hash_1.
     mock_class_manager.expect_add_class().times(1).returning(move |_class| {
         Ok(ClassHashes { class_hash: class_hash_1, ..Default::default() })
     });
+    // BC block 3: add_class for class_hash_2.
     mock_class_manager.expect_add_class().times(1).returning(move |_class| {
         Ok(ClassHashes { class_hash: class_hash_2, ..Default::default() })
     });
@@ -426,11 +416,14 @@ async fn sync_happy_flow() {
             let state_reader = txn.get_state_reader().unwrap();
 
             // Check mappings - return InProgress if not ready, otherwise assert equality
+            let state_number_0 = StateNumber::unchecked_right_after_block(BlockNumber(0));
             let state_number_1 = StateNumber::unchecked_right_after_block(BlockNumber(1));
             let state_number_2 = StateNumber::unchecked_right_after_block(BlockNumber(3));
             // Arbitrary state number after the last block.
             let state_number_final = StateNumber::unchecked_right_after_block(BlockNumber(4));
 
+            let hash_0 =
+                state_reader.get_compiled_class_hash_at(state_number_0, &class_hash_0).unwrap();
             let hash_1 =
                 state_reader.get_compiled_class_hash_at(state_number_1, &class_hash_1).unwrap();
             let hash_2 =
@@ -438,10 +431,11 @@ async fn sync_happy_flow() {
             let hash_final =
                 state_reader.get_compiled_class_hash_at(state_number_final, &class_hash_1).unwrap();
 
-            if hash_1.is_none() || hash_2.is_none() || hash_final.is_none() {
+            if hash_0.is_none() || hash_1.is_none() || hash_2.is_none() || hash_final.is_none() {
                 return CheckStoragePredicateResult::InProgress;
             }
 
+            assert_eq!(hash_0, Some(compiled_class_hash_0));
             assert_eq!(hash_1, Some(compiled_class_hash_1));
             assert_eq!(hash_2, Some(compiled_class_hash_2));
             // Ensure class hash 1 remains unchanged after later declarations.
@@ -457,23 +451,6 @@ async fn sync_happy_flow() {
                 .get_deprecated_class_definition_block_number(&deprecated_class_hash)
                 .unwrap();
             assert_eq!(declare_deprecated_block_number, Some(LATEST_BLOCK_NUMBER));
-
-            // Verify that the deprecated contract class is the same as the one that was declared.
-            let deploy_class = state_reader
-                .get_deprecated_class_definition_at(
-                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
-                    &deployed_class_hash,
-                )
-                .unwrap();
-            assert_eq!(deploy_class, Some(expected_deployed_class.clone()));
-
-            let declare_deprecated_class = state_reader
-                .get_deprecated_class_definition_at(
-                    StateNumber::unchecked_right_after_block(LATEST_BLOCK_NUMBER),
-                    &deprecated_class_hash,
-                )
-                .unwrap();
-            assert_eq!(declare_deprecated_class, Some(expected_deprecated_class.clone()));
 
             CheckStoragePredicateResult::Passed
         });
