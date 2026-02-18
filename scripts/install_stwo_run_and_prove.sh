@@ -36,6 +36,7 @@ BINARY_NAME="stwo_run_and_prove"
 # Build and install directories.
 TOOLS_DIR="${REPO_ROOT}/target/tools"
 BINARY_PATH="${TOOLS_DIR}/${BINARY_NAME}"
+REVISION_FILE="${TOOLS_DIR}/${BINARY_NAME}.rev"
 
 # Check for required tools.
 check_requirements() {
@@ -88,6 +89,7 @@ install_binary() {
     info "Installing ${BINARY_NAME} to ${BINARY_PATH}..."
     cp "${BUILD_DIR}/target/release/${COMPILED_BINARY_NAME}" "${BINARY_PATH}"
     chmod +x "${BINARY_PATH}"
+    echo "${PROVING_UTILS_REV}" > "${REVISION_FILE}"
 
     success "Binary installed to ${BINARY_PATH}"
 }
@@ -128,14 +130,18 @@ print_instructions() {
 }
 
 # Check if binary already exists and skip if requested.
+# TODO(Aviv): Temporary optimization until we switch to the stwo library crate directly.
 check_existing() {
-    if [ -f "${BINARY_PATH}" ]; then
-        if [ "${SKIP_BUILD_IF_EXISTS:-0}" = "1" ]; then
-            info "Binary already exists at ${BINARY_PATH}, skipping build (SKIP_BUILD_IF_EXISTS=1)"
+    if [ -f "${BINARY_PATH}" ] && [ "${SKIP_BUILD_IF_EXISTS:-0}" = "1" ]; then
+        local cached_rev
+        cached_rev=$(cat "${REVISION_FILE}" 2>/dev/null || echo "")
+        if [ "${cached_rev}" = "${PROVING_UTILS_REV}" ]; then
+            info "Binary at ${BINARY_PATH} matches revision ${PROVING_UTILS_REV}, skipping build"
             print_instructions
             exit 0
         fi
-
+        warn "Revision changed (${cached_rev:-unknown} -> ${PROVING_UTILS_REV}), rebuilding"
+    elif [ -f "${BINARY_PATH}" ]; then
         warn "Binary already exists at ${BINARY_PATH}, will rebuild"
     fi
 }
