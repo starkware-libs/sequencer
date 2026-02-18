@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
@@ -11,6 +12,8 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::UnixTimestamp;
+use starknet_api::transaction::TransactionHash;
 use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
@@ -31,6 +34,10 @@ use tracing::instrument;
 #[async_trait]
 pub trait GatewayClient: Send + Sync {
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<GatewayOutput>;
+    async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, UnixTimestamp>,
+    ) -> GatewayClientResult<()>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -41,6 +48,7 @@ pub trait GatewayClient: Send + Sync {
 )]
 pub enum GatewayRequest {
     AddTransaction(GatewayInput),
+    UpdateTimestamps(HashMap<TransactionHash, UnixTimestamp>),
 }
 impl_debug_for_infra_requests_and_responses!(GatewayRequest);
 impl_labeled_request!(GatewayRequest, GatewayRequestLabelValue);
@@ -49,6 +57,7 @@ impl PrioritizedRequest for GatewayRequest {}
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum GatewayResponse {
     AddTransaction(GatewayResult<GatewayOutput>),
+    UpdateTimestamps(GatewayResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(GatewayResponse);
 
@@ -73,6 +82,23 @@ where
             request,
             GatewayResponse,
             AddTransaction,
+            GatewayClientError,
+            GatewayError,
+            Direct
+        )
+    }
+
+    #[instrument(skip(self))]
+    async fn update_timestamps(
+        &self,
+        mappings: HashMap<TransactionHash, UnixTimestamp>,
+    ) -> GatewayClientResult<()> {
+        let request = GatewayRequest::UpdateTimestamps(mappings);
+        handle_all_response_variants!(
+            self,
+            request,
+            GatewayResponse,
+            UpdateTimestamps,
             GatewayClientError,
             GatewayError,
             Direct
