@@ -82,7 +82,8 @@ impl SerializeConfig for HttpServerStaticConfig {
             ser_param(
                 "bootstrap_enabled",
                 &self.bootstrap_enabled,
-                "Whether bootstrap mode is enabled.",
+                "Whether bootstrap mode is enabled. When true and storage is empty, the node will \
+                 self-bootstrap by executing hardcoded declare/deploy transactions.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

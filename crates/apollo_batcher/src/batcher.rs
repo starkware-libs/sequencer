@@ -1349,14 +1349,8 @@ pub async fn create_batcher(
     )
     .expect("Failed to open batcher's storage");
 
-    // Check if storage is empty to determine bootstrap mode.
-    let storage_is_empty = storage_reader
-        .begin_ro_txn()
-        .expect("Failed to open read transaction for bootstrap check")
-        .get_state_marker()
-        .expect("Failed to read state marker for bootstrap check")
-        == BlockNumber(0);
-    let bootstrap_state_machine = Arc::new(BootstrapStateMachine::new(storage_is_empty));
+    let bootstrap_state_machine =
+        Arc::new(BootstrapStateMachine::new(config.static_config.bootstrap_enabled));
 
     let storage_reader_server =
         create_storage_reader_server::<

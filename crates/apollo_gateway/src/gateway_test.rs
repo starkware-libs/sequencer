@@ -138,6 +138,7 @@ fn mock_dependencies() -> MockDependencies {
             authorized_declarer_accounts: None,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
             batcher_storage_reader_url: String::new(),
+            bootstrap_enabled: false,
         },
     };
     let state_reader_factory =
