@@ -81,7 +81,7 @@ jobs:
       - run: cargo test -p blockifier --features tracing
 
   benchmarking:
-    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    runs-on: namespace-profile-yoav-cache-testing-profile
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to benchmark the old code.
