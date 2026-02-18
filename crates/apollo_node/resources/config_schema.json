@@ -229,15 +229,10 @@
     "privacy": "Public",
     "value": false
   },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
-    "description": "Enables Cairo native execution.",
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_run_mode": {
+    "description": "Cairo native execution mode. 'off' disables native execution, 'synchronouscompilation' compiles synchronously, and 'asynchronouscompilation' compiles asynchronously.",
     "privacy": "Public",
-    "value": false
-  },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
-    "description": "Block Sequencer main program while compiling sierra, for testing.",
-    "privacy": "Public",
-    "value": false
+    "value": "off"
   },
   "batcher_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
@@ -2554,15 +2549,10 @@
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
-    "description": "Enables Cairo native execution.",
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_run_mode": {
+    "description": "Cairo native execution mode. 'off' disables native execution, 'synchronouscompilation' compiles synchronously, and 'asynchronouscompilation' compiles asynchronously.",
     "privacy": "Public",
-    "value": false
-  },
-  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": {
-    "description": "Block Sequencer main program while compiling sierra, for testing.",
-    "privacy": "Public",
-    "value": false
+    "value": "off"
   },
   "gateway_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
