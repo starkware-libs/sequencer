@@ -134,7 +134,6 @@ pub struct RunnerOutput {
 /// - `C`: Classes provider for fetching compiled classes.
 /// - `S`: Storage proof provider for fetching Patricia proofs.
 /// - `V`: Virtual block executor for transaction execution.
-#[allow(dead_code)]
 pub(crate) struct Runner<C, S, V>
 where
     C: ClassesProvider + Sync,
@@ -150,7 +149,6 @@ where
     pub(crate) chain_id: ChainId,
 }
 
-#[allow(dead_code)]
 impl<C, S, V> Runner<C, S, V>
 where
     C: ClassesProvider + Sync,

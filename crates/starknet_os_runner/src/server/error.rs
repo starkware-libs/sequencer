@@ -57,6 +57,7 @@ impl From<VirtualSnosProverError> for ErrorObjectOwned {
                 }
             }
             VirtualSnosProverError::RunnerError(e) => internal_server_error(e),
+            #[cfg(feature = "stwo_proving")]
             VirtualSnosProverError::ProvingError(e) => internal_server_error(e),
             VirtualSnosProverError::OutputParseError(e) => internal_server_error(e),
             VirtualSnosProverError::ProgramOutputError(e) => internal_server_error(e),

@@ -32,7 +32,6 @@ use crate::errors::VirtualBlockExecutorError;
 /// Captures execution data for a virtual block (multiple transactions).
 ///
 /// This struct contains all the execution data needed for proof generation.
-#[allow(dead_code)]
 pub(crate) struct BaseBlockInfo {
     pub(crate) block_context: BlockContext,
     /// The block hash of the base block,
@@ -98,7 +97,6 @@ impl TryFrom<(BlockHeader, ChainInfo)> for BaseBlockInfo {
     }
 }
 
-#[allow(dead_code)]
 pub(crate) struct VirtualBlockExecutionData {
     /// Execution outputs for all transactions in the virtual block.
     pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
@@ -140,7 +138,6 @@ pub(crate) struct VirtualBlockExecutionData {
 /// let execution_data = executor.execute(block_id, contract_class_manager, transactions)?;
 /// // Use execution_data to build OS input for proving...
 /// ```
-#[allow(dead_code)]
 pub(crate) trait VirtualBlockExecutor: Send + 'static {
     /// Executes a virtual block based on the state and context at the given block ID.
     ///
@@ -304,7 +301,6 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
 }
 
-#[allow(dead_code)]
 pub(crate) struct RpcVirtualBlockExecutor {
     /// The state reader for the virtual block executor.
     pub(crate) rpc_state_reader: RpcStateReader,
@@ -312,7 +308,6 @@ pub(crate) struct RpcVirtualBlockExecutor {
     pub(crate) validate_txs: bool,
 }
 
-#[allow(dead_code)]
 impl RpcVirtualBlockExecutor {
     pub(crate) fn new(node_url: String, chain_info: ChainInfo, block_id: BlockId) -> Self {
         Self {

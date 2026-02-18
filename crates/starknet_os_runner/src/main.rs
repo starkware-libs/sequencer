@@ -1,21 +1,28 @@
 //! CLI for Starknet OS Runner.
 
-use std::net::SocketAddr;
+#[cfg(not(feature = "stwo_proving"))]
+fn main() {
+    eprintln!("The `starknet_os_runner` binary requires the `stwo_proving` feature.");
+    std::process::exit(1);
+}
 
-use anyhow::Context;
-use clap::Parser;
-use jsonrpsee::server::{ServerBuilder, ServerConfig};
-use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
-use starknet_os_runner::server::cors::{build_cors_layer, cors_mode};
-use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
-use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
-use tower::ServiceBuilder;
-use tracing::info;
-use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
-
+#[cfg(feature = "stwo_proving")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    use std::net::SocketAddr;
+
+    use anyhow::Context;
+    use clap::Parser;
+    use jsonrpsee::server::{ServerBuilder, ServerConfig};
+    use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
+    use starknet_os_runner::server::cors::{build_cors_layer, cors_mode};
+    use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
+    use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
+    use tower::ServiceBuilder;
+    use tracing::info;
+    use tracing_subscriber::prelude::*;
+    use tracing_subscriber::{fmt, EnvFilter};
+
     // TODO(Avi): Revisit the starknet_os_runner=debug default once the service stabilizes.
     // Initialize tracing with RUST_LOG (default: info,starknet_os_runner=debug).
     let filter = EnvFilter::try_from_default_env()
