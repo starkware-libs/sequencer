@@ -16,7 +16,7 @@ use apollo_starknet_client::reader::{
     StorageEntry,
 };
 use apollo_starknet_client::ClientError;
-use apollo_storage::class_manager::ClassManagerStorageWriter;
+use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
@@ -28,7 +28,14 @@ use mockall::predicate;
 use papyrus_common::state::MigratedCompiledClassHashEntry;
 use pretty_assertions::assert_eq;
 use reqwest::StatusCode;
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    StarknetVersion,
+};
 use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -40,6 +47,7 @@ use tokio_stream::StreamExt;
 use super::state_update_stream::StateUpdateStreamConfig;
 use super::ApiContractClass;
 use crate::sources::central::{CentralError, CentralSourceTrait, GenericCentralSource};
+use crate::STARKNET_VERSION_TO_COMPILE_FROM;
 
 const TEST_CONCURRENT_REQUESTS: usize = 300;
 
@@ -395,13 +403,26 @@ async fn stream_state_updates() {
         Ok(Some(GenericContractClass::Cairo0ContractClass(contract_class3_clone.clone())))
     });
     let ((reader, mut writer), _temp_dir) = get_test_storage();
-    writer
-        .begin_rw_txn()
-        .unwrap()
-        .update_compiler_backward_compatibility_marker(&FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER)
-        .unwrap()
-        .commit()
-        .unwrap();
+    let mut txn = writer.begin_rw_txn().unwrap();
+    for block_number in 0..END_BLOCK_NUMBER {
+        let block_number = BlockNumber(block_number);
+        let starknet_version = if block_number < FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER {
+            StarknetVersion::PreV0_9_1
+        } else {
+            STARKNET_VERSION_TO_COMPILE_FROM
+        };
+        let header = BlockHeader {
+            block_hash: BlockHash(StarkHash::from(block_number.0 + 1)),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number,
+                starknet_version,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        txn = txn.append_header(block_number, &header).unwrap();
+    }
+    txn.commit().unwrap();
     let mut state_update_stream_config = state_update_stream_config_for_test();
     // Ensure all state updates can be scheduled together.
     state_update_stream_config.max_state_updates_to_download =
