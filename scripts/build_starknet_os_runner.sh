@@ -10,7 +10,7 @@
 #   ./scripts/build_starknet_os_runner.sh [OPTIONS]
 #
 # Options:
-#   --proving-utils-rev REVISION  Override the default pinned revision (default: e16f9d0)
+#   --proving-utils-rev REVISION  Override the default pinned revision (default: 3ae985d)
 #   --image-tag TAG               Docker image tag (default: os_runner:latest)
 #   --build-mode MODE             Build mode: release or debug (default: release)
 #   --docker-build-args ARGS      Additional arguments to pass to docker build
