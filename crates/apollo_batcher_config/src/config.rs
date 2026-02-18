@@ -228,7 +228,7 @@ impl SerializeConfig for FirstBlockWithPartialBlockHash {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_batcher_static_config"))]
 pub struct BatcherStaticConfig {
-    // TODO(Arni): Set nested validation for storage config.
+    #[validate(nested)]
     pub storage: StorageConfig,
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
