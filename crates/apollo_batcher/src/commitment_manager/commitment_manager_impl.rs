@@ -478,16 +478,8 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 Ok(FinalBlockCommitment { height, block_hash: None, global_root })
             }
             true => {
-<<<<<<< HEAD
-                info!("Finalizing commitment for block {height} with calculating block hash.");
-                let (previous_block_hash, partial_block_hash_components) =
-||||||| 829d7d24fa
-                info!("Finalizing commitment for block {height} with calculating block hash.");
-                let (parent_hash, partial_block_hash_components) =
-=======
                 debug!("Finalizing commitment for block {height} with calculating block hash.");
                 let (parent_hash, partial_block_hash_components) =
->>>>>>> origin/main-v0.14.1-committer
                     storage_reader.get_parent_hash_and_partial_block_hash_components(height)?;
                 let previous_block_hash = previous_block_hash.ok_or_else(|| {
                     CommitmentManagerError::MissingBlockHash(height.prev().expect(
