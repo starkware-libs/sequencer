@@ -346,6 +346,7 @@ where
 /// This trait abstracts the execution of transactions through the virtual OS,
 /// allowing different runner implementations (RPC-based, mock, etc.) to be used
 /// interchangeably.
+#[allow(dead_code)]
 #[async_trait]
 pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
     /// Runs the Starknet virtual OS with the given transactions on top of the specified block.
@@ -366,6 +367,7 @@ pub(crate) trait VirtualSnosRunner: Clone + Send + Sync {
 /// - `Arc<StateReaderAndContractManager<RpcStateReader>>` for class fetching.
 /// - `RpcStorageProofsProvider` for storage proofs.
 /// - `RpcVirtualBlockExecutor` for transaction execution.
+#[allow(dead_code)]
 pub(crate) type RpcRunner = Runner<
     Arc<StateReaderAndContractManager<RpcStateReader>>,
     RpcStorageProofsProvider,
@@ -391,6 +393,7 @@ pub(crate) type RpcRunner = Runner<
 /// let runner = factory.create_runner(BlockId::Number(BlockNumber(800000)));
 /// let output = runner.run_virtual_os(txs).await?;
 /// ```
+#[allow(dead_code)]
 #[derive(Clone)]
 pub(crate) struct RpcRunnerFactory {
     /// URL of the RPC node.
@@ -402,6 +405,7 @@ pub(crate) struct RpcRunnerFactory {
     runner_config: RunnerConfig,
 }
 
+#[allow(dead_code)]
 impl RpcRunnerFactory {
     /// Creates a new RPC runner factory.
     pub(crate) fn new(
