@@ -9,7 +9,7 @@ use apollo_starknet_client::reader::{
     StarknetReader,
     StateUpdate,
 };
-use apollo_storage::class_manager::ClassManagerStorageReader;
+use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -382,8 +382,9 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
     let txn = storage_reader.begin_ro_txn()?;
     let state_reader = txn.get_state_reader()?;
     let state_number = StateNumber::unchecked_right_after_block(block_number);
-    let compiler_backward_compatibility_marker =
-        txn.get_compiler_backward_compatibility_marker()?;
+    let starknet_version = txn
+        .get_starknet_version(block_number)?
+        .expect("State sync should only process blocks with existing headers.");
 
     // Check declared classes.
     if let Ok(Some(class)) = state_reader.get_class_definition_at(state_number, &class_hash) {
@@ -419,7 +420,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
                     (Some(ApiContractClass::DeprecatedContractClass(class)), None)
                 }
                 GenericContractClass::Cairo1ContractClass(class) => {
-                    let casm = if compiler_backward_compatibility_marker > block_number {
+                    let casm = if starknet_version < crate::STARKNET_VERSION_TO_COMPILE_FROM {
                         apollo_starknet_client
                             .compiled_class_by_hash(class_hash)
                             .await
