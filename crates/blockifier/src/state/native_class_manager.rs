@@ -17,6 +17,7 @@ use crate::blockifier::config::{
     CairoNativeRunConfig,
     ContractClassManagerConfig,
     NativeClassesWhitelist,
+    RunCairoNativeOptions,
 };
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -65,14 +66,14 @@ impl NativeClassManager {
     /// Returns the contract class manager.
     /// NOTE: the compilation worker is not spawned if one of the following conditions is met:
     /// 1. The feature `cairo_native` is not enabled.
-    /// 2. `config.run_cairo_native` is `false`.
-    /// 3. `config.wait_on_native_compilation` is `true`.
+    /// 2. `config.run_cairo_native_options` is `Off`.
+    /// 3. `config.run_cairo_native_options` is `WaitOnCompilation`.
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let class_cache = RawClassCache::new(config.contract_cache_size);
         let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
         let cairo_native_run_config = config.cairo_native_run_config;
-        if !cairo_native_run_config.run_cairo_native {
+        if cairo_native_run_config.run_cairo_native_options == RunCairoNativeOptions::Off {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
                 cairo_native_run_config,
@@ -85,7 +86,9 @@ impl NativeClassManager {
 
         let compiler_config = config.native_compiler_config.clone();
         let compiler = Arc::new(SierraToNativeCompiler::new(compiler_config));
-        if cairo_native_run_config.wait_on_native_compilation {
+        if cairo_native_run_config.run_cairo_native_options
+            == RunCairoNativeOptions::WaitOnCompilation
+        {
             // Compilation requests are processed synchronously. No need to start the worker.
             return NativeClassManager {
                 cairo_native_run_config,
@@ -128,12 +131,11 @@ impl NativeClassManager {
     ) -> Option<RunnableCompiledClass> {
         let cached_class = self.class_cache.get(class_hash)?;
         if let CompiledClasses::V1(..) = cached_class {
-            // When `wait_on_native_compilation` is active, all V1 classes should have been compiled
-            // to native synchronously. A V1 cache entry indicates a pipeline bug.
-            // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
-            // `run_cairo_native` is false.
-            assert!(
-                !self.wait_on_native_compilation(),
+            // When native mode is WaitOnCompilation, all V1 classes should have been compiled to
+            // native synchronously. A V1 cache entry indicates a pipeline bug.
+            assert_ne!(
+                self.run_cairo_native_options(),
+                RunCairoNativeOptions::WaitOnCompilation,
                 "Manager did not wait on native compilation."
             );
         }
@@ -154,43 +156,42 @@ impl NativeClassManager {
 
     /// Caches the compiled class.
     /// For Cairo 1 classes:
-    /// * if Native mode is enabled, triggers compilation to Native that will eventually be cached.
-    /// * If `wait_on_native_compilation` is true, caches the Native variant immediately.
+    /// * if Native mode is DontWaitOnCompilation, triggers async compilation to Native.
+    /// * If Native mode is WaitOnCompilation, caches the Native variant immediately.
     pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CompiledClasses) {
         match compiled_class {
             CompiledClasses::V0(_) => self.class_cache.set(class_hash, compiled_class),
             CompiledClasses::V1(compiled_class_v1, sierra_contract_class) => {
-                // TODO(Yoni): instead of these two flag, use an enum.
-                if self.wait_on_native_compilation() {
-                    assert!(self.run_cairo_native(), "Native compilation is disabled.");
-                    let compiler = self.compiler.as_ref().expect("Compiler not available.");
-                    // After this point, the Native class should be cached and available through
-                    // `get_runnable` access.
-                    // Ignore compilation errors for now.
-                    process_compilation_request(
-                        self.class_cache.clone(),
-                        compiler.clone(),
-                        (class_hash, sierra_contract_class, compiled_class_v1),
-                        self.cairo_native_run_config.panic_on_compilation_failure,
-                    )
-                    .unwrap_or(());
-                    return;
-                }
-
                 // Cache the V1 class.
                 self.class_cache.set(
                     class_hash,
                     CompiledClasses::V1(compiled_class_v1.clone(), sierra_contract_class.clone()),
                 );
-                if self.run_cairo_native() {
-                    // Send a non-blocking compilation request.
-                    // Ignore compilation errors for now.
-                    self.send_compilation_request((
-                        class_hash,
-                        sierra_contract_class,
-                        compiled_class_v1,
-                    ))
-                    .unwrap_or(());
+                match self.run_cairo_native_options() {
+                    RunCairoNativeOptions::Off => {}
+                    RunCairoNativeOptions::WaitOnCompilation => {
+                        let compiler = self.compiler.as_ref().expect("Compiler not available.");
+                        // After this point, the Native class should be cached and available
+                        // through `get_runnable` access.
+                        // Ignore compilation errors for now.
+                        process_compilation_request(
+                            self.class_cache.clone(),
+                            compiler.clone(),
+                            (class_hash, sierra_contract_class, compiled_class_v1),
+                            self.cairo_native_run_config.panic_on_compilation_failure,
+                        )
+                        .unwrap_or(());
+                    }
+                    RunCairoNativeOptions::DontWaitOnCompilation => {
+                        // Send a non-blocking compilation request.
+                        // Ignore compilation errors for now.
+                        self.send_compilation_request((
+                            class_hash,
+                            sierra_contract_class,
+                            compiled_class_v1,
+                        ))
+                        .unwrap_or(());
+                    }
                 }
             }
             // TODO(Yoni): consider panic since this flow should not be reachable.

@@ -155,12 +155,9 @@ impl Default for ContractClassManagerConfig {
 
 impl ContractClassManagerConfig {
     #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
-    pub fn create_for_testing(run_cairo_native: bool, wait_on_native_compilation: bool) -> Self {
-        let cairo_native_run_config = CairoNativeRunConfig {
-            run_cairo_native,
-            wait_on_native_compilation,
-            ..Default::default()
-        };
+    pub fn create_for_testing(run_cairo_native_options: RunCairoNativeOptions) -> Self {
+        let cairo_native_run_config =
+            CairoNativeRunConfig { run_cairo_native_options, ..Default::default() };
         let native_compiler_config = SierraCompilationConfig::create_for_testing();
         Self { cairo_native_run_config, native_compiler_config, ..Default::default() }
     }
@@ -241,8 +238,7 @@ impl NativeClassesWhitelist {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
-    pub run_cairo_native: bool,
-    pub wait_on_native_compilation: bool,
+    pub run_cairo_native_options: RunCairoNativeOptions,
     pub channel_size: usize,
     // TODO(Arni): Remove this field when the value is held in the batcher's dynamic config.
     pub native_classes_whitelist: NativeClassesWhitelist,
@@ -252,11 +248,7 @@ pub struct CairoNativeRunConfig {
 impl Default for CairoNativeRunConfig {
     fn default() -> Self {
         Self {
-            #[cfg(feature = "cairo_native")]
-            run_cairo_native: true,
-            #[cfg(not(feature = "cairo_native"))]
-            run_cairo_native: false,
-            wait_on_native_compilation: false,
+            run_cairo_native_options: RunCairoNativeOptions::default(),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: NativeClassesWhitelist::All,
             panic_on_compilation_failure: false,
@@ -268,15 +260,11 @@ impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "run_cairo_native",
-                &self.run_cairo_native,
-                "Enables Cairo native execution.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "wait_on_native_compilation",
-                &self.wait_on_native_compilation,
-                "Block Sequencer main program while compiling sierra, for testing.",
+                "run_cairo_native_options",
+                &format!("{:?}", self.run_cairo_native_options).to_lowercase(),
+                "Cairo native execution mode. 'off' disables native execution, \
+                 'waitoncompilation' compiles synchronously, and 'dontwaitoncompilation' compiles \
+                 asynchronously.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -299,5 +287,22 @@ impl SerializeConfig for CairoNativeRunConfig {
                 ParamPrivacyInput::Public,
             ),
         ])
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RunCairoNativeOptions {
+    Off,
+    WaitOnCompilation,
+    DontWaitOnCompilation,
+}
+
+impl Default for RunCairoNativeOptions {
+    fn default() -> Self {
+        #[cfg(feature = "cairo_native")]
+        return Self::DontWaitOnCompilation;
+        #[cfg(not(feature = "cairo_native"))]
+        return Self::Off;
     }
 }
