@@ -174,11 +174,12 @@ pub enum StorageReaderResponse {
 pub struct GenericStorageReaderServerHandler;
 
 #[async_trait]
-impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse>
+impl StorageReaderServerHandler<StorageReaderRequest, StorageReaderResponse, ()>
     for GenericStorageReaderServerHandler
 {
     async fn handle_request(
         storage_reader: &StorageReader,
+        _extra_state: &(),
         request: StorageReaderRequest,
     ) -> Result<StorageReaderResponse, StorageError> {
         let txn = storage_reader.begin_ro_txn()?;

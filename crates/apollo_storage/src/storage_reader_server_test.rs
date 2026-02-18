@@ -33,6 +33,7 @@ struct TestHandler;
 impl StorageReaderServerHandler<TestRequest, TestResponse> for TestHandler {
     async fn handle_request(
         storage_reader: &StorageReader,
+        _extra_state: &(),
         request: TestRequest,
     ) -> Result<TestResponse, StorageError> {
         let block_number = BlockNumber(request.block_number);
@@ -49,6 +50,7 @@ struct ErrorHandler;
 impl StorageReaderServerHandler<TestRequest, TestResponse> for ErrorHandler {
     async fn handle_request(
         _storage_reader: &StorageReader,
+        _extra_state: &(),
         _request: TestRequest,
     ) -> Result<TestResponse, StorageError> {
         Err(StorageError::DBInconsistency { msg: "Test error".to_string() })
@@ -74,8 +76,11 @@ async fn endpoint_successful_query() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        (),
+    );
     let app = server.app();
 
     // Test query for existing block
@@ -95,8 +100,11 @@ async fn endpoint_query_nonexistent_block() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        (),
+    );
     let app = server.app();
 
     // Test query for non-existent block
@@ -116,8 +124,11 @@ async fn endpoint_handler_error() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        (),
+    );
     let app = server.app();
 
     let request = TestRequest { block_number: 0 };
@@ -140,8 +151,11 @@ async fn endpoint_invalid_json() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        (),
+    );
     let app = server.app();
 
     // Test with invalid JSON
