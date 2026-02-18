@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771360183932,
+  "lastUpdate": 1771402123488,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -747,6 +747,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1348.8627038299999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2cbed3a7e9569c3d49b3767c6e680fc14e28e680",
+          "message": "apollo_dashboard: add metric for time to verify proofs (#12666)",
+          "timestamp": "2026-02-18T07:48:12Z",
+          "tree_id": "184e739064ab6f25711d4af0c573703fd7e6d14f",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2cbed3a7e9569c3d49b3767c6e680fc14e28e680"
+        },
+        "date": 1771402123173,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 832.3672806000001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1192.6021776,
             "unit": "ms"
           }
         ]
