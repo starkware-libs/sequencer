@@ -6,18 +6,14 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_transaction_converter::ProgramOutput;
+use cairo_air::utils::ProofFormat;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use proving_utils::proof_encoding::ProofBytes;
-use proving_utils::simple_bootloader_input::SimpleBootloaderInput;
-use proving_utils::stwo_run_and_prove::{
-    run_stwo_run_and_prove,
-    ProofFormat,
-    StwoRunAndProveConfig,
-    StwoRunAndProveInput,
-};
 use starknet_api::transaction::fields::Proof;
+use stwo_run_and_prove_lib::ProveConfig;
 use tempfile::NamedTempFile;
 
+use super::stwo_run_and_prove::prove_pie_in_memory;
 use crate::errors::ProvingError;
 
 /// Bootloader program file name.
@@ -41,7 +37,11 @@ pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingE
     })
 }
 
-/// Proves a Cairo PIE using the stwo prover.
+/// Proves a Cairo PIE using the stwo prover with in-memory CairoPie passing.
+///
+/// Passes CairoPie directly to the prover library, avoiding disk I/O for the input.
+/// The proof output is still written to a temporary file. The synchronous proving work
+/// is offloaded to a blocking thread inside `prove_pie_in_memory`.
 ///
 /// # Arguments
 ///
@@ -49,49 +49,31 @@ pub(crate) fn resolve_resource_path(file_name: &str) -> Result<PathBuf, ProvingE
 ///
 /// # Returns
 ///
-/// The prover output containing the proof and proof facts.
+/// The prover output containing the proof and program output.
 pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingError> {
-    // Create temporary files.
-    let create_temp_file_and_path = || -> Result<(NamedTempFile, PathBuf), ProvingError> {
-        let file = NamedTempFile::new().map_err(ProvingError::CreateTempFile)?;
-        let path = file.path().to_path_buf();
-        Ok((file, path))
-    };
-
-    let (_cairo_pie_file, cairo_pie_path) = create_temp_file_and_path()?;
-    let (_program_input_file, program_input_path) = create_temp_file_and_path()?;
+    // Create temporary files for output only.
     let (_proof_file, proof_path) = create_temp_file_and_path()?;
     let (_program_output_file, program_output_path) = create_temp_file_and_path()?;
 
-    // Write Cairo PIE to zip file.
-    cairo_pie
-        .write_zip_file(&cairo_pie_path, true /* merge_extra_segments */)
-        .map_err(ProvingError::WriteCairoPie)?;
-
-    // Write program input.
-    let program_input = SimpleBootloaderInput::from_cairo_pie_path(&cairo_pie_path);
-    let program_input_str =
-        serde_json::to_string(&program_input).map_err(ProvingError::SerializeProgramInput)?;
-    std::fs::write(&program_input_path, &program_input_str)
-        .map_err(ProvingError::WriteProgramInput)?;
-
-    // Resolve bootloader path.
+    // Resolve the bootloader program path.
     let bootloader_path = resolve_resource_path(BOOTLOADER_FILE)?;
 
-    // Build prover input.
-    let input = StwoRunAndProveInput {
-        program_path: bootloader_path,
-        program_input_path: Some(program_input_path),
-        prover_params_path: None,
-        proof_output_path: proof_path.clone(),
-        program_output_path: Some(program_output_path.clone()),
+    // Configure the prover.
+    let prove_config = ProveConfig {
+        proof_path: proof_path.clone(),
+        proof_format: ProofFormat::Binary,
+        verify: false,
+        prover_params_json: None,
     };
 
-    // Configure the prover.
-    let config = StwoRunAndProveConfig { proof_format: ProofFormat::Binary, ..Default::default() };
-
-    // Run the prover.
-    run_stwo_run_and_prove(&input, &config).await?;
+    // Run the prover with in-memory CairoPie.
+    prove_pie_in_memory(
+        bootloader_path,
+        cairo_pie,
+        Some(program_output_path.clone()),
+        prove_config,
+    )
+    .await?;
 
     // Read and decompress the proof.
     let proof_bytes = ProofBytes::from_file(&proof_path).map_err(ProvingError::ReadProof)?;
@@ -106,4 +88,10 @@ pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingEr
     let proof: Proof = proof_bytes.into();
 
     Ok(ProverOutput { proof, program_output })
+}
+
+fn create_temp_file_and_path() -> Result<(NamedTempFile, PathBuf), ProvingError> {
+    let file = NamedTempFile::new().map_err(ProvingError::CreateTempFile)?;
+    let path = file.path().to_path_buf();
+    Ok((file, path))
 }
