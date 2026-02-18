@@ -11,4 +11,5 @@ pub use transaction_converter::{
     TransactionConverterResult,
     TransactionConverterTrait,
     VerificationHandle,
+    VerifyAndStoreProofTask,
 };

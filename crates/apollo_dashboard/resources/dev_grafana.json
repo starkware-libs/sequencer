@@ -241,7 +241,7 @@
           }
         },
         {
-          "title": "Proof Manager Store Latency",
+          "title": "Consensus Proof Manager Store Latency",
           "description": "The time it takes to store a proof in the proof manager during proposal validation",
           "type": "timeseries",
           "exprs": [
