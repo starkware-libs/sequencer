@@ -16,6 +16,7 @@ use apollo_starknet_client::reader::{
     StorageEntry,
 };
 use apollo_starknet_client::ClientError;
+use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -26,17 +27,26 @@ use mockall::predicate;
 use papyrus_common::state::MigratedCompiledClassHashEntry;
 use pretty_assertions::assert_eq;
 use reqwest::StatusCode;
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    StarknetVersion,
+};
 use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::{class_hash, contract_address, felt, storage_key};
+use static_assertions::const_assert;
 use tokio_stream::StreamExt;
 
 use super::state_update_stream::StateUpdateStreamConfig;
 use super::ApiContractClass;
 use crate::sources::central::{CentralError, CentralSourceTrait, GenericCentralSource};
+use crate::STARKNET_VERSION_TO_COMPILE_FROM;
 
 const TEST_CONCURRENT_REQUESTS: usize = 300;
 
@@ -271,6 +281,11 @@ async fn stream_block_headers_error() {
 async fn stream_state_updates() {
     const START_BLOCK_NUMBER: u64 = 5;
     const END_BLOCK_NUMBER: u64 = 7;
+    const FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER: BlockNumber = BlockNumber(6);
+    const_assert!(
+        START_BLOCK_NUMBER < FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER.0
+            && FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER.0 < END_BLOCK_NUMBER
+    );
 
     let class_hash1 = class_hash!("0x123");
     let class_hash2 = class_hash!("0x456");
@@ -377,12 +392,38 @@ async fn stream_state_updates() {
     mock.expect_class_by_hash().with(predicate::eq(class_hash3)).times(1).returning(move |_x| {
         Ok(Some(GenericContractClass::Cairo0ContractClass(contract_class3_clone.clone())))
     });
-    let ((reader, _), _temp_dir) = get_test_storage();
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+    let mut txn = writer.begin_rw_txn().unwrap();
+    for block_number in 0..END_BLOCK_NUMBER {
+        let block_number = BlockNumber(block_number);
+        let starknet_version = if block_number < FIRST_BACKWARD_COMPATIBLE_BLOCK_NUMBER {
+            StarknetVersion::PreV0_9_1
+        } else {
+            STARKNET_VERSION_TO_COMPILE_FROM
+        };
+        let header = BlockHeader {
+            block_hash: BlockHash(StarkHash::from(block_number.0 + 1)),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number,
+                starknet_version,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        txn = txn.append_header(block_number, &header).unwrap();
+    }
+    txn.commit().unwrap();
+    let mut state_update_stream_config = state_update_stream_config_for_test();
+    // Ensure all state updates can be scheduled together.
+    state_update_stream_config.max_state_updates_to_download =
+        usize::try_from(END_BLOCK_NUMBER - START_BLOCK_NUMBER)
+            .expect("END_BLOCK_NUMBER should be bigger than START_BLOCK_NUMBER")
+            + 1;
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
         apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
-        state_update_stream_config: state_update_stream_config_for_test(),
+        state_update_stream_config,
         // TODO(shahak): Check that downloaded classes appear in the cache.
         class_cache: get_test_class_cache(),
         compiled_class_cache: get_test_compiled_class_cache(),

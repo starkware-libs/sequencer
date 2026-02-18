@@ -467,6 +467,16 @@ impl<
                         .await?;
                     continue;
                 }
+                let starknet_version = self
+                    .reader
+                    .begin_ro_txn()?
+                    .get_starknet_version(block_number)?
+                    .expect("State sync should only process blocks with existing headers.");
+                assert!(
+                    starknet_version >= STARKNET_VERSION_TO_COMPILE_FROM,
+                    "Expected starknet version >= {STARKNET_VERSION_TO_COMPILE_FROM} for class \
+                     {expected_class_hash} but got {starknet_version}."
+                );
                 let class_hash =
                     class_manager_client.add_class(class.clone()).await?.class_hash;
                 if class_hash != *expected_class_hash {
