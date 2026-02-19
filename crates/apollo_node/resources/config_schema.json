@@ -1149,6 +1149,11 @@
     "privacy": "Public",
     "value": "Enabled"
   },
+  "components.l1_events_scraper.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Enabled"
+  },
   "components.l1_gas_price_provider.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -1373,11 +1378,6 @@
     "description": "URL of the remote component server.",
     "privacy": "Public",
     "value": "localhost"
-  },
-  "components.l1_scraper.execution_mode": {
-    "description": "The component execution mode.",
-    "privacy": "Public",
-    "value": "Enabled"
   },
   "components.mempool.execution_mode": {
     "description": "The component execution mode.",
@@ -2774,6 +2774,41 @@
     "privacy": "Public",
     "value": 8080
   },
+  "l1_events_scraper_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "l1_events_scraper_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "l1_events_scraper_config.finality": {
+    "description": "Number of blocks to wait for finality",
+    "privacy": "Public",
+    "value": 0
+  },
+  "l1_events_scraper_config.l1_block_time_seconds": {
+    "description": "The time it takes for a new L1 block to be created.",
+    "privacy": "Public",
+    "value": 12
+  },
+  "l1_events_scraper_config.polling_interval_seconds": {
+    "description": "Interval in Seconds between each scraping attempt of L1.",
+    "privacy": "Public",
+    "value": 30
+  },
+  "l1_events_scraper_config.set_provider_historic_height_to_l2_genesis": {
+    "description": "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero). This is useful on new chains (or in tests) where there have not been any state updates to the Starknet contract.",
+    "privacy": "Public",
+    "value": false
+  },
+  "l1_events_scraper_config.startup_rewind_time_seconds": {
+    "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
+    "privacy": "Public",
+    "value": 3600
+  },
   "l1_gas_price_provider_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -2888,41 +2923,6 @@
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
     "privacy": "Public",
     "value": 2
-  },
-  "l1_scraper_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "l1_scraper_config.chain_id": {
-    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "pointer_target": "chain_id",
-    "privacy": "Public"
-  },
-  "l1_scraper_config.finality": {
-    "description": "Number of blocks to wait for finality",
-    "privacy": "Public",
-    "value": 0
-  },
-  "l1_scraper_config.l1_block_time_seconds": {
-    "description": "The time it takes for a new L1 block to be created.",
-    "privacy": "Public",
-    "value": 12
-  },
-  "l1_scraper_config.polling_interval_seconds": {
-    "description": "Interval in Seconds between each scraping attempt of L1.",
-    "privacy": "Public",
-    "value": 30
-  },
-  "l1_scraper_config.set_provider_historic_height_to_l2_genesis": {
-    "description": "When true, the scraper will send the provider an historic height set to the L2 genesis (height zero). This is useful on new chains (or in tests) where there have not been any state updates to the Starknet contract.",
-    "privacy": "Public",
-    "value": false
-  },
-  "l1_scraper_config.startup_rewind_time_seconds": {
-    "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
-    "privacy": "Public",
-    "value": 3600
   },
   "mempool_config.#is_none": {
     "description": "Flag for an optional field.",

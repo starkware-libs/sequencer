@@ -67,7 +67,7 @@ fn get_consolidated_config() -> ComponentConfig {
         gateway: base.clone(),
         http_server: ActiveComponentExecutionConfig::enabled(),
         l1_provider: base.clone(),
-        l1_scraper: ActiveComponentExecutionConfig::enabled(),
+        l1_events_scraper: ActiveComponentExecutionConfig::enabled(),
         l1_gas_price_provider: base.clone(),
         l1_gas_price_scraper: ActiveComponentExecutionConfig::enabled(),
         mempool: base.clone(),
