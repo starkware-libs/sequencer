@@ -5,12 +5,12 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_committer::block_committer::input::ReaderConfig;
-use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig};
+use starknet_patricia_storage::map_storage::{CachedStorageConfig, PatriciaCachedStorage};
 use starknet_patricia_storage::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
 use starknet_patricia_storage::storage_trait::{Storage, StorageConfigTrait};
 use validator::{Validate, ValidationError, ValidationErrors};
 
-pub type ApolloStorage = CachedStorage<RocksDbStorage>;
+pub type ApolloStorage = PatriciaCachedStorage<RocksDbStorage>;
 
 pub type ApolloCommitterConfig = CommitterConfig<<ApolloStorage as Storage>::Config>;
 

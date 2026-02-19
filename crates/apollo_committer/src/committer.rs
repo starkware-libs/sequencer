@@ -40,7 +40,7 @@ use starknet_committer::db::serde_db_utils::{
     DbBlockNumber,
 };
 use starknet_committer::forest::filled_forest::FilledForest;
-use starknet_patricia_storage::map_storage::CachedStorage;
+use starknet_patricia_storage::map_storage::PatriciaCachedStorage;
 use starknet_patricia_storage::rocksdb_storage::RocksDbStorage;
 use starknet_patricia_storage::storage_trait::{DbValue, Storage};
 use tracing::{debug, error, info, warn};
@@ -84,7 +84,7 @@ impl StorageConstructor for ApolloStorage {
             RocksDbStorage::new(&db_path, storage_config.inner_storage_config.clone())
                 .inspect_err(|e| error!("Failed to open committer DB: {e}"))
                 .unwrap();
-        CachedStorage::new(rocksdb_storage, storage_config)
+        PatriciaCachedStorage::new(rocksdb_storage, storage_config)
     }
 }
 

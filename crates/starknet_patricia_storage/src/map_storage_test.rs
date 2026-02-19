@@ -3,13 +3,13 @@ use std::num::NonZeroUsize;
 
 use rstest::rstest;
 
-use crate::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
+use crate::map_storage::{CachedStorageConfig, MapStorage, PatriciaCachedStorage};
 use crate::storage_trait::{DbKey, DbValue, EmptyStorageConfig, Storage};
 
 #[rstest]
 #[case::map_storage(MapStorage::default())]
 #[case::cached_storage(
-    CachedStorage::new(MapStorage::default(), CachedStorageConfig {
+    PatriciaCachedStorage::new(MapStorage::default(), CachedStorageConfig {
         cache_size: NonZeroUsize::new(2).unwrap(),
         include_inner_stats: false,
         inner_storage_config: EmptyStorageConfig::default(),
