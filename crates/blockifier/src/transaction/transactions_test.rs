@@ -255,7 +255,7 @@ fn initial_gas_amount_from_block_context(block_context: Option<&BlockContext>) -
 }
 
 struct ExpectedResultTestInvokeTx {
-    // TODO(AvivG): consider changing this to ExtendedExecutionResources.
+    // TODO(AvivG): change this to ExtendedExecutionResources.
     resources: ExecutionResources,
     validate_gas_consumed: u64,
     execute_gas_consumed: u64,
@@ -317,19 +317,17 @@ fn expected_validate_call_info(
                 ) => 100_usize,
                 (selector, _) => panic!("Selector {selector} is not a known validate selector."),
             };
-            ExtendedExecutionResources {
-                vm_resources: ExecutionResources {
-                    n_steps,
-                    n_memory_holes: 0,
-                    builtin_instance_counter: BTreeMap::from([(
-                        BuiltinName::range_check,
-                        n_range_checks,
-                    )]),
-                }
-                .filter_unused_builtins(),
-                // TODO(AvivG): consider testing here with non-default opcode instance counter.
-                opcode_instance_counter: Default::default(),
+
+            ExecutionResources {
+                n_steps,
+                n_memory_holes: 0,
+                builtin_instance_counter: BTreeMap::from([(
+                    BuiltinName::range_check,
+                    n_range_checks,
+                )]),
             }
+            .filter_unused_builtins()
+            .into()
         }
     };
     let initial_gas = match cairo_version {
