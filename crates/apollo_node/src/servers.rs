@@ -25,18 +25,18 @@ use apollo_infra::component_server::{
     RemoteComponentServer,
     WrapperServer,
 };
+use apollo_l1_events::communication::{
+    L1ScraperServer,
+    LocalL1ProviderServer,
+    RemoteL1ProviderServer,
+};
+use apollo_l1_events::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_l1_gas_price::communication::{
     L1GasPriceScraperServer,
     LocalL1GasPriceServer,
     RemoteL1GasPriceServer,
 };
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
-use apollo_l1_provider::communication::{
-    L1ScraperServer,
-    LocalL1ProviderServer,
-    RemoteL1ProviderServer,
-};
-use apollo_l1_provider::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;

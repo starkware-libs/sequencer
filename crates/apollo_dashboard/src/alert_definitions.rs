@@ -15,14 +15,14 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_RETROSPECTIVE_BLOCK_HASH_FROM_STATE_SYNC,
 };
 use apollo_gateway::metrics::GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE;
+use apollo_l1_events::metrics::{
+    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_REORG_DETECTED,
+};
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
-};
-use apollo_l1_provider::metrics::{
-    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
-    L1_MESSAGE_SCRAPER_REORG_DETECTED,
 };
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_metrics::metrics::MetricQueryName;
