@@ -332,11 +332,18 @@ pub struct StreamHandlerConfig {
     pub max_peers: usize,
     /// The maximum number of streams that can be open at the same time, per peer.
     pub max_streams: usize,
+    /// The maximum number of message for each stream that can be buffered.
+    pub max_message_buffer_size: usize,
 }
 
 impl Default for StreamHandlerConfig {
     fn default() -> Self {
-        Self { channel_buffer_capacity: 1000, max_peers: 100, max_streams: 100 }
+        Self {
+            channel_buffer_capacity: 1000,
+            max_peers: 100,
+            max_streams: 100,
+            max_message_buffer_size: 1000,
+        }
     }
 }
 
@@ -359,6 +366,12 @@ impl SerializeConfig for StreamHandlerConfig {
                 "max_streams",
                 &self.max_streams,
                 "The maximum number of streams that can be open at the same time, per peer.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_message_buffer_size",
+                &self.max_message_buffer_size,
+                "The maximum number of message for each stream that can be buffered.",
                 ParamPrivacyInput::Public,
             ),
         ])
