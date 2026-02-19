@@ -135,6 +135,7 @@ use crate::utils::{
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
+#[cfg_attr(test, apollo_proc_macros::upgrade_fields_visibility(pub(crate)))]
 pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReader>,
@@ -181,10 +182,6 @@ pub struct Batcher {
     /// This is returned by the decision_reached function.
     prev_proposal_commitment: Option<(BlockNumber, ProposalCommitment)>,
 
-    // TODO(Yoav): Use `apollo_proc_macros::make_visibility` once it supports fields.
-    #[cfg(test)]
-    pub(crate) commitment_manager: ApolloCommitmentManager,
-    #[cfg(not(test))]
     commitment_manager: ApolloCommitmentManager,
 
     // Kept alive to maintain the server running.
