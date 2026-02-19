@@ -21,15 +21,11 @@ use starknet_api::state::SierraContractClass;
 
 use crate::class_manager::ClassManager;
 use crate::class_storage::FsClassStorage;
+use crate::test_utils::FsClassStorageBuilderForTesting;
 
 impl ClassManager<FsClassStorage> {
     fn new_for_testing(compiler: MockSierraCompilerClient, config: ClassManagerConfig) -> Self {
-        let persistent_root = tempfile::tempdir().unwrap();
-        let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(persistent_root.path()).unwrap();
-        std::fs::create_dir_all(class_hash_storage_path_prefix.path()).unwrap();
-        let storage =
-            FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+        let (storage, _config, _temp_dirs) = FsClassStorageBuilderForTesting::default().build();
 
         let fs_class_manager_config = FsClassManagerConfig {
             static_config: ClassManagerStaticConfig {
