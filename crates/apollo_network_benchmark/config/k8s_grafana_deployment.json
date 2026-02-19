@@ -1,0 +1,109 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "StatefulSet",
+  "metadata": {
+    "name": "grafana"
+  },
+  "spec": {
+    "replicas": 1,
+    "serviceName": "grafana-headless",
+    "selector": {
+      "matchLabels": {
+        "app": "grafana"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "grafana"
+        }
+      },
+      "spec": {
+        "securityContext": {
+          "fsGroup": 472,
+          "runAsUser": 472,
+          "runAsGroup": 472,
+          "runAsNonRoot": true
+        },
+        "containers": [
+          {
+            "name": "grafana",
+            "image": "grafana/grafana:latest",
+            "imagePullPolicy": "Always",
+            "ports": [
+              {
+                "containerPort": 3000
+              }
+            ],
+            "env": [
+              {
+                "name": "GF_PATHS_CONFIG",
+                "value": "/etc/grafana/grafana.ini"
+              }
+            ],
+            "securityContext": {
+              "allowPrivilegeEscalation": false,
+              "readOnlyRootFilesystem": false,
+              "capabilities": {
+                "drop": [
+                  "ALL"
+                ]
+              }
+            },
+            "volumeMounts": [
+              {
+                "name": "grafana-config",
+                "mountPath": "/etc/grafana/grafana.ini",
+                "subPath": "grafana.ini"
+              },
+              {
+                "name": "grafana-config",
+                "mountPath": "/etc/grafana/provisioning/datasources/datasource.yml",
+                "subPath": "datasource.yml"
+              },
+              {
+                "name": "grafana-config",
+                "mountPath": "/etc/grafana/provisioning/dashboards/dashboard_config.yml",
+                "subPath": "dashboard_config.yml"
+              },
+              {
+                "name": "grafana-config",
+                "mountPath": "/etc/grafana/provisioning/dashboards/dashboard.json",
+                "subPath": "dashboard.json"
+              },
+              {
+                "name": "grafana-data",
+                "mountPath": "/var/lib/grafana"
+              }
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "name": "grafana-config",
+            "configMap": {
+              "name": "grafana-config"
+            }
+          }
+        ]
+      }
+    },
+    "volumeClaimTemplates": [
+      {
+        "metadata": {
+          "name": "grafana-data"
+        },
+        "spec": {
+          "accessModes": [
+            "ReadWriteOnce"
+          ],
+          "resources": {
+            "requests": {
+              "storage": "8Gi"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
