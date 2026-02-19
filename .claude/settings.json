@@ -1,0 +1,57 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/*secret*)",
+      "Read(**/*secrets*)",
+      "Read(**/*key*.json)",
+      "Read(**/*keys*.json)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(deployments/monitoring/local/.env)",
+      "Read(echonet/echonet_keys.json)",
+      "Edit(**/*secret*)",
+      "Edit(**/*secrets*)",
+      "Edit(**/*key*.json)",
+      "Edit(**/*keys*.json)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Write(**/*secret*)",
+      "Write(**/*secrets*)",
+      "Write(**/*key*.json)",
+      "Write(**/*keys*.json)",
+      "Write(**/.env)",
+      "Write(**/.env.*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE '(secret|secrets|([^a-zA-Z]|^)keys?[^a-zA-Z].*\\.json|([^a-zA-Z]|^)keys?\\.json|\\.env)'; then echo 'BLOCKED: Cannot edit sensitive files' && exit 1; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE '(secret|secrets|([^a-zA-Z]|^)keys?[^a-zA-Z].*\\.json|([^a-zA-Z]|^)keys?\\.json|\\.env)'; then echo 'BLOCKED: Cannot write to sensitive files' && exit 1; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_BASH_COMMAND\" | grep -qE '(^|&&|;|\\|)\\s*(git|gt) add (-A|--all|\\.)'; then echo 'BLOCKED: Stage specific files instead of git/gt add -A or git/gt add .' && exit 1; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
