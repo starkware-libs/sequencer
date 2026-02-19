@@ -362,10 +362,10 @@ impl StakingManager {
         // Ensure a consistent and deterministic committee ordering.
         // This is important for proposer selection logic to be deterministic and consistent across
         // all nodes.
-        stakers.sort_by_key(|staker| (staker.weight, staker.address));
+        stakers.sort_by_key(|staker| (std::cmp::Reverse(staker.weight), staker.address));
 
         // Take the top `committee_size` stakers by weight.
-        stakers.into_iter().rev().take(committee_size).collect()
+        stakers.into_iter().take(committee_size).collect()
     }
 
     // Returns the block hash used for proposer selection randomness for the given epoch.

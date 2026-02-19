@@ -30,9 +30,14 @@ use crate::staking_contract::MockStakingContract;
 use crate::staking_manager::{Epoch, StakingManager, MIN_EPOCH_LENGTH};
 use crate::utils::MockBlockRandomGenerator;
 
+const STAKER_0: Staker = Staker {
+    address: ContractAddress(PatriciaKey::from_hex_unchecked("0x0")),
+    weight: StakingWeight(1000),
+    public_key: Felt::ZERO,
+};
 const STAKER_1: Staker = Staker {
     address: ContractAddress(PatriciaKey::from_hex_unchecked("0x1")),
-    weight: StakingWeight(1000),
+    weight: StakingWeight(1000), // Equal to STAKER_0.
     public_key: Felt::ONE,
 };
 const STAKER_2: Staker = Staker {
@@ -129,7 +134,7 @@ fn create_state_sync_client_with_block_hash() -> MockStateSyncClient {
 #[case::multiple_stakers_less_than_committee_size(vec![STAKER_1, STAKER_2], vec![STAKER_2, STAKER_1])]
 #[case::multiple_stakers_equal_to_committee_size(vec![STAKER_1, STAKER_2, STAKER_3], vec![STAKER_3, STAKER_2, STAKER_1])]
 #[case::multiple_stakers_greater_than_committee_size(vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4], vec![STAKER_4, STAKER_3, STAKER_2])]
-#[case::multiple_stakers_equal_weights(vec![STAKER_1, STAKER_2, STAKER_3, Staker { address: ContractAddress(PatriciaKey::from_hex_unchecked("0x0")), .. STAKER_1 }], vec![STAKER_3, STAKER_2, STAKER_1])]
+#[case::multiple_stakers_equal_weights(vec![STAKER_1, STAKER_2, STAKER_3, STAKER_0], vec![STAKER_3, STAKER_2, STAKER_0])]
 #[tokio::test]
 async fn get_committee_success(
     default_config: StakingManagerConfig,
@@ -155,6 +160,32 @@ async fn get_committee_success(
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
 
     assert_eq!(*committee.members(), expected_committee);
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_committee_equal_weights_address_ordering(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_0]);
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(MockBlockRandomGenerator::new()),
+        StakingManagerConfig {
+            dynamic_config: test_config_with_committee_size(4),
+            ..default_config
+        },
+        None,
+    );
+
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+
+    assert_eq!(*committee.members(), vec![STAKER_3, STAKER_2, STAKER_0, STAKER_1]);
 }
 
 #[rstest]
