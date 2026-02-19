@@ -222,7 +222,31 @@ impl ClassStorageWriter for StorageTxnRW<'_> {
 
         let marker_block_number =
             markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default();
+        // #region agent log
+        {
+            let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+            for path in &paths {
+                if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                    use std::io::Write;
+                    let _ = writeln!(file, r#"{{"timestamp":{},"location":"class.rs:append_classes","message":"Class marker check","data":{{"class_marker":{},"block_number":{}}},"hypothesisId":"CLASS"}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(), marker_block_number.0, block_number.0);
+                    break;
+                }
+            }
+        }
+        // #endregion
         if block_number != marker_block_number {
+            // #region agent log
+            {
+                let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+                for path in &paths {
+                    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                        use std::io::Write;
+                        let _ = writeln!(file, r#"{{"timestamp":{},"location":"class.rs:append_classes:MISMATCH","message":"CLASS MARKER MISMATCH","data":{{"class_marker":{},"block_number":{}}},"hypothesisId":"CLASS"}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(), marker_block_number.0, block_number.0);
+                        break;
+                    }
+                }
+            }
+            // #endregion
             return Err(StorageError::MarkerMismatch {
                 expected: marker_block_number,
                 found: block_number,
