@@ -9,7 +9,12 @@ use starknet_api::block::{BlockHeader, BlockNumber};
 use tower::util::ServiceExt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
-use crate::storage_reader_server::{ServerConfig, StorageReaderServer, StorageReaderServerHandler};
+use crate::storage_reader_server::{
+    DynamicConfigProvider,
+    ServerConfig,
+    StorageReaderServer,
+    StorageReaderServerHandler,
+};
 use crate::storage_reader_server_test_utils::{get_response, send_storage_query, to_bytes};
 use crate::test_utils::get_test_storage;
 use crate::{StorageError, StorageReader};
@@ -40,6 +45,37 @@ impl StorageReaderServerHandler<TestRequest, TestResponse> for TestHandler {
         let header = txn.get_block_header(block_number)?;
         Ok(TestResponse { found: header.is_some() })
     }
+}
+
+// Mock provider returning enabled=true
+struct MockEnabledDynamicConfigProvider;
+
+#[async_trait]
+impl DynamicConfigProvider for MockEnabledDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: true })
+    }
+}
+
+fn create_enabled_mock_config_provider() -> Arc<dyn DynamicConfigProvider> {
+    Arc::new(MockEnabledDynamicConfigProvider)
+}
+
+struct MockDisabledDynamicConfigProvider;
+
+#[async_trait]
+impl DynamicConfigProvider for MockDisabledDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: false })
+    }
+}
+
+fn create_disabled_mock_config_provider() -> Arc<dyn DynamicConfigProvider> {
+    Arc::new(MockDisabledDynamicConfigProvider)
 }
 
 #[derive(Clone)]
@@ -74,8 +110,12 @@ async fn endpoint_successful_query() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
     let app = server.app();
 
     // Test query for existing block
@@ -95,8 +135,12 @@ async fn endpoint_query_nonexistent_block() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
     let app = server.app();
 
     // Test query for non-existent block
@@ -116,8 +160,13 @@ async fn endpoint_handler_error() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
+
     let app = server.app();
 
     let request = TestRequest { block_number: 0 };
@@ -140,8 +189,12 @@ async fn endpoint_invalid_json() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let mock_config_provider = create_enabled_mock_config_provider();
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        mock_config_provider,
+    );
     let app = server.app();
 
     // Test with invalid JSON

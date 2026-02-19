@@ -8,7 +8,11 @@ use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableCla
 use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
-use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderServerDynamicConfig};
+use apollo_storage::storage_reader_server::{
+    ServerConfig,
+    SharedDynamicConfigProvider,
+    StorageReaderServerDynamicConfig,
+};
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
@@ -257,16 +261,17 @@ impl ClassHashStorage {
     pub fn new(
         storage_config: StorageConfig,
         storage_reader_server_config: ServerConfig,
+        dynamic_config_provider: SharedDynamicConfigProvider,
     ) -> ClassHashStorageResult<Self> {
-        let (reader, writer, storage_reader_server) =
+        let (reader, writer, storage_reader_server): (_, _, GenericStorageReaderServer) =
             apollo_storage::open_storage_with_metric_and_server(
                 storage_config,
                 &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                dynamic_config_provider,
             )?;
 
-        let storage_reader_server_handle =
-            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+        let storage_reader_server_handle = storage_reader_server.spawn();
 
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)), storage_reader_server_handle })
     }
@@ -329,13 +334,17 @@ impl FsClassStorage {
     pub fn new(
         config: FsClassStorageConfig,
         storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
+        dynamic_config_provider: SharedDynamicConfigProvider,
     ) -> FsClassStorageResult<Self> {
         let storage_reader_server_config = ServerConfig {
-            static_config: config.storage_reader_server_static_config.clone(),
+            static_config: config.storage_reader_server_static_config,
             dynamic_config: storage_reader_server_dynamic_config,
         };
-        let class_hash_storage =
-            ClassHashStorage::new(config.class_hash_storage_config, storage_reader_server_config)?;
+        let class_hash_storage = ClassHashStorage::new(
+            config.class_hash_storage_config,
+            storage_reader_server_config,
+            dynamic_config_provider,
+        )?;
         std::fs::create_dir_all(&config.persistent_root)?;
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
