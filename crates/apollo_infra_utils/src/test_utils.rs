@@ -47,7 +47,7 @@ pub enum TestIdentifier {
     MockedStarknetStateUpdateTest,
     LatestProvedBlockEthereumTest,
     EventsFromOtherContractsTest,
-    L1ProviderUnitTests,
+    L1EventsProviderUnitTests,
     AnvilStartsWithNoContractTest,
 }
 

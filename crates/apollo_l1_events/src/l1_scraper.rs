@@ -5,8 +5,8 @@ use std::sync::Arc;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::{debug_every_n, info_every_n_ms};
-use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
-use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
+use apollo_l1_provider_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
+use apollo_l1_provider_types::{Event, SharedL1EventsProviderClient};
 use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use apollo_metrics::metrics::set_unix_now_seconds;
 use apollo_time::time::{Clock, DefaultClock};
@@ -41,7 +41,7 @@ pub struct L1EventsScraper<BaseLayerType: BaseLayerContract + Send + Sync + Debu
     pub config: L1EventsScraperConfig,
     pub base_layer: BaseLayerType,
     pub scrape_from_this_l1_block: Option<L1BlockReference>,
-    pub l1_provider_client: SharedL1ProviderClient,
+    pub l1_events_provider_client: SharedL1EventsProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
     pub clock: Arc<dyn Clock>,
 }
@@ -49,12 +49,12 @@ pub struct L1EventsScraper<BaseLayerType: BaseLayerContract + Send + Sync + Debu
 impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<BaseLayerType> {
     pub async fn new(
         config: L1EventsScraperConfig,
-        l1_provider_client: SharedL1ProviderClient,
+        l1_events_provider_client: SharedL1EventsProviderClient,
         base_layer: BaseLayerType,
         events_identifiers_to_track: &[EventIdentifier],
     ) -> L1EventsScraperResult<Self, BaseLayerType> {
         Ok(Self {
-            l1_provider_client,
+            l1_events_provider_client,
             base_layer,
             scrape_from_this_l1_block: None,
             config,
@@ -102,7 +102,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
             // Sleep at start of loop, as we get here right after successful initialize+break.
             sleep(self.config.polling_interval_seconds).await;
 
-            match self.send_events_to_l1_provider().await {
+            match self.send_events_to_l1_events_provider().await {
                 Err(L1EventsScraperError::BaseLayerError(e)) => {
                     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
                     warn!("BaseLayerError during scraping: {e:?}");
@@ -218,14 +218,16 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
 
         // If this gets too high, send in batches.
         let initialize_result =
-            self.l1_provider_client.initialize(historic_l2_height, events).await;
+            self.l1_events_provider_client.initialize(historic_l2_height, events).await;
         handle_client_error(initialize_result)?;
 
         Ok(latest_l1_block)
     }
 
     /// Scrape recent events and send them to the L1 provider.
-    pub async fn send_events_to_l1_provider(&mut self) -> L1EventsScraperResult<(), BaseLayerType> {
+    pub async fn send_events_to_l1_events_provider(
+        &mut self,
+    ) -> L1EventsScraperResult<(), BaseLayerType> {
         if self.scrape_from_this_l1_block.is_none() {
             panic!(
                 "Scraper initialization was skipped. Must provide a value for \
@@ -243,7 +245,7 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> L1EventsScraper<Bas
         // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
         // Perf hit is minimal, since the scraper is on the same machine as the provider (no
         // network). If this gets spammy, short-circuit on events.empty().
-        let add_events_result = self.l1_provider_client.add_events(events).await;
+        let add_events_result = self.l1_events_provider_client.add_events(events).await;
         handle_client_error(add_events_result)?;
 
         L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK.set_lossy(latest_l1_block.number);
@@ -485,18 +487,18 @@ impl<BaseLayerType: BaseLayerContract + Send + Sync + Debug> PartialEq
 }
 
 fn handle_client_error<BaseLayerType: BaseLayerContract + Send + Sync + Debug>(
-    client_result: Result<(), L1ProviderClientError>,
+    client_result: Result<(), L1EventsProviderClientError>,
 ) -> Result<(), L1EventsScraperError<BaseLayerType>> {
     let Err(error) = client_result else {
         return Ok(());
     };
     match error {
-        L1ProviderClientError::ClientError(client_error) => {
+        L1EventsProviderClientError::ClientError(client_error) => {
             Err(L1EventsScraperError::NetworkError(client_error))
         }
-        L1ProviderClientError::L1ProviderError(L1ProviderError::Uninitialized) => {
-            Err(L1EventsScraperError::NeedsRestart)
-        }
+        L1EventsProviderClientError::L1EventsProviderError(
+            L1EventsProviderError::Uninitialized,
+        ) => Err(L1EventsScraperError::NeedsRestart),
         error => panic!("Unexpected error: {error}"),
     }
 }

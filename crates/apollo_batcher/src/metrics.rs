@@ -47,7 +47,7 @@ define_metrics!(
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", init = 0 },
         MetricHistogram { NUM_TRANSACTION_IN_BLOCK, "batcher_num_transaction_in_block", "Number of transactions in a block"},
 
-        MetricCounter { BATCHER_L1_PROVIDER_ERRORS, "batcher_l1_provider_errors", "Counter of L1 provider errors", init = 0 },
+        MetricCounter { BATCHER_L1_EVENTS_PROVIDER_ERRORS, "batcher_l1_events_provider_errors", "Counter of L1 provider errors", init = 0 },
         MetricCounter { PRECONFIRMED_BLOCK_WRITTEN, "batcher_preconfirmed_block_written", "Counter of preconfirmed blocks written to storage", init = 0 },
         // Block close reason
         LabeledMetricCounter { BLOCK_CLOSE_REASON, "batcher_block_close_reason", "Number of blocks closed by reason", init = 0 , labels = BLOCK_CLOSE_REASON_LABELS},
@@ -117,7 +117,7 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
     REVERTED_TRANSACTIONS.register();
     SYNCED_TRANSACTIONS.register();
 
-    BATCHER_L1_PROVIDER_ERRORS.register();
+    BATCHER_L1_EVENTS_PROVIDER_ERRORS.register();
     PRECONFIRMED_BLOCK_WRITTEN.register();
     BLOCK_CLOSE_REASON.register();
     NUM_TRANSACTION_IN_BLOCK.register();
