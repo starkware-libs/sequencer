@@ -19,7 +19,7 @@ use apollo_infra::component_server::{
 };
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_l1_events::l1_provider::L1Provider;
-use apollo_l1_events::l1_scraper::L1Scraper;
+use apollo_l1_events::l1_scraper::L1EventsScraper;
 use apollo_l1_events::metrics::L1_PROVIDER_INFRA_METRICS;
 use apollo_l1_events::{event_identifiers_to_track, L1ProviderConfig};
 use apollo_l1_provider_types::{
@@ -29,7 +29,7 @@ use apollo_l1_provider_types::{
     L1ProviderResponse,
     ProviderState,
 };
-use apollo_l1_scraper_config::config::L1ScraperConfig;
+use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
@@ -87,7 +87,7 @@ pub(crate) async fn setup_scraper_and_provider<
     E: Error + Send + Sync + Debug + 'static,
 >(
     base_layer: T,
-    l1_scraper_config: Option<L1ScraperConfig>,
+    l1_scraper_config: Option<L1EventsScraperConfig>,
 ) -> LocalComponentClient<L1ProviderRequest, L1ProviderResponse> {
     let fake_clock = Arc::new(TokioLinkedClock::new());
 
@@ -129,12 +129,12 @@ pub(crate) async fn setup_scraper_and_provider<
     });
 
     // Set up the L1 scraper and run it as a server.
-    let l1_scraper_config = l1_scraper_config.unwrap_or_else(|| L1ScraperConfig {
+    let l1_scraper_config = l1_scraper_config.unwrap_or_else(|| L1EventsScraperConfig {
         polling_interval_seconds: POLLING_INTERVAL_DURATION,
         chain_id: CHAIN_ID,
         ..Default::default()
     });
-    let mut scraper = L1Scraper::new(
+    let mut scraper = L1EventsScraper::new(
         l1_scraper_config,
         Arc::new(l1_provider_client.clone()),
         base_layer,

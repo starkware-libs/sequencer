@@ -32,7 +32,7 @@ use apollo_l1_gas_price_provider_config::config::{
     L1GasPriceScraperConfig,
 };
 use apollo_l1_provider_config::config::L1ProviderConfig;
-use apollo_l1_scraper_config::config::L1ScraperConfig;
+use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -230,7 +230,7 @@ pub struct SequencerNodeConfig {
     #[validate(nested)]
     pub l1_provider_config: Option<L1ProviderConfig>,
     #[validate(nested)]
-    pub l1_scraper_config: Option<L1ScraperConfig>,
+    pub l1_scraper_config: Option<L1EventsScraperConfig>,
     #[validate(nested)]
     pub mempool_config: Option<MempoolConfig>,
     #[validate(nested)]
@@ -300,7 +300,7 @@ impl Default for SequencerNodeConfig {
             l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
             l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
             l1_provider_config: Some(L1ProviderConfig::default()),
-            l1_scraper_config: Some(L1ScraperConfig::default()),
+            l1_scraper_config: Some(L1EventsScraperConfig::default()),
             mempool_config: Some(MempoolConfig::default()),
             mempool_p2p_config: Some(MempoolP2pConfig::default()),
             monitoring_endpoint_config: Some(MonitoringEndpointConfig::default()),
