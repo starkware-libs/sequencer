@@ -66,7 +66,7 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         // If get_ts() hasn't been called, return empty vec
         let Some(timestamp_threshold) = self.last_returned_timestamp else {
-            debug!("FIFO pop_ready_chunk: get_ts() not called yet, returning empty");
+            debug!("FIFO pop_ready_chunk: get_timestamp() not called yet, returning empty");
             return Vec::new();
         };
 
@@ -132,7 +132,19 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     }
 
     fn has_ready_txs(&self) -> bool {
-        !self.queue.is_empty()
+        // If get_timestamp() hasn't been called yet, no txs are ready
+        let Some(timestamp_threshold) = self.last_returned_timestamp else {
+            return false;
+        };
+
+        // Check if the first tx in queue has the same timestamp as last_returned_timestamp
+        if let Some(first_hash) = self.queue.front() {
+            if let Some(&tx_timestamp) = self.hash_to_timestamp.get(first_hash) {
+                return tx_timestamp == timestamp_threshold;
+            }
+        }
+
+        false
     }
 
     fn iter_over_ready_txs(&self) -> Box<dyn Iterator<Item = &TransactionReference> + '_> {

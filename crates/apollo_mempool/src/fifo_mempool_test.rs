@@ -242,3 +242,44 @@ fn test_get_timestamp_returns_last_returned_when_queue_empty_after_prior_get_ts(
         "get_timestamp() should return last returned timestamp when queue is empty"
     );
 }
+
+#[rstest]
+fn test_get_txs_does_not_return_txs_with_different_timestamp(mut mempool: Mempool) {
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x2", tx_nonce: 0, account_nonce: 0);
+    let input3 = add_tx_input!(tx_hash: 3, address: "0x3", tx_nonce: 0, account_nonce: 0);
+    let input4 = add_tx_input!(tx_hash: 4, address: "0x4", tx_nonce: 0, account_nonce: 0);
+
+    // Pre-populate timestamps: first two txs have timestamp 1000, next two have 2000
+    let mut timestamps = HashMap::new();
+    timestamps.insert(tx_hash!(1), 1000);
+    timestamps.insert(tx_hash!(2), 1000);
+    timestamps.insert(tx_hash!(3), 2000);
+    timestamps.insert(tx_hash!(4), 2000);
+    mempool.update_timestamps(timestamps);
+
+    // Add all transactions
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+    add_tx(&mut mempool, &input3);
+    add_tx(&mut mempool, &input4);
+
+    // First get_timestamp() should return 1000 (first tx timestamp)
+    let first_timestamp = mempool.get_timestamp();
+    assert_eq!(first_timestamp, 1000);
+
+    // First get_txs should only return txs with timestamp 1000
+    get_txs_and_assert_expected(&mut mempool, 10, &[input1.tx, input2.tx]);
+
+    // Without calling get_timestamp() again, get_txs should return empty
+    // because the next txs have a different timestamp (2000 != 1000)
+    let txs = mempool.get_txs(10).unwrap();
+    assert_eq!(txs, &[], "get_txs should return empty when next tx has different timestamp");
+
+    // Now call get_timestamp() again to update threshold to 2000
+    let second_timestamp = mempool.get_timestamp();
+    assert_eq!(second_timestamp, 2000);
+
+    // Now get_txs should return the remaining txs with timestamp 2000
+    get_txs_and_assert_expected(&mut mempool, 10, &[input3.tx, input4.tx]);
+}
