@@ -17,6 +17,8 @@ use syn::{
     Error,
     Expr,
     ExprLit,
+    Field,
+    Fields,
     Ident,
     Item,
     ItemConst,
@@ -505,4 +507,85 @@ pub fn make_visibility(attrs: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     input.into_token_stream().into()
+}
+
+/// Upgrades the visibility of all fields of a struct to at least the specified visibility.
+/// Visibility can only be upgraded (private -> pub(crate) -> pub), never downgraded.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use apollo_proc_macros::upgrade_fields_visibility;
+///
+/// #[upgrade_fields_visibility(pub(crate))]
+/// pub struct MyStruct {
+///     field1: i32,           // private -> pub(crate)
+///     pub(crate) field2: String,  // pub(crate) -> pub(crate) (unchanged)
+///     pub field3: bool,      // pub -> pub (unchanged, not downgraded)
+/// }
+///
+/// // After macro expansion, the struct becomes:
+/// // pub struct MyStruct {
+/// //     pub(crate) field1: i32,
+/// //     pub(crate) field2: String,
+/// //     pub field3: bool,  // remains pub, not downgraded to pub(crate)
+/// // }
+/// ```
+#[proc_macro_attribute]
+pub fn upgrade_fields_visibility(attrs: TokenStream, input: TokenStream) -> TokenStream {
+    let target_visibility: Visibility = parse_macro_input!(attrs);
+    let mut input: Item = parse_macro_input!(input);
+
+    let Item::Struct(ItemStruct { ref mut fields, .. }) = &mut input else {
+        return Error::new_spanned(
+            &input,
+            "`upgrade_fields_visibility` can only be applied to structs",
+        )
+        .to_compile_error()
+        .into();
+    };
+
+    // Upgrade visibility for all fields.
+    match fields {
+        Fields::Named(named_fields) => {
+            named_fields
+                .named
+                .iter_mut()
+                .for_each(|field| upgrade_field_visibility(field, &target_visibility));
+        }
+        Fields::Unnamed(unnamed_fields) => {
+            unnamed_fields
+                .unnamed
+                .iter_mut()
+                .for_each(|field| upgrade_field_visibility(field, &target_visibility));
+        }
+        Fields::Unit => {
+            return Error::new_spanned(
+                &input,
+                "`upgrade_fields_visibility` can only be applied to structs with fields",
+            )
+            .to_compile_error()
+            .into();
+        }
+    }
+
+    input.into_token_stream().into()
+}
+
+/// Upgrades the visibility of a field to the target visibility if the current visibility is lower.
+fn upgrade_field_visibility(field: &mut Field, target_visibility: &Visibility) {
+    if visibility_level(&field.vis) < visibility_level(target_visibility) {
+        field.vis = target_visibility.clone();
+    }
+}
+
+/// Returns the visibility level as a number for comparison.
+/// Higher number = more visible.
+/// private (Inherited) = 0, pub(crate) (Restricted) = 1, pub (Public) = 2.
+fn visibility_level(vis: &Visibility) -> u8 {
+    match vis {
+        Visibility::Inherited => 0,
+        Visibility::Restricted(_) => 1, // pub(path) is similar to pub(crate) in scope.
+        Visibility::Public(_) => 2,
+    }
 }
