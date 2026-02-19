@@ -18,6 +18,7 @@ use crate::stream_handler::StreamHandler;
 const CHANNEL_CAPACITY: usize = 100;
 const MAX_PEERS: usize = 100;
 const MAX_STREAMS: usize = 10;
+const MAX_MESSAGE_BUFFER_SIZE: usize = 1000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct TestStreamId(u64);
@@ -138,6 +139,7 @@ fn setup() -> (
         channel_buffer_capacity: CHANNEL_CAPACITY,
         max_peers: MAX_PEERS,
         max_streams: MAX_STREAMS,
+        max_message_buffer_size: MAX_MESSAGE_BUFFER_SIZE,
     };
     setup_with_config(config)
 }
@@ -494,6 +496,7 @@ async fn lru_cache_evicts_peers() {
         channel_buffer_capacity: CHANNEL_CAPACITY,
         max_peers,
         max_streams: MAX_STREAMS,
+        max_message_buffer_size: MAX_MESSAGE_BUFFER_SIZE,
     };
     let (
         mut stream_handler,
@@ -582,6 +585,7 @@ async fn per_peer_stream_isolation() {
         channel_buffer_capacity: CHANNEL_CAPACITY,
         max_peers: MAX_PEERS,
         max_streams,
+        max_message_buffer_size: MAX_MESSAGE_BUFFER_SIZE,
     };
     let (
         mut stream_handler,
