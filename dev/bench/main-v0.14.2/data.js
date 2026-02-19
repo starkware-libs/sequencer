@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771497850777,
+  "lastUpdate": 1771507839382,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -951,6 +951,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1258.05538482,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141231558+meship-starkware@users.noreply.github.com",
+            "name": "Meshi Peled",
+            "username": "meship-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5915c87293a8fbd1ef9439560b60b47ecf25ae48",
+          "message": "starknet_os: rename n_messages_to_l1 to n_l2_to_l1_messages. (#12712)",
+          "timestamp": "2026-02-19T13:10:02Z",
+          "tree_id": "acf29fcf0902c5643d3c816b3696e83abd284170",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5915c87293a8fbd1ef9439560b60b47ecf25ae48"
+        },
+        "date": 1771507839058,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 792.48184322,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1358.9835045799998,
             "unit": "ms"
           }
         ]
