@@ -143,7 +143,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::ProofManager
@@ -174,7 +174,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler => {}
@@ -199,7 +199,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::ProofManager
@@ -218,7 +218,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -257,7 +257,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
@@ -284,7 +284,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::ProofManager
@@ -370,7 +370,7 @@ fn get_l1_component_config(
     config.l1_gas_price_provider = l1_gas_price_provider_local_config;
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
-    config.l1_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_events_scraper = ActiveComponentExecutionConfig::enabled();
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;

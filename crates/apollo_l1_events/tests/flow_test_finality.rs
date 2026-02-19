@@ -7,7 +7,7 @@ use apollo_l1_provider_types::{
     SessionState,
     ValidationStatus,
 };
-use apollo_l1_scraper_config::config::L1ScraperConfig;
+use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use starknet_api::block::BlockNumber;
 use utils::{
     send_message_from_l1_to_l2,
@@ -32,15 +32,17 @@ async fn only_scrape_after_finality() {
 
     let (l2_hash, _nonce) = send_message_from_l1_to_l2(&mut base_layer, CALL_DATA).await;
 
-    let l1_scraper_config = L1ScraperConfig {
+    let l1_events_scraper_config = L1EventsScraperConfig {
         finality: FINALITY,
         polling_interval_seconds: POLLING_INTERVAL_DURATION,
         chain_id: CHAIN_ID,
         ..Default::default()
     };
-    let l1_provider_client =
-        setup_scraper_and_provider(base_layer.ethereum_base_layer.clone(), Some(l1_scraper_config))
-            .await;
+    let l1_provider_client = setup_scraper_and_provider(
+        base_layer.ethereum_base_layer.clone(),
+        Some(l1_events_scraper_config),
+    )
+    .await;
 
     tokio::time::pause();
 

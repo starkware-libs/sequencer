@@ -161,7 +161,7 @@ impl SerializeConfig for L1GasPriceProviderConfig {
 // from VersionedConstants.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1GasPriceScraperConfig {
-    /// This field is ignored by the L1Scraper.
+    /// This field is ignored by the L1EventsScraper.
     /// Manual override to specify where the scraper should start.
     /// If None, the node will start scraping from 2*number_of_blocks_for_mean before the tip of
     /// L1.
