@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771415774554,
+  "lastUpdate": 1771489466127,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -849,6 +849,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1337.46558019,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "49d197c3af01f932ce0040aa0da2fb074d668654",
+          "message": "Merge pull request #12688 from starkware-libs/nadin/merge-main-v0.14.1-committer-into-main-v0.14.2-1771409604\n\nMerge main-v0.14.1-committer into main-v0.14.2",
+          "timestamp": "2026-02-19T07:58:13Z",
+          "tree_id": "55c53d967bdfef8913d076f40c20e6514d12b11a",
+          "url": "https://github.com/starkware-libs/sequencer/commit/49d197c3af01f932ce0040aa0da2fb074d668654"
+        },
+        "date": 1771489465842,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 826.2143188099999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1230.23862627,
             "unit": "ms"
           }
         ]
