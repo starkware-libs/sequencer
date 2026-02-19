@@ -338,14 +338,30 @@ pub(crate) fn concat_counts(
         L1DataAvailabilityMode::Calldata => 0,
         L1DataAvailabilityMode::Blob => 0b10000000,
     };
+    println!("transaction_count: {transaction_count}");
+    println!("event_count: {event_count}");
+    println!("state_diff_length: {state_diff_length}");
+    println!("l1_data_availability_mode: {l1_data_availability_mode:?}");
+    println!("l1_data_availability_byte: {l1_data_availability_byte}");
+    let transaction_count_bytes = to_64_bits(transaction_count);
+    let event_count_bytes = to_64_bits(event_count);
+    let state_diff_length_bytes = to_64_bits(state_diff_length);
+    let l1_da_bytes = [l1_data_availability_byte];
+    let zero_padding = [0_u8; 7];
+    println!("transaction_count_bytes: {:?}", transaction_count_bytes);
+    println!("event_count_bytes: {:?}", event_count_bytes);
+    println!("state_diff_length_bytes: {:?}", state_diff_length_bytes);
+    println!("l1_da_bytes: {:?}", l1_da_bytes);
+    println!("zero_padding: {:?}", zero_padding);
     let concat_bytes = [
-        to_64_bits(transaction_count).as_slice(),
-        to_64_bits(event_count).as_slice(),
-        to_64_bits(state_diff_length).as_slice(),
-        &[l1_data_availability_byte],
-        &[0_u8; 7], // zero padding
+        transaction_count_bytes.as_slice(),
+        event_count_bytes.as_slice(),
+        state_diff_length_bytes.as_slice(),
+        &l1_da_bytes,
+        &zero_padding,
     ]
     .concat();
+    println!("concat_bytes: {:?}", concat_bytes);
     Felt::from_bytes_be_slice(concat_bytes.as_slice())
 }
 

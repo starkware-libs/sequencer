@@ -280,6 +280,10 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
 
             // Write the block hash and global root to storage.
             storage_writer.set_global_root_and_block_hash(height, global_root, block_hash)?;
+            println!(
+                "set_global_root_and_block_hash result: height: {height}, global_root: \
+                 {global_root}, block_hash: {block_hash:?}",
+            );
             GLOBAL_ROOT_HEIGHT.increment(1);
         }
 
@@ -495,6 +499,11 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 })?;
                 let partial_block_hash_components = partial_block_hash_components
                     .ok_or(CommitmentManagerError::MissingPartialBlockHashComponents(height))?;
+                println!("in finalize_commitment_output --------------------------------");
+                println!("height: {height}");
+                println!("partial_block_hash_components: {partial_block_hash_components:?}");
+                println!("global_root: {global_root}");
+                println!("parent_hash: {parent_hash}");
                 let block_hash =
                     calculate_block_hash(&partial_block_hash_components, global_root, parent_hash)?;
                 Ok(FinalBlockCommitment { height, block_hash: Some(block_hash), global_root })

@@ -54,9 +54,9 @@ class BaseCommand(Enum):
             return [["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args]
         elif self == BaseCommand.INTEGRATION:
             # Do nothing if integration tests should not be triggered; on nightly, run the tests.
-            if INTEGRATION_TEST_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
-                print(f"Skipping sequencer integration tests.")
-                return []
+            # if INTEGRATION_TEST_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
+            #     print(f"Skipping sequencer integration tests.")
+            #     return []
 
             integration_test_names_to_run = (
                 NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES
