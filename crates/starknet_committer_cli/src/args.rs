@@ -10,7 +10,11 @@ use starknet_patricia_storage::aerospike_storage::{
     AerospikeStorageConfig,
     DEFAULT_PORT,
 };
-use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
+use starknet_patricia_storage::map_storage::{
+    CachedStorageConfig,
+    MapStorage,
+    PatriciaCachedStorage,
+};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
 use starknet_patricia_storage::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
@@ -226,7 +230,7 @@ pub struct CachedStorageArgs<InnerStorageArgs: StorageFromArgs> {
 impl<InnerStorageArgs: StorageFromArgs + Sync> StorageFromArgs
     for CachedStorageArgs<InnerStorageArgs>
 {
-    type Storage = CachedStorage<InnerStorageArgs::Storage>;
+    type Storage = PatriciaCachedStorage<InnerStorageArgs::Storage>;
 
     fn storage_config(&self) -> <Self::Storage as Storage>::Config {
         CachedStorageConfig {
@@ -238,7 +242,7 @@ impl<InnerStorageArgs: StorageFromArgs + Sync> StorageFromArgs
 
     async fn storage(&self) -> Self::Storage {
         let inner_storage = self.storage_args.storage().await;
-        CachedStorage::new(inner_storage, self.storage_config())
+        PatriciaCachedStorage::new(inner_storage, self.storage_config())
     }
 }
 

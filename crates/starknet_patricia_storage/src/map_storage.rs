@@ -71,9 +71,11 @@ impl Storage for MapStorage {
     }
 }
 
-/// A storage wrapper that adds an LRU cache to an underlying storage.
-/// Getter methods are not cached.
-pub struct CachedStorage<S: Storage> {
+/// Storage wrapper designated for patricia implementation.
+/// Uses an LRU cache to store the most recently used entries.
+/// Reads are not cached to allow concurrent reads. Writes are cached.
+/// Allows caching siblings by flushing them expliclty using [Self::flush_to_cache].
+pub struct PatriciaCachedStorage<S: Storage> {
     pub storage: S,
     pub cache: LruCache<DbKey, Option<DbValue>>,
     reads: AtomicU64,
@@ -188,7 +190,7 @@ impl<S: StorageStats> StorageStats for CachedStorageStats<S> {
     }
 }
 
-impl<S: Storage> CachedStorage<S> {
+impl<S: Storage> PatriciaCachedStorage<S> {
     pub fn new(storage: S, config: CachedStorageConfig<S::Config>) -> Self {
         Self {
             storage,
@@ -205,7 +207,7 @@ impl<S: Storage> CachedStorage<S> {
     }
 }
 
-impl<S: Storage> Storage for CachedStorage<S> {
+impl<S: Storage> Storage for PatriciaCachedStorage<S> {
     type Stats = CachedStorageStats<S::Stats>;
     type Config = CachedStorageConfig<S::Config>;
 
