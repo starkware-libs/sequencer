@@ -48,6 +48,17 @@ pub enum StreamHandlerError {
     StreamIdReused(String),
 }
 
+/// Errors from the store function, when caching messages.
+#[derive(thiserror::Error, PartialEq, Debug)]
+enum InternalMessageCacheError {
+    /// Too many messages were inserted into the cache for a stream.
+    #[error("Too many messages were inserted into the cache for a stream. message_id={0}")]
+    TooManyMessages(MessageId),
+    /// Duplicate message ID in buffer.
+    #[error("Duplicate message ID in buffer. message_id={0}")]
+    DuplicateMessageId(MessageId),
+}
+
 /// A combination of trait bounds needed for the content of the stream.
 pub trait StreamContentTrait:
     Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> + Send
@@ -462,7 +473,33 @@ where
                 }
             }
             Ordering::Greater => {
-                Self::store(&mut data, peer_id, stream_id, message);
+                if let Err(e) = Self::store(&mut data, self.config.max_message_buffer_size, message)
+                {
+                    match e {
+                        InternalMessageCacheError::TooManyMessages(message_id) => {
+                            warn!(
+                                ?peer_id,
+                                ?stream_id,
+                                ?message_id,
+                                "Error storing message in buffer, buffer is full!"
+                            );
+                            // TODO(guyn): add a metric to track too many messages.
+                            // If buffer is full, the stream will likely never be finished, so we
+                            // drop it.
+                            return None;
+                        }
+                        InternalMessageCacheError::DuplicateMessageId(message_id) => {
+                            // TODO(guyn): replace warnings with more graceful error handling
+                            warn!(
+                                ?peer_id,
+                                ?stream_id,
+                                ?message_id,
+                                "Two messages with the same message_id in buffer!"
+                            );
+                            // Note that this does not evict the stream!
+                        }
+                    }
+                }
             }
             Ordering::Less => {
                 // TODO(guyn): replace warnings with more graceful error handling
@@ -477,25 +514,24 @@ where
     // Store an inbound message in the buffer.
     fn store(
         data: &mut StreamData<StreamContent, StreamId>,
-        peer_id: PeerId,
-        stream_id: StreamId,
+        max_message_buffer_size: usize,
         message: StreamMessage<StreamContent, StreamId>,
-    ) {
+    ) -> Result<(), InternalMessageCacheError> {
+        // Do not store Fin messages (and don't count them in cache capacity).
+        if let StreamMessageBody::Fin = message.message {
+            return Ok(());
+        }
         let message_id = message.message_id;
-
+        let buffer_len = data.message_buffer.len();
         match data.message_buffer.entry(message_id) {
             Vacant(e) => {
+                if buffer_len >= max_message_buffer_size {
+                    return Err(InternalMessageCacheError::TooManyMessages(message_id));
+                }
                 e.insert(message);
+                Ok(())
             }
-            Occupied(_) => {
-                // TODO(guyn): replace warnings with more graceful error handling
-                warn!(
-                    ?peer_id,
-                    ?stream_id,
-                    ?message_id,
-                    "Two messages with the same message_id in buffer!"
-                );
-            }
+            Occupied(_) => Err(InternalMessageCacheError::DuplicateMessageId(message_id)),
         }
     }
 
