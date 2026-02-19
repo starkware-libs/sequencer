@@ -143,7 +143,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::ProofManager
@@ -174,7 +174,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler => {}
@@ -199,7 +199,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::ProofManager
@@ -218,7 +218,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
@@ -257,7 +257,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
                         | ComponentConfigInService::SignatureManager
@@ -284,7 +284,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
                         | ComponentConfigInService::L1Provider
-                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::ProofManager

@@ -26,7 +26,7 @@ use apollo_infra::component_server::{
     WrapperServer,
 };
 use apollo_l1_events::communication::{
-    L1ScraperServer,
+    L1EventsScraperServer,
     LocalL1ProviderServer,
     RemoteL1ProviderServer,
 };
@@ -96,7 +96,7 @@ struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) l1_scraper_server:
-        Option<Box<L1ScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
+        Option<Box<L1EventsScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
     pub(crate) l1_gas_price_scraper_server:
         Option<Box<L1GasPriceScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,

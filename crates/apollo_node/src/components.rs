@@ -17,7 +17,7 @@ use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_events::event_identifiers_to_track;
 use apollo_l1_events::l1_provider::L1Provider;
-use apollo_l1_events::l1_scraper::L1Scraper;
+use apollo_l1_events::l1_scraper::L1EventsScraper;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
@@ -54,7 +54,7 @@ pub struct SequencerNodeComponents {
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
-    pub l1_scraper: Option<L1Scraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
+    pub l1_scraper: Option<L1EventsScraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
     pub l1_provider: Option<L1Provider>,
     pub l1_gas_price_scraper:
         Option<L1GasPriceScraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
@@ -373,7 +373,7 @@ pub async fn create_node_components(
             let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(base_layer);
 
             Some(
-                L1Scraper::new(
+                L1EventsScraper::new(
                     l1_scraper_config.clone(),
                     l1_provider_client,
                     cyclic_base_layer_wrapper,

@@ -49,7 +49,7 @@ use apollo_l1_gas_price_provider_config::config::{
 };
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_l1_provider_config::config::L1ProviderConfig;
-use apollo_l1_scraper_config::config::L1ScraperConfig;
+use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -229,7 +229,7 @@ pub fn create_node_config(
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
-    let l1_scraper_config = L1ScraperConfig {
+    let l1_scraper_config = L1EventsScraperConfig {
         chain_id: chain_info.chain_id.clone(),
         startup_rewind_time_seconds: Duration::from_secs(0),
         polling_interval_seconds: Duration::from_secs(1),

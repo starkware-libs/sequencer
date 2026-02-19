@@ -13,9 +13,9 @@ pub type LocalL1ProviderClient = LocalComponentClient<L1ProviderRequest, L1Provi
 pub type RemoteL1ProviderClient = RemoteComponentClient<L1ProviderRequest, L1ProviderResponse>;
 
 use crate::l1_provider::L1Provider;
-use crate::l1_scraper::L1Scraper;
+use crate::l1_scraper::L1EventsScraper;
 
-pub type L1ScraperServer<B> = WrapperServer<L1Scraper<B>>;
+pub type L1EventsScraperServer<B> = WrapperServer<L1EventsScraper<B>>;
 
 #[async_trait]
 impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provider {
