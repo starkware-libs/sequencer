@@ -13,6 +13,7 @@ use apollo_sizeof::SizeOf;
 use async_trait::async_trait;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
+use blockifier::execution::call_info::CallInfo;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
@@ -41,6 +42,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::fields::Calldata;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
 use tracing::{error, info, warn, Instrument};
@@ -279,11 +281,70 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
 
 static BLOB_DUMPED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+#[allow(clippy::too_many_arguments)]
+fn check_inner_calls_recursive(
+    outer_calldata: &Calldata,
+    inner_calls: &[CallInfo],
+    same_arc: &mut usize,
+    size_in_range: &mut usize,
+    inner_tail_matches: &mut usize,
+    execute_tail_matches: &mut usize,
+    total: &mut usize,
+    max_depth: &mut usize,
+    max_deviation_felts: &mut usize,
+    current_depth: usize,
+) {
+    *max_depth = (*max_depth).max(current_depth);
+    for inner in inner_calls {
+        *total += 1;
+        if Arc::ptr_eq(&outer_calldata.0, &inner.call.calldata.0) {
+            *same_arc += 1;
+        }
+        let outer_len = outer_calldata.0.len();
+        let inner_len = inner.call.calldata.0.len();
+        let deviation = outer_len.abs_diff(inner_len);
+        *max_deviation_felts = (*max_deviation_felts).max(deviation);
+        let within_range = outer_len == 0
+            || (inner_len as f64 - outer_len as f64).abs() / outer_len as f64 <= 0.05;
+        if within_range {
+            *size_in_range += 1;
+            if inner_len > outer_len
+                && inner.call.calldata.0[inner_len - outer_len..] == outer_calldata.0[..]
+            {
+                *inner_tail_matches += 1;
+            } else if outer_len > inner_len
+                && outer_calldata.0[outer_len - inner_len..] == inner.call.calldata.0[..]
+            {
+                *execute_tail_matches += 1;
+            }
+        }
+        if !inner.inner_calls.is_empty() {
+            check_inner_calls_recursive(
+                outer_calldata,
+                &inner.inner_calls,
+                same_arc,
+                size_in_range,
+                inner_tail_matches,
+                execute_tail_matches,
+                total,
+                max_depth,
+                max_deviation_felts,
+                current_depth + 1,
+            );
+        }
+    }
+}
+
 fn check_call_data(blob: &AerospikeBlob) -> String {
     let mut same_count = 0;
     let mut total_count = 0;
-    let mut inner_same_count = 0;
-    let mut inner_total_count = 0;
+    let mut inner_same_arc = 0;
+    let mut inner_size_in_range = 0;
+    let mut inner_tail_matches = 0;
+    let mut execute_tail_matches = 0;
+    let mut inner_total = 0;
+    let mut max_depth = 0;
+    let mut max_deviation_felts = 0;
 
     for exec_info in &blob.execution_infos {
         if let (Some(validate), Some(execute)) =
@@ -294,19 +355,30 @@ fn check_call_data(blob: &AerospikeBlob) -> String {
                 same_count += 1;
             }
 
-            for inner in &execute.inner_calls {
-                inner_total_count += 1;
-                if Arc::ptr_eq(&execute.call.calldata.0, &inner.call.calldata.0) {
-                    inner_same_count += 1;
-                }
-            }
+            check_inner_calls_recursive(
+                &execute.call.calldata,
+                &execute.inner_calls,
+                &mut inner_same_arc,
+                &mut inner_size_in_range,
+                &mut inner_tail_matches,
+                &mut execute_tail_matches,
+                &mut inner_total,
+                &mut max_depth,
+                &mut max_deviation_felts,
+                1,
+            );
         }
     }
 
     format!(
         "Calldata Arc analysis:\nvalidate/execute same Arc: {same_count}/{total_count} \
-         txs\nexecute outer/any inner_call same Arc: {inner_same_count}/{inner_total_count} \
-         inner_calls\n"
+         txs\nexecute outer/any inner_call same Arc (recursive): {inner_same_arc}/{inner_total} \
+         inner_calls\nexecute outer/any inner_call size within 5% (recursive): \
+         {inner_size_in_range}/{inner_total} inner_calls\ninner calldata tail matches execute \
+         calldata (inner bigger, in range): {inner_tail_matches} cases\nexecute calldata tail \
+         matches inner calldata (execute bigger, in range): {execute_tail_matches} cases\nmax \
+         inner_calls recursion depth: {max_depth}\nmax calldata size deviation from execute \
+         outer: {max_deviation_felts} felts\n"
     )
 }
 
