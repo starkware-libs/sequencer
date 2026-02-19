@@ -347,7 +347,7 @@ impl SerializeConfig for StreamHandlerConfig {
             ser_param(
                 "max_streams",
                 &self.max_streams,
-                "The maximum number of streams that can be open at the same time.",
+                "The maximum number of streams that can be open at the same time, per peer.",
                 ParamPrivacyInput::Public,
             ),
         ])
