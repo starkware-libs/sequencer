@@ -582,7 +582,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     }
 }
 
-impl<T: StorageTransaction<Mode = RW>> StateStorageWriter for T {
+impl StateStorageWriter for StorageTxnRW<'_> {
     #[sequencer_latency_histogram(STORAGE_APPEND_THIN_STATE_DIFF_LATENCY, false)]
     fn append_state_diff(
         self,
@@ -646,7 +646,7 @@ impl<T: StorageTransaction<Mode = RW>> StateStorageWriter for T {
         }
 
         // Write state diff.
-        let location = self.file_handlers().append_state_diff(&thin_state_diff);
+        let location = self.file_handlers.append_state_diff(&thin_state_diff);
         state_diffs_table.append(inner_txn, &block_number, &location)?;
         file_offset_table.upsert(inner_txn, &OffsetKind::ThinStateDiff, &location.next_offset())?;
 
@@ -656,7 +656,7 @@ impl<T: StorageTransaction<Mode = RW>> StateStorageWriter for T {
             inner_txn,
             &markers_table,
             &state_diffs_table,
-            self.file_handlers(),
+            &self.file_handlers,
         )?;
 
         Ok(self)
@@ -724,7 +724,7 @@ impl<T: StorageTransaction<Mode = RW>> StateStorageWriter for T {
             inner_txn,
             &thin_state_diff,
             &declared_classes_table,
-            self.file_handlers(),
+            &self.file_handlers,
         )?;
         let deleted_deprecated_class_hashes = delete_deprecated_declared_classes_block(
             inner_txn,
@@ -737,13 +737,13 @@ impl<T: StorageTransaction<Mode = RW>> StateStorageWriter for T {
             block_number,
             &thin_state_diff,
             &deprecated_declared_classes_table,
-            self.file_handlers(),
+            &self.file_handlers,
         )?;
         let deleted_compiled_classes = delete_compiled_classes(
             inner_txn,
             thin_state_diff.class_hash_to_compiled_class_hash.keys(),
             &compiled_classes_table,
-            self.file_handlers(),
+            &self.file_handlers,
         )?;
         delete_compiled_class_hashes_v2(
             inner_txn,
