@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::io;
 use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -23,6 +24,30 @@ use crate::{StorageError, StorageReader};
 #[cfg(test)]
 #[path = "storage_reader_server_test.rs"]
 mod storage_reader_server_test;
+
+/// Error type for dynamic config fetching.
+#[derive(Debug, Clone)]
+pub struct DynamicConfigError(pub String);
+
+impl std::fmt::Display for DynamicConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Dynamic config error: {}", self.0)
+    }
+}
+
+impl std::error::Error for DynamicConfigError {}
+
+/// Trait for providing dynamic configuration for the storage reader server.
+#[async_trait]
+pub trait DynamicConfigProvider: Send + Sync {
+    /// Fetches the current dynamic configuration for the storage reader server.
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError>;
+}
+
+/// Type alias for a shared dynamic config provider.
+pub type SharedDynamicConfigProvider = Arc<dyn DynamicConfigProvider>;
 
 /// Static configuration for the storage reader server.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
@@ -146,6 +171,7 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     storage_reader: StorageReader,
+    dynamic_config_provider: SharedDynamicConfigProvider,
     _phantom: PhantomData<(RequestHandler, Request, Response)>,
 }
 
@@ -154,7 +180,11 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     fn clone(&self) -> Self {
-        Self { storage_reader: self.storage_reader.clone(), _phantom: PhantomData }
+        Self {
+            storage_reader: self.storage_reader.clone(),
+            dynamic_config_provider: self.dynamic_config_provider.clone(),
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -165,8 +195,12 @@ where
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     /// Creates a new storage reader server with the given handler and configuration.
-    pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
-        let app_state = AppState { storage_reader, _phantom: PhantomData };
+    pub fn new(
+        storage_reader: StorageReader,
+        config: ServerConfig,
+        dynamic_config_provider: SharedDynamicConfigProvider,
+    ) -> Self {
+        let app_state = AppState { storage_reader, dynamic_config_provider, _phantom: PhantomData };
         Self { app_state, config }
     }
 
@@ -192,10 +226,6 @@ where
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
     {
-        if !self.config.is_enabled() {
-            info!("Storage reader server is disabled, not starting");
-            return Ok(());
-        }
         let socket = SocketAddr::from((self.config.ip(), self.config.port()));
         info!("Starting storage reader server on {}", socket);
         let app = self.app();
@@ -212,21 +242,30 @@ where
         })
     }
 
-    /// Spawns the storage reader server in a background task if it's enabled.
-    pub fn spawn_if_enabled(server: Option<Self>) -> Option<AbortHandle>
+    /// Spawns the storage reader server in a background task.
+    /// Returns None if no tokio runtime is available (e.g., in non-async tests).
+    // TODO(Nadin): Bind the TcpListener before spawning the background task, so port
+    // conflicts propagate as errors to the caller instead of being silently swallowed.
+    pub fn spawn(self) -> Option<AbortHandle>
     where
         RequestHandler: Send + Sync + 'static,
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
     {
-        server.map(|server| {
-            tokio::spawn(async move {
-                if let Err(e) = server.run().await {
-                    tracing::error!("Storage reader server error: {:?}", e);
-                }
-            })
-            .abort_handle()
-        })
+        match tokio::runtime::Handle::try_current() {
+            Ok(_) => Some(
+                tokio::spawn(async move {
+                    if let Err(e) = self.run().await {
+                        tracing::error!("Storage reader server error: {:?}", e);
+                    }
+                })
+                .abort_handle(),
+            ),
+            Err(_) => {
+                info!("No tokio runtime available, skipping storage reader server spawn");
+                None
+            }
+        }
     }
 }
 
@@ -240,6 +279,13 @@ where
     Request: Send + Sync + 'static,
     Response: Send + Sync + 'static,
 {
+    let dynamic_config =
+        app_state.dynamic_config_provider.get_storage_reader_dynamic_config().await?;
+
+    if !dynamic_config.enable {
+        return Err(StorageServerError::Disabled);
+    }
+
     let response = RequestHandler::handle_request(&app_state.storage_reader, request).await?;
 
     Ok(Json(response))
@@ -247,35 +293,59 @@ where
 
 /// Error type for HTTP responses.
 #[derive(Debug)]
-struct StorageServerError(StorageError);
+enum StorageServerError {
+    Disabled,
+    Storage(StorageError),
+    DynamicConfig(DynamicConfigError),
+}
 
 impl From<StorageError> for StorageServerError {
     fn from(error: StorageError) -> Self {
-        StorageServerError(error)
+        StorageServerError::Storage(error)
+    }
+}
+
+impl From<DynamicConfigError> for StorageServerError {
+    fn from(error: DynamicConfigError) -> Self {
+        StorageServerError::DynamicConfig(error)
     }
 }
 
 impl IntoResponse for StorageServerError {
     fn into_response(self) -> Response {
-        let error_message = format!("Storage error: {}", self.0);
-        error!("{}", error_message);
-        (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+        match self {
+            StorageServerError::Disabled => {
+                info!("Storage reader server request rejected: server is disabled");
+                (StatusCode::SERVICE_UNAVAILABLE, "Storage reader server is disabled")
+                    .into_response()
+            }
+            StorageServerError::Storage(err) => {
+                let error_message = format!("Storage error: {}", err);
+                error!("{}", error_message);
+                (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+            }
+            StorageServerError::DynamicConfig(err) => {
+                let error_message = err.to_string();
+                error!("{}", error_message);
+                (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+            }
+        }
     }
 }
 
-/// Creates and returns an optional StorageReaderServer based on the enable flag.
+/// Creates a storage reader server with the given handler and configuration.
+///
+/// This is a convenience function that creates a [`StorageReaderServer`] instance
+/// with the specified storage reader, configuration, and dynamic config provider.
 pub fn create_storage_reader_server<RequestHandler, Request, Response>(
     storage_reader: StorageReader,
     storage_reader_server_config: ServerConfig,
-) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
+    dynamic_config_provider: SharedDynamicConfigProvider,
+) -> StorageReaderServer<RequestHandler, Request, Response>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    if storage_reader_server_config.is_enabled() {
-        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
-    } else {
-        None
-    }
+    StorageReaderServer::new(storage_reader, storage_reader_server_config, dynamic_config_provider)
 }

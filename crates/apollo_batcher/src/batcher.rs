@@ -52,7 +52,12 @@ use apollo_storage::partial_block_hash::{
     PartialBlockHashComponentsStorageWriter,
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    ServerConfig,
+    StorageReaderServerDynamicConfig,
+};
 use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
     open_storage_with_metric_and_server,
@@ -187,6 +192,14 @@ pub struct Batcher {
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
     storage_reader_server_handle: Option<AbortHandle>,
+}
+
+impl Drop for Batcher {
+    fn drop(&mut self) {
+        if let Some(handle) = &self.storage_reader_server_handle {
+            handle.abort();
+        }
+    }
 }
 
 impl Batcher {
@@ -1336,6 +1349,24 @@ fn log_txs_execution_result(
     }
 }
 
+/// Dynamic config provider for batcher's storage reader server.
+struct BatcherDynamicConfigProvider {
+    config_manager_client: SharedConfigManagerClient,
+}
+
+#[async_trait]
+impl DynamicConfigProvider for BatcherDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        let dynamic_config: BatcherDynamicConfig =
+            self.config_manager_client.get_batcher_dynamic_config().await.map_err(|e| {
+                DynamicConfigError(format!("Failed to fetch batcher dynamic config: {}", e))
+            })?;
+        Ok(dynamic_config.storage_reader_server_dynamic_config)
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub async fn create_batcher(
     config: BatcherConfig,
@@ -1351,16 +1382,22 @@ pub async fn create_batcher(
         static_config: config.static_config.storage_reader_server_static_config.clone(),
         dynamic_config: config.dynamic_config.storage_reader_server_dynamic_config.clone(),
     };
-    let (storage_reader, storage_writer, storage_reader_server) =
-        open_storage_with_metric_and_server(
-            config.static_config.storage.clone(),
-            &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-            storage_reader_server_config,
-        )
-        .expect("Failed to open batcher's storage");
+    let dynamic_config_provider = Arc::new(BatcherDynamicConfigProvider {
+        config_manager_client: config_manager_client.clone(),
+    });
+    let (storage_reader, storage_writer, storage_reader_server): (
+        _,
+        _,
+        GenericStorageReaderServer,
+    ) = open_storage_with_metric_and_server(
+        config.static_config.storage.clone(),
+        &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
+        storage_reader_server_config,
+        dynamic_config_provider,
+    )
+    .expect("Failed to open batcher's storage");
 
-    let storage_reader_server_handle =
-        GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+    let storage_reader_server_handle = storage_reader_server.spawn();
 
     let execute_config = &config.static_config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
