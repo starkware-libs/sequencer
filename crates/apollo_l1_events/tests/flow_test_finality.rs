@@ -3,7 +3,7 @@ mod utils;
 
 use apollo_l1_provider_types::{
     InvalidValidationStatus,
-    L1ProviderClient,
+    L1EventsProviderClient,
     SessionState,
     ValidationStatus,
 };
@@ -38,7 +38,7 @@ async fn only_scrape_after_finality() {
         chain_id: CHAIN_ID,
         ..Default::default()
     };
-    let l1_provider_client = setup_scraper_and_provider(
+    let l1_events_provider_client = setup_scraper_and_provider(
         base_layer.ethereum_base_layer.clone(),
         Some(l1_events_scraper_config),
     )
@@ -50,9 +50,9 @@ async fn only_scrape_after_finality() {
     let next_block_height = BlockNumber(TARGET_L2_HEIGHT.0 + 1);
 
     // The transaction is not yet scraped, it hasn't got enough blocks after it.
-    l1_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
+    l1_events_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
     assert_eq!(
-        l1_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
+        l1_events_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
         ValidationStatus::Invalid(InvalidValidationStatus::NotFound)
     );
 
@@ -66,7 +66,7 @@ async fn only_scrape_after_finality() {
     // Wait for another scraping.
     tokio::time::advance(POLLING_INTERVAL_DURATION + ROUND_TO_SEC_MARGIN_DURATION).await;
     for _i in 0..100 {
-        let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+        let snapshot = l1_events_provider_client.get_l1_events_provider_snapshot().await.unwrap();
         if snapshot.uncommitted_transactions.contains(&l2_hash) {
             break;
         }
@@ -75,7 +75,7 @@ async fn only_scrape_after_finality() {
 
     // Check that we can validate the message now.
     assert_eq!(
-        l1_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
+        l1_events_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
         ValidationStatus::Validated
     );
 }

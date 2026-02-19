@@ -18,15 +18,15 @@ use apollo_infra::component_server::{
     LocalServerConfig,
 };
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
-use apollo_l1_events::l1_provider::L1Provider;
+use apollo_l1_events::l1_events_provider::L1EventsProvider;
 use apollo_l1_events::l1_scraper::L1EventsScraper;
-use apollo_l1_events::metrics::L1_PROVIDER_INFRA_METRICS;
-use apollo_l1_events::{event_identifiers_to_track, L1ProviderConfig};
+use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
+use apollo_l1_events::{event_identifiers_to_track, L1EventsProviderConfig};
 use apollo_l1_provider_types::{
     Event,
-    L1ProviderClient,
-    L1ProviderRequest,
-    L1ProviderResponse,
+    L1EventsProviderClient,
+    L1EventsProviderRequest,
+    L1EventsProviderResponse,
     ProviderState,
 };
 use apollo_l1_scraper_config::config::L1EventsScraperConfig;
@@ -68,7 +68,8 @@ fn convert_call_data_to_u256(call_data: &[u8]) -> Vec<Uint<256, 4>> {
 // Need to allow dead code as this is only used in some of the test crates.
 #[allow(dead_code)]
 pub(crate) async fn setup_anvil_base_layer() -> AnvilBaseLayer {
-    let mut ports_gen = AvailablePortsGenerator::new(TestIdentifier::L1ProviderUnitTests.into());
+    let mut ports_gen =
+        AvailablePortsGenerator::new(TestIdentifier::L1EventsProviderUnitTests.into());
     let mut available_ports = ports_gen
         .next()
         .expect("Failed to get an AvailablePorts instance for L1 provider unit tests");
@@ -88,7 +89,7 @@ pub(crate) async fn setup_scraper_and_provider<
 >(
     base_layer: T,
     l1_events_scraper_config: Option<L1EventsScraperConfig>,
-) -> LocalComponentClient<L1ProviderRequest, L1ProviderResponse> {
+) -> LocalComponentClient<L1EventsProviderRequest, L1EventsProviderResponse> {
     let fake_clock = Arc::new(TokioLinkedClock::new());
 
     // Setup the state sync client.
@@ -96,36 +97,36 @@ pub(crate) async fn setup_scraper_and_provider<
     state_sync_client.expect_get_block().returning(move |_| Ok(SyncBlock::default()));
 
     // Set up the L1 provider client and server.
-    // This channel connects the L1Provider client to the server.
-    let (tx, rx) = channel::<RequestWrapper<L1ProviderRequest, L1ProviderResponse>>(32);
+    // This channel connects the L1EventsProvider client to the server.
+    let (tx, rx) = channel::<RequestWrapper<L1EventsProviderRequest, L1EventsProviderResponse>>(32);
 
     // Create the provider client.
-    let l1_provider_client =
-        LocalComponentClient::new(tx, L1_PROVIDER_INFRA_METRICS.get_local_client_metrics());
+    let l1_events_provider_client =
+        LocalComponentClient::new(tx, L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_client_metrics());
 
     // L1 provider setup.
-    let l1_provider_config = L1ProviderConfig {
+    let l1_events_provider_config = L1EventsProviderConfig {
         l1_handler_proposal_cooldown_seconds: COOLDOWN_DURATION,
         l1_handler_cancellation_timelock_seconds: TIMELOCK_DURATION,
         l1_handler_consumption_timelock_seconds: TIMELOCK_DURATION,
         ..Default::default()
     };
-    let l1_provider = L1Provider::new(
-        l1_provider_config,
-        Arc::new(l1_provider_client.clone()),
+    let l1_events_provider = L1EventsProvider::new(
+        l1_events_provider_config,
+        Arc::new(l1_events_provider_client.clone()),
         Arc::new(state_sync_client),
         Some(fake_clock.clone()),
     );
     // Create the server.
-    let mut l1_provider_server = LocalComponentServer::new(
-        l1_provider,
+    let mut l1_events_provider_server = LocalComponentServer::new(
+        l1_events_provider,
         &LocalServerConfig::default(),
         rx,
-        L1_PROVIDER_INFRA_METRICS.get_local_server_metrics(),
+        L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_server_metrics(),
     );
     // Start the server:
     tokio::spawn(async move {
-        l1_provider_server.start().await;
+        l1_events_provider_server.start().await;
     });
 
     // Set up the L1 scraper and run it as a server.
@@ -137,7 +138,7 @@ pub(crate) async fn setup_scraper_and_provider<
         });
     let mut scraper = L1EventsScraper::new(
         l1_events_scraper_config,
-        Arc::new(l1_provider_client.clone()),
+        Arc::new(l1_events_provider_client.clone()),
         base_layer,
         event_identifiers_to_track(),
     )
@@ -153,7 +154,7 @@ pub(crate) async fn setup_scraper_and_provider<
 
     // Loop around until the provider becomes initialized.
     for _ in 0..100 {
-        let state = l1_provider_client.get_provider_state().await.unwrap();
+        let state = l1_events_provider_client.get_provider_state().await.unwrap();
         if state == ProviderState::Pending {
             break;
         }
@@ -169,10 +170,10 @@ pub(crate) async fn setup_scraper_and_provider<
 
     // Start the L1 provider's catching up process up to the target L2 height
     let expect_error =
-        l1_provider_client.commit_block([].into(), [].into(), TARGET_L2_HEIGHT).await;
+        l1_events_provider_client.commit_block([].into(), [].into(), TARGET_L2_HEIGHT).await;
     assert!(expect_error.is_err());
 
-    l1_provider_client
+    l1_events_provider_client
 }
 
 /// Send a message from L1 to L2 and return the transaction hash on L2.

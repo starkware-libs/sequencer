@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_provider_types::{L1ProviderClient, SessionState, ValidationStatus};
+use apollo_l1_provider_types::{L1EventsProviderClient, SessionState, ValidationStatus};
 use apollo_time::time::Clock;
 use papyrus_base_layer::{
     L1BlockHash,
@@ -99,10 +99,10 @@ async fn l1_handler_tx_consumed_txs() {
         Ok(all_events[start..end_exclusive].to_vec())
     });
 
-    let l1_provider_client = setup_scraper_and_provider(base_layer, None).await;
+    let l1_events_provider_client = setup_scraper_and_provider(base_layer, None).await;
 
     tokio::time::pause();
-    let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+    let snapshot = l1_events_provider_client.get_l1_events_provider_snapshot().await.unwrap();
     assert!(!snapshot.uncommitted_transactions.is_empty());
     assert_eq!(snapshot.number_of_txs_in_records, 1);
     let l2_hash = snapshot.uncommitted_transactions[0];
@@ -111,9 +111,9 @@ async fn l1_handler_tx_consumed_txs() {
     let next_block_height = BlockNumber(TARGET_L2_HEIGHT.0 + 1);
 
     // Check that we can validate this message.
-    l1_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
+    l1_events_provider_client.start_block(SessionState::Validate, next_block_height).await.unwrap();
     assert_eq!(
-        l1_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
+        l1_events_provider_client.validate(l2_hash, next_block_height).await.unwrap(),
         ValidationStatus::Validated
     );
 
@@ -125,7 +125,7 @@ async fn l1_handler_tx_consumed_txs() {
     tokio::time::advance(POLLING_INTERVAL_DURATION + ROUND_TO_SEC_MARGIN_DURATION).await;
 
     for _i in 0..100 {
-        let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+        let snapshot = l1_events_provider_client.get_l1_events_provider_snapshot().await.unwrap();
         // The transaction is consumed, but still in the records.
         if !snapshot.consumed.is_empty() {
             break;
@@ -133,7 +133,7 @@ async fn l1_handler_tx_consumed_txs() {
         tokio::time::sleep(Duration::from_millis(1)).await;
     }
 
-    let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+    let snapshot = l1_events_provider_client.get_l1_events_provider_snapshot().await.unwrap();
     // The transaction is consumed, but still in the records.
     assert!(!snapshot.consumed.is_empty());
     assert_eq!(snapshot.number_of_txs_in_records, 1);
@@ -145,14 +145,14 @@ async fn l1_handler_tx_consumed_txs() {
 
     // Scraping the second consumed event triggers a deletion of the transaction from the records.
     for _i in 0..100 {
-        let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+        let snapshot = l1_events_provider_client.get_l1_events_provider_snapshot().await.unwrap();
         if snapshot.consumed.is_empty() {
             break;
         }
         tokio::time::sleep(Duration::from_millis(1)).await;
     }
 
-    let snapshot = l1_provider_client.get_l1_provider_snapshot().await.unwrap();
+    let snapshot = l1_events_provider_client.get_l1_events_provider_snapshot().await.unwrap();
     assert!(snapshot.consumed.is_empty());
     assert_eq!(snapshot.number_of_txs_in_records, 0);
 }

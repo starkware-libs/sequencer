@@ -53,7 +53,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let committer = Self::Committer.component_config_pair(infra_port_allocator.next());
         let gateway = Self::Gateway.component_config_pair(infra_port_allocator.next());
         let l1_gas_price_provider = Self::L1.component_config_pair(infra_port_allocator.next());
-        let l1_provider = Self::L1.component_config_pair(infra_port_allocator.next());
+        let l1_events_provider = Self::L1.component_config_pair(infra_port_allocator.next());
         let mempool = Self::Mempool.component_config_pair(infra_port_allocator.next());
         let proof_manager = Self::ProofManager.component_config_pair(infra_port_allocator.next());
         let sierra_compiler =
@@ -69,7 +69,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     batcher.local(),
                     class_manager.remote(),
                     committer.remote(),
-                    l1_provider.remote(),
+                    l1_events_provider.remote(),
                     mempool.remote(),
                     proof_manager.remote(),
                 ),
@@ -98,7 +98,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                 ),
                 Self::L1 => get_l1_component_config(
                     l1_gas_price_provider.local(),
-                    l1_provider.local(),
+                    l1_events_provider.local(),
                     state_sync.remote(),
                     batcher.remote(),
                 ),
@@ -182,7 +182,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -210,7 +210,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -238,7 +238,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -266,7 +266,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -294,7 +294,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -322,7 +322,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -341,7 +341,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::General
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -380,7 +380,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
@@ -407,7 +407,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -435,7 +435,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -463,7 +463,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -491,7 +491,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -522,7 +522,7 @@ fn get_batcher_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     committer_remote_config: ReactiveComponentExecutionConfig,
-    l1_provider_remote_config: ReactiveComponentExecutionConfig,
+    l1_events_provider_remote_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     proof_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -531,7 +531,7 @@ fn get_batcher_component_config(
     config.class_manager = class_manager_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.committer = committer_remote_config;
-    config.l1_provider = l1_provider_remote_config;
+    config.l1_events_provider = l1_events_provider_remote_config;
     config.mempool = mempool_remote_config;
     config.proof_manager = proof_manager_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
@@ -661,14 +661,14 @@ fn get_http_server_component_config(
 
 fn get_l1_component_config(
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
-    l1_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_events_provider_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
     batcher_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.l1_gas_price_provider = l1_gas_price_provider_local_config;
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_provider = l1_provider_local_config;
+    config.l1_events_provider = l1_events_provider_local_config;
     config.l1_events_scraper = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();

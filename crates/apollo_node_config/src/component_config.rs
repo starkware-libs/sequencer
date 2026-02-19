@@ -28,7 +28,7 @@ pub struct ComponentConfig {
     #[validate(nested)]
     pub gateway: ReactiveComponentExecutionConfig,
     #[validate(nested)]
-    pub l1_provider: ReactiveComponentExecutionConfig,
+    pub l1_events_provider: ReactiveComponentExecutionConfig,
     #[validate(nested)]
     pub l1_gas_price_provider: ReactiveComponentExecutionConfig,
     #[validate(nested)]
@@ -67,7 +67,7 @@ impl SerializeConfig for ComponentConfig {
             prepend_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
             prepend_sub_config_name(self.gateway.dump(), "gateway"),
             prepend_sub_config_name(self.http_server.dump(), "http_server"),
-            prepend_sub_config_name(self.l1_provider.dump(), "l1_provider"),
+            prepend_sub_config_name(self.l1_events_provider.dump(), "l1_events_provider"),
             prepend_sub_config_name(self.l1_gas_price_provider.dump(), "l1_gas_price_provider"),
             prepend_sub_config_name(self.l1_events_scraper.dump(), "l1_events_scraper"),
             prepend_sub_config_name(self.l1_gas_price_scraper.dump(), "l1_gas_price_scraper"),
@@ -94,7 +94,7 @@ impl ComponentConfig {
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
             http_server: ActiveComponentExecutionConfig::disabled(),
             gateway: ReactiveComponentExecutionConfig::disabled(),
-            l1_provider: ReactiveComponentExecutionConfig::disabled(),
+            l1_events_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_gas_price_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_events_scraper: ActiveComponentExecutionConfig::disabled(),
             l1_gas_price_scraper: ActiveComponentExecutionConfig::disabled(),
@@ -115,7 +115,7 @@ impl ComponentConfig {
         self.committer.set_url_to_localhost();
         self.config_manager.set_url_to_localhost();
         self.gateway.set_url_to_localhost();
-        self.l1_provider.set_url_to_localhost();
+        self.l1_events_provider.set_url_to_localhost();
         self.l1_gas_price_provider.set_url_to_localhost();
         self.mempool.set_url_to_localhost();
         self.mempool_p2p.set_url_to_localhost();

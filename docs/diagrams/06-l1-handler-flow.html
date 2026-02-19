@@ -131,7 +131,7 @@ sequenceDiagram
     Note over TxMgr: Reset staging epoch
     L1P-->>B: Ok
 
-    B->>TxProv: new(tx_receiver, l1_provider_client, height)
+    B->>TxProv: new(tx_receiver, l1_events_provider_client, height)
 
     rect rgb(255, 245, 238)
         Note over TxProv,BF: Validate received L1 handler transactions
@@ -151,7 +151,7 @@ sequenceDiagram
                 TxProv->>BF: add_txs_to_block([tx])
             end
 
-            opt Invalid (AlreadyIncludedOnL2, CancelledOnL2, ConsumedOnL1, NotFound, AlreadyIncludedInProposedBlock, L1ProviderError)
+            opt Invalid (AlreadyIncludedOnL2, CancelledOnL2, ConsumedOnL1, NotFound, AlreadyIncludedInProposedBlock, L1EventsProviderError)
                 Note over TxProv: Fail block validation
             end
         end

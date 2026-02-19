@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_provider_types::SharedL1ProviderClient;
+use apollo_l1_provider_types::SharedL1EventsProviderClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
@@ -23,7 +23,7 @@ pub struct Catchupper {
     pub target_height: BlockNumber,
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
-    pub l1_provider_client: SharedL1ProviderClient,
+    pub l1_events_provider_client: SharedL1EventsProviderClient,
     pub sync_client: SharedStateSyncClient,
     // Keep track of sync task for health checks and logging status.
     pub sync_task_handle: SyncTaskHandle,
@@ -36,14 +36,14 @@ impl Catchupper {
     pub const MAX_HEALTH_CHECK_FAILURES: u8 = 5;
 
     pub fn new(
-        l1_provider_client: SharedL1ProviderClient,
+        l1_events_provider_client: SharedL1EventsProviderClient,
         sync_client: SharedStateSyncClient,
         sync_retry_interval: Duration,
     ) -> Self {
         Self {
             sync_retry_interval,
             commit_block_backlog: Default::default(),
-            l1_provider_client,
+            l1_events_provider_client,
             sync_client,
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
@@ -92,7 +92,7 @@ impl Catchupper {
         // Once we start using a centralized threadpool, spawn through it instead of the
         // tokio runtime.
         let sync_task_handle = tokio::spawn(l2_sync_task(
-            self.l1_provider_client.clone(),
+            self.l1_events_provider_client.clone(),
             self.sync_client.clone(),
             current_provider_height,
             target_height,
@@ -147,7 +147,7 @@ impl std::fmt::Debug for Catchupper {
 }
 
 async fn l2_sync_task(
-    l1_provider_client: SharedL1ProviderClient,
+    l1_events_provider_client: SharedL1EventsProviderClient,
     sync_client: SharedStateSyncClient,
     mut current_height: BlockNumber,
     target_height: BlockNumber,
@@ -156,7 +156,7 @@ async fn l2_sync_task(
     while current_height <= target_height {
         // TODO(Gilad): add tracing instrument.
         debug!(
-            "Syncing L1Provider with L2 height: {} to target height: {}",
+            "Syncing L1EventsProvider with L2 height: {} to target height: {}",
             current_height, target_height
         );
         let block = sync_client.get_block(current_height).await.inspect_err(|err| debug!("{err}"));
@@ -166,7 +166,7 @@ async fn l2_sync_task(
                 // No rejected txs in sync blocks.
                 let l1_handler_rejected_tx_hashes = Default::default();
 
-                l1_provider_client
+                l1_events_provider_client
                     .commit_block(
                         block.l1_transaction_hashes.into_iter().collect(),
                         l1_handler_rejected_tx_hashes,

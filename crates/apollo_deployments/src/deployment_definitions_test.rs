@@ -163,7 +163,8 @@ fn l1_components_state_consistency() {
 
         let l1_gas_price_provider_indicator =
             all_components.contains(&ComponentConfigInService::L1GasPriceProvider);
-        let l1_provider_indicator = all_components.contains(&ComponentConfigInService::L1Provider);
+        let l1_events_provider_indicator =
+            all_components.contains(&ComponentConfigInService::L1EventsProvider);
         let l1_gas_price_scraper_indicator =
             all_components.contains(&ComponentConfigInService::L1GasPriceScraper);
         let l1_scraper_indicator =
@@ -174,7 +175,7 @@ fn l1_components_state_consistency() {
             "L1 gas price provider and scraper should either be both enabled or both disabled."
         );
         assert_eq!(
-            l1_provider_indicator, l1_scraper_indicator,
+            l1_events_provider_indicator, l1_scraper_indicator,
             "L1 provider and scraper should either be both enabled or both disabled."
         );
     }

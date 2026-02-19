@@ -31,7 +31,7 @@ use apollo_l1_gas_price_provider_config::config::{
     L1GasPriceProviderConfig,
     L1GasPriceScraperConfig,
 };
-use apollo_l1_provider_config::config::L1ProviderConfig;
+use apollo_l1_provider_config::config::L1EventsProviderConfig;
 use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
@@ -229,7 +229,7 @@ pub struct SequencerNodeConfig {
     #[validate(nested)]
     pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
     #[validate(nested)]
-    pub l1_provider_config: Option<L1ProviderConfig>,
+    pub l1_events_provider_config: Option<L1EventsProviderConfig>,
     #[validate(nested)]
     pub l1_events_scraper_config: Option<L1EventsScraperConfig>,
     #[validate(nested)]
@@ -272,7 +272,7 @@ impl SerializeConfig for SequencerNodeConfig {
                 &self.l1_gas_price_scraper_config,
                 "l1_gas_price_scraper_config",
             ),
-            ser_optional_sub_config(&self.l1_provider_config, "l1_provider_config"),
+            ser_optional_sub_config(&self.l1_events_provider_config, "l1_events_provider_config"),
             ser_optional_sub_config(&self.l1_events_scraper_config, "l1_events_scraper_config"),
             ser_optional_sub_config(&self.proof_manager_config, "proof_manager_config"),
             ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
@@ -300,7 +300,7 @@ impl Default for SequencerNodeConfig {
             http_server_config: Some(HttpServerConfig::default()),
             l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
             l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
-            l1_provider_config: Some(L1ProviderConfig::default()),
+            l1_events_provider_config: Some(L1EventsProviderConfig::default()),
             l1_events_scraper_config: Some(L1EventsScraperConfig::default()),
             mempool_config: Some(MempoolConfig::default()),
             mempool_p2p_config: Some(MempoolP2pConfig::default()),
@@ -466,7 +466,10 @@ impl SequencerNodeConfig {
             l1_gas_price_scraper,
             l1_gas_price_scraper_config
         );
-        validate_component_config_is_set_iff_running_locally!(l1_provider, l1_provider_config);
+        validate_component_config_is_set_iff_running_locally!(
+            l1_events_provider,
+            l1_events_provider_config
+        );
         validate_component_config_is_set_iff_running_locally!(
             l1_events_scraper,
             l1_events_scraper_config
