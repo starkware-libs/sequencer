@@ -62,6 +62,10 @@ pub fn register_protocol_channels(
 
             (MessageSender::Sqmr(sqmr_client), MessageReceiver::Sqmr(sqmr_server))
         }
+        NetworkProtocol::ReveresedSqmr => {
+            // TODO(AndrewL): Implement ReveresedSqmr protocol registration
+            todo!("ReveresedSqmr protocol registration not yet implemented")
+        }
     }
 }
 
