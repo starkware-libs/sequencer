@@ -239,7 +239,8 @@ pub fn mempool_client_result_to_gw_spec_result(
                     warn!("P2p propagator client error: {}", mempool_error);
                     Ok(())
                 }
-                MempoolError::TransactionNotFound { .. } => {
+                MempoolError::TransactionNotFound { .. }
+                | MempoolError::TransactionTimestampNotAvailable { .. } => {
                     // This error is not expected to happen within the gateway, only from other
                     // mempool clients.
                     unreachable!("Unexpected mempool error in gateway context: {}", mempool_error);
@@ -291,7 +292,8 @@ pub fn mempool_client_err_to_deprecated_gw_err(
                         mempool_error,
                     );
                 }
-                MempoolError::TransactionNotFound { .. } => {
+                MempoolError::TransactionNotFound { .. }
+                | MempoolError::TransactionTimestampNotAvailable { .. } => {
                     // This error is not expected to happen within the gateway, only from other
                     // mempool clients.
                     unreachable!("Unexpected mempool error in gateway context: {}", mempool_error);

@@ -1,5 +1,4 @@
 use std::clone::Clone;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -30,7 +29,6 @@ use apollo_transaction_converter::{
 };
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
-use starknet_api::block::UnixTimestamp;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -39,7 +37,6 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
-use starknet_api::transaction::TransactionHash;
 use tokio::time::timeout;
 use tracing::{debug, error, info, warn};
 

@@ -36,9 +36,11 @@ blockifier_test_utils = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["deref", "from"] }
 indexmap.workspace = true
 rand.workspace = true
+reqwest.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
@@ -61,9 +63,10 @@ metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-tokio.workspace = true
+axum.workspace = true
 
 [[bench]]
 harness = false

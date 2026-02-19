@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
+use apollo_deployment_mode::DeploymentMode;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_mempool_config::config::MempoolConfig;
@@ -21,11 +22,13 @@ use apollo_mempool_types::mempool_types::{
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
+use reqwest::Client;
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use tracing::warn;
+use tokio::time::sleep;
+use tracing::{debug, warn};
 
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
@@ -51,6 +54,7 @@ pub struct MempoolCommunicationWrapper {
     mempool: Mempool,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     config_manager_client: SharedConfigManagerClient,
+    http_client: Client,
 }
 
 impl MempoolCommunicationWrapper {
@@ -63,6 +67,7 @@ impl MempoolCommunicationWrapper {
             mempool,
             mempool_p2p_propagator_client,
             config_manager_client,
+            http_client: Client::new(),
         }
     }
 
@@ -101,13 +106,28 @@ impl MempoolCommunicationWrapper {
         &mut self,
         args_wrapper: AddTransactionArgsWrapper,
     ) -> MempoolResult<()> {
+        if self.mempool.config.static_config.deployment_mode == DeploymentMode::Echonet {
+            let tx_hash = args_wrapper.args.tx.tx_hash();
+            debug!("Fetching timestamp from recorder for tx {}", tx_hash);
+
+            // Fetch timestamp BEFORE adding to mempool
+            if !self.fetch_and_update_timestamp(tx_hash).await {
+                warn!("Failed to fetch timestamp for tx {}, refusing to add to mempool", tx_hash);
+                return Err(MempoolError::TransactionTimestampNotAvailable { tx_hash });
+            }
+
+            debug!("Successfully fetched timestamp for tx {}", tx_hash);
+        }
+
         self.mempool.add_tx(args_wrapper.args.clone())?;
+
         // TODO(AlonH): Verify that only transactions that were added to the mempool are sent.
         if let Err(p2p_client_err) =
             self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await
         {
             warn!("Failed to send transaction to P2P: {:?}", p2p_client_err);
         }
+
         Ok(())
     }
 
@@ -151,6 +171,94 @@ impl MempoolCommunicationWrapper {
     ) -> MempoolResult<()> {
         self.mempool.update_timestamps(mappings);
         Ok(())
+    }
+
+    /// Fetches timestamp from recorder and updates mempool.
+    /// Returns true if successful, false if failed after all retries.
+    async fn fetch_and_update_timestamp(&mut self, tx_hash: TransactionHash) -> bool {
+        let recorder_url = &self.mempool.config.static_config.recorder_url;
+        debug!("Starting timestamp fetch for tx {} from recorder at {}", tx_hash, recorder_url);
+        const MAX_RETRIES: usize = 2;
+        const RETRY_DELAY_MS: u64 = 50;
+
+        for attempt in 0..MAX_RETRIES {
+            let url = recorder_url
+                .join(&format!("echonet/get_timestamp?tx_hash={}", tx_hash))
+                .expect("Failed to construct URL");
+
+            let response = match self
+                .http_client
+                .get(url)
+                .timeout(std::time::Duration::from_secs(2))
+                .send()
+                .await
+            {
+                Ok(res) if res.status().is_success() => res,
+                Ok(res) => {
+                    debug!(
+                        "HTTP error from recorder for tx {} (attempt {}): {}",
+                        tx_hash,
+                        attempt + 1,
+                        res.status()
+                    );
+                    if attempt + 1 < MAX_RETRIES {
+                        sleep(std::time::Duration::from_millis(RETRY_DELAY_MS)).await;
+                        continue;
+                    }
+                    warn!(
+                        "Failed to fetch timestamp for tx {} after {} attempts",
+                        tx_hash, MAX_RETRIES
+                    );
+                    return false;
+                }
+                Err(e) => {
+                    debug!(
+                        "Failed to fetch timestamp for tx {} (attempt {}): {}",
+                        tx_hash,
+                        attempt + 1,
+                        e
+                    );
+                    if attempt + 1 < MAX_RETRIES {
+                        sleep(std::time::Duration::from_millis(RETRY_DELAY_MS)).await;
+                        continue;
+                    }
+                    warn!(
+                        "Failed to fetch timestamp for tx {} after {} attempts",
+                        tx_hash, MAX_RETRIES
+                    );
+                    return false;
+                }
+            };
+
+            match response.json::<UnixTimestamp>().await {
+                Ok(timestamp) => {
+                    debug!("Fetched timestamp {} for tx {}", timestamp, tx_hash);
+                    let mut mappings = HashMap::new();
+                    mappings.insert(tx_hash, timestamp);
+                    self.mempool.update_timestamps(mappings);
+                    return true;
+                }
+                Err(e) => {
+                    debug!(
+                        "Failed to parse timestamp response for tx {} (attempt {}): {}",
+                        tx_hash,
+                        attempt + 1,
+                        e
+                    );
+                    if attempt + 1 < MAX_RETRIES {
+                        sleep(std::time::Duration::from_millis(RETRY_DELAY_MS)).await;
+                        continue;
+                    }
+                    warn!(
+                        "Failed to fetch timestamp for tx {} after {} attempts",
+                        tx_hash, MAX_RETRIES
+                    );
+                    return false;
+                }
+            }
+        }
+
+        false
     }
 }
 
