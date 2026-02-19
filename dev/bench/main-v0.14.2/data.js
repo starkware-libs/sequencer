@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771490377264,
+  "lastUpdate": 1771497850777,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -917,6 +917,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1304.56245797,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9a444a2bd4ee45a7f41488ef9a6e131cccd26a4e",
+          "message": "apollo_propeller: implement outbound substream with message batching (#11071)",
+          "timestamp": "2026-02-19T10:23:43Z",
+          "tree_id": "dd968643cbb6847f26c4844fdbbf7fb860d835ae",
+          "url": "https://github.com/starkware-libs/sequencer/commit/9a444a2bd4ee45a7f41488ef9a6e131cccd26a4e"
+        },
+        "date": 1771497850460,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 781.05437561,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1258.05538482,
             "unit": "ms"
           }
         ]
