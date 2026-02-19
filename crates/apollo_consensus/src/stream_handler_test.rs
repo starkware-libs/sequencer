@@ -621,3 +621,155 @@ async fn per_peer_stream_isolation() {
     assert_eq!(message, ProposalPart::Init(ProposalInit { round: 0, ..Default::default() }));
     assert!(matches!(receiver.try_next(), Ok(None)));
 }
+
+#[tokio::test]
+async fn buffer_limit_drops_stream() {
+    let max_message_buffer_size = 3;
+    let stream_id = 42;
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams: MAX_STREAMS,
+        max_message_buffer_size,
+    };
+    let (
+        mut stream_handler,
+        mut network_to_streamhandler_sender,
+        mut streamhandler_to_client_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup_with_config(config);
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+    // Send messages 1..=3 out of order (skipping message 0), filling the buffer to capacity.
+    for i in 1..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = build_init_message(i, stream_id, i);
+        network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // No receiver yet (message 0 hasn't arrived).
+    assert!(streamhandler_to_client_receiver.try_next().is_err());
+
+    // Send one more out-of-order message. Buffer is full, so the stream is dropped.
+    let overflow_id = u32::try_from(max_message_buffer_size + 1).unwrap();
+    let message = build_init_message(overflow_id, stream_id, overflow_id);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Still no receiver (stream was dropped before message 0 ever arrived).
+    assert!(streamhandler_to_client_receiver.try_next().is_err());
+
+    // Send message 0. The old stream was dropped, so this starts a fresh stream.
+    let message = build_init_message(0, stream_id, 0);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // A new receiver is created with just message 0 (the old buffer is gone).
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    let message = receiver.next().await.unwrap();
+    assert_eq!(message, ProposalPart::Init(ProposalInit { round: 0, ..Default::default() }));
+    // Stream remains open (no fin, no other buffered messages on the fresh stream).
+    assert!(receiver.try_next().is_err());
+}
+
+#[tokio::test]
+async fn buffer_at_capacity_drains_on_missing_message() {
+    let max_message_buffer_size = 3;
+    let stream_id = 42;
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams: MAX_STREAMS,
+        max_message_buffer_size,
+    };
+    let (
+        mut stream_handler,
+        mut network_to_streamhandler_sender,
+        mut streamhandler_to_client_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup_with_config(config);
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+    // Send messages 1..=3, filling the buffer to exactly its capacity.
+    for i in 1..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = build_init_message(i, stream_id, i);
+        network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // Send message 0. This triggers draining of the buffered messages 1, 2, 3.
+    let message = build_init_message(0, stream_id, 0);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Send fin to close the stream (4 content messages: 0, 1, 2, 3).
+    let fin_id = u32::try_from(max_message_buffer_size + 1).unwrap();
+    let message = build_fin_message(stream_id, fin_id);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // All messages received in order, stream closed.
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    for i in 0..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = receiver.next().await.unwrap();
+        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+    }
+    assert!(matches!(receiver.try_next(), Ok(None)));
+}
+
+/// This test verifies that a duplicate message arriving when the buffer is exactly at capacity
+/// is recognized as a duplicate (and harmlessly ignored) rather than treated as a buffer
+/// overflow that would drop the stream.
+#[tokio::test]
+async fn duplicate_at_capacity_does_not_drop_stream() {
+    let max_message_buffer_size = 3;
+    let stream_id = 42;
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams: MAX_STREAMS,
+        max_message_buffer_size,
+    };
+    let (
+        mut stream_handler,
+        mut network_to_streamhandler_sender,
+        mut streamhandler_to_client_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup_with_config(config);
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+    // Fill the buffer to capacity with messages 1, 2, 3.
+    for i in 1..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = build_init_message(i, stream_id, i);
+        network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // Send a duplicate of message 2. The buffer is at capacity, but this is a duplicate
+    // so the stream should survive (DuplicateMessageId, not TooManyMessages).
+    let message = build_init_message(2, stream_id, 2);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Send message 0 to trigger draining of the buffer.
+    let message = build_init_message(0, stream_id, 0);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Send fin to close the stream.
+    let fin_id = u32::try_from(max_message_buffer_size + 1).unwrap();
+    let message = build_fin_message(stream_id, fin_id);
+    network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // All messages should arrive in order (the duplicate was ignored, stream survived).
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    for i in 0..=u32::try_from(max_message_buffer_size).unwrap() {
+        let message = receiver.next().await.unwrap();
+        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+    }
+    assert!(matches!(receiver.try_next(), Ok(None)));
+}
