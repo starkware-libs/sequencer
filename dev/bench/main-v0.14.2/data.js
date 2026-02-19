@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771489466127,
+  "lastUpdate": 1771490377264,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -883,6 +883,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1230.23862627,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "einat@starkware.co",
+            "name": "einat-starkware",
+            "username": "einat-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "43641ab5b100fb276f2e7b8ddeb70a5b6539948e",
+          "message": "Merge pull request #12702 from starkware-libs/einat/proof_manager/measure_cache_lock_time\n\napollo_proof_manager: measure cache lock times in log",
+          "timestamp": "2026-02-19T08:19:09Z",
+          "tree_id": "c5b7c60ce12efe2df3ee82b5c411cd3db1b7b1d8",
+          "url": "https://github.com/starkware-libs/sequencer/commit/43641ab5b100fb276f2e7b8ddeb70a5b6539948e"
+        },
+        "date": 1771490376941,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 760.5706637999999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1304.56245797,
             "unit": "ms"
           }
         ]
