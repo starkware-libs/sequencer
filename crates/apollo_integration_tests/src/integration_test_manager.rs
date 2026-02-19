@@ -254,6 +254,18 @@ impl NodeSetup {
         send_storage_reader_http_request(self.batcher_storage_reader_server_addr(), &request).await
     }
 
+    pub async fn get_global_root_height(&self) -> BlockNumber {
+        let response = self
+            .send_batcher_storage_reader_request(StorageReaderRequest::Markers(
+                MarkerKind::GlobalRoot,
+            ))
+            .await;
+        match response {
+            StorageReaderResponse::Markers(block_number) => block_number,
+            other => panic!("Expected Markers response, got: {other:?}"),
+        }
+    }
+
     pub fn run_service(&self, service: NodeService) -> AbortOnDropHandle<()> {
         let executable_setup = self.get_executable_by_service(service);
         spawn_run_node(
@@ -1131,7 +1143,7 @@ impl IntegrationTestManager {
         info!("Waiting for global root marker to reach {max_state_marker} on all running nodes.");
         self.perform_action_on_all_running_nodes(|running_node| async move {
             let node_index = running_node.get_node_index();
-            let mut global_root_height = BlockNumber(0);
+            let mut global_root_height = running_node.node_setup.get_global_root_height().await;
             timeout(TEST_SCENARIO_TIMEOUT, async {
                 loop {
                     let response = running_node
