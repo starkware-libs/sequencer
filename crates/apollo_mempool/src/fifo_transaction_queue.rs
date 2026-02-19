@@ -4,7 +4,7 @@ use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::mempool::TransactionReference;
 use crate::transaction_queue_trait::TransactionQueueTrait;
@@ -39,43 +39,29 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     fn insert(&mut self, tx_reference: TransactionReference, _validate_resource_bounds: bool) {
         let tx_hash = tx_reference.tx_hash;
 
-        debug!("FIFO insert: tx_hash={}, queue_len_before={}", tx_hash, self.queue.len());
+        // Timestamp must be set via update_timestamps before insert
+        let timestamp = self
+            .hash_to_timestamp
+            .get(&tx_hash)
+            .expect("FIFO insert: transaction must have timestamp set before insertion");
 
         // Add transaction to queue in FIFO order
         self.queue.push_back(tx_hash);
         self.hash_to_tx.insert(tx_hash, tx_reference);
 
-        // Check if timestamp exists in mapping, otherwise use 0 as fallback
-        if let Some(&timestamp) = self.hash_to_timestamp.get(&tx_hash) {
-            info!(
-                "FIFO insert: tx_hash={}, timestamp={} (stored), queue_len={}",
-                tx_hash,
-                timestamp,
-                self.queue.len()
-            );
-        } else {
-            self.hash_to_timestamp.insert(tx_hash, 0);
-            info!(
-                "FIFO insert: tx_hash={}, timestamp=0 (fallback), queue_len={}",
-                tx_hash,
-                self.queue.len()
-            );
-        }
+        debug!(
+            "FIFO insert: tx_hash={}, timestamp={}, queue_len={}",
+            tx_hash,
+            timestamp,
+            self.queue.len()
+        );
     }
 
     fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         // If get_ts() hasn't been called, return empty vec
         let Some(timestamp_threshold) = self.last_returned_timestamp else {
-            debug!("FIFO pop_ready_chunk: get_ts() not called yet, returning empty");
             return Vec::new();
         };
-
-        debug!(
-            "FIFO pop_ready_chunk: n_txs={}, timestamp_threshold={}, queue_len={}",
-            n_txs,
-            timestamp_threshold,
-            self.queue.len()
-        );
 
         // Collect transactions that match the timestamp threshold
         let mut result = Vec::new();
@@ -88,6 +74,11 @@ impl TransactionQueueTrait for FifoTransactionQueue {
             if let Some(&tx_timestamp) = self.hash_to_timestamp.get(&tx_hash) {
                 if tx_timestamp == timestamp_threshold {
                     if let Some(tx_ref) = self.hash_to_tx.remove(&tx_hash) {
+                        debug!(
+                            "FIFO pop_ready_chunk: popping tx_hash={}, timestamp={}, \
+                             last_returned_timestamp={:?}",
+                            tx_hash, tx_timestamp, self.last_returned_timestamp
+                        );
                         result.push(tx_ref);
                         // Keep timestamp in map for potential rewind
                     }
@@ -100,13 +91,6 @@ impl TransactionQueueTrait for FifoTransactionQueue {
         }
 
         self.queue.drain(..result.len());
-
-        info!(
-            "FIFO pop_ready_chunk: returned {} txs with timestamp={}, remaining_queue_len={}",
-            result.len(),
-            timestamp_threshold,
-            self.queue.len()
-        );
 
         result
     }
@@ -132,7 +116,19 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     }
 
     fn has_ready_txs(&self) -> bool {
-        !self.queue.is_empty()
+        // If get_timestamp() hasn't been called yet, no txs are ready
+        let Some(timestamp_threshold) = self.last_returned_timestamp else {
+            return false;
+        };
+
+        // Check if the first tx in queue has the same timestamp as last_returned_timestamp
+        if let Some(first_hash) = self.queue.front() {
+            if let Some(&tx_timestamp) = self.hash_to_timestamp.get(first_hash) {
+                return tx_timestamp == timestamp_threshold;
+            }
+        }
+
+        false
     }
 
     fn iter_over_ready_txs(&self) -> Box<dyn Iterator<Item = &TransactionReference> + '_> {
@@ -187,9 +183,16 @@ impl TransactionQueueTrait for FifoTransactionQueue {
     }
 
     fn update_timestamps(&mut self, mappings: HashMap<TransactionHash, UnixTimestamp>) {
-        let count = mappings.len();
-        info!("FIFO update_timestamps: received {} timestamp mappings", count);
+        debug!("FIFO update_timestamps: received {} mappings", mappings.len());
         self.hash_to_timestamp.extend(mappings);
+    }
+
+    fn insert_for_rewind(
+        &mut self,
+        tx_reference: TransactionReference,
+        _validate_resource_bounds: bool,
+    ) {
+        self.insert_at_front(tx_reference);
     }
 }
 
@@ -206,5 +209,26 @@ impl FifoTransactionQueue {
         } else {
             false
         }
+    }
+
+    /// Inserts a transaction at the front of the queue (for rewind operations).
+    /// This ensures rewound transactions are processed before new transactions.
+    fn insert_at_front(&mut self, tx_reference: TransactionReference) {
+        let tx_hash = tx_reference.tx_hash;
+
+        // Timestamp must already exist for rewound transactions
+        let timestamp = *self
+            .hash_to_timestamp
+            .get(&tx_hash)
+            .expect("Rewound transaction must have a timestamp already set");
+
+        debug!(
+            "FIFO insert_at_front: tx_hash={}, timestamp={}, queue_before={:?}",
+            tx_hash, timestamp, self.queue
+        );
+
+        // Add transaction to FRONT of queue
+        self.queue.push_front(tx_hash);
+        self.hash_to_tx.insert(tx_hash, tx_reference);
     }
 }

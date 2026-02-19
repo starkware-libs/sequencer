@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
@@ -241,7 +241,7 @@ impl AddTransactionQueue {
 }
 
 pub struct Mempool {
-    config: MempoolConfig,
+    pub(crate) config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
     // Declare transactions that are waiting to be added to the tx pool after a delay.
     delayed_declares: AddTransactionQueue,
@@ -249,6 +249,8 @@ pub struct Mempool {
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: Box<dyn TransactionQueueTrait>,
+    // Transaction references that were staged (returned by get_txs) for FIFO queue rewind.
+    staged_tx_refs: Vec<TransactionReference>,
     // Accounts whose lowest transaction nonce is greater than the account nonce, which are
     // therefore candidates for eviction.
     accounts_with_gap: AccountsWithGap,
@@ -274,6 +276,7 @@ impl Mempool {
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue,
+            staged_tx_refs: Vec::new(),
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
@@ -358,6 +361,12 @@ impl Mempool {
         let mut account_nonce_updates = AddressToNonce::new();
         while n_remaining_txs > 0 && self.tx_queue.has_ready_txs() {
             let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
+
+            // Break if no transactions were returned (e.g., different timestamp in FIFO mode)
+            if chunk.is_empty() {
+                break;
+            }
+
             let (valid_txs, expired_txs_updates) = self.prune_expired_nonqueued_txs(chunk);
             account_nonce_updates.extend(expired_txs_updates);
 
@@ -369,9 +378,13 @@ impl Mempool {
             eligible_tx_references.extend(valid_txs);
         }
 
-        // Update the mempool state with the given transactions' nonces.
+        // Update the mempool state with the given transactions' nonces and store for FIFO queue
+        // rewind.
         for tx_reference in &eligible_tx_references {
             self.state.stage(tx_reference)?;
+            if self.is_fifo() {
+                self.staged_tx_refs.push(*tx_reference);
+            }
         }
 
         let n_returned_txs = eligible_tx_references.len();
@@ -535,38 +548,78 @@ impl Mempool {
         committed_nonces: &AddressToNonce,
         rejected_tx_hashes: &IndexSet<TransactionHash>,
     ) -> IndexSet<TransactionHash> {
-        let addresses_to_rewind: Vec<_> = committed_nonces.keys().copied().collect();
-        // Rewind all transactions from addresses that need rewinding,
-        // but only if the immediate next transaction wasn't rejected.
-        let mut txs_to_rewind = Vec::new();
-        let mut rewound_tx_hashes = IndexSet::new();
+        // Group staged transactions by address
+        let staged_by_address: HashMap<ContractAddress, Vec<&TransactionReference>> =
+            self.staged_tx_refs.iter().fold(HashMap::new(), |mut acc, tx| {
+                acc.entry(tx.address).or_default().push(tx);
+                acc
+            });
 
-        for address in addresses_to_rewind {
-            // Check if this address has a committed nonce
-            if let Some(&committed_nonce) = committed_nonces.get(&address) {
-                // Check if the immediate next transaction (at committed_nonce) is rejected
-                if let Some(next_tx) =
-                    self.tx_pool.get_by_address_and_nonce(address, committed_nonce)
-                {
-                    if rejected_tx_hashes.contains(&next_tx.tx_hash) {
-                        // Immediate next transaction is rejected, don't rewind anything
+        let mut rewound_hashes = IndexSet::new();
+        let mut addresses_to_rewind = HashSet::new();
+
+        // First pass: Determine which addresses should have transactions rewound
+        for (address, txs) in &staged_by_address {
+            if let Some(&committed_nonce) = committed_nonces.get(address) {
+                // Address has committed transactions - check if the following tx is rejected
+                let following_tx = txs.iter().find(|tx| tx.nonce == committed_nonce);
+
+                match following_tx {
+                    Some(following_tx_ref) => {
+                        // Following tx exists - check if it's rejected
+                        if rejected_tx_hashes.contains(&following_tx_ref.tx_hash) {
+                            // Following tx is rejected - don't rewind any transactions for this
+                            // address
+                            continue;
+                        }
+                        // Following tx is not rejected - rewind all non-committed txs
+                        addresses_to_rewind.insert(*address);
+                    }
+                    None => {
+                        // Following tx doesn't exist - rewind all non-committed txs
+                        addresses_to_rewind.insert(*address);
+                    }
+                }
+            } else {
+                // Address has no committed transactions (was staged but NOT committed)
+                // Find the first tx (lowest nonce) for this address
+                if let Some(first_tx) = txs.iter().min_by_key(|tx| tx.nonce) {
+                    // If the first tx is rejected, don't rewind anything
+                    if rejected_tx_hashes.contains(&first_tx.tx_hash) {
                         continue;
                     }
                 }
-            }
-
-            // Get all transactions for this address and rewind them
-            for tx_reference in self.tx_pool.account_txs_sorted_by_nonce(address) {
-                txs_to_rewind.push(*tx_reference);
-                rewound_tx_hashes.insert(tx_reference.tx_hash);
+                // First tx is not rejected (or doesn't exist) - rewind all transactions
+                addresses_to_rewind.insert(*address);
             }
         }
-        // Add them back to the queue
-        for tx_reference in txs_to_rewind {
-            self.insert_to_tx_queue(tx_reference);
+
+        // Second pass: Rewind transactions from addresses that need rewinding
+        // Rewind all non-committed transactions (including rejected ones if address is being
+        // rewound)
+        // Track which transactions we've already rewound to prevent duplicates
+        let mut already_rewound: HashSet<TransactionHash> = HashSet::new();
+
+        for tx_ref in self.staged_tx_refs.iter().rev() {
+            let address_needs_rewind = addresses_to_rewind.contains(&tx_ref.address);
+            if !address_needs_rewind {
+                continue;
+            }
+
+            // Check if this transaction was committed
+            let is_committed =
+                committed_nonces.get(&tx_ref.address).is_some_and(|&cn| tx_ref.nonce < cn);
+
+            if !is_committed && !already_rewound.contains(&tx_ref.tx_hash) {
+                // Rewind: re-insert at front (preserve FIFO order)
+                self.tx_queue
+                    .insert_for_rewind(*tx_ref, self.config.static_config.validate_resource_bounds);
+                rewound_hashes.insert(tx_ref.tx_hash);
+                already_rewound.insert(tx_ref.tx_hash);
+            }
         }
 
-        rewound_tx_hashes
+        rewound_hashes
     }
 
     fn remove_rejected_txs(
@@ -709,6 +762,10 @@ impl Mempool {
 
         self.update_state_metrics();
         self.update_accounts_with_gap(account_nonce_updates);
+
+        if self.is_fifo() {
+            self.staged_tx_refs.clear();
+        }
     }
 
     pub fn account_tx_in_pool_or_recent_block(&self, account_address: ContractAddress) -> bool {
