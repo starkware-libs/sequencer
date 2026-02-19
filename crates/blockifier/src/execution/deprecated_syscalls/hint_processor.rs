@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::HashSet;
+use std::collections::{hash_map, HashMap, HashSet};
 
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
@@ -218,6 +218,11 @@ pub struct DeprecatedSyscallHintProcessor<'a> {
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey>,
 
+    // The original storage values of the executed contract, for revert support.
+    // Should be moved back to `context.revert_info` when the handler is finalized.
+    pub original_values: HashMap<StorageKey, Felt>,
+    revert_info_idx: usize,
+
     // Additional fields.
     // Invariant: must only contain allowed hints.
     builtin_hint_processor: BuiltinHintProcessor,
@@ -235,6 +240,15 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         caller_address: ContractAddress,
         class_hash: ClassHash,
     ) -> Self {
+        let revert_info_idx = context.revert_infos.0.len() - 1;
+        let original_values = std::mem::take(
+            &mut context
+                .revert_infos
+                .0
+                .last_mut()
+                .expect("Missing contract revert info.")
+                .original_values,
+        );
         DeprecatedSyscallHintProcessor {
             state,
             context,
@@ -249,6 +263,8 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
             syscall_ptr: initial_syscall_ptr,
             read_values: vec![],
             accessed_keys: HashSet::new(),
+            original_values,
+            revert_info_idx,
             builtin_hint_processor: extended_builtin_hint_processor(),
             tx_signature_start_ptr: None,
             tx_info_start_ptr: None,
@@ -384,10 +400,46 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         key: StorageKey,
         value: Felt,
     ) -> DeprecatedSyscallResult<StorageWriteResponse> {
+        let contract_address = self.storage_address;
+
+        match self.original_values.entry(key) {
+            hash_map::Entry::Vacant(entry) => {
+                // Check if any inner call (entries created after this handler's entry) already
+                // captured an original value for this key. If so, use that value instead of the
+                // current state, because the inner call captured the true original before any
+                // writes in this execution scope.
+                let original_value = self
+                    .context
+                    .revert_infos
+                    .0
+                    .iter()
+                    .skip(self.revert_info_idx + 1)
+                    .find_map(|info| {
+                        if info.contract_address == contract_address {
+                            info.original_values.get(&key).copied()
+                        } else {
+                            None
+                        }
+                    })
+                    .map_or_else(|| self.state.get_storage_at(contract_address, key), Ok)?;
+                entry.insert(original_value);
+            }
+            hash_map::Entry::Occupied(_) => {}
+        }
+
         self.accessed_keys.insert(key);
-        self.state.set_storage_at(self.storage_address, key, value)?;
+        self.state.set_storage_at(contract_address, key, value)?;
 
         Ok(StorageWriteResponse {})
+    }
+
+    pub fn finalize(&mut self) {
+        self.context
+            .revert_infos
+            .0
+            .get_mut(self.revert_info_idx)
+            .expect("Missing contract revert info.")
+            .original_values = std::mem::take(&mut self.original_values);
     }
 
     pub fn get_block_info(&self) -> &BlockInfo {
