@@ -28,7 +28,7 @@ pub enum ComponentConfigInService {
     L1GasPriceProvider,
     L1GasPriceScraper,
     L1Provider,
-    L1Scraper,
+    L1EventsScraper,
     Mempool,
     MempoolP2p,
     MonitoringEndpoint,
