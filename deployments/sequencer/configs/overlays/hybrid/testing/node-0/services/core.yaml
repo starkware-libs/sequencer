@@ -25,8 +25,8 @@ config:
     components.committer.url: sequencer-committer-service
     components.l1_gas_price_provider.port: 55003
     components.l1_gas_price_provider.url: sequencer-l1-service
-    components.l1_provider.port: 55004
-    components.l1_provider.url: sequencer-l1-service
+    components.l1_events_provider.port: 55004
+    components.l1_events_provider.url: sequencer-l1-service
     components.mempool.port: 55006
     components.mempool.url: sequencer-mempool-service
     components.sierra_compiler.port: 55007

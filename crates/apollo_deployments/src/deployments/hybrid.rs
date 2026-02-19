@@ -45,7 +45,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let committer = Self::Committer.component_config_pair(infra_port_allocator.next());
         let gateway = Self::Gateway.component_config_pair(infra_port_allocator.next());
         let l1_gas_price_provider = Self::L1.component_config_pair(infra_port_allocator.next());
-        let l1_provider = Self::L1.component_config_pair(infra_port_allocator.next());
+        let l1_events_provider = Self::L1.component_config_pair(infra_port_allocator.next());
         let mempool = Self::Mempool.component_config_pair(infra_port_allocator.next());
         let proof_manager = Self::Core.component_config_pair(infra_port_allocator.next());
         let sierra_compiler =
@@ -64,7 +64,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     class_manager.local(),
                     committer.remote(),
                     l1_gas_price_provider.remote(),
-                    l1_provider.remote(),
+                    l1_events_provider.remote(),
                     state_sync.local(),
                     mempool.remote(),
                     proof_manager.local(),
@@ -80,7 +80,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                 ),
                 Self::L1 => get_l1_component_config(
                     l1_gas_price_provider.local(),
-                    l1_provider.local(),
+                    l1_events_provider.local(),
                     batcher.remote(),
                     state_sync.remote(),
                 ),
@@ -141,7 +141,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -172,7 +172,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -197,7 +197,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::ConsensusManager
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -216,7 +216,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::General
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
@@ -255,7 +255,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::ProofManager
                         | ComponentConfigInService::SierraCompiler
@@ -282,7 +282,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
-                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1EventsProvider
                         | ComponentConfigInService::L1EventsScraper
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
@@ -315,7 +315,7 @@ fn get_core_component_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
     committer_remote_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
-    l1_provider_remote_config: ReactiveComponentExecutionConfig,
+    l1_events_provider_remote_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     proof_manager_local_config: ReactiveComponentExecutionConfig,
@@ -329,7 +329,7 @@ fn get_core_component_config(
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
-    config.l1_provider = l1_provider_remote_config;
+    config.l1_events_provider = l1_events_provider_remote_config;
     config.proof_manager = proof_manager_local_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
@@ -360,7 +360,7 @@ fn get_gateway_component_config(
 
 fn get_l1_component_config(
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
-    l1_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_events_provider_local_config: ReactiveComponentExecutionConfig,
     batcher_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -368,7 +368,7 @@ fn get_l1_component_config(
     config.batcher = batcher_remote_config;
     config.l1_gas_price_provider = l1_gas_price_provider_local_config;
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_provider = l1_provider_local_config;
+    config.l1_events_provider = l1_events_provider_local_config;
     config.l1_events_scraper = ActiveComponentExecutionConfig::enabled();
     config.config_manager = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();

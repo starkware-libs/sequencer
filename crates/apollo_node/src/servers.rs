@@ -27,10 +27,10 @@ use apollo_infra::component_server::{
 };
 use apollo_l1_events::communication::{
     L1EventsScraperServer,
-    LocalL1ProviderServer,
-    RemoteL1ProviderServer,
+    LocalL1EventsProviderServer,
+    RemoteL1EventsProviderServer,
 };
-use apollo_l1_events::metrics::L1_PROVIDER_INFRA_METRICS;
+use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
 use apollo_l1_gas_price::communication::{
     L1GasPriceScraperServer,
     LocalL1GasPriceServer,
@@ -80,7 +80,7 @@ struct LocalServers {
     pub(crate) committer: Option<Box<LocalCommitterServer>>,
     pub(crate) config_manager: Option<Box<LocalConfigManagerServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
-    pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
+    pub(crate) l1_events_provider: Option<Box<LocalL1EventsProviderServer>>,
     pub(crate) l1_gas_price_provider: Option<Box<LocalL1GasPriceServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
@@ -113,7 +113,7 @@ pub struct RemoteServers {
     // Note: we explicitly avoid adding a config manager runner server to the remote servers as it
     // is not used for remote connections.
     pub gateway: Option<Box<RemoteGatewayServer>>,
-    pub l1_provider: Option<Box<RemoteL1ProviderServer>>,
+    pub l1_events_provider: Option<Box<RemoteL1EventsProviderServer>>,
     pub l1_gas_price_provider: Option<Box<RemoteL1GasPriceServer>>,
     pub mempool: Option<Box<RemoteMempoolServer>>,
     pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
@@ -382,18 +382,18 @@ fn create_local_servers(
         &L1_GAS_PRICE_INFRA_METRICS.get_local_server_metrics()
     );
 
-    let l1_provider_server = create_local_server!(
+    let l1_events_provider_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
-        &config.components.l1_provider.execution_mode,
-        &mut components.l1_provider,
+        &config.components.l1_events_provider.execution_mode,
+        &mut components.l1_events_provider,
         &config
             .components
-            .l1_provider
+            .l1_events_provider
             .local_server_config
             .as_ref()
             .expect("L1 provider local server config should be available."),
-        communication.take_l1_provider_rx(),
-        &L1_PROVIDER_INFRA_METRICS.get_local_server_metrics()
+        communication.take_l1_events_provider_rx(),
+        &L1_EVENTS_PROVIDER_INFRA_METRICS.get_local_server_metrics()
     );
 
     let mempool_server = create_local_server!(
@@ -490,7 +490,7 @@ fn create_local_servers(
         committer: committer_server,
         config_manager: config_manager_server,
         gateway: gateway_server,
-        l1_provider: l1_provider_server,
+        l1_events_provider: l1_events_provider_server,
         l1_gas_price_provider: l1_gas_price_provider_server,
         proof_manager: proof_manager_server,
         mempool: mempool_server,
@@ -519,7 +519,7 @@ impl LocalServers {
             server_future_and_label(self.committer, "Local Committer"),
             server_future_and_label(self.config_manager, "Local Config Manager"),
             server_future_and_label(self.gateway, "Local Gateway"),
-            server_future_and_label(self.l1_provider, "Local L1 Provider"),
+            server_future_and_label(self.l1_events_provider, "Local L1 Provider"),
             server_future_and_label(self.l1_gas_price_provider, "Local L1 Gas Price Provider"),
             server_future_and_label(self.mempool, "Local Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2p Propagator"),
@@ -572,13 +572,13 @@ pub fn create_remote_servers(
         GATEWAY_INFRA_METRICS.get_remote_server_metrics()
     );
 
-    let l1_provider_server = create_remote_server!(
-        &config.components.l1_provider.execution_mode,
-        || { clients.get_l1_provider_local_client() },
-        config.components.l1_provider.remote_server_config,
-        config.components.l1_provider.port,
-        config.components.l1_provider.max_concurrency,
-        L1_PROVIDER_INFRA_METRICS.get_remote_server_metrics()
+    let l1_events_provider_server = create_remote_server!(
+        &config.components.l1_events_provider.execution_mode,
+        || { clients.get_l1_events_provider_local_client() },
+        config.components.l1_events_provider.remote_server_config,
+        config.components.l1_events_provider.port,
+        config.components.l1_events_provider.max_concurrency,
+        L1_EVENTS_PROVIDER_INFRA_METRICS.get_remote_server_metrics()
     );
 
     let l1_gas_price_provider_server = create_remote_server!(
@@ -649,7 +649,7 @@ pub fn create_remote_servers(
         class_manager: class_manager_server,
         committer: committer_server,
         gateway: gateway_server,
-        l1_provider: l1_provider_server,
+        l1_events_provider: l1_events_provider_server,
         l1_gas_price_provider: l1_gas_price_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
@@ -667,7 +667,7 @@ impl RemoteServers {
             server_future_and_label(self.class_manager, "Remote Class Manager"),
             server_future_and_label(self.committer, "Remote Committer"),
             server_future_and_label(self.gateway, "Remote Gateway"),
-            server_future_and_label(self.l1_provider, "Remote L1 Provider"),
+            server_future_and_label(self.l1_events_provider, "Remote L1 Provider"),
             server_future_and_label(self.l1_gas_price_provider, "Remote L1 Gas Price Provider"),
             server_future_and_label(self.mempool, "Remote Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Remote Mempool P2p Propagator"),

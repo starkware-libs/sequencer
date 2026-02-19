@@ -1,10 +1,10 @@
 use std::cmp::min;
 use std::vec;
 
-use apollo_l1_provider_types::errors::L1ProviderClientError;
+use apollo_l1_provider_types::errors::L1EventsProviderClientError;
 use apollo_l1_provider_types::{
     InvalidValidationStatus as L1InvalidValidationStatus,
-    SharedL1ProviderClient,
+    SharedL1EventsProviderClient,
     ValidationStatus as L1ValidationStatus,
 };
 use apollo_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
@@ -16,7 +16,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 
-use crate::metrics::BATCHER_L1_PROVIDER_ERRORS;
+use crate::metrics::BATCHER_L1_EVENTS_PROVIDER_ERRORS;
 
 type TransactionProviderResult<T> = Result<T, TransactionProviderError>;
 
@@ -34,7 +34,7 @@ pub enum TransactionProviderError {
         validation_status: L1InvalidValidationStatus,
     },
     #[error(transparent)]
-    L1ProviderError(#[from] L1ProviderClientError),
+    L1EventsProviderError(#[from] L1EventsProviderClientError),
 }
 
 pub type NextTxs = Vec<InternalConsensusTransaction>;
@@ -57,7 +57,7 @@ pub trait TransactionProvider: Send {
 #[derive(Clone)]
 pub struct ProposeTransactionProvider {
     pub mempool_client: SharedMempoolClient,
-    pub l1_provider_client: SharedL1ProviderClient,
+    pub l1_events_provider_client: SharedL1EventsProviderClient,
     pub max_l1_handler_txs_per_block: usize,
     pub height: BlockNumber,
     phase: TxProviderPhase,
@@ -75,14 +75,14 @@ pub enum TxProviderPhase {
 impl ProposeTransactionProvider {
     pub fn new(
         mempool_client: SharedMempoolClient,
-        l1_provider_client: SharedL1ProviderClient,
+        l1_events_provider_client: SharedL1EventsProviderClient,
         max_l1_handler_txs_per_block: usize,
         height: BlockNumber,
         start_phase: TxProviderPhase,
     ) -> Self {
         Self {
             mempool_client,
-            l1_provider_client,
+            l1_events_provider_client,
             max_l1_handler_txs_per_block,
             height,
             phase: start_phase,
@@ -95,11 +95,11 @@ impl ProposeTransactionProvider {
         n_txs: usize,
     ) -> TransactionProviderResult<Vec<InternalConsensusTransaction>> {
         Ok(self
-            .l1_provider_client
+            .l1_events_provider_client
             .get_txs(n_txs, self.height)
             .await
             .inspect_err(|_err| {
-                BATCHER_L1_PROVIDER_ERRORS.increment(1);
+                BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
             })
             .unwrap_or_default()
             .into_iter()
@@ -165,7 +165,7 @@ impl TransactionProvider for ProposeTransactionProvider {
 pub struct ValidateTransactionProvider {
     tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
     final_n_executed_txs_receiver: tokio::sync::oneshot::Receiver<usize>,
-    l1_provider_client: SharedL1ProviderClient,
+    l1_events_provider_client: SharedL1EventsProviderClient,
     height: BlockNumber,
 }
 
@@ -173,10 +173,10 @@ impl ValidateTransactionProvider {
     pub fn new(
         tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
         final_n_executed_txs_receiver: tokio::sync::oneshot::Receiver<usize>,
-        l1_provider_client: SharedL1ProviderClient,
+        l1_events_provider_client: SharedL1EventsProviderClient,
         height: BlockNumber,
     ) -> Self {
-        Self { tx_receiver, final_n_executed_txs_receiver, l1_provider_client, height }
+        Self { tx_receiver, final_n_executed_txs_receiver, l1_events_provider_client, height }
     }
 }
 
@@ -196,14 +196,14 @@ impl TransactionProvider for ValidateTransactionProvider {
         for tx in &buffer {
             if let InternalConsensusTransaction::L1Handler(tx) = tx {
                 let l1_validation_status = self
-                    .l1_provider_client
+                    .l1_events_provider_client
                     .validate(tx.tx_hash, self.height)
                     .await
                     .inspect_err(|_err| {
-                        BATCHER_L1_PROVIDER_ERRORS.increment(1);
+                        BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
                     })
                     .unwrap_or(L1ValidationStatus::Invalid(
-                        L1InvalidValidationStatus::L1ProviderError,
+                        L1InvalidValidationStatus::L1EventsProviderError,
                     ));
                 if let L1ValidationStatus::Invalid(validation_status) = l1_validation_status {
                     return Err(TransactionProviderError::L1HandlerTransactionValidationFailed {

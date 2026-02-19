@@ -48,7 +48,7 @@ use apollo_l1_gas_price_provider_config::config::{
     L1GasPriceScraperConfig,
 };
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
-use apollo_l1_provider_config::config::L1ProviderConfig;
+use apollo_l1_provider_config::config::L1EventsProviderConfig;
 use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
@@ -235,7 +235,7 @@ pub fn create_node_config(
         polling_interval_seconds: Duration::from_secs(1),
         ..Default::default()
     };
-    let l1_provider_config = L1ProviderConfig {
+    let l1_events_provider_config = L1EventsProviderConfig {
         startup_sync_sleep_retry_interval_seconds: Duration::from_secs(0),
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(0),
         l1_handler_consumption_timelock_seconds: Duration::from_secs(0),
@@ -323,7 +323,8 @@ pub fn create_node_config(
         wrap_if_component_config_expected!(l1_gas_price_provider, l1_gas_price_provider_config);
     let l1_gas_price_scraper_config =
         wrap_if_component_config_expected!(l1_gas_price_scraper, l1_gas_price_scraper_config);
-    let l1_provider_config = wrap_if_component_config_expected!(l1_provider, l1_provider_config);
+    let l1_events_provider_config =
+        wrap_if_component_config_expected!(l1_events_provider, l1_events_provider_config);
     let l1_events_scraper_config =
         wrap_if_component_config_expected!(l1_events_scraper, l1_events_scraper_config);
     let mempool_config = wrap_if_component_config_expected!(mempool, mempool_config);
@@ -349,7 +350,7 @@ pub fn create_node_config(
         http_server_config,
         l1_gas_price_provider_config,
         l1_gas_price_scraper_config,
-        l1_provider_config,
+        l1_events_provider_config,
         l1_events_scraper_config,
         mempool_config,
         mempool_p2p_config,

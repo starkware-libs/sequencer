@@ -16,7 +16,7 @@ use apollo_consensus_manager::consensus_manager::{
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_events::event_identifiers_to_track;
-use apollo_l1_events::l1_provider::L1Provider;
+use apollo_l1_events::l1_events_provider::L1EventsProvider;
 use apollo_l1_events::l1_scraper::L1EventsScraper;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
@@ -56,7 +56,7 @@ pub struct SequencerNodeComponents {
     pub http_server: Option<HttpServer>,
     pub l1_events_scraper:
         Option<L1EventsScraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
-    pub l1_provider: Option<L1Provider>,
+    pub l1_events_provider: Option<L1EventsProvider>,
     pub l1_gas_price_scraper:
         Option<L1GasPriceScraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
     pub l1_gas_price_provider: Option<L1GasPriceProvider>,
@@ -88,8 +88,8 @@ pub async fn create_node_components(
                 .expect("Committer client should be available");
             let mempool_client =
                 clients.get_mempool_shared_client().expect("Mempool client should be available");
-            let l1_provider_client = clients
-                .get_l1_provider_shared_client()
+            let l1_events_provider_client = clients
+                .get_l1_events_provider_shared_client()
                 .expect("L1 Provider client should be available");
             let class_manager_client = clients
                 .get_class_manager_shared_client()
@@ -108,7 +108,7 @@ pub async fn create_node_components(
                     batcher_config.clone(),
                     committer_client,
                     mempool_client,
-                    l1_provider_client,
+                    l1_events_provider_client,
                     class_manager_client,
                     pre_confirmed_cende_client,
                     proof_manager_client,
@@ -318,18 +318,18 @@ pub async fn create_node_components(
         }
     };
 
-    let l1_provider = match config.components.l1_provider.execution_mode {
+    let l1_events_provider = match config.components.l1_events_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let l1_provider_config =
-                config.l1_provider_config.expect("L1 Provider config should be set");
-            let mut l1_provider = L1Provider::new(
-                l1_provider_config,
-                clients.get_l1_provider_shared_client().unwrap(),
+            let l1_events_provider_config =
+                config.l1_events_provider_config.expect("L1 Provider config should be set");
+            let mut l1_events_provider = L1EventsProvider::new(
+                l1_events_provider_config,
+                clients.get_l1_events_provider_shared_client().unwrap(),
                 clients.get_state_sync_shared_client().unwrap(),
                 None,
             );
-            if l1_provider_config.dummy_mode {
+            if l1_events_provider_config.dummy_mode {
                 let batcher_height = batcher
                     .as_ref()
                     .expect(
@@ -345,13 +345,13 @@ pub async fn create_node_components(
                 info!(
                     "L1 provider dummy mode startup height set at batcher height: {batcher_height}"
                 );
-                l1_provider
+                l1_events_provider
                     .initialize(batcher_height, vec![])
                     .await
                     .expect("Failed to initialize L1 provider in dummy mode");
-                Some(l1_provider)
+                Some(l1_events_provider)
             } else {
-                Some(l1_provider)
+                Some(l1_events_provider)
             }
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
@@ -372,14 +372,14 @@ pub async fn create_node_components(
                 .l1_events_scraper_config
                 .as_ref()
                 .expect("L1 Events Scraper config should be set");
-            let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
+            let l1_events_provider_client = clients.get_l1_events_provider_shared_client().unwrap();
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
             let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(base_layer);
 
             Some(
                 L1EventsScraper::new(
                     l1_events_scraper_config.clone(),
-                    l1_provider_client,
+                    l1_events_provider_client,
                     cyclic_base_layer_wrapper,
                     event_identifiers_to_track(),
                 )
@@ -467,23 +467,24 @@ pub async fn create_node_components(
                 | ReactiveComponentExecutionMode::Remote => None,
             };
 
-            let l1_provider_client = match config.components.l1_provider.execution_mode {
-                ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-                | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
-                    clients
-                        .get_l1_provider_shared_client()
-                        .expect("L1 Provider client should be available"),
-                ),
-                ReactiveComponentExecutionMode::Disabled
-                | ReactiveComponentExecutionMode::Remote => None,
-            };
+            let l1_events_provider_client =
+                match config.components.l1_events_provider.execution_mode {
+                    ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+                    | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
+                        clients
+                            .get_l1_events_provider_shared_client()
+                            .expect("L1 Provider client should be available"),
+                    ),
+                    ReactiveComponentExecutionMode::Disabled
+                    | ReactiveComponentExecutionMode::Remote => None,
+                };
 
             Some(create_monitoring_endpoint(
                 monitoring_endpoint_config.clone(),
                 VERSION_FULL,
                 prometheus_handle,
                 mempool_client,
-                l1_provider_client,
+                l1_events_provider_client,
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,
@@ -558,7 +559,7 @@ pub async fn create_node_components(
         gateway,
         http_server,
         l1_events_scraper,
-        l1_provider,
+        l1_events_provider,
         l1_gas_price_scraper,
         l1_gas_price_provider,
         mempool,

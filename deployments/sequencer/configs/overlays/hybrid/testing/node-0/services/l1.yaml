@@ -13,8 +13,8 @@ config:
     components.batcher.url: sequencer-core-service
     components.l1_gas_price_provider.port: 55003
     components.l1_gas_price_provider.url: sequencer-l1-service
-    components.l1_provider.port: 55004
-    components.l1_provider.url: sequencer-l1-service
+    components.l1_events_provider.port: 55004
+    components.l1_events_provider.url: sequencer-l1-service
     components.state_sync.port: 55009
     components.state_sync.url: sequencer-core-service
 

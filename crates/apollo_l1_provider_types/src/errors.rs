@@ -8,7 +8,7 @@ use thiserror::Error;
 use crate::ProviderState;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
-pub enum L1ProviderError {
+pub enum L1EventsProviderError {
     // This error indicates that the provider is uninitialized.
     // It likely occurs if the provider restarted while the scraper remained active.
     // In that case, the scraper's restart logic will automatically reinitialize the provider.
@@ -22,16 +22,16 @@ pub enum L1ProviderError {
     UnexpectedProviderStateTransition { from: String, to: String },
 }
 
-impl L1ProviderError {
+impl L1EventsProviderError {
     pub fn unexpected_transition(from: impl ToString, to: impl ToString) -> Self {
         Self::UnexpectedProviderStateTransition { from: from.to_string(), to: to.to_string() }
     }
 }
 
 #[derive(Clone, Debug, Error)]
-pub enum L1ProviderClientError {
+pub enum L1EventsProviderClientError {
     #[error(transparent)]
     ClientError(#[from] ClientError),
     #[error(transparent)]
-    L1ProviderError(#[from] L1ProviderError),
+    L1EventsProviderError(#[from] L1EventsProviderError),
 }

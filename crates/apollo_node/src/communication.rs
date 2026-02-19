@@ -5,7 +5,7 @@ use apollo_compile_to_casm_types::SierraCompilerRequestWrapper;
 use apollo_config_manager_types::communication::ConfigManagerRequestWrapper;
 use apollo_gateway_types::communication::GatewayRequestWrapper;
 use apollo_infra::component_definitions::ComponentCommunication;
-use apollo_l1_events::communication::L1ProviderRequestWrapper;
+use apollo_l1_events::communication::L1EventsProviderRequestWrapper;
 use apollo_l1_gas_price::communication::L1GasPriceRequestWrapper;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestWrapper;
 use apollo_mempool_types::communication::MempoolRequestWrapper;
@@ -23,7 +23,7 @@ pub struct SequencerNodeCommunication {
     committer_channel: ComponentCommunication<CommitterRequestWrapper>,
     config_manager_channel: ComponentCommunication<ConfigManagerRequestWrapper>,
     gateway_channel: ComponentCommunication<GatewayRequestWrapper>,
-    l1_provider_channel: ComponentCommunication<L1ProviderRequestWrapper>,
+    l1_events_provider_channel: ComponentCommunication<L1EventsProviderRequestWrapper>,
     l1_gas_price_channel: ComponentCommunication<L1GasPriceRequestWrapper>,
     mempool_channel: ComponentCommunication<MempoolRequestWrapper>,
     mempool_p2p_propagator_channel: ComponentCommunication<MempoolP2pPropagatorRequestWrapper>,
@@ -74,12 +74,12 @@ impl SequencerNodeCommunication {
         self.gateway_channel.take_rx()
     }
 
-    pub fn take_l1_provider_tx(&mut self) -> Sender<L1ProviderRequestWrapper> {
-        self.l1_provider_channel.take_tx()
+    pub fn take_l1_events_provider_tx(&mut self) -> Sender<L1EventsProviderRequestWrapper> {
+        self.l1_events_provider_channel.take_tx()
     }
 
-    pub fn take_l1_provider_rx(&mut self) -> Receiver<L1ProviderRequestWrapper> {
-        self.l1_provider_channel.take_rx()
+    pub fn take_l1_events_provider_rx(&mut self) -> Receiver<L1EventsProviderRequestWrapper> {
+        self.l1_events_provider_channel.take_rx()
     }
 
     pub fn take_l1_gas_price_tx(&mut self) -> Sender<L1GasPriceRequestWrapper> {
@@ -226,19 +226,20 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             false => (None, None),
         };
 
-    let (tx_l1_provider, rx_l1_provider) =
-        match config.components.l1_provider.execution_mode.is_running_locally() {
+    let (tx_l1_events_provider, rx_l1_events_provider) =
+        match config.components.l1_events_provider.execution_mode.is_running_locally() {
             true => {
-                let (tx_l1_provider, rx_l1_provider) = channel::<L1ProviderRequestWrapper>(
-                    config
-                        .components
-                        .l1_provider
-                        .local_server_config
-                        .as_ref()
-                        .expect("L1 provider local server config should be available.")
-                        .inbound_requests_channel_capacity,
-                );
-                (Some(tx_l1_provider), Some(rx_l1_provider))
+                let (tx_l1_events_provider, rx_l1_events_provider) =
+                    channel::<L1EventsProviderRequestWrapper>(
+                        config
+                            .components
+                            .l1_events_provider
+                            .local_server_config
+                            .as_ref()
+                            .expect("L1 provider local server config should be available.")
+                            .inbound_requests_channel_capacity,
+                    );
+                (Some(tx_l1_events_provider), Some(rx_l1_events_provider))
             }
             false => (None, None),
         };
@@ -371,7 +372,10 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
         committer_channel: ComponentCommunication::new(tx_committer, rx_committer),
         config_manager_channel: ComponentCommunication::new(tx_config_manager, rx_config_manager),
         gateway_channel: ComponentCommunication::new(tx_gateway, rx_gateway),
-        l1_provider_channel: ComponentCommunication::new(tx_l1_provider, rx_l1_provider),
+        l1_events_provider_channel: ComponentCommunication::new(
+            tx_l1_events_provider,
+            rx_l1_events_provider,
+        ),
         l1_gas_price_channel: ComponentCommunication::new(tx_l1_gas_price, rx_l1_gas_price),
         mempool_channel: ComponentCommunication::new(tx_mempool, rx_mempool),
         mempool_p2p_propagator_channel: ComponentCommunication::new(
