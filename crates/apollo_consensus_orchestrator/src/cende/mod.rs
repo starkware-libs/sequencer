@@ -30,7 +30,7 @@ use central_objects::{
 };
 #[cfg(test)]
 use mockall::automock;
-use reqwest::Response;
+use reqwest::{Request, Response};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, RequestBuilder};
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::{Jitter, RetryTransientMiddleware};
@@ -79,7 +79,7 @@ pub(crate) struct AerospikeBlob {
     bouncer_weights: CentralBouncerWeights,
     fee_market_info: CentralFeeMarketInfo,
     transactions: Vec<CentralTransactionWritten>,
-    execution_infos: Vec<CentralTransactionExecutionInfo>,
+    pub execution_infos: Vec<CentralTransactionExecutionInfo>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
     compiled_classes: Vec<CentralCasmContractClassEntry>,
     casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
@@ -229,12 +229,8 @@ impl SizeOf for AerospikeBlob {
     }
 }
 
-static BLOB_DUMPED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
 #[sequencer_latency_histogram(CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, false)]
 async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) -> bool {
-    let in_memory_size = blob.size_bytes();
-
     let (client, request) = request_builder.json(blob).build_split();
     let request = match request {
         Ok(req) => req,
@@ -245,92 +241,7 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
         }
     };
 
-    if let Some(body) = request.body().and_then(|b| b.as_bytes()) {
-        info!(
-            "Blob with {} transactions - in-memory size: {in_memory_size} bytes, serialized size: \
-             {} bytes.",
-            blob.transactions.len(),
-            body.len()
-        );
-        if blob.transactions.len() > 200
-            && BLOB_DUMPED
-                .compare_exchange(
-                    false,
-                    true,
-                    std::sync::atomic::Ordering::SeqCst,
-                    std::sync::atomic::Ordering::SeqCst,
-                )
-                .is_ok()
-        {
-            let path = format!("/tmp/blob_{}.json", blob.block_number);
-            if let Err(err) = tokio::fs::write(&path, body).await {
-                warn!("Failed to save blob to {path}: {err}");
-            }
-
-            if let Ok(serde_json::Value::Object(map)) = serde_json::from_slice(body) {
-                let mut sizes_content = String::new();
-                for (key, value) in &map {
-                    let size = serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
-                    sizes_content.push_str(&format!("{key}: {size} bytes\n"));
-                }
-
-                if let Some(serde_json::Value::Array(infos)) = map.get("execution_infos") {
-                    let mut field_sizes: std::collections::HashMap<String, usize> =
-                        Default::default();
-                    for info in infos {
-                        if let serde_json::Value::Object(info_map) = info {
-                            for (key, value) in info_map {
-                                let size = serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
-                                *field_sizes.entry(key.clone()).or_insert(0) += size;
-                            }
-                        }
-                    }
-                    sizes_content.push_str("\nexecution_infos fields (total across all txs):\n");
-                    for (key, size) in &field_sizes {
-                        sizes_content.push_str(&format!("  {key}: {size} bytes\n"));
-                    }
-
-                    let accumulate_subfield_sizes =
-                        |field_name: &str| -> std::collections::HashMap<String, usize> {
-                            let mut sizes: std::collections::HashMap<String, usize> =
-                                Default::default();
-                            for info in infos {
-                                if let serde_json::Value::Object(info_map) = info {
-                                    if let Some(serde_json::Value::Object(call_info)) =
-                                        info_map.get(field_name)
-                                    {
-                                        for (key, value) in call_info {
-                                            let size = serde_json::to_vec(value)
-                                                .map(|v| v.len())
-                                                .unwrap_or(0);
-                                            *sizes.entry(key.clone()).or_insert(0) += size;
-                                        }
-                                    }
-                                }
-                            }
-                            sizes
-                        };
-
-                    for field_name in ["validate_call_info", "execute_call_info"] {
-                        let subfield_sizes = accumulate_subfield_sizes(field_name);
-                        if !subfield_sizes.is_empty() {
-                            sizes_content.push_str(&format!(
-                                "\n{field_name} fields (total across all txs):\n"
-                            ));
-                            for (key, size) in &subfield_sizes {
-                                sizes_content.push_str(&format!("  {key}: {size} bytes\n"));
-                            }
-                        }
-                    }
-                }
-
-                let sizes_path = format!("/tmp/blob_{}_sizes.txt", blob.block_number);
-                if let Err(err) = tokio::fs::write(&sizes_path, sizes_content).await {
-                    warn!("Failed to save blob sizes to {sizes_path}: {err}");
-                }
-            }
-        }
-    }
+    analyze_blob(&request, blob).await;
 
     // TODO(dvir): use compression to reduce the size of the blob in the network.
     match client.execute(request).await {
@@ -362,6 +273,129 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
             warn!("CENDE_FAILURE: Failed to send a request to the recorder. Error: {err}");
             record_write_failure(CendeWriteFailureReason::CommunicationError);
             false
+        }
+    }
+}
+
+static BLOB_DUMPED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+fn check_call_data(blob: &AerospikeBlob) -> String {
+    let mut same_count = 0;
+    let mut total_count = 0;
+    let mut inner_same_count = 0;
+    let mut inner_total_count = 0;
+
+    for exec_info in &blob.execution_infos {
+        if let (Some(validate), Some(execute)) =
+            (&exec_info.validate_call_info, &exec_info.execute_call_info)
+        {
+            total_count += 1;
+            if Arc::ptr_eq(&validate.call.calldata.0, &execute.call.calldata.0) {
+                same_count += 1;
+            }
+
+            for inner in &execute.inner_calls {
+                inner_total_count += 1;
+                if Arc::ptr_eq(&execute.call.calldata.0, &inner.call.calldata.0) {
+                    inner_same_count += 1;
+                }
+            }
+        }
+    }
+
+    format!(
+        "Calldata Arc analysis:\nvalidate/execute same Arc: {same_count}/{total_count} \
+         txs\nexecute outer/any inner_call same Arc: {inner_same_count}/{inner_total_count} \
+         inner_calls\n"
+    )
+}
+
+async fn analyze_blob(request: &Request, blob: &AerospikeBlob) {
+    let Some(body) = request.body().and_then(|b| b.as_bytes()) else {
+        return;
+    };
+
+    info!(
+        "Blob with {} transactions - in-memory size: {} bytes, serialized size: {} bytes.",
+        blob.transactions.len(),
+        blob.size_bytes(),
+        body.len()
+    );
+
+    if blob.transactions.len() > 200
+        && BLOB_DUMPED
+            .compare_exchange(
+                false,
+                true,
+                std::sync::atomic::Ordering::SeqCst,
+                std::sync::atomic::Ordering::SeqCst,
+            )
+            .is_ok()
+    {
+        let path = format!("/tmp/blob_{}.json", blob.block_number);
+        if let Err(err) = tokio::fs::write(&path, body).await {
+            warn!("Failed to save blob to {path}: {err}");
+        }
+
+        if let Ok(serde_json::Value::Object(map)) = serde_json::from_slice(body) {
+            let mut sizes_content = check_call_data(blob);
+            sizes_content.push('\n');
+            for (key, value) in &map {
+                let size = serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
+                sizes_content.push_str(&format!("{key}: {size} bytes\n"));
+            }
+
+            if let Some(serde_json::Value::Array(infos)) = map.get("execution_infos") {
+                let mut field_sizes: std::collections::HashMap<String, usize> = Default::default();
+                for info in infos {
+                    if let serde_json::Value::Object(info_map) = info {
+                        for (key, value) in info_map {
+                            let size = serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
+                            *field_sizes.entry(key.clone()).or_insert(0) += size;
+                        }
+                    }
+                }
+                sizes_content.push_str("\nexecution_infos fields (total across all txs):\n");
+                for (key, size) in &field_sizes {
+                    sizes_content.push_str(&format!("  {key}: {size} bytes\n"));
+                }
+
+                let accumulate_subfield_sizes =
+                    |field_name: &str| -> std::collections::HashMap<String, usize> {
+                        let mut sizes: std::collections::HashMap<String, usize> =
+                            Default::default();
+                        for info in infos {
+                            if let serde_json::Value::Object(info_map) = info {
+                                if let Some(serde_json::Value::Object(call_info)) =
+                                    info_map.get(field_name)
+                                {
+                                    for (key, value) in call_info {
+                                        let size =
+                                            serde_json::to_vec(value).map(|v| v.len()).unwrap_or(0);
+                                        *sizes.entry(key.clone()).or_insert(0) += size;
+                                    }
+                                }
+                            }
+                        }
+                        sizes
+                    };
+
+                for field_name in ["validate_call_info", "execute_call_info"] {
+                    let subfield_sizes = accumulate_subfield_sizes(field_name);
+                    if !subfield_sizes.is_empty() {
+                        sizes_content
+                            .push_str(&format!("\n{field_name} fields (total across all txs):\n"));
+                        for (key, size) in &subfield_sizes {
+                            sizes_content.push_str(&format!("  {key}: {size} bytes\n"));
+                        }
+                    }
+                }
+            }
+
+            let sizes_path = format!("/tmp/blob_{}_sizes.txt", blob.block_number);
+            if let Err(err) = tokio::fs::write(&sizes_path, sizes_content).await {
+                warn!("Failed to save blob sizes to {sizes_path}: {err}");
+            }
         }
     }
 }
