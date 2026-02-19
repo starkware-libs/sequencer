@@ -11,7 +11,7 @@ use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
-use apollo_l1_provider_types::MockL1ProviderClient;
+use apollo_l1_provider_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use async_trait::async_trait;
@@ -243,7 +243,7 @@ pub(crate) struct MockDependencies {
 pub(crate) struct MockClients {
     pub(crate) committer_client: MockCommitterClientWithOffset,
     pub(crate) mempool_client: MockMempoolClient,
-    pub(crate) l1_provider_client: MockL1ProviderClient,
+    pub(crate) l1_provider_client: MockL1EventsProviderClient,
     pub(crate) block_builder_factory: MockBlockBuilderFactoryTrait,
     pub(crate) pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
 }
@@ -284,7 +284,7 @@ impl Default for MockClients {
 
         Self {
             committer_client,
-            l1_provider_client: MockL1ProviderClient::new(),
+            l1_provider_client: MockL1EventsProviderClient::new(),
             mempool_client,
             block_builder_factory,
             pre_confirmed_block_writer_factory,

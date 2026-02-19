@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_events::l1_provider::L1Provider;
-use apollo_l1_events::L1ProviderConfig;
+use apollo_l1_events::l1_events_provider::L1EventsProvider;
+use apollo_l1_events::L1EventsProviderConfig;
 use apollo_l1_provider_types::InvalidValidationStatus::*;
 use apollo_l1_provider_types::ValidationStatus::*;
-use apollo_l1_provider_types::{Event, MockL1ProviderClient, SessionState};
+use apollo_l1_provider_types::{Event, MockL1EventsProviderClient, SessionState};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::test_utils::FakeClock;
 use apollo_time::time::Clock;
@@ -51,19 +51,19 @@ async fn timing_flows() {
     let cancellation_timelock = 2;
     let new_message_cooldown = 1;
     let consumption_timelock = 1;
-    let l1_config = L1ProviderConfig {
+    let l1_config = L1EventsProviderConfig {
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(cancellation_timelock),
         l1_handler_consumption_timelock_seconds: Duration::from_secs(consumption_timelock),
         l1_handler_proposal_cooldown_seconds: Duration::from_secs(new_message_cooldown),
         ..Default::default()
     };
-    let mut l1_provider = L1Provider::new(
+    let mut l1_events_provider = L1EventsProvider::new(
         l1_config,
-        Arc::new(MockL1ProviderClient::default()),
+        Arc::new(MockL1EventsProviderClient::default()),
         Arc::new(MockStateSyncClient::default()),
         Some(clock.clone()),
     );
-    l1_provider
+    l1_events_provider
         .initialize(
             BlockNumber(time_starts_at),
             [
@@ -77,98 +77,120 @@ async fn timing_flows() {
         .await
         .unwrap();
 
-    l1_provider
+    l1_events_provider
         .add_events(
             [message_to_l2(4), cancellation_request(3, BlockTimestamp(5)), message_to_l2(5)].into(),
         )
         .unwrap();
 
     // Ignored, an existing cancellation request on L2 is stronger than a new one.
-    l1_provider.add_events([cancellation_request(3, BlockTimestamp(10))].into()).unwrap();
+    l1_events_provider.add_events([cancellation_request(3, BlockTimestamp(10))].into()).unwrap();
 
-    l1_provider.commit_block([].into(), [].into(), l1_provider.current_height).unwrap();
+    l1_events_provider
+        .commit_block([].into(), [].into(), l1_events_provider.current_height)
+        .unwrap();
 
-    l1_provider.start_block(l1_provider.current_height, Propose).unwrap();
+    l1_events_provider.start_block(l1_events_provider.current_height, Propose).unwrap();
     // Everything's timelocked.
-    assert_eq!(l1_provider.get_txs(2, l1_provider.current_height).unwrap(), []);
+    assert_eq!(l1_events_provider.get_txs(2, l1_events_provider.current_height).unwrap(), []);
 
     clock.advance(Duration::from_secs(3));
     assert_eq!(clock.unix_now(), 4);
 
     // Cancellation request is stronger than new message cooldown, and prevents proposal forever.
-    assert_eq!(l1_provider.get_txs(2, l1_provider.current_height).unwrap(), []);
+    assert_eq!(l1_events_provider.get_txs(2, l1_events_provider.current_height).unwrap(), []);
 
     // But validate still works, cause cancellation timelock hasn't passed yet for anyone.
-    l1_provider.start_block(l1_provider.current_height, Validate).unwrap();
-    assert_eq!(l1_provider.validate(tx_hash!(2), l1_provider.current_height).unwrap(), Validated);
-    assert_eq!(l1_provider.validate(tx_hash!(3), l1_provider.current_height).unwrap(), Validated);
-    assert_eq!(l1_provider.validate(tx_hash!(4), l1_provider.current_height).unwrap(), Validated);
+    l1_events_provider.start_block(l1_events_provider.current_height, Validate).unwrap();
+    assert_eq!(
+        l1_events_provider.validate(tx_hash!(2), l1_events_provider.current_height).unwrap(),
+        Validated
+    );
+    assert_eq!(
+        l1_events_provider.validate(tx_hash!(3), l1_events_provider.current_height).unwrap(),
+        Validated
+    );
+    assert_eq!(
+        l1_events_provider.validate(tx_hash!(4), l1_events_provider.current_height).unwrap(),
+        Validated
+    );
 
     clock.advance(Duration::from_secs(2));
     assert_eq!(clock.unix_now(), 6);
     // Passed timelock for the first non-cancelled transaction.
-    l1_provider.start_block(l1_provider.current_height, Propose).unwrap();
-    assert_eq!(l1_provider.get_txs(2, l1_provider.current_height).unwrap(), vec![l1_handler(4)]);
+    l1_events_provider.start_block(l1_events_provider.current_height, Propose).unwrap();
+    assert_eq!(
+        l1_events_provider.get_txs(2, l1_events_provider.current_height).unwrap(),
+        vec![l1_handler(4)]
+    );
 
     // One of the l1 handlers is passed its cancellation timelock, no longer validatable.
-    l1_provider.start_block(l1_provider.current_height, Validate).unwrap();
+    l1_events_provider.start_block(l1_events_provider.current_height, Validate).unwrap();
     for _ in 0..2 {
         assert_eq!(
-            l1_provider.validate(tx_hash!(2), l1_provider.current_height).unwrap(),
+            l1_events_provider.validate(tx_hash!(2), l1_events_provider.current_height).unwrap(),
             Invalid(CancelledOnL2)
         ); // Check twice for idempotency.
     }
-    assert_eq!(l1_provider.validate(tx_hash!(3), l1_provider.current_height).unwrap(), Validated);
+    assert_eq!(
+        l1_events_provider.validate(tx_hash!(3), l1_events_provider.current_height).unwrap(),
+        Validated
+    );
 
     clock.advance(Duration::from_secs(1));
     assert_eq!(clock.unix_now(), 7);
     // First cancellation request for this l1 handler counts, the second one that delayed the
     // cancellation was ignored.
     assert_eq!(
-        l1_provider.validate(tx_hash!(3), l1_provider.current_height).unwrap(),
+        l1_events_provider.validate(tx_hash!(3), l1_events_provider.current_height).unwrap(),
         Invalid(CancelledOnL2)
     );
 
     // Commit beats cancellations.
-    l1_provider
+    l1_events_provider
         .commit_block(
             [tx_hash!(2), tx_hash!(3), tx_hash!(4)].into(),
             [].into(),
-            l1_provider.current_height,
+            l1_events_provider.current_height,
         )
         .unwrap();
-    l1_provider.start_block(l1_provider.current_height, Validate).unwrap();
+    l1_events_provider.start_block(l1_events_provider.current_height, Validate).unwrap();
     for tx_hash in 2..=4 {
         assert_eq!(
-            l1_provider.validate(tx_hash!(tx_hash), l1_provider.current_height).unwrap(),
+            l1_events_provider
+                .validate(tx_hash!(tx_hash), l1_events_provider.current_height)
+                .unwrap(),
             Invalid(AlreadyIncludedOnL2)
         );
     }
 
     // Cancel request on staged tx applied immediately, and persists for validate/propose after
     // new block started.
-    assert_eq!(l1_provider.validate(tx_hash!(5), l1_provider.current_height).unwrap(), Validated);
-    l1_provider.add_events([cancellation_request(5, BlockTimestamp(7))].into()).unwrap();
+    assert_eq!(
+        l1_events_provider.validate(tx_hash!(5), l1_events_provider.current_height).unwrap(),
+        Validated
+    );
+    l1_events_provider.add_events([cancellation_request(5, BlockTimestamp(7))].into()).unwrap();
     clock.advance(Duration::from_secs(cancellation_timelock));
     assert_eq!(clock.unix_now(), 9);
     assert_eq!(
-        l1_provider.validate(tx_hash!(5), l1_provider.current_height).unwrap(),
+        l1_events_provider.validate(tx_hash!(5), l1_events_provider.current_height).unwrap(),
         Invalid(CancelledOnL2)
     );
     // Persists after new block start.
-    l1_provider.start_block(l1_provider.current_height, Validate).unwrap();
+    l1_events_provider.start_block(l1_events_provider.current_height, Validate).unwrap();
     assert_eq!(
-        l1_provider.validate(tx_hash!(5), l1_provider.current_height).unwrap(),
+        l1_events_provider.validate(tx_hash!(5), l1_events_provider.current_height).unwrap(),
         Invalid(CancelledOnL2)
     );
-    l1_provider.start_block(l1_provider.current_height, Propose).unwrap();
-    assert_eq!(l1_provider.get_txs(2, l1_provider.current_height).unwrap(), []);
+    l1_events_provider.start_block(l1_events_provider.current_height, Propose).unwrap();
+    assert_eq!(l1_events_provider.get_txs(2, l1_events_provider.current_height).unwrap(), []);
 
     // New cancellations are also ignored if cancellations have expired.
-    l1_provider.add_events([cancellation_request(5, BlockTimestamp(10))].into()).unwrap();
-    l1_provider.start_block(l1_provider.current_height, Validate).unwrap();
+    l1_events_provider.add_events([cancellation_request(5, BlockTimestamp(10))].into()).unwrap();
+    l1_events_provider.start_block(l1_events_provider.current_height, Validate).unwrap();
     assert_eq!(
-        l1_provider.validate(tx_hash!(5), l1_provider.current_height).unwrap(),
+        l1_events_provider.validate(tx_hash!(5), l1_events_provider.current_height).unwrap(),
         Invalid(CancelledOnL2)
     );
 }

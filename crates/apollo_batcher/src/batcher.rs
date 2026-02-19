@@ -33,8 +33,8 @@ use apollo_committer_types::committer_types::RevertBlockResponse;
 use apollo_committer_types::communication::SharedCommitterClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
-use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
-use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
+use apollo_l1_provider_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
+use apollo_l1_provider_types::{SessionState, SharedL1EventsProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_proof_manager_types::SharedProofManagerClient;
@@ -98,7 +98,7 @@ use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
-    BATCHER_L1_PROVIDER_ERRORS,
+    BATCHER_L1_EVENTS_PROVIDER_ERRORS,
     BUILDING_HEIGHT,
     GLOBAL_ROOT_HEIGHT,
     L2_GAS_IN_LAST_BLOCK,
@@ -141,7 +141,7 @@ pub struct Batcher {
     pub storage_reader: Arc<dyn BatcherStorageReader>,
     pub storage_writer: Box<dyn BatcherStorageWriter>,
     pub committer_client: SharedCommitterClient,
-    pub l1_provider_client: SharedL1ProviderClient,
+    pub l1_events_provider_client: SharedL1EventsProviderClient,
     pub mempool_client: SharedMempoolClient,
     pub config_manager_client: SharedConfigManagerClient,
 
@@ -196,7 +196,7 @@ impl Batcher {
         storage_reader: Arc<dyn BatcherStorageReader>,
         storage_writer: Box<dyn BatcherStorageWriter>,
         committer_client: SharedCommitterClient,
-        l1_provider_client: SharedL1ProviderClient,
+        l1_events_provider_client: SharedL1EventsProviderClient,
         mempool_client: SharedMempoolClient,
         config_manager_client: SharedConfigManagerClient,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
@@ -209,7 +209,7 @@ impl Batcher {
             storage_reader,
             storage_writer,
             committer_client,
-            l1_provider_client,
+            l1_events_provider_client,
             mempool_client,
             config_manager_client,
             block_builder_factory,
@@ -298,7 +298,7 @@ impl Batcher {
         // Ignore errors. If start_block fails, then subsequent calls to l1 provider will fail on
         // out of session and l1 provider will restart and bootstrap again.
         let _ = self
-            .l1_provider_client
+            .l1_events_provider_client
             .start_block(SessionState::Propose, propose_block_input.block_info.block_number)
             .await
             .inspect_err(|err| {
@@ -306,7 +306,7 @@ impl Batcher {
                     "L1 provider is not ready to start proposing block {}: {}. ",
                     propose_block_input.block_info.block_number, err
                 );
-                BATCHER_L1_PROVIDER_ERRORS.increment(1);
+                BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
             });
 
         let start_phase = if self
@@ -319,7 +319,7 @@ impl Batcher {
         };
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
-            self.l1_provider_client.clone(),
+            self.l1_events_provider_client.clone(),
             self.config.static_config.max_l1_handler_txs_per_block_proposal,
             propose_block_input.block_info.block_number,
             start_phase,
@@ -407,7 +407,7 @@ impl Batcher {
         // Ignore errors. If start_block fails, then subsequent calls to l1 provider will fail on
         // out of session and l1 provider will restart and bootstrap again.
         let _ = self
-            .l1_provider_client
+            .l1_events_provider_client
             .start_block(SessionState::Validate, validate_block_input.block_info.block_number)
             .await
             .inspect_err(|err| {
@@ -415,7 +415,7 @@ impl Batcher {
                     "L1 provider is not ready to start validating block {}: {}. ",
                     validate_block_input.block_info.block_number, err
                 );
-                BATCHER_L1_PROVIDER_ERRORS.increment(1);
+                BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
             });
 
         // A channel to send the transactions to include in the block being validated.
@@ -427,7 +427,7 @@ impl Batcher {
         let tx_provider = ValidateTransactionProvider::new(
             input_tx_receiver,
             final_n_executed_txs_receiver,
-            self.l1_provider_client.clone(),
+            self.l1_events_provider_client.clone(),
             validate_block_input.block_info.block_number,
         );
         let (block_builder, abort_signal_sender) = self
@@ -871,18 +871,17 @@ impl Batcher {
             .filter(|tx_hash| consumed_l1_handler_tx_hashes.contains(tx_hash))
             .collect();
 
-        let l1_provider_result = self
-            .l1_provider_client
+        let l1_events_provider_result = self
+            .l1_events_provider_client
             .commit_block(consumed_l1_handler_tx_hashes, rejected_l1_handler_tx_hashes, height)
             .await;
 
         // Return error if the commit to the L1 provider failed.
-        if let Err(err) = l1_provider_result {
+        if let Err(err) = l1_events_provider_result {
             match err {
-                L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
-                    expected_height,
-                    got,
-                }) => {
+                L1EventsProviderClientError::L1EventsProviderError(
+                    L1EventsProviderError::UnexpectedHeight { expected_height, got },
+                ) => {
                     error!(
                         "Unexpected height while committing block in L1 provider: expected={:?}, \
                          got={:?}",
@@ -896,7 +895,7 @@ impl Batcher {
                     );
                 }
             }
-            BATCHER_L1_PROVIDER_ERRORS.increment(1);
+            BATCHER_L1_EVENTS_PROVIDER_ERRORS.increment(1);
         }
 
         // Notify the mempool of the new block.
@@ -1341,7 +1340,7 @@ pub async fn create_batcher(
     config: BatcherConfig,
     committer_client: SharedCommitterClient,
     mempool_client: SharedMempoolClient,
-    l1_provider_client: SharedL1ProviderClient,
+    l1_events_provider_client: SharedL1EventsProviderClient,
     class_manager_client: SharedClassManagerClient,
     pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
     proof_manager_client: SharedProofManagerClient,
@@ -1393,7 +1392,7 @@ pub async fn create_batcher(
         storage_reader,
         storage_writer,
         committer_client,
-        l1_provider_client,
+        l1_events_provider_client,
         mempool_client,
         config_manager_client,
         block_builder_factory,

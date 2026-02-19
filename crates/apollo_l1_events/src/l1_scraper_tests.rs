@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use apollo_l1_provider_types::errors::L1ProviderError;
-use apollo_l1_provider_types::MockL1ProviderClient;
+use apollo_l1_provider_types::errors::L1EventsProviderError;
+use apollo_l1_provider_types::MockL1EventsProviderClient;
 use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use assert_matches::assert_matches;
 use papyrus_base_layer::{L1BlockHash, L1BlockReference, MockBaseLayerContract};
@@ -19,12 +19,12 @@ fn dummy_base_layer() -> MockBaseLayerContract {
 
 async fn scraper_with_dummy() -> L1EventsScraper<MockBaseLayerContract> {
     let base_layer = dummy_base_layer();
-    let mut l1_provider_client = MockL1ProviderClient::default();
-    l1_provider_client.expect_add_events().returning(|_| Ok(()));
+    let mut l1_events_provider_client = MockL1EventsProviderClient::default();
+    l1_events_provider_client.expect_add_events().returning(|_| Ok(()));
 
     let mut scraper = L1EventsScraper::new(
         L1EventsScraperConfig::default(),
-        Arc::new(l1_provider_client),
+        Arc::new(l1_events_provider_client),
         base_layer,
         event_identifiers_to_track(),
     )
@@ -41,18 +41,21 @@ async fn scraper_with_dummy() -> L1EventsScraper<MockBaseLayerContract> {
 /// an appropriate error.
 async fn provider_crash_should_crash_scraper() {
     // Setup.
-    let mut l1_provider_client = MockL1ProviderClient::default();
-    l1_provider_client.expect_add_events().once().returning(|_| {
-        Err(apollo_l1_provider_types::errors::L1ProviderClientError::L1ProviderError(
-            L1ProviderError::Uninitialized,
+    let mut l1_events_provider_client = MockL1EventsProviderClient::default();
+    l1_events_provider_client.expect_add_events().once().returning(|_| {
+        Err(apollo_l1_provider_types::errors::L1EventsProviderClientError::L1EventsProviderError(
+            L1EventsProviderError::Uninitialized,
         ))
     });
     let mut scraper = scraper_with_dummy().await;
-    scraper.l1_provider_client = Arc::new(l1_provider_client);
+    scraper.l1_events_provider_client = Arc::new(l1_events_provider_client);
     scraper.base_layer.expect_l1_block_at().returning(|_| Ok(Some(Default::default())));
 
     // Test.
-    assert_eq!(scraper.send_events_to_l1_provider().await, Err(L1EventsScraperError::NeedsRestart));
+    assert_eq!(
+        scraper.send_events_to_l1_events_provider().await,
+        Err(L1EventsScraperError::NeedsRestart)
+    );
 }
 
 #[tokio::test]
@@ -69,7 +72,7 @@ async fn l1_reorg_block_hash() {
 
     // Test.
     // Can send messages to the provider.
-    assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
+    assert_eq!(scraper.send_events_to_l1_events_provider().await, Ok(()));
 
     // Simulate an L1 fork: last block hash changed due to reorg.
     let l1_block_hash_after_l1_reorg = L1BlockHash([123; 32]);
@@ -77,7 +80,7 @@ async fn l1_reorg_block_hash() {
         Some(L1BlockReference { hash: l1_block_hash_after_l1_reorg, ..Default::default() });
 
     assert_matches!(
-        scraper.send_events_to_l1_provider().await,
+        scraper.send_events_to_l1_events_provider().await,
         Err(L1EventsScraperError::L1ReorgDetected { .. })
     );
 }
@@ -96,13 +99,13 @@ async fn l1_reorg_block_number() {
 
     // Test.
     // can send messages to the provider.
-    assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
+    assert_eq!(scraper.send_events_to_l1_events_provider().await, Ok(()));
 
     // Simulate an L1 revert: the last processed l1 block no longer exists.
     *l1_block_at_response.lock().unwrap() = None;
 
     assert_matches!(
-        scraper.send_events_to_l1_provider().await,
+        scraper.send_events_to_l1_events_provider().await,
         Err(L1EventsScraperError::L1ReorgDetected { .. })
     );
 }
@@ -143,7 +146,7 @@ async fn latest_block_number_goes_down() {
     // Test.
     // Can send messages to the provider.
     // This should also set the scraper's last_l1_block_processed to block number 10.
-    assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
+    assert_eq!(scraper.send_events_to_l1_events_provider().await, Ok(()));
 
     // Simulate a base layer returning a lower block number.
     latest_l1_block_number_response.store(L1_BAD_LATEST_NUMBER, Ordering::Relaxed);
@@ -185,14 +188,14 @@ async fn base_layer_returns_block_number_below_finality_causes_error() {
     scraper.base_layer = dummy_base_layer;
 
     // Test.
-    scraper.send_events_to_l1_provider().await.unwrap();
+    scraper.send_events_to_l1_events_provider().await.unwrap();
 
     // Simulate a base layer returning a lower block number.
     latest_l1_block_number_response.store(WRONG_L1_BLOCK_NUMBER, Ordering::Relaxed);
 
     // The scraper should return a finality too high error.
     assert_matches!(
-        scraper.send_events_to_l1_provider().await,
+        scraper.send_events_to_l1_events_provider().await,
         Err(L1EventsScraperError::LatestBlockNumberTooLow { .. })
     );
 }
