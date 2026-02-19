@@ -21,5 +21,5 @@ struct VirtualOsOutputHeader {
     base_block_number: felt,
     base_block_hash: felt,
     starknet_os_config_hash: felt,
-    n_messages_to_l1: felt,
+    n_l2_to_l1_messages: felt,
 }
