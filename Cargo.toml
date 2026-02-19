@@ -41,10 +41,10 @@ members = [
   "crates/apollo_infra",
   "crates/apollo_infra_utils",
   "crates/apollo_integration_tests",
+  "crates/apollo_l1_events",
   "crates/apollo_l1_gas_price",
   "crates/apollo_l1_gas_price_provider_config",
   "crates/apollo_l1_gas_price_types",
-  "crates/apollo_l1_provider",
   "crates/apollo_l1_provider_config",
   "crates/apollo_l1_provider_types",
   "crates/apollo_l1_scraper_config",
@@ -166,10 +166,10 @@ apollo_http_server_config.path = "crates/apollo_http_server_config"
 apollo_infra.path = "crates/apollo_infra"
 apollo_infra_utils = { path = "crates/apollo_infra_utils", version = "0.0.0" }
 apollo_integration_tests.path = "crates/apollo_integration_tests"
+apollo_l1_events.path = "crates/apollo_l1_events"
 apollo_l1_gas_price.path = "crates/apollo_l1_gas_price"
 apollo_l1_gas_price_provider_config.path = "crates/apollo_l1_gas_price_provider_config"
 apollo_l1_gas_price_types.path = "crates/apollo_l1_gas_price_types"
-apollo_l1_provider.path = "crates/apollo_l1_provider"
 apollo_l1_provider_config.path = "crates/apollo_l1_provider_config"
 apollo_l1_provider_types.path = "crates/apollo_l1_provider_types"
 apollo_l1_scraper_config.path = "crates/apollo_l1_scraper_config"
