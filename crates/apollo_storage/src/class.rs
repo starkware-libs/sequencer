@@ -226,9 +226,20 @@ impl ClassStorageWriter for StorageTxnRW<'_> {
         {
             let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
             for path in &paths {
-                if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                if let Ok(mut file) =
+                    std::fs::OpenOptions::new().create(true).append(true).open(path)
+                {
                     use std::io::Write;
-                    let _ = writeln!(file, r#"{{"timestamp":{},"location":"class.rs:append_classes","message":"Class marker check","data":{{"class_marker":{},"block_number":{}}},"hypothesisId":"CLASS"}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(), marker_block_number.0, block_number.0);
+                    let _ = writeln!(
+                        file,
+                        r#"{{"timestamp":{},"location":"class.rs:append_classes","message":"Class marker check","data":{{"class_marker":{},"block_number":{}}},"hypothesisId":"CLASS"}}"#,
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_millis(),
+                        marker_block_number.0,
+                        block_number.0
+                    );
                     break;
                 }
             }
@@ -239,9 +250,20 @@ impl ClassStorageWriter for StorageTxnRW<'_> {
             {
                 let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
                 for path in &paths {
-                    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                    if let Ok(mut file) =
+                        std::fs::OpenOptions::new().create(true).append(true).open(path)
+                    {
                         use std::io::Write;
-                        let _ = writeln!(file, r#"{{"timestamp":{},"location":"class.rs:append_classes:MISMATCH","message":"CLASS MARKER MISMATCH","data":{{"class_marker":{},"block_number":{}}},"hypothesisId":"CLASS"}}"#, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis(), marker_block_number.0, block_number.0);
+                        let _ = writeln!(
+                            file,
+                            r#"{{"timestamp":{},"location":"class.rs:append_classes:MISMATCH","message":"CLASS MARKER MISMATCH","data":{{"class_marker":{},"block_number":{}}},"hypothesisId":"CLASS"}}"#,
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_millis(),
+                            marker_block_number.0,
+                            block_number.0
+                        );
                         break;
                     }
                 }

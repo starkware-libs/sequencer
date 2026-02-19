@@ -870,7 +870,6 @@ impl<'a> StorageTxnRW<'a> {
         self.file_handlers.flush();
 
         self.guard.commit_counter += 1;
-
         if self.guard.commit_counter >= self.guard.batch_size {
             // Batch size reached - commit the MDBX transaction and reset counter.
             let txn_to_commit = self.guard.active_txn.take();
