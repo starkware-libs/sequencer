@@ -26,7 +26,7 @@ use apollo_infra::component_server::{
     WrapperServer,
 };
 use apollo_l1_events::communication::{
-    L1ScraperServer,
+    L1EventsScraperServer,
     LocalL1ProviderServer,
     RemoteL1ProviderServer,
 };
@@ -95,8 +95,8 @@ struct WrapperServers {
     pub(crate) config_manager_runner: Option<Box<ConfigManagerRunnerServer>>,
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
-    pub(crate) l1_scraper_server:
-        Option<Box<L1ScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
+    pub(crate) l1_events_scraper_server:
+        Option<Box<L1EventsScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
     pub(crate) l1_gas_price_scraper_server:
         Option<Box<L1GasPriceScraperServer<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
@@ -699,8 +699,10 @@ fn create_wrapper_servers(
         components.http_server
     );
 
-    let l1_scraper_server =
-        create_wrapper_server!(&config.components.l1_scraper.execution_mode, components.l1_scraper);
+    let l1_events_scraper_server = create_wrapper_server!(
+        &config.components.l1_events_scraper.execution_mode,
+        components.l1_events_scraper
+    );
 
     let l1_gas_price_scraper_server = create_wrapper_server!(
         &config.components.l1_gas_price_scraper.execution_mode,
@@ -726,7 +728,7 @@ fn create_wrapper_servers(
         consensus_manager: consensus_manager_server,
         config_manager_runner: config_manager_runner_server,
         http_server,
-        l1_scraper_server,
+        l1_events_scraper_server,
         l1_gas_price_scraper_server,
         monitoring_endpoint: monitoring_endpoint_server,
         mempool_p2p_runner: mempool_p2p_runner_server,
@@ -740,7 +742,7 @@ impl WrapperServers {
             server_future_and_label(self.config_manager_runner, "Config Manager Runner"),
             server_future_and_label(self.consensus_manager, "Consensus Manager"),
             server_future_and_label(self.http_server, "Http"),
-            server_future_and_label(self.l1_scraper_server, "L1 Scraper"),
+            server_future_and_label(self.l1_events_scraper_server, "L1 Events Scraper"),
             server_future_and_label(self.l1_gas_price_scraper_server, "L1 Gas Price Scraper"),
             server_future_and_label(self.monitoring_endpoint, "Monitoring Endpoint"),
             server_future_and_label(self.mempool_p2p_runner, "Mempool P2p Runner"),
