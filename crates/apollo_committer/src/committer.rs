@@ -95,7 +95,7 @@ where
     BlockCommitter: CommitBlockTrait,
 {
     /// Storage for forest operations.
-    forest_storage: ForestDB,
+    pub forest_storage: ForestDB,
     /// Committer config.
     config: CommitterConfig<S::Config>,
     /// The next block number to commit.
