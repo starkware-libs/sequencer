@@ -50,6 +50,20 @@ error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
+# Fix incompatible cairo-lang exact version pins in Cargo.toml.
+# The exact pins (=2.14.1-dev.0) conflict with the Cargo.lock (which has 2.15.0),
+# producing mismatched transitive deps (e.g. cairo-lang-sierra 2.14.1-dev.3 vs
+# cairo-lang-sierra-to-casm 2.14.1-dev.0) that fail to compile.
+patch_proving_utils_cairo_deps() {
+    local target_dir="$1"
+    local cargo_toml="${target_dir}/Cargo.toml"
+
+    if grep -q '"=2\.14\.1-dev\.0"' "${cargo_toml}" 2>/dev/null; then
+        info "Patching proving-utils Cargo.toml: relaxing cairo-lang exact version pins"
+        sed -i 's/"=2\.14\.1-dev\.0"/"2.15.0"/g' "${cargo_toml}"
+    fi
+}
+
 # Clone or update the proving-utils repository to the given directory.
 # Usage: clone_or_update_proving_utils <target_dir>
 clone_or_update_proving_utils() {
@@ -65,6 +79,7 @@ clone_or_update_proving_utils() {
 
         if [[ "${current_rev}" == "${PROVING_UTILS_REV}"* ]]; then
             info "Already at revision ${PROVING_UTILS_REV}"
+            patch_proving_utils_cairo_deps "${target_dir}"
             return 0
         fi
 
@@ -79,4 +94,6 @@ clone_or_update_proving_utils() {
         cd "${target_dir}"
         git checkout "${PROVING_UTILS_REV}"
     fi
+
+    patch_proving_utils_cairo_deps "${target_dir}"
 }
