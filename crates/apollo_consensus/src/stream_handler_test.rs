@@ -13,6 +13,7 @@ use prost::DecodeError;
 
 use crate::stream_handler::StreamHandler;
 const CHANNEL_CAPACITY: usize = 100;
+const MAX_PEERS: usize = 100;
 const MAX_STREAMS: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -98,8 +99,11 @@ fn setup() -> (
     let (outbound_internal_sender, outbound_internal_receiver) = mpsc::channel(CHANNEL_CAPACITY);
     let (outbound_network_sender, outbound_network_receiver) = mpsc::channel(CHANNEL_CAPACITY);
     let outbound_network_sender = FakeBroadcastClient { sender: outbound_network_sender };
-    let config =
-        StreamHandlerConfig { channel_buffer_capacity: CHANNEL_CAPACITY, max_streams: MAX_STREAMS };
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams: MAX_STREAMS,
+    };
     let stream_handler = StreamHandler::new(
         config,
         inbound_internal_sender,
