@@ -438,6 +438,17 @@ pub(crate) struct CentralTransactionWritten {
     time_created: u64,
 }
 
+impl CentralTransactionWritten {
+    pub(crate) fn invoke_calldata(&self) -> Option<&Calldata> {
+        match &self.tx {
+            CentralTransaction::Invoke(CentralInvokeTransaction::V3(inner)) => {
+                Some(&inner.calldata)
+            }
+            _ => None,
+        }
+    }
+}
+
 // This function gets SierraContractClass only for declare_tx, otherwise use None.
 impl TryFrom<(InternalConsensusTransaction, Option<&SierraContractClass>, u64)>
     for CentralTransactionWritten

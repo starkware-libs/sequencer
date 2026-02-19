@@ -345,8 +345,10 @@ fn check_call_data(blob: &AerospikeBlob) -> String {
     let mut inner_total = 0;
     let mut max_depth = 0;
     let mut max_deviation_felts = 0;
+    let mut tx_exec_same_arc = 0;
+    let mut tx_exec_total = 0;
 
-    for exec_info in &blob.execution_infos {
+    for (tx_written, exec_info) in blob.transactions.iter().zip(blob.execution_infos.iter()) {
         if let (Some(validate), Some(execute)) =
             (&exec_info.validate_call_info, &exec_info.execute_call_info)
         {
@@ -368,17 +370,27 @@ fn check_call_data(blob: &AerospikeBlob) -> String {
                 1,
             );
         }
+
+        if let (Some(tx_calldata), Some(execute)) =
+            (tx_written.invoke_calldata(), &exec_info.execute_call_info)
+        {
+            tx_exec_total += 1;
+            if Arc::ptr_eq(&tx_calldata.0, &execute.call.calldata.0) {
+                tx_exec_same_arc += 1;
+            }
+        }
     }
 
     format!(
         "Calldata Arc analysis:\nvalidate/execute same Arc: {same_count}/{total_count} \
-         txs\nexecute outer/any inner_call same Arc (recursive): {inner_same_arc}/{inner_total} \
-         inner_calls\nexecute outer/any inner_call size within 5% (recursive): \
-         {inner_size_in_range}/{inner_total} inner_calls\ninner calldata tail matches execute \
-         calldata (inner bigger, in range): {inner_tail_matches} cases\nexecute calldata tail \
-         matches inner calldata (execute bigger, in range): {execute_tail_matches} cases\nmax \
-         inner_calls recursion depth: {max_depth}\nmax calldata size deviation from execute \
-         outer: {max_deviation_felts} felts\n"
+         txs\ntransaction calldata/execute calldata same Arc: {tx_exec_same_arc}/{tx_exec_total} \
+         invoke txs\nexecute outer/any inner_call same Arc (recursive): \
+         {inner_same_arc}/{inner_total} inner_calls\nexecute outer/any inner_call size within 5% \
+         (recursive): {inner_size_in_range}/{inner_total} inner_calls\ninner calldata tail \
+         matches execute calldata (inner bigger, in range): {inner_tail_matches} cases\nexecute \
+         calldata tail matches inner calldata (execute bigger, in range): {execute_tail_matches} \
+         cases\nmax inner_calls recursion depth: {max_depth}\nmax calldata size deviation from \
+         execute outer: {max_deviation_felts} felts\n"
     )
 }
 
