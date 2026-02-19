@@ -9,6 +9,7 @@ use chrono::{TimeZone, Utc};
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
+use starknet_api::block_hash::block_hash_calculator::extract_event_count_from_concatenated_counts;
 use starknet_api::hash::StarkHash;
 use tokio::time::{timeout, Duration};
 use tracing::debug;
@@ -134,6 +135,9 @@ impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
             "Block header commitments should be present from starknet version 0.13.2, and we're \
              creating a new block here.",
         );
+        // Extract n_events from concatenated_counts to ensure it matches the event commitment
+        let n_events =
+            extract_event_count_from_concatenated_counts(&header_commitments.concatenated_counts);
         SignedBlockHeader {
             block_header: BlockHeader {
                 block_hash: BlockHash(StarkHash::from(block_number.0)),
@@ -144,8 +148,8 @@ impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
                 event_commitment: Some(header_commitments.event_commitment),
                 n_transactions: sync_block.account_transaction_hashes.len()
                     + sync_block.l1_transaction_hashes.len(),
+                n_events,
                 receipt_commitment: Some(header_commitments.receipt_commitment),
-                ..Default::default()
             },
             signatures: vec![BlockSignature::default()],
         }

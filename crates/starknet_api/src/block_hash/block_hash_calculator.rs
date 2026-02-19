@@ -370,6 +370,16 @@ fn to_64_bits(num: usize) -> [u8; 8] {
     sized_transaction_count.to_be_bytes()
 }
 
+/// Extracts the event count from concatenated_counts.
+/// concatenated_counts format: [transaction_count (8 bytes) | event_count (8 bytes) |
+/// state_diff_length (8 bytes) | L1 DA mode (1 bit) | padding (7 bytes)]
+pub fn extract_event_count_from_concatenated_counts(concatenated_counts: &Felt) -> usize {
+    let bytes = concatenated_counts.to_bytes_be();
+    // Extract bytes 8-15 (the event_count field)
+    let event_count_bytes: [u8; 8] = bytes[8..16].try_into().expect("Slice should have 8 bytes");
+    u64::from_be_bytes(event_count_bytes) as usize
+}
+
 // For starknet version >= 0.13.3, returns:
 // [Poseidon (
 //     "STARKNET_GAS_PRICES0", gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri,
