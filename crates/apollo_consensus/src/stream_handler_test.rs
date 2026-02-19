@@ -3,7 +3,8 @@ use std::fmt::Display;
 
 use apollo_consensus_config::config::StreamHandlerConfig;
 use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
-use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
+use apollo_network_types::test_utils::get_peer_id;
 use apollo_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_test_utils::{get_rng, GetTestInstance};
@@ -80,7 +81,9 @@ impl BroadcastTopicClientTrait<StreamMessage> for FakeBroadcastClient {
 }
 
 #[allow(clippy::type_complexity)]
-fn setup() -> (
+fn setup_with_config(
+    config: StreamHandlerConfig,
+) -> (
     StreamHandler<
         ProposalPart,
         TestStreamId,
@@ -99,11 +102,6 @@ fn setup() -> (
     let (outbound_internal_sender, outbound_internal_receiver) = mpsc::channel(CHANNEL_CAPACITY);
     let (outbound_network_sender, outbound_network_receiver) = mpsc::channel(CHANNEL_CAPACITY);
     let outbound_network_sender = FakeBroadcastClient { sender: outbound_network_sender };
-    let config = StreamHandlerConfig {
-        channel_buffer_capacity: CHANNEL_CAPACITY,
-        max_peers: MAX_PEERS,
-        max_streams: MAX_STREAMS,
-    };
     let stream_handler = StreamHandler::new(
         config,
         inbound_internal_sender,
@@ -119,6 +117,34 @@ fn setup() -> (
         outbound_internal_sender,
         outbound_network_receiver,
     )
+}
+
+#[allow(clippy::type_complexity)]
+fn setup() -> (
+    StreamHandler<
+        ProposalPart,
+        TestStreamId,
+        Receiver<ReceivedBroadcastedMessage<StreamMessage>>,
+        FakeBroadcastClient,
+    >,
+    Sender<ReceivedBroadcastedMessage<StreamMessage>>,
+    Receiver<Receiver<ProposalPart>>,
+    Sender<(TestStreamId, Receiver<ProposalPart>)>,
+    Receiver<StreamMessage>,
+) {
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams: MAX_STREAMS,
+    };
+    setup_with_config(config)
+}
+
+fn make_metadata(peer_index: u8) -> BroadcastedMessageMetadata {
+    BroadcastedMessageMetadata {
+        originator_id: OpaquePeerId::private_new(get_peer_id(peer_index)),
+        encoded_message_length: 0,
+    }
 }
 
 fn build_init_message(round: u32, stream_id: u64, message_id: u32) -> StreamMessage {
@@ -453,5 +479,110 @@ async fn inbound_delayed_middle() {
         assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
     }
     // Check that the receiver was closed:
+    assert!(matches!(receiver.try_next(), Ok(None)));
+}
+
+#[tokio::test]
+async fn lru_cache_evicts_peers() {
+    let max_peers = 2;
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers,
+        max_streams: MAX_STREAMS,
+    };
+    let (
+        mut stream_handler,
+        mut network_to_streamhandler_sender,
+        mut streamhandler_to_client_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup_with_config(config);
+
+    let peer_a = make_metadata(0);
+    let peer_b = make_metadata(1);
+    let peer_c = make_metadata(2);
+
+    // Send a fin message (message_id=1) from peers A and B on stream 0.
+    // Each peer now has stream data buffered, waiting for content message 0.
+    for metadata in [&peer_a, &peer_b] {
+        let message = build_fin_message(0, 1);
+        network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // Send a fin message from peer C. The outer LRU (capacity=2) evicts peer A.
+    let message = build_fin_message(0, 1);
+    network_to_streamhandler_sender.send((Ok(message), peer_c.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Send content message 0 for peers B, C, then A.
+    for metadata in [&peer_b, &peer_c, &peer_a] {
+        let message = build_init_message(0, 0, 0);
+        network_to_streamhandler_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // Peer B: fin was buffered and still present -> stream completes (message 0, then closed).
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    let message = receiver.next().await.unwrap();
+    assert_eq!(message, ProposalPart::Init(ProposalInit { round: 0, ..Default::default() }));
+    assert!(matches!(receiver.try_next(), Ok(None)));
+
+    // Peer C: same as B -> stream completes.
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    let message = receiver.next().await.unwrap();
+    assert_eq!(message, ProposalPart::Init(ProposalInit { round: 0, ..Default::default() }));
+    assert!(matches!(receiver.try_next(), Ok(None)));
+
+    // Peer A: was evicted, so the buffered fin is lost. Only message 0 arrives on a fresh stream
+    // that remains open.
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    let message = receiver.next().await.unwrap();
+    assert_eq!(message, ProposalPart::Init(ProposalInit { round: 0, ..Default::default() }));
+    assert!(receiver.try_next().is_err());
+}
+
+/// Verify that each peer's streams are evicted independently: one peer filling its stream
+/// capacity does not affect another peer's streams.
+#[tokio::test]
+async fn per_peer_stream_isolation() {
+    let max_streams = 2;
+    let config = StreamHandlerConfig {
+        channel_buffer_capacity: CHANNEL_CAPACITY,
+        max_peers: MAX_PEERS,
+        max_streams,
+    };
+    let (
+        mut stream_handler,
+        mut network_to_streamhandler_sender,
+        mut streamhandler_to_client_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup_with_config(config);
+
+    let peer_a = make_metadata(0);
+    let peer_b = make_metadata(1);
+
+    // Peer B: open a stream with a buffered fin (message_id=1), waiting for content message 0.
+    let message = build_fin_message(0, 1);
+    network_to_streamhandler_sender.send((Ok(message), peer_b.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Peer A: open 3 streams (max_streams=2), causing stream 0 to be evicted from peer A's cache.
+    for stream_id in 0..3u64 {
+        let message = build_fin_message(stream_id, 1);
+        network_to_streamhandler_sender.send((Ok(message), peer_a.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    // Peer B: send content message 0 on stream 0. The buffered fin should still be present
+    // (peer A's evictions must not affect peer B).
+    let message = build_init_message(0, 0, 0);
+    network_to_streamhandler_sender.send((Ok(message), peer_b.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    let mut receiver = streamhandler_to_client_receiver.next().now_or_never().unwrap().unwrap();
+    let message = receiver.next().await.unwrap();
+    assert_eq!(message, ProposalPart::Init(ProposalInit { round: 0, ..Default::default() }));
     assert!(matches!(receiver.try_next(), Ok(None)));
 }

@@ -135,10 +135,10 @@ where
     inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
     // This receives messages from the network.
     inbound_receiver: InboundReceiverT,
-    // An LRU cache mapping (peer_id, stream_id) to a struct that contains all the information
-    // about the stream. This includes both the message buffer and some metadata
-    // (like the latest message ID).
-    inbound_stream_data: LruCache<(PeerId, StreamId), StreamData<StreamContent, StreamId>>,
+    // An LRU cache mapping for peer_id, each containing an LRU cache on stream_id, mapping each
+    // peer_id / stream_id to a struct that contains all the information about the stream. This
+    // includes both the message buffer and some metadata (like the latest message ID).
+    inbound_stream_data: LruCache<PeerId, LruCache<StreamId, StreamData<StreamContent, StreamId>>>,
     // Whenever application wants to start a new stream, it must send out a
     // (stream_id, Receiver) pair. Each receiver gets messages that should
     // be sent out to the network.
@@ -168,9 +168,8 @@ where
         outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
         outbound_sender: OutboundSenderT,
     ) -> Self {
-        let cache = LruCache::new(
-            NonZeroUsize::new(config.max_streams).expect("max_streams must be non-zero"),
-        );
+        let cache =
+            LruCache::new(NonZeroUsize::new(config.max_peers).expect("max_peers must be non-zero"));
 
         Self {
             config,
@@ -349,10 +348,19 @@ where
 
         let peer_id = metadata.originator_id.clone();
         let stream_id = message.stream_id.clone();
-        let key = (peer_id.clone(), stream_id.clone());
 
-        // Try to get the stream data from the cache.
-        let data = match self.inbound_stream_data.pop(&key) {
+        // Scope the mutable borrow of inbound_stream_data so we can call self.handle_message_inner
+        // below.
+        let data_option = {
+            // Try to get the stream data from the cache. If peer/stread doesn't exist, return None.
+            if let Some(per_peer_cache) = self.inbound_stream_data.get_mut(&peer_id) {
+                per_peer_cache.pop(&stream_id)
+            } else {
+                None
+            }
+        };
+
+        let data = match data_option {
             Some(data) => data,
             None => {
                 info!(?peer_id, ?stream_id, "Inbound stream started");
@@ -360,8 +368,28 @@ where
                 StreamData::new(self.config.channel_buffer_capacity)
             }
         };
+
+        // If the stream finishes or fails for any reason, None is returned.
         if let Some(data) = self.handle_message_inner(message, metadata, data) {
-            if let Some((evicted_key, _)) = self.inbound_stream_data.push(key, data) {
+            // Check if we need to start a new LRU cache for this peer.
+            if !self.inbound_stream_data.contains(&peer_id) {
+                let evicted_peer_id = self.inbound_stream_data.push(
+                    peer_id.clone(),
+                    LruCache::new(
+                        NonZeroUsize::new(self.config.max_streams)
+                            .expect("max_streams must be non-zero"),
+                    ),
+                );
+                if let Some((evicted_peer_id, _)) = evicted_peer_id {
+                    warn!(?evicted_peer_id, "Evicted peer due to capacity");
+                    // TODO(guyn): add a metric to track evicted peers.
+                }
+            }
+            let per_peer_cache = self
+                .inbound_stream_data
+                .get_mut(&peer_id)
+                .expect("Cache for this peer_id is checked or added above");
+            if let Some((evicted_key, _)) = per_peer_cache.push(stream_id, data) {
                 CONSENSUS_INBOUND_STREAM_EVICTED.increment(1);
                 warn!(?evicted_key, "Evicted inbound stream due to capacity");
             }
