@@ -1,4 +1,4 @@
-use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_SUCCESS_COUNT;
+use apollo_l1_events::metrics::L1_MESSAGE_SCRAPER_SUCCESS_COUNT;
 use apollo_metrics::metrics::MetricQueryName;
 
 use crate::alerts::{
