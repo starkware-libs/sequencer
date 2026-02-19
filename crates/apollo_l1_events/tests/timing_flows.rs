@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_provider::l1_provider::L1Provider;
-use apollo_l1_provider::L1ProviderConfig;
+use apollo_l1_events::l1_provider::L1Provider;
+use apollo_l1_events::L1ProviderConfig;
 use apollo_l1_provider_types::InvalidValidationStatus::*;
 use apollo_l1_provider_types::ValidationStatus::*;
 use apollo_l1_provider_types::{Event, MockL1ProviderClient, SessionState};

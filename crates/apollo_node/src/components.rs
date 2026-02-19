@@ -15,11 +15,11 @@ use apollo_consensus_manager::consensus_manager::{
 };
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
+use apollo_l1_events::event_identifiers_to_track;
+use apollo_l1_events::l1_provider::L1Provider;
+use apollo_l1_events::l1_scraper::L1Scraper;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
-use apollo_l1_provider::event_identifiers_to_track;
-use apollo_l1_provider::l1_provider::L1Provider;
-use apollo_l1_provider::l1_scraper::L1Scraper;
 use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use apollo_mempool_p2p::create_p2p_propagator_and_runner;
 use apollo_mempool_p2p::propagator::MempoolP2pPropagator;
