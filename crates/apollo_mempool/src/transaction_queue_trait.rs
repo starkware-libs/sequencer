@@ -67,4 +67,13 @@ pub trait TransactionQueueTrait: Send + Sync {
 
     // Default implementation is a no-op (for queues that don't support timestamp updates).
     fn update_timestamps(&mut self, _mappings: HashMap<TransactionHash, UnixTimestamp>) {}
+
+    // Default implementation delegates to insert (for queues that don't need special rewind logic).
+    fn insert_for_rewind(
+        &mut self,
+        tx_reference: TransactionReference,
+        validate_resource_bounds: bool,
+    ) {
+        self.insert(tx_reference, validate_resource_bounds);
+    }
 }
