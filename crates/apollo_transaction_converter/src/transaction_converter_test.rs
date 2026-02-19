@@ -130,7 +130,6 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts(
     );
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
-    // Expect contains proof to be called and return false (proof does not exist).
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
@@ -139,30 +138,24 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts(
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
-    // Convert the RPC transaction to an internal RPC transaction.
     let (_internal_tx, verification_handle) =
         transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
 
-    // Await the verification handle to ensure proof verification completes.
     await_verification_handle(verification_handle).await;
 }
 
 #[rstest]
 #[tokio::test]
 async fn test_proof_verification_skipped_for_invoke_v3_without_proof_facts() {
-    // Create an invoke transaction without proof_facts.
     let invoke_tx = invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
-    // Mock proof manager client expects NO calls to contains proof or set proof.
+    // No expectations set — mock asserts that neither contains_proof nor set_proof are called.
     let mock_proof_manager_client = MockProofManagerClient::new();
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
-    // Convert the RPC transaction to an internal RPC transaction.
-    // This should succeed without calling contains proof or set proof.
     let (_internal_tx, verification_handle) =
         transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
 
-    // Verify that no verification handle was returned (no proof to verify).
     assert!(verification_handle.is_none());
 }
 
@@ -182,14 +175,13 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
 
-    // Expect contains_proof to be called during verification.
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
         .with(eq(proof_facts.clone()))
         .return_once(|_| Ok(false));
 
-    // Expect set_proof to be called after successful verification.
+    // set_proof should be called only after successful verification.
     mock_proof_manager_client
         .expect_set_proof()
         .once()
@@ -198,14 +190,11 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
-    // Convert the consensus transaction to an internal consensus transaction.
-    // This spawns a combined verification + proof storage task.
     let (_internal_tx, verify_and_store_proof_task) = transaction_converter
         .convert_consensus_tx_to_internal_consensus_tx(consensus_tx)
         .await
         .unwrap();
 
-    // Await the task to ensure proof verification and storage complete.
     await_verify_and_store_proof_task(verify_and_store_proof_task).await;
 }
 
@@ -234,16 +223,13 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
 
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
-    // Execute round-trip conversion.
     let (internal_tx, verification_handle) =
         transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone()).await.unwrap();
 
-    // Await the verification task to ensure proof verification completes.
     await_verification_handle(verification_handle).await;
 
     let rpc_tx_from_internal =
         transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();
 
-    // Verify: no data lost in round-trip.
     assert_eq!(rpc_tx, rpc_tx_from_internal);
 }
