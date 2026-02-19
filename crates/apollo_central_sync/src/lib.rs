@@ -260,7 +260,7 @@ impl<
         // Using RO transaction is fine here since this is at the start before any batched writes.
         // Read initial markers from the active RW transaction snapshot so stream cursors are
         // aligned with batched/uncommitted writes visibility.
-        let (initial_header_marker, initial_state_marker, initial_compiled_class_marker) = {
+        let (initial_header_marker, initial_state_marker, _initial_compiled_class_marker) = {
             let mut writer = self.writer.lock().await;
             let txn = writer.begin_rw_txn()?;
             (
@@ -272,8 +272,6 @@ impl<
 
         let (header_marker_tx, header_marker_rx) = watch::channel(initial_header_marker);
         let (state_marker_tx, state_marker_rx) = watch::channel(initial_state_marker);
-        let (compiled_class_marker_tx, _compiled_class_marker_rx) =
-            watch::channel(initial_compiled_class_marker);
         let (compiled_class_request_tx, compiled_class_request_rx) = mpsc::channel(10_000);
 
         let block_stream = stream_new_blocks(
@@ -339,7 +337,6 @@ impl<
                 sync_event,
                 &header_marker_tx,
                 &state_marker_tx,
-                &compiled_class_marker_tx,
                 &compiled_class_request_tx,
             )
             .await?;
@@ -354,7 +351,6 @@ impl<
         sync_event: SyncEvent,
         header_marker_tx: &watch::Sender<BlockNumber>,
         state_marker_tx: &watch::Sender<BlockNumber>,
-        compiled_class_marker_tx: &watch::Sender<BlockNumber>,
         compiled_class_request_tx: &mpsc::Sender<CompiledClassRequest>,
     ) -> StateSyncResult {
         match sync_event {
@@ -387,8 +383,11 @@ impl<
                     deployed_contract_class_definitions,
                 )
                 .await?;
-                let compiler_backward_compatibility_marker =
-                    self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
+                let compiler_backward_compatibility_marker = {
+                    let mut writer = self.writer.lock().await;
+                    let marker = writer.begin_rw_txn()?.get_compiler_backward_compatibility_marker()?;
+                    marker
+                };
                 let is_compiler_backward_compatible =
                     block_number >= compiler_backward_compatibility_marker;
                 if self.config.store_sierras_and_casms || !is_compiler_backward_compatible {
@@ -410,11 +409,6 @@ impl<
                 }
                 // Update state marker channel after successful store.
                 let _ = state_marker_tx.send(block_number.unchecked_next());
-                // Update compiled class marker channel after state sync write as well. This keeps
-                // it aligned for blocks that advance the compiled class marker without producing
-                // compiled class events.
-                let new_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
-                let _ = compiled_class_marker_tx.send(new_marker);
                 Ok(())
             }
             SyncEvent::CompiledClassAvailable {
@@ -430,10 +424,6 @@ impl<
                     is_compiler_backward_compatible,
                 )
                 .await?;
-                // Update compiled class marker from storage after successful store.
-                // The marker advances per-class, so we read the actual value.
-                let new_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
-                let _ = compiled_class_marker_tx.send(new_marker);
                 Ok(())
             }
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
@@ -525,10 +515,7 @@ impl<
         // Filter out classes that are already declared in the storage. Only the first deployment of
         // a class declares it.
         let deployed_contract_class_definitions = {
-            // Use the active RW transaction snapshot so this visibility check includes uncommitted
-            // batched writes from previous blocks in the same batch.
-            let mut writer = self.writer.lock().await;
-            let txn = writer.begin_rw_txn()?;
+            let txn = self.reader.begin_ro_txn()?;
             let state_reader = txn.get_state_reader()?;
             deployed_contract_class_definitions
                 .into_iter()
@@ -659,7 +646,12 @@ impl<
         })
         .await?;
 
-        let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
+        // Use RW transaction to see uncommitted batched writes.
+        let compiled_class_marker = {
+            let mut writer = self.writer.lock().await;
+            let marker = writer.begin_rw_txn()?.get_compiled_class_marker()?;
+            marker
+        };
         STATE_SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
         STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
 
@@ -712,8 +704,12 @@ impl<
         // TODO(Yair): verifications - verify casm corresponds to a class on storage.
         match result {
             Ok(()) => {
-                let compiled_class_marker =
-                    self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
+                // Use RW transaction to see uncommitted batched writes.
+                let compiled_class_marker = {
+                    let mut writer = self.writer.lock().await;
+                    let marker = writer.begin_rw_txn()?.get_compiled_class_marker()?;
+                    marker
+                };
                 // Write class and casm to class manager.
                 STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
                 debug!("Added compiled class.");
