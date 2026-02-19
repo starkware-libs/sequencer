@@ -50,7 +50,7 @@ pub struct ComponentConfig {
     #[validate(nested)]
     pub http_server: ActiveComponentExecutionConfig,
     #[validate(nested)]
-    pub l1_scraper: ActiveComponentExecutionConfig,
+    pub l1_events_scraper: ActiveComponentExecutionConfig,
     #[validate(nested)]
     pub l1_gas_price_scraper: ActiveComponentExecutionConfig,
     #[validate(nested)]
@@ -69,7 +69,7 @@ impl SerializeConfig for ComponentConfig {
             prepend_sub_config_name(self.http_server.dump(), "http_server"),
             prepend_sub_config_name(self.l1_provider.dump(), "l1_provider"),
             prepend_sub_config_name(self.l1_gas_price_provider.dump(), "l1_gas_price_provider"),
-            prepend_sub_config_name(self.l1_scraper.dump(), "l1_scraper"),
+            prepend_sub_config_name(self.l1_events_scraper.dump(), "l1_events_scraper"),
             prepend_sub_config_name(self.l1_gas_price_scraper.dump(), "l1_gas_price_scraper"),
             prepend_sub_config_name(self.mempool.dump(), "mempool"),
             prepend_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
@@ -96,7 +96,7 @@ impl ComponentConfig {
             gateway: ReactiveComponentExecutionConfig::disabled(),
             l1_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_gas_price_provider: ReactiveComponentExecutionConfig::disabled(),
-            l1_scraper: ActiveComponentExecutionConfig::disabled(),
+            l1_events_scraper: ActiveComponentExecutionConfig::disabled(),
             l1_gas_price_scraper: ActiveComponentExecutionConfig::disabled(),
             mempool: ReactiveComponentExecutionConfig::disabled(),
             mempool_p2p: ReactiveComponentExecutionConfig::disabled(),

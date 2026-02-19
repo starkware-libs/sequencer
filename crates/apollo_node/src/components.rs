@@ -17,7 +17,7 @@ use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_events::event_identifiers_to_track;
 use apollo_l1_events::l1_provider::L1Provider;
-use apollo_l1_events::l1_scraper::L1Scraper;
+use apollo_l1_events::l1_scraper::L1EventsScraper;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
@@ -54,7 +54,8 @@ pub struct SequencerNodeComponents {
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
-    pub l1_scraper: Option<L1Scraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
+    pub l1_events_scraper:
+        Option<L1EventsScraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
     pub l1_provider: Option<L1Provider>,
     pub l1_gas_price_scraper:
         Option<L1GasPriceScraper<CyclicBaseLayerWrapper<EthereumBaseLayerContract>>>,
@@ -359,7 +360,7 @@ pub async fn create_node_components(
         }
     };
 
-    let l1_scraper = match config.components.l1_scraper.execution_mode {
+    let l1_events_scraper = match config.components.l1_events_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             // TODO(guyn): make base layer config a pointer, to be included in the scraper config.
             let base_layer_config =
@@ -367,15 +368,17 @@ pub async fn create_node_components(
             // TODO(guyn): we are left in a weird situation in which the base layer config has a
             // list of URLs but the l1 endpoing monitor also has such a list, and we use the latter.
             // This will all go away in a subsequent PR where we remove the endpoint monitor.
-            let l1_scraper_config =
-                config.l1_scraper_config.as_ref().expect("L1 Scraper config should be set");
+            let l1_events_scraper_config = config
+                .l1_events_scraper_config
+                .as_ref()
+                .expect("L1 Events Scraper config should be set");
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
             let cyclic_base_layer_wrapper = CyclicBaseLayerWrapper::new(base_layer);
 
             Some(
-                L1Scraper::new(
-                    l1_scraper_config.clone(),
+                L1EventsScraper::new(
+                    l1_events_scraper_config.clone(),
                     l1_provider_client,
                     cyclic_base_layer_wrapper,
                     event_identifiers_to_track(),
@@ -554,7 +557,7 @@ pub async fn create_node_components(
         consensus_manager,
         gateway,
         http_server,
-        l1_scraper,
+        l1_events_scraper,
         l1_provider,
         l1_gas_price_scraper,
         l1_gas_price_provider,

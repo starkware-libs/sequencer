@@ -39,7 +39,7 @@ async fn main() {
         config.components.l1_provider.execution_mode = ReactiveComponentExecutionMode::Disabled;
         config.components.consensus_manager.execution_mode = ActiveComponentExecutionMode::Disabled;
         config.components.http_server.execution_mode = ActiveComponentExecutionMode::Disabled;
-        config.components.l1_scraper.execution_mode = ActiveComponentExecutionMode::Disabled;
+        config.components.l1_events_scraper.execution_mode = ActiveComponentExecutionMode::Disabled;
     };
 
     let update_config_use_central_sync = |config: &mut SequencerNodeConfig| {

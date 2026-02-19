@@ -10,7 +10,7 @@ use starknet_api::core::ChainId;
 use validator::Validate;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct L1ScraperConfig {
+pub struct L1EventsScraperConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_rewind_time_seconds: Duration,
     #[validate(custom(function = "validate_ascii"))]
@@ -23,7 +23,7 @@ pub struct L1ScraperConfig {
     pub l1_block_time_seconds: Duration,
 }
 
-impl Default for L1ScraperConfig {
+impl Default for L1EventsScraperConfig {
     fn default() -> Self {
         Self {
             startup_rewind_time_seconds: Duration::from_secs(60 * 60),
@@ -36,7 +36,7 @@ impl Default for L1ScraperConfig {
     }
 }
 
-impl SerializeConfig for L1ScraperConfig {
+impl SerializeConfig for L1EventsScraperConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([
             ser_param(
