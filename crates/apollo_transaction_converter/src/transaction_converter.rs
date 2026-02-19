@@ -61,13 +61,9 @@ pub enum TransactionConverterError {
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
     ValidateCompiledClassHashError(#[from] ValidateCompiledClassHashError),
-    #[error("Verify and store proof task failed: {0}")]
-    VerifyAndStoreProofTaskFailed(String),
 }
 
 pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
-
-pub type VerificationTask = JoinHandle<Result<(), TransactionConverterError>>;
 
 pub type VerifyAndStoreProofTask = JoinHandle<Result<(), TransactionConverterError>>;
 
@@ -76,7 +72,7 @@ pub struct VerificationHandle {
     // TODO(Dori): add a field for the class hash.
     pub proof_facts: ProofFacts,
     pub proof: Proof,
-    pub verification_task: VerificationTask,
+    pub verification_task: JoinHandle<Result<(), TransactionConverterError>>,
 }
 
 #[cfg_attr(any(test, feature = "testing"), automock)]
@@ -111,8 +107,6 @@ pub trait TransactionConverterTrait: Send + Sync {
         &self,
         tx: InternalConsensusTransaction,
     ) -> TransactionConverterResult<ExecutableTransaction>;
-
-    fn get_proof_manager_client(&self) -> SharedProofManagerClient;
 
     async fn store_proof_in_proof_manager(
         &self,
@@ -162,6 +156,7 @@ impl TransactionConverter {
         );
         proof
     }
+
     async fn get_executable(
         &self,
         class_hash: ClassHash,
@@ -197,14 +192,11 @@ impl TransactionConverterTrait for TransactionConverter {
     {
         match tx {
             ConsensusTransaction::RpcTransaction(tx) => {
-                let (internal_tx, verification_handle) =
-                    self.convert_rpc_tx_to_internal_rpc_tx(tx).await?;
-                let verify_and_store_proof_task =
-                    verification_handle.map(|handle| self.spawn_verify_and_store_task(handle));
-                Ok((
-                    InternalConsensusTransaction::RpcTransaction(internal_tx),
-                    verify_and_store_proof_task,
-                ))
+                let (internal_tx, proof_data) = self.convert_rpc_tx_to_internal(tx).await?;
+                let task = proof_data.map(|(proof_facts, proof)| {
+                    self.spawn_verify_and_store_proof(proof_facts, proof)
+                });
+                Ok((InternalConsensusTransaction::RpcTransaction(internal_tx), task))
             }
             ConsensusTransaction::L1Handler(tx) => {
                 let internal_tx = self.convert_consensus_l1_handler_to_internal_l1_handler(tx)?;
@@ -269,61 +261,11 @@ impl TransactionConverterTrait for TransactionConverter {
         &self,
         tx: RpcTransaction,
     ) -> TransactionConverterResult<(InternalRpcTransaction, Option<VerificationHandle>)> {
-        let (tx_without_hash, verification_handle) = match tx {
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
-                // Spawn proof verification task; storage happens in the caller after successful
-                // conversion/validation.
-                let verification_handle =
-                    self.spawn_proof_verification(&tx.proof_facts, &tx.proof)?;
-                (InternalRpcTransactionWithoutTxHash::Invoke(tx.into()), verification_handle)
-            }
-            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
-                let ClassHashes { class_hash, executable_class_hash_v2 } =
-                // TODO(Dori): Make this async and spawn a task to compile and add it to the class manager.
-                    self.class_manager_client.add_class(tx.contract_class).await?;
-                // TODO(Aviv): Ensure that we do not want to
-                // allow declare with compiled class hash v1.
-                if tx.compiled_class_hash != executable_class_hash_v2 {
-                    return Err(TransactionConverterError::ValidateCompiledClassHashError(
-                        ValidateCompiledClassHashError::CompiledClassHashMismatch {
-                            computed_class_hash: executable_class_hash_v2,
-                            supplied_class_hash: tx.compiled_class_hash,
-                        },
-                    ));
-                }
-                (
-                    InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
-                        sender_address: tx.sender_address,
-                        compiled_class_hash: tx.compiled_class_hash,
-                        signature: tx.signature,
-                        nonce: tx.nonce,
-                        class_hash,
-                        resource_bounds: tx.resource_bounds,
-                        tip: tx.tip,
-                        paymaster_data: tx.paymaster_data,
-                        account_deployment_data: tx.account_deployment_data,
-                        nonce_data_availability_mode: tx.nonce_data_availability_mode,
-                        fee_data_availability_mode: tx.fee_data_availability_mode,
-                    }),
-                    None,
-                )
-            }
-            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                let contract_address = tx.calculate_contract_address()?;
-                (
-                    InternalRpcTransactionWithoutTxHash::DeployAccount(
-                        InternalRpcDeployAccountTransaction {
-                            tx: RpcDeployAccountTransaction::V3(tx),
-                            contract_address,
-                        },
-                    ),
-                    None,
-                )
-            }
-        };
-        let tx_hash = tx_without_hash.calculate_transaction_hash(&self.chain_id)?;
-
-        Ok((InternalRpcTransaction { tx: tx_without_hash, tx_hash }, verification_handle))
+        let (internal_tx, proof_data) = self.convert_rpc_tx_to_internal(tx).await?;
+        let verification_handle = proof_data
+            .map(|(proof_facts, proof)| self.spawn_proof_verification(proof_facts, proof))
+            .transpose()?;
+        Ok((internal_tx, verification_handle))
     }
 
     async fn convert_internal_rpc_tx_to_executable_tx(
@@ -379,38 +321,135 @@ impl TransactionConverterTrait for TransactionConverter {
         }
     }
 
-    fn get_proof_manager_client(&self) -> SharedProofManagerClient {
-        self.proof_manager_client.clone()
-    }
     async fn store_proof_in_proof_manager(
         &self,
         proof_facts: ProofFacts,
         proof: Proof,
     ) -> TransactionConverterResult<Duration> {
-        let proof_manager_client = self.proof_manager_client.clone();
         let start = Instant::now();
-        proof_manager_client.set_proof(proof_facts, proof).await?;
+        self.proof_manager_client.set_proof(proof_facts, proof).await?;
         Ok(start.elapsed())
     }
 }
 
 impl TransactionConverter {
-    fn spawn_verify_and_store_task(&self, handle: VerificationHandle) -> VerifyAndStoreProofTask {
-        let proof_manager_client = self.proof_manager_client.clone();
-        let proof_facts_hash = handle.proof_facts.hash();
-        let proof_facts = handle.proof_facts;
-        let proof = handle.proof;
-        let verification_task = handle.verification_task;
+    /// Converts an RPC transaction to its internal representation without spawning any proof tasks.
+    /// Returns the proof data (if present) separately so each caller can decide how to handle it.
+    async fn convert_rpc_tx_to_internal(
+        &self,
+        tx: RpcTransaction,
+    ) -> TransactionConverterResult<(InternalRpcTransaction, Option<(ProofFacts, Proof)>)> {
+        let (tx_without_hash, proof_data) = match tx {
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => {
+                let proof_data = if tx.proof_facts.is_empty() {
+                    None
+                } else {
+                    Some((tx.proof_facts.clone(), tx.proof.clone()))
+                };
+                (InternalRpcTransactionWithoutTxHash::Invoke(tx.into()), proof_data)
+            }
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
+                let ClassHashes { class_hash, executable_class_hash_v2 } =
+                // TODO(Dori): Make this async and spawn a task to compile and add it to the class manager.
+                    self.class_manager_client.add_class(tx.contract_class).await?;
+                // TODO(Aviv): Ensure that we do not want to
+                // allow declare with compiled class hash v1.
+                if tx.compiled_class_hash != executable_class_hash_v2 {
+                    return Err(TransactionConverterError::ValidateCompiledClassHashError(
+                        ValidateCompiledClassHashError::CompiledClassHashMismatch {
+                            computed_class_hash: executable_class_hash_v2,
+                            supplied_class_hash: tx.compiled_class_hash,
+                        },
+                    ));
+                }
+                (
+                    InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
+                        sender_address: tx.sender_address,
+                        compiled_class_hash: tx.compiled_class_hash,
+                        signature: tx.signature,
+                        nonce: tx.nonce,
+                        class_hash,
+                        resource_bounds: tx.resource_bounds,
+                        tip: tx.tip,
+                        paymaster_data: tx.paymaster_data,
+                        account_deployment_data: tx.account_deployment_data,
+                        nonce_data_availability_mode: tx.nonce_data_availability_mode,
+                        fee_data_availability_mode: tx.fee_data_availability_mode,
+                    }),
+                    None,
+                )
+            }
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
+                let contract_address = tx.calculate_contract_address()?;
+                (
+                    InternalRpcTransactionWithoutTxHash::DeployAccount(
+                        InternalRpcDeployAccountTransaction {
+                            tx: RpcDeployAccountTransaction::V3(tx),
+                            contract_address,
+                        },
+                    ),
+                    None,
+                )
+            }
+        };
+        let tx_hash = tx_without_hash.calculate_transaction_hash(&self.chain_id)?;
+        Ok((InternalRpcTransaction { tx: tx_without_hash, tx_hash }, proof_data))
+    }
 
+    /// Runs proof verification: checks if the proof already exists, and if not, verifies it.
+    /// This is the shared verification logic used by both gateway and consensus flows.
+    async fn run_proof_verification(
+        proof_facts: ProofFacts,
+        proof: Proof,
+        proof_manager_client: SharedProofManagerClient,
+    ) -> Result<(), TransactionConverterError> {
+        let contains_proof = proof_manager_client.contains_proof(proof_facts.clone()).await?;
+
+        if contains_proof {
+            return Ok(());
+        }
+
+        let proof_facts_hash = proof_facts.hash();
+        let verify_start = Instant::now();
+        Self::verify_proof(proof_facts, proof)?;
+        let verify_duration = verify_start.elapsed();
+        PROOF_VERIFICATION_LATENCY.record(verify_duration.as_secs_f64());
+        info!(
+            "Proof verification took: {verify_duration:?} for proof facts hash: \
+             {proof_facts_hash:?}"
+        );
+
+        Ok(())
+    }
+
+    /// Spawns a verification-only task. Used by the gateway flow, which stores the proof
+    /// separately after all validations pass.
+    fn spawn_proof_verification(
+        &self,
+        proof_facts: ProofFacts,
+        proof: Proof,
+    ) -> TransactionConverterResult<VerificationHandle> {
+        let pmc = self.proof_manager_client.clone();
+        let verification_task =
+            tokio::spawn(Self::run_proof_verification(proof_facts.clone(), proof.clone(), pmc));
+        Ok(VerificationHandle { proof_facts, proof, verification_task })
+    }
+
+    /// Spawns a single task that verifies the proof and then stores it in the proof manager.
+    /// Used by the consensus flow, where tasks run concurrently with batcher execution and
+    /// are awaited at fin.
+    fn spawn_verify_and_store_proof(
+        &self,
+        proof_facts: ProofFacts,
+        proof: Proof,
+    ) -> VerifyAndStoreProofTask {
+        let pmc = self.proof_manager_client.clone();
+        let proof_facts_hash = proof_facts.hash();
         tokio::spawn(async move {
-            verification_task.await.map_err(|e| {
-                TransactionConverterError::VerifyAndStoreProofTaskFailed(format!(
-                    "panicked for proof facts hash {proof_facts_hash:?}: {e}"
-                ))
-            })??;
+            Self::run_proof_verification(proof_facts.clone(), proof.clone(), pmc.clone()).await?;
 
             let start = Instant::now();
-            proof_manager_client.set_proof(proof_facts, proof).await?;
+            pmc.set_proof(proof_facts, proof).await?;
             let duration = start.elapsed();
             CONSENSUS_PROOF_MANAGER_STORE_LATENCY.record(duration.as_secs_f64());
             info!(
@@ -430,54 +469,6 @@ impl TransactionConverter {
             // TODO(Gilad): Change this once we put real value in paid_fee_on_l1.
             Fee(1),
         )?)
-    }
-
-    fn spawn_proof_verification(
-        &self,
-        proof_facts: &ProofFacts,
-        proof: &Proof,
-    ) -> TransactionConverterResult<Option<VerificationHandle>> {
-        // If the proof facts are empty, it is a standard transaction that does not use client-side
-        // proving and we skip proof verification. We return Ok only if the proof facts are
-        // empty (and not the proof) because the proof facts are trusted and we do not want
-        // transactions that are missing proofs but contain proof facts to be accepted.
-        if proof_facts.is_empty() {
-            return Ok(None);
-        }
-
-        let task_proof_facts = proof_facts.clone();
-        let task_proof = proof.clone();
-        let proof_manager_client = self.proof_manager_client.clone();
-
-        // Spawn verification task.
-        let verification_task = tokio::spawn(async move {
-            let contains_proof =
-                proof_manager_client.contains_proof(task_proof_facts.clone()).await?;
-
-            // If the proof already exists in the proof manager, indicating it has already been
-            // verified, we skip proof verification.
-            if contains_proof {
-                return Ok(());
-            }
-
-            let verify_start = Instant::now();
-            let proof_facts_hash = task_proof_facts.hash();
-            Self::verify_proof(task_proof_facts, task_proof)?;
-            let verify_duration = verify_start.elapsed();
-            PROOF_VERIFICATION_LATENCY.record(verify_duration.as_secs_f64());
-            info!(
-                "Proof verification took: {verify_duration:?} for proof facts hash: \
-                 {proof_facts_hash:?}"
-            );
-
-            Ok(())
-        });
-
-        Ok(Some(VerificationHandle {
-            proof_facts: proof_facts.clone(),
-            proof: proof.clone(),
-            verification_task,
-        }))
     }
 
     /// Verifies a submitted proof, validating the emitted proof facts, and comparing the bootloader
