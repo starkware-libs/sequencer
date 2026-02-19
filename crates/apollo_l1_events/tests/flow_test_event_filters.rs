@@ -17,7 +17,7 @@ use alloy::primitives::{
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header, Log};
 use alloy::transports::mock::Asserter;
-use apollo_l1_provider::event_identifiers_to_track;
+use apollo_l1_events::event_identifiers_to_track;
 use assert_matches::assert_matches;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
