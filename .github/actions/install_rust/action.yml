@@ -26,9 +26,12 @@ runs:
       shell: bash
       run: |
         mkdir -p /home/runner/.cache/sccache
-        echo "RUSTC_WRAPPER=sccache" >> "$GITHUB_ENV"
-        echo "SCCACHE_DIR=/home/runner/.cache/sccache" >> "$GITHUB_ENV"
-        echo "SCCACHE_CACHE_SIZE=50G" >> "$GITHUB_ENV"
+        mkdir -p .cargo
+        cat >> .cargo/config.toml << 'EOF'
+        [env]
+        SCCACHE_DIR = "/home/runner/.cache/sccache"
+        SCCACHE_CACHE_SIZE = "50G"
+        EOF
 
     - uses: moonrepo/setup-rust@v1
       name: Install Rust toolchain and binaries
