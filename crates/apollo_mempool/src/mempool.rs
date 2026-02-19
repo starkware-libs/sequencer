@@ -241,7 +241,7 @@ impl AddTransactionQueue {
 }
 
 pub struct Mempool {
-    config: MempoolConfig,
+    pub(crate) config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
     // Declare transactions that are waiting to be added to the tx pool after a delay.
     delayed_declares: AddTransactionQueue,
@@ -550,6 +550,7 @@ impl Mempool {
                 {
                     if rejected_tx_hashes.contains(&next_tx.tx_hash) {
                         // Immediate next transaction is rejected, don't rewind anything
+                        debug!("FIFO rewind: skipping address {:?} - next tx is rejected", address);
                         continue;
                     }
                 }
@@ -561,9 +562,22 @@ impl Mempool {
                 rewound_tx_hashes.insert(tx_reference.tx_hash);
             }
         }
-        // Add them back to the queue
-        for tx_reference in txs_to_rewind {
-            self.insert_to_tx_queue(tx_reference);
+
+        if !txs_to_rewind.is_empty() {
+            info!(
+                "FIFO rewind: rewinding {} txs from {} addresses",
+                txs_to_rewind.len(),
+                committed_nonces.len()
+            );
+        }
+
+        // Add them back to the queue at the FRONT (for FIFO mode)
+        // We insert in reverse order so that the lowest nonce ends up at the front
+        for tx_reference in txs_to_rewind.iter().rev() {
+            self.tx_queue.insert_for_rewind(
+                *tx_reference,
+                self.config.static_config.validate_resource_bounds,
+            );
         }
 
         rewound_tx_hashes

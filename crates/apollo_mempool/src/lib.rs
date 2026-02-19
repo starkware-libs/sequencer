@@ -10,4 +10,6 @@ pub(crate) mod utils;
 #[cfg(test)]
 mod fifo_mempool_test;
 #[cfg(test)]
+mod recorder_integration_test;
+#[cfg(test)]
 pub mod test_utils;

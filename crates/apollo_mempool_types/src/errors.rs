@@ -19,4 +19,6 @@ pub enum MempoolError {
     TransactionNotFound { tx_hash: TransactionHash },
     #[error("Transaction rejected: mempool capacity exceeded.")]
     MempoolFull,
+    #[error("Transaction timestamp not available for tx_hash: {tx_hash}")]
+    TransactionTimestampNotAvailable { tx_hash: TransactionHash },
 }

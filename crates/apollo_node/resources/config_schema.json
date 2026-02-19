@@ -409,11 +409,6 @@
     "privacy": "TemporaryValue",
     "value": false
   },
-  "deployment_mode": {
-    "description": "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
-    "privacy": "TemporaryValue",
-    "value": "starknet"
-  },
   "class_manager_config.dynamic_config.storage_reader_server_dynamic_config.enable": {
     "description": "Whether to enable the storage reader HTTP server.",
     "privacy": "Public",
@@ -2504,6 +2499,11 @@
     "privacy": "Public",
     "value": "consensus_votes"
   },
+  "deployment_mode": {
+    "description": "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "privacy": "TemporaryValue",
+    "value": "starknet"
+  },
   "eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
     "privacy": "TemporaryValue",
@@ -2949,6 +2949,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "mempool_config.static_config.deployment_mode": {
+    "description": "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+    "pointer_target": "deployment_mode",
+    "privacy": "Public"
+  },
   "mempool_config.static_config.enable_fee_escalation": {
     "description": "If true, transactions can be replaced with higher fee transactions.",
     "privacy": "Public",
@@ -2959,9 +2964,9 @@
     "privacy": "Public",
     "value": 10
   },
-  "mempool_config.static_config.deployment_mode": {
-    "description": "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
-    "pointer_target": "deployment_mode",
+  "mempool_config.static_config.recorder_url": {
+    "description": "The URL of the recorder service (used for FIFO queue timestamp fetching).",
+    "pointer_target": "recorder_url",
     "privacy": "Public"
   },
   "mempool_config.static_config.validate_resource_bounds": {
