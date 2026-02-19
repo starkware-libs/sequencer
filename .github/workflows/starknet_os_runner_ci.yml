@@ -13,6 +13,7 @@ on:
       - "crates/blockifier/**"
       - "crates/blockifier_reexecution/**"
       - "crates/starknet_os_runner/**"
+      - "scripts/build_starknet_os_runner.sh"
       - "crates/starknet_os/**"
       - "crates/starknet_committer/**"
       - "crates/starknet_patricia/**"
@@ -79,3 +80,40 @@ jobs:
         run: cargo test --release -p starknet_os_runner test_prove_balance_of_transaction -- --ignored
       - name: "Test: prove transfer transaction"
         run: cargo test --release -p starknet_os_runner test_prove_transfer_transaction -- --ignored
+
+  # Test that the starknet_os_runner Dockerfile builds successfully.
+  # Uses debug mode for faster compilation.
+  docker-build:
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    steps:
+      - uses: actions/checkout@v6
+
+      # Persist the proving-utils git clone across runs to avoid re-cloning.
+      - name: Cache proving-utils clone
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          path: build/proving-utils
+
+      # Clone (or update) proving-utils to the pinned revision.
+      # The Dockerfile COPY's this directory as a build stage for stwo-run-and-prove.
+      # Uses the clone_or_update_proving_utils helper function from proving_utils_env.sh.
+      - name: Clone proving-utils
+        run: source scripts/proving_utils_env.sh && clone_or_update_proving_utils "${BUILD_DIR}"
+
+      # Enable Buildx so we can use the GHA cache backend for Docker layer caching.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the image without pushing. GHA cache stores all intermediate layers
+      # (cargo-chef cook, apt installs, etc.) so subsequent builds only recompile changed code.
+      - name: Build starknet_os_runner Docker image
+        uses: docker/build-push-action@v6.13.0
+        with:
+          context: .
+          file: crates/starknet_os_runner/Dockerfile
+          build-args: |
+            BUILD_MODE=debug
+            PROVING_UTILS_DIR=build/proving-utils
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
