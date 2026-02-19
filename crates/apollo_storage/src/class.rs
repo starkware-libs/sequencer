@@ -236,6 +236,11 @@ impl ClassStorageWriter for StorageTxnRW<'_> {
         // #endregion
         if block_number != marker_block_number {
             // #region agent log
+            tracing::error!(
+                "CLASS_MARKER_MISMATCH: class_marker={}, block_to_write={}",
+                marker_block_number,
+                block_number
+            );
             {
                 let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
                 for path in &paths {

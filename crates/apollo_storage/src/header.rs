@@ -499,6 +499,11 @@ fn update_marker<'env>(
     // #endregion
     if header_marker != block_number {
         // #region agent log
+        tracing::error!(
+            "HEADER_MARKER_MISMATCH: header_marker={}, block_to_write={}",
+            header_marker,
+            block_number
+        );
         {
             let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
             for path in &paths {

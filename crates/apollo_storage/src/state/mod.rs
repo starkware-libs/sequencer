@@ -829,6 +829,12 @@ fn update_marker_to_next_block<'env>(
     // #endregion
     if marker != block_number {
         // #region agent log
+        tracing::error!(
+            "STATE_MARKER_MISMATCH: marker_kind={:?}, storage_marker={}, block_to_write={}",
+            marker_kind,
+            marker,
+            block_number
+        );
         debug_log_state(
             "state/mod.rs:update_marker_to_next_block:MISMATCH",
             "MARKER MISMATCH ERROR",

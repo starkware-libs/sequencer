@@ -263,11 +263,18 @@ impl<
         let (initial_header_marker, initial_state_marker, _initial_compiled_class_marker) = {
             let mut writer = self.writer.lock().await;
             let txn = writer.begin_rw_txn()?;
-            (
-                txn.get_header_marker()?,
-                txn.get_state_marker()?,
-                txn.get_compiled_class_marker()?,
-            )
+            let hm = txn.get_header_marker()?;
+            let sm = txn.get_state_marker()?;
+            let ccm = txn.get_compiled_class_marker()?;
+            // #region agent log
+            let cm = txn.get_class_marker()?;
+            warn!(
+                "SYNC_INIT: header_marker={}, state_marker={}, compiled_class_marker={}, \
+                 class_marker={}",
+                hm, sm, ccm, cm
+            );
+            // #endregion
+            (hm, sm, ccm)
         };
 
         let (header_marker_tx, header_marker_rx) = watch::channel(initial_header_marker);
@@ -366,6 +373,9 @@ impl<
                 state_diff,
                 deployed_contract_class_definitions,
             } => {
+                // #region agent log
+                warn!("SYNC_EVENT: StateDiffAvailable block_number={}", block_number);
+                // #endregion
                 let compiled_classes_in_block: Vec<(ClassHash, CompiledClassHash)> = state_diff
                     .declared_classes
                     .iter()
@@ -561,6 +571,13 @@ impl<
             let compiler_backward_compatibility_marker =
                 self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
 
+            // #region agent log
+            warn!(
+                "STORE_STATE_DIFF: block={}, compiler_backward_compat_marker={} (RO)",
+                block_number, compiler_backward_compatibility_marker
+            );
+            // #endregion
+
             // A block contains only classes with either STARKNET_VERSION_TO_COMPILE_FROM or higher
             // or only classes below STARKNET_VERSION_TO_COMPILE_FROM, not both.
             if compiler_backward_compatibility_marker <= block_number {
@@ -608,11 +625,34 @@ impl<
             }
             let mut txn = writer.begin_rw_txn()?;
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
-            // Non backwards compatible classes must be stored for later use since we will only be
-            // be adding them to the class manager later, once we have their compiled
-            // classes.
-            //
-            // TODO(guy.f): Properly fix handling non backwards compatible classes.
+            // #region agent log
+            {
+                let will_append_classes =
+                    store_sierras_and_casms || block_contains_non_backwards_compatible_classes;
+                let paths =
+                    ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+                for path in &paths {
+                    if let Ok(mut f) =
+                        std::fs::OpenOptions::new().create(true).append(true).open(path)
+                    {
+                        use std::io::Write as _;
+                        let _ = writeln!(
+                            f,
+                            r#"{{"timestamp":{},"location":"lib.rs:store_state_diff","message":"pre_append_classes","data":{{"block_number":{},"will_append_classes":{},"store_sierras_and_casms":{},"non_backward_compat":{}}},"hypothesisId":"BD"}}"#,
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_millis(),
+                            block_number.0,
+                            will_append_classes,
+                            store_sierras_and_casms,
+                            block_contains_non_backwards_compatible_classes
+                        );
+                        break;
+                    }
+                }
+            }
+            // #endregion
             if store_sierras_and_casms || block_contains_non_backwards_compatible_classes {
                 let store_reason = if store_sierras_and_casms {
                     "store_sierras_and_casms is true"

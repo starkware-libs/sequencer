@@ -732,10 +732,24 @@ fn update_marker<'env>(
     // Make sure marker is consistent.
     let body_marker = markers_table.get(txn, &MarkerKind::Body)?.unwrap_or_default();
     if body_marker != block_number {
+        // #region agent log
+        tracing::error!(
+            "BODY_MARKER_MISMATCH: body_marker={}, block_to_write={}",
+            body_marker,
+            block_number
+        );
+        // #endregion
         return Err(StorageError::MarkerMismatch { expected: body_marker, found: block_number });
     };
     let event_marker = markers_table.get(txn, &MarkerKind::Event)?.unwrap_or_default();
     if event_marker != block_number {
+        // #region agent log
+        tracing::error!(
+            "EVENT_MARKER_MISMATCH: event_marker={}, block_to_write={}",
+            event_marker,
+            block_number
+        );
+        // #endregion
         return Err(StorageError::MarkerMismatch { expected: event_marker, found: block_number });
     };
 
