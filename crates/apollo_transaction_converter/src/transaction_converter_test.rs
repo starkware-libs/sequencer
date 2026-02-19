@@ -25,6 +25,7 @@ use crate::transaction_converter::{
     TransactionConverterError,
     TransactionConverterTrait,
     VerificationHandle,
+    VerifyAndStoreProofTask,
 };
 
 /// Resource file names for testing.
@@ -58,13 +59,21 @@ fn create_transaction_converter(
     )
 }
 
-async fn await_verification_task(verification_handle: Option<VerificationHandle>) {
+async fn await_verification_handle(verification_handle: Option<VerificationHandle>) {
     if let Some(handle) = verification_handle {
         handle
             .verification_task
             .await
             .expect("verification task panicked")
             .expect("proof verification failed");
+    }
+}
+
+async fn await_verify_and_store_proof_task(task: Option<VerifyAndStoreProofTask>) {
+    if let Some(task) = task {
+        task.await
+            .expect("verify and store proof task panicked")
+            .expect("verify and store proof task failed");
     }
 }
 
@@ -134,8 +143,8 @@ async fn test_proof_verification_called_for_invoke_v3_with_proof_facts(
     let (_internal_tx, verification_handle) =
         transaction_converter.convert_rpc_tx_to_internal_rpc_tx(invoke_tx).await.unwrap();
 
-    // Await the verification task to ensure proof verification completes.
-    await_verification_task(verification_handle).await;
+    // Await the verification handle to ensure proof verification completes.
+    await_verification_handle(verification_handle).await;
 }
 
 #[rstest]
@@ -173,24 +182,31 @@ async fn test_consensus_tx_to_internal_with_proof_facts_verifies_and_sets_proof(
 
     let mut mock_proof_manager_client = MockProofManagerClient::new();
 
-    // Expect contains proof to be called during conversion from rpc to internal rpc.
+    // Expect contains_proof to be called during verification.
     mock_proof_manager_client
         .expect_contains_proof()
         .once()
         .with(eq(proof_facts.clone()))
         .return_once(|_| Ok(false));
 
+    // Expect set_proof to be called after successful verification.
+    mock_proof_manager_client
+        .expect_set_proof()
+        .once()
+        .with(eq(proof_facts.clone()), eq(proof.clone()))
+        .return_once(|_, _| Ok(()));
+
     let transaction_converter = create_transaction_converter(mock_proof_manager_client);
 
     // Convert the consensus transaction to an internal consensus transaction.
-    // This should call contains proof and set proof.
-    let (_internal_tx, verification_handle) = transaction_converter
+    // This spawns a combined verification + proof storage task.
+    let (_internal_tx, verify_and_store_proof_task) = transaction_converter
         .convert_consensus_tx_to_internal_consensus_tx(consensus_tx)
         .await
         .unwrap();
 
-    // Await the verification task to ensure proof verification completes.
-    await_verification_task(verification_handle).await;
+    // Await the task to ensure proof verification and storage complete.
+    await_verify_and_store_proof_task(verify_and_store_proof_task).await;
 }
 
 /// Tests round-trip conversion: RPC → Internal → RPC preserves all transaction data.
@@ -223,7 +239,7 @@ async fn test_convert_internal_rpc_tx_to_rpc_tx_with_proof(proof_facts: ProofFac
         transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx.clone()).await.unwrap();
 
     // Await the verification task to ensure proof verification completes.
-    await_verification_task(verification_handle).await;
+    await_verification_handle(verification_handle).await;
 
     let rpc_tx_from_internal =
         transaction_converter.convert_internal_rpc_tx_to_rpc_tx(internal_tx).await.unwrap();

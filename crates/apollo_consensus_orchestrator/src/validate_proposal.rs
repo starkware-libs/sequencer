@@ -3,7 +3,7 @@
 mod validate_proposal_test;
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use apollo_batcher_types::batcher_types::{
     ProposalId,
@@ -20,7 +20,7 @@ use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::StateSyncClient;
 use apollo_time::time::{Clock, ClockExt, DateTime};
-use apollo_transaction_converter::{TransactionConverterTrait, VerificationHandle};
+use apollo_transaction_converter::{TransactionConverterTrait, VerifyAndStoreProofTask};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockNumber, GasPrice};
@@ -37,7 +37,6 @@ use tracing::{debug, info, instrument, warn};
 use crate::metrics::{
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
-    CONSENSUS_PROOF_MANAGER_STORE_LATENCY,
     CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
@@ -126,7 +125,7 @@ pub(crate) async fn validate_proposal(
     mut args: ProposalValidateArguments,
 ) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
-    let mut verification_handles = Vec::new();
+    let mut verify_and_store_proof_tasks: Vec<VerifyAndStoreProofTask> = Vec::new();
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -176,7 +175,7 @@ pub(crate) async fn validate_proposal(
                     args.deps.batcher.as_ref(),
                     proposal_part.clone(),
                     &mut content,
-                    &mut verification_handles,
+                    &mut verify_and_store_proof_tasks,
                     args.deps.transaction_converter.clone(),
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
@@ -347,39 +346,11 @@ async fn initiate_validation(
     Ok(())
 }
 
-/// Awaits a verification task and stores the proof if verification succeeds.
-async fn await_verification_and_store_proof(
-    handle: VerificationHandle,
-    transaction_converter: &Arc<dyn TransactionConverterTrait>,
-) -> Result<(), String> {
-    // Await the verification task.
-    let proof_facts_hash = handle.proof_facts.hash();
-    handle
-        .verification_task
-        .await
-        .map_err(|e| {
-            format!(
-                "Proof verification task panicked for proof facts hash: {proof_facts_hash:?}: {e}"
-            )
-        })?
-        .map_err(|e| {
-            format!("Proof verification failed for proof facts hash: {proof_facts_hash:?}: {e}")
-        })?;
-
-    // Store the proof after successful verification.
-    let proof_manager_store_duration = transaction_converter
-        .store_proof_in_proof_manager(handle.proof_facts, handle.proof)
-        .await
-        .map_err(|e| {
-            format!("Failed to store proof for proof facts hash: {proof_facts_hash:?}: {e}")
-        })?;
-    CONSENSUS_PROOF_MANAGER_STORE_LATENCY.record(proof_manager_store_duration.as_secs_f64());
-    info!(
-        "Proof manager store in the consensus took: {proof_manager_store_duration:?} for proof \
-         facts hash: {proof_facts_hash:?}"
-    );
-
-    Ok(())
+/// Awaits a task that verifies and stores a proof spawned during consensus transaction conversion.
+async fn await_verify_and_store_proof_task(task: VerifyAndStoreProofTask) -> Result<(), String> {
+    task.await
+        .map_err(|e| format!("Verify and store proof task panicked: {e}"))?
+        .map_err(|e| e.to_string())
 }
 
 /// Handles receiving a proposal from another node without blocking consensus:
@@ -391,7 +362,7 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    verification_handles: &mut Vec<VerificationHandle>,
+    verify_and_store_proof_tasks: &mut Vec<VerifyAndStoreProofTask>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
@@ -415,18 +386,18 @@ async fn handle_proposal_part(
 
             *content = truncate_to_executed_txs(content, executed_txs_count);
 
-            // Proof verification tasks are spawned during transaction conversion in the
-            // transaction batch case, so they run concurrently with transaction
-            // execution by the batcher. Since the fin is always the last proposal part (sent after
-            // all transaction batch parts), we await all accumulated verification handles here to
-            // ensure every proof is verified and stored before finalizing the proposal.
-            for handle in verification_handles.drain(..) {
-                if let Err(e) =
-                    await_verification_and_store_proof(handle, &transaction_converter).await
-                {
+            // Verification and store proof tasks are spawned during consensus transaction
+            // conversion, running concurrently with batcher execution. Since the fin
+            // is always the last proposal part, we await all tasks here to ensure every
+            // proof is verified and stored before finalizing the proposal.
+            let start = Instant::now();
+            for task in verify_and_store_proof_tasks.drain(..) {
+                if let Err(e) = await_verify_and_store_proof_task(task).await {
                     return HandledProposalPart::Failed(e);
                 }
             }
+            let duration = start.elapsed();
+            info!("Awaiting the verify and store proof tasks took: {duration:?}");
 
             // Output this along with the ID from batcher, to compare them.
             let input = SendProposalContentInput {
@@ -482,14 +453,14 @@ async fn handle_proposal_part(
                 }
             };
 
-            // Separate internal transactions from verification handles. Each handle wraps a spawned
-            // proof verification task that runs in the background. The handles are collected and
-            // awaited later in the fin case.
-            let (txs, handles): (
+            // Separate internal transactions from verification and store proof tasks. Each task
+            // verifies the proof and stores it in the proof manager. Tasks are collected
+            // and awaited later in the fin case.
+            let (txs, tasks): (
                 Vec<InternalConsensusTransaction>,
-                Vec<Option<VerificationHandle>>,
+                Vec<Option<VerifyAndStoreProofTask>>,
             ) = conversion_results.into_iter().unzip();
-            verification_handles.extend(handles.into_iter().flatten());
+            verify_and_store_proof_tasks.extend(tasks.into_iter().flatten());
 
             debug!(
                 "Converted transactions to internal representation. hashes={:?}",
