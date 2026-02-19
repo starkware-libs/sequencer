@@ -2500,7 +2500,7 @@
     "value": 1000
   },
   "consensus_manager_config.stream_handler_config.max_message_buffer_size": {
-    "description": "The maximum number of message for each stream that can be buffered.",
+    "description": "The maximum number of messages for each stream that can be buffered.",
     "privacy": "Public",
     "value": 1000
   },
