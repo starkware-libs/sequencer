@@ -317,13 +317,15 @@ impl SerializeConfig for FutureMsgLimitsConfig {
 pub struct StreamHandlerConfig {
     /// The capacity of the channel buffer for stream messages.
     pub channel_buffer_capacity: usize,
-    /// The maximum number of streams that can be open at the same time.
+    /// The maximum number of peers that can send inbound messages.
+    pub max_peers: usize,
+    /// The maximum number of streams that can be open at the same time, per peer.
     pub max_streams: usize,
 }
 
 impl Default for StreamHandlerConfig {
     fn default() -> Self {
-        Self { channel_buffer_capacity: 1000, max_streams: 100 }
+        Self { channel_buffer_capacity: 1000, max_peers: 100, max_streams: 100 }
     }
 }
 
@@ -334,6 +336,12 @@ impl SerializeConfig for StreamHandlerConfig {
                 "channel_buffer_capacity",
                 &self.channel_buffer_capacity,
                 "The capacity of the channel buffer for stream messages.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_peers",
+                &self.max_peers,
+                "The maximum number of peers that can send inbound messages.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

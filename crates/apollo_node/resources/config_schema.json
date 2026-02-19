@@ -2489,6 +2489,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "consensus_manager_config.stream_handler_config.max_peers": {
+    "description": "The maximum number of peers that can send inbound messages.",
+    "privacy": "Public",
+    "value": 100
+  },
   "consensus_manager_config.stream_handler_config.max_streams": {
     "description": "The maximum number of streams that can be open at the same time.",
     "privacy": "Public",
