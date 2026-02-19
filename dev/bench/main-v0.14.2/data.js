@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771507839382,
+  "lastUpdate": 1771511285689,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -985,6 +985,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1358.9835045799998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b2042bf70cb517f680116e1332c00a315c221152",
+          "message": "apollo_propeller: add rate-limited queue length warnings (#11073)\n\n* apollo_propeller: implement outbound substream with message batching\n\n* apollo_propeller: add rate-limited queue length warnings",
+          "timestamp": "2026-02-19T14:04:02Z",
+          "tree_id": "c8109e74eb0270661d62248c27be0673e5a07bdd",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b2042bf70cb517f680116e1332c00a315c221152"
+        },
+        "date": 1771511285300,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 828.88257195,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1365.99939547,
             "unit": "ms"
           }
         ]
