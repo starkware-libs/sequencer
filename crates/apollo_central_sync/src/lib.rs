@@ -568,12 +568,16 @@ impl<
             // TODO(shahak): Consider storing a boolean and updating it to true once
             // compiler_backward_compatibility_marker <= block_number and avoiding the check if the
             // boolean is true.
-            let compiler_backward_compatibility_marker =
-                self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
+            // Use RW transaction to see uncommitted batched writes.
+            let compiler_backward_compatibility_marker = {
+                let mut writer = self.writer.lock().await;
+                let marker = writer.begin_rw_txn()?.get_compiler_backward_compatibility_marker()?;
+                marker
+            };
 
             // #region agent log
             warn!(
-                "STORE_STATE_DIFF: block={}, compiler_backward_compat_marker={} (RO)",
+                "STORE_STATE_DIFF: block={}, compiler_backward_compat_marker={} (RW)",
                 block_number, compiler_backward_compatibility_marker
             );
             // #endregion
