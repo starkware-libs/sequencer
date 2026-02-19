@@ -1924,6 +1924,7 @@ dependencies = [
  "apollo_time",
  "assert_matches",
  "async-trait",
+ "axum",
  "blockifier",
  "blockifier_test_utils",
  "criterion",
@@ -1937,7 +1938,9 @@ dependencies = [
  "mockall",
  "pretty_assertions",
  "rand 0.8.5",
+ "reqwest 0.12.24",
  "rstest",
+ "serde",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
@@ -1953,6 +1956,7 @@ dependencies = [
  "apollo_config",
  "apollo_deployment_mode",
  "serde",
+ "url",
  "validator",
 ]
 
@@ -12457,7 +12461,7 @@ dependencies = [
  "dashmap",
  "educe 0.5.11",
  "fnv",
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
  "hex",
  "indexmap 2.12.0",
  "itertools 0.12.1",
@@ -12515,7 +12519,7 @@ name = "stwo-constraint-framework"
 version = "0.1.1"
 source = "git+https://github.com/starkware-libs/stwo?rev=6b5c843#6b5c84396da9ce282dc6accb343dd7ef6d1b9966"
 dependencies = [
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",
