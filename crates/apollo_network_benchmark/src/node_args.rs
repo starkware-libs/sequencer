@@ -18,6 +18,9 @@ pub enum NetworkProtocol {
     /// Use gossipsub for broadcasting (default)
     #[value(name = "gossipsub")]
     Gossipsub,
+    /// Use SQMR for point-to-point communication
+    #[value(name = "sqmr")]
+    Sqmr,
 }
 
 impl Display for Mode {
