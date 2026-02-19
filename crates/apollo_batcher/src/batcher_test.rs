@@ -30,8 +30,8 @@ use apollo_committer_types::committer_types::CommitBlockRequest;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
-use apollo_l1_provider_types::{MockL1ProviderClient, SessionState};
+use apollo_l1_provider_types::errors::{L1EventsProviderClientError, L1EventsProviderError};
+use apollo_l1_provider_types::{MockL1EventsProviderClient, SessionState};
 use apollo_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -340,7 +340,7 @@ async fn create_batcher_with_active_validate_block(
 async fn start_batcher_with_active_validate(
     block_builder_factory: MockBlockBuilderFactoryTrait,
 ) -> Batcher {
-    let mut l1_provider_client = MockL1ProviderClient::new();
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
     l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
 
     let mut batcher = create_batcher(MockDependencies {
@@ -520,7 +520,7 @@ async fn ignore_l1_handler_provider_not_ready(#[case] proposer: bool) {
     }
     deps.clients.l1_provider_client.expect_start_block().returning(|_, _| {
         // The heights are not important for the test.
-        let err = L1ProviderError::UnexpectedHeight {
+        let err = L1EventsProviderError::UnexpectedHeight {
             expected_height: INITIAL_HEIGHT,
             got: INITIAL_HEIGHT,
         };
@@ -557,7 +557,7 @@ async fn consecutive_heights_success() {
         );
     }
 
-    let mut l1_provider_client = MockL1ProviderClient::new();
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
     l1_provider_client.expect_start_block().times(2).returning(|_, _| Ok(()));
 
     let mock_dependencies = MockDependencies {
@@ -736,7 +736,7 @@ async fn propose_block_full_flow() {
         Ok(BlockExecutionArtifacts::create_for_testing().await),
     );
 
-    let mut l1_provider_client = MockL1ProviderClient::new();
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
     l1_provider_client.expect_start_block().times(1).returning(|_, _| Ok(()));
 
     let mut batcher = create_batcher(MockDependencies {
@@ -804,7 +804,7 @@ async fn multiple_proposals_with_l1_every_n_proposals() {
         );
     }
 
-    let mut l1_provider_client = MockL1ProviderClient::new();
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
     l1_provider_client.expect_start_block().times(N_PROPOSALS).returning(|_, _| Ok(()));
 
     let mock_dependencies = MockDependencies {
@@ -894,7 +894,7 @@ async fn consecutive_proposal_generation_success() {
             Ok(BlockExecutionArtifacts::create_for_testing().await),
         );
     }
-    let mut l1_provider_client = MockL1ProviderClient::new();
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
     l1_provider_client.expect_start_block().times(4).returning(|_, _| Ok(()));
 
     let mut batcher = create_batcher(MockDependencies {
@@ -967,7 +967,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
         &mut block_builder_factory,
         Ok(BlockExecutionArtifacts::create_for_testing().await),
     );
-    let mut l1_provider_client = MockL1ProviderClient::new();
+    let mut l1_provider_client = MockL1EventsProviderClient::new();
     l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
     let mut mempool_client = MockMempoolClient::new();
     let expected_gas_price =
@@ -1550,17 +1550,17 @@ fn validate_batcher_config_failure() {
 
 #[rstest]
 #[case::communication_failure(
-    L1ProviderClientError::ClientError(ClientError::CommunicationFailure("L1 commit failed".to_string()))
+    L1EventsProviderClientError::ClientError(ClientError::CommunicationFailure("L1 commit failed".to_string()))
 )]
 #[case::unexpected_height(
-    L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
+    L1EventsProviderClientError::L1EventsProviderError(L1EventsProviderError::UnexpectedHeight {
         expected_height: INITIAL_HEIGHT,
         got: INITIAL_HEIGHT,
     })
 )]
 #[tokio::test]
 async fn decision_reached_return_success_when_l1_commit_block_fails(
-    #[case] l1_error: L1ProviderClientError,
+    #[case] l1_error: L1EventsProviderClientError,
 ) {
     let mut mock_dependencies = MockDependencies::default();
 

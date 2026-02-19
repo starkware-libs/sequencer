@@ -1264,112 +1264,112 @@
     "privacy": "Public",
     "value": "Enabled"
   },
-  "components.l1_provider.execution_mode": {
+  "components.l1_events_provider.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "LocalExecutionWithRemoteDisabled"
   },
-  "components.l1_provider.local_server_config.#is_none": {
+  "components.l1_events_provider.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": {
+  "components.l1_events_provider.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
   },
-  "components.l1_provider.local_server_config.inbound_requests_channel_capacity": {
+  "components.l1_events_provider.local_server_config.inbound_requests_channel_capacity": {
     "description": "The inbound requests channel capacity.",
     "privacy": "Public",
     "value": 1024
   },
-  "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": {
+  "components.l1_events_provider.local_server_config.normal_priority_requests_channel_capacity": {
     "description": "The normal priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
   },
-  "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": {
+  "components.l1_events_provider.local_server_config.processing_time_warning_threshold_ms": {
     "description": "Request processing threshold time in ms after which a warning message is logged.",
     "privacy": "Public",
     "value": 3000
   },
-  "components.l1_provider.max_concurrency": {
+  "components.l1_events_provider.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
     "value": 128
   },
-  "components.l1_provider.port": {
+  "components.l1_events_provider.port": {
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
   },
-  "components.l1_provider.remote_client_config.#is_none": {
+  "components.l1_events_provider.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.l1_provider.remote_client_config.attempts_per_log": {
+  "components.l1_events_provider.remote_client_config.attempts_per_log": {
     "description": "Number of attempts between failure log messages.",
     "privacy": "Public",
     "value": 1
   },
-  "components.l1_provider.remote_client_config.connection_timeout_ms": {
+  "components.l1_events_provider.remote_client_config.connection_timeout_ms": {
     "description": "The maximal duration in milliseconds before a client forgoes remote connection creation attempt.",
     "privacy": "Public",
     "value": 500
   },
-  "components.l1_provider.remote_client_config.idle_connections": {
+  "components.l1_events_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
     "value": 10
   },
-  "components.l1_provider.remote_client_config.idle_timeout_ms": {
+  "components.l1_events_provider.remote_client_config.idle_timeout_ms": {
     "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
     "value": 30000
   },
-  "components.l1_provider.remote_client_config.initial_retry_delay_ms": {
+  "components.l1_events_provider.remote_client_config.initial_retry_delay_ms": {
     "description": "Initial delay before first retry in milliseconds.",
     "privacy": "Public",
     "value": 1
   },
-  "components.l1_provider.remote_client_config.max_retry_interval_ms": {
+  "components.l1_events_provider.remote_client_config.max_retry_interval_ms": {
     "description": "The maximal duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
     "value": 1000
   },
-  "components.l1_provider.remote_client_config.retries": {
+  "components.l1_events_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 15
   },
-  "components.l1_provider.remote_client_config.set_tcp_nodelay": {
+  "components.l1_events_provider.remote_client_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the client requests.",
     "privacy": "Public",
     "value": true
   },
-  "components.l1_provider.remote_server_config.#is_none": {
+  "components.l1_events_provider.remote_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.l1_provider.remote_server_config.bind_ip": {
+  "components.l1_events_provider.remote_server_config.bind_ip": {
     "description": "Binding address of the remote component server.",
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.l1_provider.remote_server_config.max_streams_per_connection": {
+  "components.l1_events_provider.remote_server_config.max_streams_per_connection": {
     "description": "Maximal number of streams per HTTP connection.",
     "privacy": "Public",
     "value": 8
   },
-  "components.l1_provider.remote_server_config.set_tcp_nodelay": {
+  "components.l1_events_provider.remote_server_config.set_tcp_nodelay": {
     "description": "Whether to set TCP_NODELAY on the server responses.",
     "privacy": "Public",
     "value": true
   },
-  "components.l1_provider.url": {
+  "components.l1_events_provider.url": {
     "description": "URL of the remote component server.",
     "privacy": "Public",
     "value": "localhost"
@@ -2889,32 +2889,32 @@
     "privacy": "Public",
     "value": 2
   },
-  "l1_provider_config.#is_none": {
+  "l1_events_provider_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "l1_provider_config.dummy_mode": {
+  "l1_events_provider_config.dummy_mode": {
     "description": "When true, the L1 provider operates in dummy mode, always responding with trivial truthy responses without connecting to actual L1.",
     "privacy": "Public",
     "value": false
   },
-  "l1_provider_config.l1_handler_cancellation_timelock_seconds": {
+  "l1_events_provider_config.l1_handler_cancellation_timelock_seconds": {
     "description": "How long to allow a transaction requested for cancellation to be validated against (proposals are banned upon receiving a cancellation request).",
     "privacy": "Public",
     "value": 300
   },
-  "l1_provider_config.l1_handler_consumption_timelock_seconds": {
+  "l1_events_provider_config.l1_handler_consumption_timelock_seconds": {
     "description": "How long to wait after a transaction is consumed on L1 before it can be cleared from the transaction manager.",
     "privacy": "Public",
     "value": 300.0
   },
-  "l1_provider_config.l1_handler_proposal_cooldown_seconds": {
+  "l1_events_provider_config.l1_handler_proposal_cooldown_seconds": {
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately), from the moment they are scraped.",
     "privacy": "Public",
     "value": 70
   },
-  "l1_provider_config.startup_sync_sleep_retry_interval_seconds": {
+  "l1_events_provider_config.startup_sync_sleep_retry_interval_seconds": {
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
     "privacy": "Public",
     "value": 2

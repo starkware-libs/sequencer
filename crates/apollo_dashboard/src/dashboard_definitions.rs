@@ -3,7 +3,7 @@ use apollo_class_manager::metrics::CLASS_MANAGER_INFRA_METRICS;
 use apollo_compile_to_casm::metrics::SIERRA_COMPILER_INFRA_METRICS;
 use apollo_config_manager::metrics::CONFIG_MANAGER_INFRA_METRICS;
 use apollo_gateway::metrics::GATEWAY_INFRA_METRICS;
-use apollo_l1_events::metrics::L1_PROVIDER_INFRA_METRICS;
+use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
 use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
@@ -35,8 +35,8 @@ use crate::panels::http_server::{
     get_panel_http_server_seconds_since_last_transaction,
     get_panel_http_server_transactions_received_rate,
 };
+use crate::panels::l1_events_provider::get_l1_events_provider_row;
 use crate::panels::l1_gas_price::get_l1_gas_price_row;
-use crate::panels::l1_provider::get_l1_provider_row;
 use crate::panels::mempool::get_mempool_row;
 use crate::panels::mempool_p2p::get_mempool_p2p_row;
 use crate::panels::pod_metrics::get_pod_metrics_row;
@@ -93,7 +93,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_gateway_row(),
             get_mempool_row(),
             get_upgrade_row(),
-            get_l1_provider_row(),
+            get_l1_events_provider_row(),
             get_l1_gas_price_row(),
             get_blockifier_row(),
             get_compile_to_casm_row(),
@@ -106,7 +106,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_component_infra_row("Config Manager", &CONFIG_MANAGER_INFRA_METRICS),
             get_component_infra_row("Gateway", &GATEWAY_INFRA_METRICS),
             get_component_infra_row("L1 Gas Price", &L1_GAS_PRICE_INFRA_METRICS),
-            get_component_infra_row("L1 Provider", &L1_PROVIDER_INFRA_METRICS),
+            get_component_infra_row("L1 Provider", &L1_EVENTS_PROVIDER_INFRA_METRICS),
             get_component_infra_row("Mempool", &MEMPOOL_INFRA_METRICS),
             get_component_infra_row("Mempool P2P", &MEMPOOL_P2P_INFRA_METRICS),
             get_component_infra_row("Proof Manager", &PROOF_MANAGER_INFRA_METRICS),

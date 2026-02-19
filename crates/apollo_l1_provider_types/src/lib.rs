@@ -26,11 +26,11 @@ use strum::EnumVariantNames;
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tracing::instrument;
 
-use crate::errors::{L1ProviderClientError, L1ProviderError};
+use crate::errors::{L1EventsProviderClientError, L1EventsProviderError};
 
-pub type L1ProviderResult<T> = Result<T, L1ProviderError>;
-pub type L1ProviderClientResult<T> = Result<T, L1ProviderClientError>;
-pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
+pub type L1EventsProviderResult<T> = Result<T, L1EventsProviderError>;
+pub type L1EventsProviderClientResult<T> = Result<T, L1EventsProviderClientError>;
+pub type SharedL1EventsProviderClient = Arc<dyn L1EventsProviderClient>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationStatus {
@@ -53,16 +53,16 @@ pub enum InvalidValidationStatus {
     ConsumedOnL1,
     // This tx is either never been seen or was seen, consumed, and deleted.
     NotFound,
-    L1ProviderError,
+    L1EventsProviderError,
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
-    name(L1ProviderRequestLabelValue),
+    name(L1EventsProviderRequestLabelValue),
     derive(IntoStaticStr, EnumIter, EnumVariantNames),
     strum(serialize_all = "snake_case")
 )]
-pub enum L1ProviderRequest {
+pub enum L1EventsProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock {
         l1_handler_tx_hashes: IndexSet<TransactionHash>,
@@ -85,85 +85,88 @@ pub enum L1ProviderRequest {
         tx_hash: TransactionHash,
         height: BlockNumber,
     },
-    GetL1ProviderSnapshot,
+    GetL1EventsProviderSnapshot,
     GetProviderState,
 }
-impl_debug_for_infra_requests_and_responses!(L1ProviderRequest);
-impl_labeled_request!(L1ProviderRequest, L1ProviderRequestLabelValue);
-impl PrioritizedRequest for L1ProviderRequest {}
+impl_debug_for_infra_requests_and_responses!(L1EventsProviderRequest);
+impl_labeled_request!(L1EventsProviderRequest, L1EventsProviderRequestLabelValue);
+impl PrioritizedRequest for L1EventsProviderRequest {}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
-pub enum L1ProviderResponse {
-    AddEvents(L1ProviderResult<()>),
-    CommitBlock(L1ProviderResult<()>),
-    GetTransactions(L1ProviderResult<Vec<L1HandlerTransaction>>),
-    Initialize(L1ProviderResult<()>),
-    StartBlock(L1ProviderResult<()>),
-    Validate(L1ProviderResult<ValidationStatus>),
-    GetL1ProviderSnapshot(L1ProviderResult<L1ProviderSnapshot>),
-    GetProviderState(L1ProviderResult<ProviderState>),
+pub enum L1EventsProviderResponse {
+    AddEvents(L1EventsProviderResult<()>),
+    CommitBlock(L1EventsProviderResult<()>),
+    GetTransactions(L1EventsProviderResult<Vec<L1HandlerTransaction>>),
+    Initialize(L1EventsProviderResult<()>),
+    StartBlock(L1EventsProviderResult<()>),
+    Validate(L1EventsProviderResult<ValidationStatus>),
+    GetL1EventsProviderSnapshot(L1EventsProviderResult<L1EventsProviderSnapshot>),
+    GetProviderState(L1EventsProviderResult<ProviderState>),
 }
-impl_debug_for_infra_requests_and_responses!(L1ProviderResponse);
+impl_debug_for_infra_requests_and_responses!(L1EventsProviderResponse);
 
 /// Serves as the provider's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
-pub trait L1ProviderClient: Send + Sync {
+pub trait L1EventsProviderClient: Send + Sync {
     async fn start_block(
         &self,
         state: SessionState,
         height: BlockNumber,
-    ) -> L1ProviderClientResult<()>;
+    ) -> L1EventsProviderClientResult<()>;
 
     async fn get_txs(
         &self,
         n_txs: usize,
         height: BlockNumber,
-    ) -> L1ProviderClientResult<Vec<L1HandlerTransaction>>;
+    ) -> L1EventsProviderClientResult<Vec<L1HandlerTransaction>>;
 
     async fn validate(
         &self,
         _tx_hash: TransactionHash,
         _height: BlockNumber,
-    ) -> L1ProviderClientResult<ValidationStatus>;
+    ) -> L1EventsProviderClientResult<ValidationStatus>;
 
     async fn commit_block(
         &self,
         l1_handler_consumed_tx_hashes: IndexSet<TransactionHash>,
         l1_handler_rejected_tx_hashes: IndexSet<TransactionHash>,
         height: BlockNumber,
-    ) -> L1ProviderClientResult<()>;
+    ) -> L1EventsProviderClientResult<()>;
 
-    async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
+    async fn add_events(&self, events: Vec<Event>) -> L1EventsProviderClientResult<()>;
     async fn initialize(
         &self,
         historic_l2_height: BlockNumber,
         events: Vec<Event>,
-    ) -> L1ProviderClientResult<()>;
-    async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot>;
-    async fn get_provider_state(&self) -> L1ProviderClientResult<ProviderState>;
+    ) -> L1EventsProviderClientResult<()>;
+    async fn get_l1_events_provider_snapshot(
+        &self,
+    ) -> L1EventsProviderClientResult<L1EventsProviderSnapshot>;
+    async fn get_provider_state(&self) -> L1EventsProviderClientResult<ProviderState>;
 }
 
 #[async_trait]
-impl<ComponentClientType> L1ProviderClient for ComponentClientType
+impl<ComponentClientType> L1EventsProviderClient for ComponentClientType
 where
-    ComponentClientType: Send + Sync + ComponentClient<L1ProviderRequest, L1ProviderResponse>,
+    ComponentClientType:
+        Send + Sync + ComponentClient<L1EventsProviderRequest, L1EventsProviderResponse>,
 {
     #[instrument(skip(self))]
     async fn start_block(
         &self,
         state: SessionState,
         height: BlockNumber,
-    ) -> L1ProviderClientResult<()> {
-        let request = L1ProviderRequest::StartBlock { state, height };
+    ) -> L1EventsProviderClientResult<()> {
+        let request = L1EventsProviderRequest::StartBlock { state, height };
         handle_all_response_variants!(
             self,
             request,
-            L1ProviderResponse,
+            L1EventsProviderResponse,
             StartBlock,
-            L1ProviderClientError,
-            L1ProviderError,
+            L1EventsProviderClientError,
+            L1EventsProviderError,
             Direct
         )
     }
@@ -173,15 +176,15 @@ where
         &self,
         n_txs: usize,
         height: BlockNumber,
-    ) -> L1ProviderClientResult<Vec<L1HandlerTransaction>> {
-        let request = L1ProviderRequest::GetTransactions { n_txs, height };
+    ) -> L1EventsProviderClientResult<Vec<L1HandlerTransaction>> {
+        let request = L1EventsProviderRequest::GetTransactions { n_txs, height };
         handle_all_response_variants!(
             self,
             request,
-            L1ProviderResponse,
+            L1EventsProviderResponse,
             GetTransactions,
-            L1ProviderClientError,
-            L1ProviderError,
+            L1EventsProviderClientError,
+            L1EventsProviderError,
             Direct
         )
     }
@@ -190,15 +193,15 @@ where
         &self,
         tx_hash: TransactionHash,
         height: BlockNumber,
-    ) -> L1ProviderClientResult<ValidationStatus> {
-        let request = L1ProviderRequest::Validate { tx_hash, height };
+    ) -> L1EventsProviderClientResult<ValidationStatus> {
+        let request = L1EventsProviderRequest::Validate { tx_hash, height };
         handle_all_response_variants!(
             self,
             request,
-            L1ProviderResponse,
+            L1EventsProviderResponse,
             Validate,
-            L1ProviderClientError,
-            L1ProviderError,
+            L1EventsProviderClientError,
+            L1EventsProviderError,
             Direct
         )
     }
@@ -208,30 +211,33 @@ where
         l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: IndexSet<TransactionHash>,
         height: BlockNumber,
-    ) -> L1ProviderClientResult<()> {
-        let request =
-            L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, rejected_tx_hashes, height };
+    ) -> L1EventsProviderClientResult<()> {
+        let request = L1EventsProviderRequest::CommitBlock {
+            l1_handler_tx_hashes,
+            rejected_tx_hashes,
+            height,
+        };
         handle_all_response_variants!(
             self,
             request,
-            L1ProviderResponse,
+            L1EventsProviderResponse,
             CommitBlock,
-            L1ProviderClientError,
-            L1ProviderError,
+            L1EventsProviderClientError,
+            L1EventsProviderError,
             Direct
         )
     }
 
     #[instrument(skip(self))]
-    async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
-        let request = L1ProviderRequest::AddEvents(events);
+    async fn add_events(&self, events: Vec<Event>) -> L1EventsProviderClientResult<()> {
+        let request = L1EventsProviderRequest::AddEvents(events);
         handle_all_response_variants!(
             self,
             request,
-            L1ProviderResponse,
+            L1EventsProviderResponse,
             AddEvents,
-            L1ProviderClientError,
-            L1ProviderError,
+            L1EventsProviderClientError,
+            L1EventsProviderError,
             Direct
         )
     }
@@ -240,41 +246,43 @@ where
         &self,
         historic_l2_height: BlockNumber,
         events: Vec<Event>,
-    ) -> L1ProviderClientResult<()> {
-        let request = L1ProviderRequest::Initialize { historic_l2_height, events };
+    ) -> L1EventsProviderClientResult<()> {
+        let request = L1EventsProviderRequest::Initialize { historic_l2_height, events };
         handle_all_response_variants!(
             self,
             request,
-            L1ProviderResponse,
+            L1EventsProviderResponse,
             Initialize,
-            L1ProviderClientError,
-            L1ProviderError,
+            L1EventsProviderClientError,
+            L1EventsProviderError,
             Direct
         )
     }
 
-    async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot> {
-        let request = L1ProviderRequest::GetL1ProviderSnapshot;
+    async fn get_l1_events_provider_snapshot(
+        &self,
+    ) -> L1EventsProviderClientResult<L1EventsProviderSnapshot> {
+        let request = L1EventsProviderRequest::GetL1EventsProviderSnapshot;
         handle_all_response_variants!(
             self,
             request,
-            L1ProviderResponse,
-            GetL1ProviderSnapshot,
-            L1ProviderClientError,
-            L1ProviderError,
+            L1EventsProviderResponse,
+            GetL1EventsProviderSnapshot,
+            L1EventsProviderClientError,
+            L1EventsProviderError,
             Direct
         )
     }
 
-    async fn get_provider_state(&self) -> L1ProviderClientResult<ProviderState> {
-        let request = L1ProviderRequest::GetProviderState;
+    async fn get_provider_state(&self) -> L1EventsProviderClientResult<ProviderState> {
+        let request = L1EventsProviderRequest::GetProviderState;
         handle_all_response_variants!(
             self,
             request,
-            L1ProviderResponse,
+            L1EventsProviderResponse,
             GetProviderState,
-            L1ProviderClientError,
-            L1ProviderError,
+            L1EventsProviderClientError,
+            L1EventsProviderError,
             Direct
         )
     }
@@ -430,7 +438,7 @@ impl ProviderState {
     pub fn transition_to_pending(&self) -> ProviderState {
         assert!(
             !self.is_catching_up(),
-            "Transitioning from catching up should be done manually by the L1Provider."
+            "Transitioning from catching up should be done manually by the L1EventsProvider."
         );
         ProviderState::Pending
     }
@@ -458,7 +466,7 @@ pub enum SessionState {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct L1ProviderSnapshot {
+pub struct L1EventsProviderSnapshot {
     pub uncommitted_transactions: Vec<TransactionHash>,
     pub uncommitted_staged_transactions: Vec<TransactionHash>,
     pub rejected_transactions: Vec<TransactionHash>,
@@ -467,12 +475,12 @@ pub struct L1ProviderSnapshot {
     pub cancellation_started_on_l2: Vec<TransactionHash>,
     pub cancelled_on_l2: Vec<TransactionHash>,
     pub consumed: Vec<TransactionHash>,
-    pub l1_provider_state: String,
+    pub l1_events_provider_state: String,
     pub current_height: BlockNumber,
     pub number_of_txs_in_records: usize,
 }
 
 generate_permutation_labels! {
-    L1_PROVIDER_REQUEST_LABELS,
-    (LABEL_NAME_REQUEST_VARIANT, L1ProviderRequestLabelValue),
+    L1_EVENTS_PROVIDER_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, L1EventsProviderRequestLabelValue),
 }
