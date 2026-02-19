@@ -50,6 +50,35 @@
 //! # Ok::<(), apollo_storage::StorageError>(())
 //! ```
 
+// #region agent log
+use std::io::Write as _;
+fn debug_log_state(location: &str, message: &str, data: &str, hypothesis: &str) {
+    // Try persistent data volume first (survives container restarts), fall back to local path
+    let paths = ["/data/debug.log", "/home/dean/workspace/sequencer/.cursor/debug.log"];
+    for path in &paths {
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)
+        {
+            let _ = writeln!(
+                file,
+                r#"{{"timestamp":{},"location":"{}","message":"{}","data":{},"hypothesisId":"{}"}}"#,
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis(),
+                location,
+                message,
+                data,
+                hypothesis
+            );
+            break;
+        }
+    }
+}
+// #endregion
+
 #[doc(hidden)]
 pub mod data;
 #[cfg(test)]
@@ -790,7 +819,23 @@ fn update_marker_to_next_block<'env>(
 ) -> StorageResult<()> {
     // Make sure marker is consistent.
     let marker = markers_table.get(txn, &marker_kind)?.unwrap_or_default();
+    // #region agent log
+    debug_log_state(
+        "state/mod.rs:update_marker_to_next_block",
+        "Checking marker",
+        &format!(r#"{{"marker_kind":"{:?}","storage_marker":{},"block_to_write":{}}}"#, marker_kind, marker.0, block_number.0),
+        "C"
+    );
+    // #endregion
     if marker != block_number {
+        // #region agent log
+        debug_log_state(
+            "state/mod.rs:update_marker_to_next_block:MISMATCH",
+            "MARKER MISMATCH ERROR",
+            &format!(r#"{{"marker_kind":"{:?}","expected_by_storage":{},"trying_to_write":{}}}"#, marker_kind, marker.0, block_number.0),
+            "C"
+        );
+        // #endregion
         return Err(StorageError::MarkerMismatch { expected: marker, found: block_number });
     };
 
