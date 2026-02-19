@@ -174,7 +174,7 @@ class ResyncConfig:
 class L1Config:
     """External provider credentials for L1 access."""
 
-    l1_provider_api_key: str
+    l1_events_provider_api_key: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,7 +209,7 @@ class EchonetConfig:
         feeder_headers = MappingProxyType(
             {"X-Throttling-Bypass": feeder_bypass} if feeder_bypass else {}
         )
-        l1_provider_api_key = str(secrets["l1_provider_api_key"])
+        l1_events_provider_api_key = str(secrets["l1_events_provider_api_key"])
 
         return cls(
             feeder=FeederGatewayConfig(
@@ -239,7 +239,7 @@ class EchonetConfig:
                 error_threshold=resync_threshold,
             ),
             l1=L1Config(
-                l1_provider_api_key=l1_provider_api_key,
+                l1_events_provider_api_key=l1_events_provider_api_key,
             ),
         )
 

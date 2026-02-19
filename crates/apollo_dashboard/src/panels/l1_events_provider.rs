@@ -1,10 +1,10 @@
 use apollo_l1_events::metrics::{
+    L1_MESSAGE_PROVIDER_NUM_PENDING_TXS,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_LAST_SUCCESS_TIMESTAMP_SECONDS,
     L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
-    L1_PROVIDER_NUM_PENDING_TXS,
 };
 
 use crate::dashboard::Row;
@@ -44,8 +44,8 @@ fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
 fn get_panel_l1_message_scraper_latest_scraped_block() -> Panel {
     Panel::from_gauge(&L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK, PanelType::TimeSeries)
 }
-fn get_panel_l1_provider_num_pending_txs() -> Panel {
-    Panel::from_gauge(&L1_PROVIDER_NUM_PENDING_TXS, PanelType::TimeSeries)
+fn get_panel_l1_events_provider_num_pending_txs() -> Panel {
+    Panel::from_gauge(&L1_MESSAGE_PROVIDER_NUM_PENDING_TXS, PanelType::TimeSeries)
 }
 
 fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel {
@@ -61,13 +61,13 @@ fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel 
 }
 
 // TODO(noamsp): rename to l1_event_row
-pub(crate) fn get_l1_provider_row() -> Row {
+pub(crate) fn get_l1_events_provider_row() -> Row {
     Row::new(
         "L1 Provider",
         vec![
             get_panel_l1_message_scraper_seconds_since_last_successful_scrape(),
             get_panel_l1_message_scraper_latest_scraped_block(),
-            get_panel_l1_provider_num_pending_txs(),
+            get_panel_l1_events_provider_num_pending_txs(),
             get_panel_l1_message_scraper_success_count(),
             get_panel_l1_message_scraper_baselayer_error_count(),
             get_panel_l1_message_scraper_reorg_detected(),

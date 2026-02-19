@@ -34,7 +34,7 @@ pub enum MetricScope {
     HttpServer,
     Infra,
     L1GasPrice,
-    L1Provider,
+    L1EventsProvider,
     Mempool,
     MempoolP2p,
     CompileToCasm,

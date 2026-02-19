@@ -5,9 +5,9 @@ use std::time::Duration;
 
 use apollo_l1_provider_types::{
     Event,
-    L1ProviderClient,
-    L1ProviderClientResult,
-    L1ProviderSnapshot,
+    L1EventsProviderClient,
+    L1EventsProviderClientResult,
+    L1EventsProviderSnapshot,
     ProviderState,
     SessionState,
     ValidationStatus,
@@ -29,10 +29,10 @@ use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTx
 use starknet_api::transaction::TransactionHash;
 
 use crate::catchupper::{Catchupper, CommitBlockBacklog, SyncTaskHandle};
-use crate::l1_provider::L1Provider;
+use crate::l1_events_provider::L1EventsProvider;
 use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionManagerConfig};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
-use crate::L1ProviderConfig;
+use crate::L1EventsProviderConfig;
 
 macro_rules! make_catchupper {
     (backlog: [$($height:literal => [$($tx:literal),* $(,)*]),* $(,)*]) => {{
@@ -44,7 +44,7 @@ macro_rules! make_catchupper {
                 }),*
             ].into_iter().collect(),
             target_height: BlockNumber(0),
-            l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
+            l1_events_provider_client: Arc::new(FakeL1EventsProviderClient::default()),
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),
             n_sync_health_check_failures: Default::default(),
@@ -64,8 +64,8 @@ pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
-pub struct L1ProviderContent {
-    config: Option<L1ProviderConfig>,
+pub struct L1EventsProviderContent {
+    config: Option<L1EventsProviderConfig>,
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
     catchupper: Option<Catchupper>,
@@ -73,9 +73,9 @@ pub struct L1ProviderContent {
     clock: Option<Arc<dyn Clock>>,
 }
 
-impl L1ProviderContent {
+impl L1EventsProviderContent {
     #[track_caller]
-    pub fn assert_eq(&self, l1_provider: &L1Provider) {
+    pub fn assert_eq(&self, l1_provider: &L1EventsProvider) {
         if let Some(tx_manager_content) = &self.tx_manager_content {
             tx_manager_content.assert_eq(&l1_provider.tx_manager);
         } else {
@@ -92,13 +92,13 @@ impl L1ProviderContent {
     }
 }
 
-impl From<L1ProviderContent> for L1Provider {
-    fn from(content: L1ProviderContent) -> L1Provider {
+impl From<L1EventsProviderContent> for L1EventsProvider {
+    fn from(content: L1EventsProviderContent) -> L1EventsProvider {
         let catchupper = match content.catchupper {
             Some(catchupper) => catchupper,
             None => make_catchupper!(backlog: []),
         };
-        L1Provider {
+        L1EventsProvider {
             config: content.config.unwrap_or_default(),
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
             // The real Provider starts as Uninitialized by default, but for testing purposes we
@@ -113,8 +113,8 @@ impl From<L1ProviderContent> for L1Provider {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct L1ProviderContentBuilder {
-    config: Option<L1ProviderConfig>,
+pub struct L1EventsProviderContentBuilder {
+    config: Option<L1EventsProviderConfig>,
     tx_manager_content_builder: TransactionManagerContentBuilder,
     state: Option<ProviderState>,
     catchupper: Option<Catchupper>,
@@ -122,12 +122,12 @@ pub struct L1ProviderContentBuilder {
     clock: Option<Arc<dyn Clock>>,
 }
 
-impl L1ProviderContentBuilder {
+impl L1EventsProviderContentBuilder {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn with_config(mut self, config: L1ProviderConfig) -> Self {
+    pub fn with_config(mut self, config: L1EventsProviderConfig) -> Self {
         self.config = Some(config);
         self
     }
@@ -266,13 +266,13 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn build(mut self) -> L1ProviderContent {
+    pub fn build(mut self) -> L1EventsProviderContent {
         if let Some(config) = self.config {
             self.tx_manager_content_builder =
                 self.tx_manager_content_builder.with_config(config.into());
         }
 
-        L1ProviderContent {
+        L1EventsProviderContent {
             config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),
             state: self.state,
@@ -282,7 +282,7 @@ impl L1ProviderContentBuilder {
         }
     }
 
-    pub fn build_into_l1_provider(self) -> L1Provider {
+    pub fn build_into_l1_provider(self) -> L1EventsProvider {
         self.build().into()
     }
 
@@ -297,7 +297,7 @@ impl L1ProviderContentBuilder {
                  with_config at the end of the builder chain."
             )
         }
-        self.with_config(L1ProviderConfig {
+        self.with_config(L1EventsProviderConfig {
             l1_handler_proposal_cooldown_seconds: nonzero_timelock,
             l1_handler_cancellation_timelock_seconds: nonzero_timelock,
             l1_handler_consumption_timelock_seconds: nonzero_timelock,
@@ -565,16 +565,16 @@ impl TransactionManagerContentBuilder {
 /// A fake L1 provider client that buffers all received messages, allow asserting the order in which
 /// they were received, and forward them to the l1 provider (flush the messages).
 #[derive(Default)]
-pub struct FakeL1ProviderClient {
+pub struct FakeL1EventsProviderClient {
     // Interior mutability needed since this is modifying during client API calls, which are all
     // immutable.
     pub events_received: Mutex<Vec<Event>>,
     pub commit_blocks_received: Mutex<Vec<CommitBlockBacklog>>,
 }
 
-impl FakeL1ProviderClient {
+impl FakeL1EventsProviderClient {
     /// Apply all messages received to the l1 provider.
-    pub async fn flush_messages(&self, l1_provider: &mut L1Provider) {
+    pub async fn flush_messages(&self, l1_provider: &mut L1EventsProvider) {
         let commit_blocks = self.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
         for CommitBlockBacklog { height, committed_txs } in commit_blocks {
             l1_provider.commit_block(committed_txs, [].into(), height).unwrap_or_default();
@@ -593,12 +593,12 @@ impl FakeL1ProviderClient {
 }
 
 #[async_trait]
-impl L1ProviderClient for FakeL1ProviderClient {
+impl L1EventsProviderClient for FakeL1EventsProviderClient {
     async fn start_block(
         &self,
         _state: SessionState,
         _height: BlockNumber,
-    ) -> L1ProviderClientResult<()> {
+    ) -> L1EventsProviderClientResult<()> {
         todo!()
     }
 
@@ -606,11 +606,11 @@ impl L1ProviderClient for FakeL1ProviderClient {
         &self,
         _n_txs: usize,
         _height: BlockNumber,
-    ) -> L1ProviderClientResult<Vec<ExecutableL1HandlerTransaction>> {
+    ) -> L1EventsProviderClientResult<Vec<ExecutableL1HandlerTransaction>> {
         todo!()
     }
 
-    async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
+    async fn add_events(&self, events: Vec<Event>) -> L1EventsProviderClientResult<()> {
         self.events_received.lock().unwrap().extend(events);
         Ok(())
     }
@@ -620,7 +620,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
         l1_handler_tx_hashes: IndexSet<TransactionHash>,
         _rejected_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         height: BlockNumber,
-    ) -> L1ProviderClientResult<()> {
+    ) -> L1EventsProviderClientResult<()> {
         self.commit_blocks_received
             .lock()
             .unwrap()
@@ -632,7 +632,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
         &self,
         _tx_hash: TransactionHash,
         _height: BlockNumber,
-    ) -> L1ProviderClientResult<ValidationStatus> {
+    ) -> L1EventsProviderClientResult<ValidationStatus> {
         todo!()
     }
 
@@ -640,15 +640,17 @@ impl L1ProviderClient for FakeL1ProviderClient {
         &self,
         _start_height: BlockNumber,
         _events: Vec<Event>,
-    ) -> L1ProviderClientResult<()> {
+    ) -> L1EventsProviderClientResult<()> {
         todo!()
     }
 
-    async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot> {
+    async fn get_l1_events_provider_snapshot(
+        &self,
+    ) -> L1EventsProviderClientResult<L1EventsProviderSnapshot> {
         todo!()
     }
 
-    async fn get_provider_state(&self) -> L1ProviderClientResult<ProviderState> {
+    async fn get_provider_state(&self) -> L1EventsProviderClientResult<ProviderState> {
         todo!()
     }
 }

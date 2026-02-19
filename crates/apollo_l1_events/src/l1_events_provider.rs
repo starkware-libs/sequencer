@@ -3,14 +3,14 @@ use std::sync::Arc;
 
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_ms;
-use apollo_l1_provider_types::errors::L1ProviderError;
+use apollo_l1_provider_types::errors::L1EventsProviderError;
 use apollo_l1_provider_types::{
     Event,
-    L1ProviderResult,
-    L1ProviderSnapshot,
+    L1EventsProviderResult,
+    L1EventsProviderSnapshot,
     ProviderState,
     SessionState,
-    SharedL1ProviderClient,
+    SharedL1EventsProviderClient,
     ValidationStatus,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
@@ -24,11 +24,11 @@ use tracing::{debug, error, info, instrument, trace, warn};
 use crate::catchupper::Catchupper;
 use crate::metrics::register_provider_metrics;
 use crate::transaction_manager::TransactionManager;
-use crate::L1ProviderConfig;
+use crate::L1EventsProviderConfig;
 
 #[cfg(test)]
-#[path = "l1_provider_tests.rs"]
-pub mod l1_provider_tests;
+#[path = "l1_events_provider_tests.rs"]
+pub mod l1_events_provider_tests;
 
 /// Note on height specification:
 /// - start_height: height of the next block after "historic" blocks, meaning blocks that were
@@ -45,30 +45,30 @@ pub mod l1_provider_tests;
 // TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
 // here is compatible with it.
 #[derive(Debug, Clone)]
-pub struct L1Provider {
-    pub config: L1ProviderConfig,
+pub struct L1EventsProvider {
+    pub config: L1EventsProviderConfig,
     /// Used for catching up at startup or after a crash.
     pub catchupper: Catchupper,
     /// Represents the L2 block height being built.
     pub current_height: BlockNumber,
     pub tx_manager: TransactionManager,
     // TODO(Gilad): consider transitioning to a generic phantom state once the infra is stabilized
-    // and we see how well it handles consuming the L1Provider when moving between states.
+    // and we see how well it handles consuming the L1EventsProvider when moving between states.
     pub state: ProviderState,
     pub clock: Arc<dyn Clock>,
     pub start_height: Option<BlockNumber>,
 }
 
-impl L1Provider {
+impl L1EventsProvider {
     pub fn new(
-        config: L1ProviderConfig,
-        l1_provider_client: SharedL1ProviderClient,
+        config: L1EventsProviderConfig,
+        l1_events_provider_client: SharedL1EventsProviderClient,
         state_sync_client: SharedStateSyncClient,
         clock: Option<Arc<dyn Clock>>,
     ) -> Self {
         register_provider_metrics();
         let catchupper = Catchupper::new(
-            l1_provider_client,
+            l1_events_provider_client,
             state_sync_client,
             config.startup_sync_sleep_retry_interval_seconds,
         );
@@ -88,7 +88,7 @@ impl L1Provider {
     }
     pub fn reset_catchupper(&mut self) {
         self.catchupper = Catchupper::new(
-            self.catchupper.l1_provider_client.clone(),
+            self.catchupper.l1_events_provider_client.clone(),
             self.catchupper.sync_client.clone(),
             self.config.startup_sync_sleep_retry_interval_seconds,
         );
@@ -100,7 +100,7 @@ impl L1Provider {
         &mut self,
         start_height: BlockNumber,
         events: Vec<Event>,
-    ) -> L1ProviderResult<()> {
+    ) -> L1EventsProviderResult<()> {
         info!("Initializing l1 provider");
         if !self.state.is_uninitialized() {
             // FIXME: This should be return FatalError or similar, which should trigger a planned
@@ -127,9 +127,9 @@ impl L1Provider {
 
     /// Accept new events from the scraper.
     #[instrument(skip_all, err)]
-    pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+    pub fn add_events(&mut self, events: Vec<Event>) -> L1EventsProviderResult<()> {
         if self.state.is_uninitialized() {
-            return Err(L1ProviderError::Uninitialized);
+            return Err(L1EventsProviderError::Uninitialized);
         }
 
         // TODO(guyn): can we remove this "every sec" since the polling interval is rather long?
@@ -203,9 +203,9 @@ impl L1Provider {
         &mut self,
         height: BlockNumber,
         state: SessionState,
-    ) -> L1ProviderResult<()> {
+    ) -> L1EventsProviderResult<()> {
         if self.state.is_uninitialized() {
-            return Err(L1ProviderError::Uninitialized);
+            return Err(L1EventsProviderError::Uninitialized);
         }
 
         self.check_height_with_error(height)?;
@@ -222,9 +222,9 @@ impl L1Provider {
         &mut self,
         n_txs: usize,
         height: BlockNumber,
-    ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
+    ) -> L1EventsProviderResult<Vec<L1HandlerTransaction>> {
         if self.state.is_uninitialized() {
-            return Err(L1ProviderError::Uninitialized);
+            return Err(L1EventsProviderError::Uninitialized);
         }
 
         self.check_height_with_error(height)?;
@@ -243,7 +243,7 @@ impl L1Provider {
                 );
                 Ok(txs)
             }
-            _ => Err(L1ProviderError::UnexpectedProviderState {
+            _ => Err(L1EventsProviderError::UnexpectedProviderState {
                 expected: ProviderState::Propose,
                 found: self.state,
             }),
@@ -258,9 +258,9 @@ impl L1Provider {
         &mut self,
         tx_hash: TransactionHash,
         height: BlockNumber,
-    ) -> L1ProviderResult<ValidationStatus> {
+    ) -> L1EventsProviderResult<ValidationStatus> {
         if self.state.is_uninitialized() {
-            return Err(L1ProviderError::Uninitialized);
+            return Err(L1EventsProviderError::Uninitialized);
         }
 
         self.check_height_with_error(height)?;
@@ -268,7 +268,7 @@ impl L1Provider {
             ProviderState::Validate => {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
             }
-            _ => Err(L1ProviderError::UnexpectedProviderState {
+            _ => Err(L1EventsProviderError::UnexpectedProviderState {
                 expected: ProviderState::Validate,
                 found: self.state,
             }),
@@ -285,10 +285,10 @@ impl L1Provider {
         committed_txs: IndexSet<TransactionHash>,
         rejected_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
-    ) -> L1ProviderResult<()> {
+    ) -> L1EventsProviderResult<()> {
         info!("Committing block to L1 provider at height {}.", height);
         if self.state.is_uninitialized() {
-            return Err(L1ProviderError::Uninitialized);
+            return Err(L1EventsProviderError::Uninitialized);
         }
 
         if self.is_historical_height(height) {
@@ -378,7 +378,7 @@ impl L1Provider {
         &mut self,
         committed_txs: IndexSet<TransactionHash>,
         new_height: BlockNumber,
-    ) -> L1ProviderResult<()> {
+    ) -> L1EventsProviderResult<()> {
         let current_height = self.current_height;
         debug!(
             "Catchupper processing commit-block at height: {new_height}, current height is \
@@ -411,7 +411,7 @@ impl L1Provider {
                          received, with DIFFERENT transaction_hashes: \
                          {diff_from_already_committed:?}"
                     );
-                    Err(L1ProviderError::UnexpectedHeight {
+                    Err(L1EventsProviderError::UnexpectedHeight {
                         expected_height: current_height,
                         got: new_height,
                     })?
@@ -470,9 +470,9 @@ impl L1Provider {
         Ok(())
     }
 
-    fn check_height_with_error(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
+    fn check_height_with_error(&mut self, height: BlockNumber) -> L1EventsProviderResult<()> {
         if height != self.current_height {
-            return Err(L1ProviderError::UnexpectedHeight {
+            return Err(L1EventsProviderError::UnexpectedHeight {
                 expected_height: self.current_height,
                 got: height,
             });
@@ -493,9 +493,11 @@ impl L1Provider {
 
     // Functions used for debugging or testing.
 
-    pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
+    pub fn get_l1_events_provider_snapshot(
+        &self,
+    ) -> L1EventsProviderResult<L1EventsProviderSnapshot> {
         let txs_snapshot = self.tx_manager.snapshot();
-        Ok(L1ProviderSnapshot {
+        Ok(L1EventsProviderSnapshot {
             uncommitted_transactions: txs_snapshot.uncommitted,
             uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
             rejected_transactions: txs_snapshot.rejected,
@@ -504,18 +506,18 @@ impl L1Provider {
             cancellation_started_on_l2: txs_snapshot.cancellation_started_on_l2,
             cancelled_on_l2: txs_snapshot.cancelled_on_l2,
             consumed: txs_snapshot.consumed,
-            l1_provider_state: self.state.to_string(),
+            l1_events_provider_state: self.state.to_string(),
             current_height: self.current_height,
             number_of_txs_in_records: self.tx_manager.records.len(),
         })
     }
 
-    pub fn get_provider_state(&self) -> L1ProviderResult<ProviderState> {
+    pub fn get_provider_state(&self) -> L1EventsProviderResult<ProviderState> {
         Ok(self.state)
     }
 }
 
-impl PartialEq for L1Provider {
+impl PartialEq for L1EventsProvider {
     fn eq(&self, other: &Self) -> bool {
         self.current_height == other.current_height
             && self.tx_manager == other.tx_manager
@@ -523,4 +525,4 @@ impl PartialEq for L1Provider {
     }
 }
 
-impl ComponentStarter for L1Provider {}
+impl ComponentStarter for L1EventsProvider {}

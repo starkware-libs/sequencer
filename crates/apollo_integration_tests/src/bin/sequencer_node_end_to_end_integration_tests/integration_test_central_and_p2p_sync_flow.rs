@@ -36,7 +36,8 @@ async fn main() {
         config.components.gateway.execution_mode = ReactiveComponentExecutionMode::Disabled;
         config.components.mempool.execution_mode = ReactiveComponentExecutionMode::Disabled;
         config.components.mempool_p2p.execution_mode = ReactiveComponentExecutionMode::Disabled;
-        config.components.l1_provider.execution_mode = ReactiveComponentExecutionMode::Disabled;
+        config.components.l1_events_provider.execution_mode =
+            ReactiveComponentExecutionMode::Disabled;
         config.components.consensus_manager.execution_mode = ActiveComponentExecutionMode::Disabled;
         config.components.http_server.execution_mode = ActiveComponentExecutionMode::Disabled;
         config.components.l1_events_scraper.execution_mode = ActiveComponentExecutionMode::Disabled;

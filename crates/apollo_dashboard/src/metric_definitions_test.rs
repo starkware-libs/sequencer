@@ -15,8 +15,8 @@ use apollo_consensus_orchestrator::metrics::CONSENSUS_ORCHESTRATOR_ALL_METRICS;
 use apollo_gateway::metrics::{GATEWAY_ALL_METRICS, INFRA_ALL_METRICS as GATEWAY_INFRA_METRICS};
 use apollo_http_server::metrics::HTTP_SERVER_ALL_METRICS;
 use apollo_l1_events::metrics::{
-    INFRA_ALL_METRICS as L1_PROVIDER_INFRA_METRICS,
-    L1_PROVIDER_ALL_METRICS,
+    INFRA_ALL_METRICS as L1_EVENTS_PROVIDER_INFRA_METRICS,
+    L1_EVENTS_PROVIDER_ALL_METRICS,
 };
 use apollo_l1_gas_price::metrics::{
     INFRA_ALL_METRICS as L1_GAS_PRICE_INFRA_METRICS,
@@ -51,8 +51,8 @@ fn metric_names_no_duplications() {
         .chain(HTTP_SERVER_ALL_METRICS.iter())
         .chain(L1_GAS_PRICE_ALL_METRICS.iter())
         .chain(L1_GAS_PRICE_INFRA_METRICS.iter())
-        .chain(L1_PROVIDER_ALL_METRICS.iter())
-        .chain(L1_PROVIDER_INFRA_METRICS.iter())
+        .chain(L1_EVENTS_PROVIDER_ALL_METRICS.iter())
+        .chain(L1_EVENTS_PROVIDER_INFRA_METRICS.iter())
         .chain(MEMPOOL_ALL_METRICS.iter())
         .chain(MEMPOOL_INFRA_METRICS.iter())
         .chain(MEMPOOL_P2P_ALL_METRICS.iter())
