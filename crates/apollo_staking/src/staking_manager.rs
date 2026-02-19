@@ -16,7 +16,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use static_assertions::const_assert;
 use tokio::sync::Mutex;
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::committee_provider::{
     CommitteeError,
@@ -26,6 +26,15 @@ use crate::committee_provider::{
     CommitteeResult,
     CommitteeTrait,
     StakerSet,
+};
+use crate::metrics::{
+    register_metrics,
+    CommitteeMemberMetrics,
+    STAKING_COMMITTEE_ELIGIBLE_PROPOSERS_TOTAL_WEIGHT,
+    STAKING_COMMITTEE_TOTAL_WEIGHT,
+    STAKING_CURRENT_EPOCH_ID,
+    STAKING_CURRENT_EPOCH_LENGTH,
+    STAKING_CURRENT_EPOCH_START_BLOCK,
 };
 use crate::staking_contract::StakingContract;
 use crate::utils::BlockRandomGenerator;
@@ -127,6 +136,12 @@ impl EpochCache {
             return Ok(());
         }
 
+        info!(
+            "Current epoch changed: epoch_id {:?} → {}, new epoch: {latest_epoch:?}.",
+            self.current.as_ref().map(|e| e.epoch_id),
+            latest_epoch.epoch_id
+        );
+
         // Determine whether to reuse the current epoch as the previous, or explicitly fetch it from
         // the contract.
         let is_sequential = self
@@ -142,6 +157,12 @@ impl EpochCache {
         // Update the cache with the fetched epochs.
         self.current = Some(latest_epoch);
         self.previous = previous_epoch;
+
+        // Update epoch metrics.
+        let current = self.current.as_ref().expect("Current epoch should be set");
+        STAKING_CURRENT_EPOCH_ID.set_lossy(current.epoch_id);
+        STAKING_CURRENT_EPOCH_START_BLOCK.set_lossy(current.start_block.0);
+        STAKING_CURRENT_EPOCH_LENGTH.set_lossy(current.epoch_length);
 
         Ok(())
     }
@@ -171,6 +192,7 @@ pub struct StakingManager {
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
     config_manager_client: Option<SharedConfigManagerClient>,
     use_only_actual_proposer_selection: bool,
+    committee_member_metrics: Mutex<CommitteeMemberMetrics>,
 }
 
 impl CommitteeCache {
@@ -198,6 +220,7 @@ impl StakingManager {
         config: StakingManagerConfig,
         config_manager_client: Option<SharedConfigManagerClient>,
     ) -> Self {
+        register_metrics();
         Self {
             staking_contract,
             state_sync_client,
@@ -211,6 +234,7 @@ impl StakingManager {
             use_only_actual_proposer_selection: config
                 .static_config
                 .use_only_actual_proposer_selection,
+            committee_member_metrics: Mutex::new(CommitteeMemberMetrics::new()),
         }
     }
 
@@ -247,6 +271,7 @@ impl StakingManager {
         }
 
         // Otherwise, build the committee from state, and cache the result.
+        info!("Committee cache miss for epoch={epoch}, fetching from state.");
         let committee = Arc::new(self.fetch_and_build_committee(epoch).await?);
 
         // Cache the result.
@@ -260,23 +285,26 @@ impl StakingManager {
     // This includes selecting the committee and preparing cumulative weights for proposer
     // selection, as well as calculating eligible proposers.
     async fn fetch_and_build_committee(&self, epoch: u64) -> CommitteeProviderResult<Committee> {
-        let contract_stakers = self.staking_contract.get_stakers(epoch).await?;
-
         // Update dynamic config to ensure we have the latest stakers config.
         self.update_dynamic_config().await;
 
-        // Get the active committee config for this epoch (includes size and stakers).
-        let config = {
-            let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned");
-            get_config_for_epoch(
-                &dynamic_config.default_committee,
-                &dynamic_config.override_committee,
-                epoch,
-            )
-            .clone()
-        };
+        // Get the config to inject and use for committee building.
+        // Clone it to avoid holding the lock across await.
+        let dynamic_config = self.dynamic_config.read().expect("RwLock poisoned").clone();
 
-        let committee_members = self.select_committee(contract_stakers, config.committee_size);
+        // Always use get_stakers_with_config - works for all implementations.
+        let contract_stakers =
+            self.staking_contract.get_stakers_with_config(epoch, &dynamic_config).await?;
+
+        // Get the active committee config for this epoch (includes size and stakers).
+        let active_config = get_config_for_epoch(
+            &dynamic_config.default_committee,
+            &dynamic_config.override_committee,
+            epoch,
+        );
+
+        let committee_members =
+            self.select_committee(contract_stakers, active_config.committee_size);
 
         // Prepare the data needed for proposer selection.
         let cumulative_weights: Vec<u128> = committee_members
@@ -289,10 +317,33 @@ impl StakingManager {
         let total_weight = *cumulative_weights.last().unwrap_or(&0);
 
         let eligible_proposers =
-            self.calculate_eligible_proposers(&committee_members, &config.stakers);
+            self.calculate_eligible_proposers(&committee_members, &active_config.stakers);
 
         // Calculate the randomness block hash for this epoch.
         let randomness_block_hash = self.proposer_randomness_block_hash(epoch).await?;
+
+        info!(
+            "Fetched committee for epoch={epoch}: size={}, total_weight={total_weight}, \
+             eligible_proposers={}.",
+            committee_members.len(),
+            eligible_proposers.len(),
+        );
+
+        // Update committee metrics.
+        STAKING_COMMITTEE_TOTAL_WEIGHT.set_lossy(total_weight);
+
+        // Calculate eligible proposers total weight.
+        let eligible_proposers_total_weight: u128 = committee_members
+            .iter()
+            .filter(|staker| eligible_proposers.contains(&staker.address))
+            .map(|staker| staker.weight.0)
+            .sum();
+
+        STAKING_COMMITTEE_ELIGIBLE_PROPOSERS_TOTAL_WEIGHT
+            .set_lossy(eligible_proposers_total_weight);
+
+        // Update per-staker metrics.
+        self.committee_member_metrics.lock().await.update_committee_members(&committee_members);
 
         Ok(Committee {
             committee_members: Arc::new(committee_members),
@@ -380,11 +431,15 @@ impl StakingManager {
         }
 
         // Otherwise, sync the epochs from the state.
+        info!("Epoch resolving for height={}, fetching latest epochs from contract.", height.0);
         epoch_cache.update_epochs(self.staking_contract.clone()).await?;
 
-        epoch_cache
+        let epoch_id = epoch_cache
             .try_resolve_epoch_id(height)
-            .ok_or(CommitteeProviderError::InvalidHeight { height })
+            .ok_or(CommitteeProviderError::InvalidHeight { height })?;
+
+        info!("Resolved height={height} to epoch_id={epoch_id}.");
+        Ok(epoch_id)
     }
 }
 

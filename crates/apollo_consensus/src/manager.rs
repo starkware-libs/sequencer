@@ -25,7 +25,7 @@ use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_staking::committee_provider::{CommitteeProvider, CommitteeTrait};
 use apollo_time::time::{Clock, ClockExt, DefaultClock};
-use futures::channel::mpsc;
+use futures::channel::mpsc::{self};
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
@@ -814,6 +814,16 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc.handle_proposal(init)
     }
 
+    async fn report_peer(
+        &self,
+        broadcast_channels: &mut BroadcastVoteChannel,
+        metadata: &BroadcastedMessageMetadata,
+    ) {
+        if broadcast_channels.broadcast_topic_client.report_peer(metadata.clone()).await.is_err() {
+            error!("Unable to report peer. {:?}", metadata);
+        }
+    }
+
     // Handle a single consensus message.
     // shc - None if the height was just completed and we should drop the message.
     async fn handle_vote(
@@ -838,14 +848,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
             (Err(e), metadata) => {
                 // Failed to parse consensus message. Report the peer and drop the vote.
-                if broadcast_channels
-                    .broadcast_topic_client
-                    .report_peer(metadata.clone())
-                    .now_or_never()
-                    .is_none()
-                {
-                    error!("Unable to send report_peer. {:?}", metadata)
-                }
+                self.report_peer(broadcast_channels, &metadata).await;
                 warn!(
                     "Failed to parse incoming consensus vote, dropping vote. Error: {e}. Vote \
                      metadata: {metadata:?}"

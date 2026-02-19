@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_batcher_config::config::BatcherDynamicConfig;
+use apollo_class_manager_config::config::ClassManagerDynamicConfig;
 use apollo_config_manager_config::config::ConfigManagerConfig;
 use apollo_config_manager_types::communication::{ConfigManagerRequest, ConfigManagerResponse};
 use apollo_config_manager_types::config_manager_types::ConfigManagerResult;
@@ -11,6 +12,7 @@ use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStar
 use apollo_mempool_config::config::MempoolDynamicConfig;
 use apollo_node_config::node_config::NodeDynamicConfig;
 use apollo_staking_config::config::StakingManagerDynamicConfig;
+use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use async_trait::async_trait;
 use tokio::sync::RwLock;
 use tracing::info;
@@ -50,6 +52,13 @@ impl ConfigManager {
         Ok(config.consensus_dynamic_config.as_ref().unwrap().clone())
     }
 
+    pub(crate) async fn get_class_manager_dynamic_config(
+        &self,
+    ) -> ConfigManagerResult<ClassManagerDynamicConfig> {
+        let config = self.latest_node_dynamic_config.read().await;
+        Ok(config.class_manager_dynamic_config.as_ref().unwrap().clone())
+    }
+
     pub(crate) async fn get_context_dynamic_config(
         &self,
     ) -> ConfigManagerResult<ContextDynamicConfig> {
@@ -78,6 +87,13 @@ impl ConfigManager {
         Ok(config.batcher_dynamic_config.as_ref().unwrap().clone())
     }
 
+    pub(crate) async fn get_state_sync_dynamic_config(
+        &self,
+    ) -> ConfigManagerResult<StateSyncDynamicConfig> {
+        let config = self.latest_node_dynamic_config.read().await;
+        Ok(config.state_sync_dynamic_config.as_ref().unwrap().clone())
+    }
+
     pub(crate) async fn get_staking_manager_dynamic_config(
         &self,
     ) -> ConfigManagerResult<StakingManagerDynamicConfig> {
@@ -97,6 +113,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
                     self.get_consensus_dynamic_config().await,
                 )
             }
+            ConfigManagerRequest::GetClassManagerDynamicConfig => {
+                ConfigManagerResponse::GetClassManagerDynamicConfig(
+                    self.get_class_manager_dynamic_config().await,
+                )
+            }
             ConfigManagerRequest::GetMempoolDynamicConfig => {
                 ConfigManagerResponse::GetMempoolDynamicConfig(
                     self.get_mempool_dynamic_config().await,
@@ -105,6 +126,11 @@ impl ComponentRequestHandler<ConfigManagerRequest, ConfigManagerResponse> for Co
             ConfigManagerRequest::GetBatcherDynamicConfig => {
                 ConfigManagerResponse::GetBatcherDynamicConfig(
                     self.get_batcher_dynamic_config().await,
+                )
+            }
+            ConfigManagerRequest::GetStateSyncDynamicConfig => {
+                ConfigManagerResponse::GetStateSyncDynamicConfig(
+                    self.get_state_sync_dynamic_config().await,
                 )
             }
             ConfigManagerRequest::GetStakingManagerDynamicConfig => {

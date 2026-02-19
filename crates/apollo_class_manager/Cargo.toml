@@ -16,6 +16,7 @@ workspace = true
 apollo_class_manager_config.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_compile_to_casm_types.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_infra.workspace = true
 apollo_metrics.workspace = true
 apollo_storage.workspace = true
@@ -31,6 +32,7 @@ tracing.workspace = true
 
 [dev-dependencies]
 apollo_compile_to_casm_types = { workspace = true, features = ["testing"] }
+apollo_config_manager_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 mockall.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
