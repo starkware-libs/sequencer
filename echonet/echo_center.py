@@ -749,6 +749,25 @@ class EchoCenterService:
             headers=[["Content-Type", "text/plain; charset=utf-8"]],
         )
 
+    def handle_get_timestamp(self) -> flask.Response:
+        """
+        GET /echonet/get_timestamp?tx_hash=0x...
+
+        Returns a JSON integer: the source block timestamp (seconds).
+        """
+        args = flask.request.args.to_dict(flat=True)
+        tx_hash = args.get("tx_hash")
+        if not tx_hash:
+            return self._json_response(
+                {"error": "Missing required query param: tx_hash"},
+                requests.codes.bad_request,
+            )
+
+        ts = self.shared.get_sent_tx_timestamp(tx_hash)
+        if ts is None:
+            return self._empty_response(requests.codes.not_found)
+        return self._json_response(int(ts), requests.codes.ok)
+
     def handle_block_dump(self) -> flask.Response:
         args = flask.request.args.to_dict(flat=True)
         bn = int(args["blockNumber"])
@@ -932,6 +951,11 @@ def write_pre_confirmed_block() -> flask.Response:
 @app.route("/echonet/report", methods=["GET"])
 def report_snapshot() -> flask.Response:
     return service.handle_report_snapshot()
+
+
+@app.route("/echonet/get_timestamp", methods=["GET"])
+def get_timestamp() -> flask.Response:
+    return service.handle_get_timestamp()
 
 
 @app.route("/echonet/block_dump", methods=["GET"])

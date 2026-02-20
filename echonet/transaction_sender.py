@@ -294,6 +294,7 @@ class TransactionSenderService:
                         )
 
                         for tx in valid_txs:
+                            shared.record_sent_tx_timestamp(tx["transaction_hash"], timestamp)
                             tx_data = TxData(
                                 tx=tx,
                                 source_block_number=block_number,
