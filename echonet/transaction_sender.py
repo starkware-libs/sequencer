@@ -275,6 +275,7 @@ class TransactionSenderService:
                             f"Block {block_number}: total={len(all_txs)} valid={len(valid_txs)}"
                         )
 
+                        shared.record_sent_tx_timestamps_for_block(valid_txs, timestamp)
                         for tx in valid_txs:
                             tx_data = TxData(
                                 tx=tx,
