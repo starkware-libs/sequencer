@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
@@ -10,6 +11,7 @@ use apollo_consensus::types::ProposalCommitment as ConsensusProposalCommitment;
 use apollo_infra::component_client::ClientError;
 use apollo_transaction_converter::{MockTransactionConverterTrait, TransactionConverterError};
 use assert_matches::assert_matches;
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::ClassHash;
 use tokio_util::task::AbortOnDropHandle;
 
@@ -27,10 +29,13 @@ async fn build_proposal_succeed() {
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
         Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished {
-                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+            content: GetProposalContent::Finished(FinishedProposalInfo {
+                proposal_commitment: ProposalCommitment {
+                    state_diff_commitment: STATE_DIFF_COMMITMENT,
+                },
                 final_n_executed_txs: 0,
-            },
+                block_header_commitments: BlockHeaderCommitments::default(),
+            }),
         })
     });
     // Make sure cende returns on time.
@@ -111,10 +116,13 @@ async fn cende_fail() {
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
         Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished {
-                id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+            content: GetProposalContent::Finished(FinishedProposalInfo {
+                proposal_commitment: ProposalCommitment {
+                    state_diff_commitment: STATE_DIFF_COMMITMENT,
+                },
                 final_n_executed_txs: 0,
-            },
+                block_header_commitments: BlockHeaderCommitments::default(),
+            }),
         })
     });
     // Setup cende to return false, indicating a failure.
