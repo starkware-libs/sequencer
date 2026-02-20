@@ -2191,3 +2191,78 @@ fn test_missing_validate_entrypoint_rejects(
         if ret == retdata![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]
     );
 }
+
+/// Test that changes in a cairo0 call that is part of a cairo1-reverted call tree are indeed
+/// reverted.
+#[rstest]
+fn test_cairo0_proven_revert(
+    block_context: BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let chain_info = &block_context.chain_info;
+    let test_contract_cairo1 =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_contract_cairo0 = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let mut state = test_state(
+        chain_info,
+        BALANCE,
+        &[(account, 1u16), (test_contract_cairo1, 1u16), (test_contract_cairo0, 1u16)],
+    );
+
+    let storage_key = Felt::from(1234u16);
+    let storage_value = Felt::from(1u16);
+    let account_address = account.get_instance_address(0_u16);
+    let cairo1_contract_address = test_contract_cairo1.get_instance_address(0_u16);
+    let cairo0_contract_address = test_contract_cairo0.get_instance_address(0_u16);
+
+    // Contract C (Cairo 0): test_storage_write(address, value).
+    let contract_c_calldata = [storage_key, storage_value];
+
+    // Contract B (Cairo 1): middle_revert_contract(contract_address, entry_point_selector,
+    // calldata).
+    // Calls contract C's test_storage_write, then panics.
+    let contract_b_calldata = [
+        vec![
+            **cairo0_contract_address,
+            selector_from_name("test_storage_read_write").0,
+            contract_c_calldata.len().into(),
+        ],
+        contract_c_calldata.to_vec(),
+    ]
+    .concat();
+
+    // Contract A (Cairo 1): test_call_contract_revert(contract_address, entry_point_selector,
+    // calldata, is_meta_tx).
+    // Calls contract B's middle_revert_contract and catches the panic.
+    let contract_a_calldata = [
+        vec![
+            **cairo1_contract_address,
+            selector_from_name("middle_revert_contract").0,
+            contract_b_calldata.len().into(),
+        ],
+        contract_b_calldata,
+        vec![false.into()], // is_meta_tx.
+    ]
+    .concat();
+
+    let calldata =
+        create_calldata(cairo1_contract_address, "test_call_contract_revert", &contract_a_calldata);
+    let tx = executable_invoke_tx(invoke_tx_args! {
+        sender_address: account_address,
+        resource_bounds: default_all_resource_bounds,
+        calldata: calldata,
+    });
+    let account_tx = AccountTransaction { tx, execution_flags: AccountExecutionFlags::default() };
+    let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
+
+    // Verify that the storage write on the Cairo 0 contract was reverted, but the entire tx was
+    // not.
+    assert_matches!(tx_execution_info.revert_error, None);
+    assert!(!tx_execution_info.execute_call_info.unwrap().execution.failed);
+    assert_eq!(
+        state.get_storage_at(cairo0_contract_address, storage_key.try_into().unwrap()).unwrap(),
+        Felt::ZERO
+    );
+}
