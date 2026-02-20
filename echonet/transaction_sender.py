@@ -11,7 +11,7 @@ from typing import Any, ClassVar, Dict, Optional, Sequence, Set
 import aiohttp  # pyright: ignore[reportMissingImports]
 import requests
 
-from echonet.echonet_types import CONFIG, JsonObject, TxType
+from echonet.echonet_types import CONFIG, JsonObject, ResyncTriggerPayload, TxType
 from echonet.feeder_client import FeederClient
 from echonet.logger import get_logger
 from echonet.resync import ResyncExecutor, ResyncPolicy
@@ -259,68 +259,71 @@ class TransactionSenderService:
             # TODO(Ron): shorten this function
             async def producer() -> None:
                 block_number = config.start_block
+                await asyncio.sleep(CONFIG.sleep.producer_startup_sleep_seconds)
                 while not self._stop_event.is_set():
-                    if config.end_block and block_number > config.end_block:
+                    resync_trigger: Optional[ResyncTriggerPayload] = None
+
+                    while not self._stop_event.is_set():
+                        if config.end_block and block_number > config.end_block:
+                            return
+
+                        shared.set_sender_current_block(block_number)
+
+                        block = await fetch_block_transactions(
+                            feeder,
+                            block_number,
+                            attempts=config.attempts,
+                            retry_backoff_seconds=config.retry_backoff_seconds,
+                            max_retry_sleep_seconds=config.max_retry_sleep_seconds,
+                        )
+
+                        timestamp = block["timestamp"]
+                        shared.store_fgw_block(block_number, block)
+
+                        epoch = shared.get_epoch()
+                        revert_errors = _extract_revert_errors_by_tx_hash(block)
+                        if revert_errors:
+                            shared.record_mainnet_revert_errors(block_number, revert_errors)
+
+                        all_txs = block["transactions"]
+                        valid_txs = TxSelector.filter_blocked(
+                            all_txs, CONFIG.tx_filter.blocked_senders
+                        )
+                        logger.info(
+                            f"Block {block_number}: total={len(all_txs)} valid={len(valid_txs)}"
+                        )
+
+                        for tx in valid_txs:
+                            tx_data = TxData(
+                                tx=tx,
+                                source_block_number=block_number,
+                                source_timestamp=timestamp,
+                                epoch=epoch,
+                            )
+                            await tx_queue.put(tx_data)
+
+                        if valid_txs:
+                            shared.record_forwarded_block(block_number, len(valid_txs))
+                        shared.set_block_timestamp(timestamp)
+
+                        gw_errors, sent_tx_hashes = shared.get_resync_evaluation_inputs()
+                        resync_trigger = resync_policy.evaluate(
+                            gateway_errors=gw_errors,
+                            sent_tx_hashes=sent_tx_hashes,
+                            current_block=block_number,
+                        )
+                        if resync_trigger:
+                            break
+                        block_number += 1
+                    if not resync_trigger:
                         return
-
-                    shared.set_sender_current_block(block_number)
-                    if block_number == shared.get_current_start_block(
-                        default_start_block=config.start_block
-                    ):
-                        await asyncio.sleep(CONFIG.sleep.producer_startup_sleep_seconds)
-
-                    block = await fetch_block_transactions(
-                        feeder,
-                        block_number,
-                        attempts=config.attempts,
-                        retry_backoff_seconds=config.retry_backoff_seconds,
-                        max_retry_sleep_seconds=config.max_retry_sleep_seconds,
+                    logger.warning(
+                        f"Resync triggered by tx {resync_trigger['tx_hash']} at block {resync_trigger['block_number']}: "
+                        f"{resync_trigger['reason']}"
                     )
-
-                    timestamp = block["timestamp"]
-                    shared.store_fgw_block(block_number, block)
-
-                    epoch = shared.get_epoch()
-                    revert_errors = _extract_revert_errors_by_tx_hash(block)
-                    if revert_errors:
-                        shared.record_mainnet_revert_errors(block_number, revert_errors)
-
-                    all_txs = block["transactions"]
-                    valid_txs = TxSelector.filter_blocked(all_txs, CONFIG.tx_filter.blocked_senders)
-                    logger.info(
-                        f"Block {block_number}: total={len(all_txs)} valid={len(valid_txs)}"
-                    )
-
-                    for tx in valid_txs:
-                        tx_data = TxData(
-                            tx=tx,
-                            source_block_number=block_number,
-                            source_timestamp=timestamp,
-                            epoch=epoch,
-                        )
-                        await tx_queue.put(tx_data)
-
-                    if valid_txs:
-                        shared.record_forwarded_block(block_number, len(valid_txs))
-                    shared.set_block_timestamp(timestamp)
-
-                    gw_errors, sent_tx_hashes = shared.get_resync_evaluation_inputs()
-                    trigger = resync_policy.evaluate(
-                        gateway_errors=gw_errors,
-                        sent_tx_hashes=sent_tx_hashes,
-                        current_block=block_number,
-                    )
-                    if trigger:
-                        logger.warning(
-                            f"Resync triggered by tx {trigger['tx_hash']} at block {trigger['block_number']}: "
-                            f"{trigger['reason']}"
-                        )
-                        async with forwarding_lock:
-                            await drain_queue()
-                            block_number = await resync_executor.execute(trigger=trigger)
-                        continue
-
-                    block_number += 1
+                    async with forwarding_lock:
+                        await drain_queue()
+                        block_number = await resync_executor.execute(trigger=resync_trigger)
 
             async def consumer() -> None:
                 while True:
