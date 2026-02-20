@@ -2243,6 +2243,7 @@ fn test_cairo0_proven_revert(
             contract_b_calldata.len().into(),
         ],
         contract_b_calldata,
+        vec![false.into()], // is_meta_tx.
     ]
     .concat();
 
