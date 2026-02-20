@@ -27,6 +27,7 @@ lazy_static! {
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
     static ref BLOCK: TestBlock =
         TestBlock { content: vec![1, 2, 3], id: ProposalCommitment(Felt::ONE) };
+    static ref BLOCK_B: ProposalCommitment = ProposalCommitment(Felt::TWO);
     static ref BUILD_PARAM: BuildParam =
         BuildParam { proposer: *PROPOSER_ID, ..Default::default() };
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
@@ -34,6 +35,7 @@ lazy_static! {
 const HEIGHT_0: BlockNumber = BlockNumber(0);
 const ROUND_0: Round = 0;
 const ROUND_1: Round = 1;
+const ROUND_2: Round = 2;
 /// When true, require the virtual proposer to have voted in favor before reaching a decision.
 const REQUIRE_VIRTUAL_PROPOSER_VOTE: bool = true;
 
@@ -463,6 +465,74 @@ fn broadcast_vote_before_decision_on_validation_finish() {
         assert_matches!(
             reqs.pop_front(),
             Some(SMRequest::DecisionReached(dec)) if dec.block == BLOCK.id
+        );
+        assert!(reqs.is_empty());
+    });
+}
+
+#[test]
+fn unlock_via_reproposal_with_valid_round() {
+    // V1 is our node. We lock on A in round 0, miss the proposal in round 1 but see prevotes
+    // for B, then in round 2 receive a re-proposal of B with valid_round=Some(1). We must
+    // prevote B (LOC 28 unlock), not nil.
+    let mut shc = SingleHeightConsensus::new(
+        HEIGHT_0,
+        false,
+        *VALIDATOR_ID_1,
+        VALIDATORS.to_vec(),
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
+    );
+    let peers = [*PROPOSER_ID, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
+    // Round 0: lock on A
+    let init_a = proposal_init(HEIGHT_0, ROUND_0, *PROPOSER_ID);
+    shc.handle_proposal(init_a);
+    shc.handle_event(StateMachineEvent::FinishedValidation(Some(BLOCK.id), ROUND_0, None));
+    shc.handle_vote(prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *PROPOSER_ID));
+    let ret = shc.handle_vote(prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_2));
+    // Self + P + V2 = 3 prevotes for A -> quorum (lock on A, broadcast precommit, schedule prevote
+    // timeout).
+    assert_matches!(ret, mut reqs => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Prevote, ROUND_0)));
+        assert_matches!(reqs.pop_front(), Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Precommit && v.proposal_commitment == Some(BLOCK.id));
+        assert!(reqs.is_empty());
+    });
+    // Precommit timeout: no quorum for A; advance to round 1.
+    for peer in peers {
+        shc.handle_vote(precommit(None, HEIGHT_0, ROUND_0, peer));
+    }
+    shc.handle_event(StateMachineEvent::TimeoutPrecommit(ROUND_0));
+
+    // Round 1: V1 never validates the proposal; inject prevotes for B from peers without locking
+    // and nil precommits.
+    shc.handle_event(StateMachineEvent::TimeoutPropose(ROUND_1));
+    for peer in peers {
+        shc.handle_vote(prevote(Some(BLOCK_B.0), HEIGHT_0, ROUND_1, peer));
+        shc.handle_vote(precommit(None, HEIGHT_0, ROUND_1, peer));
+    }
+    shc.handle_event(StateMachineEvent::TimeoutPrecommit(ROUND_1));
+
+    // Round 2: re-proposal of B with valid_round=1
+    let mut init_b = proposal_init(HEIGHT_0, ROUND_2, *PROPOSER_ID);
+    init_b.valid_round = Some(ROUND_1);
+    let _ = shc.handle_proposal(init_b);
+    let ret = shc.handle_event(StateMachineEvent::FinishedValidation(
+        Some(*BLOCK_B),
+        ROUND_2,
+        Some(ROUND_1),
+    ));
+    // LOC 28 runs, we unlock and prevote B.
+    assert_matches!(ret, mut reqs => {
+        assert_matches!(
+            reqs.pop_front(),
+            Some(SMRequest::BroadcastVote(v)) if v.vote_type == VoteType::Prevote
+                && v.proposal_commitment == Some(*BLOCK_B)
+                && v.voter == *VALIDATOR_ID_1
         );
         assert!(reqs.is_empty());
     });
