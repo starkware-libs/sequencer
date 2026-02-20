@@ -25,6 +25,8 @@ lazy_static! {
     static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
     static ref VALIDATORS: Vec<ValidatorId> =
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
+    /// Not in VALIDATORS; used for handle_vote_ignores_non_validator test.
+    static ref NON_VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 10).into();
     static ref BLOCK: TestBlock =
         TestBlock { content: vec![1, 2, 3], id: ProposalCommitment(Felt::ONE) };
     static ref BUILD_PARAM: BuildParam =
@@ -460,6 +462,52 @@ fn broadcast_vote_before_decision_on_validation_finish() {
                 && v.proposal_commitment == Some(BLOCK.id)
                 && v.voter == *VALIDATOR_ID_1
         );
+        assert_matches!(
+            reqs.pop_front(),
+            Some(SMRequest::DecisionReached(dec)) if dec.block == BLOCK.id
+        );
+        assert!(reqs.is_empty());
+    });
+}
+
+#[test]
+fn observer_does_not_broadcast_on_start_or_votes() {
+    let mut shc = SingleHeightConsensus::new(
+        HEIGHT_0,
+        true, // is_observer
+        *VALIDATOR_ID_1,
+        VALIDATORS.to_vec(),
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+        mock_committee_virtual_equal_to_actual(
+            VALIDATORS.to_vec(),
+            Box::new(|_round| *PROPOSER_ID),
+        ),
+        REQUIRE_VIRTUAL_PROPOSER_VOTE,
+    );
+
+    let ret = shc.start();
+    assert_matches!(ret, mut reqs => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Propose, ROUND_0)));
+        assert!(reqs.is_empty());
+    });
+
+    let proposal_init = proposal_init(HEIGHT_0, ROUND_0, *PROPOSER_ID);
+    let round = proposal_init.round;
+    let _ = shc.handle_proposal(proposal_init);
+    let ret = shc.handle_event(StateMachineEvent::FinishedValidation(Some(BLOCK.id), round, None));
+    assert!(ret.is_empty());
+
+    // Reach decision with peer prevotes/precommits only; observer should get DecisionReached but
+    // never BroadcastVote.
+    let _ = shc.handle_vote(prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *PROPOSER_ID));
+    let _ = shc.handle_vote(prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_2));
+    let _ = shc.handle_vote(prevote(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_3));
+    let _ = shc.handle_vote(precommit(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *PROPOSER_ID));
+    let _ = shc.handle_vote(precommit(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_2));
+    let decision = shc.handle_vote(precommit(Some(BLOCK.id.0), HEIGHT_0, ROUND_0, *VALIDATOR_ID_3));
+    assert_matches!(decision, mut reqs => {
+        assert_matches!(reqs.pop_front(), Some(SMRequest::ScheduleTimeout(Step::Precommit, ROUND_0)));
         assert_matches!(
             reqs.pop_front(),
             Some(SMRequest::DecisionReached(dec)) if dec.block == BLOCK.id
