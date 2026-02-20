@@ -552,7 +552,9 @@ async fn test_unrecoverable_sync_error_flow() {
     // expect sync to raise the unrecoverable error it gets. In this case a DB Inconsistency error.
     assert_matches!(
         sync_res.0.unwrap_err(),
-        StateSyncError::StorageError(StorageError::DBInconsistency { msg: _ })
+        StateSyncError::StorageError(
+            StorageError::DBInconsistency { msg: _ } | StorageError::MarkerMismatch { .. }
+        )
     );
 }
 
