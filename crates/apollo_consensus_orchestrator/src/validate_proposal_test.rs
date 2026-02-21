@@ -139,6 +139,7 @@ async fn validate_empty_proposal() {
                 proposal_commitment: ProposalCommitment::default(),
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
+                parent_proposal_commitment: None,
             }),
         })
     });
@@ -278,6 +279,7 @@ async fn proposal_fin_mismatch() {
                     proposal_commitment: ProposalCommitment { state_diff_commitment: built_block },
                     final_n_executed_txs: n_executed,
                     block_header_commitments: BlockHeaderCommitments::default(),
+                    parent_proposal_commitment: None,
                 }),
             })
         });
