@@ -115,6 +115,11 @@ impl HttpServer {
             RpcTransaction::DeployAccount(_) => "deploy_account",
             RpcTransaction::Invoke(_) => "invoke",
         },
+        tx = if tx.signature_len() > 2 && tx.calldata_len() > 100 {
+            "tx too large to log"
+        } else {
+            format!("{tx:?}")
+        },
     )
 )]
 async fn add_rpc_tx(
@@ -134,6 +139,11 @@ async fn add_rpc_tx(
         headers = ?headers,
         payload_size_bytes = tx.len(),
         max_sierra_program_size = max_sierra_program_size,
+        tx = if tx.len() > 2000 {
+            "tx too large to log"
+        } else {
+            format!("{tx:?}")
+        }
     )
 )]
 #[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
