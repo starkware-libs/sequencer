@@ -2067,6 +2067,7 @@ dependencies = [
  "libp2p",
  "libp2p-swarm-test",
  "pretty_assertions",
+ "prost",
  "replace_with",
  "rstest",
  "serde",
