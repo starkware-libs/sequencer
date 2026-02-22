@@ -14,7 +14,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
@@ -84,6 +84,7 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<DecisionReachedResponse>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
+    async fn get_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
@@ -104,6 +105,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
+    GetTimestamp,
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 impl_labeled_request!(BatcherRequest, BatcherRequestLabelValue);
@@ -126,6 +128,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
+    GetTimestamp(BatcherResult<u64>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
@@ -275,6 +278,19 @@ where
             request,
             BatcherResponse,
             RevertBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn get_timestamp(&self) -> BatcherClientResult<UnixTimestamp> {
+        let request = BatcherRequest::GetTimestamp;
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            GetTimestamp,
             BatcherClientError,
             BatcherError,
             Direct

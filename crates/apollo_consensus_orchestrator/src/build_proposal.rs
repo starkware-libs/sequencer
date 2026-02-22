@@ -12,7 +12,7 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     ProposeBlockInput,
 };
-use apollo_batcher_types::communication::BatcherClientError;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
@@ -23,7 +23,6 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::{Clock, DateTime};
 use apollo_transaction_converter::TransactionConverterError;
 use starknet_api::block::GasPrice;
@@ -68,7 +67,8 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
-    pub use_state_sync_block_timestamp: bool,
+    // If true, for echonet mode, use the timestamp from the original block.
+    pub override_timestamp: bool,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -131,23 +131,25 @@ pub(crate) async fn build_proposal(
 }
 
 async fn get_proposal_timestamp(
-    use_state_sync_block_timestamp: bool,
-    state_sync_client: &SharedStateSyncClient,
+    override_timestamp: bool,
+    batcher: &dyn BatcherClient,
     clock: &dyn Clock,
 ) -> u64 {
-    if use_state_sync_block_timestamp {
-        if let Ok(Some(block_header)) = state_sync_client.get_latest_block_header().await {
-            return block_header.block_header_without_hash.timestamp.0;
+    if override_timestamp {
+        match batcher.get_timestamp().await {
+            Ok(timestamp) => return timestamp,
+            Err(err) => {
+                warn!("Failed to get timestamp from batcher, falling back to clock time: {err:?}");
+            }
         }
-        warn!("No latest block header available from state sync, falling back to clock time");
     }
     clock.unix_now()
 }
 
 async fn initiate_build(args: &mut ProposalBuildArguments) -> BuildProposalResult<ProposalInit> {
     let timestamp = get_proposal_timestamp(
-        args.use_state_sync_block_timestamp,
-        &args.deps.state_sync_client,
+        args.override_timestamp,
+        args.deps.batcher.as_ref(),
         args.deps.clock.as_ref(),
     )
     .await;
