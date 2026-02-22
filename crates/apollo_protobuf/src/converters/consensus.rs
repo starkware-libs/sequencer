@@ -4,6 +4,7 @@ mod consensus_test;
 
 use std::convert::{TryFrom, TryInto};
 
+use apollo_batcher_types::batcher_types::FinishedProposalInfo;
 use prost::Message;
 use starknet_api::block::{BlockNumber, GasPrice, StarknetVersion};
 use starknet_api::consensus_transaction::ConsensusTransaction;
@@ -316,6 +317,22 @@ impl From<CommitmentParts> for protobuf::CommitmentParts {
             transaction_commitment: Some(value.transaction_commitment.into()),
             event_commitment: Some(value.event_commitment.into()),
             receipt_commitment: Some(value.receipt_commitment.into()),
+        }
+    }
+}
+
+impl From<&FinishedProposalInfo> for CommitmentParts {
+    fn from(info: &FinishedProposalInfo) -> Self {
+        let commitments = &info.block_header_commitments;
+        CommitmentParts {
+            concatenated_counts: commitments.concatenated_counts,
+            parent_commitment: info
+                .parent_proposal_commitment
+                .as_ref()
+                .map(|p| ProposalCommitment(p.state_diff_commitment.0.0)),
+            transaction_commitment: commitments.transaction_commitment.0,
+            event_commitment: commitments.event_commitment.0,
+            receipt_commitment: commitments.receipt_commitment.0,
         }
     }
 }
