@@ -1723,7 +1723,6 @@ dependencies = [
  "apollo_l1_gas_price_provider_config",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider_config",
- "apollo_l1_scraper_config",
  "apollo_mempool_config",
  "apollo_mempool_p2p_config",
  "apollo_metrics",
@@ -1781,7 +1780,6 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_l1_events_types",
  "apollo_l1_provider_config",
- "apollo_l1_scraper_config",
  "apollo_metrics",
  "apollo_state_sync_types",
  "apollo_time",
@@ -1881,15 +1879,6 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_provider_config"
-version = "0.18.0-dev.0"
-dependencies = [
- "apollo_config",
- "serde",
- "validator",
-]
-
-[[package]]
-name = "apollo_l1_scraper_config"
 version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config",
@@ -2204,7 +2193,6 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_l1_gas_price_provider_config",
  "apollo_l1_provider_config",
- "apollo_l1_scraper_config",
  "apollo_mempool_config",
  "apollo_mempool_p2p_config",
  "apollo_monitoring_endpoint_config",

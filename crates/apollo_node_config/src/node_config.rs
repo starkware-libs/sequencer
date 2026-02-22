@@ -31,8 +31,7 @@ use apollo_l1_gas_price_provider_config::config::{
     L1GasPriceProviderConfig,
     L1GasPriceScraperConfig,
 };
-use apollo_l1_provider_config::config::L1EventsProviderConfig;
-use apollo_l1_scraper_config::config::L1EventsScraperConfig;
+use apollo_l1_provider_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;

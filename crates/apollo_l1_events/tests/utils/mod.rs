@@ -29,7 +29,7 @@ use apollo_l1_events_types::{
     L1EventsProviderResponse,
     ProviderState,
 };
-use apollo_l1_scraper_config::config::L1EventsScraperConfig;
+use apollo_l1_provider_config::config::L1EventsScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
