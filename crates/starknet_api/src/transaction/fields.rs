@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt;
 use std::sync::Arc;
 
 use apollo_sizeof::SizeOf;
@@ -756,7 +757,6 @@ impl TryFrom<ProofFacts> for SnosProofFacts {
 /// Serialized as a base64 string of big-endian u32 bytes.
 #[derive(
     Clone,
-    Debug,
     Default,
     Eq,
     Hash,
@@ -768,6 +768,14 @@ impl TryFrom<ProofFacts> for SnosProofFacts {
     derive_more::From,
 )]
 pub struct Proof(pub Arc<Vec<u32>>);
+
+impl fmt::Debug for Proof {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let len = self.0.len();
+
+        if len == 0 { write!(f, "Proof([])") } else { write!(f, "Proof(<{} elements>)", len) }
+    }
+}
 
 impl Serialize for Proof {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
