@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771746335805,
+  "lastUpdate": 1771753719271,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1053,6 +1053,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1256.8016882699999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0bcc455c385b20da2a1e6adc57dadcbd0f21f73d",
+          "message": "apollo_propeller: add message padding utilities (#11943)",
+          "timestamp": "2026-02-22T09:29:47Z",
+          "tree_id": "b1f0256528bae636a9fff72a31a36bc6efe62ca1",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0bcc455c385b20da2a1e6adc57dadcbd0f21f73d"
+        },
+        "date": 1771753718987,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 744.34234359,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1138.70271305,
             "unit": "ms"
           }
         ]
