@@ -33,6 +33,7 @@ libp2p = { workspace = true, features = [
   "tokio",
   "yamux",
 ] }
+prost.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
@@ -43,7 +44,6 @@ tokio-retry.workspace = true
 tracing.workspace = true
 unsigned-varint = { workspace = true, features = ["std"] }
 validator = { workspace = true, features = ["derive"] }
-
 
 [dev-dependencies]
 apollo_network_types = { workspace = true, features = ["testing"] }
