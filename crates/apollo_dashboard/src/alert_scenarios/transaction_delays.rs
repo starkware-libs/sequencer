@@ -5,7 +5,12 @@ use apollo_infra_utils::template::Template;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_metrics::metrics::MetricQueryName;
 
-use crate::alert_placeholders::{format_sampling_window, ExpressionOrExpressionWithPlaceholder};
+use crate::alert_placeholders::{
+    format_sampling_window,
+    ComparisonValueOrPlaceholder,
+    ExpressionOrExpressionWithPlaceholder,
+    SeverityValueOrPlaceholder,
+};
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -20,7 +25,7 @@ use crate::alerts::{
 
 // TODO(shahak): add gateway latency alert
 
-fn get_mempool_p2p_peer_down(alert_severity: AlertSeverity) -> Alert {
+fn get_mempool_p2p_peer_down(alert_severity: impl Into<SeverityValueOrPlaceholder>) -> Alert {
     Alert::new(
         "mempool_p2p_peer_down",
         "Mempool p2p peer down",
@@ -40,12 +45,16 @@ fn get_mempool_p2p_peer_down(alert_severity: AlertSeverity) -> Alert {
 }
 
 pub(crate) fn get_mempool_p2p_peer_down_vec() -> Vec<Alert> {
-    vec![get_mempool_p2p_peer_down(AlertSeverity::Regular)]
+    vec![get_mempool_p2p_peer_down(SeverityValueOrPlaceholder::Placeholder(
+        "mempool_p2p_peer_down".to_string(),
+    ))]
 }
 
 /// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 15 seconds
 /// over a 5-minute window.
-fn get_http_server_avg_add_tx_latency_alert(alert_severity: AlertSeverity) -> Alert {
+fn get_http_server_avg_add_tx_latency_alert(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     let sum_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_sum_with_filter();
     let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_count_with_filter();
 
@@ -65,12 +74,16 @@ fn get_http_server_avg_add_tx_latency_alert(alert_severity: AlertSeverity) -> Al
 }
 
 pub(crate) fn get_http_server_avg_add_tx_latency_alert_vec() -> Vec<Alert> {
-    vec![get_http_server_avg_add_tx_latency_alert(AlertSeverity::DayOnly)]
+    vec![get_http_server_avg_add_tx_latency_alert(SeverityValueOrPlaceholder::Placeholder(
+        "http_server_avg_add_tx_latency".to_string(),
+    ))]
 }
 
 /// Triggers if the latency of all `add_tx` calls, across all HTTP servers, exceeds 1 second
 /// over a 2-minute window.
-fn get_http_server_min_add_tx_latency_alert(alert_severity: AlertSeverity) -> Alert {
+fn get_http_server_min_add_tx_latency_alert(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     const TIME_WINDOW: &str = "2m";
     let bucket_metric =
         HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filer_and_additional_fields("le=\"1.0\"");
@@ -97,7 +110,9 @@ fn get_http_server_min_add_tx_latency_alert(alert_severity: AlertSeverity) -> Al
 }
 
 pub(crate) fn get_http_server_min_add_tx_latency_alert_vec() -> Vec<Alert> {
-    vec![get_http_server_min_add_tx_latency_alert(AlertSeverity::Sos)]
+    vec![get_http_server_min_add_tx_latency_alert(SeverityValueOrPlaceholder::Placeholder(
+        "http_server_min_add_tx_latency".to_string(),
+    ))]
 }
 
 /// Triggers when the slowest 5% of transactions for a specific HTTP server are taking longer than 2
@@ -123,7 +138,10 @@ pub(crate) fn get_http_server_p95_add_tx_latency_alert_vec() -> Vec<Alert> {
     vec![get_http_server_p95_add_tx_latency_alert(AlertSeverity::Informational)]
 }
 
-fn get_high_empty_blocks_ratio_alert(alert_severity: AlertSeverity, ratio: f64) -> Alert {
+fn get_high_empty_blocks_ratio_alert(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+    ratio: impl Into<ComparisonValueOrPlaceholder>,
+) -> Alert {
     const ALERT_NAME: &str = "high_empty_blocks_ratio";
     // Our histogram buckets are static and the smallest bucket is 0.001.
     let lowest_histogram_bucket_value = HISTOGRAM_BUCKETS[0];
@@ -156,5 +174,8 @@ fn get_high_empty_blocks_ratio_alert(alert_severity: AlertSeverity, ratio: f64) 
 }
 
 pub(crate) fn get_high_empty_blocks_ratio_alert_vec() -> Vec<Alert> {
-    vec![get_high_empty_blocks_ratio_alert(AlertSeverity::Sos, 0.3)]
+    vec![get_high_empty_blocks_ratio_alert(
+        SeverityValueOrPlaceholder::Placeholder("high_empty_blocks_ratio".to_string()),
+        ComparisonValueOrPlaceholder::Placeholder("high_empty_blocks_ratio".to_string()),
+    )]
 }
