@@ -25,9 +25,7 @@ function install_essential_deps_linux() {
             git \
             gnupg \
             jq \
-            libssl-dev \
             lsb-release \
-            pkg-config \
             ripgrep \
             software-properties-common \
             zstd \
