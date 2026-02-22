@@ -69,6 +69,24 @@ pub enum RpcTransaction {
     Invoke(RpcInvokeTransaction),
 }
 
+impl RpcTransaction {
+    pub fn signature_len(&self) -> usize {
+        match self {
+            RpcTransaction::Declare(tx) => tx.signature_len(),
+            RpcTransaction::DeployAccount(tx) => tx.signature_len(),
+            RpcTransaction::Invoke(tx) => tx.signature_len(),
+        }
+    }
+
+    pub fn calldata_len(&self) -> usize {
+        match self {
+            RpcTransaction::Declare(_) => 0,
+            RpcTransaction::DeployAccount(tx) => tx.constructor_calldata_len(),
+            RpcTransaction::Invoke(tx) => tx.calldata_len(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, SizeOf)]
 pub struct InternalRpcDeployAccountTransaction {
     pub tx: RpcDeployAccountTransaction,
@@ -254,6 +272,18 @@ pub enum RpcDeclareTransaction {
     V3(RpcDeclareTransactionV3),
 }
 
+impl RpcDeclareTransaction {
+    fn signature(&self) -> &TransactionSignature {
+        match self {
+            RpcDeclareTransaction::V3(tx) => &tx.signature,
+        }
+    }
+
+    fn signature_len(&self) -> usize {
+        self.signature().0.len()
+    }
+}
+
 impl From<RpcDeclareTransaction> for DeclareTransaction {
     fn from(rpc_declare_transaction: RpcDeclareTransaction) -> Self {
         match rpc_declare_transaction {
@@ -280,6 +310,26 @@ impl RpcDeployAccountTransaction {
         match self {
             RpcDeployAccountTransaction::V3(_) => TransactionVersion::THREE,
         }
+    }
+
+    fn signature(&self) -> &TransactionSignature {
+        match self {
+            RpcDeployAccountTransaction::V3(tx) => &tx.signature,
+        }
+    }
+
+    fn signature_len(&self) -> usize {
+        self.signature().0.len()
+    }
+
+    fn constructor_calldata(&self) -> &Calldata {
+        match self {
+            RpcDeployAccountTransaction::V3(tx) => &tx.constructor_calldata,
+        }
+    }
+
+    fn constructor_calldata_len(&self) -> usize {
+        self.constructor_calldata().0.len()
     }
 }
 
@@ -335,6 +385,26 @@ impl RpcInvokeTransaction {
         match self {
             RpcInvokeTransaction::V3(_) => TransactionVersion::THREE,
         }
+    }
+
+    fn signature(&self) -> &TransactionSignature {
+        match self {
+            RpcInvokeTransaction::V3(tx) => &tx.signature,
+        }
+    }
+
+    fn signature_len(&self) -> usize {
+        self.signature().0.len()
+    }
+
+    fn calldata(&self) -> &Calldata {
+        match self {
+            RpcInvokeTransaction::V3(tx) => &tx.calldata,
+        }
+    }
+
+    fn calldata_len(&self) -> usize {
+        self.calldata().0.len()
     }
 }
 

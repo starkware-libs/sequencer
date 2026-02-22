@@ -156,15 +156,26 @@ impl HttpServer {
 
 // HttpServer handlers.
 
+fn format_long_tx_for_instrumentation(tx: &RpcTransaction) -> String {
+    let tx_signature_len = tx.signature_len();
+    let tx_calldata_len = tx.calldata_len();
+
+    if tx_signature_len <= 2 && tx_calldata_len <= 100 {
+        return format!("{tx:?}");
+    }
+
+    let tx_type = match tx {
+        RpcTransaction::Declare(_) => "declare",
+        RpcTransaction::DeployAccount(_) => "deploy_account",
+        RpcTransaction::Invoke(_) => "invoke",
+    };
+    let payload_size_bytes = tx_signature_len + tx_calldata_len;
+    format!("tx of type {tx_type} is too large to log. payload_size_bytes: {payload_size_bytes}")
+}
+
 #[instrument(
     skip(app_state, tx),
-    fields(
-        tx_type = %match &tx {
-            RpcTransaction::Declare(_) => "declare",
-            RpcTransaction::DeployAccount(_) => "deploy_account",
-            RpcTransaction::Invoke(_) => "invoke",
-        },
-    )
+    fields(tx = format_long_tx_for_instrumentation(&tx))
 )]
 async fn add_rpc_tx(
     Extension(app_state): Extension<AppState>,
@@ -183,7 +194,13 @@ async fn add_rpc_tx(
 
 #[instrument(
     skip(app_state, tx),
-    fields(payload_size_bytes = tx.size_bytes())
+    fields(
+        tx = if tx.len() > 2000 {
+            format!("tx is too large to log. tx length: {}", tx.len())
+        } else {
+            format!("{tx:?}")
+        },
+    )
 )]
 #[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
