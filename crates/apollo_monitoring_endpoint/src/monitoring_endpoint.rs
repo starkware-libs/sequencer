@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::trace_util::{configure_tracing, get_log_directives, set_log_level};
 use apollo_infra_utils::type_name::short_type_name;
-use apollo_l1_provider_types::{L1EventsProviderSnapshot, SharedL1EventsProviderClient};
+use apollo_l1_events_types::{L1EventsProviderSnapshot, SharedL1EventsProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;

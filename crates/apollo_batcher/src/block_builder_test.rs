@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_l1_provider_types::InvalidValidationStatus;
-use apollo_l1_provider_types::InvalidValidationStatus::{
+use apollo_l1_events_types::InvalidValidationStatus;
+use apollo_l1_events_types::InvalidValidationStatus::{
     AlreadyIncludedInProposedBlock,
     AlreadyIncludedOnL2,
     ConsumedOnL1,

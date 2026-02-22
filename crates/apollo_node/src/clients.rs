@@ -51,14 +51,14 @@ use apollo_gateway_types::communication::{
 use apollo_infra::component_client::{Client, LocalComponentClient};
 use apollo_l1_events::communication::{LocalL1EventsProviderClient, RemoteL1EventsProviderClient};
 use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
-use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
-use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
-use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
-use apollo_l1_provider_types::{
+use apollo_l1_events_types::{
     L1EventsProviderRequest,
     L1EventsProviderResponse,
     SharedL1EventsProviderClient,
 };
+use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
+use apollo_l1_gas_price::metrics::L1_GAS_PRICE_INFRA_METRICS;
+use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
 use apollo_mempool::metrics::MEMPOOL_INFRA_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_INFRA_METRICS;
 use apollo_mempool_p2p_types::communication::{
