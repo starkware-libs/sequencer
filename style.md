@@ -211,6 +211,14 @@ let is_executable = false;
 create_transaction(is_dry_run, is_executable)
 ```
 
+### Wide Parameter Type
+
+Function parameters should use the most general type that satisfies the function's needs — the type that accepts the widest set of callers without requiring them to convert. In particular:
+
+- `&[T]` over `Vec<T>`
+- `&str` over `String`
+- `Option<&T>` over `&Option<T>` (callers holding `&Option<T>` can pass `.as_ref()`, but not the reverse)
+
 ### Getter Names
 
 A getter for the field `foo` should be `fn foo`, rather than `fn get_foo`
@@ -304,11 +312,9 @@ impl DerefMut for Foo {
 if *foo > 0 {...}
 ```
 
-## Performance & Allocations
+## Performance
 
 ### Allocations
-
-Avoid allocations when a stack-based type will do, in particular: prefer arrays/iterators over vecs if possible, prefer `&str` or `impl ToString` over `String`.
 
 Use `Vec::with_capacity()` when size is known to avoid reallocations.
 
