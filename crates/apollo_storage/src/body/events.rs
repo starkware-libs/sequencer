@@ -1,7 +1,7 @@
 //! Interface for iterating over events from the storage.
 //!
 //! Events are part of the transaction output. Each transaction output holds an array of events.
-//! Import [`EventsReader`] to iterate over events using a read-only [`StorageTxn`].
+//! Import [`EventsReader`] to iterate over events using a read-only `StorageTxn`.
 //!
 //! # Example
 //! ```

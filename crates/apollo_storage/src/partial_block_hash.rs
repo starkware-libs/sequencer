@@ -1,14 +1,14 @@
 //! Interface for handling partial block hashes.
 //! Import [`PartialBlockHashComponentsStorageReader`] and
 //! [`PartialBlockHashComponentsStorageWriter`] to read and write data related to partial block
-//! hashes using a [`StorageTxn`].
+//! hashes using a `StorageTxn`.
 
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::block_hash_calculator::PartialBlockHashComponents;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
-use crate::{StorageResult, StorageTxn};
+use crate::db::RW;
+use crate::{StorageResult, StorageTransaction};
 
 /// Interface for reading partial block hashes.
 pub trait PartialBlockHashComponentsStorageReader {
@@ -40,7 +40,7 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> PartialBlockHashComponentsStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> PartialBlockHashComponentsStorageReader for T {
     fn get_partial_block_hash_components(
         &self,
         block_number: &BlockNumber,
@@ -50,7 +50,7 @@ impl<Mode: TransactionKind> PartialBlockHashComponentsStorageReader for StorageT
     }
 }
 
-impl PartialBlockHashComponentsStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW>> PartialBlockHashComponentsStorageWriter for T {
     fn set_partial_block_hash_components(
         self,
         block_number: &BlockNumber,
