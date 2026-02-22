@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771407143948,
+  "lastUpdate": 1771745546858,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2617,6 +2617,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1175.20221775,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0c8a6a78c153e159427d3c4c45afdd7dd20ebf77",
+          "message": "apollo_dashboard: add Staking panels (#12593)",
+          "timestamp": "2026-02-22T07:13:37Z",
+          "tree_id": "6602d09169555dff189a4e95f3fcb46a2581ec1e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/0c8a6a78c153e159427d3c4c45afdd7dd20ebf77"
+        },
+        "date": 1771745546578,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 759.8772794700001,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1165.5257969200002,
             "unit": "ms"
           }
         ]
