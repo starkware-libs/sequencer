@@ -42,7 +42,7 @@ use tracing::info;
 
 /// The felt representation of the string 'BOOTSTRAP', used as the sender address for bootstrap
 /// declare transactions.
-const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
+pub(crate) const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
 
 /// High gas amount sufficient to avoid out-of-gas errors during bootstrap.
 const BOOTSTRAP_GAS_AMOUNT: u64 = 10_000_000_000;
@@ -266,6 +266,26 @@ impl BootstrapStateMachine {
     /// When bootstrap is disabled, returns the default address (only meaningful when enabled).
     pub fn strk_address(&self) -> ContractAddress {
         self.params.as_ref().map(|p| p.strk_address).unwrap_or_default()
+    }
+
+    /// Returns the account contract class hash (for tests).
+    pub(crate) fn account_class_hash(&self) -> ClassHash {
+        self.params.as_ref().map(|p| p.account_class_hash).unwrap_or_default()
+    }
+
+    /// Returns the account compiled class hash (for tests).
+    pub(crate) fn account_compiled_class_hash(&self) -> CompiledClassHash {
+        self.params.as_ref().map(|p| p.account_compiled_class_hash).unwrap_or_default()
+    }
+
+    /// Returns the ERC20 contract class hash (for tests).
+    pub(crate) fn erc20_class_hash(&self) -> ClassHash {
+        self.params.as_ref().map(|p| p.erc20_class_hash).unwrap_or_default()
+    }
+
+    /// Returns the ERC20 compiled class hash (for tests).
+    pub(crate) fn erc20_compiled_class_hash(&self) -> CompiledClassHash {
+        self.params.as_ref().map(|p| p.erc20_compiled_class_hash).unwrap_or_default()
     }
 
     fn no_fee_resource_bounds() -> AllResourceBounds {
