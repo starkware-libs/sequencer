@@ -3,6 +3,7 @@ use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use apollo_l1_events_config::config::TransactionManagerConfig;
 use apollo_l1_events_types::{
     Event,
     L1EventsProviderClient,
@@ -30,7 +31,7 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::catchupper::{Catchupper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_events_provider::L1EventsProvider;
-use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionManagerConfig};
+use crate::transaction_manager::{StagingEpoch, TransactionManager};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
 use crate::L1EventsProviderConfig;
 
