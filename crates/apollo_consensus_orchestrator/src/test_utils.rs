@@ -18,7 +18,11 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::Round;
-use apollo_consensus_orchestrator_config::config::{ContextConfig, ContextStaticConfig};
+use apollo_consensus_orchestrator_config::config::{
+    ContextConfig,
+    ContextStaticConfig,
+    PricePerHeight,
+};
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -58,6 +62,7 @@ use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
@@ -145,6 +150,7 @@ pub struct SetupDepsArgs {
     pub n_executed_txs_count: usize,
     pub number_of_times: usize,
     pub expect_start_height: bool,
+    pub l2_gas_used: Option<GasAmount>,
 }
 
 impl Default for SetupDepsArgs {
@@ -154,6 +160,7 @@ impl Default for SetupDepsArgs {
             n_executed_txs_count: INTERNAL_TX_BATCH.len(),
             number_of_times: 1,
             expect_start_height: true,
+            l2_gas_used: None,
         }
     }
 }
@@ -214,6 +221,7 @@ impl TestDeps {
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
+                            l2_gas_used: args.l2_gas_used.unwrap_or_default(),
                         }),
                     })
                 });
@@ -278,6 +286,7 @@ impl TestDeps {
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
+                            l2_gas_used: GasAmount::default(),
                         }),
                     })
                 });
@@ -448,6 +457,8 @@ pub(crate) struct TestProposalBuildArguments {
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
     pub use_state_sync_block_timestamp: bool,
+    pub override_l2_gas_price_fri: Option<u128>,
+    pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
@@ -471,6 +482,8 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             retrospective_block_hash_retry_interval_millis: args
                 .retrospective_block_hash_retry_interval_millis,
             use_state_sync_block_timestamp: args.use_state_sync_block_timestamp,
+            override_l2_gas_price_fri: args.override_l2_gas_price_fri,
+            min_l2_gas_price_per_height: args.min_l2_gas_price_per_height,
         }
     }
 }
@@ -519,6 +532,8 @@ pub(crate) fn create_proposal_build_arguments()
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis,
             use_state_sync_block_timestamp,
+            override_l2_gas_price_fri: None,
+            min_l2_gas_price_per_height: vec![],
         },
         proposal_receiver,
     )

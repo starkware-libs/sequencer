@@ -14,10 +14,12 @@ use apollo_batcher_types::batcher_types::{
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus::types::{ProposalCommitment, Round};
+use apollo_consensus_orchestrator_config::config::PricePerHeight;
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
     BuildParam,
     CommitmentParts,
+    L2GasInfo,
     ProposalFin,
     ProposalFinExtra,
     ProposalInit,
@@ -38,6 +40,7 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, trace, warn};
 
+use crate::fee_market::calculate_next_l2_gas_price_for_fin;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
@@ -70,6 +73,8 @@ pub(crate) struct ProposalBuildArguments {
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
     pub use_state_sync_block_timestamp: bool,
+    pub override_l2_gas_price_fri: Option<u128>,
+    pub min_l2_gas_price_per_height: Vec<PricePerHeight>,
 }
 
 type BuildProposalResult<T> = Result<T, BuildProposalError>;
@@ -310,9 +315,19 @@ async fn get_proposal_content(
                     .final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
+                let next_l2_gas_price = calculate_next_l2_gas_price_for_fin(
+                    args.l2_gas_price,
+                    args.build_param.height,
+                    info.l2_gas_used,
+                    args.override_l2_gas_price_fri,
+                    &args.min_l2_gas_price_per_height,
+                );
                 let fin_extra = ProposalFinExtra {
                     commitment_parts: CommitmentParts::from(&info),
-                    l2_gas_info: None,
+                    l2_gas_info: L2GasInfo {
+                        next_l2_gas_price_fri: next_l2_gas_price,
+                        l2_gas_used: info.l2_gas_used,
+                    },
                 };
                 let fin = ProposalFin {
                     proposal_commitment,

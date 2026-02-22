@@ -186,11 +186,10 @@ pub struct L2GasInfo {
 }
 
 /// Optional payload carried in ProposalFin: commitment parts and L2 gas.
-// TODO(Asmaa): Make l2_gas_info non-optional once we send L2 data in the fin.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ProposalFinExtra {
     pub commitment_parts: CommitmentParts,
-    pub l2_gas_info: Option<L2GasInfo>,
+    pub l2_gas_info: L2GasInfo,
 }
 
 /// The proposal is done when receiving this fin message, which contains the proposal commitment.

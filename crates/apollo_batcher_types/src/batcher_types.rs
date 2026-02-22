@@ -73,6 +73,7 @@ pub struct FinishedProposalInfoWithoutParent {
     pub proposal_commitment: ProposalCommitment,
     pub final_n_executed_txs: usize,
     pub block_header_commitments: BlockHeaderCommitments,
+    pub l2_gas_used: GasAmount,
 }
 
 /// Information returned when block building has finished (proposer or validator).
@@ -83,6 +84,7 @@ pub struct FinishedProposalInfo {
     pub block_header_commitments: BlockHeaderCommitments,
     // None for the first block
     pub parent_proposal_commitment: Option<ProposalCommitment>,
+    pub l2_gas_used: GasAmount,
 }
 
 impl FinishedProposalInfo {
@@ -96,6 +98,7 @@ impl FinishedProposalInfo {
             final_n_executed_txs: artifact_derived.final_n_executed_txs,
             block_header_commitments: artifact_derived.block_header_commitments,
             parent_proposal_commitment,
+            l2_gas_used: artifact_derived.l2_gas_used,
         }
     }
 }
@@ -152,7 +155,6 @@ pub struct DecisionReachedResponse {
     // TODO(Yael): Consider passing the state_diff as CommitmentStateDiff inside CentralObjects.
     // Today the ThinStateDiff is used for the state sync but it may not be needed in the future.
     pub state_diff: ThinStateDiff,
-    pub l2_gas_used: GasAmount,
     pub central_objects: CentralObjects,
 }
 
