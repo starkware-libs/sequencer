@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771511285689,
+  "lastUpdate": 1771746335805,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1019,6 +1019,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1365.99939547,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163830216+asmaastarkware@users.noreply.github.com",
+            "name": "asmaa-starkware",
+            "username": "asmaastarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "91ab9d25e4fc59b1e0d0360e2680dbbe84f9fe75",
+          "message": "apollo_consensus_orchestrator: send CommitmentParts in Fin (#12505)",
+          "timestamp": "2026-02-22T07:25:39Z",
+          "tree_id": "27e47fa070a02a7e2f77935ff087ff667e307306",
+          "url": "https://github.com/starkware-libs/sequencer/commit/91ab9d25e4fc59b1e0d0360e2680dbbe84f9fe75"
+        },
+        "date": 1771746335529,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 833.23168098,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1256.8016882699999,
             "unit": "ms"
           }
         ]
