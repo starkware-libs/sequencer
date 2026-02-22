@@ -223,9 +223,7 @@ fn test_nested_library_call() {
                 builtin_instance_counter: BTreeMap::new(),
             })
             .into();
-    // TODO(AvivG): Implement MulAssign for ExtendedExecutionResources.
-    main_call_resources += &library_call_resources;
-    main_call_resources += &library_call_resources;
+    main_call_resources += &(&library_call_resources * 2);
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
         execution: CallExecution::from_retdata(retdata![felt!(0_u8)]),
