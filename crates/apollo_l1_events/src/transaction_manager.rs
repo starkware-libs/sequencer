@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::ops::{Deref, Sub};
 use std::time::Duration;
 
-use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
+use apollo_l1_events_types::{InvalidValidationStatus, ValidationStatus};
 use starknet_api::block::{BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;

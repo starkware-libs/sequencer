@@ -3,7 +3,7 @@ use std::mem;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use apollo_l1_provider_types::{
+use apollo_l1_events_types::{
     Event,
     L1EventsProviderClient,
     L1EventsProviderClientResult,

@@ -11,7 +11,7 @@ use apollo_batcher_types::batcher_types::{ProposalId, ProposeBlockInput};
 use apollo_committer_types::committer_types::{CommitBlockResponse, RevertBlockResponse};
 use apollo_committer_types::communication::MockCommitterClient;
 use apollo_committer_types::test_utils::MockCommitterClientWithOffset;
-use apollo_l1_provider_types::MockL1EventsProviderClient;
+use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use async_trait::async_trait;

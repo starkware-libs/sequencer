@@ -1,7 +1,7 @@
 use apollo_infra::component_client::{LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentRequestHandler, RequestWrapper};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer, WrapperServer};
-use apollo_l1_provider_types::{L1EventsProviderRequest, L1EventsProviderResponse};
+use apollo_l1_events_types::{L1EventsProviderRequest, L1EventsProviderResponse};
 use async_trait::async_trait;
 use tracing::instrument;
 

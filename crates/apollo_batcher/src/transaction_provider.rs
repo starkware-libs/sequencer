@@ -1,8 +1,8 @@
 use std::cmp::min;
 use std::vec;
 
-use apollo_l1_provider_types::errors::L1EventsProviderClientError;
-use apollo_l1_provider_types::{
+use apollo_l1_events_types::errors::L1EventsProviderClientError;
+use apollo_l1_events_types::{
     InvalidValidationStatus as L1InvalidValidationStatus,
     SharedL1EventsProviderClient,
     ValidationStatus as L1ValidationStatus,

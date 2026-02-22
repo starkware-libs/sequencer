@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_l1_provider_types::{
+use apollo_l1_events_types::{
     InvalidValidationStatus,
     MockL1EventsProviderClient,
     ValidationStatus as L1ValidationStatus,
