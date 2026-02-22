@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771753719271,
+  "lastUpdate": 1771754523894,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1087,6 +1087,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1138.70271305,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "arnon@starkware.co",
+            "name": "Arnon Hod",
+            "username": "ArniStarkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dd8220708c0feaf67565e359bfe3512fea74a9ee",
+          "message": "blockifier: set missing config validations (#12695)",
+          "timestamp": "2026-02-22T09:41:22Z",
+          "tree_id": "4dfdeff789723e585724401e536e3c195d06e068",
+          "url": "https://github.com/starkware-libs/sequencer/commit/dd8220708c0feaf67565e359bfe3512fea74a9ee"
+        },
+        "date": 1771754523601,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 787.6098261699999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1259.20106315,
             "unit": "ms"
           }
         ]
