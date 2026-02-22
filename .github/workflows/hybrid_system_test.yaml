@@ -37,6 +37,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # https://graphite.com/docs/stacking-and-ci
   optimize_ci:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
     outputs:
