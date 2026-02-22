@@ -110,8 +110,8 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
     )
 }
 
-pub(crate) fn get_consensus_block_number_progress_is_slow() -> Alert {
-    const ALERT_NAME: &str = "get_consensus_block_number_progress_is_slow";
+pub(crate) fn consensus_block_number_progress_is_slow() -> Alert {
+    const ALERT_NAME: &str = "consensus_block_number_progress_is_slow";
     Alert::new(
         ALERT_NAME,
         "Consensus block number progress is slow",
