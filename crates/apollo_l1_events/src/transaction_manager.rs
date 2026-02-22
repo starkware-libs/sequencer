@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use std::ops::{Deref, Sub};
 use std::time::Duration;
 
+use apollo_l1_events_config::config::TransactionManagerConfig;
 use apollo_l1_events_types::{InvalidValidationStatus, ValidationStatus};
 use starknet_api::block::{BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -498,20 +499,4 @@ impl Sub<u128> for StagingEpoch {
     fn sub(self, rhs: u128) -> Self::Output {
         Self(self.0 - rhs)
     }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct TransactionManagerConfig {
-    // How long to wait before allowing new L1 handler transactions to be proposed (validation is
-    // available immediately), from the moment they are scraped.
-    pub l1_handler_proposal_cooldown_seconds: Duration,
-    /// How long to allow a transaction requested for cancellation to be validated against
-    /// (proposals are banned upon receiving a cancellation request).
-    pub l1_handler_cancellation_timelock_seconds: Duration,
-    /// How long to wait before allowing a transaction that was consumed on L1 to be removed from
-    /// the transaction managers records.
-    // The motivation behind this timelock is to make debugging easier and to be more careful
-    // about permanently deleting information.
-    // This only delays a cleanup action, so the duration of the timelock wouldn't affect the UX.
-    pub l1_handler_consumption_timelock_seconds: Duration,
 }

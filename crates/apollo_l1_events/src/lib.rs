@@ -20,20 +20,6 @@ use papyrus_base_layer::constants::{
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
 
-use crate::transaction_manager::TransactionManagerConfig;
-
-// TODO(Nadin): Move to the l1 events config crate.
-impl From<L1EventsProviderConfig> for TransactionManagerConfig {
-    fn from(config: L1EventsProviderConfig) -> Self {
-        TransactionManagerConfig {
-            l1_handler_proposal_cooldown_seconds: config.l1_handler_proposal_cooldown_seconds,
-            l1_handler_cancellation_timelock_seconds: config
-                .l1_handler_cancellation_timelock_seconds,
-            l1_handler_consumption_timelock_seconds: config.l1_handler_consumption_timelock_seconds,
-        }
-    }
-}
-
 pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
     &[
         // LogMessageToL2(address,uint256,uint256,uint256[],uint256,uint256)
