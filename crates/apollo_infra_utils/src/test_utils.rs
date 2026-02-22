@@ -43,6 +43,7 @@ pub enum TestIdentifier {
     SyncFlowIntegrationTest,
     StorageReaderServerUnitTests,
     StorageReaderTypesUnitTests,
+    ClassManagerUnitTests,
     L1EventsScraperEndToEndTest,
     MockedStarknetStateUpdateTest,
     LatestProvedBlockEthereumTest,
@@ -78,8 +79,16 @@ impl AvailablePorts {
         AvailablePorts { start_port: current_port, current_port, max_port }
     }
 
+    /// Number of port slots still in this pool's range (some may be in use).
+    pub fn remaining(&self) -> u16 {
+        self.max_port.saturating_sub(self.current_port)
+    }
+
+    /// Returns the next available port in range, or `None` if the range is exhausted (all slots
+    /// tried and none available). Use this when a fallback pool should be tried instead of
+    /// panicking.
     #[instrument]
-    pub fn get_next_port(&mut self) -> u16 {
+    pub fn get_next_port_opt(&mut self) -> Option<u16> {
         while self.current_port < self.max_port {
             let port = self.current_port;
             self.current_port += 1;
@@ -91,11 +100,18 @@ impl AvailablePorts {
                 );
             } else {
                 println!("Allocated port: {port} in range [{},{}]", self.start_port, self.max_port);
-                return port;
+                return Some(port);
             }
         }
 
-        panic!("No available ports found in range [{},{}]", self.start_port, self.max_port);
+        None
+    }
+
+    #[instrument]
+    pub fn get_next_port(&mut self) -> u16 {
+        self.get_next_port_opt().unwrap_or_else(|| {
+            panic!("No available ports found in range [{},{}]", self.start_port, self.max_port)
+        })
     }
 
     pub fn get_next_ports(&mut self, n: usize) -> Vec<u16> {

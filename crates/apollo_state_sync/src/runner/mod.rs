@@ -163,7 +163,8 @@ impl StateSyncResources {
             dynamic_config_provider,
         )
         .expect("StateSyncRunner failed opening storage");
-        let storage_reader_server_handle = storage_reader_server.spawn();
+        let storage_reader_server_handle =
+            storage_reader_server.spawn().expect("Failed to spawn storage reader server");
         let shared_highest_block = Arc::new(RwLock::new(None));
         let pending_data = Arc::new(RwLock::new(PendingData {
             // The pending data might change later to DeprecatedPendingBlock, depending on the

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::io;
 use std::marker::PhantomData;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener as StdTcpListener};
 use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
@@ -214,51 +214,46 @@ where
             .with_state(self.app_state.clone())
     }
 
-    /// Runs the server to handle incoming requests.
-    pub async fn run(self) -> Result<(), StorageError>
-    where
-        RequestHandler: Send + Sync + 'static,
-        Request: Send + Sync + 'static,
-        Response: Send + Sync + 'static,
-    {
-        let socket = SocketAddr::from((self.config.ip(), self.config.port()));
-        info!("Starting storage reader server on {}", socket);
-        let app = self.app();
-        info!("Storage reader server listening on {}", socket);
-
-        // Start the server
-        let listener = TcpListener::bind(&socket).await.map_err(|e| {
-            error!("Storage reader server error: {}", e);
-            StorageError::IOError(io::Error::other(e))
-        })?;
-        serve(listener, app).await.map_err(|e| {
-            error!("Storage reader server error: {}", e);
-            StorageError::IOError(io::Error::other(e))
-        })
-    }
-
     /// Spawns the storage reader server in a background task.
-    /// Returns None if no tokio runtime is available (e.g., in non-async tests).
-    // TODO(Nadin): Bind the TcpListener before spawning the background task, so port
-    // conflicts propagate as errors to the caller instead of being silently swallowed.
-    pub fn spawn(self) -> Option<AbortHandle>
+    /// Binds first so port conflicts propagate to the caller.
+    /// Returns `Ok(None)` if no tokio runtime is available (e.g., in non-async tests).
+    pub fn spawn(self) -> Result<Option<AbortHandle>, StorageError>
     where
         RequestHandler: Send + Sync + 'static,
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
     {
         match tokio::runtime::Handle::try_current() {
-            Ok(_) => Some(
-                tokio::spawn(async move {
-                    if let Err(e) = self.run().await {
-                        tracing::error!("Storage reader server error: {:?}", e);
+            Ok(_) => {
+                let socket = SocketAddr::from((self.config.ip(), self.config.port()));
+                info!("Starting storage reader server on {}", socket);
+                let std_listener = StdTcpListener::bind(socket).map_err(|e| {
+                    error!("Storage reader server bind error: {}", e);
+                    StorageError::IOError(io::Error::other(e))
+                })?;
+                // Required for tokio::net::TcpListener::from_std(); async runtime expects
+                // non-blocking sockets.
+                std_listener.set_nonblocking(true).map_err(|e| {
+                    error!("Storage reader server set_nonblocking error: {}", e);
+                    StorageError::IOError(io::Error::other(e))
+                })?;
+                let listener = TcpListener::from_std(std_listener).map_err(|e| {
+                    error!("Storage reader server from_std error: {}", e);
+                    StorageError::IOError(io::Error::other(e))
+                })?;
+                let app = self.app();
+                info!("Storage reader server listening on {}", socket);
+                let handle = tokio::spawn(async move {
+                    if let Err(e) = serve(listener, app).await {
+                        error!("Storage reader server error: {}", e);
                     }
                 })
-                .abort_handle(),
-            ),
+                .abort_handle();
+                Ok(Some(handle))
+            }
             Err(_) => {
                 info!("No tokio runtime available, skipping storage reader server spawn");
-                None
+                Ok(None)
             }
         }
     }

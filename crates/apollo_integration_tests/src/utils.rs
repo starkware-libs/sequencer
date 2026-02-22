@@ -1,5 +1,5 @@
 use std::future::Future;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
 use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
@@ -109,6 +109,41 @@ use url::Url;
 use crate::flow_test_setup::{FlowSequencerSetup, FlowTestSetup, NUM_OF_SEQUENCERS};
 use crate::state_reader::StorageTestConfig;
 
+/// Port pool for node config .
+/// When `main_fallback` is `Some`, it is used once `main` is exhausted (e.g. when many ports in
+/// the main range are in use).
+pub struct NodeConfigPortPools<'a> {
+    pub main: &'a mut AvailablePorts,
+    pub main_fallback: Option<&'a mut AvailablePorts>,
+}
+
+impl<'a> NodeConfigPortPools<'a> {
+    pub fn new(
+        main: &'a mut AvailablePorts,
+        main_fallback: Option<&'a mut AvailablePorts>,
+    ) -> Self {
+        Self { main, main_fallback }
+    }
+
+    /// Next port from the pool (or fallback when main is exhausted).
+    /// Tries the main pool first; if no port is available there (range exhausted or all in use),
+    /// uses `main_fallback` when present, otherwise panics.
+    pub fn get_next_port(&mut self) -> u16 {
+        if let Some(port) = self.main.get_next_port_opt() {
+            return port;
+        }
+        if let Some(fb) = &mut self.main_fallback {
+            return fb.get_next_port();
+        }
+        self.main.get_next_port()
+    }
+
+    /// Next socket (localhost + port) from the pool (or fallback when main is exhausted).
+    pub fn get_next_socket(&mut self) -> SocketAddr {
+        SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
+    }
+}
+
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
 pub const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
@@ -201,7 +236,7 @@ impl TestScenario for DeployAndInvokeTxs {
 // TODO(Tsabary): clean the passed args.
 #[allow(clippy::too_many_arguments)]
 pub fn create_node_config(
-    available_ports: &mut AvailablePorts,
+    port_pools: &mut NodeConfigPortPools<'_>,
     chain_info: ChainInfo,
     storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
@@ -217,11 +252,14 @@ pub fn create_node_config(
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
-    let batcher_config = create_batcher_config(
+    let mut batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_gas,
     );
+    let http_server_config = create_http_server_config(port_pools.get_next_socket());
+    batcher_config.static_config.storage_reader_server_static_config.port =
+        port_pools.get_next_port();
     let committer_config = ApolloCommitterConfig {
         db_path: storage_config.committer_db_path.clone(),
         ..Default::default()
@@ -250,12 +288,17 @@ pub fn create_node_config(
         eth_to_strk_oracle_config,
         ..Default::default()
     };
-    let http_server_config =
-        create_http_server_config(available_ports.get_next_local_host_socket());
-    let class_manager_config =
+    let mut class_manager_config =
         create_class_manager_config(storage_config.class_manager_storage_config);
+    class_manager_config
+        .static_config
+        .class_storage_config
+        .storage_reader_server_static_config
+        .port = port_pools.get_next_port();
     let proof_manager_config = storage_config.proof_manager_config.clone();
     state_sync_config.static_config.storage_config = storage_config.state_sync_storage_config;
+    state_sync_config.static_config.storage_reader_server_static_config.port =
+        port_pools.get_next_port();
     state_sync_config.static_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.static_config.rpc_config.starknet_url.clone();
 
