@@ -105,7 +105,18 @@ impl HttpServer {
 
 // HttpServer handlers.
 
-#[instrument(skip(app_state))]
+#[instrument(
+    skip_all,
+    fields(
+        endpoint = "/gateway/add_rpc_transaction",
+        headers = ?headers,
+        tx_type = %match &tx {
+            RpcTransaction::Declare(_) => "declare",
+            RpcTransaction::DeployAccount(_) => "deploy_account",
+            RpcTransaction::Invoke(_) => "invoke",
+        },
+    )
+)]
 async fn add_rpc_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
@@ -116,7 +127,15 @@ async fn add_rpc_tx(
     add_tx_inner(app_state, headers, tx).await
 }
 
-#[instrument(skip(app_state))]
+#[instrument(
+    skip_all,
+    fields(
+        endpoint = "/gateway/add_transaction",
+        headers = ?headers,
+        payload_size_bytes = tx.len(),
+        max_sierra_program_size = max_sierra_program_size,
+    )
+)]
 #[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
     State(app_state): State<AppState>,
