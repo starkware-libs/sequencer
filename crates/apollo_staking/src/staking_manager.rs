@@ -38,7 +38,7 @@ use crate::metrics::{
     STAKING_CURRENT_EPOCH_START_BLOCK,
 };
 use crate::staking_contract::StakingContract;
-use crate::utils::BlockRandomGenerator;
+use crate::utils::{BlockRandomGenerator, BlockRandomGeneratorFactory};
 
 #[cfg(test)]
 #[path = "staking_manager_test.rs"]
@@ -59,11 +59,8 @@ struct Committee {
     total_weight: u128,
     // Eligible proposers in canonical committee order (by weight descending).
     eligible_proposers: Vec<ContractAddress>,
-    // Block hash used for proposer selection randomness.
-    // For epoch N, this is the hash of the first block in epoch N-1.
-    randomness_block_hash: Option<BlockHash>,
-    // Random generator for weighted proposer selection.
-    random_generator: Arc<dyn BlockRandomGenerator>,
+    // Random generator for weighted proposer selection, seeded with the randomness block hash.
+    random_generator: Box<dyn BlockRandomGenerator>,
     // Stores the most recently requested proposer address, keyed by height and round.
     proposer_cache: std::sync::Mutex<Option<(BlockNumber, Round, ContractAddress)>>,
     // If true, get_proposer will use the same deterministic round-robin selection as
@@ -190,7 +187,7 @@ pub struct StakingManager {
     // Caches the current and previous epochs fetched from the state.
     epoch_cache: Mutex<EpochCache>,
 
-    random_generator: Arc<dyn BlockRandomGenerator>,
+    random_generator_factory: Arc<dyn BlockRandomGeneratorFactory>,
     dynamic_config: RwLock<StakingManagerDynamicConfig>,
     config_manager_client: Option<SharedConfigManagerClient>,
     use_only_actual_proposer_selection: bool,
@@ -219,7 +216,7 @@ impl StakingManager {
         staking_contract: Arc<dyn StakingContract>,
         batcher_client: SharedBatcherClient,
         state_sync_client: SharedStateSyncClient,
-        random_generator: Arc<dyn BlockRandomGenerator>,
+        random_generator_factory: Arc<dyn BlockRandomGeneratorFactory>,
         config: StakingManagerConfig,
         config_manager_client: Option<SharedConfigManagerClient>,
     ) -> Self {
@@ -232,7 +229,7 @@ impl StakingManager {
                 config.static_config.max_cached_epochs,
             )),
             epoch_cache: Mutex::new(EpochCache::new()),
-            random_generator,
+            random_generator_factory,
             dynamic_config: RwLock::new(config.dynamic_config),
             config_manager_client,
             use_only_actual_proposer_selection: config
@@ -354,8 +351,7 @@ impl StakingManager {
             cumulative_weights,
             total_weight,
             eligible_proposers,
-            randomness_block_hash,
-            random_generator: self.random_generator.clone(),
+            random_generator: self.random_generator_factory.create_seeded(randomness_block_hash),
             proposer_cache: std::sync::Mutex::new(None),
             use_only_actual_proposer_selection: self.use_only_actual_proposer_selection,
         })
@@ -496,13 +492,8 @@ impl CommitteeTrait for Committee {
         }
 
         // Generate a pseudorandom value in the range [0, total_weight) based on the height, round,
-        // and block hash.
-        let random_value = self.random_generator.generate(
-            height,
-            round,
-            self.randomness_block_hash,
-            self.total_weight,
-        );
+        // and the block hash stored in the generator.
+        let random_value = self.random_generator.generate(height, round, self.total_weight);
 
         // Select a proposer from the committee using the generated random and update the cache.
         let proposer = self.choose_proposer(random_value);

@@ -9,27 +9,29 @@ use starknet_api::block::{BlockHash, BlockNumber};
 mod utils_test;
 
 #[cfg_attr(test, automock)]
-pub trait BlockRandomGenerator: Send + Sync {
-    fn generate(
-        &self,
-        height: BlockNumber,
-        round: Round,
-        block_hash: Option<BlockHash>,
-        range: u128,
-    ) -> u128;
+pub trait BlockRandomGeneratorFactory: Send + Sync {
+    fn create_seeded(&self, block_hash: Option<BlockHash>) -> Box<dyn BlockRandomGenerator>;
 }
 
-#[allow(dead_code)]
-pub struct BlockPseudorandomGenerator;
+#[cfg_attr(test, automock)]
+pub trait BlockRandomGenerator: Send + Sync {
+    fn generate(&self, height: BlockNumber, round: Round, range: u128) -> u128;
+}
+
+pub struct BlockPseudorandomGenerator {
+    pub randomness_block_hash: Option<BlockHash>,
+}
+
+pub struct BlockPseudorandomGeneratorFactory;
+
+impl BlockRandomGeneratorFactory for BlockPseudorandomGeneratorFactory {
+    fn create_seeded(&self, block_hash: Option<BlockHash>) -> Box<dyn BlockRandomGenerator> {
+        Box::new(BlockPseudorandomGenerator { randomness_block_hash: block_hash })
+    }
+}
 
 impl BlockRandomGenerator for BlockPseudorandomGenerator {
-    fn generate(
-        &self,
-        height: BlockNumber,
-        round: Round,
-        block_hash: Option<BlockHash>,
-        range: u128,
-    ) -> u128 {
+    fn generate(&self, height: BlockNumber, round: Round, range: u128) -> u128 {
         if range == 0 {
             return 0;
         }
@@ -37,7 +39,7 @@ impl BlockRandomGenerator for BlockPseudorandomGenerator {
 
         hasher.update(height.0.to_be_bytes());
         hasher.update(round.to_be_bytes());
-        if let Some(hash) = block_hash {
+        if let Some(hash) = self.randomness_block_hash {
             hasher.update(hash.0.to_bytes_be().as_slice());
         } else {
             hasher.update([0u8; 32]);
@@ -47,9 +49,9 @@ impl BlockRandomGenerator for BlockPseudorandomGenerator {
 
         // Since SHA256 is fixed 32 bytes, grab the last 16 bytes to extract a u128.
         let hash_value = u128::from_be_bytes(
-            hash_bytes[16..32].try_into().expect("Failed to convert hash bytes to u128"),
+            hash_bytes[16..32].try_into().expect("Failed to convert hash bytes to u128."),
         );
-        // Return value in range [0, range)
+        // Return value in range [0, range).
         hash_value % range
     }
 }

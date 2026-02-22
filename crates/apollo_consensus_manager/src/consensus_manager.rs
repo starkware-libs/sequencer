@@ -43,7 +43,7 @@ use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_staking::committee_provider::CommitteeProvider;
 use apollo_staking::mock_staking_contract::MockStakingContract;
 use apollo_staking::staking_manager::StakingManager;
-use apollo_staking::utils::BlockPseudorandomGenerator;
+use apollo_staking::utils::BlockPseudorandomGeneratorFactory;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
 use apollo_transaction_converter::TransactionConverter;
@@ -381,7 +381,7 @@ pub fn create_committee_provider(
         mock_staking_contract,
         batcher_client,
         state_sync_client,
-        Arc::new(BlockPseudorandomGenerator),
+        Arc::new(BlockPseudorandomGeneratorFactory),
         staking_manager_config,
         Some(config_manager_client),
     );
