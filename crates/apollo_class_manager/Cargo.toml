@@ -33,6 +33,8 @@ tracing.workspace = true
 [dev-dependencies]
 apollo_compile_to_casm_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_proc_macros.workspace = true
 assert_matches.workspace = true
 mockall.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
