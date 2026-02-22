@@ -1,10 +1,10 @@
 [package]
-name = "apollo_l1_provider_config"
+name = "apollo_l1_events_config"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
-description = "Configuration types for the Apollo L1 provider and scraper components."
+description = "Configuration types for the Apollo L1 events provider and scraper components."
 
 [lints]
 workspace = true
