@@ -33,18 +33,18 @@ use apollo_storage::metrics::{
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 
 use crate::alert_scenarios::block_production_delay::{
-    get_cende_write_blob_failure_alert_vec,
+    get_cende_write_blob_failure_alert,
     get_cende_write_blob_failure_once_alert,
-    get_consensus_block_number_progress_is_slow_vec,
-    get_consensus_p2p_peer_down_vec,
+    get_consensus_block_number_progress_is_slow,
+    get_consensus_p2p_peer_down,
     get_consensus_round_above_zero,
-    get_consensus_round_above_zero_multiple_times_vec,
+    get_consensus_round_above_zero_multiple_times,
 };
 use crate::alert_scenarios::block_production_halt::{
     get_batched_transactions_stuck_vec,
     get_consensus_block_number_stuck_vec,
     get_consensus_p2p_not_enough_peers_for_quorum_vec,
-    get_consensus_round_high_vec,
+    get_consensus_round_high,
 };
 use crate::alert_scenarios::infra_alerts::{
     get_general_pod_disk_utilization_vec,
@@ -55,36 +55,36 @@ use crate::alert_scenarios::infra_alerts::{
     get_periodic_ping,
 };
 use crate::alert_scenarios::l1_gas_prices::{
-    get_eth_to_strk_success_count_alert_vec,
-    get_l1_gas_price_provider_insufficient_history_alert_vec,
-    get_l1_gas_price_scraper_success_count_alert_vec,
+    get_eth_to_strk_success_count_alert,
+    get_l1_gas_price_provider_insufficient_history_alert,
+    get_l1_gas_price_scraper_success_count_alert,
 };
-use crate::alert_scenarios::l1_handlers::get_l1_message_scraper_no_successes_alert_vec;
+use crate::alert_scenarios::l1_handlers::get_l1_message_scraper_no_successes_alert;
 use crate::alert_scenarios::mempool_size::{
-    get_mempool_evictions_count_alert_vec,
-    get_mempool_pool_size_increase_vec,
+    get_mempool_evictions_count_alert,
+    get_mempool_pool_size_increase,
 };
-use crate::alert_scenarios::preconfirmed::get_preconfirmed_block_not_written_vec;
-use crate::alert_scenarios::sync_halt::{get_state_sync_lag_vec, get_state_sync_stuck_vec};
+use crate::alert_scenarios::preconfirmed::get_preconfirmed_block_not_written;
+use crate::alert_scenarios::sync_halt::{get_state_sync_lag, get_state_sync_stuck_vec};
 use crate::alert_scenarios::tps::{
     get_gateway_add_tx_idle,
-    get_gateway_low_successful_transaction_rate_vec,
+    get_gateway_low_successful_transaction_rate,
     get_http_server_no_successful_transactions,
     get_mempool_add_tx_idle,
 };
 use crate::alert_scenarios::transaction_delays::{
-    get_high_empty_blocks_ratio_alert_vec,
-    get_http_server_avg_add_tx_latency_alert_vec,
-    get_http_server_min_add_tx_latency_alert_vec,
-    get_http_server_p95_add_tx_latency_alert_vec,
-    get_mempool_p2p_peer_down_vec,
+    get_high_empty_blocks_ratio_alert,
+    get_http_server_avg_add_tx_latency_alert,
+    get_http_server_min_add_tx_latency_alert,
+    get_http_server_p95_add_tx_latency_alert,
+    get_mempool_p2p_peer_down,
 };
 use crate::alert_scenarios::transaction_failures::{
     get_http_server_high_deprecated_transaction_failure_ratio,
     get_http_server_high_transaction_failure_ratio,
     get_http_server_internal_error_once,
-    get_http_server_internal_error_ratio_vec,
-    get_mempool_transaction_drop_ratio_vec,
+    get_http_server_internal_error_ratio,
+    get_mempool_transaction_drop_ratio,
 };
 use crate::alerts::{
     Alert,
@@ -488,31 +488,31 @@ pub fn get_apollo_alerts() -> Alerts {
     ];
 
     alerts.append(&mut get_batched_transactions_stuck_vec());
-    alerts.append(&mut get_consensus_block_number_progress_is_slow_vec());
-    alerts.append(&mut get_cende_write_blob_failure_alert_vec());
+    alerts.push(get_consensus_block_number_progress_is_slow());
+    alerts.push(get_cende_write_blob_failure_alert());
     alerts.append(&mut get_consensus_block_number_stuck_vec());
     alerts.append(&mut get_consensus_p2p_not_enough_peers_for_quorum_vec());
-    alerts.append(&mut get_consensus_p2p_peer_down_vec());
-    alerts.append(&mut get_consensus_round_above_zero_multiple_times_vec());
-    alerts.append(&mut get_consensus_round_high_vec());
-    alerts.append(&mut get_eth_to_strk_success_count_alert_vec());
+    alerts.push(get_consensus_p2p_peer_down());
+    alerts.push(get_consensus_round_above_zero_multiple_times());
+    alerts.push(get_consensus_round_high());
+    alerts.push(get_eth_to_strk_success_count_alert());
     alerts.append(&mut get_general_pod_memory_utilization_vec());
     alerts.append(&mut get_general_pod_disk_utilization_vec());
-    alerts.append(&mut get_http_server_avg_add_tx_latency_alert_vec());
-    alerts.append(&mut get_http_server_min_add_tx_latency_alert_vec());
-    alerts.append(&mut get_http_server_internal_error_ratio_vec());
-    alerts.append(&mut get_gateway_low_successful_transaction_rate_vec());
-    alerts.append(&mut get_http_server_p95_add_tx_latency_alert_vec());
-    alerts.append(&mut get_high_empty_blocks_ratio_alert_vec());
-    alerts.append(&mut get_l1_gas_price_provider_insufficient_history_alert_vec());
-    alerts.append(&mut get_l1_gas_price_scraper_success_count_alert_vec());
-    alerts.append(&mut get_l1_message_scraper_no_successes_alert_vec());
-    alerts.append(&mut get_mempool_evictions_count_alert_vec());
-    alerts.append(&mut get_mempool_p2p_peer_down_vec());
-    alerts.append(&mut get_mempool_pool_size_increase_vec());
-    alerts.append(&mut get_mempool_transaction_drop_ratio_vec());
-    alerts.append(&mut get_preconfirmed_block_not_written_vec());
-    alerts.append(&mut get_state_sync_lag_vec());
+    alerts.push(get_http_server_avg_add_tx_latency_alert());
+    alerts.push(get_http_server_min_add_tx_latency_alert());
+    alerts.push(get_http_server_internal_error_ratio());
+    alerts.push(get_gateway_low_successful_transaction_rate());
+    alerts.push(get_http_server_p95_add_tx_latency_alert());
+    alerts.push(get_high_empty_blocks_ratio_alert());
+    alerts.push(get_l1_gas_price_provider_insufficient_history_alert());
+    alerts.push(get_l1_gas_price_scraper_success_count_alert());
+    alerts.push(get_l1_message_scraper_no_successes_alert());
+    alerts.push(get_mempool_evictions_count_alert());
+    alerts.push(get_mempool_p2p_peer_down());
+    alerts.push(get_mempool_pool_size_increase());
+    alerts.push(get_mempool_transaction_drop_ratio());
+    alerts.push(get_preconfirmed_block_not_written());
+    alerts.push(get_state_sync_lag());
     alerts.append(&mut get_state_sync_stuck_vec());
 
     Alerts::new(alerts)

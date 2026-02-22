@@ -79,11 +79,10 @@ pub(crate) fn get_mempool_add_tx_idle() -> Alert {
     )
 }
 
-fn get_gateway_low_successful_transaction_rate(
-    alert_severity: impl Into<SeverityValueOrPlaceholder>,
-) -> Alert {
+pub(crate) fn get_gateway_low_successful_transaction_rate() -> Alert {
+    const ALERT_NAME: &str = "gateway_low_successful_transaction_rate";
     Alert::new(
-        "gateway_low_successful_transaction_rate",
+        ALERT_NAME,
         "gateway low successful transaction rate",
         AlertGroup::Gateway,
         format!(
@@ -93,13 +92,7 @@ fn get_gateway_low_successful_transaction_rate(
         vec![AlertCondition::new(AlertComparisonOp::LessThan, 5.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
-}
-
-pub(crate) fn get_gateway_low_successful_transaction_rate_vec() -> Vec<Alert> {
-    vec![get_gateway_low_successful_transaction_rate(SeverityValueOrPlaceholder::Placeholder(
-        "gateway_low_successful_transaction_rate".to_string(),
-    ))]
 }

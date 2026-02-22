@@ -52,10 +52,11 @@ fn get_consensus_block_number_stuck(
 }
 
 pub(crate) fn get_consensus_block_number_stuck_vec() -> Vec<Alert> {
+    const ALERT_NAME: &str = "consensus_block_number_stuck";
     vec![
         get_consensus_block_number_stuck(
             "Consensus Block Number Stuck",
-            SeverityValueOrPlaceholder::Placeholder("consensus_block_number_stuck".to_string()),
+            SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ),
         get_consensus_block_number_stuck(
             "Consensus Block Number Stuck Long Time",
@@ -136,7 +137,7 @@ pub(crate) fn get_consensus_p2p_not_enough_peers_for_quorum_vec() -> Vec<Alert> 
     ]
 }
 
-fn get_consensus_round_high(alert_severity: impl Into<SeverityValueOrPlaceholder>) -> Alert {
+pub(crate) fn get_consensus_round_high() -> Alert {
     const ALERT_NAME: &str = "consensus_round_high";
     Alert::new(
         ALERT_NAME,
@@ -150,13 +151,7 @@ fn get_consensus_round_high(alert_severity: impl Into<SeverityValueOrPlaceholder
         )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
-}
-
-pub(crate) fn get_consensus_round_high_vec() -> Vec<Alert> {
-    vec![get_consensus_round_high(SeverityValueOrPlaceholder::Placeholder(
-        "consensus_round_high".to_string(),
-    ))]
 }

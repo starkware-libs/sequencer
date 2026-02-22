@@ -37,9 +37,7 @@ pub(crate) fn get_consensus_round_above_zero() -> Alert {
     )
 }
 
-fn get_consensus_round_above_zero_multiple_times(
-    alert_severity: impl Into<SeverityValueOrPlaceholder>,
-) -> Alert {
+pub(crate) fn get_consensus_round_above_zero_multiple_times() -> Alert {
     const ALERT_NAME: &str = "consensus_round_above_zero_multiple_times";
     let expr_template_string =
         format!("increase({}[{{}}s])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter());
@@ -58,42 +56,30 @@ fn get_consensus_round_above_zero_multiple_times(
         )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
 }
 
-pub(crate) fn get_consensus_round_above_zero_multiple_times_vec() -> Vec<Alert> {
-    vec![get_consensus_round_above_zero_multiple_times(SeverityValueOrPlaceholder::Placeholder(
-        "consensus_round_above_zero_multiple_times".to_string(),
-    ))]
-}
-
-fn get_cende_write_blob_failure_alert(
-    alert_severity: impl Into<SeverityValueOrPlaceholder>,
-) -> Alert {
+pub(crate) fn get_cende_write_blob_failure_alert() -> Alert {
+    const ALERT_NAME: &str = "cende_write_blob_failure";
     Alert::new(
-        "cende_write_blob_failure",
+        ALERT_NAME,
         "Cende write blob failure",
         AlertGroup::Consensus,
         format!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
         vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 10.0, AlertLogicalOp::And)],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::NotApplicable,
     )
 }
 
-pub(crate) fn get_cende_write_blob_failure_alert_vec() -> Vec<Alert> {
-    vec![get_cende_write_blob_failure_alert(SeverityValueOrPlaceholder::Placeholder(
-        "cende_write_blob_failure".to_string(),
-    ))]
-}
-
-fn get_consensus_p2p_peer_down(alert_severity: impl Into<SeverityValueOrPlaceholder>) -> Alert {
+pub(crate) fn get_consensus_p2p_peer_down() -> Alert {
+    const ALERT_NAME: &str = "consensus_p2p_peer_down";
     Alert::new(
-        "consensus_p2p_peer_down",
+        ALERT_NAME,
         "Consensus p2p peer down",
         AlertGroup::Consensus,
         format!("max_over_time({}[2m])", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
@@ -105,15 +91,9 @@ fn get_consensus_p2p_peer_down(alert_severity: impl Into<SeverityValueOrPlacehol
         )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::Applicable,
     )
-}
-
-pub(crate) fn get_consensus_p2p_peer_down_vec() -> Vec<Alert> {
-    vec![get_consensus_p2p_peer_down(SeverityValueOrPlaceholder::Placeholder(
-        "consensus_p2p_peer_down".to_string(),
-    ))]
 }
 
 pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
@@ -130,9 +110,7 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
     )
 }
 
-fn get_consensus_block_number_progress_is_slow(
-    alert_severity: impl Into<SeverityValueOrPlaceholder>,
-) -> Alert {
+pub(crate) fn get_consensus_block_number_progress_is_slow() -> Alert {
     const ALERT_NAME: &str = "get_consensus_block_number_progress_is_slow";
     Alert::new(
         ALERT_NAME,
@@ -149,13 +127,7 @@ fn get_consensus_block_number_progress_is_slow(
         )],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
+        SeverityValueOrPlaceholder::Placeholder(ALERT_NAME.to_string()),
         ObserverApplicability::Applicable,
     )
-}
-
-pub(crate) fn get_consensus_block_number_progress_is_slow_vec() -> Vec<Alert> {
-    vec![get_consensus_block_number_progress_is_slow(SeverityValueOrPlaceholder::Placeholder(
-        "get_consensus_block_number_progress_is_slow".to_string(),
-    ))]
 }
