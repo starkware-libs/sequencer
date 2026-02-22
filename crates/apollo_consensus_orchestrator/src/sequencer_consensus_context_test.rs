@@ -5,6 +5,7 @@ use apollo_batcher_types::batcher_types::{
     CentralObjects,
     DecisionReachedResponse,
     FinishedProposalInfo,
+    FinishedProposalInfoWithoutParent,
     ProposalCommitment as BatcherProposalCommitment,
     ProposalStatus,
     SendProposalContent,
@@ -29,6 +30,8 @@ use apollo_l1_gas_price_types::errors::{
 use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{
     BuildParam,
+    CommitmentParts,
+    L2GasInfo,
     ProposalCommitment,
     ProposalFin,
     ProposalFinPayload,
@@ -76,6 +79,14 @@ use crate::test_utils::{
     TIMEOUT,
     TX_BATCH,
 };
+
+/// Expected L2GasInfo when build_proposal runs with test defaults (min gas price, l2_gas_used 0).
+fn expected_l2_gas_info_for_build_proposal_defaults() -> L2GasInfo {
+    L2GasInfo {
+        next_l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
+        l2_gas_used: GasAmount(0),
+    }
+}
 use crate::utils::{apply_fee_transformations, make_gas_price_params};
 
 const TEST_PROPOSAL_COMMITMENT: ProposalCommitment = ProposalCommitment(PARTIAL_BLOCK_HASH.0);
@@ -161,7 +172,10 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     let fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: TEST_PROPOSAL_COMMITMENT,
         executed_transaction_count: n_executed_txs_count.try_into().unwrap(),
-        fin_payload: Some(ProposalFinPayload::default()),
+        fin_payload: Some(ProposalFinPayload {
+            commitment_parts: CommitmentParts::default(),
+            l2_gas_info: expected_l2_gas_info_for_build_proposal_defaults(),
+        }),
     });
     content_sender.send(fin.clone()).await.unwrap();
     let fin_receiver = context.validate_proposal(init.clone(), TIMEOUT, content_receiver).await;
@@ -268,11 +282,14 @@ async fn interrupt_active_proposal() {
         assert!(matches!(input.content, SendProposalContent::Finish(_)));
         Ok(SendProposalContentResponse {
             response: ProposalStatus::Finished(FinishedProposalInfo {
-                proposal_commitment: BatcherProposalCommitment {
-                    partial_block_hash: PARTIAL_BLOCK_HASH,
+                artifact: FinishedProposalInfoWithoutParent {
+                    proposal_commitment: BatcherProposalCommitment {
+                        partial_block_hash: PARTIAL_BLOCK_HASH,
+                    },
+                    final_n_executed_txs: 0,
+                    block_header_commitments: BlockHeaderCommitments::default(),
+                    l2_gas_used: GasAmount::default(),
                 },
-                final_n_executed_txs: 0,
-                block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,
             }),
         })
@@ -328,7 +345,10 @@ async fn build_proposal() {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: TEST_PROPOSAL_COMMITMENT,
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-            fin_payload: Some(ProposalFinPayload::default()),
+            fin_payload: Some(ProposalFinPayload {
+                commitment_parts: CommitmentParts::default(),
+                l2_gas_info: expected_l2_gas_info_for_build_proposal_defaults(),
+            }),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -789,7 +809,10 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: TEST_PROPOSAL_COMMITMENT,
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-            fin_payload: Some(ProposalFinPayload::default()),
+            fin_payload: Some(ProposalFinPayload {
+                commitment_parts: CommitmentParts::default(),
+                l2_gas_info: expected_l2_gas_info_for_build_proposal_defaults(),
+            }),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -811,7 +834,6 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     deps.batcher.expect_decision_reached().times(1).return_once(|_| {
         Ok(DecisionReachedResponse {
             state_diff: ThinStateDiff::default(),
-            l2_gas_used: GasAmount::default(),
             central_objects: CentralObjects::default(),
         })
     });
@@ -907,7 +929,10 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: TEST_PROPOSAL_COMMITMENT,
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
-            fin_payload: Some(ProposalFinPayload::default()),
+            fin_payload: Some(ProposalFinPayload {
+                commitment_parts: CommitmentParts::default(),
+                l2_gas_info: expected_l2_gas_info_for_build_proposal_defaults(),
+            }),
         })
     );
     assert!(receiver.next().await.is_none());
@@ -978,7 +1003,7 @@ async fn override_prices_behavior(
     #[case] build_success: bool,
 ) {
     // Use high gas usage to ensure the L2 gas price is high.
-    let mock_l2_gas_used = VersionedConstants::latest_constants().max_block_size;
+    let high_l2_gas_used = VersionedConstants::latest_constants().max_block_size;
 
     let (mut deps, _network) = create_test_and_network_deps();
 
@@ -986,6 +1011,7 @@ async fn override_prices_behavior(
     #[allow(clippy::as_conversions)]
     deps.setup_deps_for_build(SetupDepsArgs {
         number_of_times: build_success as usize,
+        l2_gas_used: Some(high_l2_gas_used),
         ..Default::default()
     });
     if !build_success {
@@ -996,7 +1022,6 @@ async fn override_prices_behavior(
     deps.batcher.expect_decision_reached().return_once(move |_| {
         Ok(DecisionReachedResponse {
             state_diff: ThinStateDiff::default(),
-            l2_gas_used: mock_l2_gas_used,
             central_objects: CentralObjects::default(),
         })
     });
@@ -1145,7 +1170,6 @@ async fn change_gas_price_overrides() {
     deps.batcher.expect_decision_reached().times(2).returning(|_| {
         Ok(DecisionReachedResponse {
             state_diff: ThinStateDiff::default(),
-            l2_gas_used: GasAmount::default(),
             central_objects: CentralObjects::default(),
         })
     });

@@ -55,7 +55,7 @@ auto_impl_get_test_instance! {
     }
     pub struct ProposalFinPayload {
         pub commitment_parts: CommitmentParts,
-        pub l2_gas_info: Option<L2GasInfo>,
+        pub l2_gas_info: L2GasInfo,
     }
     pub struct ProposalFin {
         pub proposal_commitment: ProposalCommitment,
