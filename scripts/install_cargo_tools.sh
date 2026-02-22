@@ -42,6 +42,9 @@ function install_cargo_tools() {
     curl --proto '=https' --tlsv1.2 -LsSf https://github.com/mitsuhiko/insta/releases/download/1.42.0/cargo-insta-installer.sh | sh
     log_step "install_build_tools" "cargo-insta installed successfully"
 
+    # Install sccache with rustc-wrapper disabled to avoid circular dependency
+    # RUSTC_WRAPPER="" only affects this single command, no need to re-enable
+    RUSTC_WRAPPER="" install_cargo_tool_if_needed "sccache --version" "sccache" "0.14.0"
     install_cargo_tool_if_needed "cargo machete --version" "cargo-machete" "0.9.1"
     install_cargo_tool_if_needed "cargo nextest --version" "cargo-nextest" "0.9.113"
     install_cargo_tool_if_needed "taplo --version" "taplo-cli" "0.9.3"
