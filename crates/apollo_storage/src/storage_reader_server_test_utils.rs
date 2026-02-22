@@ -11,12 +11,14 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tower::util::ServiceExt;
 
+const STORAGE_QUERY_PATH: &str = "/storage/query";
+
 /// Helper function to send a storage query request.
 pub async fn send_storage_query<T: Serialize>(app: Router, request: &T) -> Response {
     app.oneshot(
         Request::builder()
             .method("POST")
-            .uri("/storage/query")
+            .uri(STORAGE_QUERY_PATH)
             .header("content-type", "application/json")
             .body(Body::from(serde_json::to_string(request).unwrap()))
             .unwrap(),
@@ -48,7 +50,7 @@ pub async fn send_storage_reader_http_request<Req: Serialize, Res: DeserializeOw
     addr: SocketAddr,
     request: &Req,
 ) -> Res {
-    let url = format!("http://{addr}/storage/query");
+    let url = format!("http://{addr}{STORAGE_QUERY_PATH}");
     let response = reqwest::Client::new()
         .post(&url)
         .json(request)

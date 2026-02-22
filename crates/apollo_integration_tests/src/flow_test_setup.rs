@@ -25,10 +25,6 @@ use apollo_node_config::component_config::ComponentConfig;
 use apollo_node_config::node_config::SequencerNodeConfig;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
 use apollo_state_sync_config::config::StateSyncConfig;
-use apollo_storage::storage_reader_server::{
-    StorageReaderServerDynamicConfig,
-    StorageReaderServerStaticConfig,
-};
 use apollo_storage::storage_reader_server_test_utils::send_storage_reader_http_request;
 use apollo_storage::storage_reader_types::{StorageReaderRequest, StorageReaderResponse};
 use apollo_storage::StorageConfig;
@@ -295,17 +291,6 @@ impl FlowSequencerSetup {
             num_l1_txs;
         node_config.l1_gas_price_provider_config.as_mut().unwrap().number_of_blocks_for_mean =
             num_l1_txs;
-
-        // Enable the batcher's storage reader server for testing.
-        let storage_reader_server_port = available_ports.get_next_port();
-        let batcher_config = node_config.batcher_config.as_mut().unwrap();
-        batcher_config.static_config.storage_reader_server_static_config =
-            StorageReaderServerStaticConfig {
-                ip: std::net::Ipv4Addr::LOCALHOST.into(),
-                port: storage_reader_server_port,
-            };
-        batcher_config.dynamic_config.storage_reader_server_dynamic_config =
-            StorageReaderServerDynamicConfig { enable: true };
 
         debug!("Sequencer config: {:#?}", node_config);
         let prometheus_handle = metrics_recorder(MetricsConfig::disabled());
