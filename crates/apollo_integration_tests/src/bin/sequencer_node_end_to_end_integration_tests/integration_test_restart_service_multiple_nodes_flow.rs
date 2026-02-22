@@ -76,6 +76,8 @@ async fn main() {
             .await;
     }
 
+    integration_test_manager.verify_block_hash_across_all_running_nodes().await;
+
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);
 
