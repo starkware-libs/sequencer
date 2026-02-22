@@ -2551,6 +2551,7 @@ dependencies = [
 name = "apollo_staking"
 version = "0.18.0-dev.0"
 dependencies = [
+ "apollo_batcher_types",
  "apollo_config_manager_types",
  "apollo_metrics",
  "apollo_protobuf",
