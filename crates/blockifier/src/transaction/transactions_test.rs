@@ -255,8 +255,7 @@ fn initial_gas_amount_from_block_context(block_context: Option<&BlockContext>) -
 }
 
 struct ExpectedResultTestInvokeTx {
-    // TODO(AvivG): change this to ExtendedExecutionResources.
-    resources: ExecutionResources,
+    resources: ExtendedExecutionResources,
     validate_gas_consumed: u64,
     execute_gas_consumed: u64,
 }
@@ -577,18 +576,18 @@ fn add_kzg_da_resources_to_resources_mapping(
 #[rstest]
 #[case::with_cairo0_account(
     ExpectedResultTestInvokeTx{
-        resources: &get_const_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
+        resources: (&get_const_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
             n_steps: 62,
             n_memory_holes:  0,
             builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 1)]),
-        },
+        }).into(),
         validate_gas_consumed: 0,
         execute_gas_consumed: 0,
     },
     CairoVersion::Cairo0)]
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
-        resources: ExecutionResources::default(),
+        resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 8590, // The gas consumption results from parsing the input
             // arguments.
         execute_gas_consumed: 114690,
@@ -596,7 +595,7 @@ fn add_kzg_da_resources_to_resources_mapping(
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
     ExpectedResultTestInvokeTx{
-        resources: ExecutionResources::default(),
+        resources: ExtendedExecutionResources::default(),
         validate_gas_consumed: 8590, // The gas consumption results from parsing the input
             // arguments.
         execute_gas_consumed: 114690,
@@ -746,7 +745,7 @@ fn test_invoke_tx(
     let (expected_validate_gas_for_fee, expected_execute_gas_for_fee) = match tracked_resource {
         TrackedResource::CairoSteps => (GasAmount::default(), GasAmount::default()),
         TrackedResource::SierraGas => {
-            expected_arguments.resources = expected_inner_call_vm_resources.vm_resources;
+            expected_arguments.resources = expected_inner_call_vm_resources;
             (
                 expected_arguments.validate_gas_consumed.into(),
                 expected_arguments.execute_gas_consumed.into(),
@@ -775,10 +774,7 @@ fn test_invoke_tx(
             cairo_native,
             ..Default::default()
         },
-        resources: ExtendedExecutionResources {
-            vm_resources: expected_arguments.resources,
-            opcode_instance_counter: Default::default(),
-        },
+        resources: expected_arguments.resources,
         inner_calls: expected_inner_calls,
         tracked_resource,
         builtin_counters: cairo_primitive_counter_map(builtin_counters),
