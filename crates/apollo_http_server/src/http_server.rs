@@ -156,7 +156,16 @@ impl HttpServer {
 
 // HttpServer handlers.
 
-#[instrument(skip(app_state))]
+#[instrument(
+    skip(app_state, tx),
+    fields(
+        tx_type = %match &tx {
+            RpcTransaction::Declare(_) => "declare",
+            RpcTransaction::DeployAccount(_) => "deploy_account",
+            RpcTransaction::Invoke(_) => "invoke",
+        },
+    )
+)]
 async fn add_rpc_tx(
     Extension(app_state): Extension<AppState>,
     headers: HeaderMap,
@@ -172,7 +181,7 @@ async fn add_rpc_tx(
     add_tx_inner(app_state, headers, tx).await
 }
 
-#[instrument(skip(app_state))]
+#[instrument(skip(app_state, tx), fields(payload_size_bytes = tx.len()))]
 #[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
     Extension(app_state): Extension<AppState>,
