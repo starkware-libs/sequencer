@@ -37,12 +37,7 @@ use tracing::{debug, error};
 
 use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
-use crate::sources::central::{
-    BlocksStream,
-    CompiledClassesStream,
-    MockCentralSourceTrait,
-    StateUpdatesStream,
-};
+use crate::sources::central::{BlocksStream, MockCentralSourceTrait, StateUpdatesStream};
 use crate::{
     CentralError,
     CentralSourceTrait,
@@ -302,39 +297,22 @@ async fn sync_happy_flow() {
         state_stream
     });
 
-    // Add compiled classes stream mock
-    central_mock.expect_stream_compiled_classes().returning(move |initial, up_to| {
-        let compiled_classes_stream: CompiledClassesStream<'_> = stream! {
-            for block_number in initial.iter_up_to(up_to) {
-                if block_number.0 >= N_BLOCKS {
-                    yield Err(CentralError::BlockNotFound { block_number });
-                }
-
-                // Return compiled classes for blocks that declared them
-                match block_number.0 {
-                    1 => {
-                        let mut rng = get_rng();
-                        yield Ok((
-                            class_hash_1,
-                            compiled_class_hash_1,
-                            CasmContractClass::get_test_instance(&mut rng),
-                        ));
-                    },
-                    3 => {
-                        let mut rng = get_rng();
-                        yield Ok((
-                            class_hash_2,
-                            compiled_class_hash_2,
-                            CasmContractClass::get_test_instance(&mut rng),
-                        ));
-                    },
-                    _ => {}
-                }
-            }
-        }
-        .boxed();
-        compiled_classes_stream
-    });
+    central_mock
+        .expect_get_compiled_class()
+        .withf(move |class_hash| *class_hash == class_hash_1)
+        .times(1)
+        .returning(|_| {
+            let mut rng = get_rng();
+            Ok(CasmContractClass::get_test_instance(&mut rng))
+        });
+    central_mock
+        .expect_get_compiled_class()
+        .withf(move |class_hash| *class_hash == class_hash_2)
+        .times(1)
+        .returning(|_| {
+            let mut rng = get_rng();
+            Ok(CasmContractClass::get_test_instance(&mut rng))
+        });
 
     central_mock.expect_get_block_hash().returning(|bn| Ok(Some(create_block_hash(bn, false))));
 
