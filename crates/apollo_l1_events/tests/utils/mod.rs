@@ -22,6 +22,7 @@ use apollo_l1_events::l1_events_provider::L1EventsProvider;
 use apollo_l1_events::l1_scraper::L1EventsScraper;
 use apollo_l1_events::metrics::L1_EVENTS_PROVIDER_INFRA_METRICS;
 use apollo_l1_events::{event_identifiers_to_track, L1EventsProviderConfig};
+use apollo_l1_events_config::config::L1EventsScraperConfig;
 use apollo_l1_events_types::{
     Event,
     L1EventsProviderClient,
@@ -29,7 +30,6 @@ use apollo_l1_events_types::{
     L1EventsProviderResponse,
     ProviderState,
 };
-use apollo_l1_provider_config::config::L1EventsScraperConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
