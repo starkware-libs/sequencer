@@ -191,6 +191,13 @@ impl<
                 // A recoverable error occurred. Sleep and try syncing again.
                 Err(err) if is_recoverable(&err) => {
                     warn!("Recoverable error encountered while syncing, error: {}", err);
+                    // Flush any pending batched writes before retrying.
+                    // This ensures the retry will see the correct marker values.
+                    // Without this, uncommitted writes would be lost and the retry
+                    // would read stale markers, causing "Marker mismatch" errors.
+                    if let Err(flush_err) = self.flush_pending_writes().await {
+                        error!("Failed to flush pending writes before retry: {}", flush_err);
+                    }
                     tokio::time::sleep(self.config.recoverable_error_sleep_duration).await;
                     continue;
                 }
@@ -575,6 +582,9 @@ impl<
                      false and block_contains_non_backwards_compatible_classes is false",
                     classes.keys().collect::<Vec<_>>()
                 );
+                // Still need to advance the class marker even when not storing classes,
+                // otherwise future blocks that DO have classes will fail with marker mismatch.
+                txn = txn.append_classes(block_number, &[], &[])?;
             }
             txn.commit()?;
             Ok(())
@@ -732,6 +742,21 @@ impl<
     ) -> Result<(), StateSyncError> {
         let writer = self.writer.clone();
         spawn_blocking(move || f(&mut (writer.blocking_lock()))).await?
+    }
+
+    /// Flushes any pending batched writes to storage.
+    ///
+    /// This must be called before error recovery/retry to ensure that uncommitted
+    /// writes are persisted. Without this, retries would read stale marker values
+    /// because they would create a new transaction that doesn't see the uncommitted
+    /// writes from the abandoned transaction.
+    async fn flush_pending_writes(&mut self) -> Result<(), StateSyncError> {
+        let writer = self.writer.clone();
+        spawn_blocking(move || {
+            writer.blocking_lock().flush_pending_writes()?;
+            Ok(())
+        })
+        .await?
     }
 }
 // TODO(dvir): consider gathering in a single pending argument instead.
