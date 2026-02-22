@@ -2,6 +2,7 @@ use std::cmp::max;
 
 use apollo_consensus_orchestrator_config::config::PricePerHeight;
 use ethnum::U256;
+use orchestrator_versioned_constants::VersionedConstants;
 use serde::Serialize;
 use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::execution_resources::GasAmount;
@@ -50,6 +51,27 @@ pub fn get_min_gas_price_for_height(
         .find(|e| e.height <= height.0)
         .map(|e| GasPrice(e.price))
         .unwrap_or(fallback_min_gas_price)
+}
+
+/// Compute the next L2 gas price (for the fin or for updating state). Respects override when set.
+pub fn calculate_next_l2_gas_price_for_fin(
+    current_l2_gas_price: GasPrice,
+    height: BlockNumber,
+    l2_gas_used: GasAmount,
+    override_l2_gas_price_fri: Option<u128>,
+    min_l2_gas_price_per_height: &[PricePerHeight],
+) -> GasPrice {
+    if let Some(override_value) = override_l2_gas_price_fri {
+        info!(
+            "L2 gas price ({}) is not updated, remains on override value of {override_value} fri",
+            current_l2_gas_price.0
+        );
+        return GasPrice(override_value);
+    }
+    let versioned_constants = VersionedConstants::latest_constants();
+    let gas_target = versioned_constants.gas_target;
+    let min_gas_price = get_min_gas_price_for_height(height, min_l2_gas_price_per_height);
+    calculate_next_base_gas_price(current_l2_gas_price, l2_gas_used, gas_target, min_gas_price)
 }
 
 /// Calculate the base gas price for the next block according to EIP-1559.

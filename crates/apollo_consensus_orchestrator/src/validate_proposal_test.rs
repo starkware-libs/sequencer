@@ -28,6 +28,7 @@ use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
@@ -140,6 +141,7 @@ async fn validate_empty_proposal() {
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,
+                l2_gas_used: GasAmount::default(),
             }),
         })
     });
@@ -280,6 +282,7 @@ async fn proposal_fin_mismatch() {
                     final_n_executed_txs: n_executed,
                     block_header_commitments: BlockHeaderCommitments::default(),
                     parent_proposal_commitment: None,
+                    l2_gas_used: GasAmount::default(),
                 }),
             })
         });
