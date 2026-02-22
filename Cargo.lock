@@ -3762,6 +3762,7 @@ dependencies = [
  "test-case",
  "thiserror 1.0.69",
  "tikv-jemallocator",
+ "validator",
 ]
 
 [[package]]
