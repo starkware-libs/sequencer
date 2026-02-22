@@ -1,10 +1,16 @@
 use starknet_api::transaction::fields::VIRTUAL_OS_OUTPUT_VERSION;
+use starknet_api::transaction::MessageToL1;
 use starknet_os::io::virtual_os_output::{
     compute_messages_to_l1_hashes,
     VirtualOsOutput,
     VirtualOsRunnerOutput,
 };
 use starknet_os::runner::run_virtual_os;
+use starknet_os_runner::proving::virtual_snos_prover::{
+    prove_virtual_snos_run,
+    ProveTransactionResult,
+};
+use starknet_os_runner::running::runner::RunnerOutput;
 
 use crate::initial_state::FlowTestState;
 use crate::test_manager::TestRunner;
@@ -15,6 +21,8 @@ pub(crate) struct VirtualOsTestOutput {
     pub(crate) runner_output: VirtualOsRunnerOutput,
     /// The expected values computed from the OS hints.
     pub(crate) expected_virtual_os_output: VirtualOsOutput,
+    /// The L2-to-L1 messages produced by the executed transactions.
+    pub(crate) messages_to_l1: Vec<MessageToL1>,
     // TODO(Yoni): consider adding more data for sanity checks, such as the expected state diff.
 }
 
@@ -25,6 +33,17 @@ impl VirtualOsTestOutput {
             .expect("Parsing virtual OS output should not fail.");
 
         assert_eq!(virtual_os_output, self.expected_virtual_os_output);
+    }
+
+    /// Validates the output and proves the result.
+    pub(crate) async fn prove(self) -> ProveTransactionResult {
+        self.validate();
+
+        let runner_output = RunnerOutput {
+            cairo_pie: self.runner_output.cairo_pie,
+            l2_to_l1_messages: self.messages_to_l1,
+        };
+        prove_virtual_snos_run(runner_output).await.expect("prove_virtual_snos_run should succeed")
     }
 }
 
@@ -38,6 +57,7 @@ impl<S: FlowTestState> TestRunner<S> {
             self.os_hints.os_hints_config.chain_info.compute_virtual_os_config_hash().unwrap();
 
         let messages_to_l1_hashes = compute_messages_to_l1_hashes(&self.messages_to_l1);
+        let messages_to_l1 = self.messages_to_l1;
         let expected_virtual_os_output = VirtualOsOutput {
             version: VIRTUAL_OS_OUTPUT_VERSION,
             base_block_number: first_block.block_info.block_number,
@@ -50,7 +70,7 @@ impl<S: FlowTestState> TestRunner<S> {
         let runner_output =
             run_virtual_os(self.os_hints).expect("Running virtual OS should not fail.");
 
-        VirtualOsTestOutput { runner_output, expected_virtual_os_output }
+        VirtualOsTestOutput { runner_output, expected_virtual_os_output, messages_to_l1 }
     }
 
     /// Runs the virtual OS and validates the output against expected values.
