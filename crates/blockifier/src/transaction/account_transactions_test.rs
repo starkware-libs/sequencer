@@ -3,7 +3,11 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
+use blockifier_test_utils::calldata::{
+    cairo0_proven_revert_scenario_calldata,
+    create_calldata,
+    create_trivial_calldata,
+};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_runner::short_string::as_cairo_short_string;
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -2217,38 +2221,13 @@ fn test_cairo0_proven_revert(
     let cairo1_contract_address = test_contract_cairo1.get_instance_address(0_u16);
     let cairo0_contract_address = test_contract_cairo0.get_instance_address(0_u16);
 
-    // Contract C (Cairo 0): test_storage_write(address, value).
-    let contract_c_calldata = [storage_key, storage_value];
+    let calldata = cairo0_proven_revert_scenario_calldata(
+        cairo1_contract_address,
+        cairo0_contract_address,
+        storage_key,
+        storage_value,
+    );
 
-    // Contract B (Cairo 1): middle_revert_contract(contract_address, entry_point_selector,
-    // calldata).
-    // Calls contract C's test_storage_write, then panics.
-    let contract_b_calldata = [
-        vec![
-            **cairo0_contract_address,
-            selector_from_name("test_storage_read_write").0,
-            contract_c_calldata.len().into(),
-        ],
-        contract_c_calldata.to_vec(),
-    ]
-    .concat();
-
-    // Contract A (Cairo 1): test_call_contract_revert(contract_address, entry_point_selector,
-    // calldata, is_meta_tx).
-    // Calls contract B's middle_revert_contract and catches the panic.
-    let contract_a_calldata = [
-        vec![
-            **cairo1_contract_address,
-            selector_from_name("middle_revert_contract").0,
-            contract_b_calldata.len().into(),
-        ],
-        contract_b_calldata,
-        vec![false.into()], // is_meta_tx.
-    ]
-    .concat();
-
-    let calldata =
-        create_calldata(cairo1_contract_address, "test_call_contract_revert", &contract_a_calldata);
     let tx = executable_invoke_tx(invoke_tx_args! {
         sender_address: account_address,
         resource_bounds: default_all_resource_bounds,
