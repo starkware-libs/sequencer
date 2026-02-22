@@ -80,7 +80,7 @@ pub(crate) struct BlockInfoValidation {
 enum HandledProposalPart {
     Continue,
     Invalid(String),
-    Finished(ProposalCommitment, ProposalFin, FinishedProposalInfo),
+    Finished(ProposalCommitment, Box<ProposalFin>, FinishedProposalInfo),
     Failed(String),
 }
 
@@ -432,7 +432,7 @@ async fn handle_proposal_part(
             if executed_txs_count == 0 {
                 warn!("Validated an empty proposal.");
             }
-            HandledProposalPart::Finished(batcher_block_commitment, fin, finished_info)
+            HandledProposalPart::Finished(batcher_block_commitment, Box::new(fin), finished_info)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             // TODO(guyn): check that the length of txs and the number of batches we receive is not
