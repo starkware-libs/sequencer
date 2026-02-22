@@ -44,7 +44,7 @@ use starknet_api::transaction::fields::{
 
 /// The felt representation of the string 'BOOTSTRAP', used as the sender address for bootstrap
 /// declare transactions.
-const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
+pub(crate) const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
 
 /// High gas amount sufficient to avoid out-of-gas errors during bootstrap.
 const BOOTSTRAP_GAS_AMOUNT: u64 = 10_000_000_000;
@@ -55,23 +55,23 @@ const BOOTSTRAP_GAS_AMOUNT: u64 = 10_000_000_000;
 /// contract deployments, nonce values, and storage variables), making the state machine
 /// idempotent and crash-safe regardless of how many blocks have been produced.
 pub struct BootstrapStateMachine {
-    bootstrap_enabled: bool,
+    pub(crate) bootstrap_enabled: bool,
     /// Sierra contract class for the account contract.
-    account_contract_class: SierraContractClass,
+    pub(crate) account_contract_class: SierraContractClass,
     /// Class hash of the account contract (computed from the Sierra class).
-    account_class_hash: ClassHash,
+    pub(crate) account_class_hash: ClassHash,
     /// Compiled class hash of the account contract.
-    account_compiled_class_hash: CompiledClassHash,
+    pub(crate) account_compiled_class_hash: CompiledClassHash,
     /// Sierra contract class for the ERC20 fee token contract.
-    erc20_contract_class: SierraContractClass,
+    pub(crate) erc20_contract_class: SierraContractClass,
     /// Class hash of the ERC20 contract (computed from the Sierra class).
-    erc20_class_hash: ClassHash,
+    pub(crate) erc20_class_hash: ClassHash,
     /// Compiled class hash of the ERC20 contract.
-    erc20_compiled_class_hash: CompiledClassHash,
+    pub(crate) erc20_compiled_class_hash: CompiledClassHash,
     /// Deterministic address of the funded account (computed from deploy account params).
-    account_address: ContractAddress,
+    pub(crate) account_address: ContractAddress,
     /// Deterministic address of the STRK fee token contract.
-    strk_address: ContractAddress,
+    pub(crate) strk_address: ContractAddress,
 }
 
 impl BootstrapStateMachine {
