@@ -1,7 +1,7 @@
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use super::concat_counts;
+use super::{concat_counts, extract_event_count_from_concatenated_counts};
 use crate::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken, StarknetVersion};
 use crate::block_hash::block_hash_calculator::{
     calculate_block_commitments,
@@ -204,6 +204,20 @@ fn concat_counts_test() {
     let concated = concat_counts(4, 3, 2, L1DataAvailabilityMode::Blob);
     let expected_felt = felt!("0x0000000000000004000000000000000300000000000000028000000000000000");
     assert_eq!(concated, expected_felt)
+}
+
+#[rstest]
+#[case(0, 0, 0)]
+#[case(4, 3, 2)]
+#[case(0, usize::MAX, 0)]
+fn extract_event_count_from_concatenated_counts_test(
+    #[case] tx_count: usize,
+    #[case] event_count: usize,
+    #[case] state_diff_len: usize,
+) {
+    let concatenated =
+        concat_counts(tx_count, event_count, state_diff_len, L1DataAvailabilityMode::Blob);
+    assert_eq!(extract_event_count_from_concatenated_counts(&concatenated), event_count);
 }
 
 /// Test that if one of the input to block hash changes, the hash changes.
