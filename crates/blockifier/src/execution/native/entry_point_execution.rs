@@ -44,6 +44,7 @@ pub fn execute_entry_point_call(
         poseidon: gas_costs.builtins.poseidon,
         add_mod: gas_costs.builtins.add_mod,
         mul_mod: gas_costs.builtins.mul_mod,
+        blake: gas_costs.builtins.blake,
     };
 
     // Pre-charge entry point's initial budget to ensure sufficient gas for executing a minimal

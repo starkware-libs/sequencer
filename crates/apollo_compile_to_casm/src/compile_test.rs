@@ -35,8 +35,7 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
 
 // Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
 // Remove entries once they're added to the audited list.
-const PENDING_LIBFUNCS: &[&str] =
-    &["get_execution_info_v3_syscall", "squashed_felt252_dict_entries"];
+const PENDING_LIBFUNCS: &[&str] = &["get_execution_info_v3_syscall"];
 
 fn compiler() -> SierraToCasmCompiler {
     SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
@@ -144,9 +143,11 @@ fn allowed_libfuncs_aligned_to_audited() {
 
     // Audited libfuncs are usually added as versions progress, but can also be deprecated;
     // test both directions.
-    let missing: Vec<_> = expected.difference(&actual).map(ToString::to_string).collect();
-    let extra: Vec<_> = actual
-        .difference(&expected)
+    let expected_keys: HashSet<_> = expected.keys().collect();
+    let actual_keys: HashSet<_> = actual.keys().collect();
+    let missing: Vec<_> = expected_keys.difference(&actual_keys).map(ToString::to_string).collect();
+    let extra: Vec<_> = actual_keys
+        .difference(&expected_keys)
         .map(ToString::to_string)
         .filter(|libfunc| !pending_set.contains(libfunc))
         .collect();
