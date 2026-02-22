@@ -2347,6 +2347,7 @@ dependencies = [
  "futures",
  "libp2p",
  "prost",
+ "rand 0.8.5",
  "reed-solomon-simd",
  "rstest",
  "sha2 0.10.9",
