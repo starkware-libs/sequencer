@@ -22,7 +22,10 @@ DEPENDENCY_PATTERN = r"([a-zA-Z0-9_]+) [^(]* \(([^)]+)\)"
 
 def get_workspace_tree() -> Dict[str, str]:
     tree = dict()
-    res = subprocess.check_output("cargo tree --depth 0".split()).decode("utf-8").splitlines()
+    # Temporarily disable rustc-wrapper for cargo tree to avoid requiring sccache
+    env = os.environ.copy()
+    env["RUSTC_WRAPPER"] = ""
+    res = subprocess.check_output("cargo tree --depth 0".split(), env=env).decode("utf-8").splitlines()
     for l in res:
         m = re.match(PATTERN, l)
         if m is not None:
