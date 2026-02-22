@@ -9,6 +9,7 @@ pub mod padding;
 mod padding_test;
 pub mod protocol;
 // TODO(AndrewL): Consider renaming this to `erasure_coding` or `error_correction_code`.
+pub mod message_processor;
 pub mod reed_solomon;
 #[cfg(test)]
 mod reed_solomon_test;
