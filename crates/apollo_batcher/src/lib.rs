@@ -4,6 +4,7 @@ mod batcher_test;
 pub mod block_builder;
 #[cfg(test)]
 mod block_builder_test;
+pub mod bootstrap;
 pub mod cende_client_types;
 pub(crate) mod commitment_manager;
 pub mod communication;
