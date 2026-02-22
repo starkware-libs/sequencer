@@ -8,14 +8,17 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::crypto::utils::RawSignature;
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_types_core::felt::Felt;
 
 use super::ProtobufConversionError;
 use crate::consensus::{
     CommitmentParts,
+    L2GasInfo,
     ProposalCommitment,
     ProposalFin,
+    ProposalFinExtra,
     ProposalInit,
     ProposalPart,
     StreamMessage,
@@ -46,10 +49,18 @@ auto_impl_get_test_instance! {
         pub event_commitment: StarkHash,
         pub receipt_commitment: StarkHash,
     }
+    pub struct L2GasInfo {
+        pub next_l2_gas_price_fri: GasPrice,
+        pub l2_gas_used: GasAmount,
+    }
+    pub struct ProposalFinExtra {
+        pub commitment_parts: CommitmentParts,
+        pub l2_gas_info: Option<L2GasInfo>,
+    }
     pub struct ProposalFin {
         pub proposal_commitment: ProposalCommitment,
         pub executed_transaction_count: u64,
-        pub commitment_parts: Option<CommitmentParts>,
+        pub fin_extra: Option<ProposalFinExtra>,
     }
     pub struct TransactionBatch {
         pub transactions: Vec<ConsensusTransaction>,
