@@ -1397,7 +1397,8 @@ pub async fn create_batcher(
     )
     .expect("Failed to open batcher's storage");
 
-    let storage_reader_server_handle = storage_reader_server.spawn();
+    let storage_reader_server_handle =
+        storage_reader_server.spawn().expect("Failed to spawn storage reader server");
 
     let execute_config = &config.static_config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));

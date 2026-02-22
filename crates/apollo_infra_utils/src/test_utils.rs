@@ -43,6 +43,7 @@ pub enum TestIdentifier {
     SyncFlowIntegrationTest,
     StorageReaderServerUnitTests,
     StorageReaderTypesUnitTests,
+    ClassManagerUnitTests,
     L1EventsScraperEndToEndTest,
     MockedStarknetStateUpdateTest,
     LatestProvedBlockEthereumTest,
@@ -76,6 +77,11 @@ impl AvailablePorts {
         let max_port: u16 = current_port + PORTS_PER_INSTANCE;
 
         AvailablePorts { start_port: current_port, current_port, max_port }
+    }
+
+    /// Number of port slots still in this pool's range (some may be in use).
+    pub fn remaining(&self) -> u16 {
+        self.max_port.saturating_sub(self.current_port)
     }
 
     #[instrument]

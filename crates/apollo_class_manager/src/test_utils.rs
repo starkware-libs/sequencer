@@ -69,6 +69,11 @@ impl FsClassStorageBuilderForTesting {
         self
     }
 
+    pub fn with_storage_reader_server_port(mut self, port: u16) -> Self {
+        self.config.storage_reader_server_static_config.port = port;
+        self
+    }
+
     pub fn build(self) -> (FsClassStorage, FsClassStorageConfig, Option<FileHandles>) {
         let Self { config, handles } = self;
         let dynamic_config_provider = Arc::new(MockTestDynamicConfigProvider);

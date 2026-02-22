@@ -65,6 +65,7 @@ use crate::utils::{
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
     AccumulatedTransactions,
+    NodeConfigPortPools,
 };
 
 pub const NUM_OF_SEQUENCERS: usize = 2;
@@ -270,7 +271,7 @@ impl FlowSequencerSetup {
 
         // Derive the configuration for the sequencer node.
         let (mut node_config, _config_pointers_map) = create_node_config(
-            &mut available_ports,
+            &mut NodeConfigPortPools::new(&mut available_ports, None),
             chain_info,
             storage_config,
             state_sync_config,

@@ -76,6 +76,7 @@ use crate::utils::{
     ConsensusTxs,
     DeclareTx,
     DeployAndInvokeTxs,
+    NodeConfigPortPools,
     TestScenario,
 };
 
@@ -1169,6 +1170,14 @@ async fn get_sequencer_setup_configs(
     let mut config_available_ports = available_ports_generator
         .next()
         .expect("Failed to get an AvailablePorts instance for node configs");
+    let mut config_available_ports_fallback = available_ports_generator
+        .next()
+        .expect("Failed to get an AvailablePorts instance for node configs fallback");
+
+    let mut port_pools = NodeConfigPortPools::new(
+        &mut config_available_ports,
+        Some(&mut config_available_ports_fallback),
+    );
 
     // Create nodes.
     for (node_index, (node_component_config, node_type)) in
@@ -1199,13 +1208,11 @@ async fn get_sequencer_setup_configs(
         // Per node, create the executables constituting it.
         for (node_service, executable_component_config) in node_component_config.into_iter() {
             // Set a monitoring endpoint for each executable.
-            let monitoring_endpoint_config = MonitoringEndpointConfig {
-                port: config_available_ports.get_next_port(),
-                ..Default::default()
-            };
+            let monitoring_endpoint_config =
+                MonitoringEndpointConfig { port: port_pools.get_next_port(), ..Default::default() };
 
             let (config, config_pointers_map) = create_node_config(
-                &mut config_available_ports,
+                &mut port_pools,
                 chain_info.clone(),
                 storage_setup.storage_config.clone(),
                 state_sync_config.clone(),
