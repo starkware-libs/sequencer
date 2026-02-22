@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use apollo_infra::metrics::{metrics_recorder, MetricsConfig};
-use apollo_l1_provider_types::{L1EventsProviderSnapshot, MockL1EventsProviderClient};
+use apollo_l1_events_types::{L1EventsProviderSnapshot, MockL1EventsProviderClient};
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::{
     MempoolSnapshot,

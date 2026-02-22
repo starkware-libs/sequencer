@@ -3,13 +3,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_infra::trace_util::configure_tracing;
-use apollo_l1_provider_types::errors::L1EventsProviderError;
-use apollo_l1_provider_types::SessionState::{
+use apollo_l1_events_types::errors::L1EventsProviderError;
+use apollo_l1_events_types::SessionState::{
     self,
     Propose as ProposeSession,
     Validate as ValidateSession,
 };
-use apollo_l1_provider_types::{
+use apollo_l1_events_types::{
     Event,
     InvalidValidationStatus,
     L1EventsProviderClient,
