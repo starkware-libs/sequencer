@@ -8,6 +8,7 @@ use crate::alert_placeholders::{
     format_sampling_window,
     ComparisonValueOrPlaceholder,
     ExpressionOrExpressionWithPlaceholder,
+    SeverityValueOrPlaceholder,
 };
 use crate::alerts::{
     Alert,
@@ -36,7 +37,9 @@ pub(crate) fn get_consensus_round_above_zero() -> Alert {
     )
 }
 
-fn get_consensus_round_above_zero_multiple_times(alert_severity: AlertSeverity) -> Alert {
+fn get_consensus_round_above_zero_multiple_times(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     const ALERT_NAME: &str = "consensus_round_above_zero_multiple_times";
     let expr_template_string =
         format!("increase({}[{{}}s])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter());
@@ -61,10 +64,14 @@ fn get_consensus_round_above_zero_multiple_times(alert_severity: AlertSeverity) 
 }
 
 pub(crate) fn get_consensus_round_above_zero_multiple_times_vec() -> Vec<Alert> {
-    vec![get_consensus_round_above_zero_multiple_times(AlertSeverity::Sos)]
+    vec![get_consensus_round_above_zero_multiple_times(SeverityValueOrPlaceholder::Placeholder(
+        "consensus_round_above_zero_multiple_times".to_string(),
+    ))]
 }
 
-fn get_cende_write_blob_failure_alert(alert_severity: AlertSeverity) -> Alert {
+fn get_cende_write_blob_failure_alert(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     Alert::new(
         "cende_write_blob_failure",
         "Cende write blob failure",
@@ -79,10 +86,12 @@ fn get_cende_write_blob_failure_alert(alert_severity: AlertSeverity) -> Alert {
 }
 
 pub(crate) fn get_cende_write_blob_failure_alert_vec() -> Vec<Alert> {
-    vec![get_cende_write_blob_failure_alert(AlertSeverity::DayOnly)]
+    vec![get_cende_write_blob_failure_alert(SeverityValueOrPlaceholder::Placeholder(
+        "cende_write_blob_failure".to_string(),
+    ))]
 }
 
-fn get_consensus_p2p_peer_down(alert_severity: AlertSeverity) -> Alert {
+fn get_consensus_p2p_peer_down(alert_severity: impl Into<SeverityValueOrPlaceholder>) -> Alert {
     Alert::new(
         "consensus_p2p_peer_down",
         "Consensus p2p peer down",
@@ -102,7 +111,9 @@ fn get_consensus_p2p_peer_down(alert_severity: AlertSeverity) -> Alert {
 }
 
 pub(crate) fn get_consensus_p2p_peer_down_vec() -> Vec<Alert> {
-    vec![get_consensus_p2p_peer_down(AlertSeverity::Regular)]
+    vec![get_consensus_p2p_peer_down(SeverityValueOrPlaceholder::Placeholder(
+        "consensus_p2p_peer_down".to_string(),
+    ))]
 }
 
 pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
@@ -119,7 +130,9 @@ pub(crate) fn get_cende_write_blob_failure_once_alert() -> Alert {
     )
 }
 
-fn get_consensus_block_number_progress_is_slow(alert_severity: AlertSeverity) -> Alert {
+fn get_consensus_block_number_progress_is_slow(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     const ALERT_NAME: &str = "get_consensus_block_number_progress_is_slow";
     Alert::new(
         ALERT_NAME,
@@ -142,5 +155,7 @@ fn get_consensus_block_number_progress_is_slow(alert_severity: AlertSeverity) ->
 }
 
 pub(crate) fn get_consensus_block_number_progress_is_slow_vec() -> Vec<Alert> {
-    vec![get_consensus_block_number_progress_is_slow(AlertSeverity::Regular)]
+    vec![get_consensus_block_number_progress_is_slow(SeverityValueOrPlaceholder::Placeholder(
+        "get_consensus_block_number_progress_is_slow".to_string(),
+    ))]
 }

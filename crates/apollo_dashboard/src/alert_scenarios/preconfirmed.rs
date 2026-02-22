@@ -1,20 +1,22 @@
 use apollo_batcher::metrics::PRECONFIRMED_BLOCK_WRITTEN;
 use apollo_metrics::metrics::MetricQueryName;
 
+use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
     AlertGroup,
     AlertLogicalOp,
-    AlertSeverity,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
 /// No preconfirmed block was written in the last 10 minutes.
-fn get_preconfirmed_block_not_written(alert_severity: AlertSeverity) -> Alert {
+fn get_preconfirmed_block_not_written(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     Alert::new(
         "preconfirmed_block_not_written",
         "Preconfirmed block not written",
@@ -29,5 +31,7 @@ fn get_preconfirmed_block_not_written(alert_severity: AlertSeverity) -> Alert {
 }
 
 pub(crate) fn get_preconfirmed_block_not_written_vec() -> Vec<Alert> {
-    vec![get_preconfirmed_block_not_written(AlertSeverity::Sos)]
+    vec![get_preconfirmed_block_not_written(SeverityValueOrPlaceholder::Placeholder(
+        "preconfirmed_block_not_written".to_string(),
+    ))]
 }

@@ -1,19 +1,21 @@
 use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_SUCCESS_COUNT;
 use apollo_metrics::metrics::MetricQueryName;
 
+use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
     AlertGroup,
     AlertLogicalOp,
-    AlertSeverity,
     ObserverApplicability,
     EVALUATION_INTERVAL_SEC_DEFAULT,
     PENDING_DURATION_DEFAULT,
 };
 
-fn get_l1_message_scraper_no_successes_alert(alert_severity: AlertSeverity) -> Alert {
+fn get_l1_message_scraper_no_successes_alert(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     Alert::new(
         "l1_message_no_successes",
         "L1 message no successes",
@@ -28,5 +30,7 @@ fn get_l1_message_scraper_no_successes_alert(alert_severity: AlertSeverity) -> A
 }
 
 pub(crate) fn get_l1_message_scraper_no_successes_alert_vec() -> Vec<Alert> {
-    vec![get_l1_message_scraper_no_successes_alert(AlertSeverity::Sos)]
+    vec![get_l1_message_scraper_no_successes_alert(SeverityValueOrPlaceholder::Placeholder(
+        "l1_message_no_successes".to_string(),
+    ))]
 }

@@ -7,6 +7,7 @@ use apollo_http_server::metrics::{
 use apollo_mempool::metrics::{MEMPOOL_TRANSACTIONS_DROPPED, MEMPOOL_TRANSACTIONS_RECEIVED};
 use apollo_metrics::metrics::MetricQueryName;
 
+use crate::alert_placeholders::SeverityValueOrPlaceholder;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -58,7 +59,9 @@ pub(crate) fn get_http_server_high_transaction_failure_ratio() -> Alert {
     )
 }
 
-fn get_http_server_internal_error_ratio(alert_severity: AlertSeverity) -> Alert {
+fn get_http_server_internal_error_ratio(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     Alert::new(
         "http_server_internal_error_ratio",
         "http server internal error ratio",
@@ -77,10 +80,14 @@ fn get_http_server_internal_error_ratio(alert_severity: AlertSeverity) -> Alert 
 }
 
 pub(crate) fn get_http_server_internal_error_ratio_vec() -> Vec<Alert> {
-    vec![get_http_server_internal_error_ratio(AlertSeverity::Regular)]
+    vec![get_http_server_internal_error_ratio(SeverityValueOrPlaceholder::Placeholder(
+        "http_server_internal_error_ratio".to_string(),
+    ))]
 }
 
-fn get_mempool_transaction_drop_ratio(alert_severity: AlertSeverity) -> Alert {
+fn get_mempool_transaction_drop_ratio(
+    alert_severity: impl Into<SeverityValueOrPlaceholder>,
+) -> Alert {
     Alert::new(
         "mempool_transaction_drop_ratio",
         "Mempool transaction drop ratio",
@@ -104,7 +111,9 @@ fn get_mempool_transaction_drop_ratio(alert_severity: AlertSeverity) -> Alert {
 }
 
 pub(crate) fn get_mempool_transaction_drop_ratio_vec() -> Vec<Alert> {
-    vec![get_mempool_transaction_drop_ratio(AlertSeverity::DayOnly)]
+    vec![get_mempool_transaction_drop_ratio(SeverityValueOrPlaceholder::Placeholder(
+        "mempool_transaction_drop_ratio".to_string(),
+    ))]
 }
 
 pub(crate) fn get_http_server_internal_error_once() -> Alert {
