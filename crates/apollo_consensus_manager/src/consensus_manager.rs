@@ -369,6 +369,7 @@ impl ConsensusManager {
 /// Creates a committee provider from consensus manager config and clients.
 pub fn create_committee_provider(
     config: &ConsensusManagerConfig,
+    batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
     config_manager_client: SharedConfigManagerClient,
 ) -> Arc<dyn CommitteeProvider> {
@@ -380,6 +381,7 @@ pub fn create_committee_provider(
     ));
     let staking_manager = StakingManager::new(
         mock_staking_contract,
+        batcher_client,
         state_sync_client,
         Arc::new(BlockPseudorandomGenerator),
         staking_manager_config,
