@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771754523894,
+  "lastUpdate": 1771755807090,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1121,6 +1121,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1259.20106315,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aviv.g@starkware.co",
+            "name": "avivg-starkware",
+            "username": "avivg-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e8ade07260afc2e0d37ddbbf22b8ea98eef2264d",
+          "message": "blockifier: convert ComputationResources::tx_vm_resources to ExtendedExecutionResources (#12507)",
+          "timestamp": "2026-02-22T10:02:41Z",
+          "tree_id": "0dd796aad7240d1847379568fc1d2dccdfe25c72",
+          "url": "https://github.com/starkware-libs/sequencer/commit/e8ade07260afc2e0d37ddbbf22b8ea98eef2264d"
+        },
+        "date": 1771755806784,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 815.14756836,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1247.77540397,
             "unit": "ms"
           }
         ]
