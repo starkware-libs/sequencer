@@ -173,7 +173,7 @@ fn write_state_diff(batcher: &mut Batcher, height: BlockNumber, state_diff: &Thi
 
 async fn finished_proposal_info() -> FinishedProposalInfo {
     let artifacts = BlockExecutionArtifacts::create_for_testing().await;
-    FinishedProposalInfo::from_artifacts_and_parent(
+    FinishedProposalInfo::new(
         finished_proposal_info_from_artifacts(&artifacts),
         Some(parent_proposal_commitment()),
     )
@@ -386,7 +386,6 @@ fn verify_decision_reached_response(
         response.state_diff.deployed_contracts,
         expected_artifacts.commitment_state_diff.address_to_class_hash
     );
-    assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
     assert_eq!(response.central_objects.bouncer_weights, expected_artifacts.bouncer_weights);
     assert_eq!(
         response.central_objects.execution_infos.len(),

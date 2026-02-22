@@ -818,7 +818,6 @@ impl Batcher {
 
         Ok(DecisionReachedResponse {
             state_diff,
-            l2_gas_used: block_execution_artifacts.l2_gas_used,
             central_objects: CentralObjects {
                 execution_infos,
                 bouncer_weights: block_execution_artifacts.bouncer_weights,
@@ -1020,10 +1019,7 @@ impl Batcher {
         };
         let parent_proposal_commitment =
             self.active_height.and_then(|h| self.get_parent_proposal_commitment(h).ok().flatten());
-        Some(Ok(FinishedProposalInfo::from_artifacts_and_parent(
-            artifact_derived,
-            parent_proposal_commitment,
-        )))
+        Some(Ok(FinishedProposalInfo::new(artifact_derived, parent_proposal_commitment)))
     }
 
     // Ends the current active proposal.
@@ -1642,7 +1638,7 @@ pub enum StorageCommitmentBlockHash {
 }
 
 /// Builds the artifact-derived part of [`FinishedProposalInfo`]. Pass the result to
-/// [`FinishedProposalInfo::from_artifacts_and_parent`] with the parent commitment.
+/// [`FinishedProposalInfo::new`] with the parent commitment.
 pub(crate) fn finished_proposal_info_from_artifacts(
     artifacts: &BlockExecutionArtifacts,
 ) -> FinishedProposalInfoWithoutParent {
@@ -1650,5 +1646,6 @@ pub(crate) fn finished_proposal_info_from_artifacts(
         proposal_commitment: artifacts.commitment(),
         final_n_executed_txs: artifacts.final_n_executed_txs,
         block_header_commitments: artifacts.partial_block_hash_components().header_commitments,
+        l2_gas_used: artifacts.l2_gas_used,
     }
 }
