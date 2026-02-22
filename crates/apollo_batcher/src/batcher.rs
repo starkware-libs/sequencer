@@ -818,7 +818,6 @@ impl Batcher {
 
         Ok(DecisionReachedResponse {
             state_diff,
-            l2_gas_used: block_execution_artifacts.l2_gas_used,
             central_objects: CentralObjects {
                 execution_infos,
                 bouncer_weights: block_execution_artifacts.bouncer_weights,
@@ -1650,5 +1649,6 @@ pub(crate) fn finished_proposal_info_from_artifacts(
         proposal_commitment: artifacts.commitment(),
         final_n_executed_txs: artifacts.final_n_executed_txs,
         block_header_commitments: artifacts.partial_block_hash_components().header_commitments,
+        l2_gas_used: artifacts.l2_gas_used,
     }
 }
