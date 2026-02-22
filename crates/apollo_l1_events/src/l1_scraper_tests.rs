@@ -1,8 +1,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use apollo_l1_provider_types::errors::L1EventsProviderError;
-use apollo_l1_provider_types::MockL1EventsProviderClient;
+use apollo_l1_events_types::errors::L1EventsProviderError;
+use apollo_l1_events_types::MockL1EventsProviderClient;
 use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use assert_matches::assert_matches;
 use papyrus_base_layer::{L1BlockHash, L1BlockReference, MockBaseLayerContract};
@@ -43,7 +43,7 @@ async fn provider_crash_should_crash_scraper() {
     // Setup.
     let mut l1_events_provider_client = MockL1EventsProviderClient::default();
     l1_events_provider_client.expect_add_events().once().returning(|_| {
-        Err(apollo_l1_provider_types::errors::L1EventsProviderClientError::L1EventsProviderError(
+        Err(apollo_l1_events_types::errors::L1EventsProviderClientError::L1EventsProviderError(
             L1EventsProviderError::Uninitialized,
         ))
     });

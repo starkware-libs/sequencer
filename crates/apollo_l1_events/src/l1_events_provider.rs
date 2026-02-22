@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_ms;
-use apollo_l1_provider_types::errors::L1EventsProviderError;
-use apollo_l1_provider_types::{
+use apollo_l1_events_types::errors::L1EventsProviderError;
+use apollo_l1_events_types::{
     Event,
     L1EventsProviderResult,
     L1EventsProviderSnapshot,

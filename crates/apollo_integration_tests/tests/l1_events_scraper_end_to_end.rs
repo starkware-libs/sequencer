@@ -6,7 +6,7 @@ use apollo_base_layer_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_l1_events::event_identifiers_to_track;
 use apollo_l1_events::l1_scraper::L1EventsScraper;
-use apollo_l1_provider_types::{Event, MockL1EventsProviderClient};
+use apollo_l1_events_types::{Event, MockL1EventsProviderClient};
 use apollo_l1_scraper_config::config::L1EventsScraperConfig;
 use mockall::Sequence;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;

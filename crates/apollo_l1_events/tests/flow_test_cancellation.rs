@@ -1,7 +1,7 @@
 #![cfg(any(test, feature = "testing"))]
 mod utils;
 
-use apollo_l1_provider_types::{
+use apollo_l1_events_types::{
     InvalidValidationStatus,
     L1EventsProviderClient,
     SessionState,

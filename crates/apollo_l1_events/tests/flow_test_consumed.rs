@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_l1_provider_types::{L1EventsProviderClient, SessionState, ValidationStatus};
+use apollo_l1_events_types::{L1EventsProviderClient, SessionState, ValidationStatus};
 use apollo_time::time::Clock;
 use papyrus_base_layer::{
     L1BlockHash,
