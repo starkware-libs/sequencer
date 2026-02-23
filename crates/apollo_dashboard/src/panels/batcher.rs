@@ -47,7 +47,9 @@ fn get_panel_commitment_manager_average_latency(
         None => count,
     };
     let expr = format!("{numerator} / {divisor}");
-    Panel::new(name, description, expr, PanelType::TimeSeries).with_unit(Unit::Seconds)
+    Panel::new(name, description, expr, PanelType::TimeSeries)
+        .with_unit(Unit::Seconds)
+        .with_log_query("\"Block\" AND \"commitment latencies\"")
 }
 
 pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
