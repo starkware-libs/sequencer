@@ -282,7 +282,7 @@ impl ClassHashStorage {
                 dynamic_config_provider,
             )?;
 
-        let storage_reader_server_handle = storage_reader_server.spawn().map(Arc::new);
+        let storage_reader_server_handle = storage_reader_server.spawn()?.map(Arc::new);
 
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)), storage_reader_server_handle })
     }

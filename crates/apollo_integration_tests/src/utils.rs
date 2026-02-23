@@ -198,10 +198,40 @@ impl TestScenario for DeployAndInvokeTxs {
     }
 }
 
+/// Wraps a main port pool with an optional fallback pool. When the main pool runs
+/// out of available ports (all remaining slots are occupied), the fallback is used.
+pub struct NodeConfigPortPools<'a> {
+    main: &'a mut AvailablePorts,
+    main_fallback: Option<&'a mut AvailablePorts>,
+}
+
+impl<'a> NodeConfigPortPools<'a> {
+    pub fn new(
+        main: &'a mut AvailablePorts,
+        main_fallback: Option<&'a mut AvailablePorts>,
+    ) -> Self {
+        Self { main, main_fallback }
+    }
+
+    pub fn get_next_port(&mut self) -> u16 {
+        if let Some(port) = self.main.get_next_port_opt() {
+            return port;
+        }
+        self.main_fallback
+            .as_mut()
+            .and_then(|fb| fb.get_next_port_opt())
+            .expect("No available ports in main or fallback pool")
+    }
+
+    pub fn get_next_socket(&mut self) -> SocketAddr {
+        SocketAddr::new(std::net::IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
+    }
+}
+
 // TODO(Tsabary): clean the passed args.
 #[allow(clippy::too_many_arguments)]
 pub fn create_node_config(
-    available_ports: &mut AvailablePorts,
+    port_pools: &mut NodeConfigPortPools<'_>,
     chain_info: ChainInfo,
     storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
@@ -217,11 +247,14 @@ pub fn create_node_config(
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
-    let batcher_config = create_batcher_config(
+    let mut batcher_config = create_batcher_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_gas,
     );
+    let http_server_config = create_http_server_config(port_pools.get_next_socket());
+    batcher_config.static_config.storage_reader_server_static_config.port =
+        port_pools.get_next_port();
     let committer_config = ApolloCommitterConfig {
         db_path: storage_config.committer_db_path.clone(),
         ..Default::default()
@@ -250,12 +283,14 @@ pub fn create_node_config(
         eth_to_strk_oracle_config,
         ..Default::default()
     };
-    let http_server_config =
-        create_http_server_config(available_ports.get_next_local_host_socket());
-    let class_manager_config =
-        create_class_manager_config(storage_config.class_manager_storage_config);
+    let class_manager_config = create_class_manager_config(
+        storage_config.class_manager_storage_config,
+        port_pools.get_next_port(),
+    );
     let proof_manager_config = storage_config.proof_manager_config.clone();
     state_sync_config.static_config.storage_config = storage_config.state_sync_storage_config;
+    state_sync_config.static_config.storage_reader_server_static_config.port =
+        port_pools.get_next_port();
     state_sync_config.static_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.static_config.rpc_config.starknet_url.clone();
 
@@ -739,8 +774,10 @@ pub fn create_mempool_config(validate_resource_bounds: bool) -> MempoolConfig {
 }
 
 pub fn create_class_manager_config(
-    class_storage_config: FsClassStorageConfig,
+    mut class_storage_config: FsClassStorageConfig,
+    port: u16,
 ) -> FsClassManagerConfig {
+    class_storage_config.storage_reader_server_static_config.port = port;
     let cached_class_storage_config =
         CachedClassStorageConfig { class_cache_size: 100, deprecated_class_cache_size: 100 };
     let class_manager_config =

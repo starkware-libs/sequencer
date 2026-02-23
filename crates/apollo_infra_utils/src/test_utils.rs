@@ -43,6 +43,7 @@ pub enum TestIdentifier {
     SyncFlowIntegrationTest,
     StorageReaderServerUnitTests,
     StorageReaderTypesUnitTests,
+    ClassManagerUnitTests,
     L1EventsScraperEndToEndTest,
     MockedStarknetStateUpdateTest,
     LatestProvedBlockEthereumTest,
@@ -80,6 +81,12 @@ impl AvailablePorts {
 
     #[instrument]
     pub fn get_next_port(&mut self) -> u16 {
+        self.get_next_port_opt().unwrap_or_else(|| {
+            panic!("No available ports found in range [{},{}]", self.start_port, self.max_port)
+        })
+    }
+
+    pub fn get_next_port_opt(&mut self) -> Option<u16> {
         while self.current_port < self.max_port {
             let port = self.current_port;
             self.current_port += 1;
@@ -91,11 +98,10 @@ impl AvailablePorts {
                 );
             } else {
                 println!("Allocated port: {port} in range [{},{}]", self.start_port, self.max_port);
-                return port;
+                return Some(port);
             }
         }
-
-        panic!("No available ports found in range [{},{}]", self.start_port, self.max_port);
+        None
     }
 
     pub fn get_next_ports(&mut self, n: usize) -> Vec<u16> {
