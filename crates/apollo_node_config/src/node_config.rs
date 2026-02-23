@@ -28,10 +28,7 @@ use apollo_gateway_config::config::GatewayConfig;
 use apollo_http_server_config::config::{HttpServerConfig, HttpServerDynamicConfig};
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_events_config::config::{L1EventsProviderConfig, L1EventsScraperConfig};
-use apollo_l1_gas_price_provider_config::config::{
-    L1GasPriceProviderConfig,
-    L1GasPriceScraperConfig,
-};
+use apollo_l1_gas_price_config::config::{L1GasPriceProviderConfig, L1GasPriceScraperConfig};
 use apollo_mempool_config::config::{MempoolConfig, MempoolDynamicConfig};
 use apollo_mempool_p2p_config::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
@@ -263,10 +260,7 @@ impl SerializeConfig for SequencerNodeConfig {
             ser_optional_sub_config(&self.mempool_config, "mempool_config"),
             ser_optional_sub_config(&self.mempool_p2p_config, "mempool_p2p_config"),
             ser_optional_sub_config(&self.monitoring_endpoint_config, "monitoring_endpoint_config"),
-            ser_optional_sub_config(
-                &self.l1_gas_price_provider_config,
-                "l1_gas_price_provider_config",
-            ),
+            ser_optional_sub_config(&self.l1_gas_price_config, "l1_gas_price_config"),
             ser_optional_sub_config(
                 &self.l1_gas_price_scraper_config,
                 "l1_gas_price_scraper_config",
@@ -297,7 +291,7 @@ impl Default for SequencerNodeConfig {
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),
-            l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
+            l1_gas_price_config: Some(L1GasPriceProviderConfig::default()),
             l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
             l1_events_provider_config: Some(L1EventsProviderConfig::default()),
             l1_events_scraper_config: Some(L1EventsScraperConfig::default()),
@@ -459,7 +453,7 @@ impl SequencerNodeConfig {
         validate_component_config_is_set_iff_running_locally!(http_server, http_server_config);
         validate_component_config_is_set_iff_running_locally!(
             l1_gas_price_provider,
-            l1_gas_price_provider_config
+            l1_gas_price_config
         );
         validate_component_config_is_set_iff_running_locally!(
             l1_gas_price_scraper,

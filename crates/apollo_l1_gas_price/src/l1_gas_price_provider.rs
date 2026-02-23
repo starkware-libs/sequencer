@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_ms;
-use apollo_l1_gas_price_provider_config::config::L1GasPriceProviderConfig;
+use apollo_l1_gas_price_config::config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{
     EthToStrkOracleClientTrait,
