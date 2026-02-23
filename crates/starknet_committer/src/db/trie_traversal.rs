@@ -361,7 +361,7 @@ pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+) -> ForestResult<(HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
@@ -457,14 +457,15 @@ async fn create_storage_tries_sequentially<'a, Layout: NodeLayoutFor<StarknetSto
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+) -> ForestResult<(HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
+    let mut all_siblings = DbHashMap::new();
     let mut storage_tries = HashMap::new();
     for (address, updates) in actual_storage_updates {
-        let original_skeleton = create_storage_trie::<Layout>(
+        let (original_skeleton, siblings) = create_storage_trie::<Layout>(
             storage,
             *address,
             updates,
@@ -475,8 +476,9 @@ where
         .await?;
 
         storage_tries.insert(*address, original_skeleton);
+        all_siblings.extend(siblings);
     }
-    Ok(storage_tries)
+    Ok((storage_tries, all_siblings))
 }
 
 async fn create_storage_tries_concurrently<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
@@ -485,18 +487,19 @@ async fn create_storage_tries_concurrently<'a, Layout: NodeLayoutFor<StarknetSto
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
-) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
+) -> ForestResult<(HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
+    let mut all_siblings = DbHashMap::new();
     let mut futures = FuturesUnordered::new();
     let mut storage_tries = HashMap::new();
 
     for (address, updates) in actual_storage_updates {
         // Create the future - tokio will poll all futures concurrently.
         futures.push(async move {
-            let original_skeleton = create_storage_trie::<Layout>(
+            let (original_skeleton, siblings) = create_storage_trie::<Layout>(
                 storage,
                 *address,
                 updates,
@@ -505,17 +508,18 @@ where
                 config.warn_on_trivial_modifications(),
             )
             .await?;
-            Ok::<_, ForestError>((*address, original_skeleton))
+            Ok::<_, ForestError>((*address, original_skeleton, siblings))
         });
     }
 
     // Collect all results as they complete.
     while let Some(result) = futures.next().await {
-        let (address, original_skeleton) = result?;
+        let (address, original_skeleton, siblings) = result?;
         storage_tries.insert(address, original_skeleton);
+        all_siblings.extend(siblings);
     }
 
-    Ok(storage_tries)
+    Ok((storage_tries, all_siblings))
 }
 
 /// Helper function to create a storage trie for a single contract.
@@ -526,11 +530,12 @@ async fn create_storage_trie<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
     warn_on_trivial_modifications: bool,
-) -> ForestResult<OriginalSkeletonTreeImpl<'a>>
+) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, DbHashMap)>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
         HasStaticPrefix<KeyContext = ContractAddress>,
 {
+    let mut siblings_map = DbHashMap::new();
     // Extract data needed for this contract.
     let sorted_leaf_indices = *storage_tries_sorted_indices
         .get(&address)
@@ -550,15 +555,17 @@ where
     > = updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect();
 
     let previous_leaves = None;
-    Ok(create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+    let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
         storage,
         contract_state.storage_root_hash,
         sorted_leaf_indices,
         &trie_config,
         &leaf_modifications,
         previous_leaves,
-        None,
+        Some(&mut siblings_map),
         &address,
     )
-    .await?)
+    .await?;
+
+    Ok((original_skeleton, siblings_map))
 }
