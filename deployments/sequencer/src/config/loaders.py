@@ -422,16 +422,12 @@ class NodeConfigLoader(Config):
                     for segment in overlay_path_segments[1:]:
                         overlay_base_path = overlay_base_path / segment
                     label = (
-                        "config_overlay_path:"
-                        if idx == 0
-                        else f"config_overlay_path_{idx + 1}:"
+                        "config_overlay_path:" if idx == 0 else f"config_overlay_path_{idx + 1}:"
                     )
                     paths_table.add_row(label, str(overlay_base_path))
                 else:
                     label = (
-                        "config_overlay_path:"
-                        if idx == 0
-                        else f"config_overlay_path_{idx + 1}:"
+                        "config_overlay_path:" if idx == 0 else f"config_overlay_path_{idx + 1}:"
                     )
                     paths_table.add_row(label, "[dim]<none>[/dim]")
         else:
@@ -608,9 +604,7 @@ class NodeConfigLoader(Config):
                 )
             )
 
-            NodeConfigLoader._print_file_paths_section(
-                console, config_list_path, layout, overlays
-            )
+            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlays)
             NodeConfigLoader._print_missing_placeholders_section(
                 console, remaining_placeholders, result
             )
@@ -728,9 +722,7 @@ class NodeConfigLoader(Config):
                 )
             )
 
-            NodeConfigLoader._print_file_paths_section(
-                console, config_list_path, layout, overlays
-            )
+            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlays)
             NodeConfigLoader._print_missing_placeholders_section(
                 console, remaining_placeholders, config
             )
