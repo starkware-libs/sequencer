@@ -35,8 +35,10 @@ use crate::commitment_manager::types::{
     TaskTimer,
 };
 use crate::metrics::{
+    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
     COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
+    COMMITMENT_MANAGER_REVERT_BLOCK_COUNT,
     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
     GLOBAL_ROOT_HEIGHT,
 };
@@ -190,7 +192,10 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 }
             }
         }
-        COMMITMENT_MANAGER_NUM_COMMIT_RESULTS.record_lossy(results.len());
+        COMMITMENT_MANAGER_NUM_COMMIT_RESULTS.increment(
+            u64::try_from(results.len()).expect("Conversion from usize to u64 should not fail."),
+        );
+        debug!("Received {} commitment results from the state committer.", results.len());
         results
     }
 
@@ -496,7 +501,6 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         }
     }
 
-    #[allow(clippy::as_conversions)]
     fn update_task_duration_metric(
         &mut self,
         task_type: CommitterRequestLabelValue,
@@ -504,20 +508,22 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
     ) {
         let task_duration = self.task_timer.stop_timer(task_type, height);
         if let Some(task_duration) = task_duration {
+            let task_duration = u64::try_from(task_duration)
+                .expect("Duration (in microseconds) is not more than 500,000 years.");
             match task_type {
                 CommitterRequestLabelValue::CommitBlock => {
                     debug!(
                         "Commit block latency for block {height}: {task_duration} milliseconds."
                     );
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY
-                        .record_lossy(task_duration as f64 / 1000.0)
+                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.increment(task_duration);
+                    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.increment(1);
                 }
                 CommitterRequestLabelValue::RevertBlock => {
                     debug!(
                         "Revert block latency for block {height}: {task_duration} milliseconds."
                     );
-                    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY
-                        .record_lossy(task_duration as f64 / 1000.0)
+                    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.increment(task_duration);
+                    COMMITMENT_MANAGER_REVERT_BLOCK_COUNT.increment(1);
                 }
             }
         }

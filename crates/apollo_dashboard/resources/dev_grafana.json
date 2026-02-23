@@ -488,47 +488,41 @@
         },
         {
           "title": "Commit Block Latency",
-          "description": "The latency of commit tasks in the commitment manager",
+          "description": "Average latency of commit tasks in the commitment manager over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_commit_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_commit_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_commitment_manager_commit_block_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000 * clamp_min(increase(batcher_commitment_manager_commit_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s",
-            "log_query": "\"Commit block latency\""
+            "unit": "s"
           }
         },
         {
           "title": "Commitment Manager Results Count",
-          "description": "The number of commit results received from the commitment manager",
+          "description": "The number of commit results received from the commitment manager (1m window)",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_num_commit_results_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_num_commit_results_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "increase(batcher_commitment_manager_num_commit_results{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
           ],
           "extra_params": {}
         },
         {
           "title": "Revert Block Latency",
-          "description": "The latency of revert tasks in the commitment manager",
+          "description": "Average latency of revert tasks in the commitment manager over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_commitment_manager_revert_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_commitment_manager_revert_block_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_commitment_manager_revert_block_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000 * clamp_min(increase(batcher_commitment_manager_revert_block_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
-            "unit": "s",
-            "log_query": "\"Revert block latency\""
+            "unit": "s"
           }
         },
         {
           "title": "Transaction Commitment Latency",
-          "description": "Duration of transactions commitment computation",
+          "description": "Average duration of transaction commitment computation per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_tx_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_tx_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_tx_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_block_commitment_measurements_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s"
@@ -536,11 +530,10 @@
         },
         {
           "title": "Transaction Commitment Per Transaction Latency",
-          "description": "Duration of transactions commitment computation per transaction",
+          "description": "Average duration of transaction commitment per transaction over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_tx_commitment_per_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_tx_commitment_per_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_tx_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_tx_commitment_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s"
@@ -548,11 +541,10 @@
         },
         {
           "title": "Event Commitment Latency",
-          "description": "Duration of event commitment computation",
+          "description": "Average duration of event commitment computation per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_event_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_event_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_event_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_block_commitment_measurements_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s"
@@ -560,11 +552,10 @@
         },
         {
           "title": "Event Commitment Per Event Latency",
-          "description": "Duration of event commitment computation per event",
+          "description": "Average duration of event commitment per event over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_event_commitment_per_event_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_event_commitment_per_event_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_event_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_event_commitment_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s"
@@ -572,11 +563,10 @@
         },
         {
           "title": "Receipt Commitment Latency",
-          "description": "Duration of receipt commitment computation",
+          "description": "Average duration of receipt commitment computation per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_receipt_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_receipt_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_receipt_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_block_commitment_measurements_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s"
@@ -584,11 +574,10 @@
         },
         {
           "title": "State Diff Commitment Latency",
-          "description": "Duration of state diff commitment computation",
+          "description": "Average duration of state diff commitment computation per block over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_state_diff_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_state_diff_commitment_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_state_diff_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_block_commitment_measurements_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s"
@@ -596,11 +585,10 @@
         },
         {
           "title": "State Diff Commitment Per State Diff Length",
-          "description": "Duration of state diff commitment computation per state diff length",
+          "description": "Average duration of state diff commitment per state diff length over a 1m window",
           "type": "timeseries",
           "exprs": [
-            "histogram_quantile(0.50, sum by (le) (rate(batcher_state_diff_commitment_per_state_diff_length_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))",
-            "histogram_quantile(0.95, sum by (le) (rate(batcher_state_diff_commitment_per_state_diff_length_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[5m])))"
+            "(increase(batcher_state_diff_commitment_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])) / (1000000 * clamp_min(increase(batcher_state_diff_length{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]), 1))"
           ],
           "extra_params": {
             "unit": "s"
