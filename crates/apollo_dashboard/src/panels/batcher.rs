@@ -2,11 +2,13 @@ use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     BLOCK_CLOSE_REASON,
     BUILDING_HEIGHT,
+    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
     COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
+    COMMITMENT_MANAGER_REVERT_BLOCK_COUNT,
     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
+    EVENT_COMMITMENT_COUNT,
     EVENT_COMMITMENT_LATENCY,
-    EVENT_COMMITMENT_PER_EVENT_LATENCY,
     GLOBAL_ROOT_HEIGHT,
     LABEL_NAME_BLOCK_CLOSE_REASON,
     PROPOSER_DEFERRED_TXS,
@@ -14,9 +16,9 @@ use apollo_batcher::metrics::{
     REJECTED_TRANSACTIONS,
     REVERTED_TRANSACTIONS,
     STATE_DIFF_COMMITMENT_LATENCY,
-    STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY,
+    STATE_DIFF_LENGTH,
+    TX_COMMITMENT_COUNT,
     TX_COMMITMENT_LATENCY,
-    TX_COMMITMENT_PER_TX_LATENCY,
     VALIDATOR_WASTED_TXS,
 };
 use apollo_consensus::metrics::CONSENSUS_BLOCK_NUMBER;
@@ -29,6 +31,30 @@ use apollo_metrics::metrics::MetricQueryName;
 use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
+
+/// Returns a panel that shows the average latency (in seconds) over a 1m window:
+/// (increase(total_ms)[1m] / 1000) / clamp_min(increase(count)[1m], 1).
+fn average_latency_panel(
+    name: impl ToString,
+    description: impl ToString,
+    numerator: &dyn MetricQueryName,
+    count: &dyn MetricQueryName,
+    divisor: Option<u64>,
+    unit: Option<Unit>,
+) -> Panel {
+    let numerator = format!("({})", increase(numerator, "1m"));
+    let count = format!("clamp_min({}, 1)", increase(count, "1m"));
+    let divisor = match divisor {
+        Some(n) => format!("{} * {}", n, count),
+        None => count,
+    };
+    let expr = format!("{} / {}", numerator, divisor);
+    let mut panel = Panel::new(name, description, expr, PanelType::TimeSeries);
+    if let Some(u) = unit {
+        panel = panel.with_unit(u);
+    }
+    panel
+}
 
 pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
     Panel::new(
@@ -157,94 +183,111 @@ fn get_panel_num_txs_in_proposal() -> Panel {
 }
 
 fn get_panel_commitment_manager_commit_block_latency() -> Panel {
-    Panel::from_hist(
-        &COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
+    average_latency_panel(
         "Commit Block Latency",
-        "The latency of commit tasks in the commitment manager",
+        "Average latency of commit tasks in the commitment manager over a 1m window",
+        &COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
+        &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
+        Some(1000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
-    .with_log_query("Commit block latency")
 }
 
 fn get_panel_commitment_manager_revert_block_latency() -> Panel {
-    Panel::from_hist(
-        &COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
+    average_latency_panel(
         "Revert Block Latency",
-        "The latency of revert tasks in the commitment manager",
+        "Average latency of revert tasks in the commitment manager over a 1m window",
+        &COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
+        &COMMITMENT_MANAGER_REVERT_BLOCK_COUNT,
+        Some(1000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
-    .with_log_query("Revert block latency")
 }
 
 fn get_panel_commitment_manager_results_count() -> Panel {
-    Panel::from_hist(
-        &COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
+    Panel::new(
         "Commitment Manager Results Count",
-        "The number of commit results received from the commitment manager",
+        "The number of commit results received from the commitment manager (1m window)",
+        increase(&COMMITMENT_MANAGER_NUM_COMMIT_RESULTS, "1m"),
+        PanelType::TimeSeries,
     )
 }
 
 fn get_panel_txs_commitment_latency() -> Panel {
-    Panel::from_hist(
-        &TX_COMMITMENT_LATENCY,
+    average_latency_panel(
         "Transaction Commitment Latency",
-        "Duration of transactions commitment computation",
+        "Average duration of transaction commitment computation over a 1m window",
+        &TX_COMMITMENT_LATENCY,
+        &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
+        Some(1_000_000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_txs_commitment_per_tx_latency() -> Panel {
-    Panel::from_hist(
-        &TX_COMMITMENT_PER_TX_LATENCY,
+    average_latency_panel(
         "Transaction Commitment Per Transaction Latency",
-        "Duration of transactions commitment computation per transaction",
+        "Average duration of transaction commitment per transaction over a 1m window",
+        &TX_COMMITMENT_LATENCY,
+        &TX_COMMITMENT_COUNT,
+        Some(1_000_000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_events_commitment_latency() -> Panel {
-    Panel::from_hist(
-        &EVENT_COMMITMENT_LATENCY,
+    average_latency_panel(
         "Event Commitment Latency",
-        "Duration of event commitment computation",
+        "Average duration of event commitment computation over a 1m window",
+        &EVENT_COMMITMENT_LATENCY,
+        &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
+        Some(1_000_000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_events_commitment_per_event_latency() -> Panel {
-    Panel::from_hist(
-        &EVENT_COMMITMENT_PER_EVENT_LATENCY,
+    average_latency_panel(
         "Event Commitment Per Event Latency",
-        "Duration of event commitment computation per event",
+        "Average duration of event commitment per event over a 1m window",
+        &EVENT_COMMITMENT_LATENCY,
+        &EVENT_COMMITMENT_COUNT,
+        Some(1_000_000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_receipts_commitment_latency() -> Panel {
-    Panel::from_hist(
-        &RECEIPT_COMMITMENT_LATENCY,
+    average_latency_panel(
         "Receipt Commitment Latency",
-        "Duration of receipt commitment computation",
+        "Average duration of receipt commitment computation over a 1m window",
+        &RECEIPT_COMMITMENT_LATENCY,
+        &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
+        Some(1_000_000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_state_diff_commitment_latency() -> Panel {
-    Panel::from_hist(
-        &STATE_DIFF_COMMITMENT_LATENCY,
+    average_latency_panel(
         "State Diff Commitment Latency",
-        "Duration of state diff commitment computation",
+        "Average duration of state diff commitment computation over a 1m window",
+        &STATE_DIFF_COMMITMENT_LATENCY,
+        &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
+        Some(1_000_000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
 }
 
 fn get_panel_state_diff_commitment_per_state_diff_length() -> Panel {
-    Panel::from_hist(
-        &STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY,
+    average_latency_panel(
         "State Diff Commitment Per State Diff Length",
-        "Duration of state diff commitment computation per state diff length",
+        "Average duration of state diff commitment per state diff length over a 1m window",
+        &STATE_DIFF_COMMITMENT_LATENCY,
+        &STATE_DIFF_LENGTH,
+        Some(1_000_000),
+        Some(Unit::Seconds),
     )
-    .with_unit(Unit::Seconds)
 }
 
 pub(crate) fn get_batcher_row() -> Row {
