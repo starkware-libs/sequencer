@@ -181,7 +181,7 @@ impl AccountTransaction {
         }
     }
 
-    pub fn calldata_length(&self) -> usize {
+    fn calldata_length(&self) -> usize {
         let calldata = match &self.tx {
             Transaction::Declare(_tx) => return 0,
             Transaction::DeployAccount(tx) => tx.constructor_calldata(),
@@ -195,8 +195,19 @@ impl AccountTransaction {
         self.signature().0.len()
     }
 
-    pub fn proof_facts_length(&self) -> usize {
+    fn proof_facts_length(&self) -> usize {
         if let Transaction::Invoke(tx) = &self.tx { tx.proof_facts_length() } else { 0 }
+    }
+
+    /// Returns the total calldata length, including proof_facts.
+    /// Both are charged at the same gas per data felt rate.
+    pub fn extended_calldata_length(&self) -> usize {
+        self.calldata_length() + self.proof_facts_length()
+    }
+
+    /// Returns whether this transaction includes client-side proof facts.
+    pub fn has_client_side_proof(&self) -> bool {
+        self.proof_facts_length() > 0
     }
 
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
@@ -712,7 +723,7 @@ impl AccountTransaction {
                 remaining_gas.limit_usage(tx_context.sierra_gas_limit(&ExecutionMode::Execute)),
             )),
         );
-        let extended_calldata_length = self.calldata_length() + self.proof_facts_length();
+        let extended_calldata_length = self.extended_calldata_length();
         let n_allotted_execution_steps = execution_context.subtract_validation_and_overhead_steps(
             &validate_call_info,
             &self.tx_type(),
