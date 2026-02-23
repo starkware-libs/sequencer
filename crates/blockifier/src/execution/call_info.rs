@@ -197,7 +197,7 @@ impl Sum for ExecutionSummary {
 }
 
 impl ExecutionSummary {
-    /// Returns the a gas cost _estimation_ for the execution summary.
+    /// Returns a gas cost _estimation_ for the execution summary.
     ///
     /// In particular, this calculation ignores state changes, cost of declared classes, L1 handler
     /// payload length, plus Starknet OS overhead. These costs are only accounted for on a
