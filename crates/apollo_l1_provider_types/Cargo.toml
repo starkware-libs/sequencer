@@ -19,7 +19,6 @@ papyrus_base_layer.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 strum = { workspace = true, features = ["derive"] }
-strum_macros.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

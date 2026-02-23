@@ -47,7 +47,6 @@ starknet-core.workspace = true
 starknet-crypto.workspace = true
 starknet-types-core = { workspace = true, features = ["hash"] }
 strum = { workspace = true, features = ["derive"] }
-strum_macros.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio.workspace = true

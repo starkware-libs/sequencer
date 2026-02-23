@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use apollo_sizeof::SizeOf;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use strum_macros::EnumIter;
+use strum::EnumIter;
 
 use crate::block::{GasPrice, GasPriceVector, NonzeroGasPrice};
 use crate::transaction::fields::{Fee, Resource, Tip};

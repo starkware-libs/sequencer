@@ -18,8 +18,7 @@ use mockall::automock;
 use papyrus_base_layer::L1BlockNumber;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice};
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use tracing::instrument;
 
 pub const DEFAULT_ETH_TO_FRI_RATE: u128 = 10_u128.pow(21);

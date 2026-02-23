@@ -44,7 +44,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionVersion,
 };
-use strum_macros::EnumIter;
+use strum::EnumIter;
 use tracing::error;
 
 use crate::reader::ReaderClientError;

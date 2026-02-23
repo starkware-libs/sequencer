@@ -19,8 +19,7 @@ use apollo_staking_config::config::StakingManagerDynamicConfig;
 use apollo_state_sync_config::config::StateSyncDynamicConfig;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 use crate::config_manager_types::ConfigManagerResult;

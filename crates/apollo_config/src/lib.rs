@@ -53,6 +53,7 @@ use const_format::formatcp;
 use dumping::REQUIRED_PARAM_DESCRIPTION_PREFIX;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use strum::Display;
 use validator::ValidationError;
 use validators::ParsedValidationErrors;
 
@@ -178,7 +179,7 @@ impl SerializedParam {
 }
 
 /// A serialized type of a configuration parameter.
-#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, strum_macros::Display)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Display)]
 #[allow(missing_docs)]
 pub enum SerializationType {
     Boolean,

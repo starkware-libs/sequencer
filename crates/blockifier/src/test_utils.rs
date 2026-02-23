@@ -50,7 +50,6 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
-use strum_macros::EnumCount as EnumCountMacro;
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -95,7 +94,7 @@ pub fn create_valid_proof_facts_for_testing() -> ProofFacts {
     )
 }
 
-#[derive(Clone, Copy, EnumCountMacro, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, EnumCount, PartialEq, Eq, Debug)]
 pub enum CompilerBasedVersion {
     CairoVersion(CairoVersion),
     OldCairo1,
