@@ -143,7 +143,7 @@ class SleepConfig:
     """Sleep/delay settings for block streaming and special transaction pacing."""
 
     producer_startup_sleep_seconds: float = 10.0
-    deploy_account_sleep_time_seconds: float = 2.0
+    gateway_error_retry_interval_seconds: float = 10.0
 
 
 @dataclass(frozen=True, slots=True)
