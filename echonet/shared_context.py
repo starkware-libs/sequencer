@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import glob
 import json
 import shutil
 import threading
@@ -23,6 +24,24 @@ from echonet.logger import get_logger
 from echonet.report_models import SnapshotModel
 
 logger = get_logger("shared_context")
+
+
+def _find_archived_block_path(*, block_number: int, field: str) -> Optional[Path]:
+    """
+    Find the newest archived `{field}_{block_number}.json` under `CONFIG.paths.log_dir/blocks_*`.
+    """
+    filename = f"{field}_{int(block_number)}.json"
+    root = CONFIG.paths.log_dir
+    if not root.exists():
+        return None
+
+    pattern = str(root / "blocks_*" / filename)
+    matches = [Path(p) for p in glob.glob(pattern)]
+
+    candidates = [p for p in matches if p.is_file()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: p.parent.name)
 
 
 @dataclass(slots=True)
@@ -187,7 +206,7 @@ class _BlockStore:
 
         root_dir = CONFIG.paths.log_dir
         archives = sorted(
-            (p for p in root_dir.iterdir() if p.is_dir() and p.name.startswith("blocks_")),
+            (p for p in map(Path, glob.glob(str(root_dir / "blocks_*"))) if p.is_dir()),
             key=lambda p: p.name,  # blocks_YYYYmmddTHHMMSSZ sorts oldest->newest
         )
 
@@ -458,6 +477,23 @@ class SharedContext:
     def get_block_field(self, block_number: int, field: str) -> Optional[JsonObject]:
         with self._lock:
             return self._blocks.get_block_field(block_number, field)
+
+    def get_block_field_with_disk_fallback(
+        self, block_number: int, field: str
+    ) -> Optional[JsonObject]:
+        """Return an in-memory stored block payload, falling back to on-disk archives."""
+        in_mem = self.get_block_field(block_number, field)
+        if in_mem:
+            return in_mem
+
+        path = _find_archived_block_path(block_number=block_number, field=field)
+        if not path:
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning(f"Failed reading archived block dump {path}: {e}")
+            return None
 
     def get_latest_block_number(self) -> Optional[int]:
         with self._lock:
