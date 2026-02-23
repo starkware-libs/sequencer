@@ -7,6 +7,7 @@ use rand::seq::SliceRandom;
 use tokio::sync::mpsc;
 use tracing::{debug, error, trace};
 
+use crate::blocking_task_tracker::BlockingTaskTracker;
 use crate::sharding::reconstruct_data_shards;
 use crate::tree::PropellerScheduleManager;
 use crate::types::{Channel, Event, MessageRoot, ReconstructionError, ShardValidationError};
@@ -162,6 +163,7 @@ impl MessageProcessor {
     }
 
     async fn process_units(&mut self) {
+        let mut tracker = BlockingTaskTracker::default();
         let mut validator = UnitValidator::new(
             self.channel,
             self.publisher,
@@ -178,7 +180,7 @@ impl MessageProcessor {
             // TODO(AndrewL): consider processing multiple shards simultaneously instead of
             // sequentially.
             let (result, returned_validator, unit) =
-                Self::validate_blocking(validator, sender, unit).await;
+                Self::validate_blocking(&mut tracker, validator, sender, unit).await;
             validator = returned_validator;
 
             if let Err(err) = result {
@@ -190,7 +192,7 @@ impl MessageProcessor {
             self.maybe_broadcast_my_shard(&unit, &state);
 
             let action = state.add_unit(unit, self.my_shard_index, &self.tree_manager);
-            if self.handle_action(action, &mut state).await.is_break() {
+            if self.handle_action(action, &mut state, &mut tracker).await.is_break() {
                 return;
             }
         }
@@ -207,18 +209,17 @@ impl MessageProcessor {
     /// Offloads CPU-bound validation (signature verification, merkle proofs) to a blocking thread
     /// to avoid blocking the tokio runtime.
     async fn validate_blocking(
+        tracker: &mut BlockingTaskTracker,
         mut validator: UnitValidator,
         sender: PeerId,
         unit: PropellerUnit,
     ) -> ValidationResult {
-        // TODO(AndrewL): track task handle to abort the task if the timeout is reached or
-        // finalization occurs.
-        tokio::task::spawn_blocking(move || {
+        let handle = tokio::task::spawn_blocking(move || {
             let result = validator.validate_shard(sender, &unit);
             (result, validator, unit)
-        })
-        .await
-        .expect("Validation task panicked")
+        });
+        tracker.track(handle.abort_handle());
+        handle.await.expect("Validation task panicked")
     }
 
     /// Broadcasts our shard to peers the first time we see it. In PostConstruction this is a no-op
@@ -249,6 +250,7 @@ impl MessageProcessor {
         &self,
         action: AddUnitAction,
         state: &mut ReconstructionState,
+        tracker: &mut BlockingTaskTracker,
     ) -> ControlFlow<()> {
         match action {
             AddUnitAction::NoOp => ControlFlow::Continue(()),
@@ -263,7 +265,7 @@ impl MessageProcessor {
             AddUnitAction::Reconstruct(shards) => {
                 let shard_count = shards.len();
                 trace!("[MSG_PROC] Starting reconstruction with {} shards", shard_count);
-                match self.reconstruct_blocking(shards).await {
+                match self.reconstruct_blocking(tracker, shards).await {
                     Ok(output) => self.handle_reconstruction_output(output, shard_count, state),
                     Err(e) => {
                         error!("[MSG_PROC] Reconstruction failed: {:?}", e);
@@ -279,16 +281,18 @@ impl MessageProcessor {
     }
 
     /// Offloads erasure-coding reconstruction to a blocking thread.
-    async fn reconstruct_blocking(&self, shards: Vec<PropellerUnit>) -> ReconstructionResult {
+    async fn reconstruct_blocking(
+        &self,
+        tracker: &mut BlockingTaskTracker,
+        shards: Vec<PropellerUnit>,
+    ) -> ReconstructionResult {
         let message_root = self.message_root;
         let my_index: usize =
             self.my_shard_index.0.try_into().expect("Shard index could not be converted to usize");
         let data_count = self.tree_manager.num_data_shards();
         let coding_count = self.tree_manager.num_coding_shards();
 
-        // TODO(AndrewL): track task handle to abort the task if the timeout is reached or
-        // finalization occurs.
-        tokio::task::spawn_blocking(move || {
+        let handle = tokio::task::spawn_blocking(move || {
             reconstruct_data_shards(shards, message_root, my_index, data_count, coding_count).map(
                 |(message, my_shard, my_shard_proof)| ReconstructionOutput {
                     message,
@@ -296,9 +300,9 @@ impl MessageProcessor {
                     my_shard_proof,
                 },
             )
-        })
-        .await
-        .expect("Reconstruction task panicked")
+        });
+        tracker.track(handle.abort_handle());
+        handle.await.expect("Reconstruction task panicked")
     }
 
     fn handle_reconstruction_output(
