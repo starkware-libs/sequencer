@@ -1141,6 +1141,7 @@ async fn get_sequencer_setup_configs(
         StorageConfig::default(),
         state_sync_ports.get_next_ports(component_configs_len),
         state_sync_ports.get_next_ports(component_configs_len),
+        state_sync_ports.get_next_ports(component_configs_len),
     );
 
     let mut mempool_p2p_ports = available_ports_generator
@@ -1189,11 +1190,15 @@ async fn get_sequencer_setup_configs(
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
         let chain_info = chain_info.clone();
 
+        let mut storage_available_ports = available_ports_generator
+            .next()
+            .expect("Failed to get an AvailablePorts instance for storage");
         let storage_setup = get_integration_test_storage(
             node_index,
             custom_paths.clone(),
             accounts.to_vec(),
             &chain_info,
+            &mut storage_available_ports,
         );
 
         // Per node, create the executables constituting it.

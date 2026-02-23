@@ -7,6 +7,7 @@ use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
 use apollo_central_sync::{StateSync as CentralStateSync, StateSyncError as CentralStateSyncError};
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_network::metrics::{NetworkMetrics, SqmrNetworkMetrics};
@@ -25,6 +26,7 @@ use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_config::config::{
     CentralSyncClientConfig,
     StateSyncConfig,
+    StateSyncDynamicConfig,
     StateSyncStaticConfig,
 };
 use apollo_state_sync_metrics::metrics::{
@@ -41,8 +43,18 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::SYNC_STORAGE_OPEN_READ_TRANSACTIONS;
-use apollo_storage::storage_reader_server::ServerConfig;
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
+use apollo_storage::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    ServerConfig,
+    SharedDynamicConfigProvider,
+    StorageReaderServerDynamicConfig,
+};
+use apollo_storage::storage_reader_types::{
+    GenericStorageReaderServerHandler,
+    StorageReaderRequest,
+    StorageReaderResponse,
+};
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageConfig,
@@ -60,6 +72,24 @@ use tokio::sync::RwLock;
 use tokio::task::AbortHandle;
 use tracing::instrument::Instrument;
 use tracing::{debug, info_span};
+
+/// Dynamic config provider for state sync's storage reader server.
+struct StateSyncDynamicConfigProvider {
+    config_manager_client: SharedConfigManagerClient,
+}
+
+#[async_trait]
+impl DynamicConfigProvider for StateSyncDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        let dynamic_config: StateSyncDynamicConfig =
+            self.config_manager_client.get_state_sync_dynamic_config().await.map_err(|e| {
+                DynamicConfigError(format!("Failed to fetch state sync dynamic config: {}", e))
+            })?;
+        Ok(dynamic_config.storage_reader_server_dynamic_config)
+    }
+}
 
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
@@ -112,16 +142,26 @@ pub struct StateSyncResources {
 }
 
 impl StateSyncResources {
-    pub fn new(storage_config: &StorageConfig, storage_reader_server_config: ServerConfig) -> Self {
+    pub fn new(
+        storage_config: &StorageConfig,
+        storage_reader_server_config: ServerConfig,
+        config_manager_client: SharedConfigManagerClient,
+    ) -> Self {
+        let dynamic_config_provider: SharedDynamicConfigProvider =
+            Arc::new(StateSyncDynamicConfigProvider { config_manager_client });
         let (storage_reader, storage_writer, storage_reader_server) =
-            open_storage_with_metric_and_server(
+            open_storage_with_metric_and_server::<
+                GenericStorageReaderServerHandler,
+                StorageReaderRequest,
+                StorageReaderResponse,
+            >(
                 storage_config.clone(),
                 &SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                dynamic_config_provider,
             )
             .expect("StateSyncRunner failed opening storage");
-        let storage_reader_server_handle =
-            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+        let storage_reader_server_handle = storage_reader_server.spawn();
         let shared_highest_block = Arc::new(RwLock::new(None));
         let pending_data = Arc::new(RwLock::new(PendingData {
             // The pending data might change later to DeprecatedPendingBlock, depending on the
@@ -149,6 +189,7 @@ impl StateSyncRunner {
         config: StateSyncConfig,
         new_block_receiver: Receiver<SyncBlock>,
         class_manager_client: SharedClassManagerClient,
+        config_manager_client: SharedConfigManagerClient,
     ) -> (Self, StorageReader) {
         let StateSyncConfig { static_config, dynamic_config } = config;
 
@@ -163,7 +204,11 @@ impl StateSyncRunner {
             pending_data,
             pending_classes,
             storage_reader_server_handle,
-        } = StateSyncResources::new(&static_config.storage_config, storage_reader_server_config);
+        } = StateSyncResources::new(
+            &static_config.storage_config,
+            storage_reader_server_config,
+            config_manager_client,
+        );
 
         let StateSyncStaticConfig {
             storage_config: _,
