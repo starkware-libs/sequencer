@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_config::secrets::Sensitive;
-use apollo_l1_gas_price_provider_config::config::EthToStrkOracleConfig;
+use apollo_l1_gas_price_config::config::EthToStrkOracleConfig;
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
 use apollo_metrics::metrics::set_unix_now_seconds;

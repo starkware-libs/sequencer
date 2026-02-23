@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_l1_gas_price_provider_config::config::L1GasPriceProviderConfig;
+use apollo_l1_gas_price_config::config::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::{GasPriceData, MockEthToStrkOracleClientTrait, PriceInfo};
 use starknet_api::block::{BlockTimestamp, GasPrice};
 
