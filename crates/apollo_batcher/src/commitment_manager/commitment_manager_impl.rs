@@ -496,6 +496,7 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         }
     }
 
+    #[allow(clippy::as_conversions)]
     fn update_task_duration_metric(
         &mut self,
         task_type: CommitterRequestLabelValue,
@@ -505,12 +506,18 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
         if let Some(task_duration) = task_duration {
             match task_type {
                 CommitterRequestLabelValue::CommitBlock => {
-                    debug!("Commit block latency for block {height}: {task_duration} seconds.");
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.record_lossy(task_duration)
+                    debug!(
+                        "Commit block latency for block {height}: {task_duration} milliseconds."
+                    );
+                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY
+                        .record_lossy(task_duration as f64 / 1000.0)
                 }
                 CommitterRequestLabelValue::RevertBlock => {
-                    debug!("Revert block latency for block {height}: {task_duration} seconds.");
-                    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.record_lossy(task_duration)
+                    debug!(
+                        "Revert block latency for block {height}: {task_duration} milliseconds."
+                    );
+                    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY
+                        .record_lossy(task_duration as f64 / 1000.0)
                 }
             }
         }
