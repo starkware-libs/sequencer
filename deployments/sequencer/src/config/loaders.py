@@ -380,7 +380,7 @@ class NodeConfigLoader(Config):
         console: Console,
         config_list_path: Optional[str],
         layout: Optional[str] = None,
-        overlay: Optional[str] = None,
+        overlays: Optional[List[str]] = None,
     ) -> None:
         """Print the file paths section using rich formatting.
 
@@ -388,7 +388,7 @@ class NodeConfigLoader(Config):
             console: Rich Console instance
             config_list_path: Optional path to the config list JSON file
             layout: Optional layout name (e.g., "hybrid")
-            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
+            overlays: Optional list of overlay flag values (e.g., ["hybrid.mainnet", "hybrid.mainnet.apollo-mainnet-0"])
         """
         paths_table = Table(show_header=False, box=None, padding=(0, 2))
         paths_table.add_column(style="bold cyan", width=30)
@@ -411,19 +411,29 @@ class NodeConfigLoader(Config):
         else:
             paths_table.add_row("config_layout_path:", "[dim]<unknown>[/dim]")
 
-        # Construct overlay path from overlay flag value
-        if overlay:
-            # Build overlay path: configs/overlays/{layout}/{segment2}/{segment3}/...
-            overlay_path_segments = overlay.split(".")
-            if overlay_path_segments and overlay_path_segments[0] == layout:
-                overlay_base_path = (
-                    Path(NodeConfigLoader.ROOT_DIR) / "configs" / "overlays" / layout
-                ).resolve()
-                for segment in overlay_path_segments[1:]:
-                    overlay_base_path = overlay_base_path / segment
-                paths_table.add_row("config_overlay_path:", str(overlay_base_path))
-            else:
-                paths_table.add_row("config_overlay_path:", "[dim]<none>[/dim]")
+        # Construct overlay path(s) from overlay flag values
+        if overlays:
+            for idx, overlay in enumerate(overlays):
+                overlay_path_segments = overlay.split(".")
+                if overlay_path_segments and layout and overlay_path_segments[0] == layout:
+                    overlay_base_path = (
+                        Path(NodeConfigLoader.ROOT_DIR) / "configs" / "overlays" / layout
+                    ).resolve()
+                    for segment in overlay_path_segments[1:]:
+                        overlay_base_path = overlay_base_path / segment
+                    label = (
+                        "config_overlay_path:"
+                        if idx == 0
+                        else f"config_overlay_path_{idx + 1}:"
+                    )
+                    paths_table.add_row(label, str(overlay_base_path))
+                else:
+                    label = (
+                        "config_overlay_path:"
+                        if idx == 0
+                        else f"config_overlay_path_{idx + 1}:"
+                    )
+                    paths_table.add_row(label, "[dim]<none>[/dim]")
         else:
             paths_table.add_row("config_overlay_path:", "[dim]<none>[/dim]")
 
@@ -499,7 +509,7 @@ class NodeConfigLoader(Config):
         service_name: str = "unknown",
         config_list_path: Optional[str] = None,
         layout: Optional[str] = None,
-        overlay: Optional[str] = None,
+        overlays: Optional[List[str]] = None,
     ) -> dict:
         """Apply sequencerConfig overrides from YAML to merged JSON config.
 
@@ -522,7 +532,7 @@ class NodeConfigLoader(Config):
             service_name: Name of the service (for error messages)
             config_list_path: Optional path to the config list JSON file (for error messages)
             layout: Optional layout name (e.g., "hybrid")
-            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
+            overlays: Optional list of overlay flag values (e.g., ["hybrid.mainnet", "hybrid.mainnet.apollo-mainnet-0"])
 
         Returns:
             Updated config dictionary with overrides applied
@@ -598,7 +608,9 @@ class NodeConfigLoader(Config):
                 )
             )
 
-            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlay)
+            NodeConfigLoader._print_file_paths_section(
+                console, config_list_path, layout, overlays
+            )
             NodeConfigLoader._print_missing_placeholders_section(
                 console, remaining_placeholders, result
             )
@@ -686,7 +698,7 @@ class NodeConfigLoader(Config):
         config: dict,
         config_list_path: Optional[str] = None,
         layout: Optional[str] = None,
-        overlay: Optional[str] = None,
+        overlays: Optional[List[str]] = None,
     ) -> None:
         """Validate that no placeholder values remain in the final config.
 
@@ -694,7 +706,7 @@ class NodeConfigLoader(Config):
             config: The final config dictionary after all overrides are applied
             config_list_path: Optional path to the config list JSON file (for error messages)
             layout: Optional layout name (e.g., "hybrid")
-            overlay: Optional overlay flag value (e.g., "hybrid.testing.node-0")
+            overlays: Optional list of overlay flag values (e.g., ["hybrid.mainnet", "hybrid.mainnet.apollo-mainnet-0"])
 
         Raises:
             ValueError: If any placeholder values ($$$_..._$$$) are found in the config
@@ -716,7 +728,9 @@ class NodeConfigLoader(Config):
                 )
             )
 
-            NodeConfigLoader._print_file_paths_section(console, config_list_path, layout, overlay)
+            NodeConfigLoader._print_file_paths_section(
+                console, config_list_path, layout, overlays
+            )
             NodeConfigLoader._print_missing_placeholders_section(
                 console, remaining_placeholders, config
             )
