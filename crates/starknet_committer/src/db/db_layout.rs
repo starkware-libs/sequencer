@@ -18,4 +18,9 @@ pub trait DbLayout {
     type NodeLayout: NodeLayoutFor<ContractState, DbLeaf = Self::ContractStateDbLeaf>
         + NodeLayoutFor<CompiledClassHash, DbLeaf = Self::CompiledClassHashDbLeaf>
         + NodeLayoutFor<StarknetStorageValue, DbLeaf = Self::StarknetStorageValueDbLeaf>;
+
+    /// When true, storage tries are built with speculative single-mget + storage fallback.
+    /// Must be false for layouts where node keys depend on hashes (e.g. Facts); true for
+    /// index-based keys (e.g. Index).
+    const USE_SPECULATIVE_STORAGE_READ: bool;
 }

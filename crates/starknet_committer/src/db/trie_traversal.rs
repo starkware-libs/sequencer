@@ -35,6 +35,13 @@ use crate::block_committer::input::{
     ReaderConfig,
     StarknetStorageValue,
 };
+use crate::db::db_layout::DbLayout;
+use crate::db::long_edge_cache::{
+    compute_all_path_indices_with_cache,
+    LongEdgeCache,
+    StorageTriesLongEdgeCache,
+    MIN_EDGE_LENGTH_FOR_CACHE,
+};
 use crate::forest::forest_errors::{ForestError, ForestResult};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::tree::OriginalSkeletonTrieConfig;
@@ -77,7 +84,13 @@ where
             get_roots_from_storage::<L, Layout>(&current_subtrees, storage, key_context).await?;
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.into_iter()) {
             if subtree.is_unmodified() {
-                handle_unmodified_subtree(skeleton_tree, &mut next_subtrees, filled_root, subtree);
+                handle_unmodified_subtree(
+                    skeleton_tree,
+                    &mut next_subtrees,
+                    filled_root,
+                    subtree,
+                    None,
+                );
                 continue;
             }
             let root_index = subtree.get_root_index();
@@ -164,6 +177,7 @@ fn handle_unmodified_subtree<'a, L: Leaf, SubTree: SubTreeTrait<'a>>(
     next_subtrees: &mut Vec<SubTree>,
     filled_root: FilledNode<L, SubTree::NodeData>,
     subtree: SubTree,
+    long_edge_cache: Option<&mut LongEdgeCache>,
 ) where
     SubTree::NodeData: Clone,
 {
@@ -174,6 +188,12 @@ fn handle_unmodified_subtree<'a, L: Leaf, SubTree: SubTreeTrait<'a>>(
 
     match filled_root.data {
         NodeData::Edge(EdgeData { bottom_data, path_to_bottom }) => {
+            if u8::from(path_to_bottom.length) >= MIN_EDGE_LENGTH_FOR_CACHE {
+                if let Some(cache) = long_edge_cache {
+                    let bottom_index = path_to_bottom.bottom_index(root_index);
+                    cache.insert(bottom_index, root_index);
+                }
+            }
             // Even if a subtree rooted at an edge node is unmodified, we still need an
             // `OriginalSkeletonNode::Edge` node in the skeleton in case we need to manipulate it
             // later (e.g. unify the edge node with an ancestor edge node).
@@ -374,6 +394,10 @@ fn compute_all_path_indices(leaf_indices: &[NodeIndex]) -> Vec<NodeIndex> {
 ///
 /// This reduces round trips from O(tree_height) to O(1) at the cost of requesting
 /// more keys (most of which will be filtered by bloom filters without disk I/O).
+///
+/// When `long_edge_cache` is provided, it is used to reduce the number of indices fetched
+/// (skipping indices inside long edges) and is populated with any long edges (length >= 5)
+/// discovered during the traversal.
 pub async fn create_original_skeleton_tree_speculative<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
     storage: &mut impl Storage,
     root_hash: HashOutput,
@@ -382,6 +406,7 @@ pub async fn create_original_skeleton_tree_speculative<'a, L: Leaf, Layout: Node
     leaf_modifications: &LeafModifications<L>,
     previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
+    mut long_edge_cache: Option<&mut LongEdgeCache>,
 ) -> OriginalSkeletonTreeResult<OriginalSkeletonTreeImpl<'a>> {
     if sorted_leaf_indices.is_empty() {
         return Ok(OriginalSkeletonTreeImpl::create_unmodified(root_hash));
@@ -404,8 +429,13 @@ pub async fn create_original_skeleton_tree_speculative<'a, L: Leaf, Layout: Node
         return Ok(OriginalSkeletonTreeImpl::create_empty(sorted_leaf_indices));
     }
 
-    // Step 1: Compute all possible indices on paths from root to leaves
-    let all_indices = compute_all_path_indices(sorted_leaf_indices.get_indices());
+    // Step 1: Compute all possible indices on paths from root to leaves (use cache if provided)
+    let all_indices = match &long_edge_cache {
+        Some(cache) => {
+            compute_all_path_indices_with_cache(sorted_leaf_indices.get_indices(), cache)
+        }
+        None => compute_all_path_indices(sorted_leaf_indices.get_indices()),
+    };
 
     // Step 2: Build subtrees for all indices to get their DB keys
     let subtrees: Vec<Layout::SubTree> = all_indices
@@ -436,12 +466,13 @@ pub async fn create_original_skeleton_tree_speculative<'a, L: Leaf, Layout: Node
         value_map.insert(*idx, opt_value);
     }
 
-    // Step 6: Build skeleton tree using the same traversal logic but with preloaded data
+    // Step 6: Build skeleton tree using the same traversal logic but with preloaded data.
+    // Missing nodes (e.g. siblings not on the path from modified leaves) are fetched from storage.
     let main_subtree =
         Layout::SubTree::create(sorted_leaf_indices, NodeIndex::ROOT, root_hash.into());
     let mut skeleton_tree = OriginalSkeletonTreeImpl { nodes: HashMap::new(), sorted_leaf_indices };
 
-    fetch_nodes_preloaded::<L, Layout>(
+    fetch_nodes_preloaded::<L, Layout, _>(
         &mut skeleton_tree,
         vec![main_subtree],
         &value_map,
@@ -449,13 +480,18 @@ pub async fn create_original_skeleton_tree_speculative<'a, L: Leaf, Layout: Node
         config,
         previous_leaves,
         key_context,
-    )?;
+        &mut long_edge_cache,
+        storage,
+    )
+    .await?;
 
     Ok(skeleton_tree)
 }
 
-/// Same as fetch_nodes but uses preloaded values instead of fetching from storage.
-fn fetch_nodes_preloaded<'a, L, Layout>(
+/// Same as fetch_nodes but uses preloaded values first; falls back to storage for missing nodes
+/// (e.g. siblings not on the path from modified leaves to root). When `long_edge_cache` is
+/// provided, populates it with edge nodes of length >= 5.
+async fn fetch_nodes_preloaded<'a, L, Layout, S>(
     skeleton_tree: &mut OriginalSkeletonTreeImpl<'a>,
     subtrees: Vec<Layout::SubTree>,
     preloaded_values: &HashMap<
@@ -466,10 +502,13 @@ fn fetch_nodes_preloaded<'a, L, Layout>(
     config: &impl OriginalSkeletonTreeConfig,
     mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
     key_context: &<L as HasStaticPrefix>::KeyContext,
+    long_edge_cache: &mut Option<&mut LongEdgeCache>,
+    storage: &mut S,
 ) -> OriginalSkeletonTreeResult<()>
 where
     L: Leaf,
     Layout: NodeLayout<'a, L>,
+    S: Storage,
 {
     let mut current_subtrees = subtrees;
     let mut next_subtrees = Vec::new();
@@ -477,16 +516,25 @@ where
         config.compare_modified_leaves() || previous_leaves.is_some();
 
     while !current_subtrees.is_empty() {
-        // Get roots from preloaded values instead of storage
-        let filled_roots = get_roots_from_preloaded::<L, Layout>(
+        // Get roots from preloaded values, falling back to storage for missing nodes (e.g.
+        // siblings)
+        let filled_roots = get_roots_from_preloaded::<L, Layout, S>(
             &current_subtrees,
             preloaded_values,
             key_context,
-        )?;
+            storage,
+        )
+        .await?;
 
         for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.into_iter()) {
             if subtree.is_unmodified() {
-                handle_unmodified_subtree(skeleton_tree, &mut next_subtrees, filled_root, subtree);
+                handle_unmodified_subtree(
+                    skeleton_tree,
+                    &mut next_subtrees,
+                    filled_root,
+                    subtree,
+                    long_edge_cache.as_deref_mut(),
+                );
                 continue;
             }
             let root_index = subtree.get_root_index();
@@ -514,6 +562,12 @@ where
                 }
                 // Edge node.
                 NodeData::Edge(EdgeData { bottom_data, path_to_bottom }) => {
+                    if u8::from(path_to_bottom.length) >= MIN_EDGE_LENGTH_FOR_CACHE {
+                        if let Some(cache) = long_edge_cache.as_deref_mut() {
+                            let bottom_index = path_to_bottom.bottom_index(root_index);
+                            cache.insert(bottom_index, root_index);
+                        }
+                    }
                     skeleton_tree
                         .nodes
                         .insert(root_index, OriginalSkeletonNode::Edge(path_to_bottom));
@@ -565,40 +619,50 @@ where
     Ok(())
 }
 
-/// Gets roots from preloaded values instead of storage.
-fn get_roots_from_preloaded<'a, L: Leaf, Layout: NodeLayout<'a, L>>(
+/// Gets roots from preloaded values, falling back to storage when a node is missing (e.g. a
+/// sibling not on the path from modified leaves to root).
+async fn get_roots_from_preloaded<'a, L: Leaf, Layout: NodeLayout<'a, L>, S: Storage>(
     subtrees: &[Layout::SubTree],
     preloaded_values: &HashMap<
         NodeIndex,
         Option<starknet_patricia_storage::storage_trait::DbValue>,
     >,
     key_context: &<L as HasStaticPrefix>::KeyContext,
+    storage: &mut S,
 ) -> TraversalResult<Vec<FilledNode<L, Layout::NodeData>>> {
+    use starknet_patricia::patricia_merkle_tree::traversal::TraversalError;
+
     let mut subtrees_roots = vec![];
 
     for subtree in subtrees {
         let root_index = subtree.get_root_index();
-        let opt_val = preloaded_values.get(&root_index);
+        let db_key = subtree.get_root_db_key::<L>(key_context);
 
-        let Some(Some(val)) = opt_val else {
-            // Key not in preloaded map or value is None - shouldn't happen for valid paths
-            let db_key = subtree.get_root_db_key::<L>(key_context);
-            Err(StorageError::MissingKey(db_key))?
+        let val = match preloaded_values.get(&root_index) {
+            Some(Some(v)) => v.clone(),
+            _ => {
+                // Fallback to storage (e.g. sibling branch not in preloaded path)
+                match storage.get(&db_key).await.map_err(TraversalError::from)? {
+                    Some(v) => v,
+                    None => return Err(StorageError::MissingKey(db_key).into()),
+                }
+            }
         };
 
         let filled_node =
-            Layout::NodeDbObject::deserialize(val, &subtree.get_root_context())?.into();
+            Layout::NodeDbObject::deserialize(&val, &subtree.get_root_context())?.into();
         subtrees_roots.push(filled_node);
     }
     Ok(subtrees_roots)
 }
 
-pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue>>(
+pub async fn create_storage_tries<'a, Layout: NodeLayoutFor<StarknetStorageValue> + DbLayout>(
     storage: &mut impl Storage,
     actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
     config: &ReaderConfig,
     storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
+    storage_tries_long_edge_cache: &mut StorageTriesLongEdgeCache,
 ) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>>
 where
     <Layout as NodeLayoutFor<StarknetStorageValue>>::DbLeaf:
@@ -615,19 +679,45 @@ where
         let config = OriginalSkeletonTrieConfig::new_for_classes_or_storage_trie(
             config.warn_on_trivial_modifications(),
         );
+        let leaf_modifications =
+            updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect();
+        let cache_for_address = storage_tries_long_edge_cache.entry(*address).or_default();
 
-        let original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
-            storage,
-            contract_state.storage_root_hash,
-            *sorted_leaf_indices,
-            &config,
-            // TODO(Ariel): Change `LeafModifications` in `actual_storage_updates` to be an
-            // iterator over borrowed data so that the conversion below is costless.
-            &updates.iter().map(|(idx, value)| (*idx, Layout::DbLeaf::from(*value))).collect(),
-            None,
-            address,
-        )
-        .await?;
+        let original_skeleton = if Layout::USE_SPECULATIVE_STORAGE_READ {
+            // Speculative single mget + storage fallback for missing nodes (e.g. siblings).
+            create_original_skeleton_tree_speculative::<Layout::DbLeaf, Layout>(
+                storage,
+                contract_state.storage_root_hash,
+                *sorted_leaf_indices,
+                &config,
+                &leaf_modifications,
+                None,
+                address,
+                Some(cache_for_address),
+            )
+            .await?
+        } else {
+            // Layout uses hash-based keys (e.g. Facts); must read layer-by-layer.
+            let skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
+                storage,
+                contract_state.storage_root_hash,
+                *sorted_leaf_indices,
+                &config,
+                &leaf_modifications,
+                None,
+                address,
+            )
+            .await?;
+            for (idx, node) in &skeleton.nodes {
+                if let OriginalSkeletonNode::Edge(path_to_bottom) = node {
+                    if u8::from(path_to_bottom.length) >= MIN_EDGE_LENGTH_FOR_CACHE {
+                        let bottom_index = path_to_bottom.bottom_index(*idx);
+                        cache_for_address.insert(bottom_index, *idx);
+                    }
+                }
+            }
+            skeleton
+        };
         storage_tries.insert(*address, original_skeleton);
     }
     Ok(storage_tries)
