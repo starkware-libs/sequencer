@@ -63,11 +63,14 @@ define_metrics!(
         // Block commitment components computation timings
         MetricHistogram { TX_COMMITMENT_LATENCY, "batcher_tx_commitment_latency", "Duration of transaction commitment computation in seconds" },
         MetricHistogram { TX_COMMITMENT_PER_TX_LATENCY, "batcher_tx_commitment_per_tx_latency", "Duration of transactions commitment computation per transaction in seconds" },
+        MetricCounter { TX_COMMITMENT_COUNT, "batcher_tx_commitment_count", "The number of transactions commitment computations (cumulative)", init = 0 },
         MetricHistogram { EVENT_COMMITMENT_LATENCY, "batcher_event_commitment_latency", "Duration of event commitment computation in seconds" },
         MetricHistogram { EVENT_COMMITMENT_PER_EVENT_LATENCY, "batcher_event_commitment_per_event_latency", "Duration of event commitment computation per event in seconds" },
+        MetricCounter { EVENT_COMMITMENT_COUNT, "batcher_event_commitment_count", "The number of event commitment computations (cumulative)", init = 0 },
         MetricHistogram { RECEIPT_COMMITMENT_LATENCY, "batcher_receipt_commitment_latency", "Duration of receipt commitment computation in seconds" },
         MetricHistogram { STATE_DIFF_COMMITMENT_LATENCY, "batcher_state_diff_commitment_latency", "Duration of state diff commitment computation in seconds" },
         MetricHistogram { STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY, "batcher_state_diff_commitment_per_state_diff_length", "Duration of state diff commitment computation per state diff length in seconds" },
+        MetricCounter { STATE_DIFF_LENGTH, "batcher_state_diff_length", "The length of the state diff (cumaltive)", init = 0 },
     },
 );
 
@@ -132,11 +135,14 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
 
     TX_COMMITMENT_LATENCY.register();
     TX_COMMITMENT_PER_TX_LATENCY.register();
+    TX_COMMITMENT_COUNT.register();
     EVENT_COMMITMENT_LATENCY.register();
     EVENT_COMMITMENT_PER_EVENT_LATENCY.register();
+    EVENT_COMMITMENT_COUNT.register();
     RECEIPT_COMMITMENT_LATENCY.register();
     STATE_DIFF_COMMITMENT_LATENCY.register();
     STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY.register();
+    STATE_DIFF_LENGTH.register();
 
     // Blockifier's metrics
     BATCHER_CLASS_CACHE_METRICS.register();
