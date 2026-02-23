@@ -25,7 +25,6 @@ starknet_api.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs", "io-util"] }
-tracing.workspace = true
 
 
 [dev-dependencies]
