@@ -591,10 +591,17 @@ class EchoCenterService:
                 self.logger.warning(
                     "l2_gas mismatch: "
                     f"tx={tx_hash} "
-                    f"echo_block={int(echo_block_number)} "
+                    f"echo_block={echo_block_number} "
                     f"source_block={source_block} "
                     f"blob_total_gas_l2={blob_l2_gas} "
                     f"fgw_total_gas_consumed_l2={fgw_l2_gas}"
+                )
+                self.shared.record_l2_gas_mismatch(
+                    tx_hash=tx_hash,
+                    echo_block=echo_block_number,
+                    source_block=source_block,
+                    blob_total_gas_l2=blob_l2_gas,
+                    fgw_total_gas_consumed_l2=fgw_l2_gas,
                 )
 
     @staticmethod
