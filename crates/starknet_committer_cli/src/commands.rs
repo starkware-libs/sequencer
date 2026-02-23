@@ -472,7 +472,7 @@ pub async fn run_storage_benchmark<S: Storage>(
                 batcher_storage_reader.as_ref(),
             ),
             initial_read_context: IndexDbReadContext,
-            config: ReaderConfig::default(),
+            config: ReaderConfig::new(false, true),
         };
 
         measurements.start_measurement(Action::EndToEnd);
