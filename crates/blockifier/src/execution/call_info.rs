@@ -335,10 +335,22 @@ impl ExtendedExecutionResources {
     }
 }
 
+const BLAKE_OPCODE_NAME_WITH_SUFFIX: &str = "blake_opcode";
+
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 pub enum OpcodeName {
     Blake,
+}
+
+impl OpcodeName {
+    /// Converts an [`OpcodeName`] to its string representation with the "_opcode" suffix.
+    /// This mirrors [`BuiltinName::to_str_with_suffix`] for consistency in resource naming.
+    pub fn to_str_with_suffix(self) -> &'static str {
+        match self {
+            OpcodeName::Blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
+        }
+    }
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
