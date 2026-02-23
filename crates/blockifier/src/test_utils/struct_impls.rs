@@ -286,8 +286,8 @@ impl NativeCompiledClassV1 {
         let sierra_contract_class: SierraContractClass =
             serde_json::from_str(raw_sierra_contract_class).unwrap();
 
-        let sierra_program = sierra_contract_class
-            .extract_sierra_program()
+        let extracted = sierra_contract_class
+            .extract_sierra_program(false)
             .expect("Cannot extract sierra program from sierra contract class");
 
         let sierra_version_values = sierra_contract_class
@@ -301,7 +301,7 @@ impl NativeCompiledClassV1 {
             .expect("Cannot extract sierra version from sierra program");
 
         let executor = AotContractExecutor::new(
-            &sierra_program,
+            &extracted.program,
             &sierra_contract_class.entry_points_by_type,
             sierra_version.clone().into(),
             cairo_native::OptLevel::Default,
@@ -311,10 +311,14 @@ impl NativeCompiledClassV1 {
         )
         .expect("Cannot compile sierra into native");
 
-        // Compile the sierra contract class into casm
-        let casm_contract_class =
-            CasmContractClass::from_contract_class(sierra_contract_class, false, usize::MAX)
-                .expect("Cannot compile sierra contract class into casm contract class");
+        // Compile the sierra contract class into casm.
+        let casm_contract_class = CasmContractClass::from_contract_class(
+            sierra_contract_class,
+            extracted,
+            false,
+            usize::MAX,
+        )
+        .expect("Cannot compile sierra contract class into casm contract class");
         let casm = CompiledClassV1::try_from((casm_contract_class, sierra_version))
             .expect("Cannot get CompiledClassV1 from CasmContractClass");
 
