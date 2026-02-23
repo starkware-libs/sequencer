@@ -437,7 +437,6 @@ class NodeConfigLoader(Config):
     def _print_file_paths_section(
         console: Console,
         config_list_path: Optional[str],
-        overlay: List[str],
         layout: Optional[str] = None,
         overlays: Optional[List[str]] = None,
     ) -> None:
