@@ -43,6 +43,8 @@ pub struct ConsensusStaticConfig {
     pub startup_delay: Duration,
     /// Config for the storage used to write/read consensus state.
     pub storage_config: StorageConfig,
+    /// If true, skips check that we didn't vote on this height.
+    pub skip_last_voted_height_check: bool,
 }
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -85,12 +87,20 @@ impl SerializeConfig for ConsensusDynamicConfig {
 
 impl SerializeConfig for ConsensusStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from_iter([ser_param(
-            "startup_delay",
-            &self.startup_delay.as_secs(),
-            "Delay (seconds) before starting consensus to give time for network peering.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut config = BTreeMap::from_iter([
+            ser_param(
+                "startup_delay",
+                &self.startup_delay.as_secs(),
+                "Delay (seconds) before starting consensus to give time for network peering.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "skip_last_voted_height_check",
+                &self.skip_last_voted_height_check,
+                "If true, skips check that we didn't vote on this height.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
         config
     }
@@ -130,6 +140,7 @@ impl Default for ConsensusStaticConfig {
                 scope: StorageScope::StateOnly,
                 ..Default::default()
             },
+            skip_last_voted_height_check: false,
         }
     }
 }
