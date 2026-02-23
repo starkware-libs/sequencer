@@ -35,8 +35,10 @@ use crate::commitment_manager::types::{
     TaskTimer,
 };
 use crate::metrics::{
+    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
     COMMITMENT_MANAGER_NUM_COMMIT_RESULTS,
+    COMMITMENT_MANAGER_REVERT_BLOCK_COUNT,
     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
     GLOBAL_ROOT_HEIGHT,
 };
@@ -190,7 +192,9 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                 }
             }
         }
-        COMMITMENT_MANAGER_NUM_COMMIT_RESULTS.record_lossy(results.len());
+        #[allow(clippy::as_conversions)]
+        COMMITMENT_MANAGER_NUM_COMMIT_RESULTS.increment(results.len() as u64);
+        debug!("Received {} commitment results from the state committer.", results.len());
         results
     }
 
@@ -509,15 +513,15 @@ impl<S: StateCommitterTrait> CommitmentManager<S> {
                     debug!(
                         "Commit block latency for block {height}: {task_duration} milliseconds."
                     );
-                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY
-                        .record_lossy(task_duration as f64 / 1000.0)
+                    COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.increment(task_duration as u64);
+                    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.increment(1);
                 }
                 CommitterRequestLabelValue::RevertBlock => {
                     debug!(
                         "Revert block latency for block {height}: {task_duration} milliseconds."
                     );
-                    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY
-                        .record_lossy(task_duration as f64 / 1000.0)
+                    COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.increment(task_duration as u64);
+                    COMMITMENT_MANAGER_REVERT_BLOCK_COUNT.increment(1);
                 }
             }
         }
