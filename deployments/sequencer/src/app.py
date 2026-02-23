@@ -107,21 +107,15 @@ def _get_config_paths(
         overlay_common_path = overlay_base_path / "common.yaml"
         overlay_common = overlay_common_path if overlay_common_path.exists() else None
         overlay_services_path = overlay_base_path / "services"
-        overlay_services = (
-            overlay_services_path if overlay_services_path.is_dir() else None
-        )
+        overlay_services = overlay_services_path if overlay_services_path.is_dir() else None
         overlay_layers.append((overlay_common, overlay_services))
 
     return (layout_common, layout_services, overlay_layers)
 
 
-def _load_deployment_config(
-    base_dir: Path, layout: str, overlays: list[str]
-) -> DeploymentSchema:
+def _load_deployment_config(base_dir: Path, layout: str, overlays: list[str]) -> DeploymentSchema:
     """Load and merge deployment configuration."""
-    layout_common, layout_services, overlay_layers = _get_config_paths(
-        base_dir, layout, overlays
-    )
+    layout_common, layout_services, overlay_layers = _get_config_paths(base_dir, layout, overlays)
 
     overlay_layers_str: list[tuple[str | None, str | None]] = [
         (
