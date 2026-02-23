@@ -235,7 +235,7 @@ The deployment uses:
 
 **Sequencer Overlay**: The sequencer uses overlay `hybrid.testing.node-0` by default. To change this, edit `SEQUENCER_OVERLAY` in `deploy.sh`.
 
-**Configuration**: Sequencer configuration is handled via cdk8s overlays. Set `recorder_url`, `l1_gas_price_provider_config`, ports, etc. directly in your overlay YAML files at `deployments/sequencer/configs/overlays/hybrid/testing/node-0/`.
+**Configuration**: Sequencer configuration is handled via cdk8s overlays. Set `recorder_url`, `l1_gas_price_config`, ports, etc. directly in your overlay YAML files at `deployments/sequencer/configs/overlays/hybrid/testing/node-0/`.
 
 **State Management**: 
 1. `sequencer_node_setup` runs locally to generate state in `deployments/local-testing/output/data/node_0`

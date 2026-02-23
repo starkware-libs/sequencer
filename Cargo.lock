@@ -1711,7 +1711,7 @@ dependencies = [
  "apollo_l1_events_config",
  "apollo_l1_events_types",
  "apollo_l1_gas_price",
- "apollo_l1_gas_price_provider_config",
+ "apollo_l1_gas_price_config",
  "apollo_l1_gas_price_types",
  "apollo_mempool_config",
  "apollo_mempool_p2p_config",
@@ -1827,7 +1827,7 @@ dependencies = [
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
- "apollo_l1_gas_price_provider_config",
+ "apollo_l1_gas_price_config",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "assert_matches",
@@ -1849,7 +1849,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "apollo_l1_gas_price_provider_config"
+name = "apollo_l1_gas_price_config"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
@@ -2186,7 +2186,7 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_events_config",
- "apollo_l1_gas_price_provider_config",
+ "apollo_l1_gas_price_config",
  "apollo_mempool_config",
  "apollo_mempool_p2p_config",
  "apollo_monitoring_endpoint_config",
