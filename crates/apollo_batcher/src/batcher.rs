@@ -55,9 +55,8 @@ use apollo_storage::partial_block_hash::{
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::storage_reader_server::ServerConfig;
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
 use apollo_storage::{
-    open_storage_with_metric_and_server,
+    open_storage_with_metric,
     StorageError,
     StorageReader,
     StorageResult,
@@ -89,6 +88,12 @@ use crate::block_builder::{
     BlockBuilderTrait,
     BlockExecutionArtifacts,
     BlockMetadata,
+};
+use crate::bootstrap::BootstrapStateMachine;
+use crate::bootstrap_server::{
+    create_bootstrap_storage_reader_server,
+    BatcherStorageReaderServer,
+    SharedBootstrapStateMachine,
 };
 use crate::cende_client_types::CendeBlockMetadata;
 use crate::commitment_manager::commitment_manager_impl::{
@@ -186,6 +191,9 @@ pub struct Batcher {
 
     commitment_manager: ApolloCommitmentManager,
 
+    /// Shared bootstrap state machine, accessible by the bootstrap HTTP server.
+    pub bootstrap_state_machine: SharedBootstrapStateMachine,
+
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
     storage_reader_server_handle: Option<AbortHandle>,
@@ -204,6 +212,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
+        bootstrap_state_machine: SharedBootstrapStateMachine,
         storage_reader_server_handle: Option<AbortHandle>,
     ) -> Self {
         Self {
@@ -226,6 +235,7 @@ impl Batcher {
             proposals_counter: 1,
             prev_proposal_commitment: None,
             commitment_manager,
+            bootstrap_state_machine,
             storage_reader_server_handle,
         }
     }
@@ -1351,16 +1361,28 @@ pub async fn create_batcher(
         static_config: config.static_config.storage_reader_server_static_config.clone(),
         dynamic_config: config.dynamic_config.storage_reader_server_dynamic_config.clone(),
     };
-    let (storage_reader, storage_writer, storage_reader_server) =
-        open_storage_with_metric_and_server(
-            config.static_config.storage.clone(),
-            &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
-            storage_reader_server_config,
-        )
-        .expect("Failed to open batcher's storage");
+    let (storage_reader, storage_writer) = open_storage_with_metric(
+        config.static_config.storage.clone(),
+        &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
+    )
+    .expect("Failed to open batcher's storage");
 
+    // TODO(victork): enable bootstrap based on storage state once all bootstrap PRs land.
+    // let storage_is_empty = storage_reader
+    //     .begin_ro_txn()
+    //     .expect("Failed to open read transaction for bootstrap check")
+    //     .get_state_marker()
+    //     .expect("Failed to read state marker for bootstrap check")
+    //     == BlockNumber(0);
+    let bootstrap_state_machine = Arc::new(BootstrapStateMachine::new(false));
+
+    let storage_reader_server = create_bootstrap_storage_reader_server(
+        storage_reader.clone(),
+        storage_reader_server_config,
+        bootstrap_state_machine.clone(),
+    );
     let storage_reader_server_handle =
-        GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+        BatcherStorageReaderServer::spawn_if_enabled(storage_reader_server);
 
     let execute_config = &config.static_config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
@@ -1399,6 +1421,7 @@ pub async fn create_batcher(
         block_builder_factory,
         pre_confirmed_block_writer_factory,
         commitment_manager,
+        bootstrap_state_machine,
         storage_reader_server_handle,
     )
 }
