@@ -30,7 +30,7 @@ class SequencerNodeChart(Chart):
         monitoring: bool,
         service_config: ServiceConfig,
         layout: str,
-        overlay: str,
+        overlays: list[str],
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
 
@@ -48,7 +48,7 @@ class SequencerNodeChart(Chart):
 
         # Create ConfigMap
         self.config_map = ConfigMapConstruct(
-            self, "configmap", service_config, labels, monitoring_endpoint_port, layout, overlay
+            self, "configmap", service_config, labels, monitoring_endpoint_port, layout, overlays
         )
 
         # Create ServiceAccount if enabled

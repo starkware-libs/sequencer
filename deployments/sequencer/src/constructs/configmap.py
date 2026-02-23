@@ -14,7 +14,7 @@ class ConfigMapConstruct(BaseConstruct):
         labels,
         monitoring_endpoint_port,
         layout: str,
-        overlay: str,
+        overlays: list[str],
     ):
         super().__init__(
             scope,
@@ -25,7 +25,7 @@ class ConfigMapConstruct(BaseConstruct):
         )
 
         self.layout = layout
-        self.overlay = overlay
+        self.overlays = overlays
         self.config_map = self._get_config_map()
 
     def _get_config_map(self) -> k8s.KubeConfigMap:
@@ -60,7 +60,7 @@ class ConfigMapConstruct(BaseConstruct):
                 service_name=self.service_config.name,
                 config_list_path=self.service_config.config.configList,
                 layout=self.layout,
-                overlay=[self.overlay],
+                overlays=self.overlays,
             )
         else:
             # If no sequencer config overrides, still validate for remaining placeholders
@@ -68,7 +68,7 @@ class ConfigMapConstruct(BaseConstruct):
                 node_config,
                 config_list_path=self.service_config.config.configList,
                 layout=self.layout,
-                overlay=[self.overlay],
+                overlays=self.overlays,
             )
 
         config_data = json.dumps(node_config, indent=2)
