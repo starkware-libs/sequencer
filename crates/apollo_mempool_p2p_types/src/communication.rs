@@ -13,8 +13,7 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::MempoolP2pPropagatorError;

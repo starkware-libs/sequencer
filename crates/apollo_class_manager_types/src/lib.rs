@@ -22,8 +22,7 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;

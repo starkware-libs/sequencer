@@ -23,8 +23,7 @@ apollo_storage.workspace = true
 async-trait.workspace = true
 hex.workspace = true
 starknet_api.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
+strum = { workspace = true, features = ["derive"] }
 tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
@@ -37,7 +36,3 @@ assert_matches.workspace = true
 mockall.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
-
-# TODO(Tsabary): remove sort the `strum` imports in this crate and remove it from the `ignored` list.
-[package.metadata.cargo-machete]
-ignored = ["strum"]

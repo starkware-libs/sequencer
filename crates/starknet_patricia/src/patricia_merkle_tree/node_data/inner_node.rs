@@ -18,8 +18,8 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 pub mod inner_node_test;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumDiscriminants))]
-#[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(strum_macros::EnumIter)))]
+#[cfg_attr(any(test, feature = "testing"), derive(strum::EnumDiscriminants))]
+#[cfg_attr(any(test, feature = "testing"), strum_discriminants(derive(strum::EnumIter)))]
 // A Patricia-Merkle tree node's data.
 pub enum NodeData<L: Leaf, ChildData> {
     Binary(BinaryData<ChildData>),

@@ -25,7 +25,6 @@ async-trait.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 strum = { workspace = true, features = ["derive"] }
-strum_macros.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

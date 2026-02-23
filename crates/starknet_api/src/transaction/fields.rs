@@ -4,7 +4,7 @@ use std::sync::Arc;
 use apollo_sizeof::SizeOf;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
-use strum_macros::EnumIter;
+use strum::EnumIter;
 
 use crate::block::{BlockHash, BlockNumber, GasPrice, NonzeroGasPrice};
 use crate::crypto::utils::HashChain;

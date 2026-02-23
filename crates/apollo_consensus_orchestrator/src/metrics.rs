@@ -1,7 +1,6 @@
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use apollo_transaction_converter::metrics::CONSENSUS_PROOF_MANAGER_STORE_LATENCY;
-use strum::EnumVariantNames;
-use strum_macros::{EnumIter, IntoStaticStr};
+use strum::{EnumIter, EnumVariantNames, IntoStaticStr};
 
 use crate::build_proposal::BuildProposalFailureReasonLabelValue;
 use crate::validate_proposal::ValidateProposalFailureReasonLabelValue;

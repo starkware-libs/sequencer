@@ -19,8 +19,7 @@ use serde_json::{Map, Value};
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::contract_address;
 use starknet_api::core::ChainId;
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
+use strum::{EnumIter, IntoEnumIterator};
 use tokio::sync::RwLock;
 
 use crate::api::JsonRpcServerTrait;

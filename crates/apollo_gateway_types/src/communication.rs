@@ -11,8 +11,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::GatewayError;
