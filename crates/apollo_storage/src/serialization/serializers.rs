@@ -519,14 +519,8 @@ auto_storage_serde! {
         pub value: BigUint,
     }
 
-    pub struct ExecutionResources {
-        pub steps: u64,
-        pub builtin_instance_counter: HashMap<Builtin, u64>,
-        pub memory_holes: u64,
-        pub da_gas_consumed: GasVector,
-        pub gas_consumed: GasVector,
-        pub opcode_instance_counter: HashMap<Opcode, u64>,
-    }
+    // NOTE: ExecutionResources has a custom StorageSerde impl below for backward compatibility
+    // (handling records stored before the opcode_instance_counter field was added)
 
     pub enum Builtin {
         RangeCheck = 0,
@@ -1440,3 +1434,51 @@ impl StorageSerde for InvokeTransactionV3 {
 
 #[cfg(test)]
 create_storage_serde_test!(InvokeTransactionV3);
+
+// Custom StorageSerde for ExecutionResources (backward compatibility).
+// Allows deserializing legacy on-disk records that were stored before `opcode_instance_counter`
+// was added.
+//
+// NOTE: This is a temporary migration shim. Once all nodes have re-synced (i.e., no stored
+// transaction outputs exist in the old format), remove this impl and move ExecutionResources back
+// to `auto_storage_serde!`.
+// TODO(AvivG): Remove this migration shim once all nodes have re-synced.
+impl StorageSerde for ExecutionResources {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        self.steps.serialize_into(res)?;
+        self.builtin_instance_counter.serialize_into(res)?;
+        self.memory_holes.serialize_into(res)?;
+        self.da_gas_consumed.serialize_into(res)?;
+        self.gas_consumed.serialize_into(res)?;
+        self.opcode_instance_counter.serialize_into(res)?;
+        Ok(())
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        let steps = u64::deserialize_from(bytes)?;
+        let builtin_instance_counter = HashMap::<Builtin, u64>::deserialize_from(bytes)?;
+        let memory_holes = u64::deserialize_from(bytes)?;
+        let da_gas_consumed = GasVector::deserialize_from(bytes)?;
+        let gas_consumed = GasVector::deserialize_from(bytes)?;
+        // Backward compatibility: opcode_instance_counter may not exist in old records.
+        // If no data remains, default to empty; otherwise, deserialize normally.
+        let mut remaining = Vec::new();
+        bytes.read_to_end(&mut remaining).ok()?;
+        let opcode_instance_counter = if remaining.is_empty() {
+            HashMap::default()
+        } else {
+            HashMap::<Opcode, u64>::deserialize_from(&mut remaining.as_slice())?
+        };
+        Some(Self {
+            steps,
+            builtin_instance_counter,
+            memory_holes,
+            da_gas_consumed,
+            gas_consumed,
+            opcode_instance_counter,
+        })
+    }
+}
+
+#[cfg(test)]
+create_storage_serde_test!(ExecutionResources);

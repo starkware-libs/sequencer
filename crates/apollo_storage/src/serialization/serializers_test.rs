@@ -266,3 +266,55 @@ fn invoke_transaction_v3_backward_compatibility() {
     let deserialized = InvokeTransactionV3::deserialize_from(&mut old_format.as_slice()).unwrap();
     assert!(deserialized.proof_facts.is_empty());
 }
+
+/// Tests roundtrip serialization/deserialization of ExecutionResources with
+/// non-empty `opcode_instance_counter`.
+///
+/// This is intentionally separate from `create_storage_serde_test!(ExecutionResources)`,
+/// which only covers the empty `opcode_instance_counter` case.
+#[test]
+fn execution_resources_with_opcode_instance_counter_roundtrip() {
+    use starknet_api::execution_resources::{ExecutionResources, Opcode};
+
+    let mut rng = get_rng();
+    let mut resources = ExecutionResources::get_test_instance(&mut rng);
+    resources.opcode_instance_counter = [(Opcode::Blake, 42)].into();
+
+    let mut serialized: Vec<u8> = Vec::new();
+    resources.serialize_into(&mut serialized).unwrap();
+    let deserialized = ExecutionResources::deserialize_from(&mut serialized.as_slice()).unwrap();
+
+    assert_eq!(resources, deserialized);
+    assert!(!deserialized.opcode_instance_counter.is_empty());
+}
+
+// NOTE: Temporary backward-compatibility test for legacy on-disk ExecutionResources
+// records stored before `opcode_instance_counter` was added.
+//
+// Ensures deserialization succeeds and defaults `opcode_instance_counter` to empty when missing.
+// Remove this test (and the related compatibility code in `serializers.rs`) once all
+// nodes have re-synced.
+// TODO(AvivG): Remove once all nodes have re-synced.
+#[test]
+fn execution_resources_backward_compatibility() {
+    use starknet_api::execution_resources::ExecutionResources;
+
+    let mut rng = get_rng();
+    let resources = ExecutionResources::get_test_instance(&mut rng);
+
+    // Serialize all fields EXCEPT opcode_instance_counter, simulating the legacy on-disk format.
+    let mut old_format: Vec<u8> = Vec::new();
+    resources.steps.serialize_into(&mut old_format).unwrap();
+    resources.builtin_instance_counter.serialize_into(&mut old_format).unwrap();
+    resources.memory_holes.serialize_into(&mut old_format).unwrap();
+    resources.da_gas_consumed.serialize_into(&mut old_format).unwrap();
+    resources.gas_consumed.serialize_into(&mut old_format).unwrap();
+    // opcode_instance_counter intentionally omitted
+
+    // Deserialization should succeed and default `opcode_instance_counter` to empty.
+    let deserialized = ExecutionResources::deserialize_from(&mut old_format.as_slice()).unwrap();
+    assert!(deserialized.opcode_instance_counter.is_empty());
+    assert_eq!(deserialized.steps, resources.steps);
+    assert_eq!(deserialized.builtin_instance_counter, resources.builtin_instance_counter);
+    assert_eq!(deserialized.memory_holes, resources.memory_holes);
+}
