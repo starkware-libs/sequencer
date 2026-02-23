@@ -234,6 +234,8 @@ pub struct ExecutionResources {
     pub memory_holes: u64,
     pub da_gas_consumed: GasVector,
     pub gas_consumed: GasVector,
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub opcode_instance_counter: HashMap<Opcode, u64>,
 }
 
 #[derive(Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
@@ -288,6 +290,23 @@ impl Builtin {
             Builtin::AddMod => ADD_MOD_BUILTIN_NAME,
             Builtin::MulMod => MUL_MOD_BUILTIN_NAME,
             Builtin::RangeCheck96 => RANGE_CHECK96_BUILTIN_NAME,
+        }
+    }
+}
+
+/// Cairo opcodes tracked during execution.
+#[derive(Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
+pub enum Opcode {
+    #[serde(rename = "blake_opcode")]
+    Blake,
+}
+
+const BLAKE_OPCODE_NAME: &str = "blake";
+
+impl Opcode {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Opcode::Blake => BLAKE_OPCODE_NAME,
         }
     }
 }

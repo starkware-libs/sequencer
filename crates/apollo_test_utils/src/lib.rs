@@ -1214,6 +1214,7 @@ impl GetTestInstance for ExecutionResources {
                 NonZeroU64::from(NonZeroU32::get_test_instance(rng)).into(),
             )]
             .into(),
+            opcode_instance_counter: Default::default(),
             memory_holes: NonZeroU64::from(NonZeroU32::get_test_instance(rng)).into(),
             da_gas_consumed: GasVector::get_test_instance(rng),
             gas_consumed: GasVector::get_test_instance(rng),

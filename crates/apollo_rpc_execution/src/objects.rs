@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::{
     CallInfo,
+    ExtendedExecutionResources,
+    OpcodeName,
     OrderedEvent as BlockifierOrderedEvent,
     OrderedL2ToL1Message as BlockifierOrderedL2ToL1Message,
     Retdata as BlockifierRetdata,
@@ -12,7 +14,6 @@ use blockifier::execution::entry_point::CallType as BlockifierCallType;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::utils::u64_from_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use papyrus_common::pending_classes::PendingClasses;
@@ -39,6 +40,7 @@ use starknet_api::execution_resources::{
     ExecutionResources,
     GasVector,
     GasVector as StarknetApiGasVector,
+    Opcode,
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::fields::{Calldata, Fee};
@@ -349,8 +351,8 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
                     OrderedL2ToL1Message::from(ordered_message, call_info.call.storage_address)
                 })
                 .collect(),
-            execution_resources: vm_resources_to_execution_resources(
-                call_info.resources.vm_resources,
+            execution_resources: extended_resources_to_execution_resources(
+                call_info.resources,
                 gas_vector,
             )?,
         })
@@ -360,10 +362,12 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
 // Can't implement `TryFrom` because both types are from external crates.
 // TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
 // instead.
-fn vm_resources_to_execution_resources(
-    vm_resources: VmExecutionResources,
+fn extended_resources_to_execution_resources(
+    extended_resources: ExtendedExecutionResources,
     GasVector { l1_gas, l1_data_gas, l2_gas }: GasVector,
 ) -> ExecutionResult<ExecutionResources> {
+    let vm_resources = extended_resources.vm_resources;
+
     let mut builtin_instance_counter = HashMap::new();
     for (builtin_name, count) in vm_resources.builtin_instance_counter {
         if count == 0 {
@@ -391,9 +395,22 @@ fn vm_resources_to_execution_resources(
             }
         };
     }
+
+    let mut opcode_instance_counter = HashMap::new();
+    for (opcode_name, count) in extended_resources.opcode_instance_counter {
+        if count == 0 {
+            continue;
+        }
+        let count = u64_from_usize(count);
+        match opcode_name {
+            OpcodeName::Blake => opcode_instance_counter.insert(Opcode::Blake, count),
+        };
+    }
+
     Ok(ExecutionResources {
         steps: u64_from_usize(vm_resources.n_steps),
         builtin_instance_counter,
+        opcode_instance_counter,
         memory_holes: u64_from_usize(vm_resources.n_memory_holes),
         da_gas_consumed: StarknetApiGasVector { l1_gas, l2_gas, l1_data_gas },
         gas_consumed: StarknetApiGasVector::default(),

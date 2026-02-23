@@ -651,7 +651,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
     }
 }
 
-/// The execution resources used by a transaction.
+/// The execution resources in [TransactionReceipt], which is included in `get_block` of the feeder.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ExecutionResources {
@@ -760,6 +760,9 @@ impl From<ExecutionResources> for starknet_api::execution_resources::ExecutionRe
                 },
             },
             da_gas_consumed,
+            // NOTE: opcodes counting is not supported in this flow, as the opcode instance counter
+            // is not included in the transaction receipt received from the feeder.
+            opcode_instance_counter: Default::default(),
         }
     }
 }
