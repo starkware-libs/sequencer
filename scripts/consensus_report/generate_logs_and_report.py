@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 import yaml
 
@@ -49,12 +51,61 @@ def load_env_map() -> dict[str, EnvConfig]:
 
 
 # ------------------------------
+# Subprocess helpers
+# ------------------------------
+
+
+def run_capture(cmd: List[str]) -> str:
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if p.returncode != 0:
+        raise RuntimeError(p.stderr.strip() or "<empty stderr>")
+    return p.stdout.strip()
+
+
+# ------------------------------
 # Time utilities
 # ------------------------------
 
 
+def parse_local_timestamp(ts: str) -> datetime:
+    """
+    Parse timestamp in format YYYY-MM-DDTHH:MM:SS as IST and return datetime in IST.
+    """
+    ts = ts.strip()
+    dt_naive = datetime.fromisoformat(ts)
+    israel_tz = ZoneInfo("Asia/Jerusalem")
+    dt_ist = dt_naive.replace(tzinfo=israel_tz)
+    return dt_ist
+
+
+def parse_rfc3339(ts: str) -> datetime:
+    """
+    Parse RFC3339 timestamp string to datetime.
+    """
+    ts = ts.strip()
+
+    # Handle fractional seconds if present
+    if "." in ts and ts.endswith("Z"):
+        head, rest = ts.split(".", 1)
+        # Extract fractional seconds (up to 6 digits for microseconds)
+        frac = rest.rstrip("Z")[:6].ljust(6, "0")
+        ts = f"{head}.{frac}Z"
+
+    # Replace 'Z' with '+00:00' for fromisoformat
+    ts = ts.replace("Z", "+00:00")
+
+    return datetime.fromisoformat(ts)
+
+
 def fmt_utc(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def ist_to_utc(ist_time: datetime) -> datetime:
+    """
+    Convert IST (Israel Standard Time) datetime to UTC.
+    """
+    return ist_time.astimezone(timezone.utc)
 
 
 def get_24_hours_window() -> Tuple[datetime, datetime]:
@@ -128,6 +179,22 @@ def add_time_bounds(flt: str, start: datetime, end: datetime) -> str:
 # ------------------------------
 
 
+def first_timestamp(project: str, flt: str) -> str:
+    return run_capture(
+        [
+            "gcloud",
+            "logging",
+            "read",
+            flt,
+            "--project",
+            project,
+            "--format=value(timestamp)",
+            "--order=asc",
+            "--limit=1",
+        ]
+    )
+
+
 def determine_search_window(
     args: argparse.Namespace,
     environment: Optional[EnvConfig] = None,
@@ -142,13 +209,53 @@ def determine_search_window(
       - --auto requires environment and common_filter_prefix parameters
     """
 
-    # TODO(lev): Implement all the logic for the different time options
+    # Check for conflicts between time options
+    options = [args.auto, args.near, (args.start or args.end), args.last_24_hours]
+    if sum(bool(o) for o in options) > 1:
+        raise RuntimeError(
+            "--auto, --near, --start/--end, and --last-24-hours are mutually exclusive"
+        )
+
+    if args.auto:
+        if not environment or not common_filter_prefix:
+            raise RuntimeError("--auto requires environment config")
+        start_ts = first_timestamp(
+            environment.project, consensus_height_filter(common_filter_prefix, args.height)
+        )
+        if not start_ts:
+            raise RuntimeError(
+                f"START_MARKER not found: Running consensus for height {args.height}"
+            )
+        start_dt = parse_rfc3339(start_ts)
+
+        end_ts = ""
+        try:
+            end_ts = first_timestamp(
+                environment.project, consensus_height_filter(common_filter_prefix, args.height + 1)
+            )
+        except Exception:
+            end_ts = ""
+
+        end_dt = parse_rfc3339(end_ts) if end_ts else (start_dt + timedelta(minutes=15))
+        # Add ±30 seconds buffer
+        return start_dt - timedelta(seconds=30), end_dt + timedelta(seconds=30)
+
+    if args.near:
+        near_ts = ist_to_utc(parse_local_timestamp(args.near))
+        return near_ts - timedelta(hours=2), near_ts + timedelta(hours=2)
+
+    if args.start or args.end:
+        if not (args.start and args.end):
+            raise RuntimeError("--start and --end must be provided together")
+        return ist_to_utc(parse_local_timestamp(args.start)), ist_to_utc(
+            parse_local_timestamp(args.end)
+        )
 
     # Default: last 24 hours window
     return get_24_hours_window()
 
 
-def prepare_filter(args, environment) -> Tuple[str, str, str]:
+def prepare_filter(args, environment) -> Tuple[str, datetime, datetime]:
     """Prepare log filter and time bounds. Returns (log_filter, start_time, end_time)."""
     common_filter_prefix = common_prefix(environment.namespace_re)
     wide_filter = wide_search_filter(common_filter_prefix, args.height)
