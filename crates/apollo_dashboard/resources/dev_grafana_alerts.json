@@ -953,7 +953,7 @@
       "observer_applicable": "false"
     },
     {
-      "name": "get_consensus_block_number_progress_is_slow",
+      "name": "consensus_block_number_progress_is_slow",
       "title": "Consensus block number progress is slow",
       "ruleGroup": "consensus",
       "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
@@ -961,7 +961,7 @@
         {
           "evaluator": {
             "params": [
-              "$$$get_consensus_block_number_progress_is_slow-comparison_value$$$"
+              "$$$consensus_block_number_progress_is_slow-comparison_value$$$"
             ],
             "type": "lt"
           },
@@ -977,7 +977,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "$$$get_consensus_block_number_progress_is_slow-severity$$$",
+      "severity": "$$$consensus_block_number_progress_is_slow-severity$$$",
       "observer_applicable": "true"
     },
     {

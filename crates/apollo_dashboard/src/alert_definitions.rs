@@ -33,9 +33,9 @@ use apollo_storage::metrics::{
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 
 use crate::alert_scenarios::block_production_delay::{
+    consensus_block_number_progress_is_slow,
     get_cende_write_blob_failure_alert,
     get_cende_write_blob_failure_once_alert,
-    get_consensus_block_number_progress_is_slow,
     get_consensus_p2p_peer_down,
     get_consensus_round_above_zero,
     get_consensus_round_above_zero_multiple_times,
@@ -488,7 +488,7 @@ pub fn get_apollo_alerts() -> Alerts {
     ];
 
     alerts.append(&mut get_batched_transactions_stuck_vec());
-    alerts.push(get_consensus_block_number_progress_is_slow());
+    alerts.push(consensus_block_number_progress_is_slow());
     alerts.push(get_cende_write_blob_failure_alert());
     alerts.append(&mut get_consensus_block_number_stuck_vec());
     alerts.append(&mut get_consensus_p2p_not_enough_peers_for_quorum_vec());
