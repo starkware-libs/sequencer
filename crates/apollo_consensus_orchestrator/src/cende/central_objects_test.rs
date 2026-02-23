@@ -25,6 +25,7 @@ use blockifier::execution::call_info::{
     ExtendedExecutionResources,
     MessageToL1,
     OpcodeCounterMap,
+    OpcodeName,
     OrderedEvent,
     OrderedL2ToL1Message,
     Retdata,
@@ -162,6 +163,8 @@ pub const CENTRAL_CASM_CONTRACT_CLASS_DEFAULT_OPTIONALS_JSON_PATH: &str =
     "central_contract_class_default_optionals.casm.json";
 pub const CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH: &str =
     "central_transaction_execution_info.json";
+pub const CENTRAL_TRANSACTION_EXECUTION_INFO_WITH_OPCODES_JSON_PATH: &str =
+    "central_transaction_execution_info_with_opcodes.json";
 pub const CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH: &str =
     "central_transaction_execution_info_reverted.json";
 pub const CENTRAL_BLOB_JSON_PATH: &str = "central_blob.json";
@@ -490,7 +493,7 @@ fn central_casm_contract_class_default_optional_fields() -> CentralCasmContractC
     CentralCasmContractClass::from(casm_contract_class)
 }
 
-fn extended_execution_resources() -> ExtendedExecutionResources {
+fn extended_execution_resources(include_opcodes: bool) -> ExtendedExecutionResources {
     ExtendedExecutionResources {
         vm_resources: ExecutionResources {
             n_steps: 2,
@@ -500,13 +503,26 @@ fn extended_execution_resources() -> ExtendedExecutionResources {
                 (BuiltinName::pedersen, 4),
             ]),
         },
-        // TODO(AvivG): test with non-default opcode instance counter.
-        opcode_instance_counter: OpcodeCounterMap::default(),
+        opcode_instance_counter: if include_opcodes {
+            BTreeMap::from([(OpcodeName::blake, 5)])
+        } else {
+            OpcodeCounterMap::default()
+        },
     }
 }
 
+/// Backward-compatible wrapper: creates CallInfo without opcodes.
 fn call_info() -> CallInfo {
-    let extended_execution_resources = extended_execution_resources();
+    call_info_with_options(false)
+}
+
+/// Creates CallInfo with opcode instance counter populated.
+fn call_info_with_opcodes() -> CallInfo {
+    call_info_with_options(true)
+}
+
+fn call_info_with_options(include_opcodes: bool) -> CallInfo {
+    let extended_execution_resources = extended_execution_resources(include_opcodes);
     let builtin_counters = extended_execution_resources.prover_cairo_primitives();
 
     CallInfo {
@@ -569,14 +585,26 @@ fn call_info() -> CallInfo {
     }
 }
 
+fn transaction_execution_info() -> TransactionExecutionInfo {
+    transaction_execution_info_with_options(false)
+}
+
+fn transaction_execution_info_with_opcodes() -> TransactionExecutionInfo {
+    transaction_execution_info_with_options(true)
+}
+
 // This object is very long , so in order to test all types of sub-structs and refrain from filling
 // the entire object, we fill only one CallInfo with non-default values and the other CallInfos are
 // None.
-fn transaction_execution_info() -> TransactionExecutionInfo {
+fn transaction_execution_info_with_options(include_opcodes: bool) -> TransactionExecutionInfo {
+    let call_info_fn = if include_opcodes { call_info_with_opcodes } else { call_info };
     TransactionExecutionInfo {
-        validate_call_info: Some(CallInfo { inner_calls: vec![call_info()], ..call_info() }),
-        execute_call_info: Some(CallInfo { inner_calls: vec![call_info()], ..call_info() }),
-        fee_transfer_call_info: Some(CallInfo { inner_calls: vec![call_info()], ..call_info() }),
+        validate_call_info: Some(CallInfo { inner_calls: vec![call_info_fn()], ..call_info_fn() }),
+        execute_call_info: Some(CallInfo { inner_calls: vec![call_info_fn()], ..call_info_fn() }),
+        fee_transfer_call_info: Some(CallInfo {
+            inner_calls: vec![call_info_fn()],
+            ..call_info_fn()
+        }),
         revert_error: None,
         receipt: TransactionReceipt {
             fee: Fee(0x26fe9d250e000),
@@ -613,7 +641,7 @@ fn transaction_execution_info() -> TransactionExecutionInfo {
                     },
                 },
                 computation: ComputationResources {
-                    tx_extended_vm_resources: extended_execution_resources(),
+                    tx_extended_vm_resources: extended_execution_resources(include_opcodes),
                     os_vm_resources: ExecutionResources::default(),
                     n_reverted_steps: 2,
                     sierra_gas: GasAmount(0x128140),
@@ -626,6 +654,10 @@ fn transaction_execution_info() -> TransactionExecutionInfo {
 
 fn central_transaction_execution_info() -> CentralTransactionExecutionInfo {
     transaction_execution_info().into()
+}
+
+fn central_transaction_execution_info_with_opcodes() -> CentralTransactionExecutionInfo {
+    transaction_execution_info_with_opcodes().into()
 }
 
 fn central_transaction_execution_info_reverted() -> CentralTransactionExecutionInfo {
@@ -1061,6 +1093,10 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
 #[case::transaction_execution_info(
     central_transaction_execution_info(),
     CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH
+)]
+#[case::transaction_execution_info_with_opcodes(
+    central_transaction_execution_info_with_opcodes(),
+    CENTRAL_TRANSACTION_EXECUTION_INFO_WITH_OPCODES_JSON_PATH
 )]
 #[case::transaction_execution_info_reverted(
     central_transaction_execution_info_reverted(),
