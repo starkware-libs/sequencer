@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::test_utils::contract_class_from_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -35,8 +33,7 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
 
 // Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
 // Remove entries once they're added to the audited list.
-const PENDING_LIBFUNCS: &[&str] =
-    &["get_execution_info_v3_syscall", "squashed_felt252_dict_entries"];
+const PENDING_LIBFUNCS: &[&str] = &["get_execution_info_v3_syscall"];
 
 fn compiler() -> SierraToCasmCompiler {
     SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
@@ -133,28 +130,19 @@ fn test_sierra_compiler() {
 #[test]
 fn allowed_libfuncs_aligned_to_audited() {
     let libfuncs_list_selector = ListSelector::ListName(BUILTIN_AUDITED_LIBFUNCS_LIST.to_string());
-    let expected = lookup_allowed_libfuncs_list(libfuncs_list_selector).unwrap().allowed_libfuncs;
+    let mut expected =
+        lookup_allowed_libfuncs_list(libfuncs_list_selector).unwrap().allowed_libfuncs;
 
-    let actual = include_str!("allowed_libfuncs.json").to_string();
-    let actual = serde_json::from_str::<AllowedLibfuncs>(&actual).unwrap().allowed_libfuncs;
+    let actual_str = include_str!("allowed_libfuncs.json");
+    let actual = serde_json::from_str::<AllowedLibfuncs>(actual_str).unwrap().allowed_libfuncs;
 
-    // The pending libfuncs are not yet in the audited list of current compiler version.
+    // Pending libfuncs are in our list but not yet in the audited list.
     // TODO(Aviv): Reset the pending libfuncs list once we upgrade the compiler version.
-    let pending_set: HashSet<String> = PENDING_LIBFUNCS.iter().map(|s| s.to_string()).collect();
+    for &libfunc in PENDING_LIBFUNCS {
+        expected.entry(libfunc.into()).or_insert(None);
+    }
 
-    // Audited libfuncs are usually added as versions progress, but can also be deprecated;
-    // test both directions.
-    let missing: Vec<_> = expected.difference(&actual).map(ToString::to_string).collect();
-    let extra: Vec<_> = actual
-        .difference(&expected)
-        .map(ToString::to_string)
-        .filter(|libfunc| !pending_set.contains(libfunc))
-        .collect();
-    assert_eq!(
-        (missing, extra),
-        (Vec::<String>::new(), Vec::<String>::new()),
-        "Audited libfuncs mismatch: (missing, extra)"
-    );
+    assert_eq!(actual, expected, "allowed_libfuncs.json is not aligned with the audited list");
 }
 
 #[test]
