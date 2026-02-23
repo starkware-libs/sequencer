@@ -4,4 +4,9 @@
 
 pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
 
+// Cairo-native is installed from a git branch (not crates.io).
+pub const CAIRO_NATIVE_GIT_URL: &str = "https://github.com/lambdaclass/cairo_native";
+pub const CAIRO_NATIVE_GIT_BRANCH: &str = "tomer/blake_builtin";
+
+// Kept for the version check on the installed binary (--version output).
 pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.9.0-rc.0";
