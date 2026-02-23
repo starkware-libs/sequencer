@@ -20,8 +20,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::MempoolError;

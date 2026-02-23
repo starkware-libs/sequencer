@@ -22,8 +22,7 @@ use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::StateSyncError;

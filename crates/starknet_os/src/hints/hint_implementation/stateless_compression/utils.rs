@@ -7,8 +7,7 @@ use num_bigint::BigUint;
 use num_integer::Integer;
 use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
-use strum::EnumCount;
-use strum_macros::Display;
+use strum::{Display, EnumCount};
 
 use crate::hints::error::OsHintError;
 
@@ -25,7 +24,7 @@ pub(crate) const TOTAL_N_BUCKETS: usize = N_UNIQUE_BUCKETS + 1;
 pub(crate) const MAX_N_BITS: usize = 251;
 const HEADER_LEN: usize = 1 + 1 + TOTAL_N_BUCKETS;
 
-#[derive(Debug, Display, strum_macros::EnumCount)]
+#[derive(Debug, Display, strum::EnumCount)]
 pub(crate) enum BitLength {
     Bits15,
     Bits31,

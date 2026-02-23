@@ -20,8 +20,14 @@ use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use phf::phf_set;
 use serde::{Serialize, Serializer};
 use serde_json::{from_str, json, Map, Value};
-use strum::{Display, EnumVariantNames, IntoEnumIterator};
-use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{
+    Display,
+    EnumDiscriminants,
+    EnumIter,
+    EnumVariantNames,
+    IntoEnumIterator,
+    IntoStaticStr,
+};
 
 use crate::deployment_definitions::{ComponentConfigInService, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;

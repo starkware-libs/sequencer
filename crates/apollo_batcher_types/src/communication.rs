@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 use crate::batcher_types::{

@@ -42,7 +42,6 @@ shared_execution_objects.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
-strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["rt"] }

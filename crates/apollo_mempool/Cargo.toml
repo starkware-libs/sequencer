@@ -37,7 +37,6 @@ indexmap.workspace = true
 rand.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
-strum_macros.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

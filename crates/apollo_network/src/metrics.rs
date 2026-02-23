@@ -9,8 +9,7 @@ use apollo_metrics::metrics::{
     MetricHistogram,
 };
 use libp2p::gossipsub::{PublishError, TopicHash};
-use strum::IntoStaticStr;
-use strum_macros::EnumVariantNames;
+use strum::{EnumVariantNames, IntoStaticStr};
 
 // Labels used for broadcast drop metrics
 pub const LABEL_NAME_BROADCAST_DROP_REASON: &str = "drop_reason";
