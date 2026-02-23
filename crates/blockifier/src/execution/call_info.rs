@@ -27,6 +27,10 @@ use crate::state::cached_state::StorageEntry;
 use crate::transaction::objects::ExecutionResourcesTraits;
 use crate::utils::u64_from_usize;
 
+#[cfg(test)]
+#[path = "call_info_test.rs"]
+mod call_info_test;
+
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct Retdata(pub Vec<Felt>);
@@ -336,7 +340,9 @@ impl ExtendedExecutionResources {
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[derive(
+    Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd, strum_macros::EnumIter,
+)]
 pub enum OpcodeName {
     Blake,
 }
