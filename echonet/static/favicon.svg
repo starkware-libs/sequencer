@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Echonet">
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="25%" r="90%">
+      <stop offset="0" stop-color="#141b33"/>
+      <stop offset="1" stop-color="#0b1020"/>
+    </radialGradient>
+    <linearGradient id="g" x1="14" y1="50" x2="50" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#33d1a0"/>
+      <stop offset="1" stop-color="#7aa2ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- rounded app tile -->
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#bg)"/>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#g)" opacity="0.14"/>
+
+  <!-- echo rings + network nodes -->
+  <circle cx="32" cy="32" r="20" fill="none" stroke="url(#g)" stroke-width="3" opacity="0.78"/>
+  <circle cx="32" cy="32" r="14" fill="none" stroke="url(#g)" stroke-width="3" opacity="0.32"/>
+  <circle cx="46.5" cy="24" r="2" fill="#b8c7ff" opacity="0.9"/>
+  <circle cx="19.5" cy="33" r="2" fill="#b8c7ff" opacity="0.75"/>
+  <circle cx="42" cy="46.5" r="2" fill="#b8c7ff" opacity="0.6"/>
+
+  <!-- bold, rounded E (sequencer "blocks" vibe) -->
+  <path
+    d="M24 22V42 M24 22H42 M24 32H38 M24 42H42"
+    fill="none"
+    stroke="#eef2ff"
+    stroke-width="6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>
