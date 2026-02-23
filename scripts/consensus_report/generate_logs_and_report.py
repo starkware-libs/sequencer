@@ -5,6 +5,8 @@ import argparse
 import os
 import subprocess
 import sys
+import tempfile
+from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
@@ -60,6 +62,21 @@ def run_capture(cmd: List[str]) -> str:
     if p.returncode != 0:
         raise RuntimeError(p.stderr.strip() or "<empty stderr>")
     return p.stdout.strip()
+
+
+def run_stream(cmd: List[str], output_path: Optional[str] = None) -> int:
+    """Execute command, optionally writing stdout to a file."""
+    with ExitStack() as stack:
+        out_file = (
+            stack.enter_context(open(output_path, "w", encoding="utf-8")) if output_path else None
+        )
+        p = subprocess.run(cmd, stdout=out_file, stderr=subprocess.PIPE, text=True)
+
+    if p.returncode == 0 and output_path:
+        print(f"Output logs written to {output_path}")
+    elif p.returncode != 0 and p.stderr:
+        print(p.stderr.strip(), file=sys.stderr)
+    return p.returncode
 
 
 # ------------------------------
@@ -280,6 +297,59 @@ def prepare_filter(args, environment) -> Tuple[str, datetime, datetime]:
     return log_filter, start_time, end_time
 
 
+def download_logs(
+    args,
+    environment,
+    log_filter: str,
+    start_time: str,
+    end_time: str,
+) -> Tuple[Optional[str], bool]:
+    """Download logs from GCP. Returns (logs_path, is_temp_file) or (None, False) on error."""
+    print(
+        f"Downloading logs for height {args.height} from {start_time} to {end_time} from {environment.project}"
+    )
+
+    cmd = [
+        "gcloud",
+        "logging",
+        "read",
+        log_filter,
+        "--project",
+        environment.project,
+        "--format=json",
+        "--order=asc",
+        "--limit=500000",
+    ]
+
+    output_path = args.out_json_path
+    if output_path and not os.path.splitext(output_path)[1]:
+        output_path = output_path + ".json"
+
+    temp_file = False
+    if args.report_path and not output_path:
+        temp_logs_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        )
+        output_path = temp_logs_file.name
+        temp_logs_file.close()
+        temp_file = True
+
+    rc = run_stream(cmd, output_path)
+    if rc != 0:
+        if temp_file:
+            os.unlink(output_path)
+        return None, False
+
+    return output_path if output_path else "stdout", temp_file
+
+
+def generate_report(logs_path: str, height: int, report_output: str) -> int:
+    """Generate consensus report from logs. Returns exit code."""
+    # TODO(lev): Implement report generation
+    print("Report generation not yet implemented")
+    return 0
+
+
 # ------------------------------
 # Main
 # ------------------------------
@@ -339,10 +409,22 @@ def main() -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 2
 
-    # TODO(lev): Add log downloading
-    # TODO(lev): Add report generation
+    logs_path, temp_file = download_logs(
+        args, environment, log_filter, fmt_utc(start_time), fmt_utc(end_time)
+    )
+    if logs_path is None:
+        return 1
+    if logs_path == "stdout":
+        return 0
 
-    return 0
+    rc = 0
+    if args.report_path:
+        rc = generate_report(logs_path, args.height, args.report_path)
+
+    if temp_file:
+        os.unlink(logs_path)
+
+    return rc
 
 
 if __name__ == "__main__":
