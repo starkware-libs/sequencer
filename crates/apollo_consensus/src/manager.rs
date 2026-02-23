@@ -524,7 +524,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // If we already voted for this height, do not proceed until we sync to this height.
         // Otherwise, just check if we can sync to this height, immediately. If not, proceed with
         // consensus.
-        if self
+        if !self.consensus_config.static_config.skip_last_voted_height_check
+            && self
             .last_voted_height_at_initialization
             .is_some_and(|last_voted_height| last_voted_height >= height)
         {

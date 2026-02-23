@@ -2169,6 +2169,11 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus_manager_config.consensus_manager_config.static_config.skip_last_voted_height_check": {
+    "description": "If true, skips check that we didn't vote on this height.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",

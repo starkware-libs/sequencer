@@ -416,6 +416,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     ..Default::default() },
                     // TODO(Matan, Dan): Set the right amount
                     startup_delay: Duration::from_secs(15),
+                    skip_last_voted_height_check: false,
                 },
             },
             context_config: ContextConfig {
