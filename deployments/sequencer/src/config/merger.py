@@ -42,18 +42,14 @@ def merge_configs(
                 common_config_path=overlay_common_path,
             )
             overlay_services = overlay_loader._load_service_configs_from_dir()
-            merged_services = apply_services_overlay_strict(
-                merged_services, overlay_services
-            )
+            merged_services = apply_services_overlay_strict(merged_services, overlay_services)
         if overlay_common_path:
             overlay_loader = DeploymentConfigLoader(
                 configs_dir_path=overlay_services_path or layout_services_config_dir_path,
                 common_config_path=overlay_common_path,
             )
             overlay_common = overlay_loader._load_common_config()
-            merged_common = merge_common_with_overlay_strict(
-                merged_common, overlay_common
-            )
+            merged_common = merge_common_with_overlay_strict(merged_common, overlay_common)
 
     # --- Merge common into each service (once at the end) ---
     final_services = [
