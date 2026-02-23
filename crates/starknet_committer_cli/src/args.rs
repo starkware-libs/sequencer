@@ -231,7 +231,6 @@ impl<InnerStorageArgs: StorageFromArgs + Sync> StorageFromArgs
     fn storage_config(&self) -> <Self::Storage as Storage>::Config {
         CachedStorageConfig {
             cache_size: NonZeroUsize::new(self.cache_size).unwrap(),
-            cache_on_write: true,
             include_inner_stats: self.include_inner_stats,
             inner_storage_config: self.storage_args.storage_config(),
         }
