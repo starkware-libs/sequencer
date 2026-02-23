@@ -1,6 +1,5 @@
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_proof_manager_config::config::ProofManagerConfig;
@@ -8,7 +7,6 @@ use async_trait::async_trait;
 use lru::LruCache;
 use starknet_api::transaction::fields::{Proof, ProofFacts};
 use starknet_types_core::felt::Felt;
-use tracing::info;
 
 use crate::proof_storage::{FsProofStorage, FsProofStorageError, ProofStorage};
 
@@ -24,35 +22,17 @@ impl ProofCache {
     }
 
     pub fn get(&self, facts_hash: &Felt) -> Option<Proof> {
-        let start = Instant::now();
         let mut guard = self.cache.lock().expect("Failed to lock proof cache.");
-        let lock_duration = start.elapsed();
-        info!(
-            lock_duration_ms = %lock_duration.as_millis(),
-            "ProofCache::get lock acquired"
-        );
         guard.get(facts_hash).cloned()
     }
 
     pub fn insert(&self, facts_hash: Felt, proof: Proof) {
-        let start = Instant::now();
         let mut guard = self.cache.lock().expect("Failed to lock proof cache.");
-        let lock_duration = start.elapsed();
-        info!(
-            lock_duration_ms = %lock_duration.as_millis(),
-            "ProofCache::insert lock acquired"
-        );
         guard.put(facts_hash, proof);
     }
 
     pub fn contains(&self, facts_hash: &Felt) -> bool {
-        let start = Instant::now();
         let guard = self.cache.lock().expect("Failed to lock proof cache.");
-        let lock_duration = start.elapsed();
-        info!(
-            lock_duration_ms = %lock_duration.as_millis(),
-            "ProofCache::contains lock acquired"
-        );
         guard.contains(facts_hash)
     }
 }
