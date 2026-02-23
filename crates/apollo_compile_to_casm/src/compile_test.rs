@@ -35,8 +35,7 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
 
 // Libfuncs in allowed_libfuncs.json but not yet in Cairo's audited list.
 // Remove entries once they're added to the audited list.
-const PENDING_LIBFUNCS: &[&str] =
-    &["get_execution_info_v3_syscall", "squashed_felt252_dict_entries"];
+const PENDING_LIBFUNCS: &[&str] = &["get_execution_info_v3_syscall"];
 
 fn compiler() -> SierraToCasmCompiler {
     SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
@@ -135,25 +134,30 @@ fn allowed_libfuncs_aligned_to_audited() {
     let libfuncs_list_selector = ListSelector::ListName(BUILTIN_AUDITED_LIBFUNCS_LIST.to_string());
     let expected = lookup_allowed_libfuncs_list(libfuncs_list_selector).unwrap().allowed_libfuncs;
 
-    let actual = include_str!("allowed_libfuncs.json").to_string();
-    let actual = serde_json::from_str::<AllowedLibfuncs>(&actual).unwrap().allowed_libfuncs;
+    let actual_str = include_str!("allowed_libfuncs.json");
+    let actual = serde_json::from_str::<AllowedLibfuncs>(actual_str).unwrap().allowed_libfuncs;
 
-    // The pending libfuncs are not yet in the audited list of current compiler version.
-    // TODO(Aviv): Reset the pending libfuncs list once we upgrade the compiler version.
-    let pending_set: HashSet<String> = PENDING_LIBFUNCS.iter().map(|s| s.to_string()).collect();
+    let pending_set: HashSet<&str> = PENDING_LIBFUNCS.iter().copied().collect();
 
-    // Audited libfuncs are usually added as versions progress, but can also be deprecated;
-    // test both directions.
-    let missing: Vec<_> = expected.difference(&actual).map(ToString::to_string).collect();
+    let missing: Vec<_> =
+        expected.keys().filter(|k| !actual.contains_key(k)).map(ToString::to_string).collect();
     let extra: Vec<_> = actual
-        .difference(&expected)
+        .keys()
+        .filter(|k| !expected.contains_key(k))
         .map(ToString::to_string)
-        .filter(|libfunc| !pending_set.contains(libfunc))
+        .filter(|k| !pending_set.contains(k.as_str()))
         .collect();
-    assert_eq!(
-        (missing, extra),
-        (Vec::<String>::new(), Vec::<String>::new()),
-        "Audited libfuncs mismatch: (missing, extra)"
+    let mismatched: Vec<_> = expected
+        .iter()
+        .filter(|(k, v)| actual.get(k).is_some_and(|av| av != *v))
+        .map(|(k, _)| k.to_string())
+        .collect();
+
+    assert!(
+        missing.is_empty() && extra.is_empty() && mismatched.is_empty(),
+        "allowed_libfuncs.json is not aligned with the audited list.\n Missing (in audited but \
+         not in json): {missing:?}\n Extra (in json but not in audited): {extra:?}\n Value \
+         mismatch: {mismatched:?}"
     );
 }
 
