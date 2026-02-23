@@ -40,8 +40,29 @@ def load_env_map() -> Tuple[dict[str, EnvConfig], str]:
 
 
 # ------------------------------
+# Subprocess helpers
+# ------------------------------
+
+
+def run_capture(cmd: List[str]) -> str:
+    p = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if p.returncode != 0:
+        raise RuntimeError(p.stderr.strip() or "<empty stderr>")
+    return p.stdout.strip()
+
+
+# ------------------------------
 # Time utilities
 # ------------------------------
+
+
+def parse_rfc3339(ts: str) -> datetime:
+    ts = ts.strip()
+    if ts.endswith("Z") and "." in ts:
+        head, rest = ts.split(".", 1)
+        frac = rest.rstrip("Z")[:6].ljust(6, "0")
+        ts = f"{head}.{frac}Z"
+    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
 
 
 def fmt_utc(dt: datetime) -> str:
@@ -125,6 +146,22 @@ def add_time_bounds(flt: str, start: datetime, end: datetime) -> str:
 # ------------------------------
 
 
+def first_timestamp(project: str, flt: str) -> str:
+    return run_capture(
+        [
+            "gcloud",
+            "logging",
+            "read",
+            flt,
+            "--project",
+            project,
+            "--format=value(timestamp)",
+            "--order=asc",
+            "--limit=1",
+        ]
+    )
+
+
 def compute_window(
     args: argparse.Namespace,
     environment: Optional[EnvConfig] = None,
@@ -139,7 +176,43 @@ def compute_window(
       - --auto requires environment and common_prefix parameters
     """
 
-    # TODO(lev): Implement all the logic for the different time options
+    # Check for conflicts between time options
+    options = [args.auto, args.near, (args.start or args.end), args.today]
+    if sum(bool(o) for o in options) > 1:
+        raise RuntimeError("--auto, --near, --start/--end, and --today are mutually exclusive")
+
+    if args.auto:
+        if not environment or not common_prefix:
+            raise RuntimeError("--auto requires environment config")
+        start_ts = first_timestamp(
+            environment.project, start_marker_filter(common_prefix, args.height)
+        )
+        if not start_ts:
+            raise RuntimeError(
+                f"START_MARKER not found: Running consensus for height {args.height}"
+            )
+        start_dt = parse_rfc3339(start_ts)
+
+        end_ts = ""
+        try:
+            end_ts = first_timestamp(
+                environment.project, end_marker_filter(common_prefix, args.height + 1)
+            )
+        except Exception:
+            end_ts = ""
+
+        end_dt = parse_rfc3339(end_ts) if end_ts else (start_dt + timedelta(minutes=15))
+        # Add ±30 seconds buffer
+        return start_dt - timedelta(seconds=30), end_dt + timedelta(seconds=30)
+
+    if args.near:
+        near_ts = parse_rfc3339(args.near)
+        return near_ts - timedelta(hours=2), near_ts + timedelta(hours=2)
+
+    if args.start or args.end:
+        if not (args.start and args.end):
+            raise RuntimeError("--start and --end must be provided together")
+        return parse_rfc3339(args.start), parse_rfc3339(args.end)
 
     # Default: today's window
     return utc_midnight_window()
