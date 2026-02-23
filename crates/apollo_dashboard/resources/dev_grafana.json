@@ -741,8 +741,8 @@
     "State Sync": {
       "panels": [
         {
-          "title": "Central Block Marker",
-          "description": "The first block number that doesn't exist yet",
+          "title": "Current Feeder Gateway Marker",
+          "description": "The latest block number available in the feeder gateway + 1",
           "type": "stat",
           "exprs": [
             "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
@@ -750,8 +750,17 @@
           "extra_params": {}
         },
         {
+          "title": "Current Sync Marker",
+          "description": "The first block that hasn't been fully downloaded",
+          "type": "stat",
+          "exprs": [
+            "apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+          ],
+          "extra_params": {}
+        },
+        {
           "title": "Time to Complete Sync",
-          "description": "Estimated time to complete syncing to the latest block (based on a 10m window rate).\nThe value is computed from the sync rate of the `class manager marker` (which is the last component to finish downloading among all state sync parts), compared against the `central block marker` (the latest block known to central).",
+          "description": "Estimated time to complete syncing to the latest block (based on a 10m window rate).\nThe value is computed from the sync rate of the `current sync marker`\n             compared against the `current feeder gateway marker`.",
           "type": "timeseries",
           "exprs": [
             "(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) / clamp_min(rate(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) - rate(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]), 1)"
@@ -761,8 +770,8 @@
           }
         },
         {
-          "title": "Sync Diff From Central",
-          "description": "The number of blocks that were not fully synced yet",
+          "title": "Sync Diff From Feeder Gateway",
+          "description": "The number of blocks that exist in the feeder but weren't downloaded yet",
           "type": "timeseries",
           "exprs": [
             "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
@@ -771,7 +780,7 @@
         },
         {
           "title": "Sync Block Age",
-          "description": "The time from a block’s timestamp until its header is synced through the feeder-gateway.",
+          "description": "The time from a block’s timestamp until its header is downloaded.",
           "type": "timeseries",
           "exprs": [
             "apollo_state_sync_header_latency{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
@@ -781,29 +790,11 @@
           }
         },
         {
-          "title": "State Sync Body Marker",
-          "description": "The first block number for which the state sync component does not have a body",
+          "title": "Current Sync Body Marker",
+          "description": "The first block whose body hasn't been downloaded",
           "type": "stat",
           "exprs": [
             "apollo_state_sync_body_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "State Sync Class Manager Marker",
-          "description": "The first block number for which the state sync component does not have a class",
-          "type": "stat",
-          "exprs": [
-            "apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
-          ],
-          "extra_params": {}
-        },
-        {
-          "title": "State Sync Compiled Class Marker",
-          "description": "The first block number for which the state sync component does not have all of the corresponding compiled classes",
-          "type": "stat",
-          "exprs": [
-            "apollo_state_sync_compiled_class_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
           ],
           "extra_params": {}
         }
