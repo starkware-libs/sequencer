@@ -32,6 +32,8 @@ use crate::dashboard::Row;
 use crate::panel::{Panel, PanelType, Unit};
 use crate::query_builder::{increase, sum_by_label, DisplayMethod, DEFAULT_DURATION};
 
+const COMMITMENT_LATENCIES_LOG_QUERY: &str = "\"Block\" AND \"commitment latencies\"";
+
 /// Returns a panel that shows the average latency (in seconds) over a 1m window:
 /// (increase(total_ms)[1m] / 1000) / clamp_min(increase(count)[1m], 1).
 fn average_latency_panel(
@@ -40,6 +42,7 @@ fn average_latency_panel(
     numerator: &dyn MetricQueryName,
     count: &dyn MetricQueryName,
     divisor: Option<u64>,
+    log_query: &str,
     unit: Option<Unit>,
 ) -> Panel {
     let numerator = format!("({})", increase(numerator, "1m"));
@@ -53,7 +56,7 @@ fn average_latency_panel(
     if let Some(u) = unit {
         panel = panel.with_unit(u);
     }
-    panel
+    panel.with_log_query(log_query)
 }
 
 pub(crate) fn get_panel_consensus_block_time_avg() -> Panel {
@@ -189,6 +192,7 @@ fn get_panel_commitment_manager_commit_block_latency() -> Panel {
         &COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY,
         &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
         Some(1000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }
@@ -200,6 +204,7 @@ fn get_panel_commitment_manager_revert_block_latency() -> Panel {
         &COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY,
         &COMMITMENT_MANAGER_REVERT_BLOCK_COUNT,
         Some(1000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }
@@ -220,6 +225,7 @@ fn get_panel_txs_commitment_latency() -> Panel {
         &TX_COMMITMENT_LATENCY,
         &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
         Some(1_000_000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }
@@ -231,6 +237,7 @@ fn get_panel_txs_commitment_per_tx_latency() -> Panel {
         &TX_COMMITMENT_LATENCY,
         &TX_COMMITMENT_COUNT,
         Some(1_000_000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }
@@ -242,6 +249,7 @@ fn get_panel_events_commitment_latency() -> Panel {
         &EVENT_COMMITMENT_LATENCY,
         &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
         Some(1_000_000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }
@@ -253,6 +261,7 @@ fn get_panel_events_commitment_per_event_latency() -> Panel {
         &EVENT_COMMITMENT_LATENCY,
         &EVENT_COMMITMENT_COUNT,
         Some(1_000_000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }
@@ -264,6 +273,7 @@ fn get_panel_receipts_commitment_latency() -> Panel {
         &RECEIPT_COMMITMENT_LATENCY,
         &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
         Some(1_000_000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }
@@ -275,6 +285,7 @@ fn get_panel_state_diff_commitment_latency() -> Panel {
         &STATE_DIFF_COMMITMENT_LATENCY,
         &COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT,
         Some(1_000_000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }
@@ -286,6 +297,7 @@ fn get_panel_state_diff_commitment_per_state_diff_length() -> Panel {
         &STATE_DIFF_COMMITMENT_LATENCY,
         &STATE_DIFF_LENGTH,
         Some(1_000_000),
+        COMMITMENT_LATENCIES_LOG_QUERY,
         Some(Unit::Seconds),
     )
 }

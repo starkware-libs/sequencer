@@ -37,7 +37,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHashAndNumber, BlockInfo};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     BlockCommitmentsMeasurements,
@@ -159,7 +159,7 @@ impl BlockExecutionArtifacts {
             &starknet_version,
         )
         .await;
-        record_block_commitment_measurements(measurements);
+        record_and_log_block_commitment_measurements(block_info.block_number, measurements);
         let partial_block_hash_components = PartialBlockHashComponents {
             header_commitments,
             block_number: block_info.block_number,
@@ -908,18 +908,53 @@ fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHas
 }
 
 #[allow(clippy::as_conversions)]
-fn record_block_commitment_measurements(measurements: BlockCommitmentsMeasurements) {
-    TX_COMMITMENT_LATENCY
-        .increment((measurements.transaction_commitment_duration.as_micros()) as u64);
+fn record_and_log_block_commitment_measurements(
+    height: BlockNumber,
+    measurements: BlockCommitmentsMeasurements,
+) {
+    // Record the metrics.
+    let tx_commitment_latency = (measurements.transaction_commitment_duration.as_micros()) as u64;
+    TX_COMMITMENT_LATENCY.increment(tx_commitment_latency);
     TX_COMMITMENT_COUNT.increment(measurements.n_txs as u64);
 
-    EVENT_COMMITMENT_LATENCY.increment((measurements.event_commitment_duration.as_micros()) as u64);
+    let event_commitment_latency = (measurements.event_commitment_duration.as_micros()) as u64;
+    EVENT_COMMITMENT_LATENCY.increment(event_commitment_latency);
     EVENT_COMMITMENT_COUNT.increment(measurements.n_events as u64);
 
-    RECEIPT_COMMITMENT_LATENCY
-        .increment((measurements.receipt_commitment_duration.as_micros()) as u64);
+    let receipt_commitment_latency = (measurements.receipt_commitment_duration.as_micros()) as u64;
+    RECEIPT_COMMITMENT_LATENCY.increment(receipt_commitment_latency);
 
-    STATE_DIFF_COMMITMENT_LATENCY
-        .increment(measurements.state_diff_commitment_duration.as_micros() as u64);
+    let state_diff_commitment_latency =
+        (measurements.state_diff_commitment_duration.as_micros()) as u64;
+    STATE_DIFF_COMMITMENT_LATENCY.increment(state_diff_commitment_latency);
+
+    // Log the measurements.
+    let height = height.0;
+    let tx_commitment_per_tx_latency_string = if measurements.n_txs > 0 {
+        format!("{} µs", tx_commitment_latency / measurements.n_txs as u64)
+    } else {
+        String::new()
+    };
+    let event_commitment_per_event_latency_string = if measurements.n_events > 0 {
+        format!("{} µs", event_commitment_latency / measurements.n_events as u64)
+    } else {
+        String::new()
+    };
     STATE_DIFF_LENGTH.increment(measurements.state_diff_length as u64);
+    let state_diff_commitment_per_state_diff_length_latency_string =
+        if measurements.state_diff_length > 0 {
+            format!("{} µs", state_diff_commitment_latency / measurements.state_diff_length as u64)
+        } else {
+            String::new()
+        };
+
+    debug!(
+        "Block {height} commitments latencies: tx/event/receipt/state_diff in µs: \
+         {tx_commitment_latency}/{event_commitment_latency}/{receipt_commitment_latency}/\
+         {state_diff_commitment_latency},
+        tx commitment per tx: {tx_commitment_per_tx_latency_string},
+        event commitment per event: {event_commitment_per_event_latency_string},
+        state diff commitment per state diff length: \
+         {state_diff_commitment_per_state_diff_length_latency_string}",
+    );
 }
