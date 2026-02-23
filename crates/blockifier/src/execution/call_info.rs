@@ -339,8 +339,9 @@ const BLAKE_OPCODE_NAME_WITH_SUFFIX: &str = "blake_opcode";
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[allow(non_camel_case_types)]
 pub enum OpcodeName {
-    Blake,
+    blake,
 }
 
 impl OpcodeName {
@@ -348,7 +349,7 @@ impl OpcodeName {
     /// This mirrors [`BuiltinName::to_str_with_suffix`] for consistency in resource naming.
     pub fn to_str_with_suffix(self) -> &'static str {
         match self {
-            OpcodeName::Blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
+            OpcodeName::blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
         }
     }
 }
