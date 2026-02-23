@@ -37,6 +37,9 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
+use starknet_api::transaction::TransactionHash;
+use starknet_types_core::felt::Felt;
+use tokio::task::JoinHandle;
 use tokio::time::timeout;
 use tracing::{debug, error, info, warn};
 
@@ -55,6 +58,7 @@ use crate::metrics::{
 use crate::proof_archive_writer::{
     GcsProofArchiveWriter,
     NoOpProofArchiveWriter,
+    ProofArchiveError,
     ProofArchiveWriterTrait,
 };
 use crate::state_reader::StateReaderFactory;
@@ -73,6 +77,9 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 pub mod gateway_test;
 
 const PROOF_ARCHIVE_WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+
+type ProofArchiveHandle =
+    Option<(JoinHandle<(Felt, Result<(), ProofArchiveError>)>, TransactionHash)>;
 
 #[derive(Clone)]
 pub struct Gateway(GenericGateway<StatelessTransactionValidator, TransactionConverter>);
@@ -204,42 +211,9 @@ impl<
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
-        let mut proof_archive_handle = None;
-        if let Some((proof_facts, proof)) = proof_data {
-            let tx_hash = internal_tx.tx_hash;
-            // Proof is verified during conversion to internal tx. It is stored here, after
-            // validation, to avoid storing proofs for rejected transactions.
-            let store_result = self
-                .transaction_converter
-                .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
-                .await;
-            match store_result {
-                Ok(proof_manager_store_duration) => {
-                    GATEWAY_PROOF_MANAGER_STORE_LATENCY
-                        .record(proof_manager_store_duration.as_secs_f64());
-                    info!(
-                        "Proof manager store in the gateway took: \
-                         {proof_manager_store_duration:?} for tx hash: {tx_hash:?}"
-                    );
-                }
-                Err(e) => {
-                    error!("Failed to set proof in proof manager: {}", e);
-                }
-            }
-            let proof_archive_writer = self.proof_archive_writer.clone();
-            let handle = tokio::spawn(async move {
-                let proof_facts_hash = proof_facts.hash();
-                let proof_archive_writer_start = Instant::now();
-                let result = proof_archive_writer.set_proof(proof_facts, proof).await;
-                let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
-                info!(
-                    "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
-                     {tx_hash:?}"
-                );
-                (proof_facts_hash, result)
-            });
-            proof_archive_handle = Some((handle, tx_hash));
-        }
+        let proof_archive_handle =
+            self.store_proof_and_spawn_archiving(proof_data, internal_tx.tx_hash).await;
+
         let gateway_output = create_gateway_output(&internal_tx);
 
         let add_tx_args = AddTransactionArgsWrapper {
@@ -257,39 +231,89 @@ impl<
 
         metric_counters.transaction_sent_to_mempool();
 
-        // Await the proof archiving only after the transaction is sent to mempool.
-        if let Some((handle, tx_hash)) = proof_archive_handle {
-            let abort_handle = handle.abort_handle();
-            match timeout(PROOF_ARCHIVE_WRITE_TIMEOUT, handle).await {
-                Ok(Ok((proof_facts_hash, Ok(())))) => {
-                    info!(
-                        "Proof archived successfully. proof_facts_hash: {proof_facts_hash:?}, \
-                         tx_hash: {tx_hash:?}"
-                    );
-                }
-                Ok(Ok((proof_facts_hash, Err(e)))) => {
-                    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                    error!(
-                        "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
-                         tx_hash: {tx_hash:?}, error: {e}"
-                    );
-                }
-                Ok(Err(e)) => {
-                    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                    error!("Proof archive writer task panicked. tx_hash: {tx_hash:?}, error: {e}");
-                }
-                Err(_) => {
-                    abort_handle.abort();
-                    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
-                    error!(
-                        "Proof archive writer timed out after {PROOF_ARCHIVE_WRITE_TIMEOUT:?}. \
-                         tx_hash: {tx_hash:?}"
-                    );
-                }
+        // We await proof archiving only after the transaction is sent to the mempool to avoid
+        // delays.
+        Self::await_proof_archiving(proof_archive_handle).await;
+
+        Ok(gateway_output)
+    }
+
+    async fn store_proof_and_spawn_archiving(
+        &self,
+        proof_data: Option<(ProofFacts, Proof)>,
+        tx_hash: TransactionHash,
+    ) -> ProofArchiveHandle {
+        let (proof_facts, proof) = proof_data?;
+
+        // Proof is verified during conversion to internal tx. It is stored here, after
+        // validation, to avoid storing proofs for rejected transactions.
+        let store_result = self
+            .transaction_converter
+            .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
+            .await;
+        match store_result {
+            Ok(proof_manager_store_duration) => {
+                GATEWAY_PROOF_MANAGER_STORE_LATENCY
+                    .record(proof_manager_store_duration.as_secs_f64());
+                info!(
+                    "Proof manager store in the gateway took: {proof_manager_store_duration:?} \
+                     for tx hash: {tx_hash:?}"
+                );
+            }
+            Err(e) => {
+                error!("Failed to set proof in proof manager: {}", e);
             }
         }
 
-        Ok(gateway_output)
+        let proof_archive_writer = self.proof_archive_writer.clone();
+        let handle = tokio::spawn(async move {
+            let proof_facts_hash = proof_facts.hash();
+            let proof_archive_writer_start = Instant::now();
+            let result = proof_archive_writer.set_proof(proof_facts, proof).await;
+            let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
+            info!(
+                "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
+                 {tx_hash:?}"
+            );
+            (proof_facts_hash, result)
+        });
+
+        Some((handle, tx_hash))
+    }
+
+    async fn await_proof_archiving(proof_archive_handle: ProofArchiveHandle) {
+        let Some((handle, tx_hash)) = proof_archive_handle else {
+            return;
+        };
+
+        let abort_handle = handle.abort_handle();
+        match timeout(PROOF_ARCHIVE_WRITE_TIMEOUT, handle).await {
+            Ok(Ok((proof_facts_hash, Ok(())))) => {
+                info!(
+                    "Proof archived successfully. proof_facts_hash: {proof_facts_hash:?}, \
+                     tx_hash: {tx_hash:?}"
+                );
+            }
+            Ok(Ok((proof_facts_hash, Err(e)))) => {
+                GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                error!(
+                    "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
+                     tx_hash: {tx_hash:?}, error: {e}"
+                );
+            }
+            Ok(Err(e)) => {
+                GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                error!("Proof archive writer task panicked. tx_hash: {tx_hash:?}, error: {e}");
+            }
+            Err(_) => {
+                abort_handle.abort();
+                GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                error!(
+                    "Proof archive writer timed out after {PROOF_ARCHIVE_WRITE_TIMEOUT:?}. \
+                     tx_hash: {tx_hash:?}"
+                );
+            }
+        }
     }
 
     fn check_declare_permissions(
