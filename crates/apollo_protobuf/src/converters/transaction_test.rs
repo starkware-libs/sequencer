@@ -213,6 +213,7 @@ lazy_static! {
         memory_holes: 0,
         da_gas_consumed: GasVector::default(),
         gas_consumed: GasVector::default(),
+        opcode_instance_counter: std::collections::HashMap::new(),
     };
     static ref RESOURCE_BOUNDS_MAPPING: ValidResourceBounds =
         ValidResourceBounds::AllResources(AllResourceBounds {

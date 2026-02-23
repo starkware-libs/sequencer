@@ -302,12 +302,15 @@ impl TryFrom<protobuf::receipt::ExecutionResources> for ExecutionResources {
         let da_gas_consumed =
             value.da_gas_consumed.ok_or(missing("ExecutionResources::da_gas_consumed"))?.into();
 
+        // NOTE: Opcode counting is not supported in this flow, as the opcode instance counter
+        // is not included in the execution resources received over P2P sync.
         let execution_resources = ExecutionResources {
             steps: u64::from(value.steps),
             builtin_instance_counter,
             memory_holes: u64::from(value.memory_holes),
             gas_consumed,
             da_gas_consumed,
+            opcode_instance_counter: Default::default(),
         };
         Ok(execution_resources)
     }
@@ -333,6 +336,7 @@ impl From<ExecutionResources> for protobuf::receipt::ExecutionResources {
         let steps = u32::try_from(value.steps).expect("Failed to convert u64 to u32");
         let memory_holes = u32::try_from(value.memory_holes).expect("Failed to convert u64 to u32");
 
+        // NOTE: Opcode counting is not included in P2P sync - opcode_instance_counter is ignored.
         protobuf::receipt::ExecutionResources {
             builtins: Some(builtin_instance_counter),
             steps,
