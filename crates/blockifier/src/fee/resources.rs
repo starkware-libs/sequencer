@@ -8,7 +8,7 @@ use crate::execution::call_info::{EventSummary, ExecutionSummary, ExtendedExecut
 #[cfg(test)]
 use crate::execution::contract_class::TrackedResource;
 use crate::fee::eth_gas_constants;
-use crate::fee::fee_utils::get_vm_resources_cost;
+use crate::fee::fee_utils::get_extended_vm_resources_cost;
 use crate::fee::gas_usage::{
     get_consumed_message_to_l2_emissions_cost,
     get_da_gas_cost,
@@ -82,10 +82,9 @@ impl ComputationResources {
         versioned_constants: &VersionedConstants,
         computation_mode: &GasVectorComputationMode,
     ) -> GasVector {
-        let vm_cost = get_vm_resources_cost(
+        let vm_cost = get_extended_vm_resources_cost(
             versioned_constants,
-            // TODO(AvivG): update get_vm_resources_cost to accept ExtendedExecutionResources.
-            &self.total_extended_vm_resources().vm_resources,
+            &self.total_extended_vm_resources(),
             self.n_reverted_steps,
             computation_mode,
         );
