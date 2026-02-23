@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 pub use apollo_batcher_config::config::BootstrapConfig;
+pub use apollo_batcher_types::bootstrap_types::BootstrapState;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{bootstrap_contracts, StorageReader};
-use serde::{Deserialize, Serialize};
 use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -40,20 +40,6 @@ pub(crate) const BOOTSTRAP_SENDER_ADDRESS: u128 = 0x424f4f545354524150;
 #[cfg(test)]
 #[path = "bootstrap_test.rs"]
 mod bootstrap_test;
-
-/// The state of the bootstrap process.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BootstrapState {
-    /// Bootstrap is not active (either disabled or already complete).
-    NotInBootstrap,
-    /// First phase: declare the account and ERC20 contract classes.
-    DeclareContracts,
-    /// Second phase: deploy the funded account.
-    DeployAccount,
-    /// Third phase: deploy the STRK ERC20 fee token (constructor mints the full supply to the
-    /// funded account).
-    DeployFeeToken,
-}
 
 /// Account nonce after `deploy_account` (nonce 0 consumed); used as salt for STRK address and in
 /// the "expected nonce 1" assert before fee-token setup.

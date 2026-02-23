@@ -313,6 +313,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         .expect_get_batcher_dynamic_config()
         .returning(|| Ok(BatcherDynamicConfig::default()));
 
+    let bootstrap_config = Arc::new(config.dynamic_config.bootstrap_config.clone());
     let mut batcher = Batcher::new(
         config,
         storage_reader,
@@ -325,6 +326,7 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         Box::new(clients.block_builder_factory),
         Box::new(clients.pre_confirmed_block_writer_factory),
         commitment_manager,
+        bootstrap_config,
         tokio::spawn(async {}).abort_handle(),
     );
     // Call post-creation functionality (e.g., metrics registration).

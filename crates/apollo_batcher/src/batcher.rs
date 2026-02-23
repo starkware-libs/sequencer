@@ -74,7 +74,7 @@ use apollo_storage::storage_reader_types::{
 #[cfg(feature = "os_input")]
 use apollo_storage::tx_execution_info::{TxExecutionInfoStorageWriter, TxExecutionInfos};
 use apollo_storage::{
-    open_storage_with_metric_and_server,
+    open_storage_with_metric,
     StorageError,
     StorageReader,
     StorageResult,
@@ -127,6 +127,11 @@ use crate::block_builder::{
     BlockBuilderTrait,
     BlockExecutionArtifacts,
     BlockMetadata,
+};
+use crate::bootstrap_server::{
+    create_bootstrap_storage_reader_server,
+    BatcherStorageReaderServer,
+    SharedBootstrapConfig,
 };
 use crate::cende_client_types::CendeBlockMetadata;
 use crate::commitment_manager::commitment_manager_impl::{
@@ -226,6 +231,9 @@ pub struct Batcher {
 
     commitment_manager: ApolloCommitmentManager,
 
+    /// Shared bootstrap config (enable flag), used by the bootstrap HTTP server with storage.
+    pub bootstrap_config: SharedBootstrapConfig,
+
     /// Keep alive to maintain the storage reader server running.
     #[allow(dead_code)]
     storage_reader_server_handle: AbortHandle,
@@ -245,6 +253,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
+        bootstrap_config: SharedBootstrapConfig,
         storage_reader_server_handle: AbortHandle,
     ) -> Self {
         assert!(
@@ -274,6 +283,7 @@ impl Batcher {
             proposals_counter: 1,
             prev_proposal_commitment: None,
             commitment_manager,
+            bootstrap_config,
             storage_reader_server_handle,
         }
     }
@@ -1591,6 +1601,13 @@ pub async fn create_batcher(
         )
         .expect("Failed to open batcher's storage");
 
+    let bootstrap_config = Arc::new(config.dynamic_config.bootstrap_config.clone());
+
+    let storage_reader_server = create_bootstrap_storage_reader_server(
+        storage_reader.clone(),
+        storage_reader_server_config,
+        bootstrap_config.clone(),
+    );
     let storage_reader_server_handle = storage_reader_server.spawn();
 
     let execute_config = &config.static_config.block_builder_config.execute_config;
@@ -1633,6 +1650,7 @@ pub async fn create_batcher(
         block_builder_factory,
         pre_confirmed_block_writer_factory,
         commitment_manager,
+        bootstrap_config,
         storage_reader_server_handle,
     )
 }
