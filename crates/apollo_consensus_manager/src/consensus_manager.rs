@@ -112,7 +112,12 @@ impl ConsensusManager {
     pub fn new(args: ConsensusManagerArgs) -> Self {
         let storage_config =
             args.config.consensus_manager_config.static_config.storage_config.clone();
-        let voted_height_storage = Arc::new(Mutex::new(get_voted_height_storage(storage_config)));
+        let skip_last_voted_height_check =
+            args.config.consensus_manager_config.static_config.skip_last_voted_height_check;
+        let voted_height_storage = Arc::new(Mutex::new(get_voted_height_storage(
+            storage_config,
+            skip_last_voted_height_check,
+        )));
         Self::new_with_storage(args, voted_height_storage)
     }
 
