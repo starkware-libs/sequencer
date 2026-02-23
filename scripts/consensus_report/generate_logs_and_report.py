@@ -5,9 +5,11 @@ import argparse
 import os
 import subprocess
 import sys
+import tempfile
+from contextlib import ExitStack
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import yaml
 
@@ -59,6 +61,21 @@ def run_capture(cmd: List[str]) -> str:
     if p.returncode != 0:
         raise RuntimeError(p.stderr.strip() or "<empty stderr>")
     return p.stdout.strip()
+
+
+def run_stream(cmd: List[str], output_path: Optional[str] = None) -> int:
+    """Execute command, optionally writing stdout to a file."""
+    with ExitStack() as stack:
+        out_file = (
+            stack.enter_context(open(output_path, "w", encoding="utf-8"))
+            if output_path is not None
+            else None
+        )
+        p = subprocess.run(cmd, stdout=out_file, stderr=subprocess.PIPE, text=True)
+
+    if p.returncode != 0 and p.stderr is not None:
+        print(p.stderr.strip(), file=sys.stderr)
+    return p.returncode
 
 
 # ------------------------------
@@ -177,19 +194,36 @@ def add_time_bounds(flt: str, start: datetime, end: datetime) -> str:
 # ------------------------------
 
 
+def build_gcloud_logging_cmd(
+    project: str,
+    log_filter: str,
+    format_type: str,
+    limit: int,
+) -> list[str]:
+    """
+    Build gcloud logging read command.
+    """
+    return [
+        "gcloud",
+        "logging",
+        "read",
+        log_filter,
+        "--project",
+        project,
+        f"--format={format_type}",
+        "--order=asc",
+        f"--limit={limit}",
+    ]
+
+
 def retrieve_first_timestamp(project: str, flt: str) -> str:
     return run_capture(
-        [
-            "gcloud",
-            "logging",
-            "read",
-            flt,
-            "--project",
-            project,
-            "--format=value(timestamp)",
-            "--order=asc",
-            "--limit=1",
-        ]
+        build_gcloud_logging_cmd(
+            project=project,
+            log_filter=flt,
+            format_type="value(timestamp)",
+            limit=1,
+        )
     )
 
 
@@ -266,6 +300,49 @@ def prepare_filter(args, environment) -> Tuple[str, datetime, datetime]:
     return log_filter, start_time, end_time
 
 
+def resolve_output_path(args) -> Tuple[Optional[str], bool]:
+    output_path = args.out_json_path
+    if output_path is not None and not os.path.splitext(output_path)[1]:
+        output_path = output_path + ".json"
+
+    temp_file = False
+    if args.report_path is not None and output_path is None:
+        temp_logs_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        )
+        output_path = temp_logs_file.name
+        temp_logs_file.close()
+        temp_file = True
+
+    return output_path, temp_file
+
+
+def download_logs(environment, log_filter: str, output_path: Optional[str]) -> int:
+    """Download logs from GCP. Returns (logs_path, is_temp_file) or (None, False) on error."""
+    cmd = build_gcloud_logging_cmd(
+        project=environment.project,
+        log_filter=log_filter,
+        format_type="json",
+        limit=500000,
+    )
+
+    rc = run_stream(cmd, output_path)
+    if rc != 0:
+        print(f"Error: Failed to download logs: {rc}", file=sys.stderr)
+    else:
+        if output_path is not None:
+            print(f"Output logs written to {output_path}")
+
+    return rc
+
+
+def generate_report(logs_path: str, height: int, report_output: str) -> int:
+    """Generate consensus report from logs. Returns exit code."""
+    # TODO(lev): Implement report generation
+    print("Report generation not yet implemented")
+    return 0
+
+
 # ------------------------------
 # Main
 # ------------------------------
@@ -319,7 +396,16 @@ def get_args(env_map: dict[str, EnvConfig]) -> argparse.Namespace:
         help="Generated report will be saved into this file. Extension .txt added if missing.",
     )
 
-    return ap.parse_args()
+    args = ap.parse_args()
+
+    # Validate that paths are not empty or whitespace-only
+    if args.out_json_path is not None and not args.out_json_path.strip():
+        ap.error("--out_json_path cannot be empty or contain only whitespace")
+
+    if args.report_path is not None and not args.report_path.strip():
+        ap.error("--report_path cannot be empty or contain only whitespace")
+
+    return args
 
 
 def main() -> int:
@@ -334,10 +420,27 @@ def main() -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 2
 
-    # TODO(lev): Add log downloading
-    # TODO(lev): Add report generation
+    output_path, temp_file = resolve_output_path(args)
 
-    return 0
+    print(
+        f"Downloading logs for height {args.height} from {fmt_utc(start_time)}"
+        f" to {fmt_utc(end_time)} from {environment.project}",
+        file=sys.stderr,
+    )
+    rc = download_logs(environment, log_filter, output_path)
+    if rc == 0:
+        if output_path is None:
+            return 0
+
+        print(f"Output logs written to {output_path}")
+
+        if args.report_path:
+            rc = generate_report(output_path, args.height, args.report_path)
+
+    if temp_file:
+        os.unlink(output_path)
+
+    return rc
 
 
 if __name__ == "__main__":
