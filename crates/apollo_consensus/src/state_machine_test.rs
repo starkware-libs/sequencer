@@ -58,6 +58,81 @@ fn assert_decision_reached(wrapper: &mut TestWrapper, expected_block: Option<Pro
     assert!(wrapper.next_request().is_none());
 }
 
+#[track_caller]
+fn assert_start_build_proposal(wrapper: &mut TestWrapper, round: Round) {
+    match wrapper.next_request() {
+        Some(SMRequest::StartBuildProposal(r)) if r == round => {}
+        other => panic!("expected StartBuildProposal({}), got {:?}", round, other),
+    }
+}
+
+#[track_caller]
+fn assert_schedule_timeout(wrapper: &mut TestWrapper, step: Step, round: Round) {
+    match wrapper.next_request() {
+        Some(SMRequest::ScheduleTimeout(s, r)) if s == step && r == round => {}
+        other => panic!("expected ScheduleTimeout({:?}, {}), got {:?}", step, round, other),
+    }
+}
+
+#[track_caller]
+fn assert_broadcast_vote(
+    wrapper: &mut TestWrapper,
+    vote_type: VoteType,
+    round: Round,
+    proposal_id: Option<ProposalCommitment>,
+    voter: ValidatorId,
+) {
+    let expected = mk_vote(vote_type, round, proposal_id, voter);
+    match wrapper.next_request() {
+        Some(SMRequest::BroadcastVote(v)) if v == expected => {}
+        other => panic!("expected BroadcastVote({:?}), got {:?}", expected, other),
+    }
+}
+
+#[track_caller]
+fn assert_broadcast_prevote(
+    wrapper: &mut TestWrapper,
+    round: Round,
+    proposal_id: Option<ProposalCommitment>,
+    voter: ValidatorId,
+) {
+    assert_broadcast_vote(wrapper, VoteType::Prevote, round, proposal_id, voter);
+}
+
+#[track_caller]
+fn assert_broadcast_precommit(
+    wrapper: &mut TestWrapper,
+    round: Round,
+    proposal_id: Option<ProposalCommitment>,
+    voter: ValidatorId,
+) {
+    assert_broadcast_vote(wrapper, VoteType::Precommit, round, proposal_id, voter);
+}
+
+#[track_caller]
+fn assert_no_more_requests(wrapper: &mut TestWrapper) {
+    assert!(wrapper.next_request().is_none(), "expected no more requests, got some");
+}
+
+/// After receiving the proposal we get BroadcastPrevote, ScheduleTimeout(Prevote), then with
+/// prevote quorum we broadcast precommit for `proposal_id`.
+#[track_caller]
+fn assert_prevote_quorum_then_precommit(
+    wrapper: &mut TestWrapper,
+    round: Round,
+    proposal_id: Option<ProposalCommitment>,
+    self_id: ValidatorId,
+) {
+    assert_broadcast_prevote(wrapper, round, PROPOSAL_ID, self_id);
+    assert_schedule_timeout(wrapper, Step::Prevote, round);
+    assert_broadcast_precommit(wrapper, round, proposal_id, self_id);
+}
+
+#[track_caller]
+fn assert_proposer_nil_prevote_quorum_then_precommit_nil(wrapper: &mut TestWrapper, round: Round) {
+    assert_prevote_quorum_then_precommit(wrapper, round, None, *PROPOSER_ID);
+}
+
 struct TestWrapper {
     state_machine: StateMachine,
     requests: VecDeque<SMRequest>,
@@ -190,6 +265,68 @@ impl TestWrapper {
     }
 }
 
+#[track_caller]
+fn advance_proposer_after_start(wrapper: &mut TestWrapper) {
+    wrapper.start();
+    assert_start_build_proposal(wrapper, ROUND);
+    assert_no_more_requests(wrapper);
+}
+
+#[track_caller]
+fn advance_proposer_to_prevote_broadcast(wrapper: &mut TestWrapper) {
+    advance_proposer_after_start(wrapper);
+    wrapper.send_finished_building(PROPOSAL_ID, ROUND);
+    assert_broadcast_prevote(wrapper, ROUND, PROPOSAL_ID, *PROPOSER_ID);
+    assert_no_more_requests(wrapper);
+}
+
+#[track_caller]
+fn advance_validator_after_start(wrapper: &mut TestWrapper) {
+    wrapper.start();
+    assert_schedule_timeout(wrapper, Step::Propose, ROUND);
+    assert_no_more_requests(wrapper);
+}
+
+#[track_caller]
+fn advance_validator_to_prevote_broadcast(wrapper: &mut TestWrapper) {
+    advance_validator_after_start(wrapper);
+    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
+    assert_broadcast_prevote(wrapper, ROUND, PROPOSAL_ID, *VALIDATOR_ID);
+    assert_no_more_requests(wrapper);
+}
+
+#[track_caller]
+fn advance_to_prevote_quorum_and_precommit(wrapper: &mut TestWrapper, self_id: ValidatorId) {
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    assert_schedule_timeout(wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(wrapper, ROUND, PROPOSAL_ID, self_id);
+    assert_no_more_requests(wrapper);
+}
+
+#[track_caller]
+fn advance_to_precommit_quorum(wrapper: &mut TestWrapper) {
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    assert_schedule_timeout(wrapper, Step::Precommit, ROUND);
+}
+
+#[track_caller]
+fn advance_to_precommit_quorum_then_maybe_timeout(
+    wrapper: &mut TestWrapper,
+    proposal_id: Option<ProposalCommitment>,
+    peer_precommit_count: u32,
+    timeout: bool,
+) {
+    for _ in 0..peer_precommit_count {
+        wrapper.send_precommit(proposal_id, ROUND);
+    }
+    assert_schedule_timeout(wrapper, Step::Precommit, ROUND);
+    if timeout {
+        wrapper.send_timeout_precommit(ROUND);
+    }
+}
+
 #[test_case(true; "proposer")]
 #[test_case(false; "validator")]
 fn events_arrive_in_ideal_order(is_proposer: bool) {
@@ -203,43 +340,13 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
     if is_proposer {
-        assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(ROUND));
-        wrapper.send_finished_building(PROPOSAL_ID, ROUND);
+        advance_proposer_to_prevote_broadcast(&mut wrapper);
     } else {
-        // Waiting for the proposal.
-        assert_eq!(
-            wrapper.next_request().unwrap(),
-            SMRequest::ScheduleTimeout(Step::Propose, ROUND)
-        );
-        assert!(wrapper.next_request().is_none());
-        wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
+        advance_validator_to_prevote_broadcast(&mut wrapper);
     }
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, id))
-    );
-    assert!(wrapper.next_request().is_none());
-
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    assert!(wrapper.next_request().is_none());
-
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    // The Node got a Prevote quorum.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, id))
-    );
-    assert!(wrapper.next_request().is_none());
-
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    assert!(wrapper.next_request().is_none());
-
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    // The Node got a Precommit quorum.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    advance_to_prevote_quorum_and_precommit(&mut wrapper, id);
+    advance_to_precommit_quorum(&mut wrapper);
     assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
@@ -254,18 +361,14 @@ fn validator_receives_votes_first() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    // Waiting for the proposal.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
+    advance_validator_after_start(&mut wrapper);
 
     // Receives votes from all the other nodes first (more than minimum for a quorum).
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    for _ in 0..3 {
+        wrapper.send_prevote(PROPOSAL_ID, ROUND);
+        wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    }
+
     // The Node got a Precommit quorum. TimeoutPrevote is only initiated once the SM reaches the
     // prevote step.
     assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
@@ -273,15 +376,7 @@ fn validator_receives_votes_first() {
 
     // Finally the proposal arrives.
     wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
+    assert_prevote_quorum_then_precommit(&mut wrapper, ROUND, PROPOSAL_ID, *VALIDATOR_ID);
     assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
@@ -297,27 +392,16 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(0));
-    assert!(wrapper.next_request().is_none());
-
-    wrapper.send_prevote(vote, ROUND);
-    wrapper.send_prevote(vote, ROUND);
-    wrapper.send_prevote(vote, ROUND);
-    assert!(wrapper.next_request().is_none());
+    advance_proposer_after_start(&mut wrapper);
+    for _ in 0..3 {
+        wrapper.send_prevote(vote, ROUND);
+    }
+    assert_no_more_requests(&mut wrapper);
 
     // Node finishes building the proposal.
     wrapper.send_finished_building(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *PROPOSER_ID))
-    );
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, vote, *PROPOSER_ID))
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_prevote_quorum_then_precommit(&mut wrapper, ROUND, vote, *PROPOSER_ID);
+    assert_no_more_requests(&mut wrapper);
 }
 
 #[test]
@@ -331,29 +415,18 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    // Waiting for the proposal.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
+    advance_validator_after_start(&mut wrapper);
 
     // Receives votes from all the other nodes first (more than minimum for a quorum).
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    assert!(wrapper.next_request().is_none());
+    for _ in 0..3 {
+        wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    }
+    assert_no_more_requests(&mut wrapper);
 
     // Finally the proposal arrives.
     wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_prevote_quorum_then_precommit(&mut wrapper, ROUND, PROPOSAL_ID, *VALIDATOR_ID);
+    assert_no_more_requests(&mut wrapper);
 }
 
 #[test]
@@ -367,31 +440,21 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    // Waiting for the proposal.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
+    advance_validator_after_start(&mut wrapper);
 
     // Receives votes from all the other nodes first (more than minimum for a quorum).
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    assert!(wrapper.next_request().is_none());
+    for _ in 0..3 {
+        wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    }
+    for _ in 0..2 {
+        wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    }
+    assert_no_more_requests(&mut wrapper);
 
     // Finally the proposal arrives.
     wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    assert_prevote_quorum_then_precommit(&mut wrapper, ROUND, PROPOSAL_ID, *VALIDATOR_ID);
+    assert_schedule_timeout(&mut wrapper, Step::Precommit, ROUND);
     assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
@@ -406,19 +469,11 @@ fn advance_to_the_next_round() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    // Waiting for the proposal.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
-
-    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    assert!(wrapper.next_request().is_none());
+    advance_validator_to_prevote_broadcast(&mut wrapper);
+    for _ in 0..2 {
+        wrapper.send_precommit(None, ROUND);
+    }
+    assert_no_more_requests(&mut wrapper);
 
     wrapper.send_finished_validation(PROPOSAL_ID, ROUND + 1);
     assert!(wrapper.next_request().is_none());
@@ -448,15 +503,8 @@ fn prevote_when_receiving_proposal_in_current_round() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
-
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-    wrapper.send_timeout_precommit(ROUND);
+    advance_validator_after_start(&mut wrapper);
+    advance_to_precommit_quorum_then_maybe_timeout(&mut wrapper, None, 3, true);
 
     // The node starts the next round, shouldn't prevote when receiving a proposal for the
     // previous round.
@@ -486,23 +534,12 @@ fn mixed_quorum(send_proposal: bool) {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    // Waiting for the proposal.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.requests.is_empty());
-
     if send_proposal {
-        wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-        assert_eq!(
-            wrapper.next_request().unwrap(),
-            SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-        );
+        advance_validator_to_prevote_broadcast(&mut wrapper);
     } else {
+        advance_validator_after_start(&mut wrapper);
         wrapper.send_timeout_propose(ROUND);
-        assert_eq!(
-            wrapper.next_request().unwrap(),
-            SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, None, *VALIDATOR_ID))
-        );
+        assert_broadcast_prevote(&mut wrapper, ROUND, None, *VALIDATOR_ID);
     }
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
     wrapper.send_prevote(None, ROUND);
@@ -513,15 +550,8 @@ fn mixed_quorum(send_proposal: bool) {
         wrapper.next_request().unwrap(),
         SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, None, *VALIDATOR_ID))
     );
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    // The Node got a Precommit quorum.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-    wrapper.send_timeout_precommit(ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::ScheduleTimeout(Step::Propose, ROUND + 1)
-    );
+    advance_to_precommit_quorum_then_maybe_timeout(&mut wrapper, PROPOSAL_ID, 2, true);
+    assert_schedule_timeout(&mut wrapper, Step::Propose, ROUND + 1);
 }
 
 #[test]
@@ -535,63 +565,32 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(ROUND));
-    assert!(wrapper.next_request().is_none());
+    advance_proposer_after_start(&mut wrapper);
 
     // We simulate that this node is always the proposer, but it lagged, so the peers kept voting
     // NIL and progressing rounds.
-    wrapper.send_prevote(None, ROUND);
-    wrapper.send_prevote(None, ROUND);
-    wrapper.send_prevote(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_prevote(None, ROUND + 1);
-    wrapper.send_prevote(None, ROUND + 1);
-    wrapper.send_prevote(None, ROUND + 1);
-    wrapper.send_precommit(None, ROUND + 1);
-    wrapper.send_precommit(None, ROUND + 1);
-    wrapper.send_precommit(None, ROUND + 1);
-
+    for _ in 0..3 {
+        wrapper.send_prevote(None, ROUND);
+        wrapper.send_precommit(None, ROUND);
+    }
+    for _ in 0..3 {
+        wrapper.send_prevote(None, ROUND + 1);
+        wrapper.send_precommit(None, ROUND + 1);
+    }
     // It now receives the proposal.
     wrapper.send_finished_building(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *PROPOSER_ID))
-    );
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    // Nil Prevote quorum, so we broadcast a nil Precommit.
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, None, *PROPOSER_ID))
-    );
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    assert_proposer_nil_prevote_quorum_then_precommit_nil(&mut wrapper, ROUND);
+    assert_schedule_timeout(&mut wrapper, Step::Precommit, ROUND);
 
     // Timeout and advance on to the next round.
     wrapper.send_timeout_precommit(ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(ROUND + 1));
-    assert!(wrapper.next_request().is_none());
+    assert_start_build_proposal(&mut wrapper, ROUND + 1);
+    assert_no_more_requests(&mut wrapper);
 
     // The other votes are only handled after the next GetProposal is received.
     wrapper.send_finished_building(PROPOSAL_ID, ROUND + 1);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND + 1, PROPOSAL_ID, *PROPOSER_ID))
-    );
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::ScheduleTimeout(Step::Prevote, ROUND + 1)
-    );
-    // Nil Prevote quorum, so we broadcast a nil Precommit.
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND + 1, None, *PROPOSER_ID))
-    );
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::ScheduleTimeout(Step::Precommit, ROUND + 1)
-    );
+    assert_proposer_nil_prevote_quorum_then_precommit_nil(&mut wrapper, ROUND + 1);
+    assert_schedule_timeout(&mut wrapper, Step::Precommit, ROUND + 1);
 }
 
 #[test]
@@ -605,29 +604,9 @@ fn return_proposal_if_locked_value_is_set() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(ROUND));
-    assert!(wrapper.next_request().is_none());
-
-    wrapper.send_finished_building(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *PROPOSER_ID))
-    );
-    // locked_value is set after receiving a Prevote quorum.
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *PROPOSER_ID))
-    );
-
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-
-    wrapper.send_timeout_precommit(ROUND);
+    advance_proposer_to_prevote_broadcast(&mut wrapper);
+    advance_to_prevote_quorum_and_precommit(&mut wrapper, *PROPOSER_ID);
+    advance_to_precommit_quorum_then_maybe_timeout(&mut wrapper, None, 2, true);
 
     // no need to GetProposal since we already have a locked value.
     assert_eq!(
@@ -660,19 +639,12 @@ fn observer_node_reaches_decision() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-
-    // Waiting for the proposal.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
+    advance_validator_after_start(&mut wrapper);
     wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
     // The observer node does not respond to the proposal by sending votes.
-    assert!(wrapper.next_request().is_none());
+    assert_no_more_requests(&mut wrapper);
 
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    advance_to_precommit_quorum_then_maybe_timeout(&mut wrapper, PROPOSAL_ID, 3, false);
     // Once a quorum of precommits is observed, the node should generate a decision event.
     assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
@@ -689,18 +661,7 @@ fn number_of_required_votes(quorum_type: QuorumType) {
         quorum_type,
     );
 
-    wrapper.start();
-    // Waiting for the proposal.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
-    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-
-    // The node says this proposal is valid (vote 1).
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert!(wrapper.next_request().is_none());
+    advance_validator_to_prevote_broadcast(&mut wrapper);
 
     // Another node sends a Prevote (vote 2).
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
@@ -708,22 +669,16 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     // Byzantine quorum requires 3 votes, so we need one more vote.
     if quorum_type == QuorumType::Byzantine {
         // Not enough votes for a quorum yet.
-        assert!(wrapper.next_request().is_none());
+        assert_no_more_requests(&mut wrapper);
 
         // Another node sends a Prevote (vote 3).
         wrapper.send_prevote(PROPOSAL_ID, ROUND);
     }
     // In honest case, the second vote is enough for a quorum.
 
-    // The Node got a Prevote quorum.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-
-    // The Node sends a Precommit (vote 1).
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_schedule_timeout(&mut wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(&mut wrapper, ROUND, PROPOSAL_ID, *VALIDATOR_ID);
+    assert_no_more_requests(&mut wrapper);
 
     // The virtual proposer sends a Precommit (vote 2).
     wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *PROPOSER_ID);
@@ -731,7 +686,7 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     // Byzantine quorum requires 3 votes, so we need one more vote.
     if quorum_type == QuorumType::Byzantine {
         // Not enough votes for a quorum yet.
-        assert!(wrapper.next_request().is_none());
+        assert_no_more_requests(&mut wrapper);
 
         // Another node sends a Precommit (vote 3).
         wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2);
@@ -739,7 +694,7 @@ fn number_of_required_votes(quorum_type: QuorumType) {
     // In honest case, the second vote is enough for a quorum.
 
     // The Node got a Precommit quorum.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
+    assert_schedule_timeout(&mut wrapper, Step::Precommit, ROUND);
     assert_decision_reached(&mut wrapper, PROPOSAL_ID);
 }
 
@@ -756,15 +711,13 @@ fn observer_does_not_record_self_votes() {
         QuorumType::Byzantine,
     );
 
-    // Start and receive proposal validation completion.
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
+    advance_validator_after_start(&mut wrapper);
     wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
 
     // Reach mixed prevote quorum with peer votes only (self not counted).
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    for _ in 0..2 {
+        wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    }
     // No quorum yet, we didn't vote.
     assert!(wrapper.next_request().is_none());
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
@@ -776,8 +729,9 @@ fn observer_does_not_record_self_votes() {
     assert_eq!(wrapper.state_machine.last_self_precommit(), None);
 
     // Reach mixed precommit quorum with peer votes only and ensure timeout is scheduled.
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
-    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    for _ in 0..2 {
+        wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    }
     // No quorum yet, we didn't vote.
     assert!(wrapper.next_request().is_none());
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
@@ -797,39 +751,25 @@ fn quorums_require_virtual_proposer_in_favor_for_value() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
-
-    // Receive (validated) proposal -> self prevote for the value.
-    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert!(wrapper.next_request().is_none());
+    advance_validator_to_prevote_broadcast(&mut wrapper);
 
     // Reach prevote quorum without the virtual proposer's prevote (self + 2 peers).
     wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *PROPOSER_ID); // peer 1
-    assert!(wrapper.next_request().is_none());
+    assert_no_more_requests(&mut wrapper);
     wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2); // peer 2
 
-    // With prevote quorum, we can precommit even without virtual proposer's prevote.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    assert!(wrapper.next_request().is_none());
+    assert_schedule_timeout(&mut wrapper, Step::Prevote, ROUND);
+    assert_broadcast_precommit(&mut wrapper, ROUND, PROPOSAL_ID, *VALIDATOR_ID);
+    assert_no_more_requests(&mut wrapper);
 
     // Reach precommit quorum without the virtual proposer's precommit (self + 2 peers).
     wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *PROPOSER_ID); // peer 1
-    assert!(wrapper.next_request().is_none());
+    assert_no_more_requests(&mut wrapper);
     wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2); // peer 2
 
     // Mixed precommit quorum still schedules timeout, but we must NOT decide yet.
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-    assert!(wrapper.next_request().is_none());
+    assert_schedule_timeout(&mut wrapper, Step::Precommit, ROUND);
+    assert_no_more_requests(&mut wrapper);
 
     // Now the virtual proposer precommits for the value -> we can decide.
     wrapper.send_precommit_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_3); // peer 3 (virtual proposer)
@@ -859,10 +799,7 @@ fn advance_to_round_when_proposer_function_fails() {
         QuorumType::Byzantine,
     );
 
-    wrapper.start();
-    // We're a validator, so we should schedule timeout for round 0
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    assert!(wrapper.next_request().is_none());
+    advance_validator_after_start(&mut wrapper);
 
     // Receive 2 precommits for round 1 (1/3 threshold with total_weight=4 needs >4/3, so 2 votes)
     // This should trigger advancement to round 1
@@ -902,20 +839,8 @@ fn timeout_prevote_ignored_when_wrong_step() {
         false,
         QuorumType::Byzantine,
     );
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
+    advance_validator_to_prevote_broadcast(&mut wrapper);
+    advance_to_prevote_quorum_and_precommit(&mut wrapper, *VALIDATOR_ID);
     // Now in Precommit step. TimeoutPrevote for current round should be ignored.
     wrapper.send_timeout_prevote(ROUND);
     assert!(wrapper.next_request().is_none());
@@ -937,26 +862,11 @@ fn no_repropose_when_virtual_proposer_fails_for_new_round() {
         false,
         QuorumType::Byzantine,
     );
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::StartBuildProposal(ROUND));
-    wrapper.send_finished_building(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *PROPOSER_ID))
-    );
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    wrapper.send_prevote(PROPOSAL_ID, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *PROPOSER_ID))
-    );
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-    wrapper.send_timeout_precommit(ROUND);
+    advance_proposer_to_prevote_broadcast(&mut wrapper);
+    advance_to_prevote_quorum_and_precommit(&mut wrapper, *PROPOSER_ID);
+    advance_to_precommit_quorum_then_maybe_timeout(&mut wrapper, None, 2, true);
     // Proposer advances to round 1 with locked value but virtual_proposer(1) fails -> no Repropose.
-    assert!(wrapper.next_request().is_none());
+    assert_no_more_requests(&mut wrapper);
     assert_eq!(wrapper.state_machine.round(), ROUND + 1);
 }
 
@@ -978,30 +888,12 @@ fn prevote_nil_when_new_proposal_differs_from_locked_value() {
         false,
         QuorumType::Byzantine,
     );
-    wrapper.start();
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, ROUND));
-    wrapper.send_finished_validation(PROPOSAL_ID, ROUND);
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *PROPOSER_ID);
-    wrapper.send_prevote_from(PROPOSAL_ID, ROUND, *VALIDATOR_ID_2);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Prevote, ROUND));
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Precommit, ROUND, PROPOSAL_ID, *VALIDATOR_ID))
-    );
-    wrapper.send_precommit(None, ROUND);
-    wrapper.send_precommit(None, ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Precommit, ROUND));
-    wrapper.send_timeout_precommit(ROUND);
-    assert_eq!(wrapper.next_request().unwrap(), SMRequest::ScheduleTimeout(Step::Propose, round_1));
+    advance_validator_to_prevote_broadcast(&mut wrapper);
+    advance_to_prevote_quorum_and_precommit(&mut wrapper, *VALIDATOR_ID);
+    advance_to_precommit_quorum_then_maybe_timeout(&mut wrapper, None, 2, true);
+    assert_schedule_timeout(&mut wrapper, Step::Propose, round_1);
     // We have locked value PROPOSAL_ID. Receive a different proposal for round 1.
     wrapper.send_finished_validation(OTHER_PROPOSAL, round_1);
     // Should prevote nil (None) because proposal differs from locked value.
-    assert_eq!(
-        wrapper.next_request().unwrap(),
-        SMRequest::BroadcastVote(mk_vote(VoteType::Prevote, round_1, None, *VALIDATOR_ID))
-    );
+    assert_broadcast_prevote(&mut wrapper, round_1, None, *VALIDATOR_ID);
 }
