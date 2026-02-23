@@ -68,7 +68,13 @@ use starknet_api::deprecated_contract_class::{
     StructType,
     TypedParameter,
 };
-use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
+use starknet_api::execution_resources::{
+    Builtin,
+    ExecutionResources,
+    GasAmount,
+    GasVector,
+    Opcode,
+};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::state::{
@@ -516,6 +522,7 @@ auto_storage_serde! {
     pub struct ExecutionResources {
         pub steps: u64,
         pub builtin_instance_counter: HashMap<Builtin, u64>,
+        pub opcode_instance_counter: HashMap<Opcode, u64>,
         pub memory_holes: u64,
         pub da_gas_consumed: GasVector,
         pub gas_consumed: GasVector,
@@ -745,6 +752,24 @@ impl StorageSerde for StorageKey {
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
         StorageKey::try_from(StarkHash::deserialize(bytes)?).ok()
+    }
+}
+
+impl StorageSerde for Opcode {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        match self {
+            Opcode::Blake => res.write_all(&[0u8])?,
+        }
+        Ok(())
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        let mut kind = [0u8; 1];
+        bytes.read_exact(&mut kind).ok()?;
+        match kind[0] {
+            0 => Some(Opcode::Blake),
+            _ => None,
+        }
     }
 }
 
