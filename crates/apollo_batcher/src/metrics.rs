@@ -57,19 +57,18 @@ define_metrics!(
         MetricGauge { PROVING_GAS_IN_LAST_BLOCK, "batcher_proving_gas_in_last_block", "The proving gas in the last block"},
         MetricGauge { L2_GAS_IN_LAST_BLOCK, "batcher_l2_gas_in_last_block", "The L2 gas used in the last block"},
         // Commitment manager
-        MetricHistogram { COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY, "batcher_commitment_manager_commit_block_latency", "The latency of commit tasks in the commitment manager in seconds" },
-        MetricHistogram { COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY, "batcher_commitment_manager_revert_block_latency", "The latency of revert tasks in the commitment manager in seconds" },
-        MetricHistogram { COMMITMENT_MANAGER_NUM_COMMIT_RESULTS, "batcher_commitment_manager_num_commit_results", "The number of commit results received from the commitment manager" },
+        MetricCounter { COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY, "batcher_commitment_manager_commit_block_latency", "Total latency of commit tasks in the commitment manager in milliseconds (cumulative)", init=0 },
+        MetricCounter { COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT, "batcher_commitment_manager_commit_block_count", "Number of commit tasks in the commitment manager", init=0 },
+        MetricCounter { COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY, "batcher_commitment_manager_revert_block_latency", "Total latency of revert tasks in the commitment manager in milliseconds (cumulative)", init=0 },
+        MetricCounter { COMMITMENT_MANAGER_REVERT_BLOCK_COUNT, "batcher_commitment_manager_revert_block_count", "Number of revert tasks in the commitment manager", init=0 },
+        MetricCounter { COMMITMENT_MANAGER_NUM_COMMIT_RESULTS, "batcher_commitment_manager_num_commit_results", "The number of commit results received from the commitment manager (cumulative)", init=0 },
         // Block commitment components computation timings
-        MetricHistogram { TX_COMMITMENT_LATENCY, "batcher_tx_commitment_latency", "Duration of transaction commitment computation in seconds" },
-        MetricHistogram { TX_COMMITMENT_PER_TX_LATENCY, "batcher_tx_commitment_per_tx_latency", "Duration of transactions commitment computation per transaction in seconds" },
+        MetricCounter { TX_COMMITMENT_LATENCY, "batcher_tx_commitment_latency", "Total duration of transaction commitment computation in microseconds (cumulative)", init=0 },
         MetricCounter { TX_COMMITMENT_COUNT, "batcher_tx_commitment_count", "The number of transactions commitment computations (cumulative)", init = 0 },
-        MetricHistogram { EVENT_COMMITMENT_LATENCY, "batcher_event_commitment_latency", "Duration of event commitment computation in seconds" },
-        MetricHistogram { EVENT_COMMITMENT_PER_EVENT_LATENCY, "batcher_event_commitment_per_event_latency", "Duration of event commitment computation per event in seconds" },
+        MetricCounter { EVENT_COMMITMENT_LATENCY, "batcher_event_commitment_latency", "Total duration of event commitment computation in microseconds (cumulative)", init=0 },
         MetricCounter { EVENT_COMMITMENT_COUNT, "batcher_event_commitment_count", "The number of event commitment computations (cumulative)", init = 0 },
-        MetricHistogram { RECEIPT_COMMITMENT_LATENCY, "batcher_receipt_commitment_latency", "Duration of receipt commitment computation in seconds" },
-        MetricHistogram { STATE_DIFF_COMMITMENT_LATENCY, "batcher_state_diff_commitment_latency", "Duration of state diff commitment computation in seconds" },
-        MetricHistogram { STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY, "batcher_state_diff_commitment_per_state_diff_length", "Duration of state diff commitment computation per state diff length in seconds" },
+        MetricCounter { RECEIPT_COMMITMENT_LATENCY, "batcher_receipt_commitment_latency", "Total duration of receipt commitment computation in microseconds (cumulative)", init=0 },
+        MetricCounter { STATE_DIFF_COMMITMENT_LATENCY, "batcher_state_diff_commitment_latency", "Total duration of state diff commitment computation in microseconds (cumulative)", init=0 },
         MetricCounter { STATE_DIFF_LENGTH, "batcher_state_diff_length", "The length of the state diff (cumaltive)", init = 0 },
     },
 );
@@ -130,18 +129,17 @@ pub fn register_metrics(storage_height: BlockNumber, global_root_height: BlockNu
     L2_GAS_IN_LAST_BLOCK.register();
 
     COMMITMENT_MANAGER_COMMIT_BLOCK_LATENCY.register();
+    COMMITMENT_MANAGER_COMMIT_BLOCK_COUNT.register();
     COMMITMENT_MANAGER_REVERT_BLOCK_LATENCY.register();
+    COMMITMENT_MANAGER_REVERT_BLOCK_COUNT.register();
     COMMITMENT_MANAGER_NUM_COMMIT_RESULTS.register();
 
     TX_COMMITMENT_LATENCY.register();
-    TX_COMMITMENT_PER_TX_LATENCY.register();
     TX_COMMITMENT_COUNT.register();
     EVENT_COMMITMENT_LATENCY.register();
-    EVENT_COMMITMENT_PER_EVENT_LATENCY.register();
     EVENT_COMMITMENT_COUNT.register();
     RECEIPT_COMMITMENT_LATENCY.register();
     STATE_DIFF_COMMITMENT_LATENCY.register();
-    STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY.register();
     STATE_DIFF_LENGTH.register();
 
     // Blockifier's metrics

@@ -64,15 +64,12 @@ use crate::metrics::{
     BATCHER_CLASS_CACHE_METRICS,
     EVENT_COMMITMENT_COUNT,
     EVENT_COMMITMENT_LATENCY,
-    EVENT_COMMITMENT_PER_EVENT_LATENCY,
     PROPOSER_DEFERRED_TXS,
     RECEIPT_COMMITMENT_LATENCY,
     STATE_DIFF_COMMITMENT_LATENCY,
-    STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY,
     STATE_DIFF_LENGTH,
     TX_COMMITMENT_COUNT,
     TX_COMMITMENT_LATENCY,
-    TX_COMMITMENT_PER_TX_LATENCY,
     VALIDATOR_WASTED_TXS,
 };
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
@@ -910,32 +907,29 @@ fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHas
     }
 }
 
-#[allow(clippy::as_conversions)]
 fn record_block_commitment_measurements(measurements: BlockCommitmentsMeasurements) {
-    TX_COMMITMENT_LATENCY.record_lossy(measurements.transaction_commitment_duration.as_secs_f64());
-    if measurements.n_txs > 0 {
-        TX_COMMITMENT_PER_TX_LATENCY.record_lossy(
-            measurements.transaction_commitment_duration.as_secs_f64() / measurements.n_txs as f64,
-        );
-    }
-    TX_COMMITMENT_COUNT.increment(measurements.n_txs as u64);
+    let usize_to_u64_warn_msg = "Conversion from usize to u64 should not fail.";
+    TX_COMMITMENT_LATENCY
+        .increment(convert_microseconds_to_u64(measurements.transaction_commitment_duration));
+    TX_COMMITMENT_COUNT.increment(u64::try_from(measurements.n_txs).expect(usize_to_u64_warn_msg));
 
-    EVENT_COMMITMENT_LATENCY.record_lossy(measurements.event_commitment_duration.as_secs_f64());
-    if measurements.n_events > 0 {
-        EVENT_COMMITMENT_PER_EVENT_LATENCY.record_lossy(
-            measurements.event_commitment_duration.as_secs_f64() / measurements.n_events as f64,
-        );
-    }
-    EVENT_COMMITMENT_COUNT.increment(measurements.n_events as u64);
+    EVENT_COMMITMENT_LATENCY
+        .increment(convert_microseconds_to_u64(measurements.event_commitment_duration));
+    EVENT_COMMITMENT_COUNT
+        .increment(u64::try_from(measurements.n_events).expect(usize_to_u64_warn_msg));
 
-    RECEIPT_COMMITMENT_LATENCY.record_lossy(measurements.receipt_commitment_duration.as_secs_f64());
+    RECEIPT_COMMITMENT_LATENCY
+        .increment(convert_microseconds_to_u64(measurements.receipt_commitment_duration));
+
     STATE_DIFF_COMMITMENT_LATENCY
-        .record_lossy(measurements.state_diff_commitment_duration.as_secs_f64());
-    if measurements.state_diff_length > 0 {
-        STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY.record_lossy(
-            measurements.state_diff_commitment_duration.as_secs_f64()
-                / measurements.state_diff_length as f64,
-        );
-    }
-    STATE_DIFF_LENGTH.increment(measurements.state_diff_length as u64);
+        .increment(convert_microseconds_to_u64(measurements.state_diff_commitment_duration));
+    STATE_DIFF_LENGTH
+        .increment(u64::try_from(measurements.state_diff_length).expect(usize_to_u64_warn_msg));
+}
+
+fn convert_microseconds_to_u64(duration: Duration) -> u64 {
+    u64::try_from(duration.as_micros()).unwrap_or_else(|_| {
+        warn!("Failed to convert duration microseconds to u64.");
+        0
+    })
 }
