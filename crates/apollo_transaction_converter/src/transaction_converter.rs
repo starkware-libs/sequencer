@@ -412,7 +412,9 @@ impl TransactionConverter {
 
         let proof_facts_hash = proof_facts.hash();
         let verify_start = Instant::now();
-        Self::verify_proof(proof_facts, proof)?;
+        tokio::task::spawn_blocking(move || Self::verify_proof(proof_facts, proof))
+            .await
+            .expect("proof verification task panicked")?;
         let verify_duration = verify_start.elapsed();
         PROOF_VERIFICATION_LATENCY.record(verify_duration.as_secs_f64());
         info!(
