@@ -17,6 +17,7 @@ use starknet_patricia_storage::storage_trait::AsyncStorage;
 use starknet_patricia_storage::storage_trait::{
     DbHashMap,
     DbKey,
+    DbOperation,
     DbOperationMap,
     DbValue,
     PatriciaStorageResult,
@@ -29,6 +30,7 @@ use crate::db::db_layout::DbLayout;
 use crate::db::forest_trait::{
     read_forest,
     serialize_forest,
+    updates_to_set_operations,
     EmptyInitialReadContext,
     ForestMetadata,
     ForestMetadataType,
@@ -49,6 +51,10 @@ use crate::db::index_db::types::{
     IndexFilledNodeWithHasher,
     IndexLayoutSubTree,
     IndexNodeContext,
+};
+use crate::db::long_edge_cache::{
+    update_storage_tries_long_edge_caches,
+    StorageTriesLongEdgeCache,
 };
 use crate::forest::deleted_nodes::DeletedNodes;
 use crate::forest::filled_forest::FilledForest;
@@ -87,6 +93,8 @@ static STATE_ROOT_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
 pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
     phantom: PhantomData<H>,
+    /// Long-edge cache for storage tries; used by speculative skeleton build to reduce mget size.
+    pub(crate) storage_tries_long_edge_cache: StorageTriesLongEdgeCache,
 }
 
 impl<S: Storage> IndexDb<S> {
@@ -107,7 +115,11 @@ impl<S: Storage> IndexDb<S> {
 impl<S: Storage, H> StorageInitializer for IndexDb<S, H> {
     type Storage = S;
     fn new(storage: Self::Storage) -> Self {
-        Self { storage, phantom: PhantomData }
+        Self {
+            storage,
+            phantom: PhantomData,
+            storage_tries_long_edge_cache: StorageTriesLongEdgeCache::default(),
+        }
     }
 }
 
@@ -195,6 +207,8 @@ where
     type CompiledClassHashDbLeaf = IndexLayoutCompiledClassHash;
     type StarknetStorageValueDbLeaf = IndexLayoutStarknetStorageValue;
     type NodeLayout = IndexNodeLayout<H>;
+
+    const USE_SPECULATIVE_STORAGE_READ: bool = true;
 }
 
 // TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
@@ -224,6 +238,7 @@ where
             classes_updates,
             forest_sorted_indices,
             config,
+            &mut self.storage_tries_long_edge_cache,
         )
         .await
     }
@@ -295,6 +310,7 @@ impl<S: Storage> ForestMetadata for IndexDb<S> {
     }
 }
 
+#[async_trait]
 impl<S: Storage> ForestWriterWithMetadata for IndexDb<S> {
     fn serialize_deleted_nodes(
         DeletedNodes { classes_trie, contracts_trie, storage_tries }: DeletedNodes,
@@ -316,6 +332,30 @@ impl<S: Storage> ForestWriterWithMetadata for IndexDb<S> {
                 })
             }))
             .collect()
+    }
+
+    async fn write_with_metadata(
+        &mut self,
+        filled_forest: &FilledForest,
+        metadata: HashMap<ForestMetadataType, DbValue>,
+        deleted_nodes: DeletedNodes,
+    ) -> SerializationResult<usize> {
+        update_storage_tries_long_edge_caches(
+            &mut self.storage_tries_long_edge_cache,
+            filled_forest,
+            &deleted_nodes,
+        );
+        let mut updates = Self::serialize_forest(filled_forest)?;
+        for (metadata_type, value) in metadata {
+            Self::insert_metadata(&mut updates, metadata_type, value);
+        }
+        let keys_to_delete = Self::serialize_deleted_nodes(deleted_nodes);
+        let operations = keys_to_delete
+            .into_iter()
+            .map(|key| (key, DbOperation::Delete))
+            .chain(updates_to_set_operations(updates))
+            .collect();
+        Ok(self.write_updates(operations).await)
     }
 }
 

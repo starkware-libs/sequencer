@@ -35,7 +35,7 @@ use crate::storage_trait::{
 
 // General database Options.
 
-const DB_CACHE_SIZE: usize = 8 * 1024 * 1024 * 1024; // 8GB
+const DB_CACHE_SIZE: usize = 2 * 1024 * 1024 * 1024; // 8GB
 // Number of bits in the bloom filter (increase to reduce false positives at the cost of more
 // memory).
 const BLOOM_FILTER_NUM_BITS: u32 = 10;

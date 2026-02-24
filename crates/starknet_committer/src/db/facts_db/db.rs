@@ -31,6 +31,7 @@ use crate::db::forest_trait::{
     ForestWriter,
     StorageInitializer,
 };
+use crate::db::long_edge_cache::StorageTriesLongEdgeCache;
 use crate::forest::filled_forest::FilledForest;
 use crate::forest::forest_errors::ForestResult;
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
@@ -96,16 +97,20 @@ impl DbLayout for FactsNodeLayout {
     type CompiledClassHashDbLeaf = CompiledClassHash;
     type StarknetStorageValueDbLeaf = StarknetStorageValue;
     type NodeLayout = FactsNodeLayout;
+
+    const USE_SPECULATIVE_STORAGE_READ: bool = false;
 }
 
 pub struct FactsDb<S: Storage> {
     storage: S,
+    /// Long-edge cache for storage tries; used by speculative skeleton build to reduce mget size.
+    pub(crate) storage_tries_long_edge_cache: StorageTriesLongEdgeCache,
 }
 
 impl<S: Storage> StorageInitializer for FactsDb<S> {
     type Storage = S;
     fn new(storage: Self::Storage) -> Self {
-        Self { storage }
+        Self { storage, storage_tries_long_edge_cache: StorageTriesLongEdgeCache::default() }
     }
 }
 
@@ -137,6 +142,7 @@ impl<S: Storage> ForestReader for FactsDb<S> {
             classes_updates,
             forest_sorted_indices,
             config,
+            &mut self.storage_tries_long_edge_cache,
         )
         .await
     }

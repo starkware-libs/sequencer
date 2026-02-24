@@ -21,6 +21,7 @@ use starknet_patricia_storage::storage_trait::{
 
 use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
 use crate::db::db_layout::DbLayout;
+use crate::db::long_edge_cache::StorageTriesLongEdgeCache;
 use crate::db::serde_db_utils::DbBlockNumber;
 use crate::db::trie_traversal::{create_classes_trie, create_contracts_trie, create_storage_tries};
 use crate::forest::deleted_nodes::DeletedNodes;
@@ -88,6 +89,8 @@ pub trait ForestReader {
 }
 
 /// Helper function containing layout-common read logic.
+/// When `storage_tries_long_edge_cache` is provided, storage tries are built with a single mget
+/// (speculative) and the cache is used and populated for long edges (length >= 5).
 pub(crate) async fn read_forest<'a, S, Layout>(
     storage: &mut S,
     roots: StateRoots,
@@ -95,10 +98,12 @@ pub(crate) async fn read_forest<'a, S, Layout>(
     classes_updates: &'a LeafModifications<CompiledClassHash>,
     forest_sorted_indices: &'a ForestSortedIndices<'a>,
     config: ReaderConfig,
+    storage_tries_long_edge_cache: &mut StorageTriesLongEdgeCache,
 ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)>
 where
     S: Storage,
     Layout: DbLayout,
+    <Layout as DbLayout>::NodeLayout: DbLayout,
 {
     let (contracts_trie, original_contracts_trie_leaves) =
         create_contracts_trie::<Layout::NodeLayout>(
@@ -113,6 +118,7 @@ where
         &original_contracts_trie_leaves,
         &config,
         &forest_sorted_indices.storage_tries_sorted_indices,
+        storage_tries_long_edge_cache,
     )
     .await?;
     let classes_trie = create_classes_trie::<Layout::NodeLayout>(
