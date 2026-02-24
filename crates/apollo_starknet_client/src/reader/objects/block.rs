@@ -42,7 +42,7 @@ fn default_old_starknet_version() -> StarknetVersion {
     StarknetVersion::PreV0_9_1
 }
 
-/// A block as returned by the starknet gateway since V0.13.1.
+/// A block as returned by the starknet feeder gateway since V0.13.1.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct BlockPostV0_13_1 {
@@ -83,8 +83,10 @@ pub struct BlockPostV0_13_1 {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state_diff_length: Option<usize>,
     // New field in V0.14.0.
+    #[serde(default)]
     pub l2_gas_consumed: GasAmount,
     // New field in V0.14.0.
+    #[serde(default)]
     pub next_l2_gas_price: GasPrice,
 }
 

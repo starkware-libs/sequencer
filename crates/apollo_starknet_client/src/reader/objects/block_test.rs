@@ -26,6 +26,7 @@ use crate::test_utils::read_resource::read_resource_file;
 #[test]
 fn load_block_succeeds() {
     for block_path in [
+        "reader/block_post_0_14_2.json",
         "reader/block_post_0_14_0.json",
         "reader/block_post_0_13_4.json",
         "reader/block_post_0_13_3.json",
@@ -43,7 +44,7 @@ fn load_block_succeeds() {
 #[test]
 fn load_block_missing_transaction_receipts_succeeds() {
     let mut raw_block: Value =
-        serde_json::from_str(&read_resource_file("reader/block_post_0_14_0.json")).unwrap();
+        serde_json::from_str(&read_resource_file("reader/block_post_0_14_2.json")).unwrap();
     raw_block
         .as_object_mut()
         .expect("Block JSON should be an object.")
