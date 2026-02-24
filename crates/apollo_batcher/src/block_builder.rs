@@ -1,11 +1,12 @@
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
 use apollo_batcher_config::config::BlockBuilderConfig;
 use apollo_batcher_types::batcher_types::ProposalCommitment;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_deployment_mode::DeploymentMode;
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_state_reader::apollo_state::{ApolloReader, ClassReader};
@@ -39,7 +40,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHashAndNumber, BlockInfo};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     BlockCommitmentsMeasurements,
@@ -770,9 +771,45 @@ pub struct BlockBuilderFactory {
     pub class_manager_client: SharedClassManagerClient,
     pub proof_manager_client: SharedProofManagerClient,
     pub worker_pool: BatcherWorkerPool,
+    shadow_execution_block_number: ShadowExecutionBlockNumber,
 }
 
 impl BlockBuilderFactory {
+    pub fn new(
+        block_builder_config: BlockBuilderConfig,
+        storage_reader: StorageReader,
+        contract_class_manager: ContractClassManager,
+        class_manager_client: SharedClassManagerClient,
+        proof_manager_client: SharedProofManagerClient,
+        worker_pool: BatcherWorkerPool,
+    ) -> Self {
+        Self {
+            block_builder_config,
+            storage_reader,
+            contract_class_manager,
+            class_manager_client,
+            proof_manager_client,
+            worker_pool,
+            shadow_execution_block_number: ShadowExecutionBlockNumber::default(),
+        }
+    }
+
+    /// In Echonet mode, return a modified `BlockInfo` that uses a shadow execution block number.
+    ///
+    /// Only the blockifier execution context sees this modified block number; storage reads/writes
+    /// still use the actual `block_number`.
+    fn block_info_for_execution(&self, actual: &BlockInfo) -> BlockInfo {
+        if self.block_builder_config.deployment_mode != DeploymentMode::Echonet {
+            return actual.clone();
+        }
+
+        let mut out = actual.clone();
+        out.block_number = self
+            .shadow_execution_block_number
+            .get_or_update(actual.block_number, actual.block_timestamp);
+        out
+    }
+
     // TODO(noamsp): Investigate and remove this clippy warning.
     fn preprocess_and_create_transaction_executor(
         &self,
@@ -790,8 +827,9 @@ impl BlockBuilderFactory {
         let versioned_constants = VersionedConstants::get_versioned_constants(
             block_builder_config.versioned_constants_overrides,
         );
+        let block_info_for_execution = self.block_info_for_execution(&block_metadata.block_info);
         let block_context = BlockContext::new(
-            block_metadata.block_info,
+            block_info_for_execution,
             block_builder_config.chain_info,
             versioned_constants,
             block_builder_config.bouncer_config,
@@ -816,6 +854,56 @@ impl BlockBuilderFactory {
         )?;
 
         Ok(executor)
+    }
+}
+
+#[derive(Default)]
+struct ShadowExecutionBlockNumber {
+    inner: StdMutex<ShadowExecutionBlockNumberState>,
+}
+
+#[derive(Default)]
+struct ShadowExecutionBlockNumberState {
+    initialized: bool,
+    current_execution_block_number: BlockNumber,
+    last_observed_block_timestamp: Option<BlockTimestamp>,
+    last_observed_actual_block_number: Option<BlockNumber>,
+}
+
+impl ShadowExecutionBlockNumber {
+    /// Shadow execution block number rules:
+    /// - On first use, starts at (actual block number - 1).
+    /// - Increments by 1 only when the block timestamp changes.
+    /// - Resets if the actual block number moves backwards.
+    fn get_or_update(
+        &self,
+        actual_block_number: BlockNumber,
+        block_timestamp: BlockTimestamp,
+    ) -> BlockNumber {
+        let mut state = self.inner.lock().expect("shadow execution block number lock poisoned");
+
+        let should_reset = !state.initialized
+            || state
+                .last_observed_actual_block_number
+                .is_some_and(|prev| actual_block_number < prev);
+
+        if should_reset {
+            state.initialized = true;
+            state.last_observed_actual_block_number = Some(actual_block_number);
+            state.last_observed_block_timestamp = Some(block_timestamp);
+            state.current_execution_block_number =
+                actual_block_number.prev().unwrap_or(BlockNumber::ZERO);
+            return state.current_execution_block_number;
+        }
+
+        if state.last_observed_block_timestamp != Some(block_timestamp) {
+            state.current_execution_block_number =
+                state.current_execution_block_number.unchecked_next();
+            state.last_observed_block_timestamp = Some(block_timestamp);
+        }
+
+        state.last_observed_actual_block_number = Some(actual_block_number);
+        state.current_execution_block_number
     }
 }
 

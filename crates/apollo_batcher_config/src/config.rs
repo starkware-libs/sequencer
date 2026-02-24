@@ -9,6 +9,7 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_deployment_mode::DeploymentMode;
 use apollo_storage::db::DbConfig;
 use apollo_storage::storage_reader_server::{
     StorageReaderServerDynamicConfig,
@@ -33,6 +34,8 @@ pub struct BlockBuilderConfig {
     pub chain_info: ChainInfo,
     pub execute_config: WorkerPoolConfig,
     pub bouncer_config: BouncerConfig,
+    #[serde(default)]
+    pub deployment_mode: DeploymentMode,
     pub n_concurrent_txs: usize,
     pub tx_polling_interval_millis: u64,
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
@@ -47,6 +50,7 @@ impl Default for BlockBuilderConfig {
             chain_info: ChainInfo::default(),
             execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
+            deployment_mode: DeploymentMode::Starknet,
             n_concurrent_txs: 100,
             tx_polling_interval_millis: 10,
             proposer_idle_detection_delay_millis: Duration::from_millis(2000),
@@ -60,6 +64,12 @@ impl SerializeConfig for BlockBuilderConfig {
         let mut dump = prepend_sub_config_name(self.chain_info.dump(), "chain_info");
         dump.append(&mut prepend_sub_config_name(self.execute_config.dump(), "execute_config"));
         dump.append(&mut prepend_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "deployment_mode",
+            &self.deployment_mode,
+            "Deployment mode: 'starknet' for production, 'echonet' for test/replay mode.",
+            ParamPrivacyInput::Public,
+        )]));
         dump.append(&mut BTreeMap::from([ser_param(
             "n_concurrent_txs",
             &self.n_concurrent_txs,

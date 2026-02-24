@@ -1378,16 +1378,14 @@ pub async fn create_batcher(
         config: config.static_config.pre_confirmed_block_writer_config,
         cende_client: pre_confirmed_cende_client,
     });
-    let block_builder_factory = Box::new(BlockBuilderFactory {
-        block_builder_config: config.static_config.block_builder_config.clone(),
-        storage_reader: storage_reader.clone(),
-        contract_class_manager: ContractClassManager::start(
-            config.static_config.contract_class_manager_config.clone(),
-        ),
+    let block_builder_factory = Box::new(BlockBuilderFactory::new(
+        config.static_config.block_builder_config.clone(),
+        storage_reader.clone(),
+        ContractClassManager::start(config.static_config.contract_class_manager_config.clone()),
         class_manager_client,
         proof_manager_client,
         worker_pool,
-    });
+    ));
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
 

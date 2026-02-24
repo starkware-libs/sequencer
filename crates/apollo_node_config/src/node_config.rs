@@ -204,6 +204,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         set_pointing_param_paths(&[
             "consensus_manager_config.context_config.static_config.deployment_mode",
             "mempool_config.static_config.deployment_mode",
+            "batcher_config.static_config.block_builder_config.deployment_mode",
         ]),
     ));
     pointers
