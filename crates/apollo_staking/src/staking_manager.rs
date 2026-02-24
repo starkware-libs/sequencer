@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{Arc, RwLock};
 
+use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_protobuf::consensus::Round;
 use apollo_staking_config::config::{
@@ -182,6 +183,7 @@ impl EpochCache {
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
 pub struct StakingManager {
     staking_contract: Arc<dyn StakingContract>,
+    batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
     committee_cache: Mutex<CommitteeCache>,
 
@@ -215,6 +217,7 @@ impl CommitteeCache {
 impl StakingManager {
     pub fn new(
         staking_contract: Arc<dyn StakingContract>,
+        batcher_client: SharedBatcherClient,
         state_sync_client: SharedStateSyncClient,
         random_generator: Arc<dyn BlockRandomGenerator>,
         config: StakingManagerConfig,
@@ -223,6 +226,7 @@ impl StakingManager {
         register_metrics();
         Self {
             staking_contract,
+            batcher_client,
             state_sync_client,
             committee_cache: Mutex::new(CommitteeCache::new(
                 config.static_config.max_cached_epochs,
@@ -368,6 +372,33 @@ impl StakingManager {
         stakers.into_iter().rev().take(committee_size).collect()
     }
 
+    /// Fetches a block hash, trying batcher first and falling back to state_sync.
+    /// TODO(Dafna): This logic is duplicated from `retrospective_block_hash`.
+    /// Consider sharing this logic between the two.
+    async fn get_block_hash_with_fallback(
+        &self,
+        block_number: BlockNumber,
+    ) -> CommitteeProviderResult<BlockHash> {
+        match self.batcher_client.get_block_hash(block_number).await {
+            Ok(block_hash) => Ok(block_hash),
+            Err(batcher_error) => {
+                let block_hash =
+                    self.state_sync_client.get_block_hash(block_number).await.map_err(
+                        |state_sync_error| CommitteeProviderError::BlockHashFetchFailed {
+                            block_number,
+                            batcher_error,
+                            state_sync_error,
+                        },
+                    )?;
+                warn!(
+                    "Successfully retrieved block hash from state sync after failing to get it \
+                     from the Batcher, at block number {block_number}."
+                );
+                Ok(block_hash)
+            }
+        }
+    }
+
     // Returns the block hash used for proposer selection randomness for the given epoch.
     // For epoch N, this returns the hash of the first block in epoch N-1.
     // Returns None for epoch 0 (first epoch has no previous epoch).
@@ -394,7 +425,7 @@ impl StakingManager {
             .ok_or(CommitteeProviderError::MissingInformation { epoch_id: previous_epoch_id })?;
 
         // Get the hash of the first block in the previous epoch.
-        let block_hash = self.state_sync_client.get_block_hash(prev_epoch.start_block).await?;
+        let block_hash = self.get_block_hash_with_fallback(prev_epoch.start_block).await?;
         Ok(Some(block_hash))
     }
 

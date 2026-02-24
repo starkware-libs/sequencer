@@ -10,6 +10,7 @@ description = "Staking functionality for Starknet consensus participants."
 testing = []
 
 [dependencies]
+apollo_batcher_types.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_metrics.workspace = true
 apollo_protobuf.workspace = true
@@ -28,6 +29,7 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_batcher_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true

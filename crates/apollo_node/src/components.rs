@@ -210,6 +210,7 @@ pub async fn create_node_components(
                 .expect("Proof Manager client should be available");
             let committee_provider = create_committee_provider(
                 consensus_manager_config,
+                batcher_client.clone(),
                 state_sync_client.clone(),
                 config_manager_client.clone(),
             );

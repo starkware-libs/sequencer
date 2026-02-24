@@ -12,6 +12,7 @@ use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
 use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_reverts::RevertConfig;
 use apollo_signature_manager_types::MockSignatureManagerClient;
+use apollo_staking::committee_provider::MockCommitteeProvider;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use mockall::predicate::eq;
 use mockall::Sequence;
@@ -19,7 +20,7 @@ use starknet_api::block::BlockNumber;
 use tokio::sync::Mutex;
 use tokio::time::{timeout, Duration};
 
-use crate::consensus_manager::{create_committee_provider, ConsensusManager, ConsensusManagerArgs};
+use crate::consensus_manager::{ConsensusManager, ConsensusManagerArgs};
 
 #[tokio::test]
 async fn revert_batcher_blocks() {
@@ -60,21 +61,17 @@ async fn revert_batcher_blocks() {
         ..Default::default()
     };
 
-    let state_sync = Arc::new(MockStateSyncClient::new());
-    let config_manager = Arc::new(MockConfigManagerClient::new());
-    let committee_provider =
-        create_committee_provider(&manager_config, state_sync.clone(), config_manager.clone());
     let consensus_manager = ConsensusManager::new_with_storage(
         ConsensusManagerArgs {
             config: manager_config,
             batcher_client: Arc::new(mock_batcher_client),
-            state_sync_client: state_sync,
+            state_sync_client: Arc::new(MockStateSyncClient::new()),
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-            config_manager_client: config_manager,
+            config_manager_client: Arc::new(MockConfigManagerClient::new()),
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
             proof_manager_client: Arc::new(MockProofManagerClient::new()),
-            committee_provider,
+            committee_provider: Arc::new(MockCommitteeProvider::new()),
         },
         Arc::new(Mutex::new(mock_voted_height_storage)),
     );
@@ -110,21 +107,17 @@ async fn revert_voted_height_when_batcher_already_at_target() {
         ..Default::default()
     };
 
-    let state_sync = Arc::new(MockStateSyncClient::new());
-    let config_manager = Arc::new(MockConfigManagerClient::new());
-    let committee_provider =
-        create_committee_provider(&manager_config, state_sync.clone(), config_manager.clone());
     let consensus_manager = ConsensusManager::new_with_storage(
         ConsensusManagerArgs {
             config: manager_config,
             batcher_client: Arc::new(mock_batcher_client),
-            state_sync_client: state_sync,
+            state_sync_client: Arc::new(MockStateSyncClient::new()),
             class_manager_client: Arc::new(MockClassManagerClient::new()),
             signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-            config_manager_client: config_manager,
+            config_manager_client: Arc::new(MockConfigManagerClient::new()),
             l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
             proof_manager_client: Arc::new(MockProofManagerClient::new()),
-            committee_provider,
+            committee_provider: Arc::new(MockCommitteeProvider::new()),
         },
         Arc::new(Mutex::new(mock_voted_height_storage)),
     );
@@ -149,20 +142,16 @@ async fn no_reverts_without_config() {
         },
         ..Default::default()
     };
-    let state_sync = Arc::new(MockStateSyncClient::new());
-    let config_manager = Arc::new(MockConfigManagerClient::new());
-    let committee_provider =
-        create_committee_provider(&config, state_sync.clone(), config_manager.clone());
     let consensus_manager = ConsensusManager::new(ConsensusManagerArgs {
         config,
         batcher_client: Arc::new(mock_batcher),
-        state_sync_client: state_sync,
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
         class_manager_client: Arc::new(MockClassManagerClient::new()),
         signature_manager_client: Arc::new(MockSignatureManagerClient::new()),
-        config_manager_client: config_manager,
+        config_manager_client: Arc::new(MockConfigManagerClient::new()),
         l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
         proof_manager_client: Arc::new(MockProofManagerClient::new()),
-        committee_provider,
+        committee_provider: Arc::new(MockCommitteeProvider::new()),
     });
 
     // TODO(Shahak): try to solve this better (the test will take 100 milliseconds to run).

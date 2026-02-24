@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_batcher_types::communication::BatcherClientError;
 use apollo_protobuf::consensus::Round;
 use apollo_state_sync_types::communication::StateSyncClientError;
 use async_trait::async_trait;
@@ -27,8 +28,6 @@ pub struct Staker {
 
 #[derive(Debug, Error)]
 pub enum CommitteeProviderError {
-    #[error(transparent)]
-    StateSyncClientError(#[from] StateSyncClientError),
     #[error("Committee is empty.")]
     EmptyCommittee,
     #[error("Committee info unavailable for height {height}.")]
@@ -37,6 +36,16 @@ pub enum CommitteeProviderError {
     MissingInformation { epoch_id: u64 },
     #[error(transparent)]
     StakingContractError(#[from] StakingContractError),
+    #[error(
+        "Failed retrieving block hash for block {block_number:?}, because both Batcher and State \
+         Sync returned errors. Batcher error: {batcher_error:?}, State sync error: \
+         {state_sync_error:?}"
+    )]
+    BlockHashFetchFailed {
+        block_number: BlockNumber,
+        batcher_error: BatcherClientError,
+        state_sync_error: StateSyncClientError,
+    },
 }
 
 pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;

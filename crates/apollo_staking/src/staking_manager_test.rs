@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
+use apollo_batcher_types::errors::BatcherError;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_staking_config::config::{
     CommitteeConfig,
@@ -14,7 +16,7 @@ use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use mockall::TimesRange;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
@@ -123,6 +125,15 @@ fn create_state_sync_client_with_block_hash() -> MockStateSyncClient {
     state_sync_client
 }
 
+// Helper function to create a MockBatcherClient that returns a block hash for any block.
+fn create_batcher_client_with_block_hash() -> MockBatcherClient {
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+    batcher_client
+}
+
 #[rstest]
 #[case::no_stakers(vec![], vec![])]
 #[case::single_staker(vec![STAKER_1], vec![STAKER_1])]
@@ -143,6 +154,7 @@ async fn get_committee_success(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
@@ -173,6 +185,7 @@ async fn get_committee_cache(
     config.static_config.max_cached_epochs = 1;
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         config,
@@ -206,6 +219,7 @@ async fn get_committee_for_next_epoch(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
@@ -249,6 +263,7 @@ async fn get_committee_applies_dynamic_config_changes(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         default_config,
@@ -260,6 +275,36 @@ async fn get_committee_applies_dynamic_config_changes(
 
     let committee = committee_manager.get_committee(E2_H1).await.unwrap();
     assert_eq!(committee.members().len(), 1);
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_committee_block_hash_fallback_to_state_sync(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1]);
+
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
+        .expect_get_block_hash()
+        .times(1)
+        .returning(|_| Err(BatcherClientError::BatcherError(BatcherError::InternalError)));
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client.expect_get_block_hash().times(1).returning(|_| Ok(BlockHash(Felt::ZERO)));
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(batcher_client),
+        Arc::new(state_sync_client),
+        Arc::new(MockBlockRandomGenerator::new()),
+        default_config,
+        None,
+    );
+
+    assert!(committee_manager.get_committee(E1_H1).await.is_ok());
 }
 
 #[rstest]
@@ -290,18 +335,19 @@ async fn get_proposer_success(
 
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
-    let mut state_sync_client = MockStateSyncClient::new();
-    state_sync_client
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
         .expect_get_block_hash()
         .with(eq(EPOCH_0.start_block))
-        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+        .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| random_value);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(state_sync_client),
+        Arc::new(batcher_client),
+        Arc::new(MockStateSyncClient::new()),
         Arc::new(random_generator),
         default_config,
         None,
@@ -323,18 +369,19 @@ async fn get_proposer_for_next_epoch(
     set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
-    let mut state_sync_client = MockStateSyncClient::new();
-    state_sync_client
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
         .expect_get_block_hash()
         .with(eq(EPOCH_1.start_block))
-        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+        .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 0);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(state_sync_client),
+        Arc::new(batcher_client),
+        Arc::new(MockStateSyncClient::new()),
         Arc::new(random_generator),
         default_config,
         None,
@@ -362,11 +409,11 @@ async fn get_proposer_epoch_cache_updates(
     contract.expect_get_previous_epoch().times(1).returning(|| Ok(Some(EPOCH_0)));
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1]);
 
-    let mut state_sync_client = MockStateSyncClient::new();
-    state_sync_client
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
         .expect_get_block_hash()
         .with(eq(EPOCH_0.start_block))
-        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+        .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
     // Expectations for the second get_proposer call (epoch 1 and 0 should be cached):
     // Advance the contract current epoch to Epoch 3, and previous epoch to Epoch 2.
@@ -374,17 +421,18 @@ async fn get_proposer_epoch_cache_updates(
     contract.expect_get_previous_epoch().times(1).returning(|| Ok(Some(EPOCH_2)));
     set_stakers(&mut contract, EPOCH_3, vec![STAKER_3]);
 
-    state_sync_client
+    batcher_client
         .expect_get_block_hash()
         .with(eq(EPOCH_2.start_block))
-        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+        .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 0);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(state_sync_client),
+        Arc::new(batcher_client),
+        Arc::new(MockStateSyncClient::new()),
         Arc::new(random_generator),
         default_config,
         None,
@@ -411,17 +459,13 @@ async fn get_proposer_empty_committee(
     set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![]);
 
-    let mut state_sync_client = MockStateSyncClient::new();
-    state_sync_client
-        .expect_get_block_hash()
-        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
-
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 0);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(state_sync_client),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(random_generator),
         StakingManagerConfig {
             dynamic_config: test_config_with_committee_size(0),
@@ -447,18 +491,14 @@ async fn get_proposer_random_value_exceeds_total_weight(
     // Stakers with total weight 10000.
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
-    let mut state_sync_client = MockStateSyncClient::new();
-    state_sync_client
-        .expect_get_block_hash()
-        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
-
     // Random value is out of range. Valid range is [0, 10000).
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 10000);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(state_sync_client),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(random_generator),
         default_config,
         None,
@@ -478,19 +518,14 @@ async fn get_proposer_cache(
     set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
-    let mut state_sync_client = MockStateSyncClient::new();
-    state_sync_client
-        .expect_get_block_hash()
-        .times(1)
-        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
-
     // Expect random generator to be called 3 times total (once per cache miss).
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().times(3).returning(move |_, _, _, _| 0);
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
-        Arc::new(state_sync_client),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(random_generator),
         default_config,
         None,
@@ -498,7 +533,7 @@ async fn get_proposer_cache(
 
     let committee = committee_manager.get_committee(E1_H1).await.unwrap();
 
-    // Query 1: (H1, 0) - cache miss, should fetch from state.
+    // Query 1: (H1, 0) - cache miss, should call random generator.
     assert_eq!(committee.get_proposer(E1_H1, 0).unwrap(), STAKER_4.address);
 
     // Query 2: (H1, 0) - cache hit, should return from cache.
@@ -542,6 +577,7 @@ async fn test_get_proposer_with_actual_proposer_flag(
     default_config.static_config.use_only_actual_proposer_selection = true;
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         default_config,
@@ -592,6 +628,7 @@ async fn get_actual_proposer_all_eligible(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         default_config,
@@ -641,6 +678,7 @@ async fn get_actual_proposer_some_eligible(
         CommitteeConfig { start_epoch: 0, committee_size: 10, stakers: configured_stakers };
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
@@ -677,6 +715,7 @@ async fn get_actual_proposer_no_eligible_panics(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
@@ -728,6 +767,7 @@ async fn test_get_actual_proposer_epoch_changes(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         StakingManagerConfig {
@@ -766,6 +806,7 @@ async fn get_actual_proposer_invalid_height(
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
         Arc::new(MockBlockRandomGenerator::new()),
         default_config,
