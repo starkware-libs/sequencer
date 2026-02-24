@@ -402,5 +402,11 @@ unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(addr_of)',
 ] }
 
+# Release-optimized build with debug symbols for profiling tools (e.g. heaptrack).
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = "none"
+
 [workspace.lints.clippy]
 as_conversions = "warn"
