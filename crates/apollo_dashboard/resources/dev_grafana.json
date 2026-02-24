@@ -205,6 +205,17 @@
           "extra_params": {}
         },
         {
+          "title": "Proposal Validation: Acceptance Rate (%)",
+          "description": "Percentage of received proposals accepted for validation (10m window).",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_proposals_accepted_for_validation{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) / increase(consensus_proposals_received{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {
+            "unit": "percentunit"
+          }
+        },
+        {
           "title": "Proposal Validation: Number of Validated Proposals",
           "description": "The number of proposals received and validated successfully (10m window)",
           "type": "timeseries",

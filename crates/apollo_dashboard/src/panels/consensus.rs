@@ -7,6 +7,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_RECEIVED,
     CONSENSUS_PROPOSALS_VALIDATED,
@@ -162,6 +163,22 @@ fn get_panel_consensus_proposals_received() -> Panel {
         increase(&CONSENSUS_PROPOSALS_RECEIVED, DEFAULT_DURATION),
         PanelType::TimeSeries,
     )
+}
+
+fn get_panel_consensus_proposals_acceptance_rate() -> Panel {
+    Panel::new(
+        "Proposal Validation: Acceptance Rate (%)",
+        format!(
+            "Percentage of received proposals accepted for validation ({DEFAULT_DURATION} window).",
+        ),
+        format!(
+            "{} / {}",
+            increase(&CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION, DEFAULT_DURATION),
+            increase(&CONSENSUS_PROPOSALS_RECEIVED, DEFAULT_DURATION),
+        ),
+        PanelType::TimeSeries,
+    )
+    .with_unit(Unit::PercentUnit)
 }
 
 fn get_panel_consensus_proposals_validated() -> Panel {
@@ -554,6 +571,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_build_proposal_failed(),
             get_panel_build_proposal_failure(),
             get_panel_consensus_proposals_received(),
+            get_panel_consensus_proposals_acceptance_rate(),
             get_panel_consensus_proposals_validated(),
             get_panel_consensus_proposals_invalid(),
             get_panel_validate_proposal_failure(),
