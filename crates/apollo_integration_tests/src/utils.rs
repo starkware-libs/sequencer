@@ -75,6 +75,7 @@ use apollo_state_sync_config::config::{
     StateSyncStaticConfig,
 };
 use apollo_storage::db::DbConfig;
+use apollo_storage::storage_reader_server::StorageReaderServerStaticConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::routing::{get, post};
@@ -221,6 +222,7 @@ pub fn create_node_config(
         storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_gas,
+        available_ports.get_next_port(),
     );
     let committer_config = ApolloCommitterConfig {
         db_path: storage_config.committer_db_path.clone(),
@@ -252,8 +254,10 @@ pub fn create_node_config(
     };
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
-    let class_manager_config =
-        create_class_manager_config(storage_config.class_manager_storage_config);
+    let class_manager_config = create_class_manager_config(
+        storage_config.class_manager_storage_config,
+        available_ports.get_next_port(),
+    );
     let proof_manager_config = storage_config.proof_manager_config.clone();
     state_sync_config.static_config.storage_config = storage_config.state_sync_storage_config;
     state_sync_config.static_config.rpc_config.chain_id = chain_info.chain_id.clone();
@@ -705,6 +709,7 @@ pub fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
     block_max_capacity_gas: GasAmount,
+    storage_reader_server_port: u16,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
     BatcherConfig {
@@ -724,6 +729,10 @@ pub fn create_batcher_config(
                 n_concurrent_txs: 3,
                 ..Default::default()
             },
+            storage_reader_server_static_config: StorageReaderServerStaticConfig {
+                port: storage_reader_server_port,
+                ..Default::default()
+            },
             #[cfg(feature = "cairo_native")]
             contract_class_manager_config: cairo_native_class_manager_config(),
             ..Default::default()
@@ -740,8 +749,10 @@ pub fn create_mempool_config(validate_resource_bounds: bool) -> MempoolConfig {
 }
 
 pub fn create_class_manager_config(
-    class_storage_config: FsClassStorageConfig,
+    mut class_storage_config: FsClassStorageConfig,
+    storage_reader_server_port: u16,
 ) -> FsClassManagerConfig {
+    class_storage_config.storage_reader_server_static_config.port = storage_reader_server_port;
     let cached_class_storage_config =
         CachedClassStorageConfig { class_cache_size: 100, deprecated_class_cache_size: 100 };
     let class_manager_config =
@@ -767,6 +778,7 @@ pub fn create_state_sync_configs(
     state_sync_storage_config: StorageConfig,
     ports: Vec<u16>,
     mut rpc_ports: Vec<u16>,
+    mut storage_reader_server_ports: Vec<u16>,
 ) -> Vec<StateSyncConfig> {
     create_connected_network_configs(ports)
         .into_iter()
@@ -777,6 +789,10 @@ pub fn create_state_sync_configs(
                 rpc_config: RpcConfig {
                     ip: Ipv4Addr::LOCALHOST.into(),
                     port: rpc_ports.remove(0),
+                    ..Default::default()
+                },
+                storage_reader_server_static_config: StorageReaderServerStaticConfig {
+                    port: storage_reader_server_ports.remove(0),
                     ..Default::default()
                 },
                 ..Default::default()
