@@ -869,6 +869,34 @@
       "observer_applicable": "true"
     },
     {
+      "name": "staking_epoch_id_mismatch",
+      "title": "Staking epoch ID mismatch between nodes",
+      "ruleGroup": "staking",
+      "expr": "max(staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\"}) - min(staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\"})",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p3",
+      "observer_applicable": "false"
+    },
+    {
       "name": "sync_storage_open_read_transactions",
       "title": "sync - High number of open read transactions",
       "ruleGroup": "state_sync",
