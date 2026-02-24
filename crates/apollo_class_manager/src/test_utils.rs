@@ -1,13 +1,21 @@
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 
 use apollo_class_manager_config::config::FsClassStorageConfig;
+use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
+use apollo_proc_macros::unique_u16;
 use apollo_storage::db::DbConfig;
+use apollo_storage::storage_reader_server::ServerConfig;
 use starknet_api::core::ChainId;
 use tempfile::TempDir;
 
 use crate::class_storage::{ClassHashStorage, FsClassStorage};
 
 pub type FileHandles = (TempDir, TempDir);
+
+fn available_ports_factory(instance_index: u16) -> AvailablePorts {
+    AvailablePorts::new(TestIdentifier::ClassManagerUnitTests.into(), instance_index)
+}
 
 pub struct FsClassStorageBuilderForTesting {
     config: FsClassStorageConfig,
@@ -51,11 +59,14 @@ impl FsClassStorageBuilderForTesting {
 
     pub fn build(self) -> (FsClassStorage, FsClassStorageConfig, Option<FileHandles>) {
         let Self { config, handles } = self;
-        let class_hash_storage = ClassHashStorage::new(
-            config.class_hash_storage_config.clone(),
-            apollo_storage::storage_reader_server::ServerConfig::default(),
-        )
-        .unwrap();
+        let mut available_ports = available_ports_factory(unique_u16!());
+        let server_config = ServerConfig::new(
+            IpAddr::from(Ipv4Addr::LOCALHOST),
+            available_ports.get_next_port(),
+            false,
+        );
+        let class_hash_storage =
+            ClassHashStorage::new(config.class_hash_storage_config.clone(), server_config).unwrap();
         let fs_class_storage =
             FsClassStorage { persistent_root: config.persistent_root.clone(), class_hash_storage };
         (fs_class_storage, config, handles)

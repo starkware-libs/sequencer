@@ -146,6 +146,7 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     storage_reader: StorageReader,
+    enabled: bool,
     _phantom: PhantomData<(RequestHandler, Request, Response)>,
 }
 
@@ -154,7 +155,11 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     fn clone(&self) -> Self {
-        Self { storage_reader: self.storage_reader.clone(), _phantom: PhantomData }
+        Self {
+            storage_reader: self.storage_reader.clone(),
+            enabled: self.enabled,
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -166,7 +171,8 @@ where
 {
     /// Creates a new storage reader server with the given handler and configuration.
     pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
-        let app_state = AppState { storage_reader, _phantom: PhantomData };
+        let enabled = config.is_enabled();
+        let app_state = AppState { storage_reader, enabled, _phantom: PhantomData };
         Self { app_state, config }
     }
 
@@ -192,14 +198,10 @@ where
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
     {
-        if !self.config.is_enabled() {
-            info!("Storage reader server is disabled, not starting");
-            return Ok(());
-        }
         let socket = SocketAddr::from((self.config.ip(), self.config.port()));
-        info!("Starting storage reader server on {}", socket);
+        let enabled_status = if self.config.is_enabled() { "enabled" } else { "disabled" };
+        info!("Starting storage reader server on {} ({})", socket, enabled_status);
         let app = self.app();
-        info!("Storage reader server listening on {}", socket);
 
         // Start the server
         let listener = TcpListener::bind(&socket).await.map_err(|e| {
@@ -212,21 +214,20 @@ where
         })
     }
 
-    /// Spawns the storage reader server in a background task if it's enabled.
-    pub fn spawn_if_enabled(server: Option<Self>) -> Option<AbortHandle>
+    /// Spawns the storage reader server in a background task.
+    /// The server always starts; when disabled, it responds with 503 to all requests.
+    pub fn spawn(self) -> AbortHandle
     where
         RequestHandler: Send + Sync + 'static,
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
     {
-        server.map(|server| {
-            tokio::spawn(async move {
-                if let Err(e) = server.run().await {
-                    tracing::error!("Storage reader server error: {:?}", e);
-                }
-            })
-            .abort_handle()
+        tokio::spawn(async move {
+            if let Err(e) = self.run().await {
+                tracing::error!("Storage reader server error: {:?}", e);
+            }
         })
+        .abort_handle()
     }
 }
 
@@ -240,6 +241,10 @@ where
     Request: Send + Sync + 'static,
     Response: Send + Sync + 'static,
 {
+    if !app_state.enabled {
+        return Err(StorageServerError::Disabled);
+    }
+
     let response = RequestHandler::handle_request(&app_state.storage_reader, request).await?;
 
     Ok(Json(response))
@@ -247,35 +252,43 @@ where
 
 /// Error type for HTTP responses.
 #[derive(Debug)]
-struct StorageServerError(StorageError);
+enum StorageServerError {
+    Storage(StorageError),
+    Disabled,
+}
 
 impl From<StorageError> for StorageServerError {
     fn from(error: StorageError) -> Self {
-        StorageServerError(error)
+        StorageServerError::Storage(error)
     }
 }
 
 impl IntoResponse for StorageServerError {
     fn into_response(self) -> Response {
-        let error_message = format!("Storage error: {}", self.0);
-        error!("{}", error_message);
-        (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+        match self {
+            StorageServerError::Disabled => {
+                (StatusCode::SERVICE_UNAVAILABLE, "Storage reader server is disabled")
+                    .into_response()
+            }
+            StorageServerError::Storage(e) => {
+                let error_message = format!("Storage error: {}", e);
+                error!("{}", error_message);
+                (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+            }
+        }
     }
 }
 
-/// Creates and returns an optional StorageReaderServer based on the enable flag.
+/// Creates a StorageReaderServer. The server always starts; when disabled via config, it
+/// responds with 503 to all requests.
 pub fn create_storage_reader_server<RequestHandler, Request, Response>(
     storage_reader: StorageReader,
     storage_reader_server_config: ServerConfig,
-) -> Option<StorageReaderServer<RequestHandler, Request, Response>>
+) -> StorageReaderServer<RequestHandler, Request, Response>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    if storage_reader_server_config.is_enabled() {
-        Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
-    } else {
-        None
-    }
+    StorageReaderServer::new(storage_reader, storage_reader_server_config)
 }
