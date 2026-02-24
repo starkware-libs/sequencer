@@ -45,7 +45,7 @@ jobs:
     steps:
       - name: Optimize CI
         id: check_skip
-        uses: withgraphite/graphite-ci-action@main
+        uses: withgraphite/graphite-ci-action@v0.0.9
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
 
@@ -261,7 +261,7 @@ jobs:
           kubectl create namespace ${{ env.namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Anvil to become ready..."
-          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 120s
           echo "🚀 Anvil deployed successfully."
 
           echo "🔍 Extracting Anvil addresses from logs."
