@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771919228961,
+  "lastUpdate": 1771920354313,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1257,6 +1257,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1331.2387861500001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "141143145+AvivYossef-starkware@users.noreply.github.com",
+            "name": "AvivYossef-starkware",
+            "username": "AvivYossef-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "367909b73720307ba88f21772aa7f8c9279f6cf1",
+          "message": "starknet_os_runner: refactor debug print of proof (#12757)",
+          "timestamp": "2026-02-24T07:45:09Z",
+          "tree_id": "64c995588194ec54a6cc3c698c08c23331a9e1be",
+          "url": "https://github.com/starkware-libs/sequencer/commit/367909b73720307ba88f21772aa7f8c9279f6cf1"
+        },
+        "date": 1771920353996,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 882.20549624,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1304.2998893,
             "unit": "ms"
           }
         ]
