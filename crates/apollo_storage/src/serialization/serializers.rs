@@ -73,7 +73,8 @@ use starknet_api::execution_resources::{
     ExecutionResources,
     GasAmount,
     GasVector,
-    Opcode,
+    OpcodeCounterMap,
+    OpcodeName,
 };
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::EntryPointByType;
@@ -525,7 +526,7 @@ auto_storage_serde! {
         pub memory_holes: u64,
         pub da_gas_consumed: GasVector,
         pub gas_consumed: GasVector,
-        pub opcode_instance_counter: HashMap<Opcode, u64>,
+        pub opcode_instance_counter: OpcodeCounterMap,
     }
 
     pub enum Builtin {
@@ -755,10 +756,10 @@ impl StorageSerde for StorageKey {
     }
 }
 
-impl StorageSerde for Opcode {
+impl StorageSerde for OpcodeName {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         match self {
-            Opcode::Blake => res.write_all(&[0u8])?,
+            OpcodeName::blake => res.write_all(&[0u8])?,
         }
         Ok(())
     }
@@ -767,7 +768,7 @@ impl StorageSerde for Opcode {
         let mut kind = [0u8; 1];
         bytes.read_exact(&mut kind).ok()?;
         match kind[0] {
-            0 => Some(Opcode::Blake),
+            0 => Some(OpcodeName::blake),
             _ => None,
         }
     }

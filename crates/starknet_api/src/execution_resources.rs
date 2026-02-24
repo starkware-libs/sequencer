@@ -234,8 +234,8 @@ pub struct ExecutionResources {
     pub memory_holes: u64,
     pub da_gas_consumed: GasVector,
     pub gas_consumed: GasVector,
-    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
-    pub opcode_instance_counter: HashMap<Opcode, u64>,
+    #[serde(default, skip_serializing_if = "OpcodeCounterMap::is_empty")]
+    pub opcode_instance_counter: OpcodeCounterMap,
 }
 
 #[derive(Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
@@ -295,18 +295,30 @@ impl Builtin {
 }
 
 /// Cairo opcodes tracked during execution.
-#[derive(Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
-pub enum Opcode {
-    #[serde(rename = "blake_opcode")]
-    Blake,
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[allow(non_camel_case_types)]
+pub enum OpcodeName {
+    blake,
 }
 
 const BLAKE_OPCODE_NAME: &str = "blake";
+const BLAKE_OPCODE_NAME_WITH_SUFFIX: &str = "blake_opcode";
 
-impl Opcode {
+impl OpcodeName {
     pub fn name(&self) -> &'static str {
         match self {
-            Opcode::Blake => BLAKE_OPCODE_NAME,
+            OpcodeName::blake => BLAKE_OPCODE_NAME,
+        }
+    }
+
+    /// Converts an [`OpcodeName`] to its string representation with the "_opcode" suffix.
+    /// This mirrors [`Builtin::to_str_with_suffix`] for consistency in resource naming.
+    pub fn to_str_with_suffix(self) -> &'static str {
+        match self {
+            OpcodeName::blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
         }
     }
 }
+
+/// Counter map for tracking opcode usage.
+pub type OpcodeCounterMap = std::collections::HashMap<OpcodeName, usize>;

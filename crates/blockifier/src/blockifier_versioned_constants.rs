@@ -17,14 +17,14 @@ use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::define_versioned_constants;
 use starknet_api::executable_transaction::TransactionType;
-use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::execution_resources::{GasAmount, GasVector, OpcodeName};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
-use crate::execution::call_info::{CairoPrimitiveName, OpcodeName};
+use crate::execution::call_info::CairoPrimitiveName;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsageMap};
@@ -970,7 +970,7 @@ impl BuiltinGasCosts {
 
     fn get_opcode_gas_cost(&self, opcode: &OpcodeName) -> u64 {
         match opcode {
-            OpcodeName::Blake => self.blake,
+            OpcodeName::blake => self.blake,
         }
     }
 

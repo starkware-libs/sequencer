@@ -9,6 +9,8 @@ use serde::Serialize;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, L1Address};
 use starknet_api::execution_resources::{GasAmount, GasVector};
+// Re-export OpcodeName and OpcodeCounterMap from starknet_api for backward compatibility.
+pub use starknet_api::execution_resources::{OpcodeCounterMap, OpcodeName};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{
@@ -354,24 +356,6 @@ impl ExtendedExecutionResources {
     }
 }
 
-const BLAKE_OPCODE_NAME_WITH_SUFFIX: &str = "blake_opcode";
-
-#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
-pub enum OpcodeName {
-    Blake,
-}
-
-impl OpcodeName {
-    /// Converts an [`OpcodeName`] to its string representation with the "_opcode" suffix.
-    /// This mirrors [`BuiltinName::to_str_with_suffix`] for consistency in resource naming.
-    pub fn to_str_with_suffix(self) -> &'static str {
-        match self {
-            OpcodeName::Blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
-        }
-    }
-}
-
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
 // Serialize as an untagged enum to avoid a type prefix, for backward compatibility with
@@ -389,14 +373,12 @@ impl From<BuiltinName> for CairoPrimitiveName {
 }
 
 impl From<OpcodeName> for CairoPrimitiveName {
-    fn from(opcode_name: OpcodeName) -> Self {
-        CairoPrimitiveName::Opcode(opcode_name)
+    fn from(opcode: OpcodeName) -> Self {
+        CairoPrimitiveName::Opcode(opcode)
     }
 }
 
 pub type CairoPrimitiveCounterMap = BTreeMap<CairoPrimitiveName, usize>;
-
-pub type OpcodeCounterMap = BTreeMap<OpcodeName, usize>;
 
 pub type BuiltinCounterMap = BTreeMap<BuiltinName, usize>;
 

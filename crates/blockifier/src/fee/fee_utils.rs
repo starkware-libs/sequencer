@@ -7,7 +7,7 @@ use num_rational::Ratio;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::{to_discounted_l1_gas, GasAmount, GasVector};
+use starknet_api::execution_resources::{to_discounted_l1_gas, GasAmount, GasVector, OpcodeName};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas};
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource, Tip};
@@ -15,7 +15,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::{ResourceCost, VersionedConstants};
 use crate::context::{BlockContext, TransactionContext};
-use crate::execution::call_info::{CairoPrimitiveName, ExtendedExecutionResources, OpcodeName};
+use crate::execution::call_info::{CairoPrimitiveName, ExtendedExecutionResources};
 use crate::fee::resources::TransactionFeeResult;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
@@ -74,7 +74,7 @@ fn get_cairo_primitive_fee_cost(
                 panic!("Builtin {builtin} not found in versioned constants.");
             })
         }
-        CairoPrimitiveName::Opcode(OpcodeName::Blake) => {
+        CairoPrimitiveName::Opcode(OpcodeName::blake) => {
             // Blake cost comes from the builtin gas costs in versioned constants.
             let blake_sierra_gas_cost = versioned_constants.os_constants.gas_costs.builtins.blake;
             let blake_l1_gas_cost = versioned_constants

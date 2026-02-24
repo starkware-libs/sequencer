@@ -5,7 +5,6 @@ use blockifier::context::BlockContext;
 use blockifier::execution::call_info::{
     CallInfo,
     ExtendedExecutionResources,
-    OpcodeName,
     OrderedEvent as BlockifierOrderedEvent,
     OrderedL2ToL1Message as BlockifierOrderedL2ToL1Message,
     Retdata as BlockifierRetdata,
@@ -40,7 +39,7 @@ use starknet_api::execution_resources::{
     ExecutionResources,
     GasVector,
     GasVector as StarknetApiGasVector,
-    Opcode,
+    OpcodeCounterMap,
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::fields::{Calldata, Fee};
@@ -396,16 +395,12 @@ fn extended_resources_to_execution_resources(
         };
     }
 
-    let mut opcode_instance_counter = HashMap::new();
-    for (opcode_name, count) in extended_resources.opcode_instance_counter {
-        if count == 0 {
-            continue;
-        }
-        let count = u64_from_usize(count);
-        match opcode_name {
-            OpcodeName::Blake => opcode_instance_counter.insert(Opcode::Blake, count),
-        };
-    }
+    // Filter out zero counts from opcode counter.
+    let opcode_instance_counter: OpcodeCounterMap = extended_resources
+        .opcode_instance_counter
+        .into_iter()
+        .filter(|(_, count)| *count > 0)
+        .collect();
 
     Ok(ExecutionResources {
         steps: u64_from_usize(vm_resources.n_steps),
