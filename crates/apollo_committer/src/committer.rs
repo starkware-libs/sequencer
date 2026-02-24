@@ -537,8 +537,8 @@ fn log_block_measurements(
 ) {
     debug!(
         "Block {height} stats: durations in ms (total/read/compute/write): \
-         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates \
-         (read/compute/write): {}/{}/{}, modifications count \
+         {:.0}/{:.0}/{:.0}/{:.0}, total block duration per modification in µs: {}, rates in \
+         entries/sec (read/compute/write): {}/{}/{}, modifications count \
          (storage_tries/contracts_trie/classes_trie/emptied_storage_leaves): {}/{}/{}/{}{}",
         durations.block * 1000.0,
         durations.read * 1000.0,
