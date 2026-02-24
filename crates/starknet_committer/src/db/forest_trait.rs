@@ -62,6 +62,7 @@ pub trait ForestMetadata {
     }
 }
 
+// TODO(Nimrod): Make this trait take `&self` instead of `&mut self`.
 /// Trait for reading an original skeleton forest from some storage.
 /// The implementation may depend on the underlying storage layout.
 #[async_trait]
@@ -86,7 +87,7 @@ pub trait ForestReader {
 
 /// Helper function containing layout-common read logic.
 pub(crate) async fn read_forest<'a, S, Layout>(
-    storage: &mut S,
+    storage: &S,
     roots: StateRoots,
     storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
     classes_updates: &'a LeafModifications<CompiledClassHash>,
