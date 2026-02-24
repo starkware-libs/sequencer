@@ -167,7 +167,7 @@ pub(crate) fn create_contract_state_leaf_entry(
             contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
             classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
         }),
-        config: ReaderConfig::new(true),
+        config: ReaderConfig::new(true, false),
     },
     MapStorage(DbHashMap::from([
         // Roots.
@@ -420,7 +420,7 @@ async fn test_create_original_skeleton_forest<Reader: ForestReader>(
             &actual_storage_updates,
             &actual_classes_updates,
             &forest_sorted_indices,
-            ReaderConfig::new(false),
+            ReaderConfig::new(false, false),
         )
         .await
         .unwrap();
