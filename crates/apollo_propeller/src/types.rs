@@ -8,6 +8,8 @@ use crate::MerkleHash;
 
 // TODO(AndrewL): reduce redundant documentation in this file
 
+// TODO(AndrewL): Re-evaluate the error approach in propeller.
+
 /// Events emitted by the Propeller protocol to the application layer.
 #[derive(Debug, Clone)]
 pub enum Event {
