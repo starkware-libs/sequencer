@@ -34,6 +34,8 @@ use crate::votes_threshold::{QuorumType, VotesThreshold, ROUND_SKIP_THRESHOLD};
 type VoteKey = (Round, ValidatorId);
 
 /// A vote accompanied by the validator's voting weight.
+/// TODO(Asmaa): Revisit type for staking power: u32 may not be enough; accordingly revisit the
+/// sum (weight_sum in votes_meet_threshold) and total_weight.
 type WeightedVote = (Vote, u32);
 
 /// A map of votes, keyed by round and validator ID, with the vote and its weight.
@@ -712,21 +714,32 @@ impl StateMachine {
         }
     }
 
+    /// Returns whether the sum of voting weights for entries in `votes` that match `round` and,
+    /// if `value` is `Some`, have `proposal_commitment == *value`, meets `threshold`.
+    fn votes_meet_threshold(
+        &self,
+        votes: &VotesMap,
+        round: u32,
+        value: Option<&Option<ProposalCommitment>>,
+        threshold: &VotesThreshold,
+    ) -> bool {
+        let weight_sum = votes
+            .iter()
+            .filter_map(|(&(r, _voter), (v, w))| {
+                (r == round && value.is_none_or(|val| val == &v.proposal_commitment))
+                    .then_some(u64::from(*w))
+            })
+            .sum();
+        threshold.is_met(weight_sum, self.total_weight)
+    }
+
     fn round_has_enough_votes(
         &self,
         votes: &VotesMap,
         round: u32,
         threshold: &VotesThreshold,
     ) -> bool {
-        // TODO(Asmaa): Refactor round_has_enough_votes and value_has_enough_votes to use a shared
-        // weighted sum calculator.
-        let weight_sum = votes
-            .iter()
-            .filter_map(
-                |(&(r, _voter), (_v, w))| if r == round { Some(u64::from(*w)) } else { None },
-            )
-            .sum();
-        threshold.is_met(weight_sum, self.total_weight)
+        self.votes_meet_threshold(votes, round, None, threshold)
     }
 
     fn value_has_enough_votes(
@@ -736,17 +749,7 @@ impl StateMachine {
         value: &Option<ProposalCommitment>,
         threshold: &VotesThreshold,
     ) -> bool {
-        let weight_sum = votes
-            .iter()
-            .filter_map(|(&(r, _voter), (v, w))| {
-                if r == round && &v.proposal_commitment == value {
-                    Some(u64::from(*w))
-                } else {
-                    None
-                }
-            })
-            .sum();
-        threshold.is_met(weight_sum, self.total_weight)
+        self.votes_meet_threshold(votes, round, Some(value), threshold)
     }
 
     fn virtual_proposer_in_favor(
