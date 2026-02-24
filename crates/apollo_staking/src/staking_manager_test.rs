@@ -30,7 +30,7 @@ use crate::committee_provider::{
 };
 use crate::staking_contract::MockStakingContract;
 use crate::staking_manager::{Epoch, StakingManager, MIN_EPOCH_LENGTH};
-use crate::utils::MockBlockRandomGenerator;
+use crate::utils::{MockBlockRandomGenerator, MockBlockRandomGeneratorFactory};
 
 const STAKER_1: Staker = Staker {
     address: ContractAddress(PatriciaKey::from_hex_unchecked("0x1")),
@@ -134,6 +134,18 @@ fn create_batcher_client_with_block_hash() -> MockBatcherClient {
     batcher_client
 }
 
+// Returns a factory whose create_seeded always produces a generator that returns `value`.
+// Suitable for most tests; does not constrain the number of generate calls.
+fn make_generator_factory(value: u128) -> MockBlockRandomGeneratorFactory {
+    let mut factory = MockBlockRandomGeneratorFactory::new();
+    factory.expect_create_seeded().returning(move |_| {
+        let mut mock = MockBlockRandomGenerator::new();
+        mock.expect_generate().returning(move |_, _, _| value);
+        Box::new(mock)
+    });
+    factory
+}
+
 #[rstest]
 #[case::no_stakers(vec![], vec![])]
 #[case::single_staker(vec![STAKER_1], vec![STAKER_1])]
@@ -156,7 +168,7 @@ async fn get_committee_success(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         StakingManagerConfig {
             dynamic_config: test_config_with_committee_size(3),
             ..default_config
@@ -187,7 +199,7 @@ async fn get_committee_cache(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         config,
         None,
     );
@@ -221,7 +233,7 @@ async fn get_committee_for_next_epoch(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         StakingManagerConfig {
             dynamic_config: test_config_with_committee_size(3),
             ..default_config
@@ -265,7 +277,7 @@ async fn get_committee_applies_dynamic_config_changes(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         default_config,
         Some(Arc::new(config_manager_client)),
     );
@@ -299,7 +311,7 @@ async fn get_committee_block_hash_fallback_to_state_sync(
         Arc::new(contract),
         Arc::new(batcher_client),
         Arc::new(state_sync_client),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         default_config,
         None,
     );
@@ -341,14 +353,11 @@ async fn get_proposer_success(
         .with(eq(EPOCH_0.start_block))
         .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().returning(move |_, _, _, _| random_value);
-
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(batcher_client),
         Arc::new(MockStateSyncClient::new()),
-        Arc::new(random_generator),
+        Arc::new(make_generator_factory(random_value)),
         default_config,
         None,
     );
@@ -375,14 +384,11 @@ async fn get_proposer_for_next_epoch(
         .with(eq(EPOCH_1.start_block))
         .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().returning(move |_, _, _, _| 0);
-
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(batcher_client),
         Arc::new(MockStateSyncClient::new()),
-        Arc::new(random_generator),
+        Arc::new(make_generator_factory(0)),
         default_config,
         None,
     );
@@ -426,14 +432,11 @@ async fn get_proposer_epoch_cache_updates(
         .with(eq(EPOCH_2.start_block))
         .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().returning(move |_, _, _, _| 0);
-
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(batcher_client),
         Arc::new(MockStateSyncClient::new()),
-        Arc::new(random_generator),
+        Arc::new(make_generator_factory(0)),
         default_config,
         None,
     );
@@ -459,14 +462,11 @@ async fn get_proposer_empty_committee(
     set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![]);
 
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().returning(move |_, _, _, _| 0);
-
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(random_generator),
+        Arc::new(make_generator_factory(0)),
         StakingManagerConfig {
             dynamic_config: test_config_with_committee_size(0),
             ..default_config
@@ -492,14 +492,11 @@ async fn get_proposer_random_value_exceeds_total_weight(
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
     // Random value is out of range. Valid range is [0, 10000).
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().returning(move |_, _, _, _| 10000);
-
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(random_generator),
+        Arc::new(make_generator_factory(10000)),
         default_config,
         None,
     );
@@ -518,15 +515,19 @@ async fn get_proposer_cache(
     set_previous_epoch(&mut contract, Some(EPOCH_0));
     set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
-    // Expect random generator to be called 3 times total (once per cache miss).
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().times(3).returning(move |_, _, _, _| 0);
+    // Expect the generator to be called exactly 3 times (once per cache miss).
+    let mut factory = MockBlockRandomGeneratorFactory::new();
+    factory.expect_create_seeded().returning(|_| {
+        let mut mock = MockBlockRandomGenerator::new();
+        mock.expect_generate().times(3).returning(|_, _, _| 0);
+        Box::new(mock)
+    });
 
     let committee_manager = StakingManager::new(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(random_generator),
+        Arc::new(factory),
         default_config,
         None,
     );
@@ -579,7 +580,7 @@ async fn test_get_proposer_with_actual_proposer_flag(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         default_config,
         None,
     );
@@ -630,7 +631,7 @@ async fn get_actual_proposer_all_eligible(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         default_config,
         None,
     );
@@ -680,7 +681,7 @@ async fn get_actual_proposer_some_eligible(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig {
                 default_committee,
@@ -717,7 +718,7 @@ async fn get_actual_proposer_no_eligible_panics(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig {
                 default_committee,
@@ -769,7 +770,7 @@ async fn test_get_actual_proposer_epoch_changes(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         StakingManagerConfig {
             dynamic_config: StakingManagerDynamicConfig { default_committee, override_committee },
             ..default_config
@@ -808,7 +809,7 @@ async fn get_actual_proposer_invalid_height(
         Arc::new(contract),
         Arc::new(create_batcher_client_with_block_hash()),
         Arc::new(create_state_sync_client_with_block_hash()),
-        Arc::new(MockBlockRandomGenerator::new()),
+        Arc::new(make_generator_factory(0)),
         default_config,
         None,
     );
