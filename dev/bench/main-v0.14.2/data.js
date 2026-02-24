@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771920354313,
+  "lastUpdate": 1771928138675,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1291,6 +1291,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1304.2998893,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "92669167+dafnamatsry@users.noreply.github.com",
+            "name": "dafnamatsry",
+            "username": "dafnamatsry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3f0847b3c441d268f0c43a78bdbf069c0d42869d",
+          "message": "apollo_staking: get block hash from Batcher with fallback to StateSync (#12765)",
+          "timestamp": "2026-02-24T09:53:58Z",
+          "tree_id": "3129508eb89071f92bcdc9c33829c618e3b422eb",
+          "url": "https://github.com/starkware-libs/sequencer/commit/3f0847b3c441d268f0c43a78bdbf069c0d42869d"
+        },
+        "date": 1771928138377,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 903.93212165,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1263.89675443,
             "unit": "ms"
           }
         ]
