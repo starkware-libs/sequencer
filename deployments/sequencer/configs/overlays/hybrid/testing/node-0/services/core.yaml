@@ -64,7 +64,7 @@ config:
     state_sync_config.static_config.network_config.port: 55010
     state_sync_config.static_config.p2p_sync_client_config.#is_none: false
     state_sync_config.static_config.rpc_config.port: 8090
-    state_sync_config.static_config.storage_reader_server_static_config.port: 55012
+    state_sync_config.static_config.storage_reader_server_static_config.port: 55014
 
 service:
   enabled: true
@@ -99,8 +99,8 @@ service:
     targetPort: 55011
     protocol: TCP
   - name: state-sync-storage-reader
-    port: 55012
-    targetPort: 55012
+    port: 55014
+    targetPort: 55014
     protocol: TCP
 
 statefulSet:
