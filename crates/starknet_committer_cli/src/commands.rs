@@ -8,7 +8,7 @@ use apollo_storage::db::DbConfig;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::mmap_file::MmapFileConfig;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{open_storage, BatchConfig, StorageConfig, StorageReader, StorageScope};
+use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageScope};
 use blake2::digest::consts::U31;
 use blake2::{Blake2s, Digest};
 use rand::distributions::Uniform;
@@ -66,7 +66,7 @@ static BATCHER_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| Storag
         max_object_size: 1073741824,
     },
     scope: StorageScope::StateOnly,
-    batch_config: BatchConfig::default(),
+    batch_config: Default::default(),
 });
 
 // This is based on the state sync's storage configuration on mainnet.
@@ -86,7 +86,7 @@ static STATE_SYNC_STORAGE_CONFIG: LazyLock<StorageConfig> = LazyLock::new(|| Sto
         max_object_size: 1073741824,
     },
     scope: StorageScope::FullArchive,
-    batch_config: BatchConfig::default(),
+    batch_config: Default::default(),
 });
 
 const FLAVOR_PERIOD_MANY_WINDOW: usize = 10;
