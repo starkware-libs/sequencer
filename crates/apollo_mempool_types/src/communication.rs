@@ -109,7 +109,7 @@ pub enum MempoolResponse {
     AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
     UpdateGasPrice(MempoolResult<()>),
     GetMempoolSnapshot(MempoolResult<MempoolSnapshot>),
-    GetTimestamp(MempoolResult<u64>),
+    GetTimestamp(MempoolResult<UnixTimestamp>),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolResponse);
 
