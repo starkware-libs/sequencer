@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771859525064,
+  "lastUpdate": 1771919228961,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1223,6 +1223,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1358.7363289500001,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "andrew.l@starkware.co",
+            "name": "Andrew Luka",
+            "username": "sirandreww-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f686ba8043b47aa4b4a6ab709e62c229cb400c57",
+          "message": "apollo_propeller: implemented a simple time cache (#12024)",
+          "timestamp": "2026-02-24T07:26:34Z",
+          "tree_id": "6ab0eb5f30aedade0e9a41cecc7514d81f014c68",
+          "url": "https://github.com/starkware-libs/sequencer/commit/f686ba8043b47aa4b4a6ab709e62c229cb400c57"
+        },
+        "date": 1771919228652,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 906.03720033,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1331.2387861500001,
             "unit": "ms"
           }
         ]
