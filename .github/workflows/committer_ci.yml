@@ -49,9 +49,21 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # https://graphite.com/docs/stacking-and-ci
+  optimize_ci:
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: withgraphite/graphite-ci-action@v0.0.9
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
   run-regression-tests:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
-    if: ${{ github.event_name == 'pull_request' }}
+    needs: optimize_ci
+    if: ${{ github.event_name == 'pull_request' && needs.optimize_ci.outputs.skip == 'false' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -94,8 +106,9 @@ jobs:
   # └─────────────────────┴───────────────────────────────────────────────────────┘
   benchmarking:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    needs: optimize_ci
     # Skip benchmarking if explicitly requested in the PR title.
-    if: ${{ !contains(github.event.pull_request.title, '(SKIP COMMITTER BENCH)') }}
+    if: ${{ !contains(github.event.pull_request.title, '(SKIP COMMITTER BENCH)') && (github.event_name != 'pull_request' || needs.optimize_ci.outputs.skip == 'false') }}
     permissions:
       contents: write # Required for pushing to gh-pages on push events.
     steps:

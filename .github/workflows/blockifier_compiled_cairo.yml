@@ -27,8 +27,22 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # https://graphite.com/docs/stacking-and-ci
+  optimize_ci:
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: withgraphite/graphite-ci-action@v0.0.9
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+
   verify_cairo_file_dependencies:
     runs-on: namespace-profile-medium-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/bootstrap
