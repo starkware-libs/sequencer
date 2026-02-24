@@ -62,12 +62,15 @@ use crate::metrics::{
     record_block_close_reason,
     BlockCloseReason,
     BATCHER_CLASS_CACHE_METRICS,
+    EVENT_COMMITMENT_COUNT,
     EVENT_COMMITMENT_LATENCY,
     EVENT_COMMITMENT_PER_EVENT_LATENCY,
     PROPOSER_DEFERRED_TXS,
     RECEIPT_COMMITMENT_LATENCY,
     STATE_DIFF_COMMITMENT_LATENCY,
     STATE_DIFF_COMMITMENT_PER_STATE_DIFF_LENGTH_LATENCY,
+    STATE_DIFF_LENGTH,
+    TX_COMMITMENT_COUNT,
     TX_COMMITMENT_LATENCY,
     TX_COMMITMENT_PER_TX_LATENCY,
     VALIDATOR_WASTED_TXS,
@@ -915,12 +918,16 @@ fn record_block_commitment_measurements(measurements: BlockCommitmentsMeasuremen
             measurements.transaction_commitment_duration.as_secs_f64() / measurements.n_txs as f64,
         );
     }
+    TX_COMMITMENT_COUNT.increment(measurements.n_txs as u64);
+
     EVENT_COMMITMENT_LATENCY.record_lossy(measurements.event_commitment_duration.as_secs_f64());
     if measurements.n_events > 0 {
         EVENT_COMMITMENT_PER_EVENT_LATENCY.record_lossy(
             measurements.event_commitment_duration.as_secs_f64() / measurements.n_events as f64,
         );
     }
+    EVENT_COMMITMENT_COUNT.increment(measurements.n_events as u64);
+
     RECEIPT_COMMITMENT_LATENCY.record_lossy(measurements.receipt_commitment_duration.as_secs_f64());
     STATE_DIFF_COMMITMENT_LATENCY
         .record_lossy(measurements.state_diff_commitment_duration.as_secs_f64());
@@ -930,4 +937,5 @@ fn record_block_commitment_measurements(measurements: BlockCommitmentsMeasuremen
                 / measurements.state_diff_length as f64,
         );
     }
+    STATE_DIFF_LENGTH.increment(measurements.state_diff_length as u64);
 }
