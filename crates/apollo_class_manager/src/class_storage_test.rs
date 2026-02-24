@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use apollo_class_manager_config::config::CachedClassStorageConfig;
 use apollo_class_manager_types::CachedClassStorageError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
-use apollo_storage::storage_reader_server::ServerConfig;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -23,9 +22,9 @@ use crate::test_utils::FsClassStorageBuilderForTesting;
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
         let builder = FsClassStorageBuilderForTesting::default();
-        let (_, config, _) =
+        let (fs_storage, _, _) =
             builder.with_existing_paths(path_prefix.path().to_path_buf(), PathBuf::new()).build();
-        Self::new(config.class_hash_storage_config, ServerConfig::default()).unwrap()
+        fs_storage.class_hash_storage
     }
 }
 
@@ -41,8 +40,8 @@ impl FsClassStorage {
     }
 }
 
-#[test]
-fn fs_storage() {
+#[tokio::test]
+async fn fs_storage() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
@@ -76,8 +75,8 @@ fn fs_storage() {
         .unwrap();
 }
 
-#[test]
-fn fs_storage_deprecated_class_api() {
+#[tokio::test]
+async fn fs_storage_deprecated_class_api() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
@@ -98,8 +97,8 @@ fn fs_storage_deprecated_class_api() {
     storage.set_deprecated_class(class_id, executable_class).unwrap();
 }
 
-#[test]
-fn temp_dir_location_and_atomic_write_layout() {
+#[tokio::test]
+async fn temp_dir_location_and_atomic_write_layout() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let storage =
@@ -123,8 +122,8 @@ fn temp_dir_location_and_atomic_write_layout() {
     assert!(persistent_dir.join("casm").exists());
 }
 
-#[test]
-fn fs_storage_nonexistent_persistent_root_is_created() {
+#[tokio::test]
+async fn fs_storage_nonexistent_persistent_root_is_created() {
     let parent_dir = tempfile::tempdir().unwrap();
     let nonexistent_root = parent_dir.path().join("nonexistent_root");
     assert!(!nonexistent_root.exists());
@@ -153,8 +152,8 @@ fn fs_storage_nonexistent_persistent_root_is_created() {
 
 /// This scenario simulates a (manual) DB corruption; e.g., files were deleted.
 // TODO(Elin): should this flow return an error?
-#[test]
-fn fs_storage_partial_write_only_atomic_marker() {
+#[tokio::test]
+async fn fs_storage_partial_write_only_atomic_marker() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut storage =
@@ -171,8 +170,8 @@ fn fs_storage_partial_write_only_atomic_marker() {
     assert_eq!(storage.get_executable(class_id).unwrap_err(), class_not_found_error);
 }
 
-#[test]
-fn fs_storage_partial_write_no_atomic_marker() {
+#[tokio::test]
+async fn fs_storage_partial_write_no_atomic_marker() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let storage =
@@ -190,8 +189,8 @@ fn fs_storage_partial_write_no_atomic_marker() {
     assert_eq!(storage.get_executable(class_id), Ok(None));
 }
 
-#[test]
-fn cached_storage_none_flows_do_not_cache() {
+#[tokio::test]
+async fn cached_storage_none_flows_do_not_cache() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let fs_storage =
@@ -206,8 +205,8 @@ fn cached_storage_none_flows_do_not_cache() {
     assert_eq!(cached.get_executable_class_hash_v2(class_id), Ok(None));
 }
 
-#[test]
-fn cached_storage_cairo1_marker_only_returns_error() {
+#[tokio::test]
+async fn cached_storage_cairo1_marker_only_returns_error() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut fs_storage =
@@ -225,8 +224,8 @@ fn cached_storage_cairo1_marker_only_returns_error() {
     assert_eq!(cached.get_executable(class_id).unwrap_err(), expected_err);
 }
 
-#[test]
-fn cached_storage_cairo1_get_executable_and_hash() {
+#[tokio::test]
+async fn cached_storage_cairo1_get_executable_and_hash() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut fs_storage =
@@ -252,8 +251,8 @@ fn cached_storage_cairo1_get_executable_and_hash() {
     assert_eq!(cached.get_deprecated_class(class_id).unwrap(), None);
 }
 
-#[test]
-fn cached_storage_cairo0_get_executable_and_no_hash() {
+#[tokio::test]
+async fn cached_storage_cairo0_get_executable_and_no_hash() {
     let persistent_root = tempfile::tempdir().unwrap();
     let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
     let mut fs_storage =
