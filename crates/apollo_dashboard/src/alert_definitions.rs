@@ -25,6 +25,7 @@ use apollo_l1_provider::metrics::{
 };
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_metrics::metrics::MetricQueryName;
+use apollo_staking::metrics::STAKING_CURRENT_EPOCH_ID;
 use apollo_storage::metrics::{
     BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
     CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
@@ -451,6 +452,26 @@ fn get_class_manager_storage_open_read_transactions_alert() -> Alert {
     )
 }
 
+/// Alert if different nodes report different epoch IDs, indicating one or more nodes are out of
+/// sync. A 5-minute pending duration accounts for Prometheus scrape latency and brief mismatches
+/// during normal epoch transitions.
+fn get_staking_epoch_id_mismatch_alert() -> Alert {
+    Alert::new(
+        "staking_epoch_id_mismatch",
+        "Staking epoch ID mismatch between nodes",
+        AlertGroup::Staking,
+        format!(
+            "max({epoch_id}) - min({epoch_id})",
+            epoch_id = STAKING_CURRENT_EPOCH_ID.get_name_with_filter()
+        ),
+        vec![AlertCondition::new(AlertComparisonOp::GreaterThan, 0.0, AlertLogicalOp::And)],
+        "5m",
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::DayOnly,
+        ObserverApplicability::NotApplicable,
+    )
+}
+
 pub fn get_apollo_alerts() -> Alerts {
     let mut alerts = vec![
         get_batcher_storage_open_read_transactions_alert(),
@@ -484,6 +505,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_mempool_p2p_disconnections(),
         get_native_compilation_error_increase(),
         get_periodic_ping(),
+        get_staking_epoch_id_mismatch_alert(),
         get_sync_storage_open_read_transactions_alert(),
     ];
 

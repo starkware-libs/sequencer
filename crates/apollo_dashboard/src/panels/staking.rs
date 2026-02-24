@@ -16,10 +16,10 @@ fn get_panel_epoch_info() -> Panel {
         "Epoch Information",
         "Current epoch ID, current epoch start height, and next epoch start height",
         vec![
-            STAKING_CURRENT_EPOCH_ID.get_name_with_filter().to_string(),
-            STAKING_CURRENT_EPOCH_START_BLOCK.get_name_with_filter().to_string(),
+            format!("max({})", STAKING_CURRENT_EPOCH_ID.get_name_with_filter()),
+            format!("max({})", STAKING_CURRENT_EPOCH_START_BLOCK.get_name_with_filter()),
             format!(
-                "{} + {}",
+                "max({} + {})",
                 STAKING_CURRENT_EPOCH_START_BLOCK.get_name_with_filter(),
                 STAKING_CURRENT_EPOCH_LENGTH.get_name_with_filter()
             ),
@@ -34,7 +34,11 @@ fn get_panel_stake_distribution() -> Panel {
         "Stake Distribution by Staker",
         "The distribution of stake across committee members, showing each staker's address and \
          their staking power",
-        format!("max by (address) ({})", STAKING_COMMITTEE_MEMBER_WEIGHT.get_name_with_filter()),
+        format!(
+            "max by (address) ({}) > 0",
+            STAKING_COMMITTEE_MEMBER_WEIGHT
+                .get_name_with_filer_and_additional_fields("address!=\"\"")
+        ),
         PanelType::PieChart,
     )
     .with_legend_values(vec!["percent"])
