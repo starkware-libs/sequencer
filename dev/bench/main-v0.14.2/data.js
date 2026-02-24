@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771928138675,
+  "lastUpdate": 1771937538974,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1325,6 +1325,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1263.89675443,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "91398aeac0cf3dd25e6752ebabea643e03968182",
+          "message": "apollo_transaction_converter: align proving deps with stwo 1.0.1 (#12707)\n\n* workspace,apollo_transaction_converter: align proving deps with published 1.1.0 releases\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\n\n* blockifier,apollo_compile_to_casm: fix compilation for cairo-lang 2.16 and cairo-native\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-02-24T12:26:25Z",
+          "tree_id": "0352406ea53b7242d656ad71ad7f6ed63b51816e",
+          "url": "https://github.com/starkware-libs/sequencer/commit/91398aeac0cf3dd25e6752ebabea643e03968182"
+        },
+        "date": 1771937538571,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 826.9348535199999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1318.4143548299999,
             "unit": "ms"
           }
         ]
