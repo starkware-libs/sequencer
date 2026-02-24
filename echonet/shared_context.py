@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import ClassVar, Dict, List, Mapping, Optional, Set
+from typing import ClassVar, Dict, List, Mapping, Optional, Sequence, Set
 
 from echonet.echonet_types import (
     BLOCK_STORE_TUNING,
@@ -49,6 +49,7 @@ class _TxTracker:
     """Transaction lifecycle and counters used by reporting."""
 
     currently_pending: Dict[str, int]  # tx_hash -> source block number
+    tx_timestamps: Dict[str, int]  # tx_hash -> source timestamp (seconds); live only
     ever_seen_pending: Set[str]  # cumulative set of tx hashes ever observed pending
     committed: Dict[str, int]  # cumulative map: tx_hash -> commit block number
     total_forwarded_tx_count: int  # count of forwarded txs (counted once per block)
@@ -58,6 +59,7 @@ class _TxTracker:
     def empty(cls) -> "_TxTracker":
         return cls(
             currently_pending={},
+            tx_timestamps={},
             ever_seen_pending=set(),
             committed={},
             total_forwarded_tx_count=0,
@@ -74,6 +76,7 @@ class _TxTracker:
         """Record a transaction as committed - add to the committed set (transactions that have been committed) and remove from the pending set"""
         self.committed[tx_hash] = block_number
         self.currently_pending.pop(tx_hash, None)
+        self.tx_timestamps.pop(tx_hash, None)
 
     def record_forwarded_block(self, block_number: int, tx_count: int) -> None:
         if block_number > self.max_forwarded_block:
@@ -418,6 +421,17 @@ class SharedContext:
         with self._lock:
             self._tx.record_sent(tx_hash, source_block_number)
 
+    def record_sent_tx_timestamps_for_block(
+        self, txs: Sequence[JsonObject], timestamp: int
+    ) -> None:
+        with self._lock:
+            for tx in txs:
+                self._tx.tx_timestamps[tx["transaction_hash"]] = timestamp
+
+    def get_sent_tx_timestamp(self, tx_hash: str) -> int:
+        with self._lock:
+            return self._tx.tx_timestamps[tx_hash]
+
     def record_forwarded_block(self, block_number: int, tx_count: int) -> None:
         with self._lock:
             self._tx.record_forwarded_block(block_number, tx_count)
@@ -481,6 +495,7 @@ class SharedContext:
             snapshot_items = self._blocks.snapshot_items()
             archive_dir = self._blocks._ensure_archive_dir()
             self._tx.currently_pending.clear()
+            self._tx.tx_timestamps.clear()
             self._errors.clear_live()
             self._blocks.clear_live()
             self._progress.last_echo_center_block = None
