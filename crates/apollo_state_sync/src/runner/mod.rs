@@ -42,7 +42,11 @@ use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::metrics::SYNC_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::ServerConfig;
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
+use apollo_storage::storage_reader_types::{
+    GenericStorageReaderServerHandler,
+    StorageReaderRequest,
+    StorageReaderResponse,
+};
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageConfig,
@@ -72,14 +76,12 @@ pub struct StateSyncRunner {
     register_metrics_future: BoxFuture<'static, ()>,
     // Kept alive to maintain the server running.
     #[allow(dead_code)]
-    storage_reader_server_handle: Option<AbortHandle>,
+    storage_reader_server_handle: AbortHandle,
 }
 
 impl Drop for StateSyncRunner {
     fn drop(&mut self) {
-        if let Some(handle) = &self.storage_reader_server_handle {
-            handle.abort();
-        }
+        self.storage_reader_server_handle.abort();
     }
 }
 
@@ -116,20 +118,23 @@ pub struct StateSyncResources {
     pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
-    pub storage_reader_server_handle: Option<AbortHandle>,
+    pub storage_reader_server_handle: AbortHandle,
 }
 
 impl StateSyncResources {
     pub fn new(storage_config: &StorageConfig, storage_reader_server_config: ServerConfig) -> Self {
         let (storage_reader, storage_writer, storage_reader_server) =
-            open_storage_with_metric_and_server(
+            open_storage_with_metric_and_server::<
+                GenericStorageReaderServerHandler,
+                StorageReaderRequest,
+                StorageReaderResponse,
+            >(
                 storage_config.clone(),
                 &SYNC_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
             )
             .expect("StateSyncRunner failed opening storage");
-        let storage_reader_server_handle =
-            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+        let storage_reader_server_handle = storage_reader_server.spawn();
         let shared_highest_block = Arc::new(RwLock::new(None));
         let pending_data = Arc::new(RwLock::new(PendingData {
             // The pending data might change later to DeprecatedPendingBlock, depending on the
