@@ -9,7 +9,11 @@ use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderServerDynamicConfig};
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
+use apollo_storage::storage_reader_types::{
+    GenericStorageReaderServerHandler,
+    StorageReaderRequest,
+    StorageReaderResponse,
+};
 use apollo_storage::StorageConfig;
 use starknet_api::class_cache::GlobalContractCache;
 use thiserror::Error;
@@ -248,15 +252,13 @@ type LockedWriter<'a> = MutexGuard<'a, apollo_storage::StorageWriter>;
 pub struct ClassHashStorage {
     reader: apollo_storage::StorageReader,
     writer: Arc<Mutex<apollo_storage::StorageWriter>>,
-    storage_reader_server_handle: Option<Arc<AbortHandle>>,
+    storage_reader_server_handle: Arc<AbortHandle>,
 }
 
 impl Drop for ClassHashStorage {
     fn drop(&mut self) {
-        if let Some(arc) = self.storage_reader_server_handle.take() {
-            if let Some(handle) = Arc::into_inner(arc) {
-                handle.abort();
-            }
+        if Arc::strong_count(&self.storage_reader_server_handle) == 1 {
+            self.storage_reader_server_handle.abort();
         }
     }
 }
@@ -267,14 +269,17 @@ impl ClassHashStorage {
         storage_reader_server_config: ServerConfig,
     ) -> ClassHashStorageResult<Self> {
         let (reader, writer, storage_reader_server) =
-            apollo_storage::open_storage_with_metric_and_server(
+            apollo_storage::open_storage_with_metric_and_server::<
+                GenericStorageReaderServerHandler,
+                StorageReaderRequest,
+                StorageReaderResponse,
+            >(
                 storage_config,
                 &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
             )?;
 
-        let storage_reader_server_handle =
-            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server).map(Arc::new);
+        let storage_reader_server_handle = storage_reader_server.spawn().map(Arc::new);
 
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)), storage_reader_server_handle })
     }
