@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -23,6 +24,7 @@ use async_trait::async_trait;
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::transaction::TransactionHash;
 use tracing::warn;
 
 use crate::mempool::Mempool;
@@ -142,6 +144,14 @@ impl MempoolCommunicationWrapper {
     fn get_timestamp(&self) -> MempoolResult<UnixTimestamp> {
         Ok(self.mempool.get_timestamp())
     }
+
+    fn update_timestamps(
+        &mut self,
+        mappings: HashMap<TransactionHash, UnixTimestamp>,
+    ) -> MempoolResult<()> {
+        self.mempool.update_timestamps(mappings);
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -174,6 +184,9 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
                 MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
             MempoolRequest::GetTimestamp => MempoolResponse::GetTimestamp(self.get_timestamp()),
+            MempoolRequest::UpdateTimestamps(mappings) => {
+                MempoolResponse::UpdateTimestamps(self.update_timestamps(mappings))
+            }
         }
     }
 }
