@@ -1,15 +1,19 @@
 use apollo_infra::metrics::{
-    InfraMetrics, LocalClientMetrics, LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics,
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
 };
 use apollo_metrics::{define_infra_metrics, define_metrics};
 use apollo_state_sync_types::communication::STATE_SYNC_REQUEST_LABELS;
-use apollo_storage::StorageReader;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
+use apollo_storage::StorageReader;
 define_infra_metrics!(state_sync);
 
 define_metrics!(
