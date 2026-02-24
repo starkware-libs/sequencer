@@ -486,6 +486,55 @@ pub struct StorageReader {
     open_readers_metric: Option<&'static MetricGauge>,
 }
 
+/// Configuration for transaction batching.
+///
+/// # When to Use Batching
+///
+/// Batching is designed for high-throughput sync operations where:
+/// - Blocks are validated before writing (no duplicate keys, correct markers, etc.)
+/// - Write operations are expected to succeed
+/// - Data integrity is ensured at a higher level (by the sync protocol)
+///
+/// # When not to Use Batching
+///
+/// Do not enable batching when:
+/// - Testing error handling scenarios (intentionally triggering write failures)
+/// - Operations may fail partway through (e.g., duplicate key errors, marker mismatches)
+/// - Immediate commit guarantees are required after each write
+/// - During initialization/revert operations (batching should be disabled)
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct BatchConfig {
+    /// Whether batching is enabled.
+    pub enabled: bool,
+    /// Number of logical commits before actual MDBX commit.
+    pub batch_size: usize,
+}
+
+impl Default for BatchConfig {
+    fn default() -> Self {
+        Self { enabled: false, batch_size: 100 }
+    }
+}
+
+impl SerializeConfig for BatchConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "enabled",
+                &self.enabled,
+                "Whether transaction batching is enabled.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "batch_size",
+                &self.batch_size,
+                "Number of logical commits before actual MDBX commit.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
 impl StorageReader {
     /// Takes a snapshot of the current state of the storage and returns a [`StorageTxn`] for
     /// reading data from the storage.
@@ -787,6 +836,7 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    pub batch_config: BatchConfig,
 }
 
 impl SerializeConfig for StorageConfig {
@@ -800,6 +850,7 @@ impl SerializeConfig for StorageConfig {
         dumped_config
             .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
         dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
+        dumped_config.extend(prepend_sub_config_name(self.batch_config.dump(), "batch_config"));
         dumped_config
     }
 }
