@@ -697,8 +697,8 @@ fn proving_gas_from_cairo_primitives_and_sierra_gas(
     steps_proving_gas.checked_add_panic_on_overflow(cairo_primitives_proving_gas)
 }
 
-/// Generic function to convert VM resources to gas with configurable builtin gas calculation
-pub fn vm_resources_to_gas(
+/// Converts extended execution resources to gas with configurable builtin gas calculation.
+pub fn extended_execution_resources_to_gas(
     resources: &ExtendedExecutionResources,
     cairo_primitives_gas_costs: &BuiltinGasCosts,
     versioned_constants: &VersionedConstants,
@@ -781,8 +781,11 @@ fn compute_sierra_gas(
     migration_gas: GasAmount,
     class_hash_to_casm_hash_computation_resources: &HashMap<ClassHash, EstimatedExecutionResources>,
 ) -> (GasAmount, CasmHashComputationData, GasAmount) {
-    let mut vm_resources_sierra_gas =
-        vm_resources_to_gas(vm_resources, sierra_builtin_gas_costs, versioned_constants);
+    let mut vm_resources_sierra_gas = extended_execution_resources_to_gas(
+        vm_resources,
+        sierra_builtin_gas_costs,
+        versioned_constants,
+    );
     let sierra_gas = tx_resources.computation.sierra_gas;
 
     vm_resources_sierra_gas = vm_resources_sierra_gas.checked_add_panic_on_overflow(sierra_gas);
@@ -847,13 +850,13 @@ pub fn get_tx_weights<S: StateReader>(
         map_class_hash_to_casm_hash_computation_resources(state_reader, executed_class_hashes)?;
 
     // Patricia update + transaction resources.
-    let patrticia_update_resources = get_patricia_update_resources(
+    let patricia_update_resources = get_patricia_update_resources(
         n_visited_storage_entries,
         // TODO(Yoni): consider counting here the global contract tree and the aliases as well.
         state_changes_keys.storage_keys.len(),
     );
     let vm_resources =
-        &tx_resources.computation.total_extended_vm_resources() + &patrticia_update_resources;
+        &tx_resources.computation.total_extended_vm_resources() + &patricia_update_resources;
 
     // Builtin gas costs for stone and for stwo.
     let sierra_builtin_gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
@@ -892,7 +895,7 @@ pub fn get_tx_weights<S: StateReader>(
 
     // Proving gas computation.
     let cairo_primitives_for_proving_gas = get_cairo_primitives_for_proving_gas_computation(
-        patrticia_update_resources.prover_builtins(),
+        patricia_update_resources.prover_builtins(),
         tx_resources.computation.os_vm_resources.prover_builtins(),
         tx_cairo_primitives_counters,
     );
