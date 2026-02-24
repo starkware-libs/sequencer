@@ -194,15 +194,13 @@ connect("server", Logging::Disabled)
 ```rust
 create_transaction(CreateTransactionArgs { is_dry_run: true, is_executable: false })
 ```
-3. Define zero sided types that implement a trait and have the parameter be generic
+3. Make a builder API where each parameter is a function that adds the parameter to the builder
 ```rust
-struct NoLogging;
-impl Logger for NoLogging {/* no-op implementation */}
-connect("server", NoLogging)
+TransactionBuilder::new().with_dry_run(true).with_execution_status(false).build();
 ```
-4. Make a builder API where each parameter is a function that adds the parameter to the builder
+4. If there's a single parameter, you can rename the function to capture the name of the parameter too
 ```rust
-TransactionBuilder::new().with_dry_run(true).with_execution_status(false);
+create_transaction_from_dry_run_status(true);
 ```
 
 If you can't control the API, add names at the callsite by defining variables
@@ -211,20 +209,6 @@ If you can't control the API, add names at the callsite by defining variables
 let is_dry_run = true;
 let is_executable = false;
 create_transaction(is_dry_run, is_executable)
-```
-
-**Rationale**: Callsite is more readable, without having to resort to using auxiliary args.
-
-**Rationale**: An advantage of a builder (option 4) over the rest of the options is that it allows
-enforcing a set of constraints at the compiler level by having different types of TransactionBuilder that have implemented different methods.
-```rust
-// These will all compile because in dry run both execution statuses are valid
-TransactionBuilder::new().with_dry_run().with_execution_status_enabled();
-TransactionBuilder::new().with_dry_run().with_execution_status_disabled();
-// This will compile because without dry run we can have execution status enabled
-TransactionBuilder::new().without_dry_run().with_execution_status_enabled();
-// This will NOT compile. The struct returned from without_dry_run does not implement with_execution_status_disabled
-TransactionBuilder::new().without_dry_run().with_execution_status_disabled();
 ```
 
 ### Getter Names
