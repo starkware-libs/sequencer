@@ -270,7 +270,8 @@ impl DbWriter {
         Ok(DbWriteTransaction { txn: self.env.begin_rw_txn()? })
     }
 
-    /// Creates a persistent write transaction that can be stored in structs without lifetime constraints.
+    /// Creates a persistent write transaction that can be stored in structs without lifetime
+    /// constraints.
     ///
     /// Normally, a transaction is strictly bound to the local lifetime of the `Environment` borrow.
     /// This method changes the lifetime to bypass the compiler's strict lifetime checks, allowing
