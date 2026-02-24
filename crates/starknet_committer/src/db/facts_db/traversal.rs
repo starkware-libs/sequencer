@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::hash::HashOutput;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     Preimage,
@@ -72,7 +73,8 @@ pub(crate) async fn fetch_patricia_paths_inner<'a, L: Leaf>(
         let filled_roots =
             get_roots_from_storage::<L, FactsNodeLayout>(&current_subtrees, storage, key_context)
                 .await?;
-        for (filled_root, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
+        for (db_object, subtree) in filled_roots.into_iter().zip(current_subtrees.iter()) {
+            let filled_root: FilledNode<L, HashOutput> = db_object.into();
             match filled_root.data {
                 // Binary node.
                 // If it's the root: It's a modified subtree.
