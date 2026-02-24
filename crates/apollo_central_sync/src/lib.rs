@@ -58,8 +58,8 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
-use tokio::sync::{Mutex, RwLock};
-use tokio::task::{spawn_blocking, JoinError};
+use tokio::sync::{mpsc, watch, Mutex, RwLock};
+use tokio::task::JoinError;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::pending_sync::sync_pending_data;
@@ -174,6 +174,14 @@ pub enum SyncEvent {
     },
 }
 
+#[derive(Debug, Clone)]
+struct CompiledClassRequest {
+    block_number: BlockNumber,
+    class_hash: ClassHash,
+    compiled_class_hash: CompiledClassHash,
+    is_compiler_backward_compatible: bool,
+}
+
 impl<
     TCentralSource: CentralSourceTrait + Sync + Send + 'static,
     TPendingSource: PendingSourceTrait + Sync + Send + 'static,
@@ -255,8 +263,41 @@ impl<
         if self.config.verify_blocks {
             self.track_sequencer_public_key_changes().await?;
         }
+
+        // Initialize marker channels with current values from storage.
+        // Read initial markers from the active RW transaction snapshot so stream cursors are
+        // aligned with batched/uncommitted writes visibility.
+        // TODO(Dean): Extract the repeated `self.writer.lock().await` + `begin_rw_txn()` pattern
+        // into a helper method.
+        let (initial_header_marker, initial_state_marker, initial_compiled_class_marker) = {
+            let mut writer = self.writer.lock().await;
+            let txn = writer.begin_rw_txn()?;
+            (txn.get_header_marker()?, txn.get_state_marker()?, txn.get_compiled_class_marker()?)
+        };
+
+        let (header_marker_tx, header_marker_rx) = watch::channel(initial_header_marker);
+        let (state_marker_tx, state_marker_rx) = watch::channel(initial_state_marker);
+        let (compiled_class_request_tx, compiled_class_request_rx) = mpsc::channel(1_000);
+
+        // TODO(Dean): handle compiled class backlog on restart. If the node crashed after
+        // storing state diffs but before fetching their compiled classes,
+        // initial_compiled_class_marker < initial_state_marker and those classes won't be
+        // fetched because stream_new_compiled_classes only processes channel requests from
+        // new StateDiffAvailable events. Fix: enumerate blocks from
+        // initial_compiled_class_marker to initial_state_marker, read their state diffs,
+        // and send CompiledClassRequests for declared classes.
+        if initial_compiled_class_marker < initial_state_marker {
+            panic!(
+                "Compiled class marker ({}) is behind state marker ({}). Compiled class backlog \
+                 recovery is not yet implemented.",
+                initial_compiled_class_marker, initial_state_marker,
+            );
+        }
+
         let block_stream = stream_new_blocks(
             self.reader.clone(),
+            header_marker_rx.clone(),
+            state_marker_rx.clone(),
             self.central_source.clone(),
             self.pending_source.clone(),
             self.shared_highest_block.clone(),
@@ -269,21 +310,16 @@ impl<
         )
         .fuse();
         let state_diff_stream = stream_new_state_diffs(
-            self.reader.clone(),
+            state_marker_rx.clone(),
+            header_marker_rx.clone(),
             self.central_source.clone(),
             self.config.latest_block_poll_interval_millis,
             self.config.state_updates_max_stream_size,
         )
         .fuse();
-        let compiled_class_stream = stream_new_compiled_classes(
-            self.reader.clone(),
-            self.central_source.clone(),
-            self.config.latest_block_poll_interval_millis,
-            // TODO(yair): separate config param.
-            self.config.state_updates_max_stream_size,
-            self.config.store_sierras_and_casms_block_threshold,
-        )
-        .fuse();
+        let compiled_class_stream =
+            stream_new_compiled_classes(compiled_class_request_rx, self.central_source.clone())
+                .fuse();
         let base_layer_block_stream = match &self.base_layer_source {
             Some(base_layer_source) => stream_new_base_layer_block(
                 self.reader.clone(),
@@ -320,17 +356,32 @@ impl<
               complete => break,
             }
             .expect("Received None as a sync event.")?;
-            self.process_sync_event(sync_event).await?;
+            self.process_sync_event(
+                sync_event,
+                &header_marker_tx,
+                &state_marker_tx,
+                &compiled_class_request_tx,
+            )
+            .await?;
             debug!("Finished processing sync event.");
         }
         unreachable!("Fetching data loop should never return.");
     }
 
-    // Tries to store the incoming data.
-    async fn process_sync_event(&mut self, sync_event: SyncEvent) -> StateSyncResult {
+    // Tries to store the incoming data and updates marker channels.
+    async fn process_sync_event(
+        &mut self,
+        sync_event: SyncEvent,
+        header_marker_tx: &watch::Sender<BlockNumber>,
+        state_marker_tx: &watch::Sender<BlockNumber>,
+        compiled_class_request_tx: &mpsc::Sender<CompiledClassRequest>,
+    ) -> StateSyncResult {
         match sync_event {
             SyncEvent::BlockAvailable { block_number, block, signature } => {
-                self.store_block(block_number, block, signature).await
+                self.store_block(block_number, block, signature).await?;
+                // Update header marker channel after successful store.
+                let _ = header_marker_tx.send(block_number.unchecked_next());
+                Ok(())
             }
             SyncEvent::StateDiffAvailable {
                 block_number,
@@ -338,13 +389,24 @@ impl<
                 state_diff,
                 deployed_contract_class_definitions,
             } => {
+                let compiled_classes_in_block =
+                    extract_compiled_classes_from_state_diff(&state_diff);
                 self.store_state_diff(
                     block_number,
                     block_hash,
                     state_diff,
                     deployed_contract_class_definitions,
                 )
-                .await
+                .await?;
+                self.send_compiled_class_requests(
+                    block_number,
+                    &compiled_classes_in_block,
+                    &compiled_class_request_tx,
+                )
+                .await?;
+                // Update state marker channel after successful store.
+                let _ = state_marker_tx.send(block_number.unchecked_next());
+                Ok(())
             }
             SyncEvent::CompiledClassAvailable {
                 block_number,
@@ -360,7 +422,8 @@ impl<
                     compiled_class,
                     is_compiler_backward_compatible,
                 )
-                .await
+                .await?;
+                Ok(())
             }
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
                 self.store_base_layer_block(block_number, block_hash).await
@@ -385,7 +448,7 @@ impl<
     ) -> StateSyncResult {
         // To prevent cases where central has forked under our feet, check incoming block's parent
         // hash against the parent hash stored in the storage.
-        self.verify_parent_block_hash(block_number, &block)?;
+        self.verify_parent_block_hash(block_number, &block).await?;
 
         debug!("Storing block number: {block_number}, block header: {:?}", block.header);
         trace!("Block data: {block:#?}, signature: {signature:?}");
@@ -430,6 +493,41 @@ impl<
         Ok(())
     }
 
+    async fn send_compiled_class_requests(
+        &mut self,
+        block_number: BlockNumber,
+        compiled_classes: &[(ClassHash, CompiledClassHash)],
+        compiled_class_request_tx: &mpsc::Sender<CompiledClassRequest>,
+    ) -> StateSyncResult {
+        let compiler_backward_compatibility_marker = {
+            let mut writer = self.writer.lock().await;
+            let marker = writer.begin_rw_txn()?.get_compiler_backward_compatibility_marker()?;
+            marker
+        };
+        let is_compiler_backward_compatible =
+            block_number >= compiler_backward_compatibility_marker;
+        let store_sierras_and_casms =
+            block_number.0 < self.config.store_sierras_and_casms_block_threshold;
+        if store_sierras_and_casms || !is_compiler_backward_compatible {
+            for &(class_hash, compiled_class_hash) in compiled_classes {
+                compiled_class_request_tx
+                    .send(CompiledClassRequest {
+                        block_number,
+                        class_hash,
+                        compiled_class_hash,
+                        is_compiler_backward_compatible,
+                    })
+                    .await
+                    .map_err(|_| {
+                        StateSyncError::StorageError(StorageError::DBInconsistency {
+                            msg: "Compiled class request channel unexpectedly closed.".to_string(),
+                        })
+                    })?;
+            }
+        }
+        Ok(())
+    }
+
     #[latency_histogram("sync_store_state_diff_latency_seconds", false)]
     #[instrument(skip(self, state_diff, deployed_contract_class_definitions), level = "debug", err)]
     async fn store_state_diff(
@@ -449,17 +547,16 @@ impl<
         // Filter out classes that are already declared in the storage. Only the first deployment of
         // a class declares it.
         let deployed_contract_class_definitions = {
-            let txn = self.reader.begin_ro_txn()?;
+            let mut writer = self.writer.lock().await;
+            let txn = writer.begin_rw_txn()?;
             let state_reader = txn.get_state_reader()?;
             deployed_contract_class_definitions
                 .into_iter()
                 .filter_map(|(class_hash, deprecated_class)| {
-                    match state_reader
-                        .get_deprecated_class_definition_block_number(&class_hash)
-                    {
+                    match state_reader.get_deprecated_class_definition_block_number(&class_hash) {
                         Ok(Some(_)) => None, // Class already exists, filter it out
                         Ok(None) => Some(Ok((class_hash, deprecated_class))), // Class doesn't exist, keep it
-                        Err(e) => Some(Err(e)), // Propagate error
+                        Err(e) => Some(Err(e)),                               // Propagate error
                     }
                 })
                 .collect::<Result<IndexMap<ClassHash, DeprecatedContractClass>, StorageError>>()?
@@ -494,8 +591,12 @@ impl<
             // TODO(shahak): Consider storing a boolean and updating it to true once
             // compiler_backward_compatibility_marker <= block_number and avoiding the check if the
             // boolean is true.
-            let compiler_backward_compatibility_marker =
-                self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
+            // Use RW transaction to see uncommitted batched writes.
+            let compiler_backward_compatibility_marker = {
+                let mut writer = self.writer.lock().await;
+                let marker = writer.begin_rw_txn()?.get_compiler_backward_compatibility_marker()?;
+                marker
+            };
 
             // A block contains only classes with either STARKNET_VERSION_TO_COMPILE_FROM or higher
             // or only classes below STARKNET_VERSION_TO_COMPILE_FROM, not both.
@@ -547,11 +648,6 @@ impl<
             }
             let mut txn = writer.begin_rw_txn()?;
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
-            // Non backwards compatible classes must be stored for later use since we will only be
-            // be adding them to the class manager later, once we have their compiled
-            // classes.
-            //
-            // TODO(guy.f): Properly fix handling non backwards compatible classes.
             if store_sierras_and_casms || block_contains_non_backwards_compatible_classes {
                 let store_reason = if store_sierras_and_casms {
                     format!(
@@ -584,13 +680,20 @@ impl<
                      block_contains_non_backwards_compatible_classes is false",
                     classes.keys().collect::<Vec<_>>()
                 );
+                // Still need to advance the class marker even when not storing classes,
+                // otherwise future blocks that DO have classes will fail with marker mismatch.
+                txn = txn.append_classes(block_number, &[], &[])?;
             }
             txn.commit()?;
             Ok(())
         })
         .await?;
 
-        let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
+        let compiled_class_marker = {
+            let mut writer = self.writer.lock().await;
+            let marker = writer.begin_rw_txn()?.get_compiled_class_marker()?;
+            marker
+        };
         STATE_SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
         STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
 
@@ -614,9 +717,13 @@ impl<
 
         if !is_compiler_backward_compatible {
             if let Some(class_manager_client) = &self.class_manager_client {
-                let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
-                    "Compiled classes stream gave class hash that doesn't appear in storage.",
-                );
+                let class = {
+                    let mut writer = self.writer.lock().await;
+                    let txn = writer.begin_rw_txn()?;
+                    txn.get_class(&class_hash)?.expect(
+                        "Compiled classes stream gave class hash that doesn't appear in storage.",
+                    )
+                };
                 let sierra_version = class
                     .get_sierra_version()
                     .expect("Failed reading sierra version from program.");
@@ -644,8 +751,11 @@ impl<
         // TODO(Yair): verifications - verify casm corresponds to a class on storage.
         match result {
             Ok(()) => {
-                let compiled_class_marker =
-                    self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
+                let compiled_class_marker = {
+                    let mut writer = self.writer.lock().await;
+                    let marker = writer.begin_rw_txn()?.get_compiled_class_marker()?;
+                    marker
+                };
                 // Write class and casm to class manager.
                 STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
                 debug!("Added compiled class.");
@@ -695,7 +805,7 @@ impl<
     }
 
     // Compares the block's parent hash to the stored block.
-    fn verify_parent_block_hash(
+    async fn verify_parent_block_hash(
         &self,
         block_number: BlockNumber,
         block: &Block,
@@ -704,17 +814,18 @@ impl<
             None => return Ok(()),
             Some(bn) => bn,
         };
-        let prev_hash = self
-            .reader
-            .begin_ro_txn()?
-            .get_block_header(prev_block_number)?
-            .ok_or(StorageError::DBInconsistency {
-                msg: format!(
-                    "Missing block {prev_block_number} in the storage (for verifying block \
-                     {block_number}).",
-                ),
-            })?
-            .block_hash;
+        let prev_hash = {
+            let mut writer = self.writer.lock().await;
+            let txn = writer.begin_rw_txn()?;
+            txn.get_block_header(prev_block_number)?
+                .ok_or(StorageError::DBInconsistency {
+                    msg: format!(
+                        "Missing block {prev_block_number} in the storage (for verifying block \
+                         {block_number}).",
+                    ),
+                })?
+                .block_hash
+        };
 
         if prev_hash != block.header.block_header_without_hash.parent_hash {
             // Block parent hash mismatch, log and restart sync loop.
@@ -740,10 +851,27 @@ impl<
         &mut self,
         f: F,
     ) -> Result<(), StateSyncError> {
-        let writer = self.writer.clone();
-        spawn_blocking(move || f(&mut (writer.blocking_lock()))).await?
+        let mut writer = self.writer.lock().await;
+        f(&mut writer)
     }
 }
+
+fn extract_compiled_classes_from_state_diff(
+    state_diff: &StateDiff,
+) -> Vec<(ClassHash, CompiledClassHash)> {
+    state_diff
+        .declared_classes
+        .iter()
+        .map(|(class_hash, (compiled_class_hash, _class))| (*class_hash, *compiled_class_hash))
+        .chain(
+            state_diff
+                .migrated_compiled_classes
+                .iter()
+                .map(|(class_hash, compiled_class_hash)| (*class_hash, *compiled_class_hash)),
+        )
+        .collect()
+}
+
 // TODO(dvir): consider gathering in a single pending argument instead.
 #[allow(clippy::too_many_arguments)]
 fn stream_new_blocks<
@@ -751,6 +879,8 @@ fn stream_new_blocks<
     TPendingSource: PendingSourceTrait + Sync + Send + 'static,
 >(
     reader: StorageReader,
+    header_marker_rx: watch::Receiver<BlockNumber>,
+    state_marker_rx: watch::Receiver<BlockNumber>,
     central_source: Arc<TCentralSource>,
     pending_source: Arc<TPendingSource>,
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
@@ -763,7 +893,8 @@ fn stream_new_blocks<
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
             loop {
-            let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
+            // Read header_marker from channel (updated by process_sync_event after each store).
+            let header_marker = *header_marker_rx.borrow();
             let latest_central_block = central_source.get_latest_block().await?;
             *shared_highest_block.write().await = latest_central_block;
             let central_block_marker = latest_central_block.map_or(
@@ -772,7 +903,9 @@ fn stream_new_blocks<
             CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.set_lossy(central_block_marker.0);
             if header_marker == central_block_marker {
                 // Only if the node have the last block and state (without casms), sync pending data.
-                if collect_pending_data && reader.begin_ro_txn()?.get_state_marker()? == header_marker{
+                // Read state_marker from channel (updated by process_sync_event after each store).
+                let state_marker = *state_marker_rx.borrow();
+                if collect_pending_data && state_marker == header_marker{
                     // Here is the only place we update the pending data.
                     debug!("Start polling for pending data of block {:?}.", header_marker);
                     sync_pending_data(
@@ -804,17 +937,17 @@ fn stream_new_blocks<
 }
 
 fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
-    reader: StorageReader,
+    state_marker_rx: watch::Receiver<BlockNumber>,
+    header_marker_rx: watch::Receiver<BlockNumber>,
     central_source: Arc<TCentralSource>,
     latest_block_poll_interval_millis: Duration,
     max_stream_size: u32,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
-            let txn = reader.begin_ro_txn()?;
-            let state_marker = txn.get_state_marker()?;
-            let last_block_number = txn.get_header_marker()?;
-            drop(txn);
+            // Read markers from channels (updated by process_sync_event after each store).
+            let state_marker = *state_marker_rx.borrow();
+            let last_block_number = *header_marker_rx.borrow();
             if state_marker == last_block_number {
                 trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(latest_block_poll_interval_millis).await;
@@ -891,72 +1024,23 @@ impl StateSync {
 }
 
 fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>(
-    reader: StorageReader,
+    mut compiled_class_request_rx: mpsc::Receiver<CompiledClassRequest>,
     central_source: Arc<TCentralSource>,
-    latest_block_poll_interval_millis: Duration,
-    max_stream_size: u32,
-    store_sierras_and_casms_block_threshold: u64,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
-            let txn = reader.begin_ro_txn()?;
-            let mut from = txn.get_compiled_class_marker()?;
-            let state_marker = txn.get_state_marker()?;
-            let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
-            // Avoid starting streams from blocks without declared classes.
-            while from < state_marker {
-                let state_diff = txn.get_state_diff(from)?.expect("Expecting to have state diff up to the marker.");
-                if state_diff.class_hash_to_compiled_class_hash.is_empty() {
-                    from = from.unchecked_next();
-                }
-                else {
-                    break;
-                }
-            }
-            drop(txn); // Drop txn so we don't unnecessarily hold it open while sleeping.
-
-            if from == state_marker {
-                debug!(
-                    "Compiled classes syncing reached the last downloaded state update{:?}, waiting \
-                     for more state updates.", state_marker.prev()
-                );
-                tokio::time::sleep(latest_block_poll_interval_millis).await;
-                continue;
-            }
-            let mut up_to = min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size)));
-            let are_casms_backward_compatible = from >= compiler_backward_compatibility_marker;
-            // We want that the stream will either have all compiled classes as backward compatible
-            // or all as not backward compatible. If needed we'll decrease up_to
-            if from < compiler_backward_compatibility_marker && up_to > compiler_backward_compatibility_marker {
-                up_to = compiler_backward_compatibility_marker;
-            }
-
-            // No point in downloading casms if we don't store them and don't send them to the
-            // class manager
-            if are_casms_backward_compatible && from.0 >= store_sierras_and_casms_block_threshold {
-                info!("Compiled classes stream reached a block that has backward compatibility for \
-                      the compiler, and block is at or above store_sierras_and_casms_block_threshold. \
-                      Finishing the compiled class stream");
+            let Some(request) = compiled_class_request_rx.recv().await else {
                 pending::<()>().await;
                 continue;
-            }
-
-            debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
-            let compiled_classes_stream =
-                central_source.stream_compiled_classes(from, up_to).fuse();
-            pin_mut!(compiled_classes_stream);
-
-            while let Some(maybe_compiled_class) = compiled_classes_stream.next().await {
-                let (block_number, class_hash, compiled_class_hash, compiled_class) =
-                    maybe_compiled_class?;
-                yield SyncEvent::CompiledClassAvailable {
-                    block_number,
-                    class_hash,
-                    compiled_class_hash,
-                    compiled_class,
-                    is_compiler_backward_compatible: are_casms_backward_compatible,
-                };
-            }
+            };
+            let compiled_class = central_source.get_compiled_class(request.class_hash).await?;
+            yield SyncEvent::CompiledClassAvailable {
+                block_number: request.block_number,
+                class_hash: request.class_hash,
+                compiled_class_hash: request.compiled_class_hash,
+                compiled_class,
+                is_compiler_backward_compatible: request.is_compiler_backward_compatible,
+            };
         }
     }
 }
