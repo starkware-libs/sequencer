@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 use std::iter::Sum;
-use std::ops::{Add, AddAssign};
+use std::ops::{Add, AddAssign, Mul, MulAssign};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -307,6 +307,25 @@ impl Add<&ExecutionResources> for &ExtendedExecutionResources {
         let mut result = self.clone();
         result += other;
         result
+    }
+}
+
+impl Mul<usize> for &ExtendedExecutionResources {
+    type Output = ExtendedExecutionResources;
+
+    fn mul(self, rhs: usize) -> ExtendedExecutionResources {
+        let mut result = self.clone();
+        result *= rhs;
+        result
+    }
+}
+
+impl MulAssign<usize> for ExtendedExecutionResources {
+    fn mul_assign(&mut self, rhs: usize) {
+        self.vm_resources *= rhs;
+        for count in self.opcode_instance_counter.values_mut() {
+            *count *= rhs;
+        }
     }
 }
 
