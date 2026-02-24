@@ -1,0 +1,1191 @@
+{
+    "block_hash": "0x74783cfa65e14b85f5ad21311aaa4a5b82ba4972a86a110a3067892f6e8ebbb",
+    "parent_block_hash": "0x6e906961988615175bfbbbee51e878301d1321aced176125ceb7b2681b6aaed",
+    "block_number": 1041730,
+    "state_root": "0x528cf80c68dc2ad6dcd7465b8f21c45bcd5331f111cfdf99f5441510a762332",
+    "transaction_commitment": "0x68d26a9cf25af1d4112175204b2a47493bd0080a88d44bc677123da0c17ae7a",
+    "event_commitment": "0x24cfbd017be3098e241b6f26ced9049b6e6a93e513246a0eba39d4129cf7b37",
+    "receipt_commitment": "0x32838b2f9e2da822df6aa2ac61a63299dfd6ed0e4060bd67b903882b29e1aa8",
+    "state_diff_commitment": "0x1629d7b8352414ae341e3708145801b562de124910bcfd21acff401a7929b4b",
+    "state_diff_length": 14,
+    "status": "ACCEPTED_ON_L2",
+    "l1_da_mode": "BLOB",
+    "l1_gas_price": {
+        "price_in_wei": "0x3b9aca00",
+        "price_in_fri": "0xe8d4a51000"
+    },
+    "l1_data_gas_price": {
+        "price_in_wei": "0x1",
+        "price_in_fri": "0x3e8"
+    },
+    "l2_gas_price": {
+        "price_in_wei": "0x7a1200",
+        "price_in_fri": "0x1dcd65000"
+    },
+    "transactions": [
+        {
+            "transaction_hash": "0x6fe4c75fa3dea6242439a2aac4bca31d32cc52e5d9d5b54276588f3e327a6cb",
+            "version": "0x3",
+            "signature": [
+                "0x5e027cd2e180e3787972471e16fe6a8b2712aabe13281624969360936bab02c",
+                "0x7a847404f3ab0e54e1204fdc548334f222566db8e6ae4671f6db3aa1e36ec0f"
+            ],
+            "nonce": "0x18a",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x68c2aaf59b3bdf22fa44f09c55bfd2547fcc7fa097b95fb0019d36d7424985d",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x44d86f4a8e13699b46cad371cbe7e6b76bc9a94c8b560de5522578f2db6b877",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x5d538fb98f796228a0000ae21ecb887f6b7ebdfac379110c1c26d744f5f4dc7",
+            "version": "0x3",
+            "signature": [
+                "0x7dbfd8ad64cd093629d707ce0f4f4e939657cd7e43b2c6d295cd72daef8704b",
+                "0x257cb6b85294760dddd7f65eeaa9d175db6e8381d599080ac93e72c0f7ab7d9"
+            ],
+            "nonce": "0x180",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x4c6ab27ba9463d40b41335e78f71451a4d90fc04f1cc1ce81841130553fbbdc",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x14576030c13af24b28ce527c215a58feec53ea81a3b4a044806ae8c8723884",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x3f7afaf95fe14d6a08deef75cd5ba73312859c4c3030f280b806c49c3ad4125",
+            "version": "0x3",
+            "signature": [
+                "0x7ad76cd5e2b832eeff0bec0924479ffe5bdf9af7f49bb4dec4aedc73a69f3ac",
+                "0x294c0e6924ab83eab40fd91f9bdb52dac05f7af72963e55af23d00f14139d1b"
+            ],
+            "nonce": "0x17d",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x5ff40f171ca21540e4840c4210c24db9419e4466eec475aa3133d0a6f977c45",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x2653cf3f8f8af76f0f8fe17fc095e2e8fd6b1fddf8931e198be7ff033c0ec2e",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x2e5a51f9e662bd55c2d6efec1e9a4dd47f94662e9e5a280de31d572a6ac5ec2",
+            "version": "0x3",
+            "signature": [
+                "0x371a639d5dc9c74320b346ec8dc90aee6d7c63e371c4ae4f9633f5b77c71ccb",
+                "0x601c8bd89d6014385259eeeb7bc847832298c9ac4149bc22075c2f72089a40f"
+            ],
+            "nonce": "0x1c8",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x1f3fb5d8f361774cd6504b6b881fc07821b3f0e856c6c812a9eb3d34fefe1f3",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x52a54c8f3a608a86509245e1c081780d94489ded446c6761a5a9de9426b4bbc",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0xba36f909118d9ca7dad1fc272ee49531d885b50a80fc71efe9d5115094e18e",
+            "version": "0x3",
+            "signature": [
+                "0x54ff608aba919e899b8847e47b16d88a429d0b35ff20fb7d339e3fd48ff1708",
+                "0x6efbc3d88c0eb499abdd3dccc8c532f66aefe3a5d93b7dccf457efc34130221"
+            ],
+            "nonce": "0x1a5",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x57e94b63242ac70cc5112efb775ce83197912957cd7619c3d27130220125e78",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x1f3fb5d8f361774cd6504b6b881fc07821b3f0e856c6c812a9eb3d34fefe1f3",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x37db902555ffb99dfff2b85f81e9ed47ff717eca3c3a3352e870cf7bc07b23d",
+            "version": "0x3",
+            "signature": [
+                "0x667ee67f8cd38ab3f22027c7ddd7f83f820af5d30f41ee768dc71199c8fc79b",
+                "0x1825dc9e5d731af86b3523ef10057b0b061dc903e4807b82adb9d78df9d69b6"
+            ],
+            "nonce": "0x1a3",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x14576030c13af24b28ce527c215a58feec53ea81a3b4a044806ae8c8723884",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x6d4ed0a2b578990e5956fda930fe3d81cec5f0e3da8e942f5599e31d25173bf",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x6d08eea332d3d7bb57f6e4dbe37a747c3cc5f7ec7663ed620202eef35798a7c",
+            "version": "0x3",
+            "signature": [
+                "0x5d3d111214086d36e35e76179c849ad06320044dcd3bd6ac707579396981c68",
+                "0x28753537fbd5c2041ee04207f990099669c0eae6d064da4a90d2052f631f6a3"
+            ],
+            "nonce": "0x1a3",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x2a6ad2b2cd76eba6cf3a68568f4c01106dd9237b9cd79c7d8895bcdf64b490",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x6e1800c44c5caff653fadf32c75381696b9e7d660fcac68a8ff8e1238c7c05b",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x5ea81bcd7df9de5bcabb4eeab3ce059f9916c5e4299b073e37c4899eab66fae",
+            "version": "0x3",
+            "signature": [
+                "0x1ed0078a0f34fbb6dce80c9f22b69ff49498f5d13560059dd3f0bd762b8738c",
+                "0x7f9dd49bc4ef85977891114062bba01cab5a731786082981840b0bc1613bc1f"
+            ],
+            "nonce": "0x177",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x6cb447811e6af302c740319ee3be57c52bc87857692cc46a232ea34302b1097",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x136ac20290f4588aee297e5f52d673779fb585cda0badc72a79ec13769fdfb4",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x6e7eb16f5f5b18e202d07b977bc28da7c84b41293df3e5f291053744c48768e",
+            "version": "0x3",
+            "signature": [
+                "0x1c64cda44613b263f70d54fa7eccca26a0c3df90a2a3e1baa4d7c8785ed6756",
+                "0x5d68d8328d749c2c645ecfcfad260bbaa906a5bbff37ad24c1620f4316b2d04"
+            ],
+            "nonce": "0x179",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x1633ccf2000981c49490cb8f1de91699c2bbf657e0e3e5a44df59dd4235a2f4",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x2ed94aef73bd25f59e9730a89afc71c699740ed6e09841072d735b3a326f296",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x39818084aac36eecba68e4d4c408ee208a9c1c09603a539f449d82272ba8d41",
+            "version": "0x3",
+            "signature": [
+                "0x2a238e608241a145787b53195672e3676229d4e865b45a7ce8c5fa5504c2684",
+                "0x49724e1bb39d09c011ae5fabce4ca8222ccfba131cf7e091d505a20979f7ef5"
+            ],
+            "nonce": "0x17d",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x7b0473566852ef1de4cc8c10f800168e91ce99d5d52d1f49a0c95dd4e343d06",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x67af2585fcf7205f7597b073d3f9ea2aba76e0ac14edb361ee82a02f36a2782",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x14f2208db541b9a61e1ba33348eac5607005177429894e22dddef5ce4f1b401",
+            "version": "0x3",
+            "signature": [
+                "0x64348ae2adcbf504b70155828c76509971b53ecbcf9eebdd1c88158f79cda5f",
+                "0x75ee976c5f9d8187a7b3fe0e8c00448e40a42bd59899ee42a7730ba44500873"
+            ],
+            "nonce": "0x17f",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x136ac20290f4588aee297e5f52d673779fb585cda0badc72a79ec13769fdfb4",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x3a74e2e36740683d05a68dc997fdbdfdb2eaaf2057b17e6757da623c22f624f",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x3b9f477b26a77107d0db18e04233ffa9d3437d3397dd7be518ab7e6c0fe7fbc",
+            "version": "0x3",
+            "signature": [
+                "0x52a831f6a11aa72f71a5a2ddaf6aed4233fe8e77413b54ecbf10fd578fc441",
+                "0xd729fd7457973c6ae7e544a3a7d41b8e8063cfad2d2ed2ed3ee034157757ab"
+            ],
+            "nonce": "0x182",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x2b5b7bc3eec3b985ddfb94b84101a62b52e7e8daf058809402c74323670d47c",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x32b3640069fcb66f4d1dd5e2d1ca44e681b10042cb793f935e144432b7abb94",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        },
+        {
+            "transaction_hash": "0x7744cb1c29534f6897321a7a77858fe0909818c3e399425e4add0dcc6ac3fe0",
+            "version": "0x3",
+            "signature": [
+                "0x7e5d977e363d6b603b211bcad348ee15033cf19e54babcf78182c5de57097a7",
+                "0x1fd6869f9258944959bba3bdc4f2adc776ee54fd21c6c4fdd93c0bccfc2c7ed"
+            ],
+            "nonce": "0x17f",
+            "nonce_data_availability_mode": 0,
+            "fee_data_availability_mode": 0,
+            "resource_bounds": {
+                "L1_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                },
+                "L2_GAS": {
+                    "max_amount": "0x5f5e100",
+                    "max_price_per_unit": "0x0"
+                },
+                "L1_DATA_GAS": {
+                    "max_amount": "0x0",
+                    "max_price_per_unit": "0x0"
+                }
+            },
+            "tip": "0x0",
+            "paymaster_data": [],
+            "sender_address": "0x32b3640069fcb66f4d1dd5e2d1ca44e681b10042cb793f935e144432b7abb94",
+            "calldata": [
+                "0x1",
+                "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
+                "0x3",
+                "0x3750b628ebff7f1460814c1cf0bfee08f9dfa820ba9e27cdbdd61898a903274",
+                "0x0",
+                "0x0"
+            ],
+            "account_deployment_data": [],
+            "proof_facts": [
+                "0x50524f4f4630",
+                "0x5649525455414c5f534e4f53",
+                "0x9743416d2d92b680d47338cb89f3def2e77ba772bbc2e568aeb48425e6c450",
+                "0x5649525455414c5f534e4f5330",
+                "0xf361e",
+                "0x59fd5060b341eef5d3225eb5c9c7c7cbb468ac509317e116505bdbe7edd08e",
+                "0x6989a681c469d769f3a706c56550a63741a4b2d32bef4b1209a26daad1dbb6",
+                "0x0"
+            ],
+            "type": "INVOKE_FUNCTION"
+        }
+    ],
+    "timestamp": 1771929403,
+    "sequencer_address": "0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8",
+    "transaction_receipts": [
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 0,
+            "transaction_hash": "0x6fe4c75fa3dea6242439a2aac4bca31d32cc52e5d9d5b54276588f3e327a6cb",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x68c2aaf59b3bdf22fa44f09c55bfd2547fcc7fa097b95fb0019d36d7424985d",
+                        "0x44d86f4a8e13699b46cad371cbe7e6b76bc9a94c8b560de5522578f2db6b877",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "poseidon_builtin": 23,
+                    "range_check_builtin": 158,
+                    "pedersen_builtin": 4
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 1,
+            "transaction_hash": "0x5d538fb98f796228a0000ae21ecb887f6b7ebdfac379110c1c26d744f5f4dc7",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x4c6ab27ba9463d40b41335e78f71451a4d90fc04f1cc1ce81841130553fbbdc",
+                        "0x14576030c13af24b28ce527c215a58feec53ea81a3b4a044806ae8c8723884",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 158,
+                    "poseidon_builtin": 23,
+                    "pedersen_builtin": 4
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 2,
+            "transaction_hash": "0x3f7afaf95fe14d6a08deef75cd5ba73312859c4c3030f280b806c49c3ad4125",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x5ff40f171ca21540e4840c4210c24db9419e4466eec475aa3133d0a6f977c45",
+                        "0x2653cf3f8f8af76f0f8fe17fc095e2e8fd6b1fddf8931e198be7ff033c0ec2e",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 158,
+                    "pedersen_builtin": 4,
+                    "poseidon_builtin": 23
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 3,
+            "transaction_hash": "0x2e5a51f9e662bd55c2d6efec1e9a4dd47f94662e9e5a280de31d572a6ac5ec2",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x1f3fb5d8f361774cd6504b6b881fc07821b3f0e856c6c812a9eb3d34fefe1f3",
+                        "0x52a54c8f3a608a86509245e1c081780d94489ded446c6761a5a9de9426b4bbc",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 158,
+                    "poseidon_builtin": 23,
+                    "pedersen_builtin": 4
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 4,
+            "transaction_hash": "0xba36f909118d9ca7dad1fc272ee49531d885b50a80fc71efe9d5115094e18e",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x57e94b63242ac70cc5112efb775ce83197912957cd7619c3d27130220125e78",
+                        "0x1f3fb5d8f361774cd6504b6b881fc07821b3f0e856c6c812a9eb3d34fefe1f3",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "pedersen_builtin": 4,
+                    "poseidon_builtin": 23,
+                    "range_check_builtin": 158
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 5,
+            "transaction_hash": "0x37db902555ffb99dfff2b85f81e9ed47ff717eca3c3a3352e870cf7bc07b23d",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x14576030c13af24b28ce527c215a58feec53ea81a3b4a044806ae8c8723884",
+                        "0x6d4ed0a2b578990e5956fda930fe3d81cec5f0e3da8e942f5599e31d25173bf",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 158,
+                    "poseidon_builtin": 23,
+                    "pedersen_builtin": 4
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 6,
+            "transaction_hash": "0x6d08eea332d3d7bb57f6e4dbe37a747c3cc5f7ec7663ed620202eef35798a7c",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x2a6ad2b2cd76eba6cf3a68568f4c01106dd9237b9cd79c7d8895bcdf64b490",
+                        "0x6e1800c44c5caff653fadf32c75381696b9e7d660fcac68a8ff8e1238c7c05b",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "pedersen_builtin": 4,
+                    "poseidon_builtin": 23,
+                    "range_check_builtin": 158
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 7,
+            "transaction_hash": "0x5ea81bcd7df9de5bcabb4eeab3ce059f9916c5e4299b073e37c4899eab66fae",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x6cb447811e6af302c740319ee3be57c52bc87857692cc46a232ea34302b1097",
+                        "0x136ac20290f4588aee297e5f52d673779fb585cda0badc72a79ec13769fdfb4",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "poseidon_builtin": 23,
+                    "range_check_builtin": 158,
+                    "pedersen_builtin": 4
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 8,
+            "transaction_hash": "0x6e7eb16f5f5b18e202d07b977bc28da7c84b41293df3e5f291053744c48768e",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x1633ccf2000981c49490cb8f1de91699c2bbf657e0e3e5a44df59dd4235a2f4",
+                        "0x2ed94aef73bd25f59e9730a89afc71c699740ed6e09841072d735b3a326f296",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 158,
+                    "pedersen_builtin": 4,
+                    "poseidon_builtin": 23
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 9,
+            "transaction_hash": "0x39818084aac36eecba68e4d4c408ee208a9c1c09603a539f449d82272ba8d41",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x7b0473566852ef1de4cc8c10f800168e91ce99d5d52d1f49a0c95dd4e343d06",
+                        "0x67af2585fcf7205f7597b073d3f9ea2aba76e0ac14edb361ee82a02f36a2782",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 158,
+                    "poseidon_builtin": 23,
+                    "pedersen_builtin": 4
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 10,
+            "transaction_hash": "0x14f2208db541b9a61e1ba33348eac5607005177429894e22dddef5ce4f1b401",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x136ac20290f4588aee297e5f52d673779fb585cda0badc72a79ec13769fdfb4",
+                        "0x3a74e2e36740683d05a68dc997fdbdfdb2eaaf2057b17e6757da623c22f624f",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 158,
+                    "pedersen_builtin": 4,
+                    "poseidon_builtin": 23
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 11,
+            "transaction_hash": "0x3b9f477b26a77107d0db18e04233ffa9d3437d3397dd7be518ab7e6c0fe7fbc",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x2b5b7bc3eec3b985ddfb94b84101a62b52e7e8daf058809402c74323670d47c",
+                        "0x32b3640069fcb66f4d1dd5e2d1ca44e681b10042cb793f935e144432b7abb94",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "poseidon_builtin": 23,
+                    "pedersen_builtin": 4,
+                    "range_check_builtin": 158
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        },
+        {
+            "execution_status": "SUCCEEDED",
+            "transaction_index": 12,
+            "transaction_hash": "0x7744cb1c29534f6897321a7a77858fe0909818c3e399425e4add0dcc6ac3fe0",
+            "l2_to_l1_messages": [],
+            "events": [
+                {
+                    "from_address": "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+                    "keys": [
+                        "0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"
+                    ],
+                    "data": [
+                        "0x32b3640069fcb66f4d1dd5e2d1ca44e681b10042cb793f935e144432b7abb94",
+                        "0x3750b628ebff7f1460814c1cf0bfee08f9dfa820ba9e27cdbdd61898a903274",
+                        "0x0",
+                        "0x0"
+                    ]
+                }
+            ],
+            "execution_resources": {
+                "n_steps": 4940,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 158,
+                    "poseidon_builtin": 23,
+                    "pedersen_builtin": 4
+                },
+                "n_memory_holes": 0,
+                "data_availability": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 0
+                },
+                "total_gas_consumed": {
+                    "l1_gas": 0,
+                    "l1_data_gas": 128,
+                    "l2_gas": 76014735
+                }
+            },
+            "actual_fee": "0x87077fd6af8a400"
+        }
+    ],
+    "starknet_version": "0.14.2",
+    "l2_gas_consumed": 988191555,
+    "next_l2_gas_price": "0x1dcd65000"
+}

@@ -23,9 +23,15 @@ use crate::reader::objects::transaction::TransactionReceipt;
 use crate::reader::ReaderClientError;
 use crate::test_utils::read_resource::read_resource_file;
 
+const LATEST_BLOCK_RESOURCE: &str = "reader/block_post_0_14_2.json";
+
+// To add a new block version: fetch from any feeder gateway with `&withFeeMarketInfo=true`, save to
+// `resources/reader/block_post_<version>.json`, add to the list below, and update
+// LATEST_BLOCK_RESOURCE.
 #[test]
 fn load_block_succeeds() {
     for block_path in [
+        LATEST_BLOCK_RESOURCE,
         "reader/block_post_0_14_0.json",
         "reader/block_post_0_13_4.json",
         "reader/block_post_0_13_3.json",
@@ -43,7 +49,7 @@ fn load_block_succeeds() {
 #[test]
 fn load_block_missing_transaction_receipts_succeeds() {
     let mut raw_block: Value =
-        serde_json::from_str(&read_resource_file("reader/block_post_0_14_0.json")).unwrap();
+        serde_json::from_str(&read_resource_file(LATEST_BLOCK_RESOURCE)).unwrap();
     raw_block
         .as_object_mut()
         .expect("Block JSON should be an object.")
@@ -126,7 +132,7 @@ fn load_block_state_update_succeeds() {
 
 #[tokio::test]
 async fn to_starknet_api_block_and_version() {
-    let raw_block = read_resource_file("reader/block_post_0_13_2.json");
+    let raw_block = read_resource_file(LATEST_BLOCK_RESOURCE);
     let block: Block = serde_json::from_str(&raw_block).unwrap();
     let expected_num_of_tx_outputs = block.transactions().len();
     let starknet_api_block = block.to_starknet_api_block_and_version().unwrap();

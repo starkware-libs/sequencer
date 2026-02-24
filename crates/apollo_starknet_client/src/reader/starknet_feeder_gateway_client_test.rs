@@ -50,6 +50,7 @@ use crate::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
 
 const NODE_VERSION: &str = "NODE VERSION";
 const FEEDER_GATEWAY_ALIVE_RESPONSE: &str = "FeederGateway is alive!";
+const LATEST_BLOCK_RESOURCE: &str = "reader/block_post_0_14_2.json";
 
 fn get_block_url(block_number_or_latest: Option<u64>) -> String {
     let url = match block_number_or_latest {
@@ -123,11 +124,10 @@ async fn get_latest_block_when_blocks_exists() {
     let mut server = mockito::Server::new_async().await;
     let apollo_starknet_client = apollo_starknet_client(&server);
     let mock_block =
-        mock_successful_get_block_response(&mut server, "reader/block_post_0_14_0.json", None)
-            .await;
+        mock_successful_get_block_response(&mut server, LATEST_BLOCK_RESOURCE, None).await;
     let latest_block = apollo_starknet_client.latest_block().await.unwrap();
     mock_block.assert_async().await;
-    assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329526));
+    assert_eq!(latest_block.unwrap().block_number(), BlockNumber(1041730));
 }
 
 #[tokio::test]
@@ -393,7 +393,7 @@ async fn deprecated_pending_data() {
 async fn get_block() {
     let mut server = mockito::Server::new_async().await;
     let apollo_starknet_client = apollo_starknet_client(&server);
-    let json_filename = "reader/block_post_0_14_0.json";
+    let json_filename = LATEST_BLOCK_RESOURCE;
 
     let mock_block = mock_successful_get_block_response(&mut server, json_filename, Some(20)).await;
     let block = apollo_starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
@@ -423,7 +423,7 @@ async fn get_block_not_found() {
 async fn get_block_aborted_returns_error() {
     let mut server = mockito::Server::new_async().await;
     let apollo_starknet_client = apollo_starknet_client(&server);
-    let json_filename = "reader/block_post_0_14_0.json";
+    let json_filename = LATEST_BLOCK_RESOURCE;
     let mut raw_block: Value = serde_json::from_str(&read_resource_file(json_filename)).unwrap();
     let raw_block_obj = raw_block.as_object_mut().expect("Block JSON should be an object.");
     raw_block_obj.insert("status".to_string(), Value::String("ABORTED".to_string()));
