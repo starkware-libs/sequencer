@@ -272,6 +272,11 @@ impl Mempool {
         self.clock.unix_now()
     }
 
+    pub fn update_timestamps(&mut self, mappings: HashMap<TransactionHash, UnixTimestamp>) {
+        // TODO(Ayelet): Add a warning log when called for fee queue mode.
+        self.tx_queue.update_timestamps(mappings);
+    }
+
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
