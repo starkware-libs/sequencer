@@ -19,8 +19,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 #[cfg(test)]

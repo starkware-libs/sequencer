@@ -1,6 +1,5 @@
 use serde::Serialize;
-use strum::EnumIter;
-use strum_macros::{AsRefStr, Display};
+use strum::{AsRefStr, Display, EnumIter};
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]

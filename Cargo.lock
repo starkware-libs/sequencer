@@ -910,7 +910,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -952,7 +951,6 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
  "tower",
@@ -1022,7 +1020,6 @@ dependencies = [
  "mockall",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1057,7 +1054,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -1103,7 +1099,6 @@ dependencies = [
  "starknet_api",
  "starknet_committer",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -1164,7 +1159,6 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -1207,7 +1201,7 @@ dependencies = [
  "lazy_static",
  "serde",
  "serde_json",
- "strum_macros 0.25.3",
+ "strum 0.25.0",
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
@@ -1272,7 +1266,6 @@ dependencies = [
  "mockall",
  "serde",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -1306,7 +1299,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "test-case",
  "thiserror 1.0.69",
@@ -1429,7 +1421,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
@@ -1496,7 +1487,6 @@ dependencies = [
  "serde_json",
  "static_assertions",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "url",
 ]
@@ -1540,7 +1530,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1578,7 +1567,6 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -1657,7 +1645,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -1683,7 +1670,6 @@ dependencies = [
  "serde_json",
  "socket2 0.5.10",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1823,7 +1809,6 @@ dependencies = [
  "serde",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -1883,7 +1868,6 @@ dependencies = [
  "serde",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -1931,7 +1915,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tokio",
  "tracing",
 ]
@@ -1993,7 +1976,6 @@ dependencies = [
  "serde",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -2010,7 +1992,6 @@ dependencies = [
  "serde",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -2027,7 +2008,6 @@ dependencies = [
  "regex",
  "rstest",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tracing",
 ]
 
@@ -2092,7 +2072,6 @@ dependencies = [
  "serde",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
  "tokio-retry",
@@ -2332,7 +2311,6 @@ dependencies = [
  "serde",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -2447,7 +2425,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tokio",
  "tower",
  "tracing",
@@ -2529,7 +2506,6 @@ dependencies = [
  "serde",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -2613,7 +2589,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
  "tokio-retry",
@@ -2728,7 +2703,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -3760,7 +3734,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "test-case",
  "thiserror 1.0.69",
  "tikv-jemallocator",
@@ -3811,7 +3784,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "tokio",
  "tracing",
@@ -12097,7 +12069,6 @@ dependencies = [
  "starknet-crypto 0.8.1",
  "starknet-types-core",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -12239,7 +12210,6 @@ dependencies = [
  "starknet_patricia",
  "starknet_patricia_storage",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -12335,7 +12305,6 @@ dependencies = [
  "starknet_api",
  "starknet_patricia_storage",
  "strum 0.25.0",
- "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tokio",
 ]

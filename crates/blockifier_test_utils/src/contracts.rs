@@ -11,8 +11,7 @@ use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt};
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
+use strum::{EnumIter, IntoEnumIterator};
 
 use crate::cairo_compile::{
     allowed_libfuncs_json_path,

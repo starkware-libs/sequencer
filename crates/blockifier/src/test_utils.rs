@@ -49,8 +49,7 @@ use starknet_api::transaction::fields::{
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
-use strum::EnumCount;
-use strum_macros::EnumCount as EnumCountMacro;
+use strum::{EnumCount, EnumCount as EnumCountMacro};
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;

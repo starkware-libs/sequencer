@@ -7,7 +7,7 @@ use std::str::FromStr;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use strum_macros::EnumIter;
+use strum::EnumIter;
 use thiserror::Error;
 
 use crate::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};

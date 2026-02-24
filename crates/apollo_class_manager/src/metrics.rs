@@ -12,7 +12,7 @@ use crate::communication::CLASS_MANAGER_REQUEST_LABELS;
 
 const CAIRO_CLASS_TYPE_LABEL: &str = "class_type";
 
-#[derive(strum_macros::EnumVariantNames, strum_macros::IntoStaticStr)]
+#[derive(strum::EnumVariantNames, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum CairoClassType {
     Regular,
@@ -26,9 +26,7 @@ generate_permutation_labels! {
 
 const CLASS_OBJECT_TYPE_LABEL: &str = "class_object_type";
 
-#[derive(
-    Debug, strum_macros::Display, strum_macros::EnumVariantNames, strum_macros::IntoStaticStr,
-)]
+#[derive(Debug, strum::Display, strum::EnumVariantNames, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub(crate) enum ClassObjectType {
     Sierra,

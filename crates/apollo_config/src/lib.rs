@@ -178,7 +178,7 @@ impl SerializedParam {
 }
 
 /// A serialized type of a configuration parameter.
-#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, strum_macros::Display)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, strum::Display)]
 #[allow(missing_docs)]
 pub enum SerializationType {
     Boolean,

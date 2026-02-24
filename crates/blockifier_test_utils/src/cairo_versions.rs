@@ -1,5 +1,5 @@
 use starknet_api::transaction::TransactionVersion;
-use strum_macros::EnumIter;
+use strum::EnumIter;
 
 #[derive(Clone, Default, Hash, PartialEq, EnumIter, Eq, Copy, Debug)]
 pub enum RunnableCairo1 {

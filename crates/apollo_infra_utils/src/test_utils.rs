@@ -4,8 +4,7 @@ use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
 use num_enum::IntoPrimitive;
 use serde::Serialize;
 use socket2::{Domain, Socket, Type};
-use strum::EnumCount;
-use strum_macros::EnumCount as EnumCountMacro;
+use strum::{EnumCount, EnumCount as EnumCountMacro};
 use tracing::instrument;
 
 const PORTS_PER_INSTANCE: u16 = 80;

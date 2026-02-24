@@ -14,8 +14,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use thiserror::Error;
 
 pub type ProofManagerResult<T> = Result<T, ProofManagerError>;
