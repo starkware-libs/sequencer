@@ -45,6 +45,10 @@ async fn main() {
         .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR)
         .await;
 
+    integration_test_manager
+        .verify_block_hash_across_all_running_nodes(Some(BLOCK_TO_WAIT_FOR))
+        .await;
+
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);
 
