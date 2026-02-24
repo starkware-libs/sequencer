@@ -656,6 +656,16 @@ impl StorageWriter {
         })
     }
 
+    /// Resets the batch commit counter to 0 for testing.
+    /// This is useful to ensure predictable batch boundaries in tests, typically called
+    /// right after `open_storage` to neutralize the counter increment from
+    /// `set_version_if_needed()`. Must only be called when no meaningful writes are pending.
+    #[cfg(test)]
+    pub(crate) fn reset_batch_counter_for_testing(&mut self) {
+        let mut state = self.shared_state.lock().unwrap();
+        state.commit_counter = 0;
+    }
+
     /// Forces an immediate commit of any pending batched writes and resets the batch counter.
     ///
     /// This should be called before error recovery/retry paths to ensure that
