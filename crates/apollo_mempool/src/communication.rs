@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
@@ -23,6 +24,7 @@ use async_trait::async_trait;
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::transaction::TransactionHash;
 use tracing::warn;
 
 use crate::mempool::Mempool;
