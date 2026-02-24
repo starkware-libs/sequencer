@@ -11,6 +11,7 @@ use apollo_class_manager_config::config::{
 use apollo_class_manager_types::{ClassHashes, ClassManagerError};
 use apollo_compile_to_casm_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_proc_macros::unique_u16;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use starknet_api::contract_class::ContractClass;
@@ -23,13 +24,20 @@ use crate::class_manager::ClassManager;
 use crate::class_storage::FsClassStorage;
 
 impl ClassManager<FsClassStorage> {
-    fn new_for_testing(compiler: MockSierraCompilerClient, config: ClassManagerConfig) -> Self {
+    fn new_for_testing(
+        compiler: MockSierraCompilerClient,
+        config: ClassManagerConfig,
+        instance_index: u16,
+    ) -> Self {
         let persistent_root = tempfile::tempdir().unwrap();
         let class_hash_storage_path_prefix = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(persistent_root.path()).unwrap();
         std::fs::create_dir_all(class_hash_storage_path_prefix.path()).unwrap();
-        let storage =
-            FsClassStorage::new_for_testing(&persistent_root, &class_hash_storage_path_prefix);
+        let storage = FsClassStorage::new_for_testing(
+            &persistent_root,
+            &class_hash_storage_path_prefix,
+            instance_index,
+        );
 
         let fs_class_manager_config = FsClassManagerConfig {
             static_config: ClassManagerStaticConfig {
@@ -86,6 +94,7 @@ async fn class_manager() {
     let mut class_manager = ClassManager::new_for_testing(
         compiler,
         ClassManagerConfig { cached_class_storage_config, ..Default::default() },
+        unique_u16!(),
     );
 
     // Test.
@@ -133,6 +142,7 @@ async fn class_manager_get_executable() {
     let mut class_manager = ClassManager::new_for_testing(
         compiler,
         ClassManagerConfig { cached_class_storage_config, ..Default::default() },
+        unique_u16!(),
     );
 
     // Test.
@@ -177,6 +187,7 @@ async fn class_manager_class_length_validation() {
             max_compiled_contract_class_object_size: expected_executable_class.size().unwrap() - 1,
             ..Default::default()
         },
+        unique_u16!(),
     );
 
     // Test.
