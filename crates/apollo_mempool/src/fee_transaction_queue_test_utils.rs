@@ -28,8 +28,4 @@ impl FeeTransactionQueue {
             gas_price_threshold,
         }
     }
-
-    pub fn pending_txs(&self) -> Vec<TransactionReference> {
-        self.pending_queue.iter().rev().map(|tx| tx.0).collect()
-    }
 }
