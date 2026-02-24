@@ -7,7 +7,7 @@ version.workspace = true
 description = "Manages Sierra and CASM contract classes, including storage and compilation coordination."
 
 [features]
-testing = []
+testing = ["apollo_infra_utils/testing", "dep:apollo_infra_utils", "dep:apollo_proc_macros"]
 
 [lints]
 workspace = true
@@ -18,7 +18,9 @@ apollo_class_manager_types.workspace = true
 apollo_compile_to_casm_types.workspace = true
 apollo_config_manager_types.workspace = true
 apollo_infra.workspace = true
+apollo_infra_utils = { workspace = true, optional = true }
 apollo_metrics.workspace = true
+apollo_proc_macros = { workspace = true, optional = true }
 apollo_storage.workspace = true
 async-trait.workspace = true
 hex.workspace = true
@@ -32,6 +34,8 @@ tracing.workspace = true
 [dev-dependencies]
 apollo_compile_to_casm_types = { workspace = true, features = ["testing"] }
 apollo_config_manager_types = { workspace = true, features = ["testing"] }
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_proc_macros.workspace = true
 assert_matches.workspace = true
 mockall.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
