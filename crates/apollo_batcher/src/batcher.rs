@@ -55,7 +55,11 @@ use apollo_storage::partial_block_hash::{
 };
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::storage_reader_server::ServerConfig;
-use apollo_storage::storage_reader_types::GenericStorageReaderServer;
+use apollo_storage::storage_reader_types::{
+    GenericStorageReaderServerHandler,
+    StorageReaderRequest,
+    StorageReaderResponse,
+};
 use apollo_storage::{
     open_storage_with_metric_and_server,
     StorageError,
@@ -188,9 +192,9 @@ pub struct Batcher {
 
     commitment_manager: ApolloCommitmentManager,
 
-    // Kept alive to maintain the server running.
+    /// Keep alive to maintain the storage reader server running.
     #[allow(dead_code)]
-    storage_reader_server_handle: Option<AbortHandle>,
+    storage_reader_server_handle: AbortHandle,
 }
 
 impl Batcher {
@@ -206,7 +210,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
         commitment_manager: ApolloCommitmentManager,
-        storage_reader_server_handle: Option<AbortHandle>,
+        storage_reader_server_handle: AbortHandle,
     ) -> Self {
         Self {
             config,
@@ -1389,15 +1393,18 @@ pub async fn create_batcher(
         dynamic_config: config.dynamic_config.storage_reader_server_dynamic_config.clone(),
     };
     let (storage_reader, storage_writer, storage_reader_server) =
-        open_storage_with_metric_and_server(
+        open_storage_with_metric_and_server::<
+            GenericStorageReaderServerHandler,
+            StorageReaderRequest,
+            StorageReaderResponse,
+        >(
             config.static_config.storage.clone(),
             &BATCHER_STORAGE_OPEN_READ_TRANSACTIONS,
             storage_reader_server_config,
         )
         .expect("Failed to open batcher's storage");
 
-    let storage_reader_server_handle =
-        GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+    let storage_reader_server_handle = storage_reader_server.spawn();
 
     let execute_config = &config.static_config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));

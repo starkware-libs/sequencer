@@ -160,3 +160,30 @@ async fn endpoint_invalid_json() {
     // Should return error status code
     assert!(!response.status().is_success());
 }
+
+#[tokio::test]
+async fn endpoint_disabled_returns_service_unavailable() {
+    let ((reader, _writer), _temp_dir) = get_test_storage();
+
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::StorageReaderServerUnitTests.into(), 4);
+
+    let config = ServerConfig::new(
+        IpAddr::from(Ipv4Addr::LOCALHOST),
+        available_ports.get_next_port(),
+        false,
+    );
+
+    let server =
+        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let app = server.app();
+
+    let request = TestRequest { block_number: 0 };
+    let response = send_storage_query(app, &request).await;
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+
+    let body = to_bytes(response).await;
+    let error_message = String::from_utf8(body.to_vec()).unwrap();
+    assert!(error_message.contains("disabled"));
+}
