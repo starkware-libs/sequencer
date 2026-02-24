@@ -2345,6 +2345,7 @@ dependencies = [
  "asynchronous-codec",
  "futures",
  "libp2p",
+ "libp2p-swarm-test",
  "prost",
  "rand 0.8.5",
  "reed-solomon-simd",
@@ -2352,8 +2353,10 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-stream",
  "tokio-test",
  "tracing",
+ "tracing-test",
  "unsigned-varint 0.8.0",
 ]
 

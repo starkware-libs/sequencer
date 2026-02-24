@@ -25,8 +25,11 @@ tracing.workspace = true
 unsigned-varint.workspace = true
 
 [dev-dependencies]
+libp2p-swarm-test.workspace = true
 rstest.workspace = true
+tokio-stream.workspace = true
 tokio-test.workspace = true
+tracing-test.workspace = true
 
 
 [lints]
