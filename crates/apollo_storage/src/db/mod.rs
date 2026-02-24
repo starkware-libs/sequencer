@@ -268,9 +268,71 @@ impl DbWriter {
     pub(crate) fn begin_rw_txn(&mut self) -> DbResult<DbWriteTransaction<'_>> {
         Ok(DbWriteTransaction { txn: self.env.begin_rw_txn()? })
     }
+
+    /// Creates a persistent write transaction that can be stored in structs without lifetime
+    /// constraints.
+    ///
+    /// Normally, a transaction is strictly bound to the local lifetime of the `Environment` borrow.
+    /// This method changes the lifetime to bypass the compiler's strict lifetime checks, allowing
+    /// the transaction to live as long as the returned `OwnedDbWriteTransaction` struct.
+    ///
+    /// The transaction's 'static lifetime is safe because:
+    /// 1. The `OwnedDbWriteTransaction` holds a clone of the `Arc<Environment>`
+    /// 2. The environment cannot be dropped while the Arc exists
+    /// 3. libmdbx transactions are valid as long as their environment is valid
+    ///
+    /// Concurrency note: This takes `&self` rather than `&mut self` because exclusivity is
+    /// enforced at a higher level — `DbWriter` lives inside `SharedState` which is wrapped in a
+    /// `Mutex`. Only one caller can hold the `MutexGuard` at a time, so only one persistent
+    /// transaction can be created at a time.
+    #[allow(dead_code)]
+    pub(crate) fn begin_persistent_rw_txn(&self) -> DbResult<OwnedDbWriteTransaction> {
+        let env = self.env.clone();
+        let db_txn = DbWriteTransaction { txn: env.begin_rw_txn()? };
+        // Safety: We're transmuting the lifetime to 'static, which is safe because
+        // OwnedDbWriteTransaction holds an Arc<Environment>, ensuring the environment
+        // lives as long as the transaction.
+        let static_txn: DbWriteTransaction<'static> = unsafe { std::mem::transmute(db_txn) };
+        Ok(OwnedDbWriteTransaction { txn: static_txn, _env: env })
+    }
 }
 
-type DbWriteTransaction<'env> = DbTransaction<'env, RW>;
+pub(crate) type DbWriteTransaction<'env> = DbTransaction<'env, RW>;
+
+/// A write transaction that owns its environment reference via Arc.
+///
+/// This allows the transaction to be stored in a struct without lifetime issues.
+/// The transaction holds a clone of the `Arc<Environment>`, ensuring the environment
+/// stays alive as long as the transaction exists.
+///
+/// This is used for persistent transactions in batching mode, where a single transaction
+/// needs to accumulate writes across multiple logical operations before committing.
+///
+/// Drop order:
+/// Fields are dropped in declaration order: `txn` is dropped before `env`.
+/// This ensures the transaction is properly closed before the Arc reference count is decremented.
+#[allow(dead_code)]
+pub(crate) struct OwnedDbWriteTransaction {
+    // Private to prevent partial moves that would drop `env` while `txn` (carrying a transmuted
+    // 'static lifetime) is still live, violating the safety invariant that `env` outlives `txn`.
+    txn: DbWriteTransaction<'static>,
+    // Keep the Arc alive to ensure the environment isn't dropped while the transaction exists.
+    // This must be declared after `txn` to ensure correct drop order.
+    _env: Arc<Environment>,
+}
+
+#[allow(dead_code)]
+impl OwnedDbWriteTransaction {
+    /// Returns a reference to the underlying write transaction.
+    pub(crate) fn txn(&self) -> &DbWriteTransaction<'_> {
+        &self.txn
+    }
+
+    /// Commits the transaction.
+    pub(crate) fn commit(self) -> DbResult<()> {
+        self.txn.commit()
+    }
+}
 
 impl DbWriteTransaction<'_> {
     #[latency_histogram("storage_commit_inner_db_latency_seconds", false)]
