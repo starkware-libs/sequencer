@@ -92,13 +92,16 @@ async fn collect_messages(
 #[case(5)]
 #[case(10)]
 #[tokio::test]
-async fn e2e_broadcast_single_message(#[case] num_nodes: usize) {
+async fn e2e_broadcast_single_message(
+    #[case] num_nodes: usize,
+    #[values(17, 4096, 65536)] message_size: usize,
+) {
     let mut swarms = setup_connected_nodes(num_nodes).await;
     let channel = Channel(0);
     register_channel_on_all(&mut swarms, channel).await;
 
     let publisher_id = *swarms[0].local_peer_id();
-    let message = b"Hello, Propeller!".to_vec();
+    let message: Vec<u8> = (0..message_size).map(|i| u8::try_from(i % 256).unwrap()).collect();
 
     swarms[0]
         .behaviour_mut()
