@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use apollo_class_manager::test_utils::FsClassStorageBuilderForTesting;
 use apollo_class_manager::{ClassStorage, FsClassStorage};
 use apollo_class_manager_config::config::FsClassStorageConfig;
+use apollo_proc_macros::unique_u16;
 use apollo_proof_manager::test_utils::FsProofStorageBuilderForTesting;
 use apollo_proof_manager_config::config::ProofManagerConfig;
 use apollo_storage::body::BodyStorageWriter;
@@ -206,7 +207,9 @@ impl StorageTestSetup {
             mut class_manager_storage,
             class_manager_storage_config,
             class_manager_storage_handles,
-        ) = fs_class_storage_builder.with_chain_id(chain_info.chain_id.clone()).build();
+        ) = fs_class_storage_builder
+            .with_chain_id(chain_info.chain_id.clone())
+            .build(unique_u16!());
 
         let proof_manager_db_path =
             storage_exec_paths.as_ref().map(|p| p.get_proof_manager_path_with_db_suffix());
