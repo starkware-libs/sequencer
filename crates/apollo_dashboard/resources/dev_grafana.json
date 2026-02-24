@@ -271,9 +271,9 @@
           "description": "Current epoch ID, current epoch start height, and next epoch start height",
           "type": "stat",
           "exprs": [
-            "staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
-            "staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}",
-            "staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} + staking_current_epoch_length{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "max(staking_current_epoch_id{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+            "max(staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})",
+            "max(staking_current_epoch_start_block{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} + staking_current_epoch_length{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "legends": [
@@ -288,7 +288,7 @@
           "description": "The distribution of stake across committee members, showing each staker's address and their staking power",
           "type": "piechart",
           "exprs": [
-            "max by (address) (staking_committee_member_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
+            "max by (address) (staking_committee_member_weight{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\", address!=\"\"}) > 0"
           ],
           "extra_params": {
             "legend_values": [
