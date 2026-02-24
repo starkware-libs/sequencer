@@ -270,8 +270,7 @@ impl DbWriter {
         Ok(DbWriteTransaction { txn: self.env.begin_rw_txn()? })
     }
 
-    /// Creates a persistent write transaction that can be stored in structs without lifetime
-    /// constraints.
+    /// Creates a persistent write transaction that can be stored in structs without lifetime constraints.
     ///
     /// Normally, a transaction is strictly bound to the local lifetime of the `Environment` borrow.
     /// This method changes the lifetime to bypass the compiler's strict lifetime checks, allowing
@@ -314,6 +313,9 @@ pub(crate) struct OwnedDbWriteTransaction {
     // This must be declared after `txn` to ensure correct drop order.
     #[allow(dead_code)]
     env: Arc<Environment>,
+    // TODO(Dean): Make this type !Send + !Sync to prevent crossing thread boundaries once we
+    // finalize the batching architecture. MDBX transactions are not thread-safe and should not
+    // be sent between threads. Add: _not_send_sync: PhantomData<Rc<()>>
 }
 
 #[allow(dead_code)]
