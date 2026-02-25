@@ -33,8 +33,8 @@ use tokio_util::sync::CancellationToken;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
-    block_info,
     create_test_and_network_deps,
+    proposal_init,
     SetupDepsArgs,
     TestDeps,
     CHANNEL_SIZE,
@@ -84,7 +84,7 @@ fn create_proposal_validate_arguments()
 -> (TestProposalValidateArguments, mpsc::Sender<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
-    let init = block_info(BlockNumber(0), 0);
+    let init = proposal_init(BlockNumber(0), 0);
     let block_info_validation = BlockInfoValidation {
         height: BlockNumber(0),
         block_timestamp_window_seconds: 60,

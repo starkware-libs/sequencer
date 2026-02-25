@@ -346,7 +346,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber, round: u32) -> ProposalInit {
+pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
