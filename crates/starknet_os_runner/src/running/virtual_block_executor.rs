@@ -18,6 +18,7 @@ use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier_reexecution::state_reader::rpc_objects::{BlockHeader, BlockId};
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::contract_class::SierraVersion;
@@ -28,6 +29,13 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use tracing::error;
 
 use crate::errors::VirtualBlockExecutorError;
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub(crate) struct RpcVirtualBlockExecutorConfig {
+    /// When enabled, prefetches state by simulating transactions before execution, reducing RPC
+    /// calls during proving.
+    pub(crate) prefetch_state: bool,
+}
 
 /// Captures execution data for a virtual block (multiple transactions).
 ///
@@ -306,15 +314,23 @@ pub(crate) struct RpcVirtualBlockExecutor {
     pub(crate) rpc_state_reader: RpcStateReader,
     /// Whether transaction validation is enabled during execution.
     pub(crate) validate_txs: bool,
+    #[allow(dead_code)]
+    pub(crate) config: RpcVirtualBlockExecutorConfig,
 }
 
 impl RpcVirtualBlockExecutor {
-    pub(crate) fn new(node_url: String, chain_info: ChainInfo, block_id: BlockId) -> Self {
+    pub(crate) fn new(
+        node_url: String,
+        chain_info: ChainInfo,
+        block_id: BlockId,
+        config: RpcVirtualBlockExecutorConfig,
+    ) -> Self {
         Self {
             rpc_state_reader: RpcStateReader::new_with_config_from_url(
                 node_url, chain_info, block_id,
             ),
             validate_txs: true,
+            config,
         }
     }
 }
