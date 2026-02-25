@@ -624,13 +624,27 @@ impl ConsensusContext for SequencerConsensusContext {
             .get_proposal(&height, &id)
             .clone();
 
+        // Update init with new round, proposer, valid_round, and timestamp for the reproposal.
+        let timestamp = self.deps.clock.unix_now();
+        let mut updated_init = init;
+        updated_init.round = build_param.round;
+        updated_init.proposer = build_param.proposer;
+        updated_init.valid_round = build_param.valid_round;
+        updated_init.timestamp = timestamp;
+
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender =
             self.start_stream(HeightAndRound(height.0, build_param.round)).await;
         tokio::spawn(
             async move {
-                let res =
-                    send_reproposal(id, init, txs, &mut stream_sender, transaction_converter).await;
+                let res = send_reproposal(
+                    id,
+                    updated_init,
+                    txs,
+                    &mut stream_sender,
+                    transaction_converter,
+                )
+                .await;
                 match res {
                     Ok(()) => {
                         info!(?id, ?build_param, "Reproposal succeeded.");
