@@ -37,7 +37,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHashAndNumber, BlockInfo};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     BlockCommitmentsMeasurements,
@@ -161,7 +161,7 @@ impl BlockExecutionArtifacts {
             &starknet_version,
         )
         .await;
-        record_block_commitment_measurements(measurements);
+        record_and_log_block_commitment_measurements(block_info.block_number, measurements);
         let partial_block_hash_components = PartialBlockHashComponents {
             header_commitments,
             block_number: block_info.block_number,
@@ -930,27 +930,62 @@ fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHas
     }
 }
 
-fn record_block_commitment_measurements(measurements: BlockCommitmentsMeasurements) {
+fn record_and_log_block_commitment_measurements(
+    height: BlockNumber,
+    measurements: BlockCommitmentsMeasurements,
+) {
     let usize_to_u64_warn_msg = "Conversion from usize to u64 should not fail.";
 
+    // Record the measurements.
     BLOCK_COMMITMENT_MEASUREMENTS_COUNT.increment(1);
 
-    TX_COMMITMENT_LATENCY
-        .increment(convert_microseconds_to_u64(measurements.transaction_commitment_duration));
-    TX_COMMITMENT_COUNT.increment(u64::try_from(measurements.n_txs).expect(usize_to_u64_warn_msg));
+    let tx_commitment_latency =
+        convert_microseconds_to_u64(measurements.transaction_commitment_duration);
+    let n_txs = u64::try_from(measurements.n_txs).expect(usize_to_u64_warn_msg);
+    TX_COMMITMENT_LATENCY.increment(tx_commitment_latency);
+    TX_COMMITMENT_COUNT.increment(n_txs);
 
-    EVENT_COMMITMENT_LATENCY
-        .increment(convert_microseconds_to_u64(measurements.event_commitment_duration));
-    EVENT_COMMITMENT_COUNT
-        .increment(u64::try_from(measurements.n_events).expect(usize_to_u64_warn_msg));
+    let event_commitment_latency =
+        convert_microseconds_to_u64(measurements.event_commitment_duration);
+    let n_events = u64::try_from(measurements.n_events).expect(usize_to_u64_warn_msg);
+    EVENT_COMMITMENT_LATENCY.increment(event_commitment_latency);
+    EVENT_COMMITMENT_COUNT.increment(n_events);
 
-    RECEIPT_COMMITMENT_LATENCY
-        .increment(convert_microseconds_to_u64(measurements.receipt_commitment_duration));
+    let receipt_commitment_latency =
+        convert_microseconds_to_u64(measurements.receipt_commitment_duration);
+    RECEIPT_COMMITMENT_LATENCY.increment(receipt_commitment_latency);
 
-    STATE_DIFF_COMMITMENT_LATENCY
-        .increment(convert_microseconds_to_u64(measurements.state_diff_commitment_duration));
-    STATE_DIFF_LENGTH
-        .increment(u64::try_from(measurements.state_diff_length).expect(usize_to_u64_warn_msg));
+    let state_diff_commitment_latency =
+        convert_microseconds_to_u64(measurements.state_diff_commitment_duration);
+    let state_diff_length =
+        u64::try_from(measurements.state_diff_length).expect(usize_to_u64_warn_msg);
+    STATE_DIFF_COMMITMENT_LATENCY.increment(state_diff_commitment_latency);
+    STATE_DIFF_LENGTH.increment(state_diff_length);
+
+    // Log the measurements.
+    let height = height.0;
+    let tx_commitment_per_tx_latency_string =
+        if n_txs > 0 { format!("{} µs", tx_commitment_latency / n_txs) } else { "?".to_string() };
+    let event_commitment_per_event_latency_string = if n_events > 0 {
+        format!("{} µs", event_commitment_latency / n_events)
+    } else {
+        "?".to_string()
+    };
+    let state_diff_commitment_per_state_diff_length_latency_string = if state_diff_length > 0 {
+        format!("{} µs", state_diff_commitment_latency / state_diff_length)
+    } else {
+        "?".to_string()
+    };
+
+    debug!(
+        "Block {height} commitments latencies: tx/event/receipt/state_diff in µs: \
+         {tx_commitment_latency}/{event_commitment_latency}/{receipt_commitment_latency}/\
+         {state_diff_commitment_latency},
+        tx commitment per tx: {tx_commitment_per_tx_latency_string},
+        event commitment per event: {event_commitment_per_event_latency_string},
+        state diff commitment per state diff length: \
+         {state_diff_commitment_per_state_diff_length_latency_string}",
+    );
 }
 
 fn convert_microseconds_to_u64(duration: Duration) -> u64 {
