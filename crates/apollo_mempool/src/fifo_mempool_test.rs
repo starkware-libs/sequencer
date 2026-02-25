@@ -445,3 +445,58 @@ fn test_timestamp_order_matches_insertion_order(mut mempool: Mempool) {
     assert_eq!(ts2, 2000);
     get_txs_and_assert_expected(&mut mempool, 10, &[input2.tx, input4.tx]);
 }
+
+#[rstest]
+fn test_rewind_many_transactions_from_same_address(mut mempool: Mempool) {
+    // Add 5 transactions from the same address with nonces 0-4
+    let input0 = add_tx_input!(tx_hash: 10, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let input1 = add_tx_input!(tx_hash: 11, address: "0x1", tx_nonce: 1, account_nonce: 0);
+    let input2 = add_tx_input!(tx_hash: 12, address: "0x1", tx_nonce: 2, account_nonce: 0);
+    let input3 = add_tx_input!(tx_hash: 13, address: "0x1", tx_nonce: 3, account_nonce: 0);
+    let input4 = add_tx_input!(tx_hash: 14, address: "0x1", tx_nonce: 4, account_nonce: 0);
+
+    // Set timestamps for all transactions
+    for i in 0..=4 {
+        mempool.update_timestamp(tx_hash!(10 + i), 1000);
+    }
+
+    // Add all 5 transactions
+    add_tx(&mut mempool, &input0);
+    add_tx(&mut mempool, &input1);
+    add_tx(&mut mempool, &input2);
+    add_tx(&mut mempool, &input3);
+    add_tx(&mut mempool, &input4);
+
+    // Clone transactions for later assertions
+    let tx0 = input0.tx.clone();
+    let tx1 = input1.tx.clone();
+    let tx2 = input2.tx.clone();
+    let tx3 = input3.tx.clone();
+    let tx4 = input4.tx.clone();
+
+    // Get all 5 transactions (staging them)
+    let ts = mempool.get_timestamp();
+    assert_eq!(ts, 1000);
+    get_txs_and_assert_expected(
+        &mut mempool,
+        10,
+        &[tx0, tx1, tx2.clone(), tx3.clone(), tx4.clone()],
+    );
+
+    // Commit only the first 2 transactions (nonces 0 and 1)
+    // The remaining 3 transactions (nonces 2, 3, 4) should be rewound
+    commit_block(&mut mempool, [("0x1", 2)], []);
+
+    // Verify that the 3 non-committed transactions are rewound and can be retrieved again
+    let ts2 = mempool.get_timestamp();
+    assert_eq!(ts2, 1000, "Rewound transactions should keep their original timestamp");
+    get_txs_and_assert_expected(&mut mempool, 10, &[tx2, tx3, tx4]);
+
+    // Commit the remaining transactions to verify they're all valid
+    commit_block(&mut mempool, [("0x1", 5)], []);
+
+    // Queue should now be empty
+    let ts3 = mempool.get_timestamp();
+    assert_eq!(ts3, 1000, "No new timestamp since no new transactions");
+    get_txs_and_assert_expected(&mut mempool, 10, &[]);
+}

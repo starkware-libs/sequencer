@@ -1,18 +1,43 @@
 use std::collections::HashMap;
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
+use indexmap::IndexSet;
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
 
+// Data needed for rewinding transactions back into the queue after a block commit.
+// Different queue types require different data.
+pub enum RewindData<'a> {
+    // Data for fee-priority queue rewind.
+    FeePriority {
+        // Map of next transaction to rewind for each address (from tx_pool).
+        next_txs_by_address: &'a HashMap<ContractAddress, TransactionReference>,
+        // Whether to validate resource bounds on insertion.
+        validate_resource_bounds: bool,
+    },
+    // Data for FIFO queue rewind.
+    Fifo {
+        // All transaction references that were staged (returned by get_txs).
+        staged_tx_refs: &'a [TransactionReference],
+        // Map of committed nonces by address.
+        committed_nonces: &'a HashMap<ContractAddress, Nonce>,
+        // Set of rejected transaction hashes.
+        rejected_tx_hashes: &'a IndexSet<TransactionHash>,
+    },
+}
+
 pub trait TransactionQueueTrait: Send + Sync {
     fn insert(&mut self, tx_reference: TransactionReference, validate_resource_bounds: bool);
 
     fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference>;
 
-    fn remove_by_address(&mut self, address: ContractAddress) -> bool;
+    // Default implementation returns false (for queues that don't support address-based removal).
+    fn remove_by_address(&mut self, _address: ContractAddress) -> bool {
+        false
+    }
 
     fn remove_txs(&mut self, txs: &[TransactionReference]) -> Vec<TransactionReference>;
 
@@ -30,11 +55,9 @@ pub trait TransactionQueueTrait: Send + Sync {
 
     fn queue_snapshot(&self) -> TransactionQueueSnapshot;
 
-    fn rewind_txs(
-        &mut self,
-        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
-        validate_resource_bounds: bool,
-    );
+    /// Rewinds transactions back into the queue after a block commit.
+    /// Returns the set of transaction hashes that were rewound (for tracking purposes).
+    fn rewind_txs(&mut self, rewind_data: RewindData<'_>) -> IndexSet<TransactionHash>;
 
     // Default implementation returns 0 (for queues that don't distinguish priority/pending).
     fn priority_queue_len(&self) -> usize {
@@ -60,15 +83,6 @@ pub trait TransactionQueueTrait: Send + Sync {
     // Default implementation returns None (for queues that don't track last returned timestamp).
     fn get_last_returned_timestamp(&self) -> Option<UnixTimestamp> {
         None
-    }
-
-    // Default implementation delegates to insert (for queues that don't need special rewind logic).
-    fn insert_for_rewind(
-        &mut self,
-        tx_reference: TransactionReference,
-        validate_resource_bounds: bool,
-    ) {
-        self.insert(tx_reference, validate_resource_bounds);
     }
 
     // Default implementation returns empty vec.
