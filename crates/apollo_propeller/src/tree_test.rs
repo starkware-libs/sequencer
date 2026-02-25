@@ -101,7 +101,7 @@ fn get_result_for_validate_origin(
     local_index: u8,
     sender_index: u8,
     publisher_index: u8,
-    shard_index: u32,
+    shard_index: u64,
 ) -> Result<(), ShardValidationError> {
     let schedule_manager = make_schedule_manager(local_index, num_nodes);
     let get_peer = |i: u8| {
@@ -130,7 +130,7 @@ fn test_validate_origin_my_shard_from_publisher(
     #[case] num_nodes: u8,
     #[case] local_index: u8,
     #[case] publisher_index: u8,
-    #[case] shard_index: u32,
+    #[case] shard_index: u64,
 ) {
     get_result_for_validate_origin(
         num_nodes,
@@ -153,7 +153,7 @@ fn test_validate_origin_from_shard_owner(
     #[case] local_index: u8,
     #[case] sender_index: u8,
     #[case] publisher_index: u8,
-    #[case] shard_index: u32,
+    #[case] shard_index: u64,
 ) {
     get_result_for_validate_origin(
         num_nodes,
@@ -181,13 +181,13 @@ fn test_validate_origin_from_shard_owner(
 #[case::shard_at_boundary(4, 0, 1, 1, 3)]
 #[case::shard_just_over_boundary(4, 0, 1, 1, 4)]
 #[case::shard_out_of_bounds(4, 0, 1, 1, 100)]
-#[case::shard_index_u32_max(4, 0, 1, 1, u32::MAX)]
+#[case::shard_index_u64_max(4, 0, 1, 1, u64::MAX)]
 fn test_validate_origin_failures(
     #[case] num_nodes: u8,
     #[case] local_index: u8,
     #[case] sender_index: u8,
     #[case] publisher_index: u8,
-    #[case] shard_index: u32,
+    #[case] shard_index: u64,
 ) {
     get_result_for_validate_origin(
         num_nodes,
