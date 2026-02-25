@@ -1367,13 +1367,14 @@ pub async fn create_batcher(
     )
     .expect("Failed to open batcher's storage");
 
-    // TODO(victork): enable bootstrap based on storage state once all bootstrap PRs land.
+    // TODO(victork): enable bootstrap once all bootstrap PRs land.
     // let storage_is_empty = storage_reader
     //     .begin_ro_txn()
     //     .expect("Failed to open read transaction for bootstrap check")
     //     .get_state_marker()
     //     .expect("Failed to read state marker for bootstrap check")
     //     == BlockNumber(0);
+    // let bootstrap_enabled = config.static_config.bootstrap_enabled && storage_is_empty;
     let bootstrap_state_machine = Arc::new(BootstrapStateMachine::new(false));
 
     let storage_reader_server = create_bootstrap_storage_reader_server(

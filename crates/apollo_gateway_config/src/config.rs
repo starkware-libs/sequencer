@@ -40,6 +40,7 @@ pub struct GatewayStaticConfig {
     /// URL of the batcher storage reader server for bootstrap queries. Empty to disable.
     #[serde(default)]
     pub batcher_storage_reader_url: String,
+    pub bootstrap_enabled: bool,
 }
 
 impl Default for GatewayStaticConfig {
@@ -56,6 +57,7 @@ impl Default for GatewayStaticConfig {
             authorized_declarer_accounts: None,
             proof_archive_writer_config: ProofArchiveWriterConfig::default(),
             batcher_storage_reader_url: String::new(),
+            bootstrap_enabled: false,
         }
     }
 }
@@ -97,6 +99,13 @@ impl SerializeConfig for GatewayStaticConfig {
             "batcher_storage_reader_url",
             &self.batcher_storage_reader_url,
             "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.extend(BTreeMap::from_iter([ser_param(
+            "bootstrap_enabled",
+            &self.bootstrap_enabled,
+            "Whether bootstrap mode is enabled. When true and storage is empty, the node will \
+             self-bootstrap by executing hardcoded declare/deploy transactions.",
             ParamPrivacyInput::Public,
         )]));
         dump
