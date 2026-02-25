@@ -1900,6 +1900,7 @@ dependencies = [
  "apollo_time",
  "assert_matches",
  "async-trait",
+ "axum",
  "blockifier",
  "blockifier_test_utils",
  "criterion",
@@ -1913,7 +1914,9 @@ dependencies = [
  "mockall",
  "pretty_assertions",
  "rand 0.8.5",
+ "reqwest 0.12.24",
  "rstest",
+ "serde",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
@@ -1927,6 +1930,7 @@ version = "0.18.0-dev.0"
 dependencies = [
  "apollo_config",
  "serde",
+ "url",
  "validator",
 ]
 
