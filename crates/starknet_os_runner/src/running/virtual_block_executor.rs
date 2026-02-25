@@ -19,16 +19,20 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier_reexecution::state_reader::rpc_objects::{BlockHeader, BlockId};
 use blockifier_reexecution::state_reader::rpc_state_reader::RpcStateReader;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ClassHash;
+use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
+use starknet_api::StarknetApiError;
 use tracing::error;
 
 use crate::errors::VirtualBlockExecutorError;
+use crate::running::serde_utils::deserialize_rpc_initial_reads;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub(crate) struct RpcVirtualBlockExecutorConfig {
@@ -332,6 +336,57 @@ impl RpcVirtualBlockExecutor {
             validate_txs: true,
             config,
         }
+    }
+
+    /// Calls `starknet_simulateTransactions` with `RETURN_INITIAL_READS` and returns the
+    /// initial state reads as `StateMaps`.
+    ///
+    /// Requires a v0.10+ node that supports the `RETURN_INITIAL_READS` flag.
+    #[allow(dead_code)]
+    pub(crate) fn simulate_and_get_initial_reads(
+        &self,
+        block_id: BlockId,
+        txs: &[(InvokeTransaction, TransactionHash)],
+    ) -> Result<StateMaps, VirtualBlockExecutorError> {
+        let rpc_txs: Vec<RpcTransaction> = txs
+            .iter()
+            .map(|(tx, _)| match tx {
+                InvokeTransaction::V3(v3) => RpcInvokeTransactionV3::try_from(v3.clone())
+                    .map(RpcInvokeTransaction::V3)
+                    .map(RpcTransaction::Invoke)
+                    .map_err(|e: StarknetApiError| {
+                        VirtualBlockExecutorError::TransactionExecutionError(e.to_string())
+                    }),
+                _ => Err(VirtualBlockExecutorError::TransactionExecutionError(
+                    "Only Invoke V3 transactions are supported for simulate".to_string(),
+                )),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let params = json!({
+            "block_id": block_id,
+            "transactions": rpc_txs,
+            "simulation_flags": ["SKIP_VALIDATE", "SKIP_FEE_CHARGE", "RETURN_INITIAL_READS"]
+        });
+
+        let result = self
+            .rpc_state_reader
+            .send_rpc_request("starknet_simulateTransactions", params)
+            .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e.into())))?;
+
+        let initial_reads_value = result.get("initial_reads").cloned().ok_or_else(|| {
+            VirtualBlockExecutorError::TransactionExecutionError(
+                "simulateTransactions response missing initial_reads (ensure RETURN_INITIAL_READS \
+                 and v0.10 endpoint)"
+                    .to_string(),
+            )
+        })?;
+
+        deserialize_rpc_initial_reads(initial_reads_value).map_err(|e| {
+            VirtualBlockExecutorError::TransactionExecutionError(format!(
+                "Failed to deserialize initial_reads: {e}"
+            ))
+        })
     }
 }
 
