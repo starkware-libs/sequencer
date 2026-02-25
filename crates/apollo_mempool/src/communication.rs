@@ -153,7 +153,7 @@ impl MempoolCommunicationWrapper {
         self.mempool.mempool_snapshot()
     }
 
-    fn get_timestamp(&self) -> MempoolResult<UnixTimestamp> {
+    fn get_timestamp(&mut self) -> MempoolResult<UnixTimestamp> {
         Ok(self.mempool.get_timestamp())
     }
 
