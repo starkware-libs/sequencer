@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
-mod cairo_primitives_test;
+mod builtin_test;
 mod call_contract;
 mod constants;
 mod deploy;
