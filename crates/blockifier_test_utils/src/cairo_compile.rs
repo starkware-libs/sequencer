@@ -41,6 +41,35 @@ pub fn allowed_libfuncs_json_path() -> String {
         .to_string()
 }
 
+/// Returns the path to a legacy-format allowed_libfuncs.json file (array of strings).
+///
+/// Older compiler versions (e.g. v2.1.0, v2.7.0) cannot parse the new map-based format
+/// introduced in the main allowed_libfuncs.json. This function generates a compatibility file
+/// with the old `{"allowed_libfuncs": ["name1", ...]}` format.
+pub fn allowed_libfuncs_legacy_json_path() -> String {
+    let output_dir = project_path().unwrap().join("target/tmp");
+    let output_path = output_dir.join("allowed_libfuncs_legacy.json");
+
+    // Read the new-format file and convert to old format.
+    let new_format_path = allowed_libfuncs_json_path();
+    let contents = std::fs::read_to_string(&new_format_path)
+        .unwrap_or_else(|err| panic!("Failed to read {new_format_path}: {err}"));
+    let parsed: serde_json::Value = serde_json::from_str(&contents)
+        .unwrap_or_else(|err| panic!("Failed to parse {new_format_path}: {err}"));
+    let libfuncs_map = parsed["allowed_libfuncs"]
+        .as_object()
+        .unwrap_or_else(|| panic!("Expected 'allowed_libfuncs' to be a map in {new_format_path}"));
+    let keys: Vec<&str> = libfuncs_map.keys().map(|k| k.as_str()).collect();
+    let legacy_json = serde_json::json!({"allowed_libfuncs": keys}).to_string();
+
+    std::fs::create_dir_all(&output_dir)
+        .unwrap_or_else(|err| panic!("Failed to create {}: {err}", output_dir.display()));
+    std::fs::write(&output_path, legacy_json)
+        .unwrap_or_else(|err| panic!("Failed to write {}: {err}", output_path.display()));
+
+    output_path.to_string_lossy().to_string()
+}
+
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
 async fn download_cairo_package(version: &String) {

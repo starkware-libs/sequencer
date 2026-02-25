@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/blockifier_compiled_cairo.yml"
       - "crates/apollo_compile_to_casm/src/constants.rs" # Contains the Cairo1 compiler version.
+      - "crates/apollo_compile_to_casm/src/allowed_libfuncs.json"
       - "crates/apollo_infra_utils/src/cairo0_compiler.rs" # Contains the Cairo0 compiler version.
       - "crates/blockifier_test_utils/**"
       - "scripts/dependencies.sh"
