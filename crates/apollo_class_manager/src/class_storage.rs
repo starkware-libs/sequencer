@@ -255,8 +255,10 @@ pub struct ClassHashStorage {
 
 impl Drop for ClassHashStorage {
     fn drop(&mut self) {
-        if let Some(handle) = &self.storage_reader_server_handle {
-            handle.abort();
+        if let Some(arc) = self.storage_reader_server_handle.take() {
+            if let Some(handle) = Arc::into_inner(arc) {
+                handle.abort();
+            }
         }
     }
 }
