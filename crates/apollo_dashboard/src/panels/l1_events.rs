@@ -44,7 +44,7 @@ fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
 fn get_panel_l1_message_scraper_latest_scraped_block() -> Panel {
     Panel::from_gauge(&L1_MESSAGE_SCRAPER_LATEST_SCRAPED_BLOCK, PanelType::TimeSeries)
 }
-fn get_panel_l1_events_provider_num_pending_txs() -> Panel {
+fn get_panel_l1_events_num_pending_txs() -> Panel {
     Panel::from_gauge(&L1_MESSAGE_PROVIDER_NUM_PENDING_TXS, PanelType::TimeSeries)
 }
 
@@ -60,14 +60,13 @@ fn get_panel_l1_message_scraper_seconds_since_last_successful_scrape() -> Panel 
     .with_log_query("BaseLayerError during scraping")
 }
 
-// TODO(noamsp): rename to l1_event_row
-pub(crate) fn get_l1_events_provider_row() -> Row {
+pub(crate) fn get_l1_events_row() -> Row {
     Row::new(
-        "L1 Provider",
+        "L1 Events",
         vec![
             get_panel_l1_message_scraper_seconds_since_last_successful_scrape(),
             get_panel_l1_message_scraper_latest_scraped_block(),
-            get_panel_l1_events_provider_num_pending_txs(),
+            get_panel_l1_events_num_pending_txs(),
             get_panel_l1_message_scraper_success_count(),
             get_panel_l1_message_scraper_baselayer_error_count(),
             get_panel_l1_message_scraper_reorg_detected(),

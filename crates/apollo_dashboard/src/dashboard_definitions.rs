@@ -35,7 +35,7 @@ use crate::panels::http_server::{
     get_panel_http_server_seconds_since_last_transaction,
     get_panel_http_server_transactions_received_rate,
 };
-use crate::panels::l1_events_provider::get_l1_events_provider_row;
+use crate::panels::l1_events::get_l1_events_row;
 use crate::panels::l1_gas_price::get_l1_gas_price_row;
 use crate::panels::mempool::get_mempool_row;
 use crate::panels::mempool_p2p::get_mempool_p2p_row;
@@ -93,7 +93,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_gateway_row(),
             get_mempool_row(),
             get_upgrade_row(),
-            get_l1_events_provider_row(),
+            get_l1_events_row(),
             get_l1_gas_price_row(),
             get_blockifier_row(),
             get_compile_to_casm_row(),
