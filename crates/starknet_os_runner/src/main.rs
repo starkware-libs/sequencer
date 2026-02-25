@@ -5,6 +5,7 @@ use std::net::SocketAddr;
 use anyhow::Context;
 use clap::Parser;
 use jsonrpsee::server::{ServerBuilder, ServerConfig};
+use starknet_os_runner::metrics::{init_metrics, shutdown_metrics};
 use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
 use starknet_os_runner::server::cors::{build_cors_layer, cors_mode};
 use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
@@ -26,8 +27,19 @@ async fn main() -> anyhow::Result<()> {
     let args = CliArgs::parse();
     let config = ServiceConfig::from_args(args)?;
 
+    // Initialize OpenTelemetry metrics.
+    let (metrics, meter_provider) = init_metrics(config.metrics_endpoint.as_deref());
+    if config.metrics_endpoint.is_some() {
+        info!(
+            metrics_endpoint = config.metrics_endpoint.as_deref().unwrap_or_default(),
+            "OTLP metrics export enabled"
+        );
+    } else {
+        info!("Metrics export disabled (no --metrics-endpoint or OTEL_EXPORTER_OTLP_ENDPOINT)");
+    }
+
     // Build and start the JSON-RPC server.
-    let rpc_impl = ProvingRpcServerImpl::from_config(&config);
+    let rpc_impl = ProvingRpcServerImpl::from_config(&config, metrics);
     let addr = SocketAddr::new(config.ip, config.port);
 
     let cors_layer = build_cors_layer(&config.cors_allow_origin)?;
@@ -51,5 +63,8 @@ async fn main() -> anyhow::Result<()> {
     );
 
     handle.stopped().await;
+
+    // Flush and shut down metrics on exit.
+    shutdown_metrics(meter_provider);
     Ok(())
 }

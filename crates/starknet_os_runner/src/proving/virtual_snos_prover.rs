@@ -66,6 +66,8 @@ pub struct VirtualSnosProverOutput {
     pub prove_duration: Duration,
     /// Total duration from start to finish.
     pub total_duration: Duration,
+    /// Number of Cairo VM steps in the execution.
+    pub n_steps: u64,
 }
 
 /// Virtual SNOS prover for Starknet transactions.
@@ -149,6 +151,7 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             .map_err(|err| VirtualSnosProverError::RunnerError(Box::new(err)))?;
 
         let os_duration = os_start.elapsed();
+        let n_steps = runner_output.n_steps;
         info!(
             os_duration_ms = %os_duration.as_millis(),
             "OS execution completed"
@@ -166,7 +169,7 @@ impl<R: VirtualSnosRunner> VirtualSnosProver<R> {
             "Proving completed"
         );
 
-        Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration })
+        Ok(VirtualSnosProverOutput { result, os_duration, prove_duration, total_duration, n_steps })
     }
 }
 

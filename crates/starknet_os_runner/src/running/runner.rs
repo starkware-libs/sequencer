@@ -126,6 +126,8 @@ pub struct RunnerConfig {
 pub struct RunnerOutput {
     pub cairo_pie: CairoPie,
     pub l2_to_l1_messages: Vec<MessageToL1>,
+    /// Number of Cairo VM steps in the execution.
+    pub n_steps: u64,
 }
 
 /// Generic runner for executing transactions and generating OS input.
@@ -325,15 +327,20 @@ where
 
         // Log execution resources.
         let resources = &output.cairo_pie.execution_resources;
+        let n_steps = resources.n_steps;
         info!(
-            n_steps = resources.n_steps,
+            n_steps,
             n_memory_holes = resources.n_memory_holes,
             builtins = ?resources.builtin_instance_counter,
             "Virtual OS execution resources"
         );
 
         // Construct RunnerOutput with Cairo PIE and L2 to L1 messages.
-        Ok(RunnerOutput { cairo_pie: output.cairo_pie, l2_to_l1_messages })
+        Ok(RunnerOutput {
+            cairo_pie: output.cairo_pie,
+            l2_to_l1_messages,
+            n_steps: u64::try_from(n_steps).unwrap_or(u64::MAX),
+        })
     }
 }
 

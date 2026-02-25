@@ -39,6 +39,9 @@ pub struct ServiceConfig {
     /// List of allowed web origins (domains) that may call this HTTP service from a browser
     /// (CORS). Examples: `http://localhost:5173`, `https://app.example.com`, or `*` to allow any origin.
     pub cors_allow_origin: Vec<String>,
+    /// OTLP metrics endpoint (e.g. `http://localhost:4318/v1/metrics`).
+    /// When set, metrics are pushed via OTLP. When `None`, metrics are no-oped.
+    pub metrics_endpoint: Option<String>,
 }
 
 impl Default for ServiceConfig {
@@ -50,6 +53,7 @@ impl Default for ServiceConfig {
             max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
             max_connections: DEFAULT_MAX_CONNECTIONS,
             cors_allow_origin: Vec::new(),
+            metrics_endpoint: None,
         }
     }
 }
@@ -124,6 +128,16 @@ impl ServiceConfig {
             if max != config.max_connections {
                 info!("CLI override: max_connections: {} -> {}", config.max_connections, max);
                 config.max_connections = max;
+            }
+        }
+
+        if let Some(endpoint) = args.metrics_endpoint {
+            if Some(&endpoint) != config.metrics_endpoint.as_ref() {
+                info!(
+                    "CLI override: metrics_endpoint: {:?} -> {:?}",
+                    config.metrics_endpoint, endpoint
+                );
+                config.metrics_endpoint = Some(endpoint);
             }
         }
 
@@ -225,6 +239,11 @@ pub struct CliArgs {
     /// Override STRK fee token address (hex, e.g. for custom environments that share a chain ID).
     #[arg(long, value_name = "ADDRESS")]
     pub strk_fee_token_address: Option<String>,
+
+    /// OTLP endpoint for pushing metrics (e.g. http://localhost:4318/v1/metrics).
+    /// Overrides `OTEL_EXPORTER_OTLP_ENDPOINT` and the config file value.
+    #[arg(long, value_name = "URL")]
+    pub metrics_endpoint: Option<String>,
 
     /// Disable CORS (clear any origins set in the config file).
     #[arg(long, conflicts_with = "cors_allow_origin")]
