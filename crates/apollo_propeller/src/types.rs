@@ -44,7 +44,7 @@ pub enum Event {
 pub struct Channel(pub u32);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
-pub struct ShardIndex(pub u32);
+pub struct ShardIndex(pub u64);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct MessageRoot(pub MerkleHash);

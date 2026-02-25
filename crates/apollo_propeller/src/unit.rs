@@ -77,7 +77,7 @@ impl PropellerUnit {
 
     pub fn validate_shard_proof(&self, num_shards: usize) -> Result<(), ShardValidationError> {
         let proof = self.proof();
-        let index = self.index().0.try_into().expect("u32 could not be converted to usize");
+        let index = self.index().0.try_into().expect("u64 could not be converted to usize");
         if proof.verify(&self.root().0, &self.shard, index, num_shards) {
             Ok(())
         } else {
@@ -96,11 +96,6 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
         let merkle_proof = msg
             .merkle_proof
             .ok_or(ProtobufConversionError::MissingField { field_description: "merkle_proof" })?;
-        let index: u32 =
-            msg.index.try_into().map_err(|_| ProtobufConversionError::OutOfRangeValue {
-                type_description: "PropellerUnit.index",
-                value_as_str: msg.index.to_string(),
-            })?;
         let merkle_root_bytes: [u8; 32] = msg
             .merkle_root
             .ok_or(ProtobufConversionError::MissingField { field_description: "merkle_root" })?
@@ -122,7 +117,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
                 }
             })?,
             signature: msg.signature,
-            index: ShardIndex(index),
+            index: ShardIndex(msg.index),
             shard: msg.shard,
             proof: merkle_proof.try_into()?,
         })
@@ -133,7 +128,7 @@ impl From<PropellerUnit> for ProtoPropellerUnit {
     fn from(msg: PropellerUnit) -> Self {
         ProtoPropellerUnit {
             shard: msg.shard,
-            index: msg.index.0.into(),
+            index: msg.index.0,
             merkle_root: Some(ProtoHash256 { elements: msg.root.0.to_vec() }),
             merkle_proof: Some((&msg.proof).into()),
             publisher: Some(ProtoPeerId { id: msg.publisher.to_bytes() }),
