@@ -18,6 +18,7 @@ fn base_args() -> CliArgs {
         no_cors: false,
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
+        prefetch_state: None,
     }
 }
 
@@ -93,6 +94,7 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         no_cors: false,
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
+        prefetch_state: None,
     };
 
     let error = ServiceConfig::from_args(args).unwrap_err();

@@ -24,7 +24,10 @@ use crate::running::rpc_records::{
 };
 use crate::running::runner::{RpcRunnerFactory, RunnerConfig};
 use crate::running::storage_proofs::{RpcStorageProofsProvider, StorageProofConfig};
-use crate::running::virtual_block_executor::RpcVirtualBlockExecutor;
+use crate::running::virtual_block_executor::{
+    RpcVirtualBlockExecutor,
+    RpcVirtualBlockExecutorConfig,
+};
 
 // ================================================================================================
 // Constants
@@ -99,6 +102,7 @@ pub fn rpc_virtual_block_executor(rpc_state_reader: RpcStateReader) -> RpcVirtua
         rpc_state_reader,
         // Skip transaction validation for testing.
         validate_txs: false,
+        config: RpcVirtualBlockExecutorConfig::default(),
     }
 }
 
@@ -124,8 +128,10 @@ pub(crate) fn runner_factory(rpc_url: &str) -> RpcRunnerFactory {
     let rpc_url = Url::parse(rpc_url).expect("Invalid RPC URL");
     let contract_class_manager = ContractClassManager::start(ContractClassManagerConfig::default());
 
-    let runner_config =
-        RunnerConfig { storage_proof_config: StorageProofConfig { include_state_changes: true } };
+    let runner_config = RunnerConfig {
+        storage_proof_config: StorageProofConfig { include_state_changes: true },
+        virtual_block_executor_config: RpcVirtualBlockExecutorConfig::default(),
+    };
 
     let chain_info = get_chain_info(&get_chain_id(), get_strk_fee_token_override());
     RpcRunnerFactory::new(rpc_url, chain_info, contract_class_manager, runner_config)
