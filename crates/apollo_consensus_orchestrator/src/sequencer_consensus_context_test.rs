@@ -122,15 +122,32 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     };
     let n_executed_txs_count = executed_transactions.len();
     deps.setup_deps_for_validate(SetupDepsArgs { n_executed_txs_count, ..Default::default() });
+
+    const TIMESTAMP: u64 = 123456;
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(move |block_info| {
+        assert_eq!(
+            block_info.block_header_without_hash.timestamp.0, TIMESTAMP,
+            "add_new_block should be called with timestamp from initial proposal (unchanged \
+             during reproposal for commitment consistency)"
+        );
+        Ok(())
+    });
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_| Ok(()));
+
     let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
 
-    // Receive a valid proposal.
+    // Receive a valid proposal. Use timestamp matching MockClock so validation passes.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let init = block_info(BlockNumber(0), 0);
+    let mut init = block_info(BlockNumber(0), 0);
+    init.timestamp = TIMESTAMP;
     let transactions =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
@@ -147,13 +164,21 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     let build_param = BuildParam { round: 1, ..Default::default() };
     context.repropose(TEST_PROPOSAL_COMMITMENT, build_param).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
+    // Reproposal sends init with updated round, proposer, valid_round.
+    let mut expected_init = init;
+    expected_init.round = 1;
+    expected_init.proposer = build_param.proposer;
+    expected_init.valid_round = build_param.valid_round;
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(expected_init));
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: executed_transactions })
     );
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
+
+    // Verify decision_reached uses the updated init (from reproposal round) for finalize.
+    context.decision_reached(BlockNumber(0), TEST_PROPOSAL_COMMITMENT).await.unwrap();
 }
 
 #[tokio::test]
@@ -483,29 +508,59 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
         n_executed_txs_count: transactions.len(),
         ..Default::default()
     });
+
+    const TIMESTAMP: u64 = 123456;
+    let mut clock = MockClock::new();
+    clock.expect_unix_now().return_const(TIMESTAMP);
+    clock.expect_now().return_const(Utc.timestamp_opt(TIMESTAMP.try_into().unwrap(), 0).unwrap());
+    deps.clock = Arc::new(clock);
+
+    deps.batcher
+        .expect_decision_reached()
+        .times(1)
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(move |block_info| {
+        assert_eq!(
+            block_info.block_header_without_hash.timestamp.0, TIMESTAMP,
+            "add_new_block should be called with timestamp from initial proposal (unchanged \
+             during reproposal for commitment consistency)"
+        );
+        Ok(())
+    });
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().return_once(|_| Ok(()));
+
     let mut context = deps.build_context();
     // Build proposal.
     let fin_receiver = context.build_proposal(BuildParam::default(), TIMEOUT).await.unwrap();
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Receive the proposal parts.
-    let part = receiver.next().await.unwrap();
+    let ProposalPart::Init(original_init) = receiver.next().await.unwrap() else {
+        panic!("Expected Init part");
+    };
     let _txs = receiver.next().await.unwrap();
     let fin = receiver.next().await.unwrap();
     assert_eq!(fin_receiver.await.unwrap(), TEST_PROPOSAL_COMMITMENT);
 
     // Re-propose.
-    context
-        .repropose(TEST_PROPOSAL_COMMITMENT, BuildParam { round: 1, ..Default::default() })
-        .await;
-    // Re-propose sends the same proposal.
+    let build_param = BuildParam { round: 1, ..Default::default() };
+    context.repropose(TEST_PROPOSAL_COMMITMENT, build_param).await;
+    // Re-propose sends the same proposal content but with updated init (round, proposer,
+    // valid_round).
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
-    assert_eq!(receiver.next().await.unwrap(), part);
+    let mut expected_init = original_init;
+    expected_init.round = 1;
+    expected_init.proposer = build_param.proposer;
+    expected_init.valid_round = build_param.valid_round;
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(expected_init));
 
     let reproposed_txs = ProposalPart::Transactions(TransactionBatch { transactions });
     assert_eq!(receiver.next().await.unwrap(), reproposed_txs);
 
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
+
+    // Verify decision_reached uses the updated init (from reproposal round) for finalize.
+    context.decision_reached(BlockNumber(0), TEST_PROPOSAL_COMMITMENT).await.unwrap();
 }
 
 #[tokio::test]
