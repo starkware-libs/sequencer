@@ -7,12 +7,13 @@ use clap::Parser;
 use jsonrpsee::server::{ServerBuilder, ServerConfig};
 use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
 use starknet_os_runner::server::cors::{build_cors_layer, cors_mode};
+use starknet_os_runner::server::discovery::discovery_rpc_module;
 use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
 use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
 use tower::ServiceBuilder;
 use tracing::info;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -40,7 +41,9 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context(format!("Failed to bind JSON-RPC server to {addr}"))?;
 
-    let handle = server.start(rpc_impl.into_rpc());
+    let mut rpc_module = rpc_impl.into_rpc();
+    rpc_module.merge(discovery_rpc_module()).context("Failed to merge discovery RPC module")?;
+    let handle = server.start(rpc_module);
     info!(
         local_address = %addr,
         max_concurrent_requests = config.max_concurrent_requests,
