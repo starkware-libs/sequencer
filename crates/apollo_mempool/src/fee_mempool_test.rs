@@ -162,6 +162,7 @@ impl MempoolTestContentBuilder {
                 self.config.static_config.committed_nonce_retention_block_count,
             ),
             clock: Arc::new(FakeClock::default()),
+            bootstrap_active: false,
         }
     }
 }
@@ -987,6 +988,7 @@ async fn test_new_tx_sent_to_p2p(mempool: Mempool) {
         mempool,
         Arc::new(mock_mempool_p2p_propagator_client),
         Arc::new(mock_config_manager),
+        None,
     );
 
     mempool_wrapper.add_tx(propagateor_args).await.unwrap();
@@ -1016,6 +1018,7 @@ async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
         mempool,
         Arc::new(mock_mempool_p2p_propagator_client),
         Arc::new(mock_config_manager),
+        None,
     );
 
     mempool_wrapper.add_tx(propagated_args).await.unwrap();
@@ -1520,6 +1523,7 @@ async fn add_tx_tolerates_p2p_propagation_error(mempool: Mempool) {
         mempool,
         Arc::new(mock_p2p),
         Arc::new(mock_config_manager),
+        None,
     );
 
     let result = mempool_wrapper.add_tx(tx_args_wrapper).await;

@@ -70,6 +70,9 @@ pub struct MempoolStaticConfig {
     pub committed_nonce_retention_block_count: usize,
     // The maximum size of the mempool, in bytes.
     pub capacity_in_bytes: u64,
+    /// URL of the batcher storage reader server for bootstrap queries. Empty to disable.
+    #[serde(default)]
+    pub batcher_storage_reader_url: String,
 }
 
 impl Default for MempoolStaticConfig {
@@ -81,6 +84,7 @@ impl Default for MempoolStaticConfig {
             declare_delay: Duration::from_secs(1),
             committed_nonce_retention_block_count: 100,
             capacity_in_bytes: 1 << 30, // 1GB.
+            batcher_storage_reader_url: String::new(),
         }
     }
 }
@@ -125,6 +129,12 @@ impl SerializeConfig for MempoolStaticConfig {
                 "capacity_in_bytes",
                 &self.capacity_in_bytes,
                 "Maximum size of the mempool, in bytes.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "batcher_storage_reader_url",
+                &self.batcher_storage_reader_url,
+                "URL of the batcher storage reader server for bootstrap queries. Empty to disable.",
                 ParamPrivacyInput::Public,
             ),
         ])
