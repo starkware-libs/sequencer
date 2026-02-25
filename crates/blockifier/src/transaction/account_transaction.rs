@@ -498,25 +498,17 @@ impl AccountTransaction {
         })
     }
 
-    fn assert_actual_fee_in_bounds(tx_context: &Arc<TransactionContext>, actual_fee: Fee) {
+    fn ensure_actual_fee_in_bounds(
+        tx_context: &Arc<TransactionContext>,
+        actual_fee: Fee,
+    ) -> TransactionExecutionResult<()> {
         let max_fee = tx_context.max_possible_fee();
         if actual_fee > max_fee {
-            match &tx_context.tx_info {
-                TransactionInfo::Current(context) => {
-                    panic!(
-                        "Actual fee {:#?} exceeded bounds; max possible fee is {:#?} (computed \
-                         from {:#?} with tip {:#?}).",
-                        actual_fee,
-                        max_fee,
-                        context.resource_bounds,
-                        tx_context.effective_tip()
-                    );
-                }
-                TransactionInfo::Deprecated(_) => {
-                    panic!("Actual fee {actual_fee:#?} exceeded bounds; max fee is {max_fee:#?}.");
-                }
-            }
+            return Err(
+                Box::new(TransactionFeeError::FeeTransferError { max_fee, actual_fee }).into()
+            );
         }
+        Ok(())
     }
 
     fn handle_fee<S: StateReader>(
@@ -532,7 +524,7 @@ impl AccountTransaction {
             return Ok(None);
         }
 
-        Self::assert_actual_fee_in_bounds(&tx_context, actual_fee);
+        Self::ensure_actual_fee_in_bounds(&tx_context, actual_fee)?;
 
         let fee_transfer_call_info = if concurrency_mode && !tx_context.is_sequencer_the_sender() {
             Self::concurrency_execute_fee_transfer(state, tx_context, actual_fee)?

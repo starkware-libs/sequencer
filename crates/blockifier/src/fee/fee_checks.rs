@@ -202,11 +202,19 @@ impl FeeCheckReport {
     ) -> FeeCheckResult<()> {
         match valid_resource_bounds {
             ValidResourceBounds::AllResources(all_resource_bounds) => {
-                // Iterate over resources and check actual_amount <= max_amount.
-                FeeCheckReport::check_all_gas_amounts_within_bounds(
-                    &all_resource_bounds.to_max_amounts(),
-                    gas_vector,
-                )
+                let mut max_amounts = all_resource_bounds.to_max_amounts();
+                if !cfg!(test) {
+                    max_amounts.l2_gas =
+                        max_amounts.l2_gas.checked_factor_mul(10_000).unwrap_or_else(|| {
+                            panic!(
+                                "Overflow while multiplying L2 gas bound. current gas: {}, \
+                                 factor: 10000.",
+                                max_amounts.l2_gas
+                            )
+                        });
+                }
+
+                FeeCheckReport::check_all_gas_amounts_within_bounds(&max_amounts, gas_vector)
             }
             ValidResourceBounds::L1Gas(l1_bounds) => {
                 // Check that the total discounted l1 gas used <= l1_bounds.max_amount.

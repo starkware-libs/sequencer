@@ -380,7 +380,7 @@ fn test_get_fee_by_gas_vector_overflow(
     VersionedConstants::create_for_account_testing().initial_gas_no_user_l2_bound().0,
     GasVectorComputationMode::NoL2Gas
 )]
-#[case::from_l2_gas(4321, GasVectorComputationMode::All)]
+#[case::from_l2_gas(4321 * 1000, GasVectorComputationMode::All)]
 fn test_initial_sierra_gas(
     #[case] expected: u64,
     #[case] gas_mode: GasVectorComputationMode,
@@ -393,7 +393,7 @@ fn test_initial_sierra_gas(
         }),
         GasVectorComputationMode::All => ValidResourceBounds::AllResources(AllResourceBounds {
             l2_gas: ResourceBounds {
-                max_amount: GasAmount(expected),
+                max_amount: GasAmount(expected / 1000),
                 max_price_per_unit: GasPrice(1),
             },
             ..Default::default()
