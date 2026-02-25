@@ -127,14 +127,25 @@ impl TransactionQueueTrait for FeeTransactionQueue {
 
     fn rewind_txs(
         &mut self,
-        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
-        validate_resource_bounds: bool,
-    ) {
+        rewind_data: crate::transaction_queue_trait::RewindData<'_>,
+    ) -> indexmap::IndexSet<TransactionHash> {
+        // Extract fee-priority specific data
+        let crate::transaction_queue_trait::RewindData::FeePriority {
+            next_txs_by_address,
+            validate_resource_bounds,
+        } = rewind_data
+        else {
+            panic!("FeeTransactionQueue received wrong RewindData variant");
+        };
+
         // Rewind by re-inserting the next transaction for each address.
         for (address, tx_reference) in next_txs_by_address {
-            self.remove_by_address(address);
-            self.insert(tx_reference, validate_resource_bounds);
+            self.remove_by_address(*address);
+            self.insert(*tx_reference, validate_resource_bounds);
         }
+
+        // Fee-priority queue doesn't track rewound hashes
+        indexmap::IndexSet::new()
     }
 
     fn priority_queue_len(&self) -> usize {
