@@ -15,6 +15,9 @@ pub mod rpc_impl;
 pub mod rpc_trait;
 pub mod tls;
 
+#[cfg(test)]
+mod rpc_spec_test;
+
 /// Starts the JSON-RPC server in either HTTP or HTTPS mode depending on the transport.
 pub async fn start_server(
     addr: SocketAddr,
