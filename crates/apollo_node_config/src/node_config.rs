@@ -154,6 +154,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "consensus_manager_config.cende_config.recorder_url",
                 "batcher_config.static_config.pre_confirmed_cende_config.recorder_url",
+                "mempool_config.static_config.recorder_url",
             ]),
         ),
         (

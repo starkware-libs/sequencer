@@ -6,6 +6,7 @@ use apollo_config::converters::deserialize_seconds_to_duration;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use url::Url;
 use validator::Validate;
 
 /// Configuration for consensus containing both static and dynamic configs.
@@ -73,6 +74,8 @@ pub struct MempoolStaticConfig {
     pub capacity_in_bytes: u64,
     // Determines queue type and other behavior.
     pub behavior_mode: BehaviorMode,
+    // The URL of the recorder service (used for FIFO queue timestamp fetching).
+    pub recorder_url: Url,
 }
 
 impl Default for MempoolStaticConfig {
@@ -85,6 +88,9 @@ impl Default for MempoolStaticConfig {
             committed_nonce_retention_block_count: 100,
             capacity_in_bytes: 1 << 30, // 1GB.
             behavior_mode: BehaviorMode::Starknet,
+            recorder_url: "https://recorder_url"
+                .parse::<Url>()
+                .expect("recorder_url must be a valid Recorder URL"),
         }
     }
 }
@@ -135,6 +141,12 @@ impl SerializeConfig for MempoolStaticConfig {
                 "behavior_mode",
                 &self.behavior_mode,
                 "Behavior mode: 'starknet' for production, 'echonet' for test/replay mode.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "recorder_url",
+                &self.recorder_url,
+                "The URL of the recorder service (used for FIFO queue timestamp fetching).",
                 ParamPrivacyInput::Public,
             ),
         ])
