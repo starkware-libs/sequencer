@@ -152,9 +152,6 @@ impl ProofStorage for FsProofStorage {
     type Error = FsProofStorageError;
 
     async fn set_proof(&self, facts_hash: Felt, proof: Proof) -> Result<(), Self::Error> {
-        if self.contains_proof(facts_hash).await? {
-            return Ok(());
-        }
         self.write_proof_atomically(facts_hash, proof).await
     }
 
