@@ -95,26 +95,37 @@ async fn collect_messages(
 async fn e2e_broadcast_single_message(
     #[case] num_nodes: usize,
     #[values(17, 4096, 65536)] message_size: usize,
+    #[values(1, 2)] num_publishers: usize,
 ) {
     let mut swarms = setup_connected_nodes(num_nodes).await;
     let channel = Channel(0);
     register_channel_on_all(&mut swarms, channel).await;
 
-    let publisher_id = *swarms[0].local_peer_id();
-    let message: Vec<u8> = (0..message_size).map(|i| u8::try_from(i % 256).unwrap()).collect();
+    let mut publisher_ids = Vec::new();
+    let mut messages = Vec::new();
 
-    swarms[0]
-        .behaviour_mut()
-        .broadcast(channel, message.clone())
-        .await
-        .expect("Broadcast should succeed");
+    for (pub_idx, swarm) in swarms.iter_mut().enumerate().take(num_publishers) {
+        let publisher_id = *swarm.local_peer_id();
+        let message: Vec<u8> =
+            (0..message_size).map(|i| u8::try_from((i + pub_idx) % 256).unwrap()).collect();
+        swarm
+            .behaviour_mut()
+            .broadcast(channel, message.clone())
+            .await
+            .expect("Broadcast should succeed");
+        publisher_ids.push(publisher_id);
+        messages.push(message);
+    }
 
-    // Split: keep publisher swarm, take all receivers.
+    let expected_total = num_publishers * (num_nodes - 1);
     let mut rx = spawn_swarm_drivers(swarms);
-    let received = collect_messages(&mut rx, num_nodes - 1).await;
+    let received = collect_messages(&mut rx, expected_total).await;
 
     for (publisher, msg) in &received {
-        assert_eq!(*publisher, publisher_id);
-        assert_eq!(*msg, message);
+        let pub_idx = publisher_ids
+            .iter()
+            .position(|id| id == publisher)
+            .expect("Received message from unexpected publisher");
+        assert_eq!(*msg, messages[pub_idx]);
     }
 }
