@@ -617,12 +617,19 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam) {
         info!(?id, ?build_param, "Reproposing.");
         let height = build_param.height;
-        let (init, txs, _) = self
+        let (mut init, txs, _) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
             .get_proposal(&height, &id)
             .clone();
+
+        // Update init with new round, proposer, valid_round, and timestamp for the reproposal.
+        let timestamp = self.deps.clock.unix_now();
+        init.round = build_param.round;
+        init.proposer = build_param.proposer;
+        init.valid_round = build_param.valid_round;
+        init.timestamp = timestamp;
 
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender =
