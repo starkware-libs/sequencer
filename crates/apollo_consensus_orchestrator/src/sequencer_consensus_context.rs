@@ -148,6 +148,29 @@ impl BuiltProposals {
             .or_default()
             .insert(*proposal_commitment, (init, transactions, *proposal_id));
     }
+
+    /// Gets the proposal, updates init with build_param for reproposal (timestamp remains unchanged
+    /// since it is part of PartialBlockHashComponents and must match the initial proposal for
+    /// commitment consistency), stores the updated init (so decision_reached retrieves the correct
+    /// init for finalize_decision), and returns (init, transactions) for sending the
+    /// reproposal.
+    fn update_for_reproposal(
+        &mut self,
+        height: &BlockNumber,
+        id: &ProposalCommitment,
+        build_param: &BuildParam,
+    ) -> (ProposalInit, Vec<Vec<InternalConsensusTransaction>>) {
+        let entry = self
+            .data
+            .get_mut(height)
+            .expect("No proposals found for height {height}")
+            .get_mut(id)
+            .expect("No proposal found for height {height} and id {id}");
+        entry.0.round = build_param.round;
+        entry.0.proposer = build_param.proposer;
+        entry.0.valid_round = build_param.valid_round;
+        (entry.0.clone(), entry.1.clone())
+    }
 }
 
 pub struct SequencerConsensusContext {
@@ -617,12 +640,11 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam) {
         info!(?id, ?build_param, "Reproposing.");
         let height = build_param.height;
-        let (init, txs, _) = self
+        let (init, txs) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
-            .get_proposal(&height, &id)
-            .clone();
+            .update_for_reproposal(&height, &id, &build_param);
 
         let transaction_converter = self.deps.transaction_converter.clone();
         let mut stream_sender =
