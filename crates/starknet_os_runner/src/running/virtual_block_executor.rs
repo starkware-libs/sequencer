@@ -8,8 +8,12 @@ use blockifier::blockifier::transaction_executor::{
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::errors::StateError;
+use blockifier::state::global_cache::CompiledClasses;
+use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::{
     FetchCompiledClasses,
     StateReaderAndContractManager,
@@ -23,12 +27,14 @@ use serde_json::json;
 use starknet_api::block::{BlockHash, BlockInfo};
 use starknet_api::block_hash::block_hash_calculator::{concat_counts, BlockHeaderCommitments};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{InvokeTransaction, MessageToL1, Transaction, TransactionHash};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::StarknetApiError;
+use starknet_types_core::felt::Felt;
 use tracing::error;
 
 use crate::errors::VirtualBlockExecutorError;
@@ -313,6 +319,86 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
 }
 
+/// State reader backed by prefetched `StateMaps` from simulate.
+///
+/// Serves storage, nonce, class hash, and declared contract reads from the prefetched state.
+/// Delegates compiled class lookups to the inner `RpcStateReader` since simulate responses
+/// do not include classes.
+#[allow(dead_code)]
+pub(crate) struct SimulatedStateReader {
+    state_maps: StateMaps,
+    rpc_state_reader: RpcStateReader,
+}
+
+impl StateReader for SimulatedStateReader {
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        Ok(*self.state_maps.storage.get(&(contract_address, key)).ok_or(
+            StateError::StateReadError(format!(
+                "Storage key not found in prefetched state (contract_address: {contract_address}, \
+                 key: {key:?}). This is unexpected: simulate should have returned all accessed \
+                 storage keys in initial_reads."
+            )),
+        )?)
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        Ok(*self.state_maps.nonces.get(&contract_address).ok_or(StateError::StateReadError(
+            format!(
+                "Nonce not found in prefetched state (contract_address: {contract_address}). This \
+                 is unexpected: simulate should have returned all accessed nonces in \
+                 initial_reads."
+            ),
+        ))?)
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        Ok(*self.state_maps.class_hashes.get(&contract_address).ok_or(
+            StateError::StateReadError(format!(
+                "Class hash not found in prefetched state (contract_address: {contract_address}). \
+                 This is unexpected: simulate should have returned all accessed class hashes in \
+                 initial_reads."
+            )),
+        )?)
+    }
+
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.rpc_state_reader.get_compiled_class(class_hash)
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.rpc_state_reader.get_compiled_class_hash(class_hash)
+    }
+
+    fn get_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        compiled_class: &RunnableCompiledClass,
+    ) -> StateResult<CompiledClassHash> {
+        self.rpc_state_reader.get_compiled_class_hash_v2(class_hash, compiled_class)
+    }
+}
+
+impl FetchCompiledClasses for SimulatedStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
+        self.rpc_state_reader.get_compiled_classes(class_hash)
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        Ok(*self.state_maps.declared_contracts.get(&class_hash).ok_or(
+            StateError::StateReadError(format!(
+                "Declared contract not found in prefetched state (class_hash: {class_hash}). This \
+                 is unexpected: simulate should have returned all declared contracts in \
+                 initial_reads."
+            )),
+        )?)
+    }
+}
+
+#[allow(dead_code)]
 pub(crate) struct RpcVirtualBlockExecutor {
     /// The state reader for the virtual block executor.
     pub(crate) rpc_state_reader: RpcStateReader,
