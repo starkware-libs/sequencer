@@ -358,8 +358,10 @@ const BLAKE_OPCODE_NAME_WITH_SUFFIX: &str = "blake_opcode";
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
+#[allow(non_camel_case_types)]
 pub enum OpcodeName {
-    Blake,
+    #[serde(alias = "blake_opcode")]
+    blake,
 }
 
 impl OpcodeName {
@@ -367,19 +369,32 @@ impl OpcodeName {
     /// This mirrors [`BuiltinName::to_str_with_suffix`] for consistency in resource naming.
     pub fn to_str_with_suffix(self) -> &'static str {
         match self {
-            OpcodeName::Blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
+            OpcodeName::blake => BLAKE_OPCODE_NAME_WITH_SUFFIX,
         }
     }
 }
 
-#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Ord, PartialOrd)]
-// Serialize as an untagged enum to avoid a type prefix, for backward compatibility with
+// Serialized as an untagged enum to avoid a type prefix, for backward compatibility with
 // how `CallInfo` was serialized when only builtins (no opcodes) were included (prior to v0.14.2).
+// Opcodes serialize with a "_opcode" suffix (via `to_str_with_suffix`) to distinguish them from
+// builtins when they appear together in `builtin_counters`.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
 #[serde(untagged)]
 pub enum CairoPrimitiveName {
     Builtin(BuiltinName),
     Opcode(OpcodeName),
+}
+
+impl Serialize for CairoPrimitiveName {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            CairoPrimitiveName::Builtin(builtin) => builtin.serialize(serializer),
+            CairoPrimitiveName::Opcode(opcode) => {
+                serializer.serialize_str(opcode.to_str_with_suffix())
+            }
+        }
+    }
 }
 
 impl From<BuiltinName> for CairoPrimitiveName {

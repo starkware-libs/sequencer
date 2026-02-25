@@ -74,7 +74,7 @@ fn get_cairo_primitive_fee_cost(
                 panic!("Builtin {builtin} not found in versioned constants.");
             })
         }
-        CairoPrimitiveName::Opcode(OpcodeName::Blake) => {
+        CairoPrimitiveName::Opcode(OpcodeName::blake) => {
             // Blake cost comes from the builtin gas costs in versioned constants.
             let blake_sierra_gas_cost = versioned_constants.os_constants.gas_costs.builtins.blake;
             let blake_l1_gas_cost = versioned_constants
