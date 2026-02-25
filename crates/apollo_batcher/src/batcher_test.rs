@@ -53,11 +53,13 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::block_hash::block_hash_calculator::{
+    BlockHeaderCommitments,
     PartialBlockHash,
     PartialBlockHashComponents,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce, StateDiffCommitment};
+use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
@@ -184,7 +186,7 @@ async fn finished_proposal_info() -> FinishedProposalInfo {
 fn parent_proposal_commitment() -> ProposalCommitment {
     ProposalCommitment::PartialBlockHash(
         PartialBlockHash::from_partial_block_hash_components(&PartialBlockHashComponents::default())
-        .expect("default partial block hash components are valid"),
+            .expect("default partial block hash components are valid"),
     )
 }
 
@@ -1466,6 +1468,91 @@ async fn decision_reached() {
                 .filter(|(info, _)| info.revert_error.is_some())
                 .count(),
         )
+    );
+}
+
+#[rstest]
+#[tokio::test]
+async fn decision_reached_uses_state_diff_commitment_for_starknet_0_14_1_parent() {
+    let mut mock_dependencies = MockDependencies::default();
+    let expected_artifacts = BlockExecutionArtifacts::create_for_testing().await;
+
+    mock_dependencies
+        .clients
+        .mempool_client
+        .expect_commit_block()
+        .times(1)
+        .with(eq(CommitBlockArgs {
+            address_to_nonce: expected_artifacts.address_to_nonce(),
+            rejected_tx_hashes: expected_artifacts.execution_data.rejected_tx_hashes.clone(),
+        }))
+        .returning(|_| Ok(()));
+    mock_dependencies.clients.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+    mock_dependencies.clients.l1_provider_client.expect_commit_block().returning(|_, _, _| Ok(()));
+
+    let expected_partial_block_hash = expected_artifacts.partial_block_hash_components();
+    mock_dependencies
+        .storage_writer
+        .expect_commit_proposal()
+        .times(1)
+        .with(
+            eq(INITIAL_HEIGHT),
+            eq(expected_artifacts.thin_state_diff()),
+            eq(StorageCommitmentBlockHash::Partial(expected_partial_block_hash)),
+        )
+        .returning(|_, _, _| Ok(()));
+
+    let state_diff_commitment = StateDiffCommitment(PoseidonHash(Felt::from(123_u64)));
+    let parent_partial_components = PartialBlockHashComponents {
+        starknet_version: StarknetVersion::V0_14_1,
+        header_commitments: BlockHeaderCommitments { state_diff_commitment, ..Default::default() },
+        ..Default::default()
+    };
+
+    mock_dependencies
+        .storage_reader
+        .expect_get_parent_hash_and_partial_block_hash_components()
+        .with(eq(INITIAL_HEIGHT.prev().unwrap()))
+        .returning(move |_| {
+            Ok((Some(BlockHash::default()), Some(parent_partial_components.clone())))
+        });
+
+    mock_create_builder_for_propose_block(
+        &mut mock_dependencies.clients.block_builder_factory,
+        vec![],
+        Ok(BlockExecutionArtifacts::create_for_testing().await),
+    );
+
+    let mut batcher = create_batcher(mock_dependencies).await;
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+    batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
+
+    let proposal_content = batcher
+        .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
+        .await
+        .unwrap();
+    let GetProposalContent::Finished(finished_info) = proposal_content.content else {
+        panic!("Expected finished proposal content.");
+    };
+
+    let expected_proposal_commitment = ProposalCommitment::PartialBlockHash(
+        PartialBlockHash::from_partial_block_hash_components(
+            &expected_artifacts.partial_block_hash_components(),
+        )
+        .expect("Expected valid partial block hash components in test artifacts"),
+    );
+    assert_eq!(
+        finished_info.proposal_commitment, expected_proposal_commitment,
+        "Expected INITIAL_HEIGHT proposal commitment to equal computed PartialBlockHash",
+    );
+
+    let decision_reached_response =
+        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+
+    assert_eq!(
+        decision_reached_response.central_objects.parent_proposal_commitment,
+        Some(ProposalCommitment::StateDiffCommitment(state_diff_commitment))
     );
 }
 
