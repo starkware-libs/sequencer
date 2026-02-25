@@ -174,7 +174,7 @@ async fn test_simulate_and_get_initial_reads() {
     let rpc_url = test_mode.rpc_url();
 
     let state_maps = tokio::task::spawn_blocking(move || {
-        let chain_info = get_chain_info(&ChainId::Sepolia, None);
+        let chain_info = get_chain_info(&ChainId::IntegrationSepolia, None);
         let block_id = BlockId::Latest;
 
         let executor = RpcVirtualBlockExecutor::new(
@@ -198,8 +198,9 @@ async fn test_simulate_and_get_initial_reads() {
             nonce: Nonce(felt!("0x21a")),
         });
 
-        let tx_hash =
-            Transaction::Invoke(tx.clone()).calculate_transaction_hash(&ChainId::Sepolia).unwrap();
+        let tx_hash = Transaction::Invoke(tx.clone())
+            .calculate_transaction_hash(&ChainId::IntegrationSepolia)
+            .unwrap();
 
         executor
             .simulate_and_get_initial_reads(block_id, &[(tx, tx_hash)])
@@ -207,10 +208,9 @@ async fn test_simulate_and_get_initial_reads() {
     })
     .await
     .unwrap();
-
-    test_mode.finalize();
-
     assert!(!state_maps.nonces.is_empty(), "initial_reads should contain nonces");
     assert!(!state_maps.class_hashes.is_empty(), "initial_reads should contain class_hashes");
     assert!(!state_maps.storage.is_empty(), "initial_reads should contain storage entries");
+
+    test_mode.finalize();
 }
