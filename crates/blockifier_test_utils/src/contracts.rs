@@ -16,6 +16,7 @@ use strum_macros::EnumIter;
 
 use crate::cairo_compile::{
     allowed_libfuncs_json_path,
+    allowed_libfuncs_legacy_json_path,
     cairo0_compile,
     cairo1_compile,
     CompilationArtifacts,
@@ -539,6 +540,9 @@ impl FeatureContract {
                 let libfunc_list_arg = match self {
                     Self::Experimental => {
                         LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
+                    }
+                    Self::LegacyTestContract | Self::CairoStepsTestContract => {
+                        LibfuncArg::ListFile(allowed_libfuncs_legacy_json_path())
                     }
                     _ => LibfuncArg::ListFile(allowed_libfuncs_json_path()),
                 };

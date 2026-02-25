@@ -41,6 +41,65 @@ pub fn allowed_libfuncs_json_path() -> String {
         .to_string()
 }
 
+/// Returns the path to a legacy-format allowed_libfuncs.json file (array of strings).
+///
+/// Older compiler versions (e.g. v2.1.0, v2.7.0) cannot parse the new map-based format
+/// introduced in the main allowed_libfuncs.json. This function generates a compatibility file
+/// with the old `{"allowed_libfuncs": ["name1", ...]}` format. The file is cached and only
+/// regenerated when the source file is newer.
+pub fn allowed_libfuncs_legacy_json_path() -> String {
+    let output_dir = project_path().unwrap().join("target/tmp");
+    let output_path = output_dir.join("allowed_libfuncs_legacy.json");
+    let new_format_path = allowed_libfuncs_json_path();
+
+    // Skip generation if the cached file is up-to-date with the source.
+    if is_up_to_date(&output_path, &new_format_path) {
+        return output_path.to_string_lossy().to_string();
+    }
+
+    // Read the new-format file and convert to old format.
+    let contents = std::fs::read_to_string(&new_format_path)
+        .unwrap_or_else(|err| panic!("Failed to read {new_format_path}: {err}"));
+    let parsed: serde_json::Value = serde_json::from_str(&contents)
+        .unwrap_or_else(|err| panic!("Failed to parse {new_format_path}: {err}"));
+    let libfuncs_map = parsed["allowed_libfuncs"]
+        .as_object()
+        .unwrap_or_else(|| panic!("Expected 'allowed_libfuncs' to be a map in {new_format_path}"));
+    let keys: Vec<&str> = libfuncs_map.keys().map(|k| k.as_str()).collect();
+    let legacy_json = serde_json::json!({"allowed_libfuncs": keys}).to_string();
+
+    std::fs::create_dir_all(&output_dir)
+        .unwrap_or_else(|err| panic!("Failed to create {}: {err}", output_dir.display()));
+
+    // Write to a temp file in the same directory, then atomically rename so concurrent
+    // readers never see a partially-written file.
+    let mut temp_file = NamedTempFile::new_in(&output_dir).unwrap_or_else(|err| {
+        panic!("Failed to create temp file in {}: {err}", output_dir.display())
+    });
+    temp_file
+        .write_all(legacy_json.as_bytes())
+        .unwrap_or_else(|err| panic!("Failed to write temp file: {err}"));
+    temp_file
+        .persist(&output_path)
+        .unwrap_or_else(|err| panic!("Failed to persist {}: {err}", output_path.display()));
+
+    output_path.to_string_lossy().to_string()
+}
+
+/// Returns true if `output` exists and is at least as recent as `source`.
+fn is_up_to_date(output: &std::path::Path, source: &str) -> bool {
+    let Ok(output_meta) = std::fs::metadata(output) else {
+        return false;
+    };
+    let Ok(source_meta) = std::fs::metadata(source) else {
+        return false;
+    };
+    match (output_meta.modified(), source_meta.modified()) {
+        (Ok(output_mtime), Ok(source_mtime)) => output_mtime >= source_mtime,
+        _ => false,
+    }
+}
+
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
 async fn download_cairo_package(version: &String) {
