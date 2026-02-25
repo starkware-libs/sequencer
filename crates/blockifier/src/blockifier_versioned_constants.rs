@@ -970,7 +970,7 @@ impl BuiltinGasCosts {
 
     fn get_opcode_gas_cost(&self, opcode: &OpcodeName) -> u64 {
         match opcode {
-            OpcodeName::Blake => self.blake,
+            OpcodeName::blake => self.blake,
         }
     }
 
