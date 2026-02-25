@@ -82,7 +82,7 @@ spec:
               python -m pip install --no-cache-dir --disable-pip-version-check
               flask gunicorn requests aiohttp kubernetes eth_abi &&
               echo "[echonet] starting gunicorn on :80 (1 worker, 4 threads)" &&
-              gunicorn -w 1 --threads 4 -b 0.0.0.0:80 echonet.echo_center:app --timeout 60 --access-logfile -
+              gunicorn -w 1 --threads 4 -b 0.0.0.0:80 echonet.echo_center:app --timeout 60 --access-logfile - --logger-class echonet.logger.EchoNetGunicornLogger
           workingDir: /app
           resources:
             requests:

@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, List, Literal, Optional, Tuple, Union
 
@@ -30,6 +31,12 @@ BlockNumberParam = Union[int, Literal["latest"]]
 
 flask_logger = get_logger("flask")
 logger = get_logger("echo_center")
+
+
+@lru_cache(maxsize=32)
+def _static_file_b64(filename: str) -> str:
+    p = Path(__file__).resolve().parent / "static" / filename
+    return base64.b64encode(p.read_bytes()).decode("ascii")
 
 
 def _build_gcp_logs_context() -> dict[str, str]:
@@ -204,17 +211,6 @@ class BlobTransformer:
         return tx_hashes
 
     @staticmethod
-    def _halve_gas_prices(v: str) -> str:
-        """By shifting the integer value right by 1, the gas prices are halved."""
-        return hex(int(v, 16) >> 1)
-
-    def _with_halved_gas_prices(self, price: JsonObject) -> JsonObject:
-        out = dict(price)
-        out["price_in_wei"] = self._halve_gas_prices(out["price_in_wei"])
-        out["price_in_fri"] = self._halve_gas_prices(out["price_in_fri"])
-        return out
-
-    @staticmethod
     @dataclass(slots=True)
     class FlattenedCallInfo:
         """
@@ -360,13 +356,15 @@ class BlobTransformer:
 
         obj = self._shared.get_fgw_block(block_number)
         if obj is None:
-            obj = self._feeder_client.get_block(block_number)
+            obj = self._feeder_client.get_block(block_number, with_fee_market_info=True)
 
         meta: JsonObject = {
             "timestamp": obj["timestamp"],
             "l1_gas_price": obj["l1_gas_price"],
             "l1_data_gas_price": obj["l1_data_gas_price"],
             "l2_gas_price": obj["l2_gas_price"],
+            "l2_gas_consumed": obj.get("l2_gas_consumed"),
+            "next_l2_gas_price": obj.get("next_l2_gas_price"),
         }
         self._latest_block_meta = meta
         return meta
@@ -473,11 +471,11 @@ class BlobTransformer:
         )
 
         meta = self._fetch_upstream_block_meta(bn_for_meta)
-        block_document["timestamp"] = meta["timestamp"]
-
-        # The gas prices are halved in order for txs to pass the fee sequencer checks.
-        for price in ("l1_gas_price", "l1_data_gas_price", "l2_gas_price"):
-            block_document[price] = self._with_halved_gas_prices(meta[price])
+        block_document.update(meta)
+        if meta.get("l2_gas_consumed") is not None:
+            block_document["l2_gas_consumed"] = meta["l2_gas_consumed"]
+        if meta.get("next_l2_gas_price") is not None:
+            block_document["next_l2_gas_price"] = meta["next_l2_gas_price"]
 
         return block_document
 
@@ -665,6 +663,19 @@ class EchoCenterService:
             self.flask_logger.info(f"Duplicate WRITE_BLOB for block {block_number}; no-op")
             return self._empty_response(requests.codes.ok)
 
+        tx_hashes = self._transformer.get_blob_tx_hashes(blob)
+        for tx_hash in tx_hashes:
+            # Not every tx in a blob is guaranteed to be one we forwarded/track (e.g. system txs),
+            # so only compare when we have a known source block number.
+            if not self.shared.is_pending_tx(tx_hash):
+                continue
+            source_block_number = self.shared.get_sent_block_number(tx_hash)
+            if source_block_number != block_number:
+                self.logger.warning(
+                    "write_blob tx source/echo block mismatch: "
+                    f"tx={tx_hash} echo_block={block_number} source_block={source_block_number}"
+                )
+
         self.shared.set_last_block(block_number)
         self.flask_logger.info(f"last_block={block_number}")
 
@@ -676,9 +687,7 @@ class EchoCenterService:
         self.shared.store_block(
             block_number, blob=blob, fgw_block=to_store, state_update=state_update
         )
-        self.flask_logger.info(
-            f"block {block_number} tx hashes: {' '.join(self._transformer.get_blob_tx_hashes(blob))}"
-        )
+        self.flask_logger.info(f"block {block_number} tx hashes: {' '.join(tx_hashes)}")
 
         self._update_tx_tracking_and_reverts(blob, block_number)
 
@@ -699,6 +708,7 @@ class EchoCenterService:
         return flask.render_template(
             "report.html",
             export=False,
+            inline_favicon_b64=_static_file_b64("favicon.svg"),
             logs=_build_gcp_logs_context(),
             **vm,
         )
@@ -709,13 +719,12 @@ class EchoCenterService:
         """
         vm = build_report_view_model(self.shared.get_report_snapshot())
 
-        css_path = Path(__file__).resolve().parent / "static" / "report.css"
-        inline_css_b64 = base64.b64encode(css_path.read_bytes()).decode("ascii")
-
         html = flask.render_template(
             "report.html",
             export=True,
-            inline_css_b64=inline_css_b64,
+            inline_favicon_b64=_static_file_b64("favicon.svg"),
+            inline_css_b64=_static_file_b64("report.css"),
+            inline_js_b64=_static_file_b64("report.js"),
             logs=_build_gcp_logs_context(),
             **vm,
         )

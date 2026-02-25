@@ -45,7 +45,7 @@ class SequencerTiming:
     """Polling defaults used by the manager."""
 
     poll_interval_seconds: float = 2.0
-    scale_timeout_seconds: float = 3000.0
+    scale_timeout_seconds: float = 30000.0
 
 
 class SequencerManager:
@@ -114,6 +114,20 @@ class SequencerManager:
         )
         logger.info("ConfigMap updated successfully.")
         return updated
+
+    def _get_revert_up_to_and_including(self) -> Optional[int]:
+        """
+        Read the current `revert_config.revert_up_to_and_including` value from the node config.
+        """
+        try:
+            configmap_name = self._spec.configmap_name
+            configmap = self._core_v1.read_namespaced_config_map(configmap_name, self._namespace)
+            config: JsonObject = json.loads(configmap.data["config"])
+            value = config.get("revert_config.revert_up_to_and_including")
+            return None if value is None else int(value)
+        except Exception as e:
+            logger.warning(f"Failed reading revert marker from ConfigMap: {e}")
+            return None
 
     def configure_revert(self, should_revert: bool):
         def _mutate(config: JsonObject) -> None:
@@ -186,8 +200,8 @@ class SequencerManager:
     def wait_for_log_inactivity(
         self,
         inactivity_substrings: Sequence[str],
-        inactivity_seconds: float = 15,
-        timeout_seconds: float = 6000.0,
+        inactivity_seconds: float = 30,
+        timeout_seconds: float = 60000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
         pod_name: Optional[str] = None,
@@ -204,12 +218,20 @@ class SequencerManager:
         start = time.time()
 
         while True:
-            logs_recent = self._read_pod_logs(
+            logs_recent_current = self._read_pod_logs(
                 pod_name=pod,
                 tail_lines=tail_lines,
                 # K8s `sinceSeconds` must be an integer; passing a float can yield 400 Bad Request.
                 since_seconds=int(inactivity_seconds),
             )
+            logs_recent_previous = self._read_pod_logs(
+                pod_name=pod,
+                tail_lines=tail_lines,
+                previous=True,
+                since_seconds=int(inactivity_seconds),
+            )
+            logs_recent = logs_recent_current + "\n" + logs_recent_previous
+
             if not any(s in logs_recent for s in inactivity_substrings):
                 logger.info(
                     f"No revert activity logs were seen for the last {inactivity_seconds}s in pod '{pod}'."
@@ -223,10 +245,67 @@ class SequencerManager:
                 )
             time.sleep(poll_interval_seconds)
 
+    def wait_for_batcher_revert_complete(
+        self,
+        target_block: int,
+        timeout_seconds: float = 60000.0,
+        poll_interval_seconds: float = 1.0,
+        tail_lines: int = 1000,
+        pod_name: Optional[str] = None,
+    ) -> None:
+        """
+        Block until logs indicate the Batcher revert has completed to `target_block`.
+
+        We look for either of these lines (with the target block substituted):
+        - Done reverting Batcher's storage up to height {target_block}!
+        - Successfully reverted Batcher's storage to height marker {target_block}
+        """
+        pod = pod_name or self.pod_name
+        logger.info(
+            f"Waiting for Batcher revert completion to height {target_block} in pod '{pod}' "
+            f"(ns={self._namespace})..."
+        )
+
+        # Accept both variants that have appeared in node logs.
+        done_up_to_substr = f"Done reverting Batcher's storage up to height {target_block}!"
+        done_marker_substr = (
+            f"Successfully reverted Batcher's storage to height marker {target_block}."
+        )
+        done_state_sync = (
+            f"Successfully reverted State Sync's storage to height marker {target_block}."
+        )
+        done_state_sync_substr = f"Done reverting State Sync's storage up to height {target_block}!"
+
+        start = time.time()
+        state_sync_done = False
+        batcher_done = False
+
+        while True:
+            logs_current = self._read_pod_logs(pod_name=pod, tail_lines=tail_lines)
+            logs_previous = self._read_pod_logs(pod_name=pod, tail_lines=tail_lines, previous=True)
+            logs = logs_current + "\n" + logs_previous
+            if done_state_sync in logs or done_state_sync_substr in logs:
+                state_sync_done = True
+            if done_up_to_substr in logs or done_marker_substr in logs:
+                batcher_done = True
+            if batcher_done and state_sync_done:
+                logger.info(
+                    f"Found Batcher revert completion log for target height {target_block} in pod '{pod}'."
+                )
+                return
+
+            if time.time() - start > timeout_seconds:
+                raise TimeoutError(
+                    f"Timed out after {timeout_seconds}s waiting for Batcher revert completion to "
+                    f"height {target_block} in pod '{pod}'."
+                )
+
+            time.sleep(poll_interval_seconds)
+
     def wait_for_synced_block_at_least(
         self,
         target_block: int,
-        timeout_seconds: float = 3000.0,
+        timeout_seconds: float = 30000.0,
         poll_interval_seconds: float = 1.0,
         tail_lines: int = 500,
         pod_name: Optional[str] = None,
@@ -302,9 +381,7 @@ class SequencerManager:
 
         self.configure_stop_sync(block_number=block_number)
         self.restart_node()
-        self.wait_for_log_inactivity(
-            inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS,
-        )
+        self.wait_for_batcher_revert_complete(target_block=block_number)
 
         self.configure_revert(should_revert=False)
         self.restart_node()
@@ -321,9 +398,10 @@ class SequencerManager:
         """
         logger.info(f"Starting resync workflow around block {block_number}...")
 
+        previous_marker = self._get_revert_up_to_and_including()
         self.configure_revert(should_revert=True)
         self.restart_node()
-        self.wait_for_log_inactivity(inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS)
+        self.wait_for_batcher_revert_complete(target_block=previous_marker)
 
         self.configure_start_sync()
         self.restart_node()
@@ -331,7 +409,7 @@ class SequencerManager:
 
         self.configure_stop_sync(block_number=block_number)
         self.restart_node()
-        self.wait_for_log_inactivity(inactivity_substrings=REVERT_INACTIVITY_SUBSTRINGS)
+        self.wait_for_batcher_revert_complete(target_block=block_number)
 
         self.configure_revert(should_revert=False)
         self.restart_node()

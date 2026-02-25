@@ -89,6 +89,7 @@ class _TxErrorTracker:
     """Gateway + revert error tracking (live vs cumulative) for reporting."""
 
     gateway_errors_live: Dict[str, JsonObject]  # reset on resync
+    echonet_only_reverts_live: Dict[str, RevertErrorInfo]  # reset on resync
     revert_errors_mainnet: Dict[str, RevertErrorInfo]  # tx_hash -> {block_number, error}
     revert_errors_echonet: Dict[str, RevertErrorInfo]  # tx_hash -> {block_number, error}
 
@@ -96,6 +97,7 @@ class _TxErrorTracker:
     def empty(cls) -> "_TxErrorTracker":
         return cls(
             gateway_errors_live={},
+            echonet_only_reverts_live={},
             revert_errors_mainnet={},
             revert_errors_echonet={},
         )
@@ -113,6 +115,9 @@ class _TxErrorTracker:
         self.revert_errors_mainnet[tx_hash] = create_revert_error_info(
             block_number=block_number, error=error
         )
+        # If the tx is now known to have reverted on mainnet too, it is no longer "echonet-only"
+        # for resync purposes.
+        self.echonet_only_reverts_live.pop(tx_hash, None)
 
     def record_echonet_revert_error(
         self, tx_hash: str, error: str, source_block_number: int
@@ -121,12 +126,13 @@ class _TxErrorTracker:
         if tx_hash in self.revert_errors_mainnet:
             self.revert_errors_mainnet.pop(tx_hash, None)
         else:
-            self.revert_errors_echonet[tx_hash] = create_revert_error_info(
-                block_number=source_block_number, error=error
-            )
+            info = create_revert_error_info(block_number=source_block_number, error=error)
+            self.revert_errors_echonet[tx_hash] = info
+            self.echonet_only_reverts_live[tx_hash] = info
 
     def clear_live(self) -> None:
         self.gateway_errors_live.clear()
+        self.echonet_only_reverts_live.clear()
 
 
 @dataclass(slots=True)
@@ -452,14 +458,21 @@ class SharedContext:
         with self._lock:
             return self._tx.currently_pending[tx_hash]
 
-    def get_resync_evaluation_inputs(self) -> tuple[Dict[str, JsonObject], Dict[str, int]]:
+    def get_resync_evaluation_inputs(
+        self,
+    ) -> tuple[Dict[str, JsonObject], Dict[str, int], Dict[str, RevertErrorInfo]]:
         """
         Return the minimal live state needed by transaction_sender's resync policy:
         - gateway_errors_live (tx_hash -> {status, response, block_number})
         - currently_pending (tx_hash -> source block number)
+        - echonet_only_reverts_live (tx_hash -> {block_number, error})
         """
         with self._lock:
-            return dict(self._errors.gateway_errors_live), dict(self._tx.currently_pending)
+            return (
+                dict(self._errors.gateway_errors_live),
+                dict(self._tx.currently_pending),
+                dict(self._errors.echonet_only_reverts_live),
+            )
 
     # --- Errors ---
     def record_gateway_error(

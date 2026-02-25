@@ -108,7 +108,7 @@ class L1Blocks:
         feeder_tx: dict,
         l2_block_timestamp: int,
         client: L1Client,
-        search_minutes_before: int = 5,
+        search_minutes_before: int = 6,
     ) -> Optional[int]:
         """
         Finds the L1 block number that contains the given L1 handler transaction.

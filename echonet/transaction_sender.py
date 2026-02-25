@@ -73,7 +73,7 @@ async def fetch_block_transactions(
 
     for attempt in range(attempts):
         try:
-            return feeder.get_block(block_number)
+            return feeder.get_block(block_number, with_fee_market_info=True)
         except Exception as err:
             last_err = err
             if attempt == attempts - 1:
@@ -105,7 +105,7 @@ class SenderConfig:
     max_retry_sleep_seconds: float = 30.0
 
     queue_size: int = 30
-    blocks_to_wait_before_failing_tx: int = 50
+    blocks_to_wait_before_failing_tx: int = 70
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,10 +162,12 @@ class TxTransformer:
 class HttpForwarder:
     """Forward prepared txs into the local node and update `shared` bookkeeping."""
 
-    def __init__(self, session: aiohttp.ClientSession, sequencer_url: str, attempts: int) -> None:
+    _NOT_READY_RETRY_SLEEP_SECONDS: ClassVar[float] = 0.5
+    _NOT_READY_RETRY_ATTEMPTS: ClassVar[int] = 39
+
+    def __init__(self, session: aiohttp.ClientSession, sequencer_url: str) -> None:
         self._session = session
         self._sequencer_url = sequencer_url.rstrip("/")
-        self._attempts = attempts
 
     async def forward(self, tx: JsonObject, source_block_number: int) -> None:
         url = f"{self._sequencer_url}{CONFIG.sequencer.endpoints.add_transaction}"
@@ -173,30 +175,54 @@ class HttpForwarder:
         tx_hash = tx["transaction_hash"]
         tx_type = tx.get("type")
 
-        for attempt in range(self._attempts):
-            async with self._session.post(url, json=tx, headers=headers) as response:
-                text = await response.text()
-                if response.status == requests.codes.ok:
-                    logger.info(f"Forwarded tx: {tx_hash}")
-                    shared.record_sent_tx(tx_hash, source_block_number)
+        last_status: int = 0
+        last_response: str = ""
+
+        for attempt in range(self._NOT_READY_RETRY_ATTEMPTS):
+            try:
+                async with self._session.post(url, json=tx, headers=headers) as response:
+                    text = await response.text()
+                    last_status = int(response.status)
+                    last_response = text
+
+                    if response.status == requests.codes.ok:
+                        logger.info(f"Forwarded tx: {tx_hash}")
+                        shared.record_sent_tx(tx_hash, source_block_number)
+                        return
+
+                    logger.warning(
+                        "Forward failed: "
+                        f"tx={tx_hash} type={tx_type} src_bn={source_block_number} "
+                        f"attempt={attempt + 1}/{self._NOT_READY_RETRY_ATTEMPTS} "
+                        f"status={response.status} response={text}"
+                    )
+
+                    if attempt < self._NOT_READY_RETRY_ATTEMPTS - 1:
+                        await asyncio.sleep(self._NOT_READY_RETRY_SLEEP_SECONDS)
+                        continue
+
+                    shared.record_gateway_error(
+                        tx_hash, response.status, text, block_number=source_block_number
+                    )
                     return
-
+            except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                last_status = 0
+                last_response = str(err)
                 logger.warning(
-                    "Forward failed: "
+                    "Forward failed (exception): "
                     f"tx={tx_hash} type={tx_type} src_bn={source_block_number} "
-                    f"attempt={attempt + 1}/{self._attempts} "
-                    f"status={response.status} response={text}"
+                    f"attempt={attempt + 1}/{self._NOT_READY_RETRY_ATTEMPTS} "
+                    f"err={err}"
                 )
-
-                if attempt < self._attempts - 1:
-                    # TODO(Ron): Consider adding 'partial gateway errors' to the reports
-                    await asyncio.sleep(CONFIG.sleep.gateway_error_retry_interval_seconds)
+                if attempt < self._NOT_READY_RETRY_ATTEMPTS - 1:
+                    await asyncio.sleep(self._NOT_READY_RETRY_SLEEP_SECONDS)
                     continue
+                break
 
-                shared.record_gateway_error(
-                    tx_hash, response.status, text, block_number=source_block_number
-                )
-                return
+        shared.record_gateway_error(
+            tx_hash, last_status, last_response, block_number=source_block_number
+        )
+        return
 
 
 class TransactionSenderService:
@@ -219,9 +245,7 @@ class TransactionSenderService:
             forwarding_lock = asyncio.Lock()
 
             transformer = TxTransformer(feeder)
-            forwarder = HttpForwarder(
-                session, sequencer_url=config.sequencer_url, attempts=config.attempts
-            )
+            forwarder = HttpForwarder(session, sequencer_url=config.sequencer_url)
             resync_policy = ResyncPolicy(
                 blocks_to_wait_before_failing_tx=config.blocks_to_wait_before_failing_tx
             )
@@ -243,7 +267,6 @@ class TransactionSenderService:
                 block_number = config.start_block
                 while not self._stop_event.is_set():
                     resync_trigger: Optional[ResyncTriggerPayload] = None
-                    await asyncio.sleep(CONFIG.sleep.producer_startup_sleep_seconds)
 
                     while not self._stop_event.is_set():
                         if config.end_block and block_number > config.end_block:
@@ -258,6 +281,18 @@ class TransactionSenderService:
                             retry_backoff_seconds=config.retry_backoff_seconds,
                             max_retry_sleep_seconds=config.max_retry_sleep_seconds,
                         )
+
+                        expected_next_l2_gas_price = "0x4d7c6d000"
+                        next_l2_gas_price = block.get("next_l2_gas_price")
+                        if (
+                            next_l2_gas_price is not None
+                            and str(next_l2_gas_price).lower() != expected_next_l2_gas_price
+                        ):
+                            logger.warning(
+                                "Feeder Gateway block has unexpected next_l2_gas_price: "
+                                f"bn={block_number} expected={expected_next_l2_gas_price} "
+                                f"actual={next_l2_gas_price} block={json.dumps(block)}"
+                            )
 
                         timestamp = block["timestamp"]
                         shared.store_fgw_block(block_number, block)
@@ -289,10 +324,15 @@ class TransactionSenderService:
                             shared.record_forwarded_block(block_number, len(valid_txs))
                         shared.set_block_timestamp(timestamp)
 
-                        gw_errors, sent_tx_hashes = shared.get_resync_evaluation_inputs()
+                        (
+                            gw_errors,
+                            sent_tx_hashes,
+                            echonet_only_reverts,
+                        ) = shared.get_resync_evaluation_inputs()
                         resync_trigger = resync_policy.evaluate(
                             gateway_errors=gw_errors,
                             sent_tx_hashes=sent_tx_hashes,
+                            echonet_only_reverts=echonet_only_reverts,
                             current_block=block_number,
                         )
                         if resync_trigger:
@@ -300,8 +340,11 @@ class TransactionSenderService:
                         block_number += 1
                     if not resync_trigger:
                         return
+                    failing_block = resync_trigger["source_block_number"]
+                    rollback_block = resync_trigger["block_number"]
                     logger.warning(
-                        f"Resync triggered by tx {resync_trigger['tx_hash']} at block {resync_trigger['block_number']}: "
+                        f"Resync triggered by tx {resync_trigger['tx_hash']}: "
+                        f"failing_bn={failing_block} rollback_bn={rollback_block}: "
                         f"{resync_trigger['reason']}"
                     )
                     async with forwarding_lock:
@@ -317,8 +360,6 @@ class TransactionSenderService:
 
                         prepared = transformer.prepare_for_forwarding(item)
                         if prepared is None:  # L1_HANDLER
-                            while shared.is_pending_tx(item.tx["transaction_hash"]):
-                                await asyncio.sleep(CONFIG.tx_sender.poll_interval_seconds)
                             continue
 
                         while (
