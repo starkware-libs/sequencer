@@ -49,6 +49,28 @@ pub trait TransactionQueueTrait: Send + Sync {
     // Default implementation is a no-op (for queues that don't support timestamp updates).
     fn update_timestamp(&mut self, _tx_hash: TransactionHash, _timestamp: UnixTimestamp) {}
 
+    // Default implementation returns None (for queues that don't track first queued tx timestamp).
+    fn get_first_queued_tx_timestamp(&self) -> Option<UnixTimestamp> {
+        None
+    }
+
+    // Default implementation is a no-op (for queues that don't track last returned timestamp).
+    fn set_last_returned_timestamp(&mut self, _timestamp: UnixTimestamp) {}
+
+    // Default implementation returns None (for queues that don't track last returned timestamp).
+    fn get_last_returned_timestamp(&self) -> Option<UnixTimestamp> {
+        None
+    }
+
+    // Default implementation delegates to insert (for queues that don't need special rewind logic).
+    fn insert_for_rewind(
+        &mut self,
+        tx_reference: TransactionReference,
+        validate_resource_bounds: bool,
+    ) {
+        self.insert(tx_reference, validate_resource_bounds);
+    }
+
     // Default implementation returns empty vec.
     #[cfg(test)]
     fn pending_txs(&self) -> Vec<TransactionReference> {
