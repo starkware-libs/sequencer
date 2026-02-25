@@ -164,6 +164,16 @@ impl ServiceConfig {
             }
         }
 
+        let config_prefetch_state =
+            &mut config.prover_config.runner_config.virtual_block_executor_config.prefetch_state;
+        if args.prefetch_state != *config_prefetch_state {
+            info!(
+                "CLI override: prefetch_state: {} -> {}",
+                *config_prefetch_state, args.prefetch_state
+            );
+            *config_prefetch_state = args.prefetch_state;
+        }
+
         // Validate required fields.
         if config.prover_config.rpc_node_url.is_empty() {
             return Err(ConfigError::MissingRequiredField(
@@ -225,6 +235,11 @@ pub struct CliArgs {
     /// Override STRK fee token address (hex, e.g. for custom environments that share a chain ID).
     #[arg(long, value_name = "ADDRESS")]
     pub strk_fee_token_address: Option<String>,
+
+    /// Prefetch state by simulating transactions before execution, reducing RPC calls during
+    /// proving.
+    #[arg(long)]
+    pub prefetch_state: bool,
 
     /// Disable CORS (clear any origins set in the config file).
     #[arg(long, conflicts_with = "cors_allow_origin")]
