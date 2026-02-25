@@ -253,6 +253,14 @@ pub struct ClassHashStorage {
     storage_reader_server_handle: Option<AbortHandle>,
 }
 
+impl Drop for ClassHashStorage {
+    fn drop(&mut self) {
+        if let Some(handle) = &self.storage_reader_server_handle {
+            handle.abort();
+        }
+    }
+}
+
 impl ClassHashStorage {
     pub fn new(
         storage_config: StorageConfig,
