@@ -152,11 +152,11 @@ impl MempoolTestContentBuilder {
             config: self.config.clone(),
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: self.content.tx_pool.unwrap_or_default().into_values().collect(),
-            tx_queue: FeeTransactionQueue::new(
+            tx_queue: Box::new(FeeTransactionQueue::new(
                 self.content.priority_txs.unwrap_or_default(),
                 self.content.pending_txs.unwrap_or_default(),
                 self.gas_price_threshold,
-            ),
+            )),
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(
                 self.config.static_config.committed_nonce_retention_block_count,
