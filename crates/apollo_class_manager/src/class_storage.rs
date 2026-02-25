@@ -248,9 +248,17 @@ type LockedWriter<'a> = MutexGuard<'a, apollo_storage::StorageWriter>;
 pub struct ClassHashStorage {
     reader: apollo_storage::StorageReader,
     writer: Arc<Mutex<apollo_storage::StorageWriter>>,
-    // Kept alive to maintain the server running.
-    #[allow(dead_code)]
-    storage_reader_server_handle: Option<AbortHandle>,
+    storage_reader_server_handle: Option<Arc<AbortHandle>>,
+}
+
+impl Drop for ClassHashStorage {
+    fn drop(&mut self) {
+        if let Some(arc) = self.storage_reader_server_handle.take() {
+            if let Some(handle) = Arc::into_inner(arc) {
+                handle.abort();
+            }
+        }
+    }
 }
 
 impl ClassHashStorage {
@@ -266,7 +274,7 @@ impl ClassHashStorage {
             )?;
 
         let storage_reader_server_handle =
-            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server);
+            GenericStorageReaderServer::spawn_if_enabled(storage_reader_server).map(Arc::new);
 
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)), storage_reader_server_handle })
     }
