@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use apollo_config::BehaviorMode;
+use apollo_config::behavior_mode::BehaviorMode;
 use apollo_config_manager_types::communication::MockConfigManagerClient;
 use apollo_mempool_config::config::{MempoolConfig, MempoolStaticConfig};
 use apollo_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
@@ -19,8 +19,6 @@ use tokio::net::TcpListener;
 use crate::add_tx_input;
 use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::Mempool;
-
-// TODO(Ayelet): Remove #[ignore] from tests below once FIFO queue is implemented for Echonet mode.
 
 // Starts a mock HTTP server that simulates the recorder's get_timestamp endpoint.
 // Returns the base URL (e.g., "http://127.0.0.1:12345").
@@ -65,7 +63,6 @@ fn create_mempool_communication_wrapper(recorder_url: String) -> MempoolCommunic
 
 #[rstest]
 #[tokio::test]
-#[ignore]
 async fn test_fetch_timestamp_success() {
     let recorder_url = start_mock_recorder(Ok(1000u64)).await;
     let mut wrapper = create_mempool_communication_wrapper(recorder_url);
@@ -78,7 +75,6 @@ async fn test_fetch_timestamp_success() {
 
 #[rstest]
 #[tokio::test]
-#[ignore]
 async fn test_fetch_timestamp_fails_on_http_error() {
     let recorder_url = start_mock_recorder(Err(StatusCode::INTERNAL_SERVER_ERROR)).await;
     let mut wrapper = create_mempool_communication_wrapper(recorder_url);
@@ -92,7 +88,6 @@ async fn test_fetch_timestamp_fails_on_http_error() {
 // Integration test: verifies add_tx with recorder doesn't hang or panic.
 #[rstest]
 #[tokio::test]
-#[ignore]
 async fn test_add_tx_with_recorder_integration() {
     let recorder_url = start_mock_recorder(Ok(1000u64)).await;
     let mut wrapper = create_mempool_communication_wrapper(recorder_url);
