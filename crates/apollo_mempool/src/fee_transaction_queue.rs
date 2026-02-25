@@ -2,13 +2,14 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
+use indexmap::IndexSet;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
-use crate::transaction_queue_trait::TransactionQueueTrait;
+use crate::transaction_queue_trait::{RewindData, TransactionQueueTrait};
 
 #[cfg(test)]
 #[path = "fee_transaction_queue_test_utils.rs"]
@@ -125,16 +126,21 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         }
     }
 
-    fn rewind_txs(
-        &mut self,
-        next_txs_by_address: HashMap<ContractAddress, TransactionReference>,
-        validate_resource_bounds: bool,
-    ) {
+    fn rewind_txs(&mut self, rewind_data: RewindData<'_>) -> IndexSet<TransactionHash> {
+        // Extract fee-priority specific data
+        let RewindData::FeePriority { next_txs_by_address, validate_resource_bounds } = rewind_data
+        else {
+            unreachable!("FeeTransactionQueue received Fifo data instead of FeePriority data");
+        };
+
         // Rewind by re-inserting the next transaction for each address.
         for (address, tx_reference) in next_txs_by_address {
-            self.remove_by_address(address);
-            self.insert(tx_reference, validate_resource_bounds);
+            self.remove_by_address(*address);
+            self.insert(*tx_reference, validate_resource_bounds);
         }
+
+        // Fee-priority queue doesn't track rewound hashes
+        IndexSet::new()
     }
 
     fn priority_queue_len(&self) -> usize {
