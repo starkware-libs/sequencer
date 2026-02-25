@@ -36,8 +36,12 @@ blockifier_test_utils = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["deref", "from"] }
 indexmap.workspace = true
 rand.workspace = true
+reqwest.workspace = true
+reqwest-middleware.workspace = true
+reqwest-retry.workspace = true
 starknet_api.workspace = true
 strum = { workspace = true, features = ["derive"] }
+tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
@@ -49,6 +53,7 @@ apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 apollo_time = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+axum.workspace = true
 blockifier = { workspace = true, features = ["mocks", "testing"] }
 blockifier_test_utils.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
@@ -60,6 +65,7 @@ metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
