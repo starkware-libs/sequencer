@@ -37,6 +37,7 @@ use crate::running::storage_proofs::{
 };
 use crate::running::virtual_block_executor::{
     RpcVirtualBlockExecutor,
+    RpcVirtualBlockExecutorConfig,
     VirtualBlockExecutionData,
     VirtualBlockExecutor,
 };
@@ -121,6 +122,8 @@ impl From<VirtualOsBlockInput> for OsHints {
 pub struct RunnerConfig {
     /// Configuration for storage proof provider.
     pub(crate) storage_proof_config: StorageProofConfig,
+    /// Configuration for the virtual block executor.
+    pub(crate) virtual_block_executor_config: RpcVirtualBlockExecutorConfig,
 }
 
 pub struct RunnerOutput {
@@ -420,6 +423,7 @@ impl RpcRunnerFactory {
             self.node_url.to_string(),
             self.chain_info.clone(),
             block_id,
+            self.runner_config.virtual_block_executor_config.clone(),
         );
 
         // Create the storage proofs provider.
