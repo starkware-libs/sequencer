@@ -10,7 +10,11 @@ pub mod trivial_class_manager {
     use starknet_api::class_cache::GlobalContractCache;
     use starknet_api::core::{ClassHash, CompiledClassHash};
 
-    use crate::blockifier::config::{ContractClassManagerConfig, NativeClassesWhitelist};
+    use crate::blockifier::config::{
+        CairoNativeMode,
+        ContractClassManagerConfig,
+        NativeClassesWhitelist,
+    };
     use crate::execution::contract_class::RunnableCompiledClass;
     use crate::state::global_cache::{CompiledClasses, RawClassCache};
 
@@ -23,9 +27,10 @@ pub mod trivial_class_manager {
     // Trivial implementation of the class manager for Native-less projects.
     impl TrivialClassManager {
         pub fn start(config: ContractClassManagerConfig) -> Self {
-            assert!(
-                !config.cairo_native_run_config.run_cairo_native,
-                "Cairo Native feature is off."
+            assert_eq!(
+                config.cairo_native_run_config.cairo_native_run_mode,
+                CairoNativeMode::Off,
+                "Trivial class manager does not support native compilation."
             );
             Self {
                 class_cache: RawClassCache::new(config.contract_cache_size),

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
+    CairoNativeMode,
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerConfig,
@@ -258,6 +259,8 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
 
 #[derive(Clone, Debug, FromPyObject)]
 pub struct PyCairoNativeRunConfig {
+    // TODO(Arni): Remove `run_cairo_native` and `wait_on_native_compilation` and align with
+    // CairoNativeMode.
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
@@ -283,9 +286,20 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
         // NOTE: native_classes_whitelist is ignored here for cross-repo compatibility until the
         // pythonic struct is updated.
+        let cairo_native_run_mode = match (
+            py_cairo_native_run_config.run_cairo_native,
+            py_cairo_native_run_config.wait_on_native_compilation,
+        ) {
+            (true, true) => CairoNativeMode::WaitOnCompilation,
+            (true, false) => CairoNativeMode::LazyCompilation,
+            (false, false) => CairoNativeMode::Off,
+            (false, true) => {
+                panic!("wait_on_native_compilation must be false when run_cairo_native is false")
+            }
+        };
+
         CairoNativeRunConfig {
-            run_cairo_native: py_cairo_native_run_config.run_cairo_native,
-            wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
+            cairo_native_run_mode,
             channel_size: py_cairo_native_run_config.channel_size,
             panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,
         }
