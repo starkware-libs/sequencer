@@ -147,7 +147,7 @@ impl BuiltProposals {
         finished_info: FinishedProposalInfo,
     ) {
         let proposal_commitment =
-            ProposalCommitment(finished_info.proposal_commitment.partial_block_hash.0);
+            ProposalCommitment(finished_info.proposal_commitment.as_stark_hash());
         self.data
             .entry(*height)
             .or_default()
@@ -438,7 +438,7 @@ impl SequencerConsensusContext {
                 proposal_commitment: commitment,
                 parent_proposal_commitment: central_objects
                     .parent_proposal_commitment
-                    .map(|commitment| ProposalCommitment(commitment.partial_block_hash.0)),
+                    .map(|commitment| ProposalCommitment(commitment.as_stark_hash())),
             })
             .await
         {

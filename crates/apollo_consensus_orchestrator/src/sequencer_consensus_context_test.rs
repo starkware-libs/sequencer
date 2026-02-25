@@ -238,9 +238,9 @@ async fn interrupt_active_proposal() {
         assert!(matches!(input.content, SendProposalContent::Finish(_)));
         Ok(SendProposalContentResponse {
             response: ProposalStatus::Finished(FinishedProposalInfo {
-                proposal_commitment: BatcherProposalCommitment {
-                    partial_block_hash: PARTIAL_BLOCK_HASH,
-                },
+                proposal_commitment: BatcherProposalCommitment::PartialBlockHash(
+                    PARTIAL_BLOCK_HASH,
+                ),
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,

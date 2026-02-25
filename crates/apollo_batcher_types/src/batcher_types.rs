@@ -10,7 +10,9 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::block_hash::block_hash_calculator::{BlockHeaderCommitments, PartialBlockHash};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
@@ -35,10 +37,20 @@ pub struct ProposalId(pub u64);
 
 pub type Round = u32;
 
-/// Commitment identifying a proposed block (its partial block hash).
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
-pub struct ProposalCommitment {
-    pub partial_block_hash: PartialBlockHash,
+/// Commitment identifying a proposed block.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ProposalCommitment {
+    PartialBlockHash(PartialBlockHash),
+    StateDiffCommitment(StateDiffCommitment),
+}
+
+impl ProposalCommitment {
+    pub fn as_stark_hash(&self) -> StarkHash {
+        match self {
+            Self::PartialBlockHash(partial_block_hash) => partial_block_hash.0,
+            Self::StateDiffCommitment(state_diff_commitment) => state_diff_commitment.0.0,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

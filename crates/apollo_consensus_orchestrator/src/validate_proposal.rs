@@ -421,7 +421,7 @@ async fn handle_proposal_part(
                 }
             };
             let batcher_block_commitment =
-                ProposalCommitment(finished_info.proposal_commitment.partial_block_hash.0);
+                ProposalCommitment(finished_info.proposal_commitment.as_stark_hash());
 
             info!(
                 network_block_commitment = ?fin.proposal_commitment,
