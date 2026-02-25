@@ -286,7 +286,7 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
         // NOTE: native_classes_whitelist is ignored here for cross-repo compatibility until the
         // pythonic struct is updated.
-        let cairo_native_run_mode = match (
+        let cairo_native_mode = match (
             py_cairo_native_run_config.run_cairo_native,
             py_cairo_native_run_config.wait_on_native_compilation,
         ) {
@@ -299,7 +299,7 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
         };
 
         CairoNativeRunConfig {
-            cairo_native_run_mode,
+            cairo_native_mode,
             channel_size: py_cairo_native_run_config.channel_size,
             panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,
         }
