@@ -24,7 +24,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::fee_transaction_queue::FeeTransactionQueue;
 use crate::metrics::{
@@ -240,7 +240,7 @@ impl AddTransactionQueue {
 }
 
 pub struct Mempool {
-    config: MempoolConfig,
+    pub(crate) config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
     // Declare transactions that are waiting to be added to the tx pool after a delay.
     delayed_declares: AddTransactionQueue,
@@ -257,17 +257,6 @@ pub struct Mempool {
 
 impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
-        // Select queue type based on deployment_mode.
-        // In Echonet mode, use FIFO queue; otherwise use fee-based priority queue.
-        if matches!(
-            config.static_config.deployment_mode,
-            apollo_deployment_mode::DeploymentMode::Echonet
-        ) {
-            panic!(
-                "FIFO queue is not yet implemented. Echonet deployment mode requires FIFO queue."
-            );
-        }
-
         Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),
@@ -279,13 +268,26 @@ impl Mempool {
         }
     }
 
+    pub(crate) fn is_echonet_mode(&self) -> bool {
+        matches!(
+            self.config.static_config.deployment_mode,
+            apollo_deployment_mode::DeploymentMode::Echonet
+        )
+    }
+
     pub fn get_timestamp(&self) -> UnixTimestamp {
         self.clock.unix_now()
     }
 
-    pub fn update_timestamps(&mut self, mappings: HashMap<TransactionHash, UnixTimestamp>) {
-        // TODO(Ayelet): Add a warning log when called for fee queue mode.
-        self.tx_queue.update_timestamps(mappings);
+    pub(crate) fn update_timestamp(&mut self, tx_hash: TransactionHash, timestamp: UnixTimestamp) {
+        if !self.is_echonet_mode() {
+            debug!(
+                "Update timestamp called for tx {} in non-echonet mode, skipping update.",
+                tx_hash
+            );
+            return;
+        }
+        self.tx_queue.update_timestamp(tx_hash, timestamp);
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their

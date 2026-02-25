@@ -32,6 +32,8 @@ apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 apollo_time = { workspace = true }
 async-trait.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 derive_more = { workspace = true, features = ["deref", "from"] }
 indexmap.workspace = true
@@ -50,6 +52,8 @@ apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 apollo_time = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
+axum.workspace = true
+serde.workspace = true
 blockifier = { workspace = true, features = ["mocks", "testing"] }
 blockifier_test_utils.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }

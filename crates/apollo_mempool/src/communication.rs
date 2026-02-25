@@ -23,6 +23,8 @@ use async_trait::async_trait;
 use starknet_api::block::{GasPrice, UnixTimestamp};
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
+use starknet_api::transaction::TransactionHash;
+use tokio::time::sleep;
 use tracing::warn;
 
 use crate::mempool::Mempool;
@@ -49,6 +51,7 @@ pub struct MempoolCommunicationWrapper {
     mempool: Mempool,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     config_manager_client: SharedConfigManagerClient,
+    http_client: reqwest::Client,
 }
 
 impl MempoolCommunicationWrapper {
@@ -61,6 +64,7 @@ impl MempoolCommunicationWrapper {
             mempool,
             mempool_p2p_propagator_client,
             config_manager_client,
+            http_client: reqwest::Client::new(),
         }
     }
 
@@ -99,13 +103,23 @@ impl MempoolCommunicationWrapper {
         &mut self,
         args_wrapper: AddTransactionArgsWrapper,
     ) -> MempoolResult<()> {
+        if self.mempool.is_echonet_mode() {
+            let tx_hash = args_wrapper.args.tx.tx_hash();
+            if !self.fetch_and_update_timestamp(tx_hash).await {
+                warn!("Failed to fetch timestamp for tx {}, skipping transaction", tx_hash);
+                return Ok(());
+            }
+        }
+
         self.mempool.add_tx(args_wrapper.args.clone())?;
+
         // TODO(AlonH): Verify that only transactions that were added to the mempool are sent.
         if let Err(p2p_client_err) =
             self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await
         {
             warn!("Failed to send transaction to P2P: {:?}", p2p_client_err);
         }
+
         Ok(())
     }
 
@@ -141,6 +155,61 @@ impl MempoolCommunicationWrapper {
 
     fn get_timestamp(&self) -> MempoolResult<UnixTimestamp> {
         Ok(self.mempool.get_timestamp())
+    }
+
+    // Fetches timestamp from recorder and updates mempool.
+    // Returns true if successful, false if failed after all retries.
+    pub(crate) async fn fetch_and_update_timestamp(&mut self, tx_hash: TransactionHash) -> bool {
+        const MAX_RETRIES: usize = 2;
+        const RETRY_DELAY_MS: u64 = 50;
+
+        let recorder_url = &self.mempool.config.static_config.recorder_url;
+        let url = match recorder_url.join(&format!("echonet/get_timestamp?tx_hash={}", tx_hash)) {
+            Ok(url) => url,
+            Err(e) => {
+                warn!("Invalid recorder URL for tx {}: {}", tx_hash, e);
+                return false;
+            }
+        };
+
+        for attempt in 0..MAX_RETRIES {
+            match self.try_fetch_timestamp(&url, attempt).await {
+                Ok(timestamp) => {
+                    self.mempool.update_timestamp(tx_hash, timestamp);
+                    return true;
+                }
+                Err(e) => {
+                    if attempt + 1 >= MAX_RETRIES {
+                        warn!("Failed to fetch timestamp for tx {}: {}", tx_hash, e);
+                        return false;
+                    }
+                    sleep(std::time::Duration::from_millis(RETRY_DELAY_MS)).await;
+                }
+            }
+        }
+
+        false
+    }
+
+    async fn try_fetch_timestamp(
+        &self,
+        url: &reqwest::Url,
+        attempt: usize,
+    ) -> Result<UnixTimestamp, String> {
+        const REQUEST_TIMEOUT_SECS: u64 = 2;
+        let response = self
+            .http_client
+            .get(url.as_str())
+            .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS))
+            .send()
+            .await
+            .map_err(|e| format!("request failed (attempt {}): {}", attempt + 1, e))?;
+
+        if !response.status().is_success() {
+            return Err(format!("HTTP {}", response.status()));
+        }
+
+        response.json::<UnixTimestamp>().await.map_err(|e| format!("invalid response: {}", e))
     }
 }
 

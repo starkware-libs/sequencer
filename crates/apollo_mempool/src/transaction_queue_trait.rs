@@ -47,7 +47,7 @@ pub trait TransactionQueueTrait: Send + Sync {
     }
 
     // Default implementation is a no-op (for queues that don't support timestamp updates).
-    fn update_timestamps(&mut self, _mappings: HashMap<TransactionHash, UnixTimestamp>) {}
+    fn update_timestamp(&mut self, _tx_hash: TransactionHash, _timestamp: UnixTimestamp) {}
 
     // Default implementation returns empty vec.
     #[cfg(test)]
