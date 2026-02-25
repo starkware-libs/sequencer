@@ -1,6 +1,10 @@
 //! JSON-RPC error types for the proving service.
 //!
 //! Error codes follow Starknet RPC specification v0.10.
+//!
+//! When adding a new error type, also update:
+//! - The OpenRPC spec: `resources/proving_api_openrpc.json` (under `components/errors`)
+//! - The spec validation test: `server/rpc_spec_test.rs` (`error_responses_match_spec`)
 
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
