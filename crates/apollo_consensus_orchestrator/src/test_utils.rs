@@ -206,9 +206,9 @@ impl TestDeps {
                 .returning(move |_input| {
                     Ok(GetProposalContentResponse {
                         content: GetProposalContent::Finished(FinishedProposalInfo {
-                            proposal_commitment: ProposalCommitment {
-                                partial_block_hash: PARTIAL_BLOCK_HASH,
-                            },
+                            proposal_commitment: ProposalCommitment::PartialBlockHash(
+                                PARTIAL_BLOCK_HASH,
+                            ),
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,
@@ -270,9 +270,9 @@ impl TestDeps {
                     );
                     Ok(SendProposalContentResponse {
                         response: ProposalStatus::Finished(FinishedProposalInfo {
-                            proposal_commitment: ProposalCommitment {
-                                partial_block_hash: PARTIAL_BLOCK_HASH,
-                            },
+                            proposal_commitment: ProposalCommitment::PartialBlockHash(
+                                PARTIAL_BLOCK_HASH,
+                            ),
                             final_n_executed_txs: args.n_executed_txs_count,
                             block_header_commitments: BlockHeaderCommitments::default(),
                             parent_proposal_commitment: None,

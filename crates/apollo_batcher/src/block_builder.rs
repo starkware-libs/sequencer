@@ -197,12 +197,12 @@ impl BlockExecutionArtifacts {
     }
 
     pub fn commitment(&self) -> ProposalCommitment {
-        ProposalCommitment {
-            partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
+        ProposalCommitment::PartialBlockHash(
+            PartialBlockHash::from_partial_block_hash_components(
                 &self.partial_block_hash_components,
             )
             .expect("Unable to calculate the proposal commitment"),
-        }
+        )
     }
 
     /// Returns the [PartialBlockHashComponents] based on the execution artifacts.

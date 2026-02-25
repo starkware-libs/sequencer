@@ -134,7 +134,9 @@ async fn validate_empty_proposal() {
         assert!(matches!(input.content, SendProposalContent::Finish(_)));
         Ok(SendProposalContentResponse {
             response: ProposalStatus::Finished(FinishedProposalInfo {
-                proposal_commitment: ProposalCommitment::default(),
+                proposal_commitment: ProposalCommitment::PartialBlockHash(
+                    PartialBlockHash::default(),
+                ),
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
                 parent_proposal_commitment: None,
@@ -274,7 +276,7 @@ async fn proposal_fin_mismatch() {
         .returning(move |_| {
             Ok(SendProposalContentResponse {
                 response: ProposalStatus::Finished(FinishedProposalInfo {
-                    proposal_commitment: ProposalCommitment { partial_block_hash: built_block },
+                    proposal_commitment: ProposalCommitment::PartialBlockHash(built_block),
                     final_n_executed_txs: n_executed,
                     block_header_commitments: BlockHeaderCommitments::default(),
                     parent_proposal_commitment: None,

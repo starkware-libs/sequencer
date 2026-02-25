@@ -182,12 +182,10 @@ async fn finished_proposal_info() -> FinishedProposalInfo {
 }
 
 fn parent_proposal_commitment() -> ProposalCommitment {
-    ProposalCommitment {
-        partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
-            &PartialBlockHashComponents::default(),
-        )
+    ProposalCommitment::PartialBlockHash(
+        PartialBlockHash::from_partial_block_hash_components(&PartialBlockHashComponents::default())
         .expect("default partial block hash components are valid"),
-    }
+    )
 }
 
 fn validate_block_input(proposal_id: ProposalId) -> ValidateBlockInput {

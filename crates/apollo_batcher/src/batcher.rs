@@ -70,7 +70,7 @@ use futures::FutureExt;
 use indexmap::{IndexMap, IndexSet};
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::{BlockHash, BlockNumber, UnixTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, StarknetVersion, UnixTimestamp};
 use starknet_api::block_hash::block_hash_calculator::{
     PartialBlockHash,
     PartialBlockHashComponents,
@@ -867,15 +867,14 @@ impl Batcher {
         let proposal_commitment = match &storage_commitment_block_hash {
             StorageCommitmentBlockHash::Partial(components) => Some((
                 height,
-                ProposalCommitment {
-                    partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
-                        components,
-                    )
-                    .map_err(|e| {
-                        error!("Failed to compute partial block hash: {}", e);
-                        BatcherError::InternalError
-                    })?,
-                },
+                ProposalCommitment::PartialBlockHash(
+                    PartialBlockHash::from_partial_block_hash_components(components).map_err(
+                        |e| {
+                            error!("Failed to compute partial block hash: {}", e);
+                            BatcherError::InternalError
+                        },
+                    )?,
+                ),
             )),
             StorageCommitmentBlockHash::ParentHash(_) => None,
         };
@@ -1193,7 +1192,7 @@ impl Batcher {
             }
             None => {
                 // Parent proposal commitment is not cached. Read partial block hash
-                // components from storage and compute the partial block hash.
+                // components from storage and compute the parent proposal commitment.
                 let (_, components) = self
                     .storage_reader
                     .get_parent_hash_and_partial_block_hash_components(prev_height)
@@ -1208,15 +1207,24 @@ impl Batcher {
                 let components =
                     components.expect("Missing partial block hash components for previous height.");
 
-                Ok(Some(ProposalCommitment {
-                    partial_block_hash: PartialBlockHash::from_partial_block_hash_components(
-                        &components,
-                    )
-                    .map_err(|e| {
-                        error!("Failed to compute partial block hash: {}", e);
-                        BatcherError::InternalError
-                    })?,
-                }))
+                // Backward compatibility: for the first block in Starknet v0.14.2, its parent
+                // proposal commitment is still the state diff commitment.
+                let parent_proposal_commitment =
+                    if components.starknet_version == StarknetVersion::V0_14_1 {
+                        ProposalCommitment::StateDiffCommitment(
+                            components.header_commitments.state_diff_commitment,
+                        )
+                    } else {
+                        ProposalCommitment::PartialBlockHash(
+                            PartialBlockHash::from_partial_block_hash_components(&components)
+                                .map_err(|e| {
+                                    error!("Failed to compute partial block hash: {}", e);
+                                    BatcherError::InternalError
+                                })?,
+                        )
+                    };
+
+                Ok(Some(parent_proposal_commitment))
             }
         }
     }

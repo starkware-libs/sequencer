@@ -264,7 +264,7 @@ async fn get_proposal_content(
             }
             GetProposalContent::Finished(info) => {
                 let proposal_commitment =
-                    ProposalCommitment(info.proposal_commitment.partial_block_hash.0);
+                    ProposalCommitment(info.proposal_commitment.as_stark_hash());
                 content = truncate_to_executed_txs(&mut content, info.final_n_executed_txs);
 
                 info!(
