@@ -100,7 +100,7 @@ use crate::utils::{
 /// must be updated.
 pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
     r#"
-    0x4a058b5cfd03175ed4bf39ef9613319c8ffaa0380e0ec4c27b5ab76c642ed54
+    0x1d9267d6952e9d1fc449d4b2f91b439b65b48365294b9c0731a9faf578e1b14
 "#
 ];
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {

@@ -540,6 +540,11 @@ impl FeatureContract {
                     Self::Experimental => {
                         LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
                     }
+                    // Old compiler binaries can't parse version objects in
+                    // allowed_libfuncs.json.
+                    Self::LegacyTestContract | Self::CairoStepsTestContract => {
+                        LibfuncArg::ListName("all".to_string())
+                    }
                     _ => LibfuncArg::ListFile(allowed_libfuncs_json_path()),
                 };
                 cairo1_compile(self.get_source_path(), self.fixed_version(), libfunc_list_arg)
