@@ -1212,12 +1212,12 @@ async fn test_experimental_libfuncs_contract(#[values(true, false)] use_kzg_da: 
     let poseidons = test_output.get_builtin_usage(&BuiltinName::poseidon);
     if use_kzg_da {
         expect![[r#"
-            64
+            65
         "#]]
         .assert_debug_eq(&poseidons);
     } else {
         expect![[r#"
-            55
+            56
         "#]]
         .assert_debug_eq(&poseidons);
     }
