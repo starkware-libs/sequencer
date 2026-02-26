@@ -81,7 +81,7 @@ impl MonitoringClient {
                     .await
             },
             |response_result| {
-                response_result.as_ref().map(|res| res.status().is_success()).unwrap_or(false)
+                response_result.as_ref().map_or(false, |res| res.status().is_success())
             },
             Some(logger),
         )

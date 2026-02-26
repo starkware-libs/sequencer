@@ -288,8 +288,7 @@ impl<ContextT: ConsensusContext> ConsensusCache<ContextT> {
     }
 
     fn report_cached_votes_metric(&self, height: BlockNumber) {
-        let cached_votes_count =
-            self.future_votes.get(&height).map(|votes| votes.len()).unwrap_or(0);
+        let cached_votes_count = self.future_votes.get(&height).map_or(0, |votes| votes.len());
         CONSENSUS_CACHED_VOTES.set_lossy(cached_votes_count);
     }
 
