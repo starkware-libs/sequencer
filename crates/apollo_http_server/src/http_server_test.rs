@@ -49,8 +49,6 @@ const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_RESPONSE_JSON_PATH: &str =
 
 const EXPECTED_TX_HASH: TransactionHash = TransactionHash(Felt::ONE);
 
-// TODO(Tsabary): find a better way to allocate different ports to different tests.
-
 // The http_server is oblivious to the GateWayOutput type, so we always return invoke.
 fn default_gateway_output() -> GatewayOutput {
     GatewayOutput::Invoke(InvokeGatewayOutput::new(EXPECTED_TX_HASH))
