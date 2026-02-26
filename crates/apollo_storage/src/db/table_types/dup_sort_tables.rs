@@ -377,6 +377,12 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
     }
 }
 
+fn decode_cursor_result<K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortUtils<K, V>>(
+    raw: Option<(DbKeyType<'_>, DbValueType<'_>)>,
+) -> DbResult<Option<(K, <V as ValueSerde>::Value)>> {
+    Ok(raw.and_then(|(main_key, sub_key_value)| T::get_key_value_pair(&main_key, &sub_key_value)))
+}
+
 impl<
     Mode: TransactionKind,
     K: KeyTrait + Debug,
@@ -400,9 +406,7 @@ impl<
                 self.cursor.first::<DbKeyType<'_>, DbValueType<'_>>()?;
                 Ok(None)
             }
-            Some((main_key_bytes, sub_key_value_bytes)) => {
-                Ok(T::get_key_value_pair(&main_key_bytes, &sub_key_value_bytes))
-            }
+            some => decode_cursor_result::<K, V, T>(some),
         }
     }
 
@@ -412,9 +416,7 @@ impl<
                 self.cursor.last::<DbKeyType<'_>, DbValueType<'_>>()?;
                 Ok(None)
             }
-            Some((main_key_bytes, sub_key_value_bytes)) => {
-                Ok(T::get_key_value_pair(&main_key_bytes, &sub_key_value_bytes))
-            }
+            some => decode_cursor_result::<K, V, T>(some),
         }
     }
 

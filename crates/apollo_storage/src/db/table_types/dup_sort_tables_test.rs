@@ -84,8 +84,7 @@ fn raw_mdbx_cursor_boundary_behavior() {
         ((main_key, sub_key), value)
     }
 
-    let (reader, simple_table_id, common_prefix_table_id, _temp_dir) =
-        setup_boundary_test_tables();
+    let (reader, simple_table_id, common_prefix_table_id, _temp_dir) = setup_boundary_test_tables();
 
     let rtxn = reader.begin_ro_txn().unwrap();
     let simple_table = rtxn.open_table(&simple_table_id).unwrap();
@@ -145,10 +144,7 @@ fn raw_mdbx_cursor_boundary_behavior() {
         simple_raw.set_range::<Cow<'_, [u8]>, Cow<'_, [u8]>>(&past_key_simple).unwrap().is_none()
     );
     assert!(
-        dupsort_raw
-            .set_range::<Cow<'_, [u8]>, Cow<'_, [u8]>>(&past_key_dupsort)
-            .unwrap()
-            .is_none()
+        dupsort_raw.set_range::<Cow<'_, [u8]>, Cow<'_, [u8]>>(&past_key_dupsort).unwrap().is_none()
     );
 
     // Both return last entry from prev() after set_range NOTFOUND.
@@ -220,8 +216,7 @@ fn raw_mdbx_cursor_boundary_behavior() {
 /// produce the same observable behavior as the SimpleTable (non-DUP_SORT) wrapper.
 #[test]
 fn compensated_dupsort_matches_simple() {
-    let (reader, simple_table_id, common_prefix_table_id, _temp_dir) =
-        setup_boundary_test_tables();
+    let (reader, simple_table_id, common_prefix_table_id, _temp_dir) = setup_boundary_test_tables();
 
     let rtxn = reader.begin_ro_txn().unwrap();
     let simple_table = rtxn.open_table(&simple_table_id).unwrap();
