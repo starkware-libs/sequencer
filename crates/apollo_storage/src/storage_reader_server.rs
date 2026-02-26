@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
+use std::error::Error;
+use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io;
 use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -76,6 +79,30 @@ impl SerializeConfig for StorageReaderServerDynamicConfig {
     }
 }
 
+/// Error returned by [`DynamicConfigProvider`] implementations.
+#[derive(Debug)]
+pub struct DynamicConfigError(pub String);
+
+impl Display for DynamicConfigError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "DynamicConfigError: {}", self.0)
+    }
+}
+
+impl Error for DynamicConfigError {}
+
+/// Provides the current dynamic configuration for the storage reader server.
+#[async_trait]
+pub trait DynamicConfigProvider: Send + Sync {
+    /// Fetches the latest dynamic configuration.
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError>;
+}
+
+/// Thread-safe shared reference to a [`DynamicConfigProvider`].
+pub type SharedDynamicConfigProvider = Arc<dyn DynamicConfigProvider>;
+
 /// Configuration for the storage reader server (wrapper of static + dynamic).
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Validate)]
 pub struct ServerConfig {
@@ -146,7 +173,7 @@ where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
 {
     storage_reader: StorageReader,
-    enabled: bool,
+    dynamic_config_provider: SharedDynamicConfigProvider,
     _phantom: PhantomData<(RequestHandler, Request, Response)>,
 }
 
@@ -157,7 +184,7 @@ where
     fn clone(&self) -> Self {
         Self {
             storage_reader: self.storage_reader.clone(),
-            enabled: self.enabled,
+            dynamic_config_provider: self.dynamic_config_provider.clone(),
             _phantom: PhantomData,
         }
     }
@@ -170,9 +197,12 @@ where
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
     /// Creates a new storage reader server with the given handler and configuration.
-    pub fn new(storage_reader: StorageReader, config: ServerConfig) -> Self {
-        let enabled = config.is_enabled();
-        let app_state = AppState { storage_reader, enabled, _phantom: PhantomData };
+    pub fn new(
+        storage_reader: StorageReader,
+        config: ServerConfig,
+        dynamic_config_provider: SharedDynamicConfigProvider,
+    ) -> Self {
+        let app_state = AppState { storage_reader, dynamic_config_provider, _phantom: PhantomData };
         Self { app_state, config }
     }
 
@@ -227,7 +257,7 @@ where
     {
         tokio::spawn(async move {
             if let Err(e) = self.run().await {
-                tracing::error!("Storage reader server error: {:?}", e);
+                error!("Storage reader server error: {:?}", e);
             }
         })
         .abort_handle()
@@ -244,7 +274,9 @@ where
     Request: Send + Sync + 'static,
     Response: Send + Sync + 'static,
 {
-    if !app_state.enabled {
+    let dynamic_config =
+        app_state.dynamic_config_provider.get_storage_reader_dynamic_config().await?;
+    if !dynamic_config.enable {
         return Err(StorageServerError::Disabled);
     }
 
@@ -258,11 +290,18 @@ where
 enum StorageServerError {
     Storage(StorageError),
     Disabled,
+    DynamicConfig(DynamicConfigError),
 }
 
 impl From<StorageError> for StorageServerError {
     fn from(error: StorageError) -> Self {
         StorageServerError::Storage(error)
+    }
+}
+
+impl From<DynamicConfigError> for StorageServerError {
+    fn from(error: DynamicConfigError) -> Self {
+        StorageServerError::DynamicConfig(error)
     }
 }
 
@@ -278,6 +317,11 @@ impl IntoResponse for StorageServerError {
                 error!("{}", error_message);
                 (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
             }
+            StorageServerError::DynamicConfig(e) => {
+                let error_message = format!("Dynamic config error: {}", e);
+                error!("{}", error_message);
+                (StatusCode::INTERNAL_SERVER_ERROR, error_message).into_response()
+            }
         }
     }
 }
@@ -287,11 +331,12 @@ impl IntoResponse for StorageServerError {
 pub fn create_storage_reader_server<RequestHandler, Request, Response>(
     storage_reader: StorageReader,
     storage_reader_server_config: ServerConfig,
+    dynamic_config_provider: SharedDynamicConfigProvider,
 ) -> StorageReaderServer<RequestHandler, Request, Response>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    StorageReaderServer::new(storage_reader, storage_reader_server_config)
+    StorageReaderServer::new(storage_reader, storage_reader_server_config, dynamic_config_provider)
 }
