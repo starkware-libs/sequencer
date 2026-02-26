@@ -265,10 +265,6 @@ impl DbReader {
 type DbReadTransaction<'env> = DbTransaction<'env, RO>;
 
 impl DbWriter {
-    pub(crate) fn begin_rw_txn(&mut self) -> DbResult<DbWriteTransaction<'_>> {
-        Ok(DbWriteTransaction { txn: self.env.begin_rw_txn()? })
-    }
-
     /// Creates a persistent write transaction that can be stored in structs without lifetime
     /// constraints.
     ///
@@ -285,7 +281,6 @@ impl DbWriter {
     /// enforced at a higher level — `DbWriter` lives inside `SharedState` which is wrapped in a
     /// `Mutex`. Only one caller can hold the `MutexGuard` at a time, so only one persistent
     /// transaction can be created at a time.
-    #[allow(dead_code)]
     pub(crate) fn begin_persistent_rw_txn(&self) -> DbResult<OwnedDbWriteTransaction> {
         let env = self.env.clone();
         let db_txn = DbWriteTransaction { txn: env.begin_rw_txn()? };
@@ -311,7 +306,6 @@ pub(crate) type DbWriteTransaction<'env> = DbTransaction<'env, RW>;
 /// Drop order:
 /// Fields are dropped in declaration order: `txn` is dropped before `env`.
 /// This ensures the transaction is properly closed before the Arc reference count is decremented.
-#[allow(dead_code)]
 pub(crate) struct OwnedDbWriteTransaction {
     // Private to prevent partial moves that would drop `env` while `txn` (carrying a transmuted
     // 'static lifetime) is still live, violating the safety invariant that `env` outlives `txn`.
@@ -319,9 +313,11 @@ pub(crate) struct OwnedDbWriteTransaction {
     // Keep the Arc alive to ensure the environment isn't dropped while the transaction exists.
     // This must be declared after `txn` to ensure correct drop order.
     _env: Arc<Environment>,
+    // TODO(Dean): Make this type !Send + !Sync to prevent crossing thread boundaries once we
+    // finalize the batching architecture. MDBX transactions are not thread-safe and should not
+    // be sent between threads. Add: _not_send_sync: PhantomData<Rc<()>>
 }
 
-#[allow(dead_code)]
 impl OwnedDbWriteTransaction {
     /// Returns a reference to the underlying write transaction.
     pub(crate) fn txn(&self) -> &DbWriteTransaction<'_> {
