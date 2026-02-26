@@ -785,7 +785,7 @@
           "description": "Estimated time to complete syncing to the latest block (based on a 10m window rate).\nThe value is computed from the sync rate of the `committer offset` (the next block to commit, representing the current committed state), compared against the `central block marker` (the latest block known to central).",
           "type": "timeseries",
           "exprs": [
-            "(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) / clamp_min(rate(committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) - rate(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]), 1)"
+            "(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} - on (namespace) committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}) / clamp_min(rate(committer_offset{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]) - on (namespace) rate(apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m]), 1)"
           ],
           "extra_params": {
             "unit": "s"

@@ -77,8 +77,9 @@ fn get_panel_time_to_complete_sync() -> Panel {
             DEFAULT_DURATION
         ),
         format!(
-            "({target_total} - {committer_offset}) / clamp_min(rate({committer_offset}[{d}]) - \
-             rate({target_total}[{d}]), 1)",
+            "({target_total} - on (namespace) {committer_offset}) / \
+             clamp_min(rate({committer_offset}[{d}]) - on (namespace) rate({target_total}[{d}]), \
+             1)",
             target_total = CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
             committer_offset = COMMITTER_OFFSET.get_name_with_filter(),
             d = DEFAULT_DURATION
