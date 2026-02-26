@@ -34,7 +34,9 @@ async fn main() -> anyhow::Result<()> {
         .expect("Failed to load and validate config");
 
     // Clients are currently unused, but should not be dropped.
-    let (_clients, servers) = create_node_modules(&config, prometheus_handle, cli_args).await;
+    // Production node doesn't use bootstrap transactions - they're only for integration tests.
+    let (_clients, servers) =
+        create_node_modules(&config, prometheus_handle, cli_args, vec![]).await;
 
     info!("START_UP: Starting components!");
     tokio::select! {

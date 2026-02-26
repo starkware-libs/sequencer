@@ -199,6 +199,31 @@
     "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
     "privacy": "Public"
   },
+  "batcher_config.static_config.bootstrap_config.enable_bootstrap_mode": {
+    "description": "When true, the node will automatically enter bootstrap mode if storage is empty.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.static_config.bootstrap_config.eth_fee_token_address": {
+    "description": "The ETH fee token address for balance checking.",
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
+  },
+  "batcher_config.static_config.bootstrap_config.funded_account_address": {
+    "description": "The address of the account that will be funded during bootstrap. Bootstrap mode will exit when this account has sufficient balance.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.static_config.bootstrap_config.required_balance": {
+    "description": "The minimum balance (in both ETH and STRK) required to exit bootstrap mode.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "batcher_config.static_config.bootstrap_config.strk_fee_token_address": {
+    "description": "The STRK fee token address for balance checking.",
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
+  },
   "batcher_config.static_config.commitment_manager_config.panic_if_task_channel_full": {
     "description": "If the task channel is full: if true, will panic. If false, will wait for the tasks channel to be available.",
     "privacy": "Public",
@@ -398,6 +423,31 @@
     "description": "The port for the storage reader HTTP server.",
     "privacy": "Public",
     "value": 8091
+  },
+  "bootstrap_config.enable_bootstrap_mode": {
+    "description": "When true, the node will automatically enter bootstrap mode if storage is empty.",
+    "privacy": "Public",
+    "value": false
+  },
+  "bootstrap_config.eth_fee_token_address": {
+    "description": "The ETH fee token address for balance checking.",
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
+  },
+  "bootstrap_config.funded_account_address": {
+    "description": "The address of the account that will be funded during bootstrap. Bootstrap mode will exit when this account has sufficient balance.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "bootstrap_config.required_balance": {
+    "description": "The minimum balance (in both ETH and STRK) required to exit bootstrap mode.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "bootstrap_config.strk_fee_token_address": {
+    "description": "The STRK fee token address for balance checking.",
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
   },
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",

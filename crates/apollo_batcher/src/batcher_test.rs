@@ -68,6 +68,7 @@ use crate::batcher::{
     Batcher,
     BatcherStorageReader,
     BatcherStorageWriter,
+    BootstrapState,
     MockBatcherStorageReader,
     MockBatcherStorageWriter,
     StorageCommitmentBlockHash,
@@ -270,6 +271,8 @@ async fn create_batcher_impl<R: BatcherStorageReader + 'static>(
         Box::new(clients.pre_confirmed_block_writer_factory),
         commitment_manager,
         None,
+        BootstrapState::Disabled,
+        vec![],
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;
