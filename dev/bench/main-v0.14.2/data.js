@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772094032312,
+  "lastUpdate": 1772103023075,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1393,6 +1393,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1247.35387596,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b5f379dc2fc52e60b15c1b84b29707476b39844",
+          "message": "workspace: remove strum_macro direct dependency (#12874)",
+          "timestamp": "2026-02-26T10:29:44Z",
+          "tree_id": "a1648f835685987d9bd7a17064cc7f2f205e05d4",
+          "url": "https://github.com/starkware-libs/sequencer/commit/2b5f379dc2fc52e60b15c1b84b29707476b39844"
+        },
+        "date": 1772103022735,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 816.02622116,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1278.50218264,
             "unit": "ms"
           }
         ]
