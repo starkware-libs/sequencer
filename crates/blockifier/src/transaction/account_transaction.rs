@@ -238,6 +238,7 @@ impl AccountTransaction {
     fn validate_proof_block_number(
         proof_block_number: u64,
         current_block_number: BlockNumber,
+        os_constants: &OsConstants,
     ) -> TransactionPreValidationResult<()> {
         // Proof block must be old enough to have a stored block hash.
         // Stored block hashes are guaranteed only up to: current - STORED_BLOCK_HASH_BUFFER.
@@ -253,6 +254,16 @@ impl AccountTransaction {
             return Err(TransactionPreValidationError::InvalidProofFacts(format!(
                 "The proof block number {proof_block_number} is too recent. The maximum allowed \
                  block number is {max_allowed}."
+            )));
+        }
+
+        // Proof block must not be too old.
+        let current_difference = current_block_number.0 - proof_block_number;
+        if current_difference > os_constants.max_proving_blocks_behind {
+            return Err(TransactionPreValidationError::InvalidProofFacts(format!(
+                "The difference between the current block number and the proof block number \
+                 ({current_difference}) exceeds the maximum allowed ({}).",
+                os_constants.max_proving_blocks_behind
             )));
         }
 
@@ -326,6 +337,7 @@ impl AccountTransaction {
         Self::validate_proof_block_number(
             proof_block_number,
             block_context.block_info.block_number,
+            os_constants,
         )?;
         Self::validate_proof_block_hash(proof_block_hash, proof_block_number, os_constants, state)?;
 
