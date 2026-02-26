@@ -1,7 +1,7 @@
 //! Interface for handling data related to Starknet [classes (Cairo 1)](https://docs.rs/starknet_api/latest/starknet_api/state/struct.ContractClass.html) and [deprecated classes (Cairo 0)](https://docs.rs/starknet_api/latest/starknet_api/deprecated_contract_class/struct.ContractClass.html).
 //!
 //! Import [`ClassStorageReader`] and [`ClassStorageWriter`] to read and write data related to
-//! classes using a [`StorageTxn`].
+//! classes using a `StorageTxn`.
 //!
 //! Note that the written classes' hashes should be the same as those declared in the block's state
 //! diff and deploy transactions (now depreacted). This is not validated but breaking this will
@@ -75,7 +75,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::SierraContractClass;
 
 use crate::db::table_types::Table;
-use crate::db::{TransactionKind, RW};
+use crate::db::RW;
 use crate::mmap_file::LocationInFile;
 use crate::state::{DeclaredClassesTable, DeprecatedDeclaredClassesTable, FileOffsetTable};
 use crate::{
@@ -86,7 +86,7 @@ use crate::{
     OffsetKind,
     StorageError,
     StorageResult,
-    StorageTxn,
+    StorageTransaction,
 };
 
 /// Interface for reading data related to classes or deprecated classes.
@@ -150,8 +150,7 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
-    // TODO(Nadin): Consider moving the function to the general impl StorageTxn<'_, Mode> block.
+impl<T: StorageTransaction> ClassStorageReader for T {
     fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>> {
         let contract_class_location = self.get_class_location(class_hash)?;
         contract_class_location.map(|location| self.get_class_from_location(location)).transpose()
@@ -161,15 +160,15 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         &self,
         class_hash: &ClassHash,
     ) -> StorageResult<Option<crate::LocationInFile>> {
-        let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
-        Ok(declared_classes_table.get(&self.txn, class_hash)?)
+        let declared_classes_table = self.open_table(&self.tables().declared_classes)?;
+        Ok(declared_classes_table.get(self.txn(), class_hash)?)
     }
 
     fn get_class_from_location(
         &self,
         location: crate::LocationInFile,
     ) -> StorageResult<SierraContractClass> {
-        self.file_handlers.get_contract_class_unchecked(location)
+        self.file_handlers().get_contract_class_unchecked(location)
     }
 
     fn get_deprecated_class(
@@ -187,9 +186,9 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         class_hash: &ClassHash,
     ) -> StorageResult<Option<LocationInFile>> {
         let deprecated_declared_classes_table =
-            self.open_table(&self.tables.deprecated_declared_classes)?;
+            self.open_table(&self.tables().deprecated_declared_classes)?;
         let deprecated_contract_class_location =
-            deprecated_declared_classes_table.get(&self.txn, class_hash)?;
+            deprecated_declared_classes_table.get(self.txn(), class_hash)?;
         Ok(deprecated_contract_class_location.map(|value| value.location_in_file))
     }
 
@@ -197,16 +196,16 @@ impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
         &self,
         location: LocationInFile,
     ) -> StorageResult<DeprecatedContractClass> {
-        self.file_handlers.get_deprecated_contract_class_unchecked(location)
+        self.file_handlers().get_deprecated_contract_class_unchecked(location)
     }
 
     fn get_class_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        Ok(markers_table.get(&self.txn, &MarkerKind::Class)?.unwrap_or_default())
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default())
     }
 }
 
-impl ClassStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW>> ClassStorageWriter for T {
     #[latency_histogram("storage_append_classes_latency_seconds", false)]
     fn append_classes(
         self,
@@ -214,14 +213,14 @@ impl ClassStorageWriter for StorageTxn<'_, RW> {
         classes: &[(ClassHash, &SierraContractClass)],
         deprecated_classes: &[(ClassHash, &DeprecatedContractClass)],
     ) -> StorageResult<Self> {
-        let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
+        let declared_classes_table = self.open_table(&self.tables().declared_classes)?;
         let deprecated_declared_classes_table =
-            self.open_table(&self.tables.deprecated_declared_classes)?;
-        let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
-        let markers_table = self.open_table(&self.tables.markers)?;
+            self.open_table(&self.tables().deprecated_declared_classes)?;
+        let file_offset_table = self.txn().open_table(&self.tables().file_offsets)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
 
         let marker_block_number =
-            markers_table.get(&self.txn, &MarkerKind::Class)?.unwrap_or_default();
+            markers_table.get(self.txn(), &MarkerKind::Class)?.unwrap_or_default();
         if block_number != marker_block_number {
             return Err(StorageError::MarkerMismatch {
                 expected: marker_block_number,
@@ -231,22 +230,22 @@ impl ClassStorageWriter for StorageTxn<'_, RW> {
 
         write_classes(
             classes,
-            &self.txn,
+            self.txn(),
             &declared_classes_table,
-            &self.file_handlers,
+            self.file_handlers(),
             &file_offset_table,
         )?;
 
         write_deprecated_classes(
             deprecated_classes,
-            &self.txn,
+            self.txn(),
             block_number,
             &deprecated_declared_classes_table,
-            &self.file_handlers,
+            self.file_handlers(),
             &file_offset_table,
         )?;
 
-        markers_table.upsert(&self.txn, &MarkerKind::Class, &block_number.unchecked_next())?;
+        markers_table.upsert(self.txn(), &MarkerKind::Class, &block_number.unchecked_next())?;
 
         Ok(self)
     }
