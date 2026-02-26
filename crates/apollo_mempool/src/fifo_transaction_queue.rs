@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use indexmap::IndexSet;
 use starknet_api::block::{GasPrice, UnixTimestamp};
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::TransactionHash;
 use tracing::debug;
 
@@ -148,9 +148,53 @@ impl TransactionQueueTrait for FifoTransactionQueue {
         rewind_data: crate::transaction_queue_trait::RewindData<'_>,
     ) -> IndexSet<TransactionHash> {
         // Extract FIFO-specific data
-        let RewindData::Fifo { staged_tx_refs, committed_nonces, rejected_tx_hashes } = rewind_data
-        else {
-            panic!("FifoTransactionQueue received wrong RewindData variant");
+        let (staged_tx_refs, committed_nonces, rejected_tx_hashes) = match rewind_data {
+            RewindData::Fifo { staged_tx_refs, committed_nonces, rejected_tx_hashes } => {
+                (staged_tx_refs, committed_nonces, rejected_tx_hashes)
+            }
+            RewindData::FeePriority { .. } => {
+                panic!("FifoTransactionQueue received FeePriority data instead of Fifo data")
+            }
+        };
+
+        let should_rewind_address = |txs: &[&TransactionReference],
+                                     committed_nonce: Option<&Nonce>,
+                                     rejected_tx_hashes: &IndexSet<TransactionHash>|
+         -> bool {
+            if let Some(&nonce) = committed_nonce {
+                // Address has committed transactions: find the tx at committed_nonce (the
+                // "following" tx).
+                // - If following tx doesn't exist → rewind (gap: committed some, didn't stage next)
+                // - If following tx is rejected → don't rewind (entire chain rejected, drop all)
+                // - If following tx is not rejected → rewind (will retry non-committed txs)
+                txs.iter()
+                    .find(|tx| tx.nonce == nonce)
+                    .is_none_or(|following_tx| !rejected_tx_hashes.contains(&following_tx.tx_hash))
+            } else {
+                // Address has NO committed transactions: find the first tx (lowest nonce).
+                // - If first tx is rejected → don't rewind (chain head rejected, drop all)
+                // - If first tx is not rejected → rewind (will retry all txs)
+                let first_tx = txs
+                    .iter()
+                    .min_by_key(|tx| tx.nonce)
+                    .expect("staged_by_address entry must have at least one transaction");
+                !rejected_tx_hashes.contains(&first_tx.tx_hash)
+            }
+        };
+
+        let mut rewind_tx = |tx_ref: TransactionReference| {
+            let tx_hash = tx_ref.tx_hash;
+            let timestamp = *self
+                .hash_to_timestamp
+                .get(&tx_hash)
+                .expect("Rewound transaction must have a timestamp already set");
+            debug!(
+                "FIFO rewind: tx_hash={}, timestamp={}, queue_before={:?}",
+                tx_hash, timestamp, self.queue
+            );
+            // Add to FRONT of queue so rewound txs are processed before new txs.
+            self.queue.push_front(tx_hash);
+            self.hash_to_tx.insert(tx_hash, tx_ref);
         };
 
         // Group staged transactions by address
@@ -160,83 +204,36 @@ impl TransactionQueueTrait for FifoTransactionQueue {
                 acc
             });
 
+        // First pass: Determine which addresses should have their non-committed txs rewound.
+        let addresses_to_rewind: HashSet<ContractAddress> = staged_by_address
+            .iter()
+            .filter(|(&address, txs)| {
+                should_rewind_address(txs, committed_nonces.get(&address), rejected_tx_hashes)
+            })
+            .map(|(&address, _)| address)
+            .collect();
+
+        // Second pass: Rewind non-committed transactions for selected addresses.
+        // We iterate in reverse to maintain FIFO order when pushing to front of queue.
         let mut rewound_hashes = IndexSet::new();
-        let mut addresses_to_rewind = HashSet::new();
-
-        // First pass: Determine which addresses should have transactions rewound
-        for (address, txs) in &staged_by_address {
-            if let Some(&committed_nonce) = committed_nonces.get(address) {
-                // Address has committed transactions - check if the following tx is rejected
-                let following_tx = txs.iter().find(|tx| tx.nonce == committed_nonce);
-
-                match following_tx {
-                    Some(following_tx_ref) => {
-                        // Following tx exists - check if it's rejected
-                        if rejected_tx_hashes.contains(&following_tx_ref.tx_hash) {
-                            // Following tx is rejected - don't rewind any transactions for this
-                            // address
-                            continue;
-                        }
-                        // Following tx is not rejected - rewind all non-committed txs
-                        addresses_to_rewind.insert(*address);
-                    }
-                    None => {
-                        // Following tx doesn't exist - rewind all non-committed txs
-                        addresses_to_rewind.insert(*address);
-                    }
-                }
-            } else {
-                // Address has no committed transactions (was staged but NOT committed)
-                // Find the first tx (lowest nonce) for this address
-                if let Some(first_tx) = txs.iter().min_by_key(|tx| tx.nonce) {
-                    // If the first tx is rejected, don't rewind anything
-                    if rejected_tx_hashes.contains(&first_tx.tx_hash) {
-                        continue;
-                    }
-                }
-                // First tx is not rejected (or doesn't exist) - rewind all transactions
-                addresses_to_rewind.insert(*address);
-            }
-        }
-
-        // Second pass: Rewind transactions from addresses that need rewinding
-        // Rewind all non-committed transactions (including rejected ones if address is being
-        // rewound)
-        // Track which transactions we've already rewound to prevent duplicates
-        let mut already_rewound: HashSet<TransactionHash> = HashSet::new();
 
         for tx_ref in staged_tx_refs.iter().rev() {
-            let address_needs_rewind = addresses_to_rewind.contains(&tx_ref.address);
-            if !address_needs_rewind {
+            // Skip if address doesn't need rewinding
+            if !addresses_to_rewind.contains(&tx_ref.address) {
                 continue;
             }
 
-            // Check if this transaction was committed
+            // Skip if transaction was committed (tx_ref.nonce < committed_nonce for this address).
+            // Committed txs were already removed from tx_pool, so we don't rewind them.
             let is_committed =
                 committed_nonces.get(&tx_ref.address).is_some_and(|&cn| tx_ref.nonce < cn);
-
-            if !is_committed && !already_rewound.contains(&tx_ref.tx_hash) {
-                let tx_hash = tx_ref.tx_hash;
-
-                // Timestamp must already exist for rewound transactions
-                let timestamp = *self
-                    .hash_to_timestamp
-                    .get(&tx_hash)
-                    .expect("Rewound transaction must have a timestamp already set");
-
-                debug!(
-                    "FIFO rewind: tx_hash={}, timestamp={}, queue_before={:?}",
-                    tx_hash, timestamp, self.queue
-                );
-
-                // Add transaction to FRONT of queue (ensures rewound txs are processed before new
-                // txs)
-                self.queue.push_front(tx_hash);
-                self.hash_to_tx.insert(tx_hash, *tx_ref);
-
-                rewound_hashes.insert(tx_ref.tx_hash);
-                already_rewound.insert(tx_ref.tx_hash);
+            if is_committed {
+                continue;
             }
+
+            // Track rewound transaction hash.
+            rewound_hashes.insert(tx_ref.tx_hash);
+            rewind_tx(*tx_ref);
         }
 
         rewound_hashes

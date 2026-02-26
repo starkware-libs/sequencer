@@ -364,21 +364,24 @@ impl Mempool {
             let (valid_txs, expired_txs_updates) = self.prune_expired_nonqueued_txs(chunk);
             account_nonce_updates.extend(expired_txs_updates);
 
-            // All transactions are enqueued in FIFO mode.
+            // In FIFO mode, all transactions are already enqueued. In fee-priority mode,
+            // we need to enqueue the next eligible transaction for each address.
             if !self.is_fifo() {
                 self.enqueue_next_eligible_txs(&valid_txs)?;
             }
+
             n_remaining_txs -= valid_txs.len();
             eligible_tx_references.extend(valid_txs);
         }
 
-        // Update the mempool state with the given transactions' nonces and store for FIFO queue
-        // rewind.
+        // Update the mempool state with the given transactions' nonces.
         for tx_reference in &eligible_tx_references {
             self.state.stage(tx_reference)?;
-            if self.is_fifo() {
-                self.staged_tx_refs.push(*tx_reference);
-            }
+        }
+
+        // Store staged transactions for FIFO rewind logic.
+        if self.is_fifo() {
+            self.staged_tx_refs.extend(eligible_tx_references.iter().copied());
         }
 
         let n_returned_txs = eligible_tx_references.len();

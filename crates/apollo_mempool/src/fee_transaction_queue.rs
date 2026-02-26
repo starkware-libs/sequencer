@@ -130,9 +130,13 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         rewind_data: crate::transaction_queue_trait::RewindData<'_>,
     ) -> indexmap::IndexSet<TransactionHash> {
         // Extract fee-priority specific data
-        let RewindData::FeePriority { next_txs_by_address, validate_resource_bounds } = rewind_data
-        else {
-            panic!("FeeTransactionQueue received wrong RewindData variant");
+        let (next_txs_by_address, validate_resource_bounds) = match rewind_data {
+            RewindData::FeePriority { next_txs_by_address, validate_resource_bounds } => {
+                (next_txs_by_address, validate_resource_bounds)
+            }
+            RewindData::Fifo { .. } => {
+                panic!("FeeTransactionQueue received Fifo data instead of FeePriority data")
+            }
         };
 
         // Rewind by re-inserting the next transaction for each address.
