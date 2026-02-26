@@ -7,7 +7,7 @@ use rstest::{fixture, rstest};
 
 use crate::types::ShardSignatureVerificationError;
 use crate::{
-    Channel,
+    Committee,
     MerkleTree,
     MessageRoot,
     PropellerScheduleManager,
@@ -18,7 +18,7 @@ use crate::{
 };
 
 struct TestEnv {
-    channel: Channel,
+    committee: Committee,
     message_root: MessageRoot,
     signature: Vec<u8>,
     validator: UnitValidator,
@@ -34,7 +34,7 @@ const SHARD_DATA: [u8; 3] = [1, 2, 3];
 #[fixture]
 fn env() -> TestEnv {
     const NUM_PEERS: usize = 5;
-    const CHANNEL: Channel = Channel(1);
+    const COMMITTEE: Committee = Committee(1);
     let keypair = Keypair::generate_ed25519();
     let publisher = PeerId::from(keypair.public());
     let local_peer = PeerId::random();
@@ -59,11 +59,11 @@ fn env() -> TestEnv {
     let message_root = MessageRoot(merkle_tree.root().unwrap());
 
     let validator =
-        UnitValidator::new(CHANNEL, publisher, keypair.public(), message_root, schedule_manager);
+        UnitValidator::new(COMMITTEE, publisher, keypair.public(), message_root, schedule_manager);
     let signature = crate::signature::sign_message_id(&message_root, &keypair).unwrap();
 
     TestEnv {
-        channel: CHANNEL,
+        committee: COMMITTEE,
         message_root,
         signature,
         validator,
@@ -85,7 +85,7 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         correct_signature
     };
     PropellerUnit::new(
-        env.channel,
+        env.committee,
         env.publisher,
         env.message_root,
         signature,

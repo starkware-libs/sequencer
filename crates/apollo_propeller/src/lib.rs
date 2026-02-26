@@ -39,7 +39,7 @@ pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use tree::{PropellerScheduleManager, Stake};
 pub use types::{
-    Channel,
+    Committee,
     Event,
     MessageRoot,
     ReconstructionError,

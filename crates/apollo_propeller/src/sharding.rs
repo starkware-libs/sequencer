@@ -10,7 +10,7 @@ use libp2p::identity::{Keypair, PeerId};
 
 use crate::padding::{pad_message, unpad_message};
 use crate::reed_solomon::{combine_data_shards, generate_coding_shards, split_data_into_shards};
-use crate::types::{Channel, ReconstructionError, ShardIndex, ShardPublishError};
+use crate::types::{Committee, ReconstructionError, ShardIndex, ShardPublishError};
 use crate::unit::PropellerUnit;
 use crate::{signature, MerkleProof, MerkleTree, MessageRoot};
 
@@ -84,7 +84,7 @@ pub fn reconstruct_message_from_shards(
 /// Prepare units for broadcasting.
 pub fn create_units_to_publish(
     message: Vec<u8>,
-    channel: Channel,
+    committee: Committee,
     keypair: Keypair,
     num_data_shards: usize,
     num_coding_shards: usize,
@@ -111,7 +111,7 @@ pub fn create_units_to_publish(
             .prove(index)
             .expect("index is within bounds of all_shards from which merkle_tree was built");
         let message = PropellerUnit::new(
-            channel,
+            committee,
             publisher,
             message_root,
             signature.clone(),

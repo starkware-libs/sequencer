@@ -28,10 +28,9 @@ message PropellerUnit {
     PeerID publisher = 5;
     // Cryptographic signature from the publisher over the merkle_root.
     bytes signature = 6;
-    // TODO(AndrewL): consider re-naming channel
-    // TODO(AndrewL): make it uint64 instead of uint32.
-    // Logical channel identifier for multiplexing different message streams.
-    uint32 channel = 7;
+    // TODO(AndrewL): make it a hash256 instead of uint32.
+    // Committee identifier for multiplexing different message streams.
+    uint32 committee = 7;
     // TODO(AndrewL): CRITICAL: protect against replay attacks (maybe using a timestamp)
 }
 

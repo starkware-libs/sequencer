@@ -29,12 +29,12 @@ use crate::config::Config;
 use crate::engine::{Engine, EngineCommand, EngineOutput};
 use crate::handler::Handler;
 use crate::tree::Stake;
-use crate::types::{Channel, Event, PeerSetError, ShardPublishError};
+use crate::types::{Committee, CommitteeSetupError, Event, ShardPublishError};
 
 /// The Propeller network behaviour.
 ///
 /// This struct implements the libp2p `NetworkBehaviour` trait and serves as the main entry
-/// point for interacting with the Propeller protocol. It manages channel registrations,
+/// point for interacting with the Propeller protocol. It manages committee registrations,
 /// message broadcasting, and coordination with the underlying protocol engine.
 pub struct Behaviour {
     config: Config,
@@ -53,62 +53,63 @@ impl Behaviour {
         Self { config, engine_commands_tx, engine_outputs_rx }
     }
 
-    // TODO(AndrewL): change register channel to return the channel id.
+    // TODO(AndrewL): change register committee to return the committee id.
     // TODO(AndrewL): update the propeller API to speak in terms of StakerID instead of PeerId
-    // and remove all public key related code (register_channel_peers_and_optional_keys,
+    // and remove all public key related code (register_committee_peers_and_optional_keys,
     // PublicKey import, etc.).
 
-    /// Register peers for a channel where public keys are embedded in peer IDs (Ed25519,
+    /// Register peers for a committee where public keys are embedded in peer IDs (Ed25519,
     /// Secp256k1).
     ///
     /// Use when all peers have public keys embedded in their peer IDs. For peers with RSA keys,
-    /// use `register_channel_peers_and_optional_keys` instead.
-    pub fn register_channel_peers(
+    /// use `register_committee_peers_and_optional_keys` instead.
+    pub fn register_committee_peers(
         &self,
-        channel: Channel,
+        committee: Committee,
         peers: Vec<(PeerId, Stake)>,
-    ) -> oneshot::Receiver<Result<(), PeerSetError>> {
-        self.register_channel_peers_and_optional_keys(
-            channel,
+    ) -> oneshot::Receiver<Result<(), CommitteeSetupError>> {
+        self.register_committee_peers_and_optional_keys(
+            committee,
             peers.into_iter().map(|(peer_id, weight)| (peer_id, weight, None)).collect(),
         )
     }
 
-    /// Register peers for a channel with optional explicit public keys.
+    /// Register peers for a committee with optional explicit public keys.
     ///
     /// Use when some peers require explicit public keys (e.g., RSA peer IDs where keys cannot be
     /// derived from peer IDs). Provide `None` for peers with embedded keys (Ed25519, Secp256k1).
-    pub fn register_channel_peers_and_optional_keys(
+    pub fn register_committee_peers_and_optional_keys(
         &self,
-        channel: Channel,
+        committee: Committee,
         peers: Vec<(PeerId, Stake, Option<PublicKey>)>,
-    ) -> oneshot::Receiver<Result<(), PeerSetError>> {
+    ) -> oneshot::Receiver<Result<(), CommitteeSetupError>> {
         let (response_tx, response_rx) = oneshot::channel();
-        let command = EngineCommand::RegisterChannelPeers { channel, peers, response: response_tx };
+        let command =
+            EngineCommand::RegisterCommitteePeers { committee, peers, response: response_tx };
         self.engine_commands_tx.send(command).expect("Engine task has exited");
         response_rx
     }
 
-    /// Unregister a channel and clean up all associated state.
-    // TODO(AndrewL): Reconsider whether unregister_channel should exist here or if channel
+    /// Unregister a committee and clean up all associated state.
+    // TODO(AndrewL): Reconsider whether unregister_committee should exist here or if committee
     // lifecycle should be managed by an LRU cache in the network manager instead.
-    pub fn unregister_channel(&self, channel: Channel) -> oneshot::Receiver<bool> {
+    pub fn unregister_committee(&self, committee: Committee) -> oneshot::Receiver<bool> {
         let (response_tx, response_rx) = oneshot::channel();
-        let command = EngineCommand::UnregisterChannel { channel, response: response_tx };
+        let command = EngineCommand::UnregisterCommittee { committee, response: response_tx };
         self.engine_commands_tx.send(command).expect("Engine task has exited");
         response_rx
     }
 
-    /// Broadcast a message to all peers in a channel using erasure coding.
+    /// Broadcast a message to all peers in a committee using erasure coding.
     ///
     /// Returns a receiver that will receive the result of the broadcast.
     pub fn broadcast(
         &self,
-        channel: Channel,
+        committee: Committee,
         message: Vec<u8>,
     ) -> oneshot::Receiver<Result<(), ShardPublishError>> {
         let (response_tx, response_rx) = oneshot::channel();
-        let command = EngineCommand::Broadcast { channel, message, response_tx };
+        let command = EngineCommand::Broadcast { committee, message, response_tx };
         self.engine_commands_tx.send(command).expect("Engine task has exited");
         response_rx
     }

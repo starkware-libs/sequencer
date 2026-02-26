@@ -1,6 +1,6 @@
 //! Propeller engine logic.
 //!
-//! This module contains the protocol logic (broadcasting, validation, reconstruction, channel
+//! This module contains the protocol logic (broadcasting, validation, reconstruction, committee
 //! management). The engine runs as an async task and communicates with the libp2p
 //! `NetworkBehaviour` adapter in `behaviour.rs` via command/output channels.
 
@@ -18,7 +18,7 @@ use crate::sharding::create_units_to_publish;
 use crate::signature;
 use crate::time_cache::TimeCache;
 use crate::tree::{PropellerScheduleManager, Stake};
-use crate::types::{Channel, Event, MessageRoot, PeerSetError, ShardPublishError};
+use crate::types::{Committee, CommitteeSetupError, Event, MessageRoot, ShardPublishError};
 use crate::unit::PropellerUnit;
 
 type BroadcastResponseTx = oneshot::Sender<Result<(), ShardPublishError>>;
@@ -26,25 +26,25 @@ type BroadcastResult = (Result<Vec<PropellerUnit>, ShardPublishError>, Broadcast
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct MessageKey {
-    channel: Channel,
+    committee: Committee,
     publisher: PeerId,
     root: MessageRoot,
 }
 
 /// Commands sent from Behaviour to Engine.
 pub enum EngineCommand {
-    RegisterChannelPeers {
-        channel: Channel,
+    RegisterCommitteePeers {
+        committee: Committee,
         peers: Vec<(PeerId, Stake, Option<PublicKey>)>,
-        response: oneshot::Sender<Result<(), PeerSetError>>,
+        response: oneshot::Sender<Result<(), CommitteeSetupError>>,
     },
     // TODO(AndrewL): remove this variant once unregister is no longer needed.
-    UnregisterChannel {
-        channel: Channel,
+    UnregisterCommittee {
+        committee: Committee,
         response: oneshot::Sender<bool>,
     },
     Broadcast {
-        channel: Channel,
+        committee: Committee,
         message: Vec<u8>,
         response_tx: BroadcastResponseTx,
     },
@@ -66,9 +66,8 @@ pub enum EngineOutput {
     NotifyHandler { peer_id: PeerId, event: HandlerIn },
 }
 
-/// Data associated with a single channel.
-// TODO(AndrewL): rename to CommitteeData when Channel is renamed to Committee.
-struct ChannelData {
+/// Data associated with a single committee.
+struct CommitteeData {
     schedule_manager: Arc<PropellerScheduleManager>,
     peer_public_keys: HashMap<PeerId, PublicKey>,
 }
@@ -76,7 +75,7 @@ struct ChannelData {
 /// The Propeller engine, run as an async task via [`Engine::run`].
 pub struct Engine {
     config: Config,
-    channels: HashMap<Channel, ChannelData>,
+    committees: HashMap<Committee, CommitteeData>,
     connected_peers: HashSet<PeerId>,
     keypair: Keypair,
     local_peer_id: PeerId,
@@ -86,7 +85,7 @@ pub struct Engine {
     message_to_unit_tx: HashMap<MessageKey, mpsc::UnboundedSender<UnitToValidate>>,
     /// Recently finalized message IDs (for deduplication).
     finalized_messages: TimeCache<MessageKey>,
-    /// Channel for receiving messages from state manager tasks.
+    /// Receiver for messages from state manager tasks.
     state_manager_rx: mpsc::UnboundedReceiver<EventStateManagerToEngine>,
     state_manager_tx: mpsc::UnboundedSender<EventStateManagerToEngine>,
     prepared_units_rx: mpsc::UnboundedReceiver<BroadcastResult>,
@@ -110,7 +109,7 @@ impl Engine {
         let finalized_messages = TimeCache::new(config.stale_message_timeout);
 
         Self {
-            channels: HashMap::new(),
+            committees: HashMap::new(),
             config,
             connected_peers: HashSet::new(),
             keypair,
@@ -126,14 +125,14 @@ impl Engine {
         }
     }
 
-    /// Register a channel with peers and optional public keys.
-    pub fn register_channel(
+    /// Register a committee with peers and optional public keys.
+    pub fn register_committee(
         &mut self,
-        channel: Channel,
+        committee: Committee,
         peers: Vec<(PeerId, Stake, Option<PublicKey>)>,
-    ) -> Result<(), PeerSetError> {
-        if self.channels.contains_key(&channel) {
-            warn!(?channel, "Channel already registered, ignoring re-registration");
+    ) -> Result<(), CommitteeSetupError> {
+        if self.committees.contains_key(&committee) {
+            warn!(?committee, "Committee already registered, ignoring re-registration");
             return Ok(());
         }
 
@@ -147,34 +146,34 @@ impl Engine {
         }
 
         let schedule_manager = PropellerScheduleManager::new(self.local_peer_id, peer_weights)?;
-        let channel_data =
-            ChannelData { schedule_manager: Arc::new(schedule_manager), peer_public_keys };
-        self.channels.insert(channel, channel_data);
+        let committee_data =
+            CommitteeData { schedule_manager: Arc::new(schedule_manager), peer_public_keys };
+        self.committees.insert(committee, committee_data);
 
         Ok(())
     }
 
-    /// Unregister a channel.
+    /// Unregister a committee.
     // TODO(AndrewL): clean up message_to_unit_tx entries and terminate their processor tasks on
     // unregister to avoid resource leaks.
-    pub fn unregister_channel(&mut self, channel: Channel) -> bool {
-        let result = self.channels.remove(&channel).is_some();
+    pub fn unregister_committee(&mut self, committee: Committee) -> bool {
+        let result = self.committees.remove(&committee).is_some();
         // TODO(AndrewL): Consider adding a command to MP to terminate the task.
-        self.message_to_unit_tx.retain(|key, _| key.channel != channel);
+        self.message_to_unit_tx.retain(|key, _| key.committee != committee);
         result
     }
 
     /// TODO(AndrewL): document this.
     fn prepare_units(
         &mut self,
-        channel: Channel,
+        committee: Committee,
         message: Vec<u8>,
         response_tx: BroadcastResponseTx,
     ) {
         let Some(schedule_manager) =
-            self.channels.get(&channel).map(|data| data.schedule_manager.clone())
+            self.committees.get(&committee).map(|data| data.schedule_manager.clone())
         else {
-            let _ = response_tx.send(Err(ShardPublishError::ChannelNotRegistered(channel)));
+            let _ = response_tx.send(Err(ShardPublishError::CommitteeNotRegistered(committee)));
             return;
         };
 
@@ -186,7 +185,7 @@ impl Engine {
         tokio::task::spawn_blocking(move || {
             let result = create_units_to_publish(
                 message,
-                channel,
+                committee,
                 keypair,
                 num_data_shards,
                 num_coding_shards,
@@ -207,19 +206,19 @@ impl Engine {
 
     /// Handle an incoming unit from a peer.
     fn handle_unit(&mut self, sender_peer_id: PeerId, unit: PropellerUnit) {
-        let claimed_channel = unit.channel();
+        let claimed_committee = unit.committee();
         let claimed_publisher = unit.publisher();
         let claimed_root = unit.root();
 
-        // Check if channel is registered.
-        let Some(channel_data) = self.channels.get(&claimed_channel) else {
-            warn!(?claimed_channel, "Received shard for unregistered channel, dropping");
+        // Check if committee is registered.
+        let Some(committee_data) = self.committees.get(&claimed_committee) else {
+            warn!(?claimed_committee, "Received shard for unregistered committee, dropping");
             return;
         };
 
         // Skip if message already finalized.
         let message_key = MessageKey {
-            channel: claimed_channel,
+            committee: claimed_committee,
             publisher: claimed_publisher,
             root: claimed_root,
         };
@@ -234,15 +233,15 @@ impl Engine {
         // Spawn tasks if this is a new message.
         if !self.message_to_unit_tx.contains_key(&message_key) {
             debug!(
-                ?claimed_channel,
+                ?claimed_committee,
                 ?claimed_publisher,
                 ?claimed_root,
                 "[ENGINE] Spawning new message processor"
             );
 
-            let schedule_manager = channel_data.schedule_manager.clone();
+            let schedule_manager = committee_data.schedule_manager.clone();
             let Some(publisher_public_key) =
-                channel_data.peer_public_keys.get(&claimed_publisher).cloned()
+                committee_data.peer_public_keys.get(&claimed_publisher).cloned()
             else {
                 warn!(?claimed_publisher, "Received shard for unregistered publisher, dropping");
                 return;
@@ -252,9 +251,9 @@ impl Engine {
             let Ok(my_shard_index) = my_shard_index_result else {
                 warn!(
                     ?claimed_publisher,
-                    ?claimed_channel,
+                    ?claimed_committee,
                     ?my_shard_index_result,
-                    "Received shard for publisher not in channel, dropping"
+                    "Received shard for publisher not in committee, dropping"
                 );
                 return;
             };
@@ -264,7 +263,7 @@ impl Engine {
 
             // Create and spawn message processor
             let processor = MessageProcessor {
-                channel: claimed_channel,
+                committee: claimed_committee,
                 publisher: claimed_publisher,
                 message_root: claimed_root,
                 my_shard_index,
@@ -277,7 +276,7 @@ impl Engine {
             };
 
             // TODO(AndrewL): track task handle to see if it panics or is killed.
-            // TODO(AndrewL): abort the task if channel is removed.
+            // TODO(AndrewL): abort the task if committee is removed.
             tokio::spawn(processor.run());
 
             self.message_to_unit_tx.insert(message_key, unit_tx);
@@ -340,16 +339,16 @@ impl Engine {
             EventStateManagerToEngine::BehaviourEvent(event) => {
                 self.emit_event(event);
             }
-            EventStateManagerToEngine::Finalized { channel, publisher, message_root } => {
-                trace!(?channel, ?publisher, ?message_root, "[ENGINE] Message finalized");
+            EventStateManagerToEngine::Finalized { committee, publisher, message_root } => {
+                trace!(?committee, ?publisher, ?message_root, "[ENGINE] Message finalized");
 
                 // Mark as finalized
-                let message_key = MessageKey { channel, publisher, root: message_root };
+                let message_key = MessageKey { committee, publisher, root: message_root };
                 self.finalized_messages.insert(message_key);
 
                 // Clean up task handles
                 if self.message_to_unit_tx.remove(&message_key).is_some() {
-                    trace!(?channel, ?publisher, ?message_root, "[ENGINE] Removed task handles");
+                    trace!(?committee, ?publisher, ?message_root, "[ENGINE] Removed task handles");
                 }
             }
             EventStateManagerToEngine::SendUnitToPeers { unit, peers } => {
@@ -367,17 +366,17 @@ impl Engine {
         &self,
         peer_id: PeerId,
         public_key: Option<PublicKey>,
-    ) -> Result<PublicKey, PeerSetError> {
+    ) -> Result<PublicKey, CommitteeSetupError> {
         match public_key {
             Some(pk) => {
                 if signature::validate_public_key_matches_peer_id(&pk, &peer_id) {
                     Ok(pk)
                 } else {
-                    Err(PeerSetError::InvalidPublicKey)
+                    Err(CommitteeSetupError::InvalidPublicKey)
                 }
             }
             None => signature::try_extract_public_key_from_peer_id(&peer_id)
-                .ok_or(PeerSetError::InvalidPublicKey),
+                .ok_or(CommitteeSetupError::InvalidPublicKey),
         }
     }
 
@@ -388,13 +387,13 @@ impl Engine {
         let Some(first_unit) = units.first() else {
             return Ok(());
         };
-        let channel = first_unit.channel();
+        let committee = first_unit.committee();
         trace!(publisher = ?self.local_peer_id, num_units = units.len(), "[BROADCAST] Broadcasting units");
 
         let schedule_manager = self
-            .channels
-            .get(&channel)
-            .ok_or(ShardPublishError::ChannelNotRegistered(channel))?
+            .committees
+            .get(&committee)
+            .ok_or(ShardPublishError::CommitteeNotRegistered(committee))?
             .schedule_manager
             .clone();
 
@@ -422,15 +421,15 @@ impl Engine {
         loop {
             tokio::select! {
                 Some(cmd) = self.from_behaviour_rx.recv() => match cmd {
-                    EngineCommand::RegisterChannelPeers { channel, peers, response } => {
-                        let result = self.register_channel(channel, peers);
+                    EngineCommand::RegisterCommitteePeers { committee, peers, response } => {
+                        let result = self.register_committee(committee, peers);
                         let _ = response.send(result);
                     }
-                    EngineCommand::UnregisterChannel { channel, response } => {
-                        let _ = response.send(self.unregister_channel(channel));
+                    EngineCommand::UnregisterCommittee { committee, response } => {
+                        let _ = response.send(self.unregister_committee(committee));
                     }
-                    EngineCommand::Broadcast { channel, message, response_tx } => {
-                        self.prepare_units(channel, message, response_tx);
+                    EngineCommand::Broadcast { committee, message, response_tx } => {
+                        self.prepare_units(committee, message, response_tx);
                     }
                     EngineCommand::HandleHandlerOutput { peer_id, output } => match output {
                         HandlerOut::Unit(unit) => self.handle_unit(peer_id, unit),
