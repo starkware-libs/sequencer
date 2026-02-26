@@ -59,8 +59,10 @@ fn raw_mdbx_cursor_boundary_behavior() {
     }
 
     let ((reader, mut writer), _temp_dir) = get_test_env();
-    let simple_table_id = writer.create_simple_table::<TableKey, TableValue>("simple").unwrap();
-    let common_prefix_table_id = writer.create_common_prefix_table::<u32, u32, TableValue>("cp").unwrap();
+    let simple_table_id =
+        writer.create_simple_table::<TableKey, TableValue>("simple").unwrap();
+    let common_prefix_table_id =
+        writer.create_common_prefix_table::<u32, u32, TableValue>("cp").unwrap();
 
     let entries: Vec<(TableKey, u32)> =
         vec![((10, 20), 100), ((10, 50), 200), ((30, 10), 300), ((30, 40), 400)];
@@ -200,99 +202,108 @@ fn raw_mdbx_cursor_boundary_behavior() {
     // Verify compensated DbCursorTrait produces identical results for both table types.
     let test_keys: Vec<TableKey> = vec![(10, 30), (10, 60), (20, 0), (40, 0), (0, 0)];
     for test_key in &test_keys {
-        let mut simple_cursor= simple_table.cursor(&rtxn).unwrap();
-        let mut common_prefix_cursor= common_prefix_table.cursor(&rtxn).unwrap();
-        let simple_result= simple_cursor.lower_bound(test_key).unwrap();
-        let common_prefix_result= common_prefix_cursor.lower_bound(test_key).unwrap();
+        let mut simple_cursor = simple_table.cursor(&rtxn).unwrap();
+        let mut common_prefix_cursor = common_prefix_table.cursor(&rtxn).unwrap();
+        let simple_result = simple_cursor.lower_bound(test_key).unwrap();
+        let common_prefix_result = common_prefix_cursor.lower_bound(test_key).unwrap();
         assert_eq!(simple_result, common_prefix_result, "compensated lower_bound({test_key:?})");
 
-        let simple_next= simple_cursor.next().unwrap();
-        let common_prefix_next= common_prefix_cursor.next().unwrap();
-        assert_eq!(simple_next, common_prefix_next, "compensated next after lower_bound({test_key:?})");
+        let simple_next = simple_cursor.next().unwrap();
+        let common_prefix_next = common_prefix_cursor.next().unwrap();
+        assert_eq!(
+            simple_next, common_prefix_next,
+            "compensated next after lower_bound({test_key:?})"
+        );
 
-        let simple_prev= simple_cursor.prev().unwrap();
-        let common_prefix_prev= common_prefix_cursor.prev().unwrap();
-        assert_eq!(simple_prev, common_prefix_prev, "compensated prev after next after lower_bound({test_key:?})");
+        let simple_prev = simple_cursor.prev().unwrap();
+        let common_prefix_prev = common_prefix_cursor.prev().unwrap();
+        assert_eq!(
+            simple_prev, common_prefix_prev,
+            "compensated prev after next after lower_bound({test_key:?})"
+        );
     }
 
     // lower_bound past end → prev.
     {
-        let mut simple_cursor= simple_table.cursor(&rtxn).unwrap();
-        let mut common_prefix_cursor= common_prefix_table.cursor(&rtxn).unwrap();
+        let mut simple_cursor = simple_table.cursor(&rtxn).unwrap();
+        let mut common_prefix_cursor = common_prefix_table.cursor(&rtxn).unwrap();
         assert_eq!(simple_cursor.lower_bound(&(40, 0)).unwrap(), None);
         assert_eq!(common_prefix_cursor.lower_bound(&(40, 0)).unwrap(), None);
-        let simple_prev= simple_cursor.prev().unwrap();
-        let common_prefix_prev= common_prefix_cursor.prev().unwrap();
+        let simple_prev = simple_cursor.prev().unwrap();
+        let common_prefix_prev = common_prefix_cursor.prev().unwrap();
         assert_eq!(simple_prev, common_prefix_prev, "compensated: lower_bound past end → prev");
     }
 
     // Position at last → next → next → prev.
     {
-        let mut simple_cursor= simple_table.cursor(&rtxn).unwrap();
-        let mut common_prefix_cursor= common_prefix_table.cursor(&rtxn).unwrap();
+        let mut simple_cursor = simple_table.cursor(&rtxn).unwrap();
+        let mut common_prefix_cursor = common_prefix_table.cursor(&rtxn).unwrap();
         simple_cursor.lower_bound(&(30, 40)).unwrap();
         common_prefix_cursor.lower_bound(&(30, 40)).unwrap();
         simple_cursor.next().unwrap();
         common_prefix_cursor.next().unwrap();
         simple_cursor.next().unwrap();
         common_prefix_cursor.next().unwrap();
-        let simple_prev= simple_cursor.prev().unwrap();
-        let common_prefix_prev= common_prefix_cursor.prev().unwrap();
+        let simple_prev = simple_cursor.prev().unwrap();
+        let common_prefix_prev = common_prefix_cursor.prev().unwrap();
         assert_eq!(simple_prev, common_prefix_prev, "compensated: last → 2x next → prev");
     }
 
     // lower_bound past end → next → prev.
     {
-        let mut simple_cursor= simple_table.cursor(&rtxn).unwrap();
-        let mut common_prefix_cursor= common_prefix_table.cursor(&rtxn).unwrap();
+        let mut simple_cursor = simple_table.cursor(&rtxn).unwrap();
+        let mut common_prefix_cursor = common_prefix_table.cursor(&rtxn).unwrap();
         simple_cursor.lower_bound(&(40, 0)).unwrap();
         common_prefix_cursor.lower_bound(&(40, 0)).unwrap();
         simple_cursor.next().unwrap();
         common_prefix_cursor.next().unwrap();
-        let simple_prev= simple_cursor.prev().unwrap();
-        let common_prefix_prev= common_prefix_cursor.prev().unwrap();
-        assert_eq!(simple_prev, common_prefix_prev, "compensated: lower_bound past end → next → prev");
+        let simple_prev = simple_cursor.prev().unwrap();
+        let common_prefix_prev = common_prefix_cursor.prev().unwrap();
+        assert_eq!(
+            simple_prev, common_prefix_prev,
+            "compensated: lower_bound past end → next → prev"
+        );
     }
 
     // first → prev → next.
     {
-        let mut simple_cursor= simple_table.cursor(&rtxn).unwrap();
-        let mut common_prefix_cursor= common_prefix_table.cursor(&rtxn).unwrap();
+        let mut simple_cursor = simple_table.cursor(&rtxn).unwrap();
+        let mut common_prefix_cursor = common_prefix_table.cursor(&rtxn).unwrap();
         simple_cursor.lower_bound(&(10, 20)).unwrap();
         common_prefix_cursor.lower_bound(&(10, 20)).unwrap();
         simple_cursor.prev().unwrap();
         common_prefix_cursor.prev().unwrap();
-        let simple_next= simple_cursor.next().unwrap();
-        let common_prefix_next= common_prefix_cursor.next().unwrap();
+        let simple_next = simple_cursor.next().unwrap();
+        let common_prefix_next = common_prefix_cursor.next().unwrap();
         assert_eq!(simple_next, common_prefix_next, "compensated: first → prev → next");
     }
 
     // first → prev → prev → next.
     {
-        let mut simple_cursor= simple_table.cursor(&rtxn).unwrap();
-        let mut common_prefix_cursor= common_prefix_table.cursor(&rtxn).unwrap();
+        let mut simple_cursor = simple_table.cursor(&rtxn).unwrap();
+        let mut common_prefix_cursor = common_prefix_table.cursor(&rtxn).unwrap();
         simple_cursor.lower_bound(&(10, 20)).unwrap();
         common_prefix_cursor.lower_bound(&(10, 20)).unwrap();
         simple_cursor.prev().unwrap();
         common_prefix_cursor.prev().unwrap();
         simple_cursor.prev().unwrap();
         common_prefix_cursor.prev().unwrap();
-        let simple_next= simple_cursor.next().unwrap();
-        let common_prefix_next= common_prefix_cursor.next().unwrap();
+        let simple_next = simple_cursor.next().unwrap();
+        let common_prefix_next = common_prefix_cursor.next().unwrap();
         assert_eq!(simple_next, common_prefix_next, "compensated: first → 2x prev → next");
     }
 
     // Full backward iteration from past-end.
     {
-        let mut simple_cursor= simple_table.cursor(&rtxn).unwrap();
-        let mut common_prefix_cursor= common_prefix_table.cursor(&rtxn).unwrap();
+        let mut simple_cursor = simple_table.cursor(&rtxn).unwrap();
+        let mut common_prefix_cursor = common_prefix_table.cursor(&rtxn).unwrap();
         assert_eq!(simple_cursor.lower_bound(&(40, 0)).unwrap(), None);
         assert_eq!(common_prefix_cursor.lower_bound(&(40, 0)).unwrap(), None);
         for expected in entries.iter().rev() {
-            let simple_prev= simple_cursor.prev().unwrap();
-            let common_prefix_prev= common_prefix_cursor.prev().unwrap();
+            let simple_prev = simple_cursor.prev().unwrap();
+            let common_prefix_prev = common_prefix_cursor.prev().unwrap();
             assert_eq!(simple_prev, common_prefix_prev, "compensated: backward iteration");
-            assert_eq!(simple_prev,Some(*expected));
+            assert_eq!(simple_prev, Some(*expected));
         }
         assert_eq!(simple_cursor.prev().unwrap(), None);
         assert_eq!(common_prefix_cursor.prev().unwrap(), None);
@@ -300,15 +311,15 @@ fn raw_mdbx_cursor_boundary_behavior() {
 
     // Full forward iteration from before-start.
     {
-        let mut simple_cursor= simple_table.cursor(&rtxn).unwrap();
-        let mut common_prefix_cursor= common_prefix_table.cursor(&rtxn).unwrap();
+        let mut simple_cursor = simple_table.cursor(&rtxn).unwrap();
+        let mut common_prefix_cursor = common_prefix_table.cursor(&rtxn).unwrap();
         assert_eq!(simple_cursor.lower_bound(&(0, 0)).unwrap(), Some(entries[0]));
         assert_eq!(common_prefix_cursor.lower_bound(&(0, 0)).unwrap(), Some(entries[0]));
         for expected in entries.iter().skip(1) {
-            let simple_next= simple_cursor.next().unwrap();
-            let common_prefix_next= common_prefix_cursor.next().unwrap();
+            let simple_next = simple_cursor.next().unwrap();
+            let common_prefix_next = common_prefix_cursor.next().unwrap();
             assert_eq!(simple_next, common_prefix_next, "compensated: forward iteration");
-            assert_eq!(simple_next,Some(*expected));
+            assert_eq!(simple_next, Some(*expected));
         }
         assert_eq!(simple_cursor.next().unwrap(), None);
         assert_eq!(common_prefix_cursor.next().unwrap(), None);
