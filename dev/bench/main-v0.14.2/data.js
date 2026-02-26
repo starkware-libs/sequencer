@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771937538974,
+  "lastUpdate": 1772094032312,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1359,6 +1359,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1318.4143548299999,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "161198342+idan-starkware@users.noreply.github.com",
+            "name": "Idan Shamam",
+            "username": "idan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8b6720c2054b288b38df055c787b374615eed88a",
+          "message": "deployment: add graphite ci-optimizations for hybrid_system_test (#12767)\n\n* deployment: add graphite ci-optimizations\n\n* deployment: add graphite ci-optimizations to blockifier-ci (#12769)\n\n* deployment: add graphite ci-optimizations to blockifier-ci\n\n* deployment: add graphite ci-optimizations for blockifier_compiled_cairo (#12770)\n\n* deployment: add graphite ci-optimizations\n\n* deployment: add graphite ci-optimizations for blockifier_reexecution_ci (#12771)\n\n* deployment: add graphite ci-optimizations\n\n* deployment: add graphite ci-optimizations for committer_and_os_cli_push (#12772)\n\n* deployment: add graphite ci-optimizations\n\n* deployment: apply bug bot fix suggestion\n\n* deployment: add graphite ci-optimizations\n\n* deployment: apply bug bot fix suggestion\n\n* deployment: apply bug bot fix suggestion\n\n* deployment: add graphite ci-optimizations for upload_artifacts_workflow\n\n* deployment: pin graphite action version\n\n* deployment: add graphite ci-optimizations\n\n* deployment: add graphite ci-optimizations\n\n* deployment: apply bug bot fix suggestion\n\n* deployment: extend anvil wait on ready timeout\n\n* deployment: add graphite ci-optimizations",
+          "timestamp": "2026-02-26T07:59:46Z",
+          "tree_id": "2450b5bec40774f521b0b17b4ca93d5751b681ad",
+          "url": "https://github.com/starkware-libs/sequencer/commit/8b6720c2054b288b38df055c787b374615eed88a"
+        },
+        "date": 1772094032018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 749.44605579,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1247.35387596,
             "unit": "ms"
           }
         ]
