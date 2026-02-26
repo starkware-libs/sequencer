@@ -20,6 +20,9 @@ use crate::proving::stwo_run_and_prove::prove_pie_in_memory;
 /// Bootloader program file name.
 pub(crate) const BOOTLOADER_FILE: &str = "simple_bootloader_compiled.json";
 
+/// Prover parameters file name.
+const PROVER_PARAMS_FILE: &str = "prover_params.json";
+
 /// Output from the prover containing the compressed proof and associated program output.
 #[derive(Debug, Clone)]
 pub(crate) struct ProverOutput {
@@ -52,7 +55,8 @@ pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingEr
     let (_proof_file, proof_path) = create_temp_file_and_path()?;
     let (_program_output_file, program_output_path) = create_temp_file_and_path()?;
 
-    // Resolve bootloader path.
+    // Resolve the prover params and bootloader program paths.
+    let prover_params_path = resolve_resource_path(PROVER_PARAMS_FILE)?;
     let bootloader_path = resolve_resource_path(BOOTLOADER_FILE)?;
 
     // Configure the prover.
@@ -60,6 +64,7 @@ pub(crate) async fn prove(cairo_pie: CairoPie) -> Result<ProverOutput, ProvingEr
         proof_path: proof_path.clone(),
         proof_format: ProofFormat::Binary,
         verify: false,
+        prover_params_json: Some(prover_params_path),
     };
 
     // Run the prover with in-memory CairoPie on a blocking thread.

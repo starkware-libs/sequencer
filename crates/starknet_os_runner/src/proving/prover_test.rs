@@ -1,10 +1,14 @@
 use std::fs;
+use std::path::PathBuf;
 
+use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_transaction_converter::proof_verification::stwo_verify;
 use apollo_transaction_converter::transaction_converter::BOOTLOADER_PROGRAM_HASH;
 use apollo_transaction_converter::ProgramOutput;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use proving_utils::proof_encoding::ProofBytes;
+use starknet_api::transaction::fields::VIRTUAL_SNOS;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
 
@@ -53,6 +57,47 @@ async fn test_prove_cairo_pie_10_transfers() {
         output.program_output, expected_program_output,
         "Generated program output does not match expected program output"
     );
+}
+
+/// Regenerates the example proof fixtures used by `apollo_transaction_converter` tests.
+///
+/// Run manually with:
+/// ```bash
+/// cargo test -p starknet_os_runner --features stwo_proving \
+///   -- --ignored proving::prover_test::regenerate_proof_fixtures
+/// ```
+#[tokio::test]
+#[ignore]
+async fn regenerate_proof_fixtures() {
+    let cairo_pie_path = resolve_resource_path(CAIRO_PIE_FILE).unwrap();
+    let cairo_pie =
+        CairoPie::read_zip_file(&cairo_pie_path).expect("Failed to read Cairo PIE from zip file");
+
+    let output = prove(cairo_pie).await.expect("Failed to prove Cairo PIE");
+
+    // Save proof as bz2-compressed file.
+    let proof_bytes = ProofBytes::try_from(output.proof).expect("Failed to encode proof");
+    let proof_path = resolve_transaction_converter_resource("example_proof.bz2");
+    proof_bytes.to_file(&proof_path).expect("Failed to write proof file");
+    println!("Wrote proof to {}", proof_path.display());
+
+    // Save proof facts as JSON.
+    let proof_facts = output
+        .program_output
+        .try_into_proof_facts(VIRTUAL_SNOS)
+        .expect("Failed to convert program output to proof facts");
+    let proof_facts_json =
+        serde_json::to_string_pretty(&proof_facts).expect("Failed to serialize proof facts");
+    let proof_facts_path = resolve_transaction_converter_resource("example_proof_facts.json");
+    fs::write(&proof_facts_path, proof_facts_json).expect("Failed to write proof facts file");
+    println!("Wrote proof facts to {}", proof_facts_path.display());
+}
+
+fn resolve_transaction_converter_resource(file_name: &str) -> PathBuf {
+    let path: PathBuf =
+        ["crates", "apollo_transaction_converter", "resources", file_name].iter().collect();
+    resolve_project_relative_path(&path.to_string_lossy())
+        .unwrap_or_else(|_| panic!("Failed to resolve path for {file_name}"))
 }
 
 #[test]
