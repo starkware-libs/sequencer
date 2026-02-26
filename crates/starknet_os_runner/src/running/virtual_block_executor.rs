@@ -176,9 +176,9 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
         txs: Vec<(InvokeTransaction, TransactionHash)>,
     ) -> Result<VirtualBlockExecutionData, VirtualBlockExecutorError> {
         let tx_hashes: Vec<TransactionHash> = txs.iter().map(|(_, h)| *h).collect();
-        let blockifier_txs = self.convert_invoke_txs(txs)?;
         let base_block_info = self.base_block_info(block_id)?;
-        let state_reader = self.state_reader(block_id)?;
+        let state_reader = self.state_reader(block_id, &txs)?;
+        let blockifier_txs = self.convert_invoke_txs(txs)?;
 
         // Create state reader with contract manager.
         let state_reader_and_contract_manager =
@@ -313,7 +313,8 @@ pub(crate) trait VirtualBlockExecutor: Send + 'static {
     fn state_reader(
         &self,
         block_id: BlockId,
-    ) -> Result<impl FetchCompiledClasses + Send + Sync + 'static, VirtualBlockExecutorError>;
+        txs: &[(InvokeTransaction, TransactionHash)],
+    ) -> Result<Box<dyn FetchCompiledClasses + Send + Sync + 'static>, VirtualBlockExecutorError>;
 
     /// Returns whether transaction validation is enabled during execution.
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError>;
@@ -493,12 +494,22 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
         BaseBlockInfo::try_from((block_header, self.rpc_state_reader.chain_info.clone()))
     }
 
+    /// Returns a state reader that implements `FetchCompiledClasses` for the given block ID.
+    /// When prefetching state, the state reader will be a `SimulatedStateReader` that uses the
+    /// initial state reads to prefetch state, otherwise it will be the `RpcStateReader`.
     fn state_reader(
         &self,
-        _block_id: BlockId,
-    ) -> Result<impl FetchCompiledClasses + Send + Sync + 'static, VirtualBlockExecutorError> {
-        // Clone the RpcStateReader to avoid lifetime issues ( not a big struct).
-        Ok(self.rpc_state_reader.clone())
+        block_id: BlockId,
+        txs: &[(InvokeTransaction, TransactionHash)],
+    ) -> Result<Box<dyn FetchCompiledClasses + Send + Sync + 'static>, VirtualBlockExecutorError>
+    {
+        let rpc_state_reader = self.rpc_state_reader.clone();
+        if self.config.prefetch_state {
+            let state_maps = self.simulate_and_get_initial_reads(block_id, txs)?;
+            Ok(Box::new(SimulatedStateReader { state_maps, rpc_state_reader }))
+        } else {
+            Ok(Box::new(rpc_state_reader))
+        }
     }
 
     fn validate_txs_enabled(&self) -> Result<bool, VirtualBlockExecutorError> {
