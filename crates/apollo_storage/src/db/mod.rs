@@ -33,7 +33,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
-use libmdbx::{DatabaseFlags, Geometry, PageSize, WriteMap};
+use libmdbx::{DatabaseOptions, Mode, PageSize, ReadWriteOptions, WriteMap};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
@@ -43,7 +43,7 @@ use self::table_types::{DbCursor, DbCursorTrait};
 use crate::db::table_types::TableType;
 
 // Maximum number of Sub-Databases.
-const MAX_DBS: usize = 25;
+const MAX_DBS: u64 = 25;
 
 // Note that NO_TLS mode is used by default.
 type EnvironmentKind = WriteMap;
@@ -174,6 +174,9 @@ pub enum DbError {
     /// An error that occurred when trying to append a key when it is not the last.
     #[error("Append error. The key is not the last in the table.")]
     Append,
+    /// An error that occurred when the DB size configuration exceeds isize::MAX.
+    #[error("DB size configuration value {0} exceeds isize::MAX.")]
+    DbSizeConfig(usize),
 }
 
 type DbResult<V> = result::Result<V, DbError>;
@@ -206,28 +209,33 @@ pub(crate) fn open_env(config: &DbConfig) -> DbResult<(DbReader, DbWriter)> {
         return Err(DbError::FileDoesNotExist(db_file_path));
     }
 
-    let env = Arc::new(
-        Environment::new()
-            .set_geometry(Geometry {
-                size: Some(config.min_size..config.max_size),
+    // TODO(dan): add config validation for min_size <= max_size.
+    let min_size =
+        isize::try_from(config.min_size).map_err(|_| DbError::DbSizeConfig(config.min_size))?;
+    let max_size =
+        isize::try_from(config.max_size).map_err(|_| DbError::DbSizeConfig(config.max_size))?;
+    let env = Arc::new(Environment::open_with_options(
+        config.path(),
+        DatabaseOptions {
+            max_tables: Some(MAX_DBS),
+            max_readers: Some(config.max_readers),
+            page_size: Some(get_page_size(page_size::get())),
+            // There is no locality of pages in the database almost at all, so readahead will
+            // fill the RAM with garbage.
+            no_rdahead: true,
+            // LIFO policy for recycling a Garbage Collection items should be faster.
+            liforeclaim: true,
+            // Exclusive access - prevent other processes from opening the same database.
+            exclusive: true,
+            mode: Mode::ReadWrite(ReadWriteOptions {
+                min_size: Some(min_size),
+                max_size: Some(max_size),
                 growth_step: Some(config.growth_step),
-                page_size: Some(get_page_size(page_size::get())),
                 ..Default::default()
-            })
-            .set_max_tables(MAX_DBS)
-            .set_max_readers(config.max_readers)
-            .set_flags(DatabaseFlags {
-                // There is no locality of pages in the database almost at all, so readahead will
-                // fill the RAM with garbage.
-                no_rdahead: true,
-                // LIFO policy for recycling a Garbage Collection items should be faster.
-                liforeclaim: true,
-                // Exclusive access - prevent other processes from opening the same database.
-                exclusive: true,
-                ..Default::default()
-            })
-            .open(&config.path())?,
-    );
+            }),
+            ..Default::default()
+        },
+    )?);
     Ok((DbReader { env: env.clone() }, DbWriter { env }))
 }
 
