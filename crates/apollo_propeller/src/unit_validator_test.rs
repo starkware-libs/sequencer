@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use libp2p::identity::Keypair;
 use libp2p::PeerId;
-use rstest::{fixture, rstest};
+use rstest::rstest;
 
 use crate::types::ShardSignatureVerificationError;
 use crate::{
@@ -12,8 +12,10 @@ use crate::{
     MessageRoot,
     PropellerScheduleManager,
     PropellerUnit,
+    Shard,
     ShardIndex,
     ShardValidationError,
+    ShardsOfPeer,
     UnitValidator,
 };
 
@@ -27,12 +29,16 @@ struct TestEnv {
     other_peers: Vec<PeerId>,
     merkle_tree: MerkleTree,
     peer_to_index: HashMap<PeerId, ShardIndex>,
+    shards_of_peer: ShardsOfPeer,
 }
 
-const SHARD_DATA: [u8; 3] = [1, 2, 3];
+fn make_shards(num_shards_per_peer: usize) -> ShardsOfPeer {
+    let shards =
+        (0..num_shards_per_peer).map(|i| Shard(vec![u8::try_from(i).unwrap(); 5])).collect();
+    ShardsOfPeer(shards)
+}
 
-#[fixture]
-fn env() -> TestEnv {
+fn build_env(num_shards_per_peer: usize) -> TestEnv {
     const NUM_PEERS: usize = 5;
     const COMMITTEE: CommitteeId = CommitteeId([1u8; 32]);
     let keypair = Keypair::generate_ed25519();
@@ -54,8 +60,12 @@ fn env() -> TestEnv {
         peer_to_index.insert(peer, index);
     }
 
+    let shards_of_peer = make_shards(num_shards_per_peer);
+
     // TODO(AndrewL): Use automock and dependency injection
-    let merkle_tree = MerkleTree::new(&vec![SHARD_DATA.to_vec(); NUM_PEERS - 1]);
+    let leaf_data: Vec<Vec<u8>> =
+        (0..(NUM_PEERS - 1)).map(|_| shards_of_peer.encode_to_proto_bytes()).collect();
+    let merkle_tree = MerkleTree::new(&leaf_data);
     let message_root = MessageRoot(merkle_tree.root().unwrap());
 
     let validator =
@@ -72,6 +82,7 @@ fn env() -> TestEnv {
         other_peers,
         peer_to_index,
         merkle_tree,
+        shards_of_peer,
     }
 }
 
@@ -90,7 +101,7 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         env.message_root,
         signature,
         index,
-        SHARD_DATA.to_vec(),
+        env.shards_of_peer.clone(),
         env.merkle_tree.prove(index.0.try_into().unwrap()).unwrap(),
     )
 }
@@ -99,14 +110,17 @@ fn unit(env: &TestEnv, owner: PeerId) -> PropellerUnit {
     custom_unit(env, owner, false)
 }
 
+// TODO(AndrewL): Test positive flow of multiple shards per peer once it's supported.
 #[rstest]
-fn test_validation_of_legal_unit(mut env: TestEnv) {
+fn test_validation_of_legal_unit() {
+    let mut env = build_env(1);
     let unit = unit(&env, env.local_peer);
-    env.validator.validate_shard(env.publisher, &unit).ok();
+    env.validator.validate_shard(env.publisher, &unit).unwrap();
 }
 
 #[rstest]
-fn test_validation_fails_with_wrong_signature(mut env: TestEnv) {
+fn test_validation_fails_with_wrong_signature() {
+    let mut env = build_env(1);
     let unit = custom_unit(&env, env.local_peer, true);
     assert!(matches!(
         env.validator.validate_shard(env.publisher, &unit),
@@ -117,7 +131,8 @@ fn test_validation_fails_with_wrong_signature(mut env: TestEnv) {
 }
 
 #[rstest]
-fn test_duplicate_shard_rejected(mut env: TestEnv) {
+fn test_duplicate_shard_rejected() {
+    let mut env = build_env(1);
     let unit = unit(&env, env.local_peer);
     env.validator.validate_shard(env.publisher, &unit).unwrap();
     assert!(matches!(
@@ -166,7 +181,6 @@ impl UnitOwner {
 
 #[rstest]
 fn test_unit_source_validation(
-    mut env: TestEnv,
     #[values(
         Sender::Publisher,
         Sender::LocalPeer,
@@ -177,6 +191,7 @@ fn test_unit_source_validation(
     sender: Sender,
     #[values(UnitOwner::LocalPeer, UnitOwner::OtherPeer1, UnitOwner::OtherPeer2)] owner: UnitOwner,
 ) {
+    let mut env = build_env(1);
     let my_unit = unit(&env, owner.id(&env));
     let sender_id = sender.id(&env);
     let result = env.validator.validate_shard(sender_id, &my_unit);
@@ -191,10 +206,43 @@ fn test_unit_source_validation(
 }
 
 #[rstest]
-fn test_tampered_proof_fails_verification(mut env: TestEnv) {
+fn test_tampered_proof_fails_verification() {
+    let mut env = build_env(1);
     let mut unit = unit(&env, env.local_peer);
-    unit.shard_mut().push(42);
+    unit.shards_mut().0[0].0.push(42);
 
     let result = env.validator.validate_shard(env.publisher, &unit);
     result.unwrap_err();
+}
+
+#[rstest]
+fn test_unequal_shard_lengths_rejected() {
+    let env = build_env(2);
+    let mut unit = unit(&env, env.local_peer);
+    unit.shards_mut().0[1].0.push(0xFF);
+
+    assert_eq!(unit.validate_shard_lengths(), Err(ShardValidationError::UnequalShardLengths));
+}
+
+#[rstest]
+fn test_unexpected_shard_count_rejected() {
+    let mut env = build_env(2);
+    let unit = unit(&env, env.local_peer);
+
+    assert_eq!(
+        env.validator.validate_shard(env.publisher, &unit),
+        Err(ShardValidationError::UnexpectedShardCount {
+            expected_shard_count: 1,
+            actual_shard_count: 2,
+        })
+    );
+}
+
+#[rstest]
+fn test_merkle_proof_valid_with_multiple_shards() {
+    let env = build_env(2);
+    let unit = unit(&env, env.local_peer);
+
+    unit.validate_shard_lengths().unwrap();
+    unit.validate_merkle_proof(env.merkle_tree.leaf_count()).unwrap();
 }
