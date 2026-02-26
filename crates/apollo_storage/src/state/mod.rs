@@ -1,7 +1,7 @@
 //! Interface for handling data related to Starknet [state](https://docs.rs/starknet_api/latest/starknet_api/state/index.html).
 //!
 //! Import [`StateStorageReader`] and [`StateStorageWriter`] to read and write data related to state
-//! diffs using a [`StorageTxn`].
+//! diffs using a `StorageTxn`.
 //!
 //! See [`StateReader`] struct for querying specific data from the state.
 //!
@@ -80,7 +80,7 @@ use crate::{
     OffsetKind,
     StorageError,
     StorageResult,
-    StorageTxn,
+    StorageTransaction,
 };
 
 // TODO(shahak): Move the table aliases to the crate level.
@@ -135,6 +135,7 @@ pub(crate) type CompiledClassHashTable<'env> = TableHandle<
 //   nonce of `contract_address` was changed to `nonce`.
 // * compiled_class_hash_table: (class_hash, block_num) -> (compiled_class_hash). Specifies that at
 //   `block_num`, the compiled class hash of `class_hash` was changed to `compiled_class_hash`.
+#[allow(private_interfaces)]
 pub trait StateStorageReader<Mode: TransactionKind> {
     /// The state marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber>;
@@ -172,22 +173,51 @@ where
     ) -> StorageResult<(Self, Option<RevertedStateDiff>)>;
 }
 
-impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
+#[allow(private_interfaces)]
+impl<T: StorageTransaction> StateStorageReader<T::Mode> for T {
     // The block number marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        Ok(markers_table.get(&self.txn, &MarkerKind::State)?.unwrap_or_default())
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::State)?.unwrap_or_default())
     }
     fn get_state_diff(&self, block_number: BlockNumber) -> StorageResult<Option<ThinStateDiff>> {
-        let state_diff_location = self.get_state_diff_location(block_number)?;
+        let state_diffs_table = self.open_table(&self.tables().state_diffs)?;
+        let state_diff_location = state_diffs_table.get(self.txn(), &block_number)?;
         match state_diff_location {
             None => Ok(None),
-            Some(location) => Ok(Some(self.get_state_diff_from_location(location)?)),
+            Some(location) => {
+                Ok(Some(self.file_handlers().get_thin_state_diff_unchecked(location)?))
+            }
         }
     }
 
-    fn get_state_reader(&self) -> StorageResult<StateReader<'_, Mode>> {
-        StateReader::new(self)
+    fn get_state_reader(&self) -> StorageResult<StateReader<'_, T::Mode>> {
+        let inner_txn = self.txn();
+        let compiled_class_hash_table = inner_txn.open_table(&self.tables().compiled_class_hash)?;
+        let declared_classes_table = inner_txn.open_table(&self.tables().declared_classes)?;
+        let declared_classes_block_table =
+            inner_txn.open_table(&self.tables().declared_classes_block)?;
+        let deprecated_declared_classes_table =
+            inner_txn.open_table(&self.tables().deprecated_declared_classes)?;
+        let deprecated_declared_classes_block_table =
+            inner_txn.open_table(&self.tables().deprecated_declared_classes_block)?;
+        let deployed_contracts_table = inner_txn.open_table(&self.tables().deployed_contracts)?;
+        let nonces_table = inner_txn.open_table(&self.tables().nonces)?;
+        let storage_table = inner_txn.open_table(&self.tables().contract_storage)?;
+        let markers_table = inner_txn.open_table(&self.tables().markers)?;
+        Ok(StateReader {
+            txn: inner_txn,
+            compiled_class_hash_table,
+            declared_classes_table,
+            declared_classes_block_table,
+            deprecated_declared_classes_table,
+            deprecated_declared_classes_block_table,
+            deployed_contracts_table,
+            nonces_table,
+            storage_table,
+            markers_table,
+            file_handlers: self.file_handlers(),
+        })
     }
 }
 
@@ -207,43 +237,6 @@ pub struct StateReader<'env, Mode: TransactionKind> {
 }
 
 impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
-    /// Creates a new state reader from a storage transaction.
-    ///
-    /// Opens a handle to each table to be used when reading.
-    ///
-    /// # Arguments
-    /// * txn - A storage transaction object.
-    ///
-    /// # Errors
-    /// Returns [`StorageError`] if there was an error opening the tables.
-    fn new(txn: &'env StorageTxn<'env, Mode>) -> StorageResult<Self> {
-        let compiled_class_hash_table = txn.txn.open_table(&txn.tables.compiled_class_hash)?;
-        let declared_classes_table = txn.txn.open_table(&txn.tables.declared_classes)?;
-        let declared_classes_block_table =
-            txn.txn.open_table(&txn.tables.declared_classes_block)?;
-        let deprecated_declared_classes_table =
-            txn.txn.open_table(&txn.tables.deprecated_declared_classes)?;
-        let deprecated_declared_classes_block_table =
-            txn.txn.open_table(&txn.tables.deprecated_declared_classes_block)?;
-        let deployed_contracts_table = txn.txn.open_table(&txn.tables.deployed_contracts)?;
-        let nonces_table = txn.txn.open_table(&txn.tables.nonces)?;
-        let storage_table = txn.txn.open_table(&txn.tables.contract_storage)?;
-        let markers_table = txn.txn.open_table(&txn.tables.markers)?;
-        Ok(StateReader {
-            txn: &txn.txn,
-            compiled_class_hash_table,
-            declared_classes_table,
-            declared_classes_block_table,
-            deprecated_declared_classes_table,
-            deprecated_declared_classes_block_table,
-            deployed_contracts_table,
-            nonces_table,
-            storage_table,
-            markers_table,
-            file_handlers: &txn.file_handlers,
-        })
-    }
-
     /// Returns the class hash at a given state number.
     /// If class hash is not found, returns `None`.
     ///
@@ -511,51 +504,53 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     }
 }
 
-impl StateStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW>> StateStorageWriter for T {
     #[sequencer_latency_histogram(STORAGE_APPEND_THIN_STATE_DIFF_LATENCY, false)]
     fn append_state_diff(
         self,
         block_number: BlockNumber,
         thin_state_diff: ThinStateDiff,
     ) -> StorageResult<Self> {
-        let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
-        let markers_table = self.open_table(&self.tables.markers)?;
-        let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
-        let nonces_table = self.open_table(&self.tables.nonces)?;
-        let deployed_contracts_table = self.open_table(&self.tables.deployed_contracts)?;
-        let storage_table = self.open_table(&self.tables.contract_storage)?;
-        let declared_classes_block_table = self.open_table(&self.tables.declared_classes_block)?;
+        let inner_txn = self.txn();
+        let file_offset_table = inner_txn.open_table(&self.tables().file_offsets)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
+        let state_diffs_table = self.open_table(&self.tables().state_diffs)?;
+        let nonces_table = self.open_table(&self.tables().nonces)?;
+        let deployed_contracts_table = self.open_table(&self.tables().deployed_contracts)?;
+        let storage_table = self.open_table(&self.tables().contract_storage)?;
+        let declared_classes_block_table =
+            self.open_table(&self.tables().declared_classes_block)?;
         let deprecated_declared_classes_block_table =
-            self.open_table(&self.tables.deprecated_declared_classes_block)?;
-        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
+            self.open_table(&self.tables().deprecated_declared_classes_block)?;
+        let compiled_class_hash_table = self.open_table(&self.tables().compiled_class_hash)?;
 
         // Write state.
         write_deployed_contracts(
             &thin_state_diff.deployed_contracts,
-            &self.txn,
+            inner_txn,
             block_number,
             &deployed_contracts_table,
             &nonces_table,
         )?;
         write_storage_diffs(
             &thin_state_diff.storage_diffs,
-            &self.txn,
+            inner_txn,
             block_number,
             &storage_table,
         )?;
         // Must be called after write_deployed_contracts since the nonces are updated there.
-        write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
+        write_nonces(&thin_state_diff.nonces, inner_txn, block_number, &nonces_table)?;
 
         for (class_hash, _) in &thin_state_diff.class_hash_to_compiled_class_hash {
-            let not_declared = declared_classes_block_table.get(&self.txn, class_hash)?.is_none();
+            let not_declared = declared_classes_block_table.get(inner_txn, class_hash)?.is_none();
             if not_declared {
-                declared_classes_block_table.insert(&self.txn, class_hash, &block_number)?;
+                declared_classes_block_table.insert(inner_txn, class_hash, &block_number)?;
             }
         }
 
         write_compiled_class_hashes(
             &thin_state_diff.class_hash_to_compiled_class_hash,
-            &self.txn,
+            inner_txn,
             block_number,
             &compiled_class_hash_table,
         )?;
@@ -563,9 +558,9 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         for class_hash in thin_state_diff.deprecated_declared_classes.iter() {
             // Cairo0 classes can be declared in different blocks. The first block to declare the
             // class is recorded here.
-            if deprecated_declared_classes_block_table.get(&self.txn, class_hash)?.is_none() {
+            if deprecated_declared_classes_block_table.get(inner_txn, class_hash)?.is_none() {
                 deprecated_declared_classes_block_table.insert(
-                    &self.txn,
+                    inner_txn,
                     class_hash,
                     &block_number,
                 )?;
@@ -573,17 +568,17 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         }
 
         // Write state diff.
-        let location = self.file_handlers.append_state_diff(&thin_state_diff);
-        state_diffs_table.append(&self.txn, &block_number, &location)?;
-        file_offset_table.upsert(&self.txn, &OffsetKind::ThinStateDiff, &location.next_offset())?;
+        let location = self.file_handlers().append_state_diff(&thin_state_diff);
+        state_diffs_table.append(inner_txn, &block_number, &location)?;
+        file_offset_table.upsert(inner_txn, &OffsetKind::ThinStateDiff, &location.next_offset())?;
 
-        update_marker_to_next_block(&self.txn, &markers_table, MarkerKind::State, block_number)?;
+        update_marker_to_next_block(inner_txn, &markers_table, MarkerKind::State, block_number)?;
 
         advance_compiled_class_marker_over_blocks_without_classes(
-            &self.txn,
+            inner_txn,
             &markers_table,
             &state_diffs_table,
-            &self.file_handlers,
+            self.file_handlers(),
         )?;
 
         Ok(self)
@@ -594,22 +589,23 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         self,
         block_number: BlockNumber,
     ) -> StorageResult<(Self, Option<RevertedStateDiff>)> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
-        let declared_classes_block_table = self.open_table(&self.tables.declared_classes_block)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
+        let declared_classes_table = self.open_table(&self.tables().declared_classes)?;
+        let declared_classes_block_table =
+            self.open_table(&self.tables().declared_classes_block)?;
         let deprecated_declared_classes_table =
-            self.open_table(&self.tables.deprecated_declared_classes)?;
+            self.open_table(&self.tables().deprecated_declared_classes)?;
         let deprecated_declared_classes_block_table =
-            self.open_table(&self.tables.deprecated_declared_classes_block)?;
+            self.open_table(&self.tables().deprecated_declared_classes_block)?;
         // TODO(yair): Consider reverting the compiled classes in their own module.
-        let compiled_classes_table = self.open_table(&self.tables.casms)?;
+        let compiled_classes_table = self.open_table(&self.tables().casms)?;
         let compiled_class_hash_v2_table =
-            self.open_table(&self.tables.stateless_compiled_class_hash_v2)?;
-        let deployed_contracts_table = self.open_table(&self.tables.deployed_contracts)?;
-        let nonces_table = self.open_table(&self.tables.nonces)?;
-        let storage_table = self.open_table(&self.tables.contract_storage)?;
-        let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
-        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
+            self.open_table(&self.tables().stateless_compiled_class_hash_v2)?;
+        let deployed_contracts_table = self.open_table(&self.tables().deployed_contracts)?;
+        let nonces_table = self.open_table(&self.tables().nonces)?;
+        let storage_table = self.open_table(&self.tables().contract_storage)?;
+        let state_diffs_table = self.open_table(&self.tables().state_diffs)?;
+        let compiled_class_hash_table = self.open_table(&self.tables().compiled_class_hash)?;
 
         let current_state_marker = self.get_state_marker()?;
 
@@ -629,68 +625,69 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         let thin_state_diff = self
             .get_state_diff(block_number)?
             .unwrap_or_else(|| panic!("Missing state diff for block {block_number}."));
-        markers_table.upsert(&self.txn, &MarkerKind::State, &block_number)?;
-        let classes_marker = markers_table.get(&self.txn, &MarkerKind::Class)?.unwrap_or_default();
+        let inner_txn = self.txn();
+        markers_table.upsert(inner_txn, &MarkerKind::State, &block_number)?;
+        let classes_marker = markers_table.get(inner_txn, &MarkerKind::Class)?.unwrap_or_default();
         if classes_marker == next_block_number {
-            markers_table.upsert(&self.txn, &MarkerKind::Class, &block_number)?;
+            markers_table.upsert(inner_txn, &MarkerKind::Class, &block_number)?;
         }
         let compiled_classes_marker =
-            markers_table.get(&self.txn, &MarkerKind::CompiledClass)?.unwrap_or_default();
+            markers_table.get(inner_txn, &MarkerKind::CompiledClass)?.unwrap_or_default();
         if compiled_classes_marker == next_block_number {
-            markers_table.upsert(&self.txn, &MarkerKind::CompiledClass, &block_number)?;
+            markers_table.upsert(inner_txn, &MarkerKind::CompiledClass, &block_number)?;
         }
         let deleted_class_hashes = delete_declared_classes_block(
-            &self.txn,
+            inner_txn,
             &thin_state_diff,
             &declared_classes_block_table,
             block_number,
         )?;
         let deleted_classes = delete_declared_classes(
-            &self.txn,
+            inner_txn,
             &thin_state_diff,
             &declared_classes_table,
-            &self.file_handlers,
+            self.file_handlers(),
         )?;
         let deleted_deprecated_class_hashes = delete_deprecated_declared_classes_block(
-            &self.txn,
+            inner_txn,
             block_number,
             &thin_state_diff,
             &deprecated_declared_classes_block_table,
         )?;
         let deleted_deprecated_classes = delete_deprecated_declared_classes(
-            &self.txn,
+            inner_txn,
             block_number,
             &thin_state_diff,
             &deprecated_declared_classes_table,
-            &self.file_handlers,
+            self.file_handlers(),
         )?;
         let deleted_compiled_classes = delete_compiled_classes(
-            &self.txn,
+            inner_txn,
             thin_state_diff.class_hash_to_compiled_class_hash.keys(),
             &compiled_classes_table,
-            &self.file_handlers,
+            self.file_handlers(),
         )?;
         delete_compiled_class_hashes_v2(
-            &self.txn,
+            inner_txn,
             thin_state_diff.class_hash_to_compiled_class_hash.keys(),
             &compiled_class_hash_v2_table,
         )?;
         delete_deployed_contracts(
-            &self.txn,
+            inner_txn,
             block_number,
             &thin_state_diff,
             &deployed_contracts_table,
             &nonces_table,
         )?;
-        delete_storage_diffs(&self.txn, block_number, &thin_state_diff, &storage_table)?;
-        delete_nonces(&self.txn, block_number, &thin_state_diff, &nonces_table)?;
+        delete_storage_diffs(inner_txn, block_number, &thin_state_diff, &storage_table)?;
+        delete_nonces(inner_txn, block_number, &thin_state_diff, &nonces_table)?;
         delete_compiled_class_hashes(
-            &self.txn,
+            inner_txn,
             block_number,
             &thin_state_diff,
             &compiled_class_hash_table,
         )?;
-        state_diffs_table.delete(&self.txn, &block_number)?;
+        state_diffs_table.delete(inner_txn, &block_number)?;
 
         Ok((
             self,
