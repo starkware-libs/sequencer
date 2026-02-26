@@ -977,7 +977,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     .await
                     .set_prev_voted_height(height)
                     .expect("Failed to write voted height {self.height} to storage");
-                info!("Broadcasting {vote:?}");
                 context.broadcast(vote.clone()).await?;
                 // Schedule a rebroadcast after the appropriate timeout.
                 let duration = match vote.vote_type {
