@@ -10,12 +10,17 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
+with-libfunc-profiling = ["cairo_native", "cairo-native/with-libfunc-profiling"]
+with-trace-dump = ["cairo_native", "cairo-native/with-trace-dump"]
 cairo_native = [
   "blockifier_test_utils/cairo_native",
   "dep:apollo_compilation_utils",
   "dep:apollo_compile_to_native",
   "dep:cairo-native",
+  "dep:sierra-emu",
+  "dep:cairo-lang-sierra",
 ]
+only-native = ["cairo_native"]
 mocks = []
 native_blockifier = []
 node_api = []
@@ -44,7 +49,9 @@ cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+cairo-lang-sierra = { workspace = true, optional = true }
 cairo-native = { workspace = true, optional = true }
+sierra-emu = { workspace = true, optional = true }
 cairo-vm.workspace = true
 dashmap.workspace = true
 derive_more = { workspace = true, features = [

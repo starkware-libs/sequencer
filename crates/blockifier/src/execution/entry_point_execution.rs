@@ -485,6 +485,8 @@ pub fn finalize_execution(
         inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
         resources: extended_resources,
+        time: Default::default(),
+        call_counter: 0,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
         builtin_counters: extended_resources_without_inner_calls.prover_cairo_primitives(),
         syscalls_usage: syscall_handler_base.syscalls_usage,

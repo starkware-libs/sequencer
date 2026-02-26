@@ -287,6 +287,8 @@ pub fn finalize_execution(
         inner_calls: syscall_handler.inner_calls,
         tracked_resource: TrackedResource::CairoSteps,
         resources,
+        time: Default::default(),
+        call_counter: 0,
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: syscall_handler.read_values,
             accessed_storage_keys: syscall_handler.accessed_keys,
