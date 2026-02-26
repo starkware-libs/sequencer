@@ -44,12 +44,18 @@ use crate::running::serde_utils::deserialize_rpc_initial_reads;
 pub(crate) struct RpcVirtualBlockExecutorConfig {
     /// When enabled, prefetches state by simulating transactions before execution, reducing RPC
     /// calls during proving.
+    #[serde(default)]
     pub(crate) prefetch_state: bool,
+    /// Bouncer configuration for virtual block capacity limits.
+    /// Client-side limits may differ from Starknet limits.
+    #[serde(default)]
+    // TODO(Aviv): Decide on the default value.
+    pub(crate) bouncer_config: BouncerConfig,
 }
 
 impl Default for RpcVirtualBlockExecutorConfig {
     fn default() -> Self {
-        Self { prefetch_state: true }
+        Self { prefetch_state: true, bouncer_config: BouncerConfig::default() }
     }
 }
 
@@ -411,7 +417,6 @@ pub(crate) struct RpcVirtualBlockExecutor {
     pub(crate) rpc_state_reader: RpcStateReader,
     /// Whether transaction validation is enabled during execution.
     pub(crate) validate_txs: bool,
-    #[allow(dead_code)]
     pub(crate) config: RpcVirtualBlockExecutorConfig,
 }
 
@@ -497,7 +502,13 @@ impl VirtualBlockExecutor for RpcVirtualBlockExecutor {
             .rpc_state_reader
             .get_block_header()
             .map_err(|e| VirtualBlockExecutorError::ReexecutionError(Box::new(e)))?;
-        BaseBlockInfo::try_from((block_header, self.rpc_state_reader.chain_info.clone()))
+        let mut base_block_info =
+            BaseBlockInfo::try_from((block_header, self.rpc_state_reader.chain_info.clone()))?;
+
+        // Client-side bouncer limits may differ from Starknet network limits.
+        base_block_info.block_context.bouncer_config = self.config.bouncer_config.clone();
+
+        Ok(base_block_info)
     }
 
     /// Returns a state reader that implements `FetchCompiledClasses` for the given block ID.

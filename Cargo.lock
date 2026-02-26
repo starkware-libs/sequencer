@@ -12456,6 +12456,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_starknet_os_program",
  "apollo_transaction_converter",
+ "assert_matches",
  "async-trait",
  "axum",
  "blockifier",

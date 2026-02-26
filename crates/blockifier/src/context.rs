@@ -120,7 +120,7 @@ pub struct BlockContext {
     pub(crate) block_info: BlockInfo,
     pub(crate) chain_info: ChainInfo,
     pub(crate) versioned_constants: VersionedConstants,
-    pub(crate) bouncer_config: BouncerConfig,
+    pub bouncer_config: BouncerConfig,
 }
 
 impl BlockContext {

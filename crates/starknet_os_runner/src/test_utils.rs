@@ -104,7 +104,7 @@ pub fn rpc_virtual_block_executor(rpc_state_reader: RpcStateReader) -> RpcVirtua
         validate_txs: false,
         // TODO(Aviv): enable the config once there is a v0.10+ node that supports the
         // `RETURN_INITIAL_READS` flag on testnet.
-        config: RpcVirtualBlockExecutorConfig { prefetch_state: false },
+        config: RpcVirtualBlockExecutorConfig { prefetch_state: false, ..Default::default() },
     }
 }
 
@@ -134,7 +134,10 @@ pub(crate) fn runner_factory(rpc_url: &str) -> RpcRunnerFactory {
         storage_proof_config: StorageProofConfig { include_state_changes: true },
         // TODO(Aviv): enable the config once there is a v0.10+ node that supports the
         // `RETURN_INITIAL_READS` flag on testnet.
-        virtual_block_executor_config: RpcVirtualBlockExecutorConfig { prefetch_state: false },
+        virtual_block_executor_config: RpcVirtualBlockExecutorConfig {
+            prefetch_state: false,
+            ..Default::default()
+        },
     };
 
     let chain_info = get_chain_info(&get_chain_id(), get_strk_fee_token_override());
