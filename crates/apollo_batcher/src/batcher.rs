@@ -717,6 +717,46 @@ impl Batcher {
             }) => Some(header_commitments.state_diff_commitment),
         };
 
+        // Verify that the synced state diff commitment matches what would be calculated from the
+        // provided state diff. This prevents committing incorrect state diffs that could lead to
+        // ProposalFinMismatch errors when building subsequent blocks.
+        if let Some(synced_commitment) = optional_state_diff_commitment {
+            let calculated_commitment = calculate_state_diff_hash(&state_diff);
+            if synced_commitment != calculated_commitment {
+                error!(
+                    "Synced state diff commitment mismatch for block {block_number}. Synced: \
+                     {synced_commitment:?}, Calculated: {calculated_commitment:?}"
+                );
+                return Err(BatcherError::InternalError);
+            }
+        }
+
+        // Verify that if we already have a state diff for this block (from consensus or previous
+        // sync), it matches the synced state diff. This prevents overwriting a
+        // consensus-committed state diff with a different synced one, which would cause
+        // ProposalFinMismatch errors.
+        if let Ok(Some(existing_state_diff)) = self.storage_reader.get_state_diff(block_number) {
+            let existing_commitment = calculate_state_diff_hash(&existing_state_diff);
+            let synced_commitment = match optional_state_diff_commitment {
+                Some(commitment) => commitment,
+                None => calculate_state_diff_hash(&state_diff),
+            };
+            if existing_commitment != synced_commitment {
+                error!(
+                    "Cannot sync block {block_number}: existing state diff commitment \
+                     ({existing_commitment:?}) does not match synced state diff commitment \
+                     ({synced_commitment:?}). This would cause ProposalFinMismatch errors."
+                );
+                return Err(BatcherError::InternalError);
+            }
+            // State diffs match - log but continue with commit to ensure metrics and other state
+            // are updated
+            info!(
+                "Block {block_number} already has matching state diff in storage, but continuing \
+                 with sync commit for consistency."
+            );
+        }
+
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
