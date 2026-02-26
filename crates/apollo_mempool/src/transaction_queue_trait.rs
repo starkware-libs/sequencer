@@ -20,8 +20,6 @@ pub enum RewindData<'a> {
     },
     // Data for FIFO queue rewind.
     Fifo {
-        // All transaction references that were staged (returned by get_txs).
-        staged_tx_refs: &'a [TransactionReference],
         // Map of committed nonces by address.
         committed_nonces: &'a HashMap<ContractAddress, Nonce>,
         // Set of rejected transaction hashes.
@@ -59,6 +57,9 @@ pub trait TransactionQueueTrait: Send + Sync {
     /// Returns the set of transaction hashes that were rewound (for tracking purposes).
     fn rewind_txs(&mut self, rewind_data: RewindData<'_>) -> IndexSet<TransactionHash>;
 
+    // Default implementation is a no-op (for queues that don't track staged txs for rewind).
+    fn stage_txs_for_rewind(&mut self, _txs: &[TransactionReference]) {}
+
     // Default implementation returns 0 (for queues that don't distinguish priority/pending).
     fn priority_queue_len(&self) -> usize {
         0
@@ -72,21 +73,11 @@ pub trait TransactionQueueTrait: Send + Sync {
     // Default implementation is a no-op (for queues that don't support timestamp updates).
     fn update_timestamp(&mut self, _tx_hash: TransactionHash, _timestamp: UnixTimestamp) {}
 
-    // Default implementation returns None (for queues that don't track first queued tx timestamp).
-    fn get_first_queued_tx_timestamp(&self) -> Option<UnixTimestamp> {
-        None
+    // Returns the sequencing timestamp and may update queue-internal state.
+    // Default implementation returns 0 for queues that don't use timestamp gating.
+    fn resolve_timestamp(&mut self) -> UnixTimestamp {
+        0
     }
-
-    // Default implementation is a no-op (for queues that don't track last returned timestamp).
-    fn set_last_returned_timestamp(&mut self, _timestamp: UnixTimestamp) {}
-
-    // Default implementation returns None (for queues that don't track last returned timestamp).
-    fn get_last_returned_timestamp(&self) -> Option<UnixTimestamp> {
-        None
-    }
-
-    // Default implementation is a no-op for queues that don't track timestamps.
-    fn delete_timestamp(&mut self, _tx_hashes: &[TransactionHash]) {}
 
     // Default implementation returns empty vec.
     #[cfg(test)]

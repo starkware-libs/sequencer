@@ -2,6 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
+use indexmap::IndexSet;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::fields::Tip;
@@ -125,14 +126,11 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         }
     }
 
-    fn rewind_txs(
-        &mut self,
-        rewind_data: crate::transaction_queue_trait::RewindData<'_>,
-    ) -> indexmap::IndexSet<TransactionHash> {
+    fn rewind_txs(&mut self, rewind_data: RewindData<'_>) -> IndexSet<TransactionHash> {
         // Extract fee-priority specific data
         let RewindData::FeePriority { next_txs_by_address, validate_resource_bounds } = rewind_data
         else {
-            panic!("FeeTransactionQueue received wrong RewindData variant");
+            unreachable!("FeeTransactionQueue received Fifo data instead of FeePriority data");
         };
 
         // Rewind by re-inserting the next transaction for each address.
@@ -142,7 +140,7 @@ impl TransactionQueueTrait for FeeTransactionQueue {
         }
 
         // Fee-priority queue doesn't track rewound hashes
-        indexmap::IndexSet::new()
+        IndexSet::new()
     }
 
     fn priority_queue_len(&self) -> usize {

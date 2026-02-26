@@ -250,8 +250,6 @@ pub struct Mempool {
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: Box<dyn TransactionQueueTrait>,
-    // Transaction references that were staged (returned by get_txs) for FIFO queue rewind.
-    staged_tx_refs: Vec<TransactionReference>,
     // Accounts whose lowest transaction nonce is greater than the account nonce, which are
     // therefore candidates for eviction.
     accounts_with_gap: AccountsWithGap,
@@ -273,7 +271,6 @@ impl Mempool {
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue,
-            staged_tx_refs: Vec::new(),
             accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.static_config.committed_nonce_retention_block_count),
             clock,
@@ -285,41 +282,13 @@ impl Mempool {
     }
 
     pub fn get_timestamp(&mut self) -> UnixTimestamp {
-        if self.is_fifo() {
-            if let Some(timestamp) = self.tx_queue.get_first_queued_tx_timestamp() {
-                // Store this timestamp - get_txs() will only return txs with this exact timestamp
-                info!(
-                    "Mempool get_timestamp (FIFO): timestamp={}, setting as threshold",
-                    timestamp
-                );
-                self.tx_queue.set_last_returned_timestamp(timestamp);
-                timestamp
-            } else {
-                // Queue is empty. If get_timestamp() was never called successfully, return 0.
-                // Otherwise, return the last returned timestamp.
-                match self.tx_queue.get_last_returned_timestamp() {
-                    Some(last_timestamp) => {
-                        info!(
-                            "Mempool get_timestamp (FIFO): queue empty, returning \
-                             last_timestamp={}",
-                            last_timestamp
-                        );
-                        last_timestamp
-                    }
-                    None => {
-                        info!(
-                            "Mempool get_timestamp (FIFO): queue empty, no last timestamp, \
-                             returning 0"
-                        );
-                        0
-                    }
-                }
-            }
-        } else {
+        if !self.is_fifo() {
             let timestamp = self.clock.unix_now();
             debug!("Mempool get_timestamp (Fee): timestamp={}", timestamp);
-            timestamp
+            return timestamp;
         }
+
+        self.tx_queue.resolve_timestamp()
     }
 
     pub(crate) fn update_timestamp(&mut self, tx_hash: TransactionHash, timestamp: UnixTimestamp) {
@@ -363,22 +332,23 @@ impl Mempool {
             let (valid_txs, expired_txs_updates) = self.prune_expired_nonqueued_txs(chunk);
             account_nonce_updates.extend(expired_txs_updates);
 
-            // All transactions are enqueued in FIFO mode.
+            // In FIFO mode, all transactions are already enqueued. In fee-priority mode,
+            // we need to enqueue the next eligible transaction for each address.
             if !self.is_fifo() {
                 self.enqueue_next_eligible_txs(&valid_txs)?;
             }
+
             n_remaining_txs -= valid_txs.len();
             eligible_tx_references.extend(valid_txs);
         }
 
-        // Update the mempool state with the given transactions' nonces and store for FIFO queue
-        // rewind.
+        // Update the mempool state with the given transactions' nonces.
         for tx_reference in &eligible_tx_references {
             self.state.stage(tx_reference)?;
-            if self.is_fifo() {
-                self.staged_tx_refs.push(*tx_reference);
-            }
         }
+
+        // Store staged transactions for queue-specific rewind logic.
+        self.tx_queue.stage_txs_for_rewind(&eligible_tx_references);
 
         let n_returned_txs = eligible_tx_references.len();
         if n_returned_txs != 0 {
@@ -532,7 +502,6 @@ impl Mempool {
     ) -> IndexSet<TransactionHash> {
         if self.is_fifo() {
             self.tx_queue.rewind_txs(RewindData::Fifo {
-                staged_tx_refs: &self.staged_tx_refs,
                 committed_nonces: address_to_nonce,
                 rejected_tx_hashes,
             })
@@ -690,18 +659,6 @@ impl Mempool {
 
         self.update_state_metrics();
         self.update_accounts_with_gap(account_nonce_updates);
-
-        if self.is_fifo() {
-            // Delete timestamps for committed (non-rewound) transactions.
-            let committed_tx_hashes: Vec<TransactionHash> = self
-                .staged_tx_refs
-                .iter()
-                .filter(|tx_ref| !rewound_tx_hashes.contains(&tx_ref.tx_hash))
-                .map(|tx_ref| tx_ref.tx_hash)
-                .collect();
-            self.tx_queue.delete_timestamp(&committed_tx_hashes);
-            self.staged_tx_refs.clear();
-        }
     }
 
     pub fn account_tx_in_pool_or_recent_block(&self, account_address: ContractAddress) -> bool {

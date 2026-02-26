@@ -27,11 +27,11 @@ fn mempool() -> Mempool {
 
 #[rstest]
 fn test_get_txs_returns_in_fifo_order(mut mempool: Mempool) {
-    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0);
-    let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
-    let input3 = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0);
-    let input4 = add_tx_input!(tx_hash: 4, address: "0x3", tx_nonce: 0, account_nonce: 0);
-    let input5 = add_tx_input!(tx_hash: 5, address: "0x2", tx_nonce: 1, account_nonce: 0);
+    let input1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 0, account_nonce: 0, tip: 500);
+    let input2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0, tip: 1);
+    let input3 = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0, tip: 300);
+    let input4 = add_tx_input!(tx_hash: 4, address: "0x3", tx_nonce: 0, account_nonce: 0, tip: 999);
+    let input5 = add_tx_input!(tx_hash: 5, address: "0x2", tx_nonce: 1, account_nonce: 0, tip: 2);
 
     // Set timestamps for all transactions
     for i in 1..=5 {
@@ -42,7 +42,7 @@ fn test_get_txs_returns_in_fifo_order(mut mempool: Mempool) {
         add_tx(&mut mempool, input);
     }
 
-    // Transactions should be returned in the order they were added.
+    // Transactions should be returned in insertion order, regardless of tip.
     get_txs_and_assert_expected(
         &mut mempool,
         5,
