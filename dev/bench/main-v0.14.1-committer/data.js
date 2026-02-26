@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771745546858,
+  "lastUpdate": 1772113813364,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -2651,6 +2651,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1165.5257969200002,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "86294909+ArielElp@users.noreply.github.com",
+            "name": "ArielElp",
+            "username": "ArielElp"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b67a235b0e2333b6dc183cfff29cdcad937aa444",
+          "message": "starknet_api: define partial block hash (#12450)",
+          "timestamp": "2026-02-26T13:29:38Z",
+          "tree_id": "5ed14205b5ac1253393ed0e7d45a8092dcbf95ef",
+          "url": "https://github.com/starkware-libs/sequencer/commit/b67a235b0e2333b6dc183cfff29cdcad937aa444"
+        },
+        "date": 1772113813026,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 865.001015,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1201.40768308,
             "unit": "ms"
           }
         ]
