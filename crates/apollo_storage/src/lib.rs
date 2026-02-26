@@ -506,8 +506,19 @@ pub struct StorageReader {
 pub struct BatchConfig {
     /// Whether batching is enabled.
     pub enabled: bool,
-    /// Number of logical commits before actual MDBX commit.
+    /// Number of logical commits before actual MDBX commit. Must be at least 1.
+    #[serde(deserialize_with = "deserialize_batch_size")]
     pub batch_size: usize,
+}
+
+fn deserialize_batch_size<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<usize, D::Error> {
+    let value = usize::deserialize(deserializer)?;
+    if value == 0 {
+        return Err(serde::de::Error::custom("batch_size must be at least 1"));
+    }
+    Ok(value)
 }
 
 impl Default for BatchConfig {
@@ -836,6 +847,7 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    #[serde(default)]
     pub batch_config: BatchConfig,
 }
 
