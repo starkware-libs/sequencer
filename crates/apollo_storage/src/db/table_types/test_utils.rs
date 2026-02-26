@@ -59,15 +59,15 @@ where
     for<'env> TableHandle<'env, TableKey, TableValue, T>:
         Table<'env, Key = TableKey, Value = TableValue>,
 {
-    let txn = writer.begin_rw_txn().unwrap();
-    let table = txn.open_table(&table_id).unwrap();
+    let txn = writer.begin_persistent_rw_txn().unwrap();
+    let table = txn.txn().open_table(&table_id).unwrap();
 
     // Read does not exist value.
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), None);
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), None);
 
     // Insert and read a value.
-    table.insert(&txn, &(1, 1), &11).unwrap();
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(11));
+    table.insert(txn.txn(), &(1, 1), &11).unwrap();
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(11));
 }
 
 fn insert_test<T: TableType>(
@@ -77,21 +77,24 @@ fn insert_test<T: TableType>(
     for<'env> TableHandle<'env, TableKey, TableValue, T>:
         Table<'env, Key = TableKey, Value = TableValue>,
 {
-    let txn = writer.begin_rw_txn().unwrap();
-    let table = txn.open_table(&table_id).unwrap();
+    let txn = writer.begin_persistent_rw_txn().unwrap();
+    let table = txn.txn().open_table(&table_id).unwrap();
 
     // Insert values.
-    table.insert(&txn, &(1, 2), &12).unwrap();
-    table.insert(&txn, &(2, 1), &21).unwrap();
-    table.insert(&txn, &(1, 1), &11).unwrap();
+    table.insert(txn.txn(), &(1, 2), &12).unwrap();
+    table.insert(txn.txn(), &(2, 1), &21).unwrap();
+    table.insert(txn.txn(), &(1, 1), &11).unwrap();
 
-    assert_eq!(table.get(&txn, &(1, 2)).unwrap(), Some(12));
-    assert_eq!(table.get(&txn, &(2, 1)).unwrap(), Some(21));
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(11));
+    assert_eq!(table.get(txn.txn(), &(1, 2)).unwrap(), Some(12));
+    assert_eq!(table.get(txn.txn(), &(2, 1)).unwrap(), Some(21));
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(11));
 
     // Insert duplicate key.
     assert_eq!(
-        table.insert(&txn, &(1, 1), &0).expect_err("Expected KeyAlreadyExistsError").to_string(),
+        table
+            .insert(txn.txn(), &(1, 1), &0)
+            .expect_err("Expected KeyAlreadyExistsError")
+            .to_string(),
         format!(
             "Key '{key:?}' already exists in table '{table_name}'. Error when tried to insert \
              value '0'",
@@ -101,9 +104,9 @@ fn insert_test<T: TableType>(
     );
 
     // Check the final database.
-    assert_eq!(table.get(&txn, &(1, 2)).unwrap(), Some(12));
-    assert_eq!(table.get(&txn, &(2, 1)).unwrap(), Some(21));
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(11));
+    assert_eq!(table.get(txn.txn(), &(1, 2)).unwrap(), Some(12));
+    assert_eq!(table.get(txn.txn(), &(2, 1)).unwrap(), Some(21));
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(11));
 }
 
 fn upsert_test<T: TableType>(
@@ -113,16 +116,16 @@ fn upsert_test<T: TableType>(
     for<'env> TableHandle<'env, TableKey, TableValue, T>:
         Table<'env, Key = TableKey, Value = TableValue>,
 {
-    let txn = writer.begin_rw_txn().unwrap();
-    let table = txn.open_table(&table_id).unwrap();
+    let txn = writer.begin_persistent_rw_txn().unwrap();
+    let table = txn.txn().open_table(&table_id).unwrap();
 
     // Upsert not existing key.
-    table.upsert(&txn, &(1, 1), &11).unwrap();
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(11));
+    table.upsert(txn.txn(), &(1, 1), &11).unwrap();
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(11));
 
     // (1,1) was already inserted, so this is an update.
-    table.upsert(&txn, &(1, 1), &0).unwrap();
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(0));
+    table.upsert(txn.txn(), &(1, 1), &0).unwrap();
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(0));
 }
 
 fn append_test<T: TableType>(
@@ -132,42 +135,42 @@ fn append_test<T: TableType>(
     for<'env> TableHandle<'env, TableKey, TableValue, T>:
         Table<'env, Key = TableKey, Value = TableValue>,
 {
-    let txn = writer.begin_rw_txn().unwrap();
-    let table = txn.open_table(&table_id).unwrap();
+    let txn = writer.begin_persistent_rw_txn().unwrap();
+    let table = txn.txn().open_table(&table_id).unwrap();
 
     // Append to an empty table.
-    table.append(&txn, &(1, 1), &11).unwrap();
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(11));
+    table.append(txn.txn(), &(1, 1), &11).unwrap();
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(11));
 
     // Successful appends.
-    table.append(&txn, &(1, 1), &0).unwrap();
-    table.append(&txn, &(1, 2), &12).unwrap();
-    table.append(&txn, &(2, 0), &20).unwrap();
-    table.append(&txn, &(2, 2), &22).unwrap();
+    table.append(txn.txn(), &(1, 1), &0).unwrap();
+    table.append(txn.txn(), &(1, 2), &12).unwrap();
+    table.append(txn.txn(), &(2, 0), &20).unwrap();
+    table.append(txn.txn(), &(2, 2), &22).unwrap();
 
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(0));
-    assert_eq!(table.get(&txn, &(1, 2)).unwrap(), Some(12));
-    assert_eq!(table.get(&txn, &(2, 0)).unwrap(), Some(20));
-    assert_eq!(table.get(&txn, &(2, 2)).unwrap(), Some(22));
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(0));
+    assert_eq!(table.get(txn.txn(), &(1, 2)).unwrap(), Some(12));
+    assert_eq!(table.get(txn.txn(), &(2, 0)).unwrap(), Some(20));
+    assert_eq!(table.get(txn.txn(), &(2, 2)).unwrap(), Some(22));
 
     // Override the last key with a smaller value.
-    table.append(&txn, &(2, 2), &0).unwrap();
-    assert_eq!(table.get(&txn, &(2, 2)).unwrap(), Some(0));
+    table.append(txn.txn(), &(2, 2), &0).unwrap();
+    assert_eq!(table.get(txn.txn(), &(2, 2)).unwrap(), Some(0));
 
     // Override the last key with a bigger value.
-    table.append(&txn, &(2, 2), &100).unwrap();
-    assert_eq!(table.get(&txn, &(2, 2)).unwrap(), Some(100));
+    table.append(txn.txn(), &(2, 2), &100).unwrap();
+    assert_eq!(table.get(txn.txn(), &(2, 2)).unwrap(), Some(100));
 
     // Append key that is not the last, should fail.
-    assert_matches!(table.append(&txn, &(0, 0), &0), Err(DbError::Append));
-    assert_matches!(table.append(&txn, &(1, 3), &0), Err(DbError::Append));
-    assert_matches!(table.append(&txn, &(2, 1), &0), Err(DbError::Append));
+    assert_matches!(table.append(txn.txn(), &(0, 0), &0), Err(DbError::Append));
+    assert_matches!(table.append(txn.txn(), &(1, 3), &0), Err(DbError::Append));
+    assert_matches!(table.append(txn.txn(), &(2, 1), &0), Err(DbError::Append));
 
     // Check the final database.
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(0));
-    assert_eq!(table.get(&txn, &(1, 2)).unwrap(), Some(12));
-    assert_eq!(table.get(&txn, &(2, 0)).unwrap(), Some(20));
-    assert_eq!(table.get(&txn, &(2, 2)).unwrap(), Some(100));
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(0));
+    assert_eq!(table.get(txn.txn(), &(1, 2)).unwrap(), Some(12));
+    assert_eq!(table.get(txn.txn(), &(2, 0)).unwrap(), Some(20));
+    assert_eq!(table.get(txn.txn(), &(2, 2)).unwrap(), Some(100));
 }
 
 fn delete_test<T: TableType>(
@@ -177,18 +180,18 @@ fn delete_test<T: TableType>(
     for<'env> TableHandle<'env, TableKey, TableValue, T>:
         Table<'env, Key = TableKey, Value = TableValue>,
 {
-    let txn = writer.begin_rw_txn().unwrap();
-    let table = txn.open_table(&table_id).unwrap();
+    let txn = writer.begin_persistent_rw_txn().unwrap();
+    let table = txn.txn().open_table(&table_id).unwrap();
 
-    table.insert(&txn, &(1, 1), &11).unwrap();
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), Some(11));
+    table.insert(txn.txn(), &(1, 1), &11).unwrap();
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), Some(11));
 
-    table.delete(&txn, &(1, 1)).unwrap();
+    table.delete(txn.txn(), &(1, 1)).unwrap();
     // Delete non-existent value.
-    table.delete(&txn, &(2, 2)).unwrap();
+    table.delete(txn.txn(), &(2, 2)).unwrap();
 
-    assert_eq!(table.get(&txn, &(1, 1)).unwrap(), None);
-    assert_eq!(table.get(&txn, &(2, 2)).unwrap(), None);
+    assert_eq!(table.get(txn.txn(), &(1, 1)).unwrap(), None);
+    assert_eq!(table.get(txn.txn(), &(2, 2)).unwrap(), None);
 }
 
 fn table_cursor_test<T: TableType>(
@@ -224,16 +227,16 @@ fn table_cursor_test<T: TableType>(
         ((3, 3), 4),
     ];
 
-    let txn = writer.begin_rw_txn().unwrap();
-    let table = txn.open_table(&table_id).unwrap();
+    let txn = writer.begin_persistent_rw_txn().unwrap();
+    let table = txn.txn().open_table(&table_id).unwrap();
 
     // Insert the values to the table.
     for (k, v) in &VALUES {
-        table.insert(&txn, k, v).unwrap();
+        table.insert(txn.txn(), k, v).unwrap();
     }
 
     // Test lower_bound().
-    let mut cursor = table.cursor(&txn).unwrap();
+    let mut cursor = table.cursor(txn.txn()).unwrap();
     let current_entry = cursor.lower_bound(&(0, 0)).unwrap();
     assert_eq!(current_entry, Some(((1, 1), 7)));
     let current_entry = cursor.lower_bound(&(2, 2)).unwrap();
@@ -244,7 +247,7 @@ fn table_cursor_test<T: TableType>(
     assert_eq!(current_entry, None);
 
     // Iterate using next().
-    let mut cursor = table.cursor(&txn).unwrap();
+    let mut cursor = table.cursor(txn.txn()).unwrap();
     let mut current_entry = cursor.lower_bound(&(0, 0)).unwrap();
     for kv_pair in SORTED_VALUES {
         assert_eq!(current_entry, Some(kv_pair));
@@ -257,7 +260,7 @@ fn table_cursor_test<T: TableType>(
     assert_eq!(current_entry, None);
 
     // Iterate using prev().
-    let mut cursor = table.cursor(&txn).unwrap();
+    let mut cursor = table.cursor(txn.txn()).unwrap();
     let mut current_entry = cursor.lower_bound(&(4, 4)).unwrap();
     assert_eq!(current_entry, None);
     for kv_pair in SORTED_VALUES.iter().rev().cloned() {
@@ -309,7 +312,7 @@ pub(crate) fn random_table_test<T0: TableType, T1: TableType>(
 
     for iter in 0..ITERS {
         debug!("iteration: {iter:?}");
-        let wtxn = writer.begin_rw_txn().unwrap();
+        let wtxn = writer.begin_persistent_rw_txn().unwrap();
         let random_op = rng.gen_range(0..4);
         let key = get_random_key(&mut rng);
         let value = rng.gen_range(0..MAX_VALUE);
@@ -318,8 +321,8 @@ pub(crate) fn random_table_test<T0: TableType, T1: TableType>(
         if random_op == 0 {
             // Insert
             debug!("insert: {key:?}, {value:?}");
-            let first_res = first_table.insert(&wtxn, &key, &value);
-            let second_res = second_table.insert(&wtxn, &key, &value);
+            let first_res = first_table.insert(wtxn.txn(), &key, &value);
+            let second_res = second_table.insert(wtxn.txn(), &key, &value);
             assert!(
                 (first_res.is_ok() && second_res.is_ok())
                     || (matches!(first_res.unwrap_err(), DbError::KeyAlreadyExists(..))
@@ -328,15 +331,15 @@ pub(crate) fn random_table_test<T0: TableType, T1: TableType>(
         } else if random_op == 1 {
             // Upsert
             debug!("upsert: {key:?}, {value:?}");
-            first_table.upsert(&wtxn, &key, &value).unwrap();
-            second_table.upsert(&wtxn, &key, &value).unwrap();
+            first_table.upsert(wtxn.txn(), &key, &value).unwrap();
+            second_table.upsert(wtxn.txn(), &key, &value).unwrap();
         } else if random_op == 2 {
             // Append
             // TODO(dvir): consider increasing the number of successful appends (append of not the
             // last entry will fail).
             debug!("append: {key:?}, {value:?}");
-            let first_res = first_table.append(&wtxn, &key, &value);
-            let second_res = second_table.append(&wtxn, &key, &value);
+            let first_res = first_table.append(wtxn.txn(), &key, &value);
+            let second_res = second_table.append(wtxn.txn(), &key, &value);
             assert!(
                 (first_res.is_ok() && second_res.is_ok())
                     || (matches!(first_res.unwrap_err(), DbError::Append)
@@ -345,8 +348,8 @@ pub(crate) fn random_table_test<T0: TableType, T1: TableType>(
         } else if random_op == 3 {
             // Delete
             debug!("delete: {key:?}");
-            first_table.delete(&wtxn, &key).unwrap();
-            second_table.delete(&wtxn, &key).unwrap();
+            first_table.delete(wtxn.txn(), &key).unwrap();
+            second_table.delete(wtxn.txn(), &key).unwrap();
         }
 
         wtxn.commit().unwrap();
