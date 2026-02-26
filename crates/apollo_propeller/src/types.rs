@@ -36,8 +36,7 @@ pub enum Event {
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
-// TODO(AndrewL): make it hash instead of u32
-pub struct CommitteeId(pub u32);
+pub struct CommitteeId(pub [u8; 32]);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct ShardIndex(pub u64);
