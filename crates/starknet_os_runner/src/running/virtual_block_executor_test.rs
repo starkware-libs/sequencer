@@ -7,6 +7,7 @@ use starknet_api::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress, Nonce};
 use starknet_api::test_utils::invoke::invoke_tx;
+use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{InvokeTransaction, Transaction, TransactionHash};
 use starknet_api::{calldata, felt, invoke_tx_args};
 
@@ -17,6 +18,7 @@ use crate::running::virtual_block_executor::{
 };
 use crate::test_utils::{
     resolve_test_mode,
+    resource_bounds_for_client_side_tx,
     rpc_virtual_block_executor,
     SENDER_ADDRESS,
     STRK_TOKEN_ADDRESS,
@@ -148,20 +150,37 @@ fn test_execute_constructed_balance_of_transaction(
     );
 }
 
-/// Integration test for `simulate_and_get_initial_reads`.
+/// Constructs the test invoke transaction used by the simulate/prefetch integration tests.
+fn construct_privacy_invoke() -> (InvokeTransaction, TransactionHash) {
+    let tx = invoke_tx(invoke_tx_args! {
+        sender_address: ContractAddress::try_from(
+            felt!("0x037ee64c5681f8d1eea73429144d6a5c0ef271759a1d4342de13cef520fe35a7")
+        ).unwrap(),
+        calldata: calldata![
+            felt!("0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7"),
+            felt!("0x35a73cd311a05d46deda634c5ee045db92f811b4e74bca4437fcb5302b7af33"),
+            felt!("0x1"),
+            felt!("0x037ee64c5681f8d1eea73429144d6a5c0ef271759a1d4342de13cef520fe35a7")
+        ],
+        resource_bounds: ValidResourceBounds::AllResources(resource_bounds_for_client_side_tx()),
+        nonce: Nonce(felt!("0x21a")),
+    });
+
+    let tx_hash = Transaction::Invoke(tx.clone())
+        .calculate_transaction_hash(&ChainId::IntegrationSepolia)
+        .unwrap();
+    (tx, tx_hash)
+}
+
+/// Unit test for `simulate_and_get_initial_reads`.
 ///
-/// Calls `starknet_simulateTransactions` with `RETURN_INITIAL_READS`
+/// Calls `starknet_simulateTransactions` with `RETURN_INITIAL_READS` against a pathfinder
 /// v0.10 node and verifies the returned `StateMaps` is non-empty.
-///
-/// Supports three modes via the `rpc_records` infrastructure:
-/// - **Recording**: `RECORD_RPC_RECORDS=1 NODE_URL=http://<privacy-env-node>/rpc/v0_10`
-/// - **Offline**: uses pre-recorded responses (no network required)
-/// - **Live**: uses `NODE_URL` directly
 ///
 /// # Running
 ///
 /// ```bash
-/// # Record (first time):
+/// # Record:
 /// RECORD_RPC_RECORDS=1 NODE_URL=http://<privacy-env-node>/rpc/v0_10 \
 ///     cargo test -p starknet_os_runner test_simulate_and_get_initial_reads -- --ignored
 ///
@@ -184,23 +203,7 @@ async fn test_simulate_and_get_initial_reads() {
             RpcVirtualBlockExecutorConfig::default(),
         );
 
-        // Recorded against the privacy environment's .
-        let tx = invoke_tx(invoke_tx_args! {
-            sender_address: ContractAddress::try_from(
-                felt!("0x037ee64c5681f8d1eea73429144d6a5c0ef271759a1d4342de13cef520fe35a7")
-            ).unwrap(),
-            calldata: calldata![
-                felt!("0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7"),
-                felt!("0x35a73cd311a05d46deda634c5ee045db92f811b4e74bca4437fcb5302b7af33"),
-                felt!("0x1"),
-                felt!("0x037ee64c5681f8d1eea73429144d6a5c0ef271759a1d4342de13cef520fe35a7")
-            ],
-            nonce: Nonce(felt!("0x21a")),
-        });
-
-        let tx_hash = Transaction::Invoke(tx.clone())
-            .calculate_transaction_hash(&ChainId::IntegrationSepolia)
-            .unwrap();
+        let (tx, tx_hash) = construct_privacy_invoke();
 
         executor
             .simulate_and_get_initial_reads(block_id, &[(tx, tx_hash)])
@@ -213,4 +216,62 @@ async fn test_simulate_and_get_initial_reads() {
     assert!(!state_maps.storage.is_empty(), "initial_reads should contain storage entries");
 
     test_mode.finalize();
+}
+
+/// Integration test for executing a transaction with simulate-based state prefetch.
+///
+/// Runs `execute` with `prefetch_state: true`, which calls `starknet_simulateTransactions`
+/// with `RETURN_INITIAL_READS` to prefetch state before execution, then executes the
+/// transaction using the prefetched state.
+///
+/// # Running
+///
+/// ```bash
+/// # Record:
+/// RECORD_RPC_RECORDS=1 NODE_URL=http://<privacy-env-node>/rpc/v0_10 \
+///     cargo test -p starknet_os_runner test_execute_with_prefetch -- --ignored
+///
+/// # Offline (after recording):
+/// cargo test -p starknet_os_runner test_execute_with_prefetch -- --ignored
+/// ```
+#[tokio::test(flavor = "multi_thread")]
+#[ignore] // Requires RPC records or a live pathfinder v0.10 node
+async fn test_execute_with_prefetch() {
+    let test_mode = resolve_test_mode("test_execute_with_prefetch").await;
+    let rpc_url = test_mode.rpc_url();
+
+    let result = tokio::task::spawn_blocking(move || {
+        let chain_info = get_chain_info(&ChainId::IntegrationSepolia, None);
+        let block_id = BlockId::Latest;
+
+        let mut executor = RpcVirtualBlockExecutor::new(
+            rpc_url,
+            chain_info,
+            block_id,
+            RpcVirtualBlockExecutorConfig { prefetch_state: true },
+        );
+        executor.validate_txs = false;
+
+        let (tx, tx_hash) = construct_privacy_invoke();
+
+        let contract_class_manager =
+            ContractClassManager::start(ContractClassManagerConfig::default());
+
+        executor.execute(block_id, contract_class_manager, vec![(tx, tx_hash)])
+    })
+    .await
+    .unwrap();
+
+    test_mode.finalize();
+
+    let result = result.expect("execute with prefetch should succeed");
+
+    assert_eq!(result.execution_outputs.len(), 1, "Should have exactly one execution output");
+
+    let (execution_info, _) = &result.execution_outputs[0];
+    assert!(
+        !execution_info.is_reverted(),
+        "Transaction should not revert. Error: {:?}",
+        execution_info.revert_error
+    );
 }
