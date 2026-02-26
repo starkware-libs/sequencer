@@ -2,7 +2,7 @@
 //!
 //! The block header is the part of the block that contains metadata about the block.
 //! Import [`HeaderStorageReader`] and [`HeaderStorageWriter`] to read and write data related
-//! to the block headers using a [`StorageTxn`].
+//! to the block headers using a `StorageTxn`.
 //! # Example
 //! ```
 //! use apollo_storage::open_storage;
@@ -65,8 +65,8 @@ use tracing::debug;
 
 use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
-use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTxn};
+use crate::db::{DbTransaction, TableHandle, RW};
+use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTransaction};
 
 /// Storage representation of a Starknet block header.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
@@ -189,18 +189,18 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
+impl<T: StorageTransaction> HeaderStorageReader for T {
     fn get_header_marker(&self) -> StorageResult<BlockNumber> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        Ok(markers_table.get(&self.txn, &MarkerKind::Header)?.unwrap_or_default())
+        let markers_table = self.open_table(&self.tables().markers)?;
+        Ok(markers_table.get(self.txn(), &MarkerKind::Header)?.unwrap_or_default())
     }
 
     fn get_storage_block_header(
         &self,
         block_number: &BlockNumber,
     ) -> StorageResult<Option<StorageBlockHeader>> {
-        let headers_table = self.open_table(&self.tables.headers)?;
-        Ok(headers_table.get(&self.txn, block_number)?)
+        let headers_table = self.open_table(&self.tables().headers)?;
+        Ok(headers_table.get(self.txn(), block_number)?)
     }
 
     fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>> {
@@ -240,8 +240,8 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_hash: &BlockHash,
     ) -> StorageResult<Option<BlockNumber>> {
-        let block_hash_to_number_table = self.open_table(&self.tables.block_hash_to_number)?;
-        let block_number = block_hash_to_number_table.get(&self.txn, block_hash)?;
+        let block_hash_to_number_table = self.open_table(&self.tables().block_hash_to_number)?;
+        let block_number = block_hash_to_number_table.get(self.txn(), block_hash)?;
         Ok(block_number)
     }
 
@@ -254,8 +254,8 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
             return Ok(None);
         }
 
-        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
-        let mut cursor = starknet_version_table.cursor(&self.txn)?;
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
+        let mut cursor = starknet_version_table.cursor(self.txn())?;
         let Some(next_block_number) = block_number.next() else {
             return Ok(None);
         };
@@ -275,8 +275,8 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<StarknetVersion>> {
-        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
-        let starknet_version = starknet_version_table.get(&self.txn, &block_number)?;
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
+        let starknet_version = starknet_version_table.get(self.txn(), &block_number)?;
         Ok(starknet_version)
     }
 
@@ -284,23 +284,23 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         &self,
         block_number: BlockNumber,
     ) -> StorageResult<Option<BlockSignature>> {
-        let block_signatures_table = self.open_table(&self.tables.block_signatures)?;
-        let block_signature = block_signatures_table.get(&self.txn, &block_number)?;
+        let block_signatures_table = self.open_table(&self.tables().block_signatures)?;
+        let block_signature = block_signatures_table.get(self.txn(), &block_number)?;
         Ok(block_signature)
     }
 }
 
-impl HeaderStorageWriter for StorageTxn<'_, RW> {
+impl<T: StorageTransaction<Mode = RW>> HeaderStorageWriter for T {
     fn append_header(
         self,
         block_number: BlockNumber,
         block_header: &BlockHeader,
     ) -> StorageResult<Self> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        let headers_table = self.open_table(&self.tables.headers)?;
-        let block_hash_to_number_table = self.open_table(&self.tables.block_hash_to_number)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
+        let headers_table = self.open_table(&self.tables().headers)?;
+        let block_hash_to_number_table = self.open_table(&self.tables().block_hash_to_number)?;
 
-        update_marker(&self.txn, &markers_table, block_number)?;
+        update_marker(self.txn(), &markers_table, block_number)?;
 
         let storage_block_header = StorageBlockHeader {
             block_hash: block_header.block_hash,
@@ -324,10 +324,10 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
             n_events: block_header.n_events,
         };
 
-        headers_table.append(&self.txn, &block_number, &storage_block_header)?;
+        headers_table.append(self.txn(), &block_number, &storage_block_header)?;
 
         update_hash_mapping(
-            &self.txn,
+            self.txn(),
             &block_hash_to_number_table,
             &storage_block_header,
             block_number,
@@ -345,15 +345,15 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         block_number: &BlockNumber,
         starknet_version: &StarknetVersion,
     ) -> StorageResult<Self> {
-        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
-        let mut cursor = starknet_version_table.cursor(&self.txn)?;
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
+        let mut cursor = starknet_version_table.cursor(self.txn())?;
         cursor.lower_bound(block_number)?;
         let res = cursor.prev()?;
 
         match res {
             Some((_block_number, last_starknet_version))
                 if last_starknet_version == *starknet_version => {}
-            _ => starknet_version_table.insert(&self.txn, block_number, starknet_version)?,
+            _ => starknet_version_table.insert(self.txn(), block_number, starknet_version)?,
         }
         Ok(self)
     }
@@ -362,11 +362,11 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         self,
         block_number: BlockNumber,
     ) -> StorageResult<(Self, Option<BlockHeader>, Option<BlockSignature>)> {
-        let markers_table = self.open_table(&self.tables.markers)?;
-        let headers_table = self.open_table(&self.tables.headers)?;
-        let block_hash_to_number_table = self.open_table(&self.tables.block_hash_to_number)?;
-        let starknet_version_table = self.open_table(&self.tables.starknet_version)?;
-        let block_signatures_table = self.open_table(&self.tables.block_signatures)?;
+        let markers_table = self.open_table(&self.tables().markers)?;
+        let headers_table = self.open_table(&self.tables().headers)?;
+        let block_hash_to_number_table = self.open_table(&self.tables().block_hash_to_number)?;
+        let starknet_version_table = self.open_table(&self.tables().starknet_version)?;
+        let block_signatures_table = self.open_table(&self.tables().block_signatures)?;
 
         // Assert that header marker equals the reverted block number + 1
         let current_header_marker = self.get_header_marker()?;
@@ -385,15 +385,15 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         };
 
         let reverted_header = headers_table
-            .get(&self.txn, &block_number)?
+            .get(self.txn(), &block_number)?
             .expect("Missing header for block {block_number}.");
-        markers_table.upsert(&self.txn, &MarkerKind::Header, &block_number)?;
-        headers_table.delete(&self.txn, &block_number)?;
-        block_hash_to_number_table.delete(&self.txn, &reverted_header.block_hash)?;
+        markers_table.upsert(self.txn(), &MarkerKind::Header, &block_number)?;
+        headers_table.delete(self.txn(), &block_number)?;
+        block_hash_to_number_table.delete(self.txn(), &reverted_header.block_hash)?;
 
         // Revert starknet version and get the version.
         // TODO(shahak): Fix code duplication with get_starknet_version.
-        let mut cursor = starknet_version_table.cursor(&self.txn)?;
+        let mut cursor = starknet_version_table.cursor(self.txn())?;
         cursor.lower_bound(&next_block_number)?;
         let res = cursor.prev()?;
 
@@ -404,12 +404,12 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
                  have at least a single mapping."
             ),
         };
-        starknet_version_table.delete(&self.txn, &block_number)?;
+        starknet_version_table.delete(self.txn(), &block_number)?;
 
         // Revert block signature.
-        let reverted_block_signature = block_signatures_table.get(&self.txn, &block_number)?;
+        let reverted_block_signature = block_signatures_table.get(self.txn(), &block_number)?;
         if reverted_block_signature.is_some() {
-            block_signatures_table.delete(&self.txn, &block_number)?;
+            block_signatures_table.delete(self.txn(), &block_number)?;
         }
 
         Ok((
@@ -455,8 +455,8 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
             });
         }
 
-        let block_signatures_table = self.open_table(&self.tables.block_signatures)?;
-        block_signatures_table.insert(&self.txn, &block_number, block_signature)?;
+        let block_signatures_table = self.open_table(&self.tables().block_signatures)?;
+        block_signatures_table.insert(self.txn(), &block_number, block_signature)?;
         Ok(self)
     }
 }
