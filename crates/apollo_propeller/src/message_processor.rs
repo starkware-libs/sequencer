@@ -10,7 +10,7 @@ use tracing::{debug, error, trace};
 use crate::sharding::reconstruct_message_from_shards;
 use crate::tree::PropellerScheduleManager;
 use crate::types::{CommitteeId, Event, MessageRoot, ReconstructionError, ShardValidationError};
-use crate::unit::PropellerUnit;
+use crate::unit::{PropellerUnit, Shards};
 use crate::unit_validator::UnitValidator;
 use crate::{MerkleProof, ShardIndex};
 
@@ -28,7 +28,7 @@ pub enum EventStateManagerToEngine {
 #[derive(Debug)]
 struct ReconstructionOutput {
     message: Vec<u8>,
-    my_shard: Vec<u8>,
+    my_shards: Shards,
     my_shard_proof: MerkleProof,
 }
 
@@ -296,9 +296,9 @@ impl MessageProcessor {
                 data_count,
                 coding_count,
             )
-            .map(|(message, my_shard, my_shard_proof)| ReconstructionOutput {
+            .map(|(message, my_shards, my_shard_proof)| ReconstructionOutput {
                 message,
-                my_shard,
+                my_shards,
                 my_shard_proof,
             })
         })
@@ -312,7 +312,7 @@ impl MessageProcessor {
         shard_count: usize,
         state: &mut ReconstructionState,
     ) -> ControlFlow<()> {
-        let ReconstructionOutput { message, my_shard, my_shard_proof } = output;
+        let ReconstructionOutput { message, my_shards, my_shard_proof } = output;
 
         let should_broadcast = !state.did_broadcast_my_shard();
         if should_broadcast {
@@ -330,7 +330,7 @@ impl MessageProcessor {
                 self.message_root,
                 signature,
                 self.my_shard_index,
-                my_shard,
+                my_shards,
                 my_shard_proof,
             );
             self.broadcast_unit(&reconstructed_unit);

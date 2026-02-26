@@ -6,19 +6,53 @@ use apollo_protobuf::protobuf::{
     MerkleProof as ProtoMerkleProof,
     PeerId as ProtoPeerId,
     PropellerUnit as ProtoPropellerUnit,
+    Shard as ProtoShard,
+    Shards as ProtoShards,
 };
 use libp2p::core::PeerId;
+use prost::Message;
 
 use crate::types::{CommitteeId, MessageRoot, ShardIndex};
 use crate::{MerkleHash, MerkleProof, ShardValidationError};
 
+/// A single erasure-coded fragment.
+#[derive(Debug, PartialEq, Clone)]
+pub struct Shard(pub Vec<u8>);
+
+/// A collection of shards assigned to a single peer.
+///
+/// The Merkle tree leaf for this peer is computed by hashing the proto-encoded bytes
+/// of this struct, ensuring cross-language determinism.
+#[derive(Debug, PartialEq, Clone)]
+pub struct Shards(pub Vec<Shard>);
+
+impl Shards {
+    /// Encode as proto bytes for use as a Merkle tree leaf.
+    pub fn encode_to_proto_bytes(&self) -> Vec<u8> {
+        let proto: ProtoShards = self.into();
+        proto.encode_to_vec()
+    }
+}
+
+impl From<&Shards> for ProtoShards {
+    fn from(shards: &Shards) -> Self {
+        ProtoShards { shards: shards.0.iter().map(|s| ProtoShard { data: s.0.clone() }).collect() }
+    }
+}
+
+impl From<ProtoShards> for Shards {
+    fn from(proto: ProtoShards) -> Self {
+        Shards(proto.shards.into_iter().map(|s| Shard(s.data)).collect())
+    }
+}
+
 // TODO(AndrewL): consider making fields public and remove
 // constructor, getters and setters.
 
-/// A single shard unit in the Propeller protocol.
+/// A single unit in the Propeller protocol.
 ///
-/// Contains one shard of data along with its merkle proof, allowing
-/// receivers to verify the shard is part of the original message.
+/// Contains shards of data along with a merkle proof, allowing
+/// receivers to verify the shards are part of the original message.
 #[derive(Debug, PartialEq, Clone)]
 pub struct PropellerUnit {
     committee_id: CommitteeId,
@@ -26,7 +60,7 @@ pub struct PropellerUnit {
     root: MessageRoot,
     signature: Vec<u8>,
     index: ShardIndex,
-    shard: Vec<u8>,
+    shards: Shards,
     proof: MerkleProof,
 }
 
@@ -37,10 +71,10 @@ impl PropellerUnit {
         root: MessageRoot,
         signature: Vec<u8>,
         index: ShardIndex,
-        shard: Vec<u8>,
+        shards: Shards,
         proof: MerkleProof,
     ) -> Self {
-        Self { committee_id, root, publisher, signature, index, shard, proof }
+        Self { committee_id, root, publisher, signature, index, shards, proof }
     }
 
     pub fn committee_id(&self) -> CommitteeId {
@@ -59,12 +93,12 @@ impl PropellerUnit {
         self.index
     }
 
-    pub fn shard(&self) -> &[u8] {
-        &self.shard
+    pub fn shards(&self) -> &Shards {
+        &self.shards
     }
 
-    pub fn shard_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.shard
+    pub fn shards_mut(&mut self) -> &mut Shards {
+        &mut self.shards
     }
 
     pub fn proof(&self) -> &MerkleProof {
@@ -78,7 +112,8 @@ impl PropellerUnit {
     pub fn validate_shard_proof(&self, num_shards: usize) -> Result<(), ShardValidationError> {
         let proof = self.proof();
         let index = self.index().0.try_into().expect("u64 could not be converted to usize");
-        if proof.verify(&self.root().0, &self.shard, index, num_shards) {
+        let leaf_data = self.shards.encode_to_proto_bytes();
+        if proof.verify(&self.root().0, &leaf_data, index, num_shards) {
             Ok(())
         } else {
             Err(ShardValidationError::MerkleProofVerificationFailed)
@@ -116,6 +151,9 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
                 num_expected: 32,
                 value: e,
             })?;
+        let proto_shards = msg
+            .shards
+            .ok_or(ProtobufConversionError::MissingField { field_description: "shards" })?;
 
         Ok(Self {
             committee_id: CommitteeId(committee_id_bytes),
@@ -128,7 +166,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
             })?,
             signature: msg.signature,
             index: ShardIndex(msg.index),
-            shard: msg.shard,
+            shards: Shards::from(proto_shards),
             proof: merkle_proof.try_into()?,
         })
     }
@@ -137,7 +175,7 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
 impl From<PropellerUnit> for ProtoPropellerUnit {
     fn from(msg: PropellerUnit) -> Self {
         ProtoPropellerUnit {
-            shard: msg.shard,
+            shards: Some((&msg.shards).into()),
             index: msg.index.0,
             merkle_root: Some(ProtoHash256 { elements: msg.root.0.to_vec() }),
             merkle_proof: Some((&msg.proof).into()),

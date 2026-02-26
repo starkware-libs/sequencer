@@ -1008,14 +1008,30 @@ pub struct MerkleProof {
     #[prost(message, repeated, tag = "1")]
     pub siblings: ::prost::alloc::vec::Vec<Hash256>,
 }
-/// A single unit in the Propeller protocol containing a shard of erasure-coded data
+/// A single erasure-coded fragment of the original message.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Shard {
+    #[prost(bytes = "vec", tag = "1")]
+    pub data: ::prost::alloc::vec::Vec<u8>,
+}
+/// A collection of shards assigned to a single peer.
+/// The proto-encoded bytes of this message are used as Merkle tree leaf data,
+/// ensuring cross-language determinism.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Shards {
+    #[prost(message, repeated, tag = "1")]
+    pub shards: ::prost::alloc::vec::Vec<Shard>,
+}
+/// A single unit in the Propeller protocol containing shards of erasure-coded data
 /// along with cryptographic proofs for verification.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PropellerUnit {
-    /// The actual data shard (erasure-coded fragment of the original message).
-    #[prost(bytes = "vec", tag = "1")]
-    pub shard: ::prost::alloc::vec::Vec<u8>,
+    /// The shards assigned to this unit's peer.
+    #[prost(message, optional, tag = "1")]
+    pub shards: ::core::option::Option<Shards>,
     /// The position of this shard in the erasure coding scheme.
     #[prost(uint64, tag = "2")]
     pub index: u64,
