@@ -15,7 +15,7 @@ macro_rules! define_hint_enum_base {
     ($enum_name:ident, $(($hint_name:ident $(, $hint_str:ident)?)),+ $(,)?) => {
         #[cfg_attr(
             any(test, feature = "testing"),
-            derive(Default, Deserialize, Serialize, Ord, PartialOrd, strum_macros::EnumIter)
+            derive(Default, Deserialize, Serialize, Ord, PartialOrd, strum::EnumIter)
         )]
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
         pub enum $enum_name {

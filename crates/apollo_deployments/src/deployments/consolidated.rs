@@ -7,8 +7,7 @@ use apollo_node_config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 use serde::Serialize;
-use strum::{Display, IntoEnumIterator};
-use strum_macros::{AsRefStr, EnumIter};
+use strum::{AsRefStr, Display, EnumIter, IntoEnumIterator};
 
 use crate::deployment_definitions::ComponentConfigInService;
 use crate::scale_policy::ScalePolicy;

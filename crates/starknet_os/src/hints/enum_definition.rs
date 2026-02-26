@@ -293,7 +293,7 @@ macro_rules! all_hints_enum {
     ($($inner_enum:ident),+) => {
         #[cfg_attr(
             any(test, feature = "testing"),
-            derive(Deserialize, Serialize, Ord, PartialOrd, strum_macros::EnumIter)
+            derive(Deserialize, Serialize, Ord, PartialOrd, strum::EnumIter)
         )]
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
         pub enum AllHints {

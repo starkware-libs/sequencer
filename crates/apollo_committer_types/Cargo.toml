@@ -17,8 +17,7 @@ mockall = { workspace = true, optional = true }
 serde.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
+strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, optional = true }
 

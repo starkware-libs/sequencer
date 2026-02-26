@@ -321,7 +321,7 @@ define_string_enum! {
 }
 
 define_string_enum! {
-    #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+    #[cfg_attr(any(test, feature = "testing"), derive(strum::EnumIter))]
     #[derive(Clone, Copy, Debug)]
     pub enum Const {
         (AddrBound, "starkware.starknet.common.storage.ADDR_BOUND"),
@@ -414,7 +414,7 @@ impl Const {
 }
 
 define_string_enum! {
-    #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+    #[cfg_attr(any(test, feature = "testing"), derive(strum::EnumIter))]
     #[derive(Copy, Clone)]
     pub enum CairoStruct {
         (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),

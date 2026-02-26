@@ -1,6 +1,5 @@
 use apollo_metrics::{define_metrics, generate_permutation_labels};
-use strum::EnumVariantNames;
-use strum_macros::{EnumIter, IntoStaticStr};
+use strum::{EnumIter, EnumVariantNames, IntoStaticStr};
 
 define_metrics!(
     Consensus => {
