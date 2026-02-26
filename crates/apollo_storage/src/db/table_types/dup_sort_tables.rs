@@ -57,12 +57,6 @@ trait DupSortUtils<K: KeyTrait, V: ValueSerde> {
     // Returns the sub-key and value bytes.
     fn get_sub_key_and_value(key: &K, value: &V::Value) -> DbResult<Vec<u8>>;
 
-    // Returns the first sub-key (bytes) that is greater than or equal to sub-key of the given key.
-    fn get_sub_key_lower_bound(key: &K) -> DbResult<Vec<u8>>;
-
-    // Changes main_key_bytes to the next greater one.
-    fn next_main_key(main_key_bytes: &mut Vec<u8>);
-
     // Returns a key value pair from main_key bytes and sub_key_value bytes. None will return in
     // case of a failure.
     fn get_key_value_pair(main_key: &[u8], sub_key_and_value: &[u8]) -> Option<(K, V::Value)>;
@@ -89,14 +83,6 @@ where
         Ok(res)
     }
 
-    fn get_sub_key_lower_bound(key: &(MainKey, SubKey)) -> DbResult<Vec<u8>> {
-        key.1.serialize()
-    }
-
-    fn next_main_key(main_key_bytes: &mut Vec<u8>) {
-        add_one(main_key_bytes);
-    }
-
     fn get_key_value_pair(
         mut main_key: &[u8],
         mut sub_key_and_value: &[u8],
@@ -112,21 +98,6 @@ where
             V::Value::deserialize(&mut sub_key_and_value)?,
         ))
     }
-}
-
-// Adds one to the number represented by the bytes.
-fn add_one(bytes: &mut Vec<u8>) {
-    for byte in bytes.iter_mut().rev() {
-        if *byte == u8::MAX {
-            *byte = 0;
-        } else {
-            *byte += 1;
-            return; // No need to continue if there is no carry.
-        }
-    }
-
-    // If we reach this point, it means there was a carry into the most significant byte.
-    bytes.insert(0, 1);
 }
 
 impl DbWriter {
@@ -180,14 +151,13 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
         key: &Self::Key,
     ) -> DbResult<Option<<Self::Value as ValueSerde>::Value>> {
         let main_key = T::get_main_key(key)?;
-        let first_sub_key = T::get_sub_key_lower_bound(key)?;
+        let sub_key = T::get_sub_key(key)?;
 
         let mut cursor = txn.txn.cursor(&self.database)?;
-        let Some(bytes) = cursor.get_both_range::<Cow<'_, [u8]>>(&main_key, &first_sub_key)? else {
+        let Some(bytes) = cursor.get_both_range::<Cow<'_, [u8]>>(&main_key, &sub_key)? else {
             return Ok(None);
         };
 
-        let sub_key = T::get_sub_key(key)?;
         if let Some(mut bytes) = bytes.strip_prefix(sub_key.as_slice()) {
             let value = V::Value::deserialize(&mut bytes).ok_or(DbError::InnerDeserialization)?;
             return Ok(Some(value));
@@ -350,14 +320,13 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
     // a corrupt database.
     fn delete(&'env self, txn: &DbTransaction<'env, RW>, key: &Self::Key) -> DbResult<()> {
         let main_key = T::get_main_key(key)?;
-        let first_sub_key = T::get_sub_key_lower_bound(key)?;
+        let sub_key = T::get_sub_key(key)?;
 
         let mut cursor = txn.txn.cursor(&self.database)?;
-        let Some(bytes) = cursor.get_both_range::<Cow<'_, [u8]>>(&main_key, &first_sub_key)? else {
+        let Some(bytes) = cursor.get_both_range::<Cow<'_, [u8]>>(&main_key, &sub_key)? else {
             return Ok(());
         };
 
-        let sub_key = T::get_sub_key(key)?;
         if bytes.starts_with(&sub_key) {
             cursor.del(WriteFlags::empty())?;
         }
@@ -418,10 +387,18 @@ impl<
     type Key = K;
     type Value = V;
 
+    // On DUP_SORT tables, when next()/prev() returns None (NOTFOUND), the cursor enters an
+    // unpositioned state. Re-seeking to last()/first() restores a valid position.
+    // See raw_mdbx_cursor_boundary_behavior test for validated behavior documentation.
+
     fn prev(&mut self) -> DbResult<Option<(Self::Key, <Self::Value as ValueSerde>::Value)>> {
-        let prev_cursor_res = self.cursor.prev::<DbKeyType<'_>, DbValueType<'_>>()?;
-        match prev_cursor_res {
-            None => Ok(None),
+        // The `?` propagates real DB errors (I/O, corruption). NOTFOUND returns as Ok(None),
+        // which is where the cursor enters the unstable state we compensate for below.
+        match self.cursor.prev::<DbKeyType<'_>, DbValueType<'_>>()? {
+            None => {
+                self.cursor.first::<DbKeyType<'_>, DbValueType<'_>>()?;
+                Ok(None)
+            }
             Some((main_key_bytes, sub_key_value_bytes)) => {
                 Ok(T::get_key_value_pair(&main_key_bytes, &sub_key_value_bytes))
             }
@@ -429,41 +406,33 @@ impl<
     }
 
     fn next(&mut self) -> DbResult<Option<(Self::Key, <Self::Value as ValueSerde>::Value)>> {
-        let prev_cursor_res = self.cursor.next::<DbKeyType<'_>, DbValueType<'_>>()?;
-        match prev_cursor_res {
-            None => Ok(None),
+        // See prev() comment on error handling.
+        match self.cursor.next::<DbKeyType<'_>, DbValueType<'_>>()? {
+            None => {
+                self.cursor.last::<DbKeyType<'_>, DbValueType<'_>>()?;
+                Ok(None)
+            }
             Some((main_key_bytes, sub_key_value_bytes)) => {
                 Ok(T::get_key_value_pair(&main_key_bytes, &sub_key_value_bytes))
             }
         }
     }
 
-    // TODO(dvir): make this function walk only once on the table and not twice. This will
-    // require to add functionality of libmdbx to the binding.
-    // Functionality adding PR: https://github.com/vorot93/libmdbx-rs/commit/0f3823b7e510147903bc19255f61345f7bf7bf69
     fn lower_bound(
         &mut self,
         key: &Self::Key,
     ) -> DbResult<Option<(Self::Key, <Self::Value as ValueSerde>::Value)>> {
-        let mut main_key = T::get_main_key(key)?;
-        let first_sub_key = T::get_sub_key_lower_bound(key)?;
+        let main_key = T::get_main_key(key)?;
+        let sub_key = T::get_sub_key(key)?;
 
-        // First try to find a match for the main-key.
-        if let Some(value_bytes) =
-            self.cursor.get_both_range::<DbValueType<'_>>(&main_key, &first_sub_key)?
+        match self
+            .cursor
+            .set_lowerbound::<DbKeyType<'_>, DbValueType<'_>>(&main_key, Some(&sub_key))?
         {
-            return Ok(T::get_key_value_pair(&main_key, &value_bytes));
+            Some((_exact_match, found_key, found_value)) => {
+                Ok(T::get_key_value_pair(&found_key, &found_value))
+            }
+            None => Ok(None),
         }
-
-        // The next main-key bytes.
-        T::next_main_key(&mut main_key);
-
-        let Some((main_key_bytes, sub_key_value_bytes)) =
-            self.cursor.set_range::<DbKeyType<'_>, DbValueType<'_>>(&main_key)?
-        else {
-            return Ok(None);
-        };
-
-        Ok(T::get_key_value_pair(&main_key_bytes, &sub_key_value_bytes))
     }
 }
