@@ -1,0 +1,26 @@
+{
+  "block_id": "latest",
+  "transaction": {
+    "type": "INVOKE",
+    "version": "0x3",
+    "sender_address": "0x037ee64c5681f8d1eea73429144d6a5c0ef271759a1d4342de13cef520fe35a7",
+    "calldata": [
+      "0x70a5da4f557b77a9c54546e4bcc900806e28793d8e3eaaa207428d2387249b7",
+      "0x35a73cd311a05d46deda634c5ee045db92f811b4e74bca4437fcb5302b7af33",
+      "0x1",
+      "0x037ee64c5681f8d1eea73429144d6a5c0ef271759a1d4342de13cef520fe35a7"
+    ],
+    "signature": [],
+    "nonce": "0x0",
+    "resource_bounds": {
+      "l1_gas": { "max_amount": "0x0", "max_price_per_unit": "0x0" },
+      "l2_gas": { "max_amount": "0x989680", "max_price_per_unit": "0x0" },
+      "l1_data_gas": { "max_amount": "0x0", "max_price_per_unit": "0x0" }
+    },
+    "tip": "0x0",
+    "paymaster_data": [],
+    "account_deployment_data": [],
+    "nonce_data_availability_mode": "L1",
+    "fee_data_availability_mode": "L1"
+  }
+}
