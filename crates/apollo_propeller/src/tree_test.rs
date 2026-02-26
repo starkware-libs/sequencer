@@ -2,7 +2,7 @@ use libp2p::PeerId;
 use rstest::rstest;
 
 use crate::tree::PropellerScheduleManager;
-use crate::types::{PeerSetError, ScheduleError, ShardIndex, ShardValidationError};
+use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex, ShardValidationError};
 
 // TODO(AndrewL): Move this to test_utils crate.
 pub fn get_peer_id(index: u8) -> PeerId {
@@ -74,7 +74,7 @@ fn test_new_schedule_manager_without_local_peer() {
     let peer1 = PeerId::random();
     let peer2 = PeerId::random();
     let result = PropellerScheduleManager::new(peer1, vec![(peer2, 100)]);
-    assert_eq!(result.unwrap_err(), PeerSetError::LocalPeerNotInChannel);
+    assert_eq!(result.unwrap_err(), CommitteeSetupError::LocalPeerNotInCommittee);
 }
 
 #[rstest]
@@ -224,10 +224,10 @@ fn test_get_my_shard_index_given_publisher() {
         Err(ScheduleError::LocalPeerIsPublisher)
     ));
 
-    // When publisher is not in channel, should return error
+    // When publisher is not in committee, should return error
     let unknown_peer = get_peer_id(99);
     assert!(matches!(
         manager.get_my_shard_index_given_publisher(&unknown_peer),
-        Err(ScheduleError::PublisherNotInChannel { .. })
+        Err(ScheduleError::PublisherNotInCommittee { .. })
     ));
 }

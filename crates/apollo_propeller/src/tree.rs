@@ -6,7 +6,7 @@
 
 use libp2p::identity::PeerId;
 
-use crate::types::{PeerSetError, ScheduleError, ShardIndex};
+use crate::types::{CommitteeSetupError, ScheduleError, ShardIndex};
 use crate::ShardValidationError;
 
 pub type Stake = u64;
@@ -24,8 +24,8 @@ pub type Stake = u64;
 /// - Each peer broadcasts received shards to all other peers (full mesh)
 #[derive(Debug, Clone)]
 pub struct PropellerScheduleManager {
-    /// All nodes in the channel with their stake, sorted by peer_id
-    channel_nodes: Vec<(PeerId, Stake)>,
+    /// All nodes in the committee with their stake, sorted by peer_id
+    committee_nodes: Vec<(PeerId, Stake)>,
     /// This node's peer ID.
     local_peer_id: PeerId,
     /// This node's index in the nodes vector.
@@ -41,15 +41,15 @@ impl PropellerScheduleManager {
     pub fn new(
         local_peer_id: PeerId,
         mut nodes: Vec<(PeerId, Stake)>,
-    ) -> Result<Self, PeerSetError> {
+    ) -> Result<Self, CommitteeSetupError> {
         // Check that local peer is in the list before sorting
         if !nodes.iter().any(|(peer_id, _)| *peer_id == local_peer_id) {
-            return Err(PeerSetError::LocalPeerNotInChannel);
+            return Err(CommitteeSetupError::LocalPeerNotInCommittee);
         }
 
         nodes.sort();
         if nodes.windows(2).any(|window| window[0].0 == window[1].0) {
-            return Err(PeerSetError::DuplicatePeerIds);
+            return Err(CommitteeSetupError::DuplicatePeerIds);
         }
 
         let local_peer_index = nodes
@@ -65,7 +65,7 @@ impl PropellerScheduleManager {
         let num_coding_shards = (total_nodes - 1).saturating_sub(num_data_shards);
 
         Ok(Self {
-            channel_nodes: nodes,
+            committee_nodes: nodes,
             local_peer_id,
             local_peer_index,
             num_data_shards,
@@ -78,11 +78,11 @@ impl PropellerScheduleManager {
     }
 
     pub fn get_node_count(&self) -> usize {
-        self.channel_nodes.len()
+        self.committee_nodes.len()
     }
 
     pub fn get_nodes(&self) -> &[(PeerId, Stake)] {
-        &self.channel_nodes
+        &self.committee_nodes
     }
 
     pub fn num_data_shards(&self) -> usize {
@@ -125,12 +125,12 @@ impl PropellerScheduleManager {
         let original_shard_index = shard_index;
         let shard_index: usize = shard_index.0.try_into().expect("Failed converting u64 to usize");
         let publisher_index = self
-            .channel_nodes
+            .committee_nodes
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
-            .map_err(|_| ScheduleError::PublisherNotInChannel { publisher: *publisher })?;
+            .map_err(|_| ScheduleError::PublisherNotInCommittee { publisher: *publisher })?;
         let index =
             if shard_index < publisher_index { shard_index } else { shard_index.saturating_add(1) };
-        self.channel_nodes
+        self.committee_nodes
             .get(index)
             .map(|(peer, _)| *peer)
             .ok_or(ScheduleError::ShardIndexOutOfBounds { shard_index: original_shard_index })
@@ -183,7 +183,7 @@ impl PropellerScheduleManager {
     /// Returns a list of peer IDs for all peers except the publisher (local peer).
     pub fn make_broadcast_list(&self) -> Vec<PeerId> {
         let publisher = self.get_local_peer_id();
-        self.channel_nodes
+        self.committee_nodes
             .iter()
             .filter(|(peer_id, _)| *peer_id != publisher)
             .map(|(peer, _)| *peer)
@@ -204,9 +204,9 @@ impl PropellerScheduleManager {
         }
 
         let publisher_index = self
-            .channel_nodes
+            .committee_nodes
             .binary_search_by_key(&publisher, |(peer_id, _)| peer_id)
-            .map_err(|_| ScheduleError::PublisherNotInChannel { publisher: *publisher })?;
+            .map_err(|_| ScheduleError::PublisherNotInCommittee { publisher: *publisher })?;
 
         let shard_id = if self.local_peer_index < publisher_index {
             self.local_peer_index

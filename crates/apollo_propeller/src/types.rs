@@ -32,13 +32,12 @@ pub enum Event {
         error: ShardValidationError,
     },
     /// Message processing timed out before completion.
-    MessageTimeout { channel: Channel, publisher: PeerId, message_root: MessageRoot },
+    MessageTimeout { committee_id: CommitteeId, publisher: PeerId, message_root: MessageRoot },
 }
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
-// TODO(AndrewL): rename to ChannelId
-// TODO(AndrewL): make it u64 instead of u32
-pub struct Channel(pub u32);
+// TODO(AndrewL): make it hash instead of u32
+pub struct CommitteeId(pub u32);
 
 #[derive(Debug, Default, PartialEq, Clone, Copy, Ord, PartialOrd, Eq, Hash)]
 pub struct ShardIndex(pub u64);
@@ -60,13 +59,13 @@ pub enum ShardSignatureVerificationError {
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum ScheduleError {
-    #[error("Cannot generate tree: publisher {publisher} was not found in the channel")]
-    PublisherNotInChannel {
+    #[error("Cannot generate tree: publisher {publisher} was not found in the committee")]
+    PublisherNotInCommittee {
         /// The publisher that was not found in the peer list.
         publisher: PeerId,
     },
-    #[error("Cannot generate tree: the local peer is not included in the channel")]
-    LocalPeerNotInChannel,
+    #[error("Cannot generate tree: the local peer is not included in the committee")]
+    LocalPeerNotInCommittee,
     #[error(
         "Cannot generate tree: shard index {:?} is out of bounds. Might be out of sync with peers.",
         .shard_index
@@ -96,8 +95,8 @@ pub enum ShardPublishError {
     HandlerError(String),
     #[error("Tree generation error: {0}")]
     ScheduleError(ScheduleError),
-    #[error("Channel not registered: {0:?}")]
-    ChannelNotRegistered(Channel),
+    #[error("Committee not registered: {0:?}")]
+    CommitteeNotRegistered(CommitteeId),
     #[error("Broadcast failed to complete")]
     BroadcastFailed,
 }
@@ -116,10 +115,9 @@ pub enum ReconstructionError {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
-// TODO(AndrewL): rename to ChannelSetupError
-pub enum PeerSetError {
-    #[error("Local peer is not a member in the channel you're requesting")]
-    LocalPeerNotInChannel,
+pub enum CommitteeSetupError {
+    #[error("Local peer is not a member in the committee you're requesting")]
+    LocalPeerNotInCommittee,
     #[error("Invalid public key")]
     InvalidPublicKey,
     #[error("Duplicate peer IDs")]

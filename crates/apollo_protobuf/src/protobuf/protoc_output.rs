@@ -1063,13 +1063,12 @@ pub struct PropellerUnit {
     /// Cryptographic signature from the publisher over the merkle_root.
     #[prost(bytes = "vec", tag = "6")]
     pub signature: ::prost::alloc::vec::Vec<u8>,
-    /// TODO(AndrewL): consider re-naming channel
-    /// TODO(AndrewL): make it uint64 instead of uint32.
-    /// Logical channel identifier for multiplexing different message streams.
+    /// TODO(AndrewL): make it a hash256 instead of uint32.
+    /// Committee identifier for multiplexing different message streams.
     ///
     /// TODO(AndrewL): CRITICAL: protect against replay attacks (maybe using a timestamp)
     #[prost(uint32, tag = "7")]
-    pub channel: u32,
+    pub committee_id: u32,
 }
 /// A batch of PropellerUnits for efficient transmission.
 #[allow(clippy::derive_partial_eq_without_eq)]
