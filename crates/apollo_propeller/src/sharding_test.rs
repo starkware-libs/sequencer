@@ -1,13 +1,13 @@
 use libp2p::identity::Keypair;
 
 use crate::sharding::{create_units_to_publish, reconstruct_data_shards};
-use crate::types::{Channel, ReconstructionError};
+use crate::types::{CommitteeId, ReconstructionError};
 
 const NUM_DATA_SHARDS: usize = 5;
 const NUM_CODING_SHARDS: usize = 5;
 const MESSAGE_LEN: usize = 103;
 const MY_SHARD_INDEX: usize = 2;
-const CHANNEL: Channel = Channel(42);
+const COMMITTEE_ID: CommitteeId = CommitteeId(42);
 
 // Statically assert that MESSAGE_LEN is not divisible by NUM_DATA_SHARDS, to exercise padding.
 #[allow(clippy::manual_is_multiple_of)]
@@ -23,7 +23,7 @@ fn get_keypair(index: u8) -> Keypair {
 fn test_create_units_to_publish_all_units_have_same_signature_and_root() {
     let units = create_units_to_publish(
         vec![42u8; MESSAGE_LEN],
-        CHANNEL,
+        COMMITTEE_ID,
         get_keypair(0),
         NUM_DATA_SHARDS,
         NUM_CODING_SHARDS,
@@ -42,7 +42,7 @@ fn test_reconstruct_data_shards_success() {
     let message = vec![42u8; MESSAGE_LEN];
     let units = create_units_to_publish(
         message.clone(),
-        CHANNEL,
+        COMMITTEE_ID,
         get_keypair(0),
         NUM_DATA_SHARDS,
         NUM_CODING_SHARDS,
@@ -71,7 +71,7 @@ fn test_reconstruct_data_shards_success() {
 fn test_reconstruct_data_shards_wrong_root() {
     let units = create_units_to_publish(
         vec![42u8; MESSAGE_LEN],
-        CHANNEL,
+        COMMITTEE_ID,
         get_keypair(0),
         NUM_DATA_SHARDS,
         NUM_CODING_SHARDS,
@@ -95,7 +95,7 @@ fn test_verify_message_id_signature_rejects_wrong_signature() {
 
     let units = create_units_to_publish(
         vec![42u8; MESSAGE_LEN],
-        CHANNEL,
+        COMMITTEE_ID,
         keypair_publisher.clone(),
         NUM_DATA_SHARDS,
         NUM_CODING_SHARDS,
