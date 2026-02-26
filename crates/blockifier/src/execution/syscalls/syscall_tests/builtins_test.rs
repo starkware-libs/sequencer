@@ -16,8 +16,11 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::test_templates::runnable_version;
 use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 
-const TESTED_BUILTIN_GAS_COST: u64 = u64::pow(10, 7);
+/// High gas cost used to isolate a single primitive's contribution.
+const HIGH_SINGLE_PRIMITIVE_GAS_COST: u64 = u64::pow(10, 7);
 
+/// Verifies each primitive's gas cost is wired from config to execution.
+/// Zeroes all costs, sets only the tested one high, then asserts gas consumed ≥ that value.
 #[apply(runnable_version)]
 #[case::pedersen("test_pedersen")]
 #[case::bitwise("test_bitwise")]
@@ -25,7 +28,8 @@ const TESTED_BUILTIN_GAS_COST: u64 = u64::pow(10, 7);
 #[case::poseidon("test_poseidon")]
 // This test case tests the add_mod and mul_mod builtins.
 #[case::add_and_mul_mod("test_circuit")]
-fn builtins_test(runnable_version: RunnableCairo1, #[case] selector_name: &str) {
+#[case::blake("test_blake")]
+fn cairo_primitive_gas_test(runnable_version: RunnableCairo1, #[case] selector_name: &str) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -40,41 +44,53 @@ fn builtins_test(runnable_version: RunnableCairo1, #[case] selector_name: &str) 
     let mut block_context = BlockContext::create_for_account_testing();
     assert!(
         block_context.versioned_constants.os_constants.execute_max_sierra_gas.0
-            > TESTED_BUILTIN_GAS_COST
+            > HIGH_SINGLE_PRIMITIVE_GAS_COST,
+        "Initial gas budget must exceed the tested cost"
     );
-    change_builtins_gas_cost(&mut block_context, selector_name);
-    let mut minimal_gas = TESTED_BUILTIN_GAS_COST;
-    if selector_name == "test_circuit" {
-        minimal_gas *= 2;
+    isolate_primitive_gas_cost(&mut block_context, selector_name);
+
+    // TODO(AvivG): Remove once blake gas cost is passed to the VM (see
+    // `prepare_program_extra_data`). Otherwise, the VM crashes because blake isn't in the builtin
+    // cost segment.
+    if selector_name == "test_blake" && !runnable_version.is_cairo_native() {
+        return;
     }
+
+    // Circuit uses two primitives (add_mod + mul_mod), so expected minimum is doubled.
+    let expected_min_gas = if selector_name == "test_circuit" {
+        HIGH_SINGLE_PRIMITIVE_GAS_COST * 2
+    } else {
+        HIGH_SINGLE_PRIMITIVE_GAS_COST
+    };
 
     let call_info =
         entry_point_call.execute_directly_given_block_context(&mut state, block_context).unwrap();
+    assert!(!call_info.execution.failed, "Execution failed for {selector_name}");
 
-    assert!(!call_info.execution.failed, "Execution failed");
-    assert!(call_info.execution.gas_consumed >= minimal_gas);
+    assert!(
+        call_info.execution.gas_consumed >= expected_min_gas,
+        "{selector_name}: gas_consumed ({}) < expected minimum ({expected_min_gas})",
+        call_info.execution.gas_consumed,
+    );
 }
 
-fn change_builtins_gas_cost(block_context: &mut BlockContext, selector_name: &str) {
-    let os_constants = Arc::make_mut(&mut block_context.versioned_constants.os_constants);
-    os_constants.gas_costs.builtins = BuiltinGasCosts::default();
+/// Zeroes all primitive gas costs, then sets only the tested one high.
+fn isolate_primitive_gas_cost(block_context: &mut BlockContext, selector_name: &str) {
+    let builtins =
+        &mut Arc::make_mut(&mut block_context.versioned_constants.os_constants).gas_costs.builtins;
+    *builtins = BuiltinGasCosts::default();
+
     match selector_name {
-        "test_pedersen" => {
-            os_constants.gas_costs.builtins.pedersen = TESTED_BUILTIN_GAS_COST;
-        }
-        "test_bitwise" => {
-            os_constants.gas_costs.builtins.bitwise = TESTED_BUILTIN_GAS_COST;
-        }
-        "test_ecop" => {
-            os_constants.gas_costs.builtins.ecop = TESTED_BUILTIN_GAS_COST;
-        }
-        "test_poseidon" => {
-            os_constants.gas_costs.builtins.poseidon = TESTED_BUILTIN_GAS_COST;
-        }
+        "test_pedersen" => builtins.pedersen = HIGH_SINGLE_PRIMITIVE_GAS_COST,
+        "test_bitwise" => builtins.bitwise = HIGH_SINGLE_PRIMITIVE_GAS_COST,
+        "test_ecop" => builtins.ecop = HIGH_SINGLE_PRIMITIVE_GAS_COST,
+        "test_poseidon" => builtins.poseidon = HIGH_SINGLE_PRIMITIVE_GAS_COST,
+        // Circuit uses both add_mod and mul_mod.
         "test_circuit" => {
-            os_constants.gas_costs.builtins.add_mod = TESTED_BUILTIN_GAS_COST;
-            os_constants.gas_costs.builtins.mul_mod = TESTED_BUILTIN_GAS_COST;
+            builtins.add_mod = HIGH_SINGLE_PRIMITIVE_GAS_COST;
+            builtins.mul_mod = HIGH_SINGLE_PRIMITIVE_GAS_COST;
         }
+        "test_blake" => builtins.blake = HIGH_SINGLE_PRIMITIVE_GAS_COST,
         _ => panic!("Unknown selector name: {selector_name}"),
     }
 }
