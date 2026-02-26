@@ -17,8 +17,10 @@ use tracing::info;
 
 use crate::committee_provider::Staker;
 use crate::contract_types::{
+    optional_epoch_from_retdata,
     ContractStaker,
     GET_CURRENT_EPOCH_DATA_ENTRY_POINT,
+    GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT,
     GET_STAKERS_ENTRY_POINT,
 };
 use crate::staking_contract::{StakingContract, StakingContractResult};
@@ -117,6 +119,11 @@ impl StakingContract for CairoStakingContract {
     }
 
     async fn get_previous_epoch(&self) -> StakingContractResult<Option<Epoch>> {
-        todo!("Implement get_previous_epoch for CairoStakingContract")
+        info!("Calling staking contract {GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT}.");
+        let retdata =
+            self.call_view(GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT, Calldata::from(vec![]))?;
+        let epoch = optional_epoch_from_retdata(retdata)?;
+        info!("Retrieved previous epoch from contract: {epoch:?}.");
+        Ok(epoch)
     }
 }
