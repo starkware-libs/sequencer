@@ -15,7 +15,6 @@ use strum::{EnumIter, IntoEnumIterator};
 
 use crate::cairo_compile::{
     allowed_libfuncs_json_path,
-    allowed_libfuncs_legacy_json_path,
     cairo0_compile,
     cairo1_compile,
     CompilationArtifacts,
@@ -162,9 +161,9 @@ const LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x4b5dc7adc1a0d682e41a74ccd34f6eb4c9d25f398fe2fbfe71e111451359bd8"];
 
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x7bd24431961e9e14b62f66d468da98d0b1e215311af5c914fddb79dde11f59e"];
+    expect!["0x39c41a3c4375dbd2126c42204c1771f64a0c7e52e15b15666dfd9e20c07a569"];
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
-    expect!["0x2d8a7cd4e577d0ebfa84ff5011df4327f21e17a4ccb33491110921254c17e84"];
+    expect!["0x346ad372af7100e79f54e867d868646436b4a9512ffcabd7fdd5ed79f798a97"];
 
 const SIERRA_EXECUTION_INFO_V1_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
     expect!["0x4d9b6a21d9261ca5f4002ba074925ace389746af0dddc39c91514cced81a5e7"];
@@ -593,9 +592,16 @@ impl FeatureContract {
                     Self::Experimental => {
                         LibfuncArg::ListFile("./resources/experimental_libfuncs.json".to_string())
                     }
-                    Self::LegacyTestContract | Self::CairoStepsTestContract => {
-                        LibfuncArg::ListFile(allowed_libfuncs_legacy_json_path())
-                    }
+                    // Legacy/CairoSteps: old compiler binaries can't parse
+                    // allowed_libfuncs.json.
+                    // TestContract: blake2s requires Sierra ≥1.8.0 but the current compiler
+                    // (v2.16.0) emits Sierra 1.7.0, so its libfuncs are not in the
+                    // allowed list yet.
+                    // TODO(AvivG): Remove `| Self::TestContract(_)` once the compiler
+                    // outputs Sierra ≥1.8.0.
+                    Self::LegacyTestContract
+                    | Self::CairoStepsTestContract
+                    | Self::TestContract(_) => LibfuncArg::ListName("all".to_string()),
                     _ => LibfuncArg::ListFile(allowed_libfuncs_json_path()),
                 };
                 cairo1_compile(self.get_source_path(), self.fixed_version(), libfunc_list_arg)
