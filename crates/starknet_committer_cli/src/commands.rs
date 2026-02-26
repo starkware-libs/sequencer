@@ -494,7 +494,7 @@ pub async fn run_storage_benchmark<S: Storage>(
             measurements.to_csv(
                 &format!("{}.csv", block_number + 1),
                 output_dir,
-                storage_stats.as_ref().map(|s| Some(s.column_values())).unwrap_or(None),
+                storage_stats.as_ref().ok().map(|s| s.column_values()),
             );
             if let Some(checkpoint_dir) = checkpoint_dir {
                 measurements.save_checkpoint(
@@ -554,7 +554,7 @@ pub async fn run_storage_benchmark<S: Storage>(
         measurements.to_csv(
             &format!("{n_iterations}.csv"),
             output_dir,
-            index_db.get_stats().map(|s| Some(s.column_values())).unwrap_or(None),
+            index_db.get_stats().ok().map(|s| s.column_values()),
         );
     }
 
