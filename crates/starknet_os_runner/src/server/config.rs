@@ -105,7 +105,7 @@ impl ServiceConfig {
         if let Some(ip) = args.ip {
             let new_ip: IpAddr = ip
                 .parse()
-                .map_err(|e| ConfigError::InvalidArgument(format!("Invalid IP address: {}", e)))?;
+                .map_err(|e| ConfigError::InvalidArgument(format!("Invalid IP address: {e}")))?;
             if new_ip != config.ip {
                 info!("CLI override: ip: {} -> {}", config.ip, new_ip);
                 config.ip = new_ip;
@@ -153,7 +153,7 @@ impl ServiceConfig {
 
         if let Some(hex_str) = args.strk_fee_token_address {
             let strk_fee_token_address = ContractAddress::from_str(&hex_str).map_err(|e| {
-                ConfigError::InvalidArgument(format!("Invalid strk_fee_token_address: {}", e))
+                ConfigError::InvalidArgument(format!("Invalid strk_fee_token_address: {e}"))
             })?;
             if Some(strk_fee_token_address) != config.prover_config.strk_fee_token_address {
                 info!(
