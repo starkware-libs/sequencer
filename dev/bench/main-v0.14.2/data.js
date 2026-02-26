@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772103023075,
+  "lastUpdate": 1772114377920,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1427,6 +1427,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1278.50218264,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "161198342+idan-starkware@users.noreply.github.com",
+            "name": "Idan Shamam",
+            "username": "idan-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5abd11a7cb755e1172e8a5622e1a7e37883dc641",
+          "message": "deployment: Use ubuntu-24.04 for optimize_ci in committer_ci (#12895)\n\n* deployment: Use ubuntu-24.04 for optimize_ci in blockifier_compiled_cairo\n\n* deployment: Use ubuntu-24.04 for optimize_ci in blockifier_reexecution_ci\n\n* deployment: Use ubuntu-24.04 for optimize_ci in blockifier_ci\n\n* deployment: Use ubuntu-24.04 for optimize_ci in committer_ci",
+          "timestamp": "2026-02-26T13:37:53Z",
+          "tree_id": "89b3778ec0c35df95476d0561e26cc99de4c4cad",
+          "url": "https://github.com/starkware-libs/sequencer/commit/5abd11a7cb755e1172e8a5622e1a7e37883dc641"
+        },
+        "date": 1772114377581,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 899.84869867,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1354.6644056199998,
             "unit": "ms"
           }
         ]
