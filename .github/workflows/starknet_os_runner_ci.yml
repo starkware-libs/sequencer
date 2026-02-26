@@ -1,0 +1,73 @@
+name: Starknet-OS-Runner-CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+    paths:
+      - ".github/workflows/starknet_os_runner_ci.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/starknet_os_runner/**"
+      - "crates/starknet_os/**"
+      - "crates/proving_utils/**"
+
+env:
+  RUSTFLAGS: "-D warnings"
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  starknet_os_runner_ci:
+    runs-on: namespace-profile-xlarge-ubuntu-24-04-amd64
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      # Python + requirements are needed to compile the OS (apollo_starknet_os_program).
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: "pip"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
+
+      # Cache the rustup directory so the nightly toolchain isn't re-downloaded every run.
+      - name: Cache rustup toolchains
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          path: /home/runner/.rustup
+
+      # Ensure the nightly toolchain from the crate's rust-toolchain.toml is installed.
+      # rustup show auto-installs the toolchain if missing.
+      # The stwo_proving feature requires nightly (stwo uses unstable Rust features).
+      - name: Ensure nightly toolchain is installed
+        working-directory: crates/starknet_os_runner
+        run: rustup show
+
+      - name: Run clippy with all features (nightly)
+        working-directory: crates/starknet_os_runner
+        run: cargo clippy -p starknet_os_runner --all-targets --all-features -- -D warnings
+
+      - name: Run tests with stwo_proving
+        working-directory: crates/starknet_os_runner
+        run: cargo test -p starknet_os_runner --features stwo_proving --release
