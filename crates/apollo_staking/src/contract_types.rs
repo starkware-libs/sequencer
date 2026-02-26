@@ -12,13 +12,9 @@ use crate::staking_manager::Epoch;
 #[path = "contract_types_test.rs"]
 mod contract_types_test;
 
-// TODO(Dafna): Remove the dead_code attributes when we have a CairoStakingContract implementation.
-#[allow(dead_code)]
 pub(crate) const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
-#[allow(dead_code)]
 pub(crate) const GET_CURRENT_EPOCH_DATA_ENTRY_POINT: &str = "get_current_epoch_data";
-#[allow(dead_code)]
-pub(crate) const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
+pub(crate) const GET_PREVIOUS_EPOCH_DATA_ENTRY_POINT: &str = "get_previous_epoch_data";
 
 /// Conversion from an [`Iterator`].
 ///
@@ -32,12 +28,46 @@ pub trait TryFromIterator<Felt>: Sized {
     fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error>;
 }
 
+impl TryFromIterator<Felt> for Felt {
+    type Error = RetdataDeserializationError;
+
+    // Consumes the next felt from the iterator.
+    fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error> {
+        iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
+            message: "missing felt value.".to_string(),
+        })
+    }
+}
+
+impl<V> TryFromIterator<Felt> for Option<V>
+where
+    V: TryFromIterator<Felt, Error = RetdataDeserializationError>,
+{
+    type Error = RetdataDeserializationError;
+
+    // Parses a Cairo `Option<V>` from a stream of Felts.
+    //
+    // The iterator is expected to yield the following values, in order:
+    // 1. Option variant (1 Felt):
+    //    - 0 => Some
+    //    - 1 => None
+    // 2. Value (N Felts), only if the option variant is `Some`
+    fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error> {
+        let raw_variant = Felt::try_from_iter(iter)?;
+        let variant = usize::try_from(raw_variant)
+            .map_err(|_| RetdataDeserializationError::USizeConversionError { felt: raw_variant })?;
+        match variant {
+            0 => Ok(Some(V::try_from_iter(iter)?)),
+            1 => Ok(None),
+            _ => Err(RetdataDeserializationError::UnexpectedEnumVariant { variant }),
+        }
+    }
+}
+
 // Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
 // `T` must implement `TryFrom<[Felt; N]>`, where `N` is the size of `T`'s Cairo equivalent.
 #[derive(Debug, PartialEq, Eq)]
-// TODO(Dafna): Remove this when we have a CairoStakingContract implementation.
-#[allow(dead_code)]
-struct ArrayRetdata<T>(Vec<T>);
+struct CairoArray<T>(Vec<T>);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub(crate) struct ContractStaker {
@@ -63,10 +93,8 @@ pub enum RetdataDeserializationError {
 }
 
 impl ContractStaker {
-    // TODO(Dafna): Remove this when we have a CairoStakingContract implementation.
-    #[allow(dead_code)]
     pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
-        Ok(ArrayRetdata::try_from(retdata)?.0)
+        Ok(CairoArray::try_from(retdata)?.0)
     }
 }
 
@@ -84,51 +112,25 @@ impl TryFromIterator<Felt> for ContractStaker {
     // 4. Public Key (1 Felt), only if the option variant is `Some`
     fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error> {
         // Parse contract address.
-        let raw_address = iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
-            message: "missing contract address.".to_string(),
-        })?;
+        let raw_address = Felt::try_from_iter(iter)?;
         let contract_address = ContractAddress::try_from(raw_address).map_err(|_| {
             RetdataDeserializationError::ContractAddressConversionError { address: raw_address }
         })?;
 
         // Parse staking power.
-        let raw_staking_power =
-            iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
-                message: "missing staking power.".to_string(),
-            })?;
+        let raw_staking_power = Felt::try_from_iter(iter)?;
         let staking_power = StakingWeight(u128::try_from(raw_staking_power).map_err(|_| {
             RetdataDeserializationError::U128ConversionError { felt: raw_staking_power }
         })?);
 
         // Parse public key.
-        let raw_option_variant =
-            iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
-                message: "missing public key option variant.".to_string(),
-            })?;
-        let option_variant = usize::try_from(raw_option_variant).map_err(|_| {
-            RetdataDeserializationError::USizeConversionError { felt: raw_option_variant }
-        })?;
-        let public_key = match option_variant {
-            1 => None,
-            0 => {
-                let public_key =
-                    iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
-                        message: "missing public key.".to_string(),
-                    })?;
-                Some(public_key)
-            }
-            _ => {
-                return Err(RetdataDeserializationError::UnexpectedEnumVariant {
-                    variant: option_variant,
-                });
-            }
-        };
+        let public_key = Option::<Felt>::try_from_iter(iter)?;
 
         Ok(Self { contract_address, staking_power, public_key })
     }
 }
 
-impl<T> TryFrom<Retdata> for ArrayRetdata<T>
+impl<T> TryFrom<Retdata> for CairoArray<T>
 where
     T: TryFromIterator<Felt, Error = RetdataDeserializationError>,
 {
@@ -138,10 +140,7 @@ where
         let mut iter = retdata.0.into_iter();
 
         // The first Felt in the Retdata must be the number of structs in the array.
-        let raw_num_items =
-            iter.next().ok_or(RetdataDeserializationError::InvalidObjectLength {
-                message: "missing number of items in an array.".to_string(),
-            })?;
+        let raw_num_items = Felt::try_from_iter(&mut iter)?;
 
         let num_items = usize::try_from(raw_num_items).map_err(|_| {
             RetdataDeserializationError::USizeConversionError { felt: raw_num_items }
@@ -159,33 +158,62 @@ where
             });
         }
 
-        Ok(ArrayRetdata(result))
+        Ok(CairoArray(result))
+    }
+}
+
+impl TryFromIterator<Felt> for Epoch {
+    type Error = RetdataDeserializationError;
+
+    // Parses a single `Epoch` from a stream of Felts.
+    //
+    // The iterator is expected to yield the following values, in order:
+    // 1. Epoch ID (1 Felt)
+    // 2. Start Block (1 Felt)
+    // 3. Epoch Length (1 Felt)
+    fn try_from_iter<T: Iterator<Item = Felt>>(iter: &mut T) -> Result<Self, Self::Error> {
+        let epoch_id = felt_to_u64(Felt::try_from_iter(iter)?)?;
+        let start_block = BlockNumber(felt_to_u64(Felt::try_from_iter(iter)?)?);
+        let epoch_length = felt_to_u64(Felt::try_from_iter(iter)?)?;
+        Ok(Epoch { epoch_id, start_block, epoch_length })
     }
 }
 
 impl TryFrom<Retdata> for Epoch {
     type Error = RetdataDeserializationError;
 
-    // Retdata should contain the following values, in order:
-    // 1. Epoch ID (1 Felt)
-    // 2. Start Block (1 Felt)
-    // 3. Epoch Length (1 Felt)
     fn try_from(retdata: Retdata) -> Result<Self, Self::Error> {
-        let raw_felts = retdata.0;
-        if raw_felts.len() != 3 {
+        let mut iter = retdata.0.into_iter();
+        let epoch = Epoch::try_from_iter(&mut iter)?;
+        if iter.next().is_some() {
             return Err(RetdataDeserializationError::InvalidObjectLength {
-                message: format!(
-                    "Epoch retdata should contain 3 felts, but got {}.",
-                    raw_felts.len()
-                ),
+                message: "unconsumed elements in Epoch retdata.".to_string(),
             });
         }
+        Ok(epoch)
+    }
+}
 
-        let epoch_id = felt_to_u64(raw_felts[0])?;
-        let start_block = BlockNumber(felt_to_u64(raw_felts[1])?);
-        let epoch_length = felt_to_u64(raw_felts[2])?;
+// Represents a Cairo1 `Option` containing an element that can be deserialized to `T`.
+#[derive(Debug)]
+pub(crate) struct CairoOption<T>(pub(crate) Option<T>);
 
-        Ok(Epoch { epoch_id, start_block, epoch_length })
+impl<T> TryFrom<Retdata> for CairoOption<T>
+where
+    T: TryFromIterator<Felt, Error = RetdataDeserializationError>,
+{
+    type Error = RetdataDeserializationError;
+
+    /// Deserializes a Cairo `Option<T>` from retdata.
+    fn try_from(retdata: Retdata) -> Result<Self, Self::Error> {
+        let mut iter = retdata.0.into_iter();
+        let result = Option::<T>::try_from_iter(&mut iter)?;
+        if iter.next().is_some() {
+            return Err(RetdataDeserializationError::InvalidObjectLength {
+                message: "unconsumed elements in Option retdata.".to_string(),
+            });
+        }
+        Ok(CairoOption(result))
     }
 }
 
