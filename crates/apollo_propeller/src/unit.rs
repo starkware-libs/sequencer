@@ -106,9 +106,19 @@ impl TryFrom<ProtoPropellerUnit> for PropellerUnit {
                 num_expected: 32,
                 value: e,
             })?;
+        let committee_bytes: [u8; 32] = msg
+            .committee
+            .ok_or(ProtobufConversionError::MissingField { field_description: "committee" })?
+            .elements
+            .try_into()
+            .map_err(|e: Vec<u8>| ProtobufConversionError::BytesDataLengthMismatch {
+                type_description: "Committee",
+                num_expected: 32,
+                value: e,
+            })?;
 
         Ok(Self {
-            committee: Committee(msg.committee),
+            committee: Committee(committee_bytes),
             root: MessageRoot(merkle_root_bytes),
             publisher: PeerId::from_bytes(&publisher_id.id).map_err(|e| {
                 ProtobufConversionError::OutOfRangeValue {
@@ -133,7 +143,7 @@ impl From<PropellerUnit> for ProtoPropellerUnit {
             merkle_proof: Some((&msg.proof).into()),
             publisher: Some(ProtoPeerId { id: msg.publisher.to_bytes() }),
             signature: msg.signature,
-            committee: msg.committee.0,
+            committee: Some(ProtoHash256 { elements: msg.committee.0.to_vec() }),
         }
     }
 }

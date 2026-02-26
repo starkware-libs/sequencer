@@ -135,7 +135,7 @@ async fn e2e_broadcast_single_message(
     #[values(1, 2)] num_publishers: usize,
 ) {
     let mut harness = TestHarness::new(num_nodes).await;
-    let committee = Committee(0);
+    let committee = Committee([0u8; 32]);
     let all: Vec<usize> = (0..num_nodes).collect();
     harness.register_committee(committee, &all).await;
 
@@ -174,14 +174,14 @@ async fn e2e_broadcast_single_message(
 #[tokio::test(flavor = "current_thread")]
 async fn e2e_committee_isolation() {
     let mut harness = TestHarness::new(6).await;
-    harness.register_committee(Committee(0), &[0, 1, 2, 3]).await;
-    harness.register_committee(Committee(1), &[2, 3, 4, 5]).await;
+    harness.register_committee(Committee([0u8; 32]), &[0, 1, 2, 3]).await;
+    harness.register_committee(Committee([1u8; 32]), &[2, 3, 4, 5]).await;
 
     let msg_ch0 = b"message-for-committee-0".to_vec();
     let msg_ch1 = b"message-for-committee-1".to_vec();
 
-    harness.broadcast(2, Committee(0), msg_ch0.clone()).await;
-    harness.broadcast(2, Committee(1), msg_ch1.clone()).await;
+    harness.broadcast(2, Committee([0u8; 32]), msg_ch0.clone()).await;
+    harness.broadcast(2, Committee([1u8; 32]), msg_ch1.clone()).await;
 
     let expected = vec![
         (0, vec![msg_ch0.clone()]),
