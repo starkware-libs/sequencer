@@ -502,11 +502,12 @@ pub struct StorageReader {
 /// - Operations may fail partway through (e.g., duplicate key errors, marker mismatches)
 /// - Immediate commit guarantees are required after each write
 /// - During initialization/revert operations (batching should be disabled)
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct BatchConfig {
     /// Whether batching is enabled.
     pub enabled: bool,
-    /// Number of logical commits before actual MDBX commit.
+    /// Number of logical commits before actual MDBX commit. Must be at least 1.
+    #[validate(range(min = 1))]
     pub batch_size: usize,
 }
 
@@ -836,6 +837,8 @@ pub struct StorageConfig {
     #[validate(nested)]
     pub mmap_file_config: MmapFileConfig,
     pub scope: StorageScope,
+    #[serde(default)]
+    #[validate(nested)]
     pub batch_config: BatchConfig,
 }
 
