@@ -1,0 +1,23 @@
+name: Optimize CI
+description: Graphite CI optimizer; sets skip output for stacking/PRs.
+# https://graphite.com/docs/stacking-and-ci
+
+inputs:
+  graphite_token:
+    description: "Graphite CI optimizer token"
+    required: true
+
+outputs:
+  skip:
+    description: "Whether to skip downstream jobs (true/false)"
+    value: ${{ steps.graphite.outputs.skip }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v6
+    - name: Optimize CI
+      id: graphite
+      uses: withgraphite/graphite-ci-action@v0.0.9
+      with:
+        graphite_token: ${{ inputs.graphite_token }}
