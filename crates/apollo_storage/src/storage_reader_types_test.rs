@@ -1,8 +1,10 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_proc_macros::unique_u16;
 use apollo_test_utils::get_test_block;
+use async_trait::async_trait;
 use axum::http::StatusCode;
 use axum::Router;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -27,7 +29,13 @@ use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::consensus::{ConsensusStorageWriter, LastVotedMarker};
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
-use crate::storage_reader_server::ServerConfig;
+use crate::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    ServerConfig,
+    SharedDynamicConfigProvider,
+    StorageReaderServerDynamicConfig,
+};
 use crate::storage_reader_server_test_utils::get_response;
 use crate::storage_reader_types::{
     GenericStorageReaderServer,
@@ -37,6 +45,23 @@ use crate::storage_reader_types::{
 use crate::test_utils::get_test_storage;
 use crate::version::VersionStorageReader;
 use crate::{MarkerKind, OffsetKind, StorageReader};
+
+struct TestDynamicConfigProvider {
+    enabled: bool,
+}
+
+#[async_trait]
+impl DynamicConfigProvider for TestDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: self.enabled })
+    }
+}
+
+fn test_provider(enabled: bool) -> SharedDynamicConfigProvider {
+    Arc::new(TestDynamicConfigProvider { enabled })
+}
 
 const TEST_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
 
@@ -148,7 +173,7 @@ fn setup_test_server(block_number: BlockNumber, instance_index: u16) -> TestServ
         available_ports_factory(instance_index).get_next_port(),
         true,
     );
-    let server = GenericStorageReaderServer::new(reader.clone(), config);
+    let server = GenericStorageReaderServer::new(reader.clone(), config, test_provider(true));
     let app = server.app();
 
     TestServerSetup {

@@ -177,6 +177,7 @@ use crate::state::data::IndexedDeprecatedContractClass;
 use crate::storage_reader_server::{
     create_storage_reader_server,
     ServerConfig,
+    SharedDynamicConfigProvider,
     StorageReaderServer,
     StorageReaderServerHandler,
 };
@@ -201,6 +202,7 @@ pub fn open_storage_with_metric_and_server<RequestHandler, Request, Response>(
     storage_config: StorageConfig,
     open_readers_metric: &'static MetricGauge,
     storage_reader_server_config: ServerConfig,
+    dynamic_config_provider: SharedDynamicConfigProvider,
 ) -> StorageResult<StorageWithServer<RequestHandler, Request, Response>>
 where
     RequestHandler: StorageReaderServerHandler<Request, Response>,
@@ -209,8 +211,11 @@ where
 {
     let (reader, writer) =
         open_storage_internal(storage_config, Some(open_readers_metric)).expect("");
-    let storage_reader_server =
-        create_storage_reader_server(reader.clone(), storage_reader_server_config);
+    let storage_reader_server = create_storage_reader_server(
+        reader.clone(),
+        storage_reader_server_config,
+        dynamic_config_provider,
+    );
     Ok((reader, writer, storage_reader_server))
 }
 
