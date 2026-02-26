@@ -144,4 +144,6 @@ pub enum ShardValidationError {
     SignatureVerificationFailed(ShardSignatureVerificationError),
     #[error("Shard failed Merkle proof verification")]
     MerkleProofVerificationFailed,
+    #[error("Shards have inconsistent lengths")]
+    UnequalShardLengths,
 }
