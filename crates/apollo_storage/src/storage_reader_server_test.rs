@@ -1,4 +1,5 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use async_trait::async_trait;
@@ -9,10 +10,35 @@ use starknet_api::block::{BlockHeader, BlockNumber};
 use tower::util::ServiceExt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter};
-use crate::storage_reader_server::{ServerConfig, StorageReaderServer, StorageReaderServerHandler};
+use crate::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    ServerConfig,
+    SharedDynamicConfigProvider,
+    StorageReaderServer,
+    StorageReaderServerDynamicConfig,
+    StorageReaderServerHandler,
+};
 use crate::storage_reader_server_test_utils::{get_response, send_storage_query, to_bytes};
 use crate::test_utils::get_test_storage;
 use crate::{StorageError, StorageReader};
+
+struct TestDynamicConfigProvider {
+    enabled: bool,
+}
+
+#[async_trait]
+impl DynamicConfigProvider for TestDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: self.enabled })
+    }
+}
+
+fn test_provider(enabled: bool) -> SharedDynamicConfigProvider {
+    Arc::new(TestDynamicConfigProvider { enabled })
+}
 
 // Test request and response types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -74,8 +100,11 @@ async fn endpoint_successful_query() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        test_provider(true),
+    );
     let app = server.app();
 
     // Test query for existing block
@@ -95,8 +124,11 @@ async fn endpoint_query_nonexistent_block() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        test_provider(true),
+    );
     let app = server.app();
 
     // Test query for non-existent block
@@ -116,8 +148,11 @@ async fn endpoint_handler_error() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<ErrorHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        test_provider(true),
+    );
     let app = server.app();
 
     let request = TestRequest { block_number: 0 };
@@ -140,8 +175,11 @@ async fn endpoint_invalid_json() {
     let config =
         ServerConfig::new(IpAddr::from(Ipv4Addr::LOCALHOST), available_ports.get_next_port(), true);
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        test_provider(true),
+    );
     let app = server.app();
 
     // Test with invalid JSON
@@ -174,8 +212,11 @@ async fn endpoint_disabled_returns_service_unavailable() {
         false,
     );
 
-    let server =
-        StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(reader.clone(), config);
+    let server = StorageReaderServer::<TestHandler, TestRequest, TestResponse>::new(
+        reader.clone(),
+        config,
+        test_provider(false),
+    );
     let app = server.app();
 
     let request = TestRequest { block_number: 0 };

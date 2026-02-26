@@ -1,14 +1,39 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use apollo_class_manager_config::config::FsClassStorageConfig;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_storage::db::DbConfig;
-use apollo_storage::storage_reader_server::ServerConfig;
+use apollo_storage::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    ServerConfig,
+    SharedDynamicConfigProvider,
+    StorageReaderServerDynamicConfig,
+};
+use async_trait::async_trait;
 use starknet_api::core::ChainId;
 use tempfile::TempDir;
 
 use crate::class_storage::{ClassHashStorage, FsClassStorage};
+
+struct TestDynamicConfigProvider {
+    enabled: bool,
+}
+
+#[async_trait]
+impl DynamicConfigProvider for TestDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        Ok(StorageReaderServerDynamicConfig { enable: self.enabled })
+    }
+}
+
+fn test_provider(enabled: bool) -> SharedDynamicConfigProvider {
+    Arc::new(TestDynamicConfigProvider { enabled })
+}
 
 pub type FileHandles = (TempDir, TempDir);
 
