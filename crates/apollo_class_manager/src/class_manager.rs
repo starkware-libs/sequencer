@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Instant;
 
 use apollo_class_manager_config::config::{ClassManagerDynamicConfig, FsClassManagerConfig};
@@ -16,6 +17,12 @@ use apollo_compile_to_casm_types::{
 };
 use apollo_config_manager_types::communication::SharedConfigManagerClient;
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_storage::storage_reader_server::{
+    DynamicConfigError,
+    DynamicConfigProvider,
+    SharedDynamicConfigProvider,
+    StorageReaderServerDynamicConfig,
+};
 use async_trait::async_trait;
 use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::{debug, instrument};
@@ -180,14 +187,37 @@ where
     }
 }
 
+struct ClassManagerDynamicConfigProvider {
+    config_manager_client: SharedConfigManagerClient,
+}
+
+#[async_trait]
+impl DynamicConfigProvider for ClassManagerDynamicConfigProvider {
+    async fn get_storage_reader_dynamic_config(
+        &self,
+    ) -> Result<StorageReaderServerDynamicConfig, DynamicConfigError> {
+        let config = self
+            .config_manager_client
+            .get_class_manager_dynamic_config()
+            .await
+            .map_err(|e| DynamicConfigError(e.to_string()))?;
+        Ok(config.storage_reader_server_dynamic_config)
+    }
+}
+
 pub fn create_class_manager(
     config: FsClassManagerConfig,
     compiler_client: SharedSierraCompilerClient,
     config_manager_client: SharedConfigManagerClient,
 ) -> FsClassManager {
+    let dynamic_config_provider: SharedDynamicConfigProvider =
+        Arc::new(ClassManagerDynamicConfigProvider {
+            config_manager_client: config_manager_client.clone(),
+        });
     let fs_class_storage = FsClassStorage::new(
         config.static_config.class_storage_config.clone(),
         config.dynamic_config.storage_reader_server_dynamic_config.clone(),
+        dynamic_config_provider,
     )
     .expect("Failed to create class storage.");
     let class_manager =

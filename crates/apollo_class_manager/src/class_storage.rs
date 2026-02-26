@@ -10,7 +10,11 @@ use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter}
 use apollo_storage::metrics::CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS;
 #[cfg(any(feature = "testing", test))]
 use apollo_storage::open_storage;
-use apollo_storage::storage_reader_server::{ServerConfig, StorageReaderServerDynamicConfig};
+use apollo_storage::storage_reader_server::{
+    ServerConfig,
+    SharedDynamicConfigProvider,
+    StorageReaderServerDynamicConfig,
+};
 use apollo_storage::storage_reader_types::{
     GenericStorageReaderServerHandler,
     StorageReaderRequest,
@@ -263,6 +267,7 @@ impl ClassHashStorage {
     pub fn new(
         storage_config: StorageConfig,
         storage_reader_server_config: ServerConfig,
+        dynamic_config_provider: SharedDynamicConfigProvider,
     ) -> ClassHashStorageResult<Self> {
         let (reader, writer, storage_reader_server) =
             apollo_storage::open_storage_with_metric_and_server::<
@@ -273,6 +278,7 @@ impl ClassHashStorage {
                 storage_config,
                 &CLASS_MANAGER_STORAGE_OPEN_READ_TRANSACTIONS,
                 storage_reader_server_config,
+                dynamic_config_provider,
             )?;
 
         let storage_reader_server_handle = Arc::new(storage_reader_server.spawn());
@@ -346,13 +352,17 @@ impl FsClassStorage {
     pub fn new(
         config: FsClassStorageConfig,
         storage_reader_server_dynamic_config: StorageReaderServerDynamicConfig,
+        dynamic_config_provider: SharedDynamicConfigProvider,
     ) -> FsClassStorageResult<Self> {
         let storage_reader_server_config = ServerConfig {
             static_config: config.storage_reader_server_static_config.clone(),
             dynamic_config: storage_reader_server_dynamic_config,
         };
-        let class_hash_storage =
-            ClassHashStorage::new(config.class_hash_storage_config, storage_reader_server_config)?;
+        let class_hash_storage = ClassHashStorage::new(
+            config.class_hash_storage_config,
+            storage_reader_server_config,
+            dynamic_config_provider,
+        )?;
         std::fs::create_dir_all(&config.persistent_root)?;
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
