@@ -12,8 +12,10 @@ use crate::{
     MessageRoot,
     PropellerScheduleManager,
     PropellerUnit,
+    Shard,
     ShardIndex,
     ShardValidationError,
+    Shards,
     UnitValidator,
 };
 
@@ -55,7 +57,10 @@ fn env() -> TestEnv {
     }
 
     // TODO(AndrewL): Use automock and dependency injection
-    let merkle_tree = MerkleTree::new(&vec![SHARD_DATA.to_vec(); NUM_PEERS - 1]);
+    let leaf_data: Vec<Vec<u8>> = (0..(NUM_PEERS - 1))
+        .map(|_| Shards(vec![Shard(SHARD_DATA.to_vec())]).encode_to_proto_bytes())
+        .collect();
+    let merkle_tree = MerkleTree::new(&leaf_data);
     let message_root = MessageRoot(merkle_tree.root().unwrap());
 
     let validator =
@@ -90,7 +95,7 @@ fn custom_unit(env: &TestEnv, owner: PeerId, tampered_signature: bool) -> Propel
         env.message_root,
         signature,
         index,
-        SHARD_DATA.to_vec(),
+        Shards(vec![Shard(SHARD_DATA.to_vec())]),
         env.merkle_tree.prove(index.0.try_into().unwrap()).unwrap(),
     )
 }
@@ -193,7 +198,7 @@ fn test_unit_source_validation(
 #[rstest]
 fn test_tampered_proof_fails_verification(mut env: TestEnv) {
     let mut unit = unit(&env, env.local_peer);
-    unit.shard_mut().push(42);
+    unit.shards_mut().0[0].0.push(42);
 
     let result = env.validator.validate_shard(env.publisher, &unit);
     result.unwrap_err();

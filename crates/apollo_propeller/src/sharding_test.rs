@@ -54,7 +54,7 @@ fn test_reconstruct_message_from_shards_success() {
     let received_indices: Vec<usize> = vec![1, 3, 5, 7, 9];
     let received_units: Vec<_> = received_indices.iter().map(|&i| units[i].clone()).collect();
 
-    let (reconstructed_message, my_shard, proof) = reconstruct_message_from_shards(
+    let (reconstructed_message, my_shards, proof) = reconstruct_message_from_shards(
         received_units,
         message_root,
         MY_SHARD_INDEX,
@@ -63,7 +63,7 @@ fn test_reconstruct_message_from_shards_success() {
     )
     .unwrap();
     assert_eq!(reconstructed_message, message);
-    assert_eq!(my_shard, units[MY_SHARD_INDEX].shard());
+    assert_eq!(&my_shards, units[MY_SHARD_INDEX].shards());
     assert!(!proof.siblings.is_empty());
 }
 

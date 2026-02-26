@@ -47,7 +47,7 @@ pub use types::{
     ShardPublishError,
     ShardValidationError,
 };
-pub use unit::PropellerUnit;
+pub use unit::{PropellerUnit, Shard, Shards};
 pub use unit_validator::UnitValidator;
 
 // TODO(AndrewL): Make tests in this crate have deterministic random peer IDs.
