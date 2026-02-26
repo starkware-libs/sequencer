@@ -7,7 +7,7 @@ const NUM_DATA_SHARDS: usize = 5;
 const NUM_CODING_SHARDS: usize = 5;
 const MESSAGE_LEN: usize = 103;
 const MY_SHARD_INDEX: usize = 2;
-const COMMITTEE: CommitteeId = CommitteeId(42);
+const COMMITTEE: CommitteeId = CommitteeId([42u8; 32]);
 
 // Statically assert that MESSAGE_LEN is not divisible by NUM_DATA_SHARDS, to exercise padding.
 #[allow(clippy::manual_is_multiple_of)]
