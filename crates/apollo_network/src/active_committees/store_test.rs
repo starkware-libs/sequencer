@@ -236,5 +236,6 @@ fn committee_id_hash_regression(mut active_committees: ActiveCommittees) {
     let output = active_committees.add_epoch(1, vec![member(1), member(2)]).unwrap();
     let (committee_id, _) = output.new_committee.unwrap();
 
-    expect!["414361151"].assert_eq(&committee_id.0.to_string());
+    let hex_str: String = committee_id.0.iter().map(|b| format!("{b:02x}")).collect();
+    expect!["18b2a63f07152bd0767481dd927c371994aa0dccac21957783c95047ce231557"].assert_eq(&hex_str);
 }

@@ -28,11 +28,7 @@ fn compute_committee_id(sorted_members: &[CommitteeMember]) -> CommitteeId {
         hasher.update(member.peer_id.to_bytes());
         hasher.update(member.weight.0.to_be_bytes());
     }
-    let digest = hasher.finalize();
-
-    // TODO(AndrewL): change this once propeller uses actual 256-bit hashes.
-    let truncated = u32::from_be_bytes([digest[0], digest[1], digest[2], digest[3]]);
-    CommitteeId(truncated)
+    CommitteeId(hasher.finalize().into())
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -34,7 +34,7 @@ const SHARD_DATA: [u8; 3] = [1, 2, 3];
 #[fixture]
 fn env() -> TestEnv {
     const NUM_PEERS: usize = 5;
-    const COMMITTEE: CommitteeId = CommitteeId(1);
+    const COMMITTEE: CommitteeId = CommitteeId([1u8; 32]);
     let keypair = Keypair::generate_ed25519();
     let publisher = PeerId::from(keypair.public());
     let local_peer = PeerId::random();
