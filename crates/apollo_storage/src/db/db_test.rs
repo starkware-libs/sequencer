@@ -74,24 +74,24 @@ fn txns_scenarios() {
     let table = txn0.open_table(&table_id).unwrap();
 
     // Insert a value.
-    let wtxn = writer.begin_rw_txn().unwrap();
-    table.insert(&wtxn, b"key", b"data0").unwrap();
+    let wtxn = writer.begin_persistent_rw_txn().unwrap();
+    table.insert(wtxn.txn(), b"key", b"data0").unwrap();
     wtxn.commit().unwrap();
 
     // Snapshot state by creating a read txn.
     let txn1 = reader.begin_ro_txn().unwrap();
 
     // Update the value.
-    let wtxn = writer.begin_rw_txn().unwrap();
-    table.upsert(&wtxn, b"key", b"data1").unwrap();
+    let wtxn = writer.begin_persistent_rw_txn().unwrap();
+    table.upsert(wtxn.txn(), b"key", b"data1").unwrap();
     wtxn.commit().unwrap();
 
     // Snapshot state by creating a read txn.
     let txn2 = reader.begin_ro_txn().unwrap();
 
     // Delete the value.
-    let wtxn2 = writer.begin_rw_txn().unwrap();
-    table.delete(&wtxn2, b"key").unwrap();
+    let wtxn2 = writer.begin_persistent_rw_txn().unwrap();
+    table.delete(wtxn2.txn(), b"key").unwrap();
     wtxn2.commit().unwrap();
 
     // Snapshot state by creating a read txn.
@@ -121,9 +121,9 @@ fn table_stats() {
     assert_eq!(empty_stat.leaf_pages, 0);
 
     // Insert a value.
-    let wtxn = writer.begin_rw_txn().unwrap();
-    let table = wtxn.open_table(&table_id).unwrap();
-    table.insert(&wtxn, b"key", b"data0").unwrap();
+    let wtxn = writer.begin_persistent_rw_txn().unwrap();
+    let table = wtxn.txn().open_table(&table_id).unwrap();
+    table.insert(wtxn.txn(), b"key", b"data0").unwrap();
     wtxn.commit().unwrap();
 
     // Non-empty table stats.
@@ -135,9 +135,9 @@ fn table_stats() {
     assert_eq!(empty_stat.leaf_pages, 1);
 
     // Delete the value.
-    let wtxn = writer.begin_rw_txn().unwrap();
-    let table = wtxn.open_table(&table_id).unwrap();
-    table.delete(&wtxn, b"key").unwrap();
+    let wtxn = writer.begin_persistent_rw_txn().unwrap();
+    let table = wtxn.txn().open_table(&table_id).unwrap();
+    table.delete(wtxn.txn(), b"key").unwrap();
     wtxn.commit().unwrap();
 
     // Empty table stats.
@@ -181,10 +181,10 @@ fn test_iter() {
         (*b"key3", *b"val3"),
         (*b"key5", *b"val5"),
     ];
-    let wtxn = writer.begin_rw_txn().unwrap();
-    let table = wtxn.open_table(&table_id).unwrap();
+    let wtxn = writer.begin_persistent_rw_txn().unwrap();
+    let table = wtxn.txn().open_table(&table_id).unwrap();
     for (k, v) in &items {
-        table.insert(&wtxn, k, v).unwrap();
+        table.insert(wtxn.txn(), k, v).unwrap();
     }
     wtxn.commit().unwrap();
 
@@ -215,10 +215,10 @@ fn with_version_zero_serialization() {
         (*b"key3", *b"val3"),
         (*b"key5", *b"val5"),
     ];
-    let wtxn = writer.begin_rw_txn().unwrap();
-    let table = wtxn.open_table(&table_id).unwrap();
+    let wtxn = writer.begin_persistent_rw_txn().unwrap();
+    let table = wtxn.txn().open_table(&table_id).unwrap();
     for (k, v) in &items {
-        table.insert(&wtxn, k, v).unwrap();
+        table.insert(wtxn.txn(), k, v).unwrap();
     }
     wtxn.commit().unwrap();
 
@@ -327,9 +327,9 @@ fn version_migration() {
     let expected_v0 = V0::default();
     // Insert a V0 entry into a table.
     {
-        let txn = writer.begin_rw_txn().unwrap();
-        let v0_table = txn.open_table(&v0_table_id).unwrap();
-        v0_table.insert(&txn, &key0, &expected_v0).unwrap();
+        let txn = writer.begin_persistent_rw_txn().unwrap();
+        let v0_table = txn.txn().open_table(&v0_table_id).unwrap();
+        v0_table.insert(txn.txn(), &key0, &expected_v0).unwrap();
         txn.commit().unwrap();
     }
     // Verify that the entry is present in the table.
@@ -346,9 +346,9 @@ fn version_migration() {
     let key1 = Key { k: 1 };
     let expected_v1 = V1::default();
     {
-        let txn = writer.begin_rw_txn().unwrap();
-        let v1_table = txn.open_table(&v1_table_id).unwrap();
-        v1_table.insert(&txn, &key1, &expected_v1).unwrap();
+        let txn = writer.begin_persistent_rw_txn().unwrap();
+        let v1_table = txn.txn().open_table(&v1_table_id).unwrap();
+        v1_table.insert(txn.txn(), &key1, &expected_v1).unwrap();
         txn.commit().unwrap();
     }
 
