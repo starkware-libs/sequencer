@@ -3,6 +3,7 @@ mod TestContract {
     use array::ArrayTrait;
     use box::BoxTrait;
     use clone::Clone;
+    use core::blake::blake2s_finalize;
     use core::bytes_31::POW_2_128;
     use core::circuit::{
         AddInputResultTrait, CircuitElement, CircuitInput, CircuitInputs, CircuitModulus,
@@ -76,7 +77,7 @@ mod TestContract {
     // TODO(Dori): Delete this function, use `test` instead.
     #[external(v0)]
     fn test_increment(
-        ref self: ContractState, ref arg: felt252, arg1: felt252, arg2: felt252
+        ref self: ContractState, ref arg: felt252, arg1: felt252, arg2: felt252,
     ) -> felt252 {
         let x = self.my_storage_var.read();
         self.my_storage_var.write(x + 1);
@@ -259,15 +260,15 @@ mod TestContract {
 
         // Validate the class hash of an undeployed contract.
         let actual_class_hash_of_undeployed = starknet::syscalls::get_class_hash_at_syscall(
-            undeployed_address
+            undeployed_address,
         )
             .unwrap_syscall();
-        assert(actual_class_hash_of_undeployed == ClassHashZero::zero(), 'WRONG_CLASS_HASH',);
+        assert(actual_class_hash_of_undeployed == ClassHashZero::zero(), 'WRONG_CLASS_HASH');
     }
 
     #[external(v0)]
     fn test_get_block_hash(
-        self: @ContractState, block_number: u64, expected_block_hash: felt252
+        self: @ContractState, block_number: u64, expected_block_hash: felt252,
     ) -> felt252 {
         let block_hash = syscalls::get_block_hash_syscall(block_number).unwrap_syscall();
         assert(block_hash == expected_block_hash, 'Unexpected block hash.');
@@ -284,7 +285,9 @@ mod TestContract {
         expected_entry_point_selector: felt252,
         expected_tx_info: TxInfoV3,
     ) {
-        let execution_info = starknet::syscalls::get_execution_info_v3_syscall().unwrap_syscall().unbox();
+        let execution_info = starknet::syscalls::get_execution_info_v3_syscall()
+            .unwrap_syscall()
+            .unbox();
         let block_info = execution_info.block_info.unbox();
         assert(block_info == expected_block_info, 'BLOCK_INFO_MISMATCH');
 
@@ -305,7 +308,7 @@ mod TestContract {
         assert(tx_info.chain_id == expected_tx_info.chain_id, 'CHAIN_ID_MISMATCH');
         assert(tx_info.nonce == expected_tx_info.nonce, 'NONCE_MISMATCH');
         assert(
-            tx_info.resource_bounds == expected_tx_info.resource_bounds, 'RESOURCE_BOUND_MISMATCH'
+            tx_info.resource_bounds == expected_tx_info.resource_bounds, 'RESOURCE_BOUND_MISMATCH',
         );
         assert(tx_info.tip == expected_tx_info.tip, 'TIP_MISMATCH');
         assert(
@@ -338,8 +341,7 @@ mod TestContract {
     }
 
 
-
-        #[external(v0)]
+    #[external(v0)]
     fn test_get_execution_info_v2(
         self: @ContractState,
         expected_block_info: BlockInfo,
@@ -370,7 +372,7 @@ mod TestContract {
         assert(tx_info.chain_id == expected_tx_info.chain_id, 'CHAIN_ID_MISMATCH');
         assert(tx_info.nonce == expected_tx_info.nonce, 'NONCE_MISMATCH');
         assert(
-            tx_info.resource_bounds == expected_tx_info.resource_bounds, 'RESOURCE_BOUND_MISMATCH'
+            tx_info.resource_bounds == expected_tx_info.resource_bounds, 'RESOURCE_BOUND_MISMATCH',
         );
         assert(tx_info.tip == expected_tx_info.tip, 'TIP_MISMATCH');
         assert(
@@ -431,10 +433,10 @@ mod TestContract {
 
     #[external(v0)]
     fn test_direct_execute_call(
-        ref self: ContractState, contract_address: ContractAddress, calldata: Array::<felt252>
+        ref self: ContractState, contract_address: ContractAddress, calldata: Array<felt252>,
     ) {
         let call_execute_result = syscalls::call_contract_syscall(
-            contract_address, selector!("__execute__"), calldata.span()
+            contract_address, selector!("__execute__"), calldata.span(),
         );
         match call_execute_result {
             Result::Ok(_) => panic!("Calling execute directly should fail."),
@@ -446,7 +448,7 @@ mod TestContract {
                     panic!(
                         "Unexpected inner error during direct execute call. Expected {}. Got: {}",
                         expected_error_msg,
-                        actual_error_msg
+                        actual_error_msg,
                     )
                 }
             },
@@ -593,14 +595,13 @@ mod TestContract {
         match syscalls::call_contract_syscall(
             self_address,
             selector!("deploy_and_fail"),
-            array![class_hash.into(), contract_address_salt, expected_deploy_address.into(),]
-                .span(),
+            array![class_hash.into(), contract_address_salt, expected_deploy_address.into()].span(),
         ) {
             Ok(_) => panic_with_felt252('Should fail inner'),
             Err(revert_reason) => {
                 assert(*revert_reason.at(0) == 'Designed fail', 'WRONG_REVERT_REASON');
                 let current_class_hash = syscalls::get_class_hash_at_syscall(
-                    expected_deploy_address
+                    expected_deploy_address,
                 )
                     .unwrap_syscall();
                 assert(current_class_hash == zero_class_hash, 'NONZERO_HASH');
@@ -663,7 +664,7 @@ mod TestContract {
 
     // TODO(Nimrod): Consider providing the expected result as [u32; 8].
     fn test_sha256_helper(value: u32, expected_res: u32) {
-        let [res, _, _, _, _, _, _, _,] = compute_sha256_u32_array(array![value], 0, 0);
+        let [res, _, _, _, _, _, _, _] = compute_sha256_u32_array(array![value], 0, 0);
         assert(res == expected_res, 'Wrong hash value');
     }
 
@@ -862,26 +863,26 @@ mod TestContract {
         // Test a point not on the curve.
         assert(
             starknet::secp256r1::secp256r1_new_syscall(x: 0, y: 1).unwrap_syscall().is_none(),
-            'Should be none'
+            'Should be none',
         );
 
         // Test a point with x == Secp256r1_prime.
         match starknet::secp256r1::secp256r1_new_syscall(
-            x: 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, y: 1
+            x: 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, y: 1,
         ) {
             Result::Ok(_) => panic_with_felt252('Should fail'),
             Result::Err(revert_reason) => assert(
-                *revert_reason.at(0) == 'Invalid argument', 'Wrong error msg'
+                *revert_reason.at(0) == 'Invalid argument', 'Wrong error msg',
             ),
         }
 
         // Test a point with x == Secp_prime.
         match starknet::secp256r1::secp256r1_get_point_from_x_syscall(
-            x: 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, y_parity: true
+            x: 0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, y_parity: true,
         ) {
             Result::Ok(_) => panic_with_felt252('Should fail'),
             Result::Err(revert_reason) => assert(
-                *revert_reason.at(0) == 'Invalid argument', 'Wrong error msg'
+                *revert_reason.at(0) == 'Invalid argument', 'Wrong error msg',
             ),
         }
 
@@ -899,7 +900,7 @@ mod TestContract {
             starknet::secp256r1::secp256r1_get_point_from_x_syscall(:x, y_parity: true)
                 .unwrap_syscall()
                 .is_some(),
-            'Should be some'
+            'Should be some',
         );
     }
 
@@ -1307,6 +1308,21 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test_blake(ref self: ContractState) {
+        // Blake2s IV (standard initialization vector for 32-byte digest).
+        let iv: [u32; 8] = [
+            0x6B08C647, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB,
+            0x5BE0CD19,
+        ];
+        let state = BoxTrait::new(iv);
+        // A single 64-byte block of zeros.
+        let msg: [u32; 16] = [0; 16];
+        let input = BoxTrait::new(msg);
+        let byte_count: u32 = 64;
+        let _result = blake2s_finalize(state, byte_count, input);
+    }
+
+    #[external(v0)]
     fn test_builtin_counts_consistency(ref self: ContractState) {
         test_range_check(ref self);
         test_bitwise(ref self);
@@ -1316,7 +1332,9 @@ mod TestContract {
         test_keccak(ref self);
         // Test add_mod, mul_mod and range_check96.
         test_circuit(ref self);
+        //TODO(AvivG): add blake test once blake gas cost is passed to the VM.
     }
+
 
     // Test functions for storage revert behavior with nested calls.
     // write_1: writes storage cell to 1, emits a dummy event and sends a dummy L1 message.
@@ -1393,7 +1411,7 @@ mod TestContract {
                 contract_address,
                 selector!("__execute__"),
                 array![class_hash.into(), 0].span(),
-                array![].span()
+                array![].span(),
             )
                 .unwrap_syscall();
         } else {
