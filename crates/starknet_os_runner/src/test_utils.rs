@@ -203,6 +203,18 @@ pub(crate) async fn resolve_test_mode(test_name: &str) -> TestRpcSetup {
 
 /// Builds a client-side `RpcTransaction::Invoke` (v3) for the given sender and calldata.
 ///
+/// Resource bounds for client-side transactions in tests.
+/// Provides enough L2 gas for execution without fee enforcement.
+pub fn resource_bounds_for_client_side_tx() -> AllResourceBounds {
+    AllResourceBounds {
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(10_000_000),
+            max_price_per_unit: GasPrice(0),
+        },
+        ..Default::default()
+    }
+}
+
 /// Uses minimal resource bounds suitable for client-side (virtual) execution — the transaction
 /// is never broadcast on-chain so fees are irrelevant.
 pub(crate) fn build_client_side_rpc_invoke(
@@ -212,13 +224,7 @@ pub(crate) fn build_client_side_rpc_invoke(
     let rpc_invoke_v3 = RpcInvokeTransactionV3 {
         sender_address,
         calldata,
-        resource_bounds: AllResourceBounds {
-            l2_gas: ResourceBounds {
-                max_amount: GasAmount(10_000_000),
-                max_price_per_unit: GasPrice(0),
-            },
-            ..Default::default()
-        },
+        resource_bounds: resource_bounds_for_client_side_tx(),
         signature: Default::default(),
         nonce: Default::default(),
         tip: Default::default(),
