@@ -1166,14 +1166,13 @@ async fn get_sequencer_setup_configs(
     let (eth_to_strk_oracle_url, _join_handle_eth_to_strk_oracle) =
         spawn_local_eth_to_strk_oracle(base_layer_ports.get_next_port());
 
-    let mut config_available_ports = available_ports_generator
-        .next()
-        .expect("Failed to get an AvailablePorts instance for node configs");
-
     // Create nodes.
     for (node_index, (node_component_config, node_type)) in
         node_component_configs.into_iter().enumerate()
     {
+        let mut config_available_ports = available_ports_generator
+            .next()
+            .expect("Failed to get an AvailablePorts instance for node configs");
         let mut executables = HashMap::new();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
