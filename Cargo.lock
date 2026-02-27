@@ -176,7 +176,7 @@ dependencies = [
  "auto_impl",
  "borsh",
  "c-kzg",
- "derive_more 2.1.1",
+ "derive_more",
  "either",
  "k256",
  "once_cell",
@@ -306,7 +306,7 @@ dependencies = [
  "auto_impl",
  "borsh",
  "c-kzg",
- "derive_more 2.1.1",
+ "derive_more",
  "either",
  "serde",
  "serde_with",
@@ -388,7 +388,7 @@ dependencies = [
  "alloy-sol-types",
  "async-trait",
  "auto_impl",
- "derive_more 2.1.1",
+ "derive_more",
  "futures-utils-wasm",
  "serde",
  "serde_json",
@@ -439,7 +439,7 @@ dependencies = [
  "bytes",
  "cfg-if",
  "const-hex",
- "derive_more 2.1.1",
+ "derive_more",
  "foldhash 0.2.0",
  "hashbrown 0.16.0",
  "indexmap 2.12.0",
@@ -723,7 +723,7 @@ dependencies = [
  "alloy-json-rpc",
  "auto_impl",
  "base64 0.22.1",
- "derive_more 2.1.1",
+ "derive_more",
  "futures",
  "futures-utils-wasm",
  "parking_lot 0.12.5",
@@ -761,7 +761,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "arrayvec",
- "derive_more 2.1.1",
+ "derive_more",
  "nybbles",
  "serde",
  "smallvec",
@@ -944,7 +944,7 @@ dependencies = [
  "axum 0.6.20",
  "blockifier",
  "chrono",
- "derive_more 2.1.1",
+ "derive_more",
  "indexmap 2.12.0",
  "mockall",
  "serde",
@@ -1628,7 +1628,7 @@ dependencies = [
  "apollo_metrics",
  "assert_matches",
  "async-trait",
- "derive_more 2.1.1",
+ "derive_more",
  "hyper 0.14.32",
  "metrics",
  "metrics-exporter-prometheus",
@@ -1903,7 +1903,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "criterion",
- "derive_more 2.1.1",
+ "derive_more",
  "expect-test",
  "indexmap 2.12.0",
  "itertools 0.12.1",
@@ -2067,7 +2067,7 @@ dependencies = [
  "bytes",
  "deadqueue",
  "defaultmap",
- "derive_more 2.1.1",
+ "derive_more",
  "futures",
  "lazy_static",
  "libp2p",
@@ -2335,7 +2335,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_test_utils",
  "bytes",
- "derive_more 2.1.1",
+ "derive_more",
  "indexmap 2.12.0",
  "lazy_static",
  "papyrus_common",
@@ -2389,7 +2389,7 @@ dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
  "camelpaste",
- "derive_more 2.1.1",
+ "derive_more",
  "enum-iterator",
  "flate2",
  "hex",
@@ -3549,26 +3549,6 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.66.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2b84e06fc203107bfbad243f4aba2af864eb7db3b1cf46ea0a023b0b433d2a7"
-dependencies = [
- "bitflags 2.10.0",
- "cexpr",
- "clang-sys",
- "lazy_static",
- "lazycell",
- "peeking_take_while",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 1.1.0",
- "shlex",
- "syn 2.0.110",
-]
-
-[[package]]
-name = "bindgen"
 version = "0.71.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
@@ -3753,7 +3733,7 @@ dependencies = [
  "cairo-vm",
  "criterion",
  "dashmap",
- "derive_more 2.1.1",
+ "derive_more",
  "expect-test",
  "glob",
  "hex",
@@ -5001,12 +4981,6 @@ checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
 
 [[package]]
 name = "convert_case"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
-
-[[package]]
-name = "convert_case"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
@@ -5480,19 +5454,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "derive_more"
-version = "0.99.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6edb4b64a43d977b8e99788fe3a04d483834fba1215a7e02caa415b626497f7f"
-dependencies = [
- "convert_case 0.4.0",
- "proc-macro2",
- "quote",
- "rustc_version 0.4.1",
- "syn 2.0.110",
 ]
 
 [[package]]
@@ -7785,12 +7746,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lazycell"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
-
-[[package]]
 name = "libbz2-rs-sys"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7820,19 +7775,19 @@ checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
 
 [[package]]
 name = "libmdbx"
-version = "0.3.5"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f0bee397dc9a7003e7bd34fffc1dc2d4c4fdc96530a0c439a5f98c9402bc7bf"
+checksum = "1da773dcce45661428e2b51ca984eb3c64c08f2aa54865397e4b77d1f61c9f07"
 dependencies = [
  "bitflags 2.10.0",
- "byteorder",
- "derive_more 0.99.20",
- "indexmap 1.9.3",
+ "derive_more",
+ "indexmap 2.12.0",
  "libc",
  "lifetimed-bytes",
  "mdbx-sys",
  "parking_lot 0.12.5",
- "thiserror 1.0.69",
+ "sealed",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -8423,11 +8378,11 @@ dependencies = [
 
 [[package]]
 name = "mdbx-sys"
-version = "0.12.7"
+version = "13.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21a329f8d655fb646cc9511c00886eefcddb6ef131869ef2d4b02c24c66825ac"
+checksum = "f4002b9ffed3dd01364ab005bca653a99b8f550ca4cd755470a9d3a31a44f466"
 dependencies = [
- "bindgen 0.66.1",
+ "bindgen 0.72.1",
  "cc",
  "libc",
 ]
@@ -9565,12 +9520,6 @@ checksum = "83a0692ec44e4cf1ef28ca317f14f8f07da2d95ec3fa01f86e4467b725e60917"
 dependencies = [
  "digest 0.10.7",
 ]
-
-[[package]]
-name = "peeking_take_while"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
 
 [[package]]
 name = "pem"
@@ -11272,6 +11221,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "sealed"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22f968c5ea23d555e670b449c1c5e7b2fc399fdaec1d304a17cd48e288abc107"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
+]
+
+[[package]]
 name = "sec1"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12211,7 +12171,7 @@ dependencies = [
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
- "derive_more 2.1.1",
+ "derive_more",
  "expect-test",
  "flate2",
  "hex",
@@ -12245,7 +12205,7 @@ dependencies = [
  "apollo_config",
  "async-trait",
  "csv",
- "derive_more 2.1.1",
+ "derive_more",
  "ethnum",
  "hex",
  "pretty_assertions",
@@ -12276,7 +12236,7 @@ dependencies = [
  "cairo-vm",
  "clap",
  "criterion",
- "derive_more 2.1.1",
+ "derive_more",
  "ethnum",
  "futures",
  "indexmap 2.12.0",
@@ -12339,7 +12299,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-vm",
- "derive_more 2.1.1",
+ "derive_more",
  "digest 0.10.7",
  "ethnum",
  "expect-test",
@@ -12440,7 +12400,7 @@ name = "starknet_patricia"
 version = "0.0.0"
 dependencies = [
  "async-recursion",
- "derive_more 2.1.1",
+ "derive_more",
  "ethnum",
  "num-bigint",
  "pretty_assertions",
@@ -12569,7 +12529,7 @@ dependencies = [
  "dashmap",
  "educe 0.5.11",
  "fnv",
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
  "hex",
  "indexmap 2.12.0",
  "itertools 0.12.1",
@@ -12627,7 +12587,7 @@ name = "stwo-constraint-framework"
 version = "0.1.1"
 source = "git+https://github.com/starkware-libs/stwo?rev=6b5c843#6b5c84396da9ce282dc6accb343dd7ef6d1b9966"
 dependencies = [
- "hashbrown 0.15.5",
+ "hashbrown 0.16.0",
  "itertools 0.12.1",
  "num-traits",
  "rand 0.8.5",
