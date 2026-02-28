@@ -18,6 +18,7 @@ async fn main() -> anyhow::Result<()> {
     use starknet_os_runner::server::cors::{build_cors_layer, cors_mode};
     use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
+    use starknet_os_runner::server::tls;
     use tower::ServiceBuilder;
     use tracing::info;
     use tracing_subscriber::prelude::*;
@@ -39,6 +40,35 @@ async fn main() -> anyhow::Result<()> {
 
     let cors_layer = build_cors_layer(&config.cors_allow_origin)?;
 
+    if let (Some(tls_cert_file), Some(tls_key_file)) =
+        (&config.tls_cert_file, &config.tls_key_file)
+    {
+        let (local_addr, server_handle) = tls::start_tls_server(
+            addr,
+            tls_cert_file.as_path(),
+            tls_key_file.as_path(),
+            rpc_impl.into_rpc(),
+            config.max_connections,
+            cors_layer,
+        )
+        .await?;
+
+        info!(
+            local_address = %local_addr,
+            scheme = "https",
+            tls_cert_file = %tls_cert_file.display(),
+            tls_key_file = %tls_key_file.display(),
+            max_concurrent_requests = config.max_concurrent_requests,
+            max_connections = config.max_connections,
+            cors_mode = cors_mode(&config.cors_allow_origin),
+            cors_allow_origin = ?config.cors_allow_origin,
+            "JSON-RPC proving server is running."
+        );
+
+        server_handle.stopped().await;
+        return Ok(());
+    }
+
     let server_config = ServerConfig::builder().max_connections(config.max_connections).build();
     let server = ServerBuilder::default()
         .set_config(server_config)
@@ -50,6 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let handle = server.start(rpc_impl.into_rpc());
     info!(
         local_address = %addr,
+        scheme = "http",
         max_concurrent_requests = config.max_concurrent_requests,
         max_connections = config.max_connections,
         cors_mode = cors_mode(&config.cors_allow_origin),
