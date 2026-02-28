@@ -11,14 +11,12 @@ fn main() {
 async fn main() -> anyhow::Result<()> {
     use std::net::SocketAddr;
 
-    use anyhow::Context;
     use clap::Parser;
-    use jsonrpsee::server::{ServerBuilder, ServerConfig};
-    use starknet_os_runner::server::config::{CliArgs, ServiceConfig};
+    use starknet_os_runner::server::config::{CliArgs, ServiceConfig, TransportMode};
     use starknet_os_runner::server::cors::{build_cors_layer, cors_mode};
     use starknet_os_runner::server::rpc_impl::ProvingRpcServerImpl;
     use starknet_os_runner::server::rpc_trait::ProvingRpcServer;
-    use tower::ServiceBuilder;
+    use starknet_os_runner::server::start_server;
     use tracing::info;
     use tracing_subscriber::prelude::*;
     use tracing_subscriber::{fmt, EnvFilter};
@@ -36,20 +34,25 @@ async fn main() -> anyhow::Result<()> {
     // Build and start the JSON-RPC server.
     let rpc_impl = ProvingRpcServerImpl::from_config(&config);
     let addr = SocketAddr::new(config.ip, config.port);
-
     let cors_layer = build_cors_layer(&config.cors_allow_origin)?;
 
-    let server_config = ServerConfig::builder().max_connections(config.max_connections).build();
-    let server = ServerBuilder::default()
-        .set_config(server_config)
-        .set_http_middleware(ServiceBuilder::new().option_layer(cors_layer))
-        .build(&addr)
-        .await
-        .context(format!("Failed to bind JSON-RPC server to {addr}"))?;
+    let scheme = match &config.transport {
+        TransportMode::Http => "http",
+        TransportMode::Https { .. } => "https",
+    };
 
-    let handle = server.start(rpc_impl.into_rpc());
+    let (local_addr, server_handle) = start_server(
+        addr,
+        &config.transport,
+        rpc_impl.into_rpc().into(),
+        config.max_connections,
+        cors_layer,
+    )
+    .await?;
+
     info!(
-        local_address = %addr,
+        local_address = %local_addr,
+        scheme,
         max_concurrent_requests = config.max_concurrent_requests,
         max_connections = config.max_connections,
         cors_mode = cors_mode(&config.cors_allow_origin),
@@ -57,6 +60,6 @@ async fn main() -> anyhow::Result<()> {
         "JSON-RPC proving server is running."
     );
 
-    handle.stopped().await;
+    server_handle.stopped().await;
     Ok(())
 }
