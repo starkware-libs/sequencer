@@ -1,4 +1,4 @@
-//! Configuration for the HTTP proving service.
+//! Configuration for the proving service.
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
@@ -21,7 +21,7 @@ const DEFAULT_PORT: u16 = 3000;
 const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
 const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 
-/// Configuration for the HTTP proving service.
+/// Configuration for the proving service.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ServiceConfig {
@@ -39,6 +39,10 @@ pub struct ServiceConfig {
     /// List of allowed web origins (domains) that may call this HTTP service from a browser
     /// (CORS). Examples: `http://localhost:5173`, `https://app.example.com`, or `*` to allow any origin.
     pub cors_allow_origin: Vec<String>,
+    /// Path to TLS certificate chain PEM file. If set, `tls_key_file` must also be set.
+    pub tls_cert_file: Option<PathBuf>,
+    /// Path to TLS private key PEM file. If set, `tls_cert_file` must also be set.
+    pub tls_key_file: Option<PathBuf>,
 }
 
 impl Default for ServiceConfig {
@@ -50,6 +54,8 @@ impl Default for ServiceConfig {
             max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
             max_connections: DEFAULT_MAX_CONNECTIONS,
             cors_allow_origin: Vec::new(),
+            tls_cert_file: None,
+            tls_key_file: None,
         }
     }
 }
@@ -65,13 +71,15 @@ impl ServiceConfig {
                     e
                 ))
             })?;
-            serde_json::from_str(&contents).map_err(|e| {
+            let file_config: ServiceConfig = serde_json::from_str(&contents).map_err(|e| {
                 ConfigError::ConfigFileError(format!(
                     "Failed to parse config file {}: {}",
                     config_file.display(),
                     e
                 ))
-            })?
+            })?;
+            validate_tls_pair(&file_config)?;
+            file_config
         } else {
             ServiceConfig::default()
         };
@@ -124,6 +132,24 @@ impl ServiceConfig {
             if max != config.max_connections {
                 info!("CLI override: max_connections: {} -> {}", config.max_connections, max);
                 config.max_connections = max;
+            }
+        }
+        if let Some(tls_cert_file) = args.tls_cert_file {
+            if Some(&tls_cert_file) != config.tls_cert_file.as_ref() {
+                info!(
+                    "CLI override: tls_cert_file: {:?} -> {:?}",
+                    config.tls_cert_file, tls_cert_file
+                );
+                config.tls_cert_file = Some(tls_cert_file);
+            }
+        }
+        if let Some(tls_key_file) = args.tls_key_file {
+            if Some(&tls_key_file) != config.tls_key_file.as_ref() {
+                info!(
+                    "CLI override: tls_key_file: {:?} -> {:?}",
+                    config.tls_key_file, tls_key_file
+                );
+                config.tls_key_file = Some(tls_key_file);
             }
         }
 
@@ -180,6 +206,7 @@ impl ServiceConfig {
                 "max_connections must be at least 1".to_string(),
             ));
         }
+        validate_tls_pair(&config)?;
         config.cors_allow_origin = normalize_cors_allow_origins(config.cors_allow_origin)?;
         if config.cors_allow_origin == ["*"] {
             info!("CORS allow-origin configured as wildcard '*'.");
@@ -192,7 +219,7 @@ impl ServiceConfig {
 /// CLI arguments for the proving service.
 #[derive(Parser, Debug)]
 #[command(name = "starknet-os-runner")]
-#[command(about = "HTTP service for generating Starknet OS proofs", long_about = None)]
+#[command(about = "HTTP/HTTPS service for generating Starknet OS proofs", long_about = None)]
 pub struct CliArgs {
     /// Path to JSON configuration file.
     #[arg(long, value_name = "FILE")]
@@ -221,6 +248,14 @@ pub struct CliArgs {
     /// Maximum number of simultaneous JSON-RPC connections (default: 10).
     #[arg(long, value_name = "N")]
     pub max_connections: Option<u32>,
+
+    /// Path to TLS certificate chain PEM file. Requires --tls-key-file.
+    #[arg(long, value_name = "FILE")]
+    pub tls_cert_file: Option<PathBuf>,
+
+    /// Path to TLS private key PEM file. Requires --tls-cert-file.
+    #[arg(long, value_name = "FILE")]
+    pub tls_key_file: Option<PathBuf>,
 
     /// Override STRK fee token address (hex, e.g. for custom environments that share a chain ID).
     #[arg(long, value_name = "ADDRESS")]
@@ -260,4 +295,18 @@ pub enum ConfigError {
     InvalidArgument(String),
     #[error("Missing required field: {0}")]
     MissingRequiredField(String),
+    #[error("Incomplete TLS configuration: {0}")]
+    IncompleteTlsConfig(String),
+}
+
+fn validate_tls_pair(config: &ServiceConfig) -> Result<(), ConfigError> {
+    match (&config.tls_cert_file, &config.tls_key_file) {
+        (Some(_), Some(_)) | (None, None) => Ok(()),
+        (Some(_), None) => Err(ConfigError::IncompleteTlsConfig(
+            "tls_cert_file is set but tls_key_file is missing".to_string(),
+        )),
+        (None, Some(_)) => Err(ConfigError::IncompleteTlsConfig(
+            "tls_key_file is set but tls_cert_file is missing".to_string(),
+        )),
+    }
 }

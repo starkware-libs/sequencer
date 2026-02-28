@@ -15,6 +15,8 @@ fn base_args() -> CliArgs {
         ip: None,
         max_concurrent_requests: None,
         max_connections: None,
+        tls_cert_file: None,
+        tls_key_file: None,
         no_cors: false,
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
@@ -90,6 +92,8 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         ip: None,
         max_concurrent_requests: None,
         max_connections: None,
+        tls_cert_file: None,
+        tls_key_file: None,
         no_cors: false,
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
@@ -98,4 +102,72 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
     let error = ServiceConfig::from_args(args).unwrap_err();
 
     assert!(matches!(error, ConfigError::ConfigFileError(_)));
+}
+
+#[test]
+fn tls_cert_file_requires_tls_key_file() {
+    let mut args = base_args();
+    args.tls_cert_file = Some("cert.pem".into());
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert!(matches!(error, ConfigError::IncompleteTlsConfig(_)));
+}
+
+#[test]
+fn tls_key_file_requires_tls_cert_file() {
+    let mut args = base_args();
+    args.tls_key_file = Some("key.pem".into());
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert!(matches!(error, ConfigError::IncompleteTlsConfig(_)));
+}
+
+#[test]
+fn config_file_rejects_tls_cert_without_key() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(
+        config_file,
+        r#"{{"rpc_node_url":"http://localhost:9545","tls_cert_file":"cert.pem"}}"#,
+    )
+    .unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert!(matches!(error, ConfigError::IncompleteTlsConfig(_)));
+}
+
+#[test]
+fn config_file_rejects_tls_key_without_cert() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(
+        config_file,
+        r#"{{"rpc_node_url":"http://localhost:9545","tls_key_file":"key.pem"}}"#,
+    )
+    .unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert!(matches!(error, ConfigError::IncompleteTlsConfig(_)));
+}
+
+#[test]
+fn tls_files_are_accepted_when_both_are_provided() {
+    let mut args = base_args();
+    args.tls_cert_file = Some("cert.pem".into());
+    args.tls_key_file = Some("key.pem".into());
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert_eq!(config.tls_cert_file, Some("cert.pem".into()));
+    assert_eq!(config.tls_key_file, Some("key.pem".into()));
 }
