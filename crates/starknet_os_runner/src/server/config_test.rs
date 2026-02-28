@@ -15,6 +15,8 @@ fn base_args() -> CliArgs {
         ip: None,
         max_concurrent_requests: None,
         max_connections: None,
+        tls_cert_file: None,
+        tls_key_file: None,
         no_cors: false,
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
@@ -90,6 +92,8 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         ip: None,
         max_concurrent_requests: None,
         max_connections: None,
+        tls_cert_file: None,
+        tls_key_file: None,
         no_cors: false,
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
@@ -98,4 +102,36 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
     let error = ServiceConfig::from_args(args).unwrap_err();
 
     assert!(matches!(error, ConfigError::ConfigFileError(_)));
+}
+
+#[test]
+fn tls_cert_file_requires_tls_key_file() {
+    let mut args = base_args();
+    args.tls_cert_file = Some("cert.pem".into());
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert!(matches!(error, ConfigError::InvalidArgument(_)));
+}
+
+#[test]
+fn tls_key_file_requires_tls_cert_file() {
+    let mut args = base_args();
+    args.tls_key_file = Some("key.pem".into());
+
+    let error = ServiceConfig::from_args(args).unwrap_err();
+
+    assert!(matches!(error, ConfigError::InvalidArgument(_)));
+}
+
+#[test]
+fn tls_files_are_accepted_when_both_are_provided() {
+    let mut args = base_args();
+    args.tls_cert_file = Some("cert.pem".into());
+    args.tls_key_file = Some("key.pem".into());
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert_eq!(config.tls_cert_file, Some("cert.pem".into()));
+    assert_eq!(config.tls_key_file, Some("key.pem".into()));
 }
