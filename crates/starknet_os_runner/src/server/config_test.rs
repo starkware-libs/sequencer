@@ -1,10 +1,11 @@
 use std::io::Write;
+use std::path::PathBuf;
 
 use clap::Parser;
 use rstest::rstest;
 use tempfile::NamedTempFile;
 
-use crate::server::config::{CliArgs, ConfigError, ServiceConfig};
+use crate::server::config::{CliArgs, ConfigError, ServiceConfig, TransportMode};
 
 fn base_args() -> CliArgs {
     CliArgs {
@@ -15,6 +16,8 @@ fn base_args() -> CliArgs {
         ip: None,
         max_concurrent_requests: None,
         max_connections: None,
+        tls_cert_file: None,
+        tls_key_file: None,
         no_cors: false,
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
@@ -90,6 +93,8 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
         ip: None,
         max_concurrent_requests: None,
         max_connections: None,
+        tls_cert_file: None,
+        tls_key_file: None,
         no_cors: false,
         cors_allow_origin: Vec::new(),
         strk_fee_token_address: None,
@@ -98,4 +103,118 @@ fn cors_allow_origin_rejects_non_array_in_config_file() {
     let error = ServiceConfig::from_args(args).unwrap_err();
 
     assert!(matches!(error, ConfigError::ConfigFileError(_)));
+}
+
+/// TLS configuration validation: partial TLS config is rejected, complete config is accepted.
+#[rstest]
+#[case::cert_without_key(
+    Some("cert.pem".into()),
+    None,
+    None,
+    true
+)]
+#[case::key_without_cert(
+    None,
+    Some("key.pem".into()),
+    None,
+    true
+)]
+#[case::both_provided(
+    Some("cert.pem".into()),
+    Some("key.pem".into()),
+    None,
+    false
+)]
+#[case::neither_provided(None, None, None, false)]
+fn tls_config_validation(
+    #[case] tls_cert_file: Option<PathBuf>,
+    #[case] tls_key_file: Option<PathBuf>,
+    #[case] config_file: Option<PathBuf>,
+    #[case] expect_error: bool,
+) {
+    let mut args = base_args();
+    args.tls_cert_file = tls_cert_file;
+    args.tls_key_file = tls_key_file;
+    args.config_file = config_file;
+
+    let result = ServiceConfig::from_args(args);
+
+    if expect_error {
+        assert!(matches!(result.unwrap_err(), ConfigError::IncompleteTlsConfig(_)));
+    } else {
+        result.unwrap();
+    }
+}
+
+#[test]
+fn tls_transport_mode_is_https_when_both_files_provided() {
+    let mut args = base_args();
+    args.tls_cert_file = Some("cert.pem".into());
+    args.tls_key_file = Some("key.pem".into());
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    match &config.transport {
+        TransportMode::Https { tls_cert_file, tls_key_file } => {
+            assert_eq!(tls_cert_file, &PathBuf::from("cert.pem"));
+            assert_eq!(tls_key_file, &PathBuf::from("key.pem"));
+        }
+        TransportMode::Http => panic!("Expected Https transport mode"),
+    }
+}
+
+#[test]
+fn tls_transport_mode_is_http_when_no_tls_files() {
+    let args = base_args();
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    assert!(matches!(config.transport, TransportMode::Http));
+}
+
+#[test]
+fn config_file_tls_cert_completed_by_cli_key() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(
+        config_file,
+        r#"{{"rpc_node_url":"http://localhost:9545","tls_cert_file":"cert.pem"}}"#,
+    )
+    .unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+    args.tls_key_file = Some("key.pem".into());
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    match &config.transport {
+        TransportMode::Https { tls_cert_file, tls_key_file } => {
+            assert_eq!(tls_cert_file, &PathBuf::from("cert.pem"));
+            assert_eq!(tls_key_file, &PathBuf::from("key.pem"));
+        }
+        TransportMode::Http => panic!("Expected Https transport mode"),
+    }
+}
+
+#[test]
+fn config_file_tls_key_completed_by_cli_cert() {
+    let mut config_file = NamedTempFile::new().unwrap();
+    write!(config_file, r#"{{"rpc_node_url":"http://localhost:9545","tls_key_file":"key.pem"}}"#,)
+        .unwrap();
+
+    let mut args = base_args();
+    args.config_file = Some(config_file.path().to_path_buf());
+    args.rpc_url = None;
+    args.tls_cert_file = Some("cert.pem".into());
+
+    let config = ServiceConfig::from_args(args).unwrap();
+
+    match &config.transport {
+        TransportMode::Https { tls_cert_file, tls_key_file } => {
+            assert_eq!(tls_cert_file, &PathBuf::from("cert.pem"));
+            assert_eq!(tls_key_file, &PathBuf::from("key.pem"));
+        }
+        TransportMode::Http => panic!("Expected Https transport mode"),
+    }
 }

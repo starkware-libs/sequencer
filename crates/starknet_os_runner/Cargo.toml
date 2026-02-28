@@ -42,6 +42,7 @@ starknet_patricia_storage.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "process", "rt-multi-thread", "time"] }
+tokio-rustls.workspace = true
 tower = { workspace = true, features = ["util"] }
 tower-http = { workspace = true, features = ["cors"] }
 tracing.workspace = true
