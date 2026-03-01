@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use apollo_class_manager_config::config::CachedClassStorageConfig;
 use apollo_class_manager_types::CachedClassStorageError;
@@ -17,7 +18,7 @@ use crate::class_storage::{
     FsClassStorage,
     FsClassStorageError,
 };
-use crate::test_utils::FsClassStorageBuilderForTesting;
+use crate::test_utils::{FsClassStorageBuilderForTesting, MockTestDynamicConfigProvider};
 
 #[cfg(test)]
 impl ClassHashStorage {
@@ -25,7 +26,13 @@ impl ClassHashStorage {
         let builder = FsClassStorageBuilderForTesting::default();
         let (_, config, _) =
             builder.with_existing_paths(path_prefix.path().to_path_buf(), PathBuf::new()).build();
-        Self::new(config.class_hash_storage_config, ServerConfig::default()).unwrap()
+        let dynamic_config_provider = Arc::new(MockTestDynamicConfigProvider);
+        Self::new(
+            config.class_hash_storage_config,
+            ServerConfig::default(),
+            dynamic_config_provider,
+        )
+        .unwrap()
     }
 }
 
