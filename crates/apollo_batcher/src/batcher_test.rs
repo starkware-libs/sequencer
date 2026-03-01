@@ -615,14 +615,14 @@ async fn validate_block_full_flow() {
         SendProposalContentResponse { response: ProposalStatus::Processing }
     );
 
-    let finish_proposal = SendProposalContentInput {
+    let finish_proposal = FinishProposalInput {
         proposal_id: PROPOSAL_ID,
-        content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
+        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
     };
     let expected_info = finished_proposal_info().await;
     assert_eq!(
-        batcher.send_proposal_content(finish_proposal).await.unwrap(),
-        SendProposalContentResponse { response: ProposalStatus::Finished(expected_info) }
+        batcher.finish_proposal(finish_proposal).await.unwrap(),
+        FinishProposalStatus::Finished(expected_info)
     );
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 1, 1, 0, 0);
@@ -630,9 +630,6 @@ async fn validate_block_full_flow() {
 
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
-// TODO(Itamar): Remove this case once we migrate to `finish_proposal`.
-// This case is tested in `finish_unknown_proposal`.
-#[case::send_finish(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
     let mut batcher = create_batcher(MockDependencies::default()).await;
@@ -669,12 +666,6 @@ async fn abort_unknown_proposal() {
 // TODO(Itamar): Remove this test once all cases are tested separately for each method.
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal("Block is full".to_string()))]
-// TODO(Itamar): Remove this `send_finish` case once all callers migrate to
-// `finish_proposal`; this path is covered by `finish_invalid_proposal`.
-#[case::send_finish(
-    SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
-    ProposalStatus::InvalidProposal("Block is full".to_string())
-)]
 #[tokio::test]
 async fn send_content_to_an_invalid_proposal(
     #[case] content: SendProposalContent,
@@ -693,9 +684,6 @@ async fn send_content_to_an_invalid_proposal(
 // TODO(Itamar): Remove this test once all cases are tested separately for each method.
 #[rstest]
 #[case::send_txs_after_finish(SendProposalContent::Txs(test_txs(0..1)))]
-// TODO(Itamar): Remove this case once we migrate to `finish_proposal`.
-// This case is tested in `finish_after_finish`.
-#[case::send_finish_after_finish(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))]
 #[tokio::test]
 async fn send_proposal_content_after_finish(#[case] content: SendProposalContent) {
     let mut batcher = create_batcher_with_active_validate_block(Ok(
@@ -704,11 +692,11 @@ async fn send_proposal_content_after_finish(#[case] content: SendProposalContent
     .await;
 
     // End the proposal.
-    let end_proposal = SendProposalContentInput {
+    let end_proposal = FinishProposalInput {
         proposal_id: PROPOSAL_ID,
-        content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
+        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
     };
-    batcher.send_proposal_content(end_proposal).await.unwrap();
+    batcher.finish_proposal(end_proposal).await.unwrap();
 
     // Send another request.
     let send_proposal_content_input =
@@ -736,12 +724,6 @@ enum AfterEndProposalAction {
     EndProposalAction::Abort,
     AfterEndProposalAction::SendContent(SendProposalContent::Txs(test_txs(0..1)))
 )]
-// TODO(Itamar): Remove this case once we migrate to `finish_proposal`.
-// This case is tested in `finish_after_abort`.
-#[case::send_finish_after_abort(
-    EndProposalAction::Abort,
-    AfterEndProposalAction::SendContent(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))
-)]
 #[case::abort_after_abort(EndProposalAction::Abort, AfterEndProposalAction::Abort)]
 #[case::finish_after_finish(EndProposalAction::Finish, AfterEndProposalAction::FinishProposal)]
 #[case::finish_after_abort(EndProposalAction::Abort, AfterEndProposalAction::FinishProposal)]
@@ -757,11 +739,13 @@ async fn proposal_not_found_after_terminal_action(
 
     match end_action {
         EndProposalAction::Finish => {
-            let input = SendProposalContentInput {
-                proposal_id: PROPOSAL_ID,
-                content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
-            };
-            batcher.send_proposal_content(input).await.unwrap();
+            batcher
+                .finish_proposal(FinishProposalInput {
+                    proposal_id: PROPOSAL_ID,
+                    final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+                })
+                .await
+                .unwrap();
         }
         EndProposalAction::Abort => {
             batcher.abort_proposal(PROPOSAL_ID).await.unwrap();
@@ -1007,11 +991,11 @@ async fn consecutive_proposal_generation_success() {
         batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
         batcher.validate_block(validate_block_input(ProposalId(2 * i + 1))).await.unwrap();
-        let finish_proposal = SendProposalContentInput {
+        let finish_proposal = FinishProposalInput {
             proposal_id: ProposalId(2 * i + 1),
-            content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
         };
-        batcher.send_proposal_content(finish_proposal).await.unwrap();
+        batcher.finish_proposal(finish_proposal).await.unwrap();
         batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
     }
 
@@ -1041,9 +1025,9 @@ async fn concurrent_proposals_generation_fail() {
 
     // Finish the first proposal.
     batcher
-        .send_proposal_content(SendProposalContentInput {
+        .finish_proposal(FinishProposalInput {
             proposal_id: ProposalId(0),
-            content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
         })
         .await
         .unwrap();
@@ -1098,9 +1082,9 @@ async fn proposal_startup_failure_allows_new_proposals() {
 
     batcher.validate_block(validate_block_input(ProposalId(1))).await.expect("Expected to succeed");
     batcher
-        .send_proposal_content(SendProposalContentInput {
+        .finish_proposal(FinishProposalInput {
             proposal_id: ProposalId(1),
-            content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
         })
         .await
         .unwrap();
