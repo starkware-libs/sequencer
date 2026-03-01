@@ -20,6 +20,8 @@ use lru::LruCache;
 use tracing::{info, instrument, warn};
 
 use crate::metrics::{
+    CONSENSUS_INBOUND_PEER_EVICTED,
+    CONSENSUS_INBOUND_STREAM_BUFFER_FULL,
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_INBOUND_STREAM_FINISHED,
     CONSENSUS_INBOUND_STREAM_STARTED,
@@ -398,7 +400,7 @@ where
             );
             if let Some((evicted_peer_id, _)) = evicted_peer_id {
                 warn!(?evicted_peer_id, "Evicted peer due to capacity");
-                // TODO(guyn): add a metric to track evicted peers.
+                CONSENSUS_INBOUND_PEER_EVICTED.increment(1);
             }
         }
         let per_peer_cache = self
@@ -483,7 +485,7 @@ where
                                 ?message_id,
                                 "Error storing message in buffer, buffer is full!"
                             );
-                            // TODO(guyn): add a metric to track too many messages.
+                            CONSENSUS_INBOUND_STREAM_BUFFER_FULL.increment(1);
                             // If buffer is full, the stream will likely never be finished, so we
                             // drop it.
                             return None;

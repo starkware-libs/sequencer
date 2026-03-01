@@ -26,6 +26,8 @@ define_metrics!(
         MetricCounter { CONSENSUS_INBOUND_STREAM_STARTED, "consensus_inbound_stream_started", "The total number of inbound streams started", init=0 },
         MetricCounter { CONSENSUS_INBOUND_STREAM_EVICTED, "consensus_inbound_stream_evicted", "The total number of inbound streams evicted due to cache capacity", init=0 },
         MetricCounter { CONSENSUS_INBOUND_STREAM_FINISHED, "consensus_inbound_stream_finished", "The total number of inbound streams finished", init=0 },
+        MetricCounter { CONSENSUS_INBOUND_PEER_EVICTED, "consensus_inbound_peer_evicted", "The total number of inbound peers evicted due to cache capacity", init=0 },
+        MetricCounter { CONSENSUS_INBOUND_STREAM_BUFFER_FULL, "consensus_inbound_stream_buffer_full", "The total number of inbound streams dropped due to full message buffer", init=0 },
         // TODO(Matan): remove this metric.
         MetricCounter { CONSENSUS_ROUND_ABOVE_ZERO, "consensus_round_above_zero", "The number of times the consensus round has increased above zero", init=0 },
         MetricCounter { CONSENSUS_ROUND_ADVANCES, "consensus_round_advances", "The number of times the consensus round has advanced", init=0 },
@@ -69,6 +71,8 @@ pub(crate) fn register_metrics() {
     CONSENSUS_INBOUND_STREAM_STARTED.register();
     CONSENSUS_INBOUND_STREAM_EVICTED.register();
     CONSENSUS_INBOUND_STREAM_FINISHED.register();
+    CONSENSUS_INBOUND_PEER_EVICTED.register();
+    CONSENSUS_INBOUND_STREAM_BUFFER_FULL.register();
     CONSENSUS_OUTBOUND_STREAM_STARTED.register();
     CONSENSUS_OUTBOUND_STREAM_FINISHED.register();
     CONSENSUS_ROUND_ABOVE_ZERO.register();
