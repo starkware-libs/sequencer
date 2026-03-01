@@ -6,6 +6,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use apollo_batcher_types::batcher_types::{
+    FinishProposalInput,
+    FinishProposalStatus,
     FinishedProposalInfo,
     ProposalId,
     ProposalStatus,
@@ -399,13 +401,10 @@ async fn handle_proposal_part(
             let duration = start.elapsed();
             info!("Awaiting the verify and store proof tasks took: {duration:?}");
 
-            // TODO(Itamar): Migrate to `batcher.finish_proposal(...)`.
             // Output this along with the ID from batcher, to compare them.
-            let input = SendProposalContentInput {
-                proposal_id,
-                content: SendProposalContent::Finish(executed_txs_count),
-            };
-            let response = match batcher.send_proposal_content(input).await {
+            let input =
+                FinishProposalInput { proposal_id, final_n_executed_txs: executed_txs_count };
+            let response = match batcher.finish_proposal(input).await {
                 Ok(response) => response,
                 Err(e) => {
                     return HandledProposalPart::Failed(format!(
@@ -414,10 +413,9 @@ async fn handle_proposal_part(
                 }
             };
             let finished_info = match response.response {
-                ProposalStatus::Finished(info) => info,
-                ProposalStatus::InvalidProposal(err) => return HandledProposalPart::Invalid(err),
-                status => {
-                    unreachable!("Unexpected batcher status for fin: {status:?}");
+                FinishProposalStatus::Finished(info) => info,
+                FinishProposalStatus::InvalidProposal(err) => {
+                    return HandledProposalPart::Invalid(err);
                 }
             };
             let batcher_block_commitment =
@@ -483,9 +481,6 @@ async fn handle_proposal_part(
             match response.response {
                 ProposalStatus::Processing => HandledProposalPart::Continue,
                 ProposalStatus::InvalidProposal(err) => HandledProposalPart::Invalid(err),
-                status => {
-                    unreachable!("Unexpected batcher status for transactions: {status:?}");
-                }
             }
         }
         _ => HandledProposalPart::Failed(format!(

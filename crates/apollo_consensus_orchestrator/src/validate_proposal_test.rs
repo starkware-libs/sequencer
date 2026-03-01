@@ -2,13 +2,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishProposalInput,
+    FinishProposalResponse,
+    FinishProposalStatus,
     FinishedProposalInfo,
     ProposalCommitment,
     ProposalId,
-    ProposalStatus,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_consensus_orchestrator_config::config::ContextConfig;
@@ -132,10 +131,10 @@ async fn validate_empty_proposal() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_const(Ok(()));
-    proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
-        assert!(matches!(input.content, SendProposalContent::Finish(_)));
-        Ok(SendProposalContentResponse {
-            response: ProposalStatus::Finished(FinishedProposalInfo {
+    proposal_args.deps.batcher.expect_finish_proposal().times(1).returning(|input| {
+        assert_eq!(input.final_n_executed_txs, 0);
+        Ok(FinishProposalResponse {
+            response: FinishProposalStatus::Finished(FinishedProposalInfo {
                 proposal_commitment: ProposalCommitment::default(),
                 final_n_executed_txs: 0,
                 block_header_commitments: BlockHeaderCommitments::default(),
@@ -262,14 +261,14 @@ async fn proposal_fin_mismatch() {
     proposal_args
         .deps
         .batcher
-        .expect_send_proposal_content()
-        .withf(move |input: &SendProposalContentInput| {
+        .expect_finish_proposal()
+        .withf(move |input: &FinishProposalInput| {
             input.proposal_id == proposal_args.proposal_id
-                && input.content == SendProposalContent::Finish(n_executed)
+                && input.final_n_executed_txs == n_executed
         })
         .returning(move |_| {
-            Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(FinishedProposalInfo {
+            Ok(FinishProposalResponse {
+                response: FinishProposalStatus::Finished(FinishedProposalInfo {
                     proposal_commitment: ProposalCommitment { state_diff_commitment: built_block },
                     final_n_executed_txs: n_executed,
                     block_header_commitments: BlockHeaderCommitments::default(),
@@ -301,14 +300,14 @@ async fn batcher_returns_invalid_proposal() {
     proposal_args
         .deps
         .batcher
-        .expect_send_proposal_content()
-        .withf(move |input: &SendProposalContentInput| {
+        .expect_finish_proposal()
+        .withf(move |input: &FinishProposalInput| {
             input.proposal_id == proposal_args.proposal_id
-                && input.content == SendProposalContent::Finish(n_executed)
+                && input.final_n_executed_txs == n_executed
         })
         .returning(|_| {
-            Ok(SendProposalContentResponse {
-                response: ProposalStatus::InvalidProposal("test error".to_string()),
+            Ok(FinishProposalResponse {
+                response: FinishProposalStatus::InvalidProposal("test error".to_string()),
             })
         });
     content_sender

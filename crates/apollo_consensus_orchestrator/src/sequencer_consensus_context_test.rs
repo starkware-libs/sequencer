@@ -4,6 +4,8 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::{
     CentralObjects,
     DecisionReachedResponse,
+    FinishProposalResponse,
+    FinishProposalStatus,
     FinishedProposalInfo,
     ProposalCommitment as BatcherProposalCommitment,
     ProposalStatus,
@@ -223,16 +225,14 @@ async fn interrupt_active_proposal() {
 
     // Round 1: Will send Txs then Finish
     deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
-        let SendProposalContent::Txs(txs) = input.content else {
-            panic!("Expected Txs");
-        };
+        let SendProposalContent::Txs(txs) = input.content;
         assert_eq!(txs, *INTERNAL_TX_BATCH);
         Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
     });
-    deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
-        assert!(matches!(input.content, SendProposalContent::Finish(_)));
-        Ok(SendProposalContentResponse {
-            response: ProposalStatus::Finished(FinishedProposalInfo {
+    deps.batcher.expect_finish_proposal().times(1).returning(|input| {
+        assert_eq!(input.final_n_executed_txs, INTERNAL_TX_BATCH.len());
+        Ok(FinishProposalResponse {
+            response: FinishProposalStatus::Finished(FinishedProposalInfo {
                 proposal_commitment: BatcherProposalCommitment {
                     state_diff_commitment: STATE_DIFF_COMMITMENT,
                 },
