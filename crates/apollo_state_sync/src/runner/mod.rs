@@ -74,6 +74,7 @@ pub struct StateSyncRunner {
     new_block_dev_null_future: BoxFuture<'static, Never>,
     rpc_server_future: BoxFuture<'static, ()>,
     register_metrics_future: BoxFuture<'static, ()>,
+    #[allow(dead_code)]
     storage_reader_server_handle: AbortHandle,
 }
 

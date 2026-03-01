@@ -47,7 +47,6 @@ apollo_monitoring_endpoint_config.workspace = true
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }
 apollo_node_config = { workspace = true, features = ["testing"] }
-apollo_proc_macros.workspace = true
 apollo_proof_manager = { workspace = true, features = ["testing"] }
 apollo_proof_manager_config.workspace = true
 apollo_protobuf.workspace = true

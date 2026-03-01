@@ -278,6 +278,18 @@ impl ClassHashStorage {
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)), storage_reader_server_handle })
     }
 
+    pub(crate) fn new_without_server(
+        storage_config: StorageConfig,
+    ) -> ClassHashStorageResult<Self> {
+        let (reader, writer) = apollo_storage::open_storage(storage_config)?;
+        let dummy_handle = tokio::spawn(async {}).abort_handle();
+        Ok(Self {
+            reader,
+            writer: Arc::new(Mutex::new(writer)),
+            storage_reader_server_handle: Arc::new(dummy_handle),
+        })
+    }
+
     fn writer(&self) -> ClassHashStorageResult<LockedWriter<'_>> {
         Ok(self.writer.lock().expect("Writer is poisoned."))
     }

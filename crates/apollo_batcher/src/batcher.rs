@@ -190,6 +190,7 @@ pub struct Batcher {
 
     commitment_manager: ApolloCommitmentManager,
 
+    #[allow(dead_code)]
     storage_reader_server_handle: AbortHandle,
 }
 
