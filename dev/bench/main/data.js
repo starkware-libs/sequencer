@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772375826415,
+  "lastUpdate": 1772382578718,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -33,6 +33,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1187.32314262,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noam.s@starkware.co",
+            "name": "noamsp-starkware",
+            "username": "noamsp-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a48524d3595b4e19ecbe77c5379fba9ad984fb9d",
+          "message": "apollo_signature_manager: change the challenge type (#11356)",
+          "timestamp": "2026-03-01T16:06:28Z",
+          "tree_id": "012a172d10d087e87194177e9d72a37edee58e14",
+          "url": "https://github.com/starkware-libs/sequencer/commit/a48524d3595b4e19ecbe77c5379fba9ad984fb9d"
+        },
+        "date": 1772382578414,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 802.15204491,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1202.03214149,
             "unit": "ms"
           }
         ]
