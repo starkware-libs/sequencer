@@ -2,7 +2,7 @@
 mod FuzzRevertContract {
     use core::panic_with_felt252;
     use starknet::storage::StoragePointerWriteAccess;
-    use starknet::{ContractAddress, syscalls};
+    use starknet::{ClassHash, ContractAddress, syscalls};
     use starknet::contract_address::ContractAddressZero;
     use starknet::info::SyscallResultTrait;
 
@@ -11,6 +11,7 @@ mod FuzzRevertContract {
     // (when cairo0 fuzz contracts get the None value from the orchestrator).
     const SCENARIO_RETURN: felt252 = 0;
     const SCENARIO_CALL: felt252 = 1;
+    const SCENARIO_LIBRARY_CALL: felt252 = 2;
 
     const POP_FRONT_SELECTOR: felt252 = selector!("pop_front");
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
@@ -67,6 +68,19 @@ mod FuzzRevertContract {
             match syscalls::call_contract_syscall(
                 contract_address, FUZZ_TEST_SELECTOR, array![].span(),
             ) {
+                Result::Ok(_) => (),
+                Result::Err(_) => {
+                    if should_unwrap_with != 0 {
+                        panic_with_felt252(should_unwrap_with);
+                    }
+                },
+            }
+        }
+
+        if scenario == SCENARIO_LIBRARY_CALL {
+            let class_hash: ClassHash = self.pop_front().try_into().unwrap();
+            let should_unwrap_with = self.pop_front();
+            match syscalls::library_call_syscall(class_hash, FUZZ_TEST_SELECTOR, array![].span()) {
                 Result::Ok(_) => (),
                 Result::Err(_) => {
                     if should_unwrap_with != 0 {
