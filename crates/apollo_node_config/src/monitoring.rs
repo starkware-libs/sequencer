@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::validators::create_validation_error;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
-
-use crate::config_utils::create_validation_error;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 #[validate(schema(function = "validate_monitoring_config"))]

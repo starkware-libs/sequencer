@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::net::ToSocketAddrs;
 
 use apollo_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
+use apollo_config::validators::{create_validation_error, validate_positive};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::{LocalServerConfig, RemoteServerConfig};
@@ -9,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use tracing::error;
 use validator::{Validate, ValidationError};
 
-use crate::config_utils::create_validation_error;
 use crate::definitions::ConfigExpectation::{self, Redundant, Required};
 use crate::definitions::ConfigPresence::{self, Absent, Present};
 
@@ -70,7 +70,7 @@ pub struct ReactiveComponentExecutionConfig {
     pub local_server_config: Option<LocalServerConfig>,
     pub remote_server_config: Option<RemoteServerConfig>,
     pub remote_client_config: Option<RemoteClientConfig>,
-    #[validate(custom(function = "validate_max_concurrency"))]
+    #[validate(custom(function = "validate_positive"))]
     pub max_concurrency: usize,
     pub url: String,
     pub port: u16,
@@ -259,19 +259,6 @@ fn validate_url(url: &str) -> Result<(), ValidationError> {
 
 fn create_url_validation_error(error_msg: String) -> ValidationError {
     create_validation_error(error_msg, "Failed to resolve url IP", "Ensure the url is valid.")
-}
-
-// Validate the configured max concurrency. If the max concurrency is invalid, it returns an error.
-fn validate_max_concurrency(max_concurrency: usize) -> Result<(), ValidationError> {
-    if max_concurrency > 0 {
-        Ok(())
-    } else {
-        Err(create_validation_error(
-            format!("Invalid max_concurrency: {max_concurrency}"),
-            "Invalid max concurrency",
-            "Ensure the max concurrency is greater than 0.",
-        ))
-    }
 }
 
 fn check_presence(
