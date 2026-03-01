@@ -11,8 +11,9 @@ mod FuzzRevertContract {
     use super::IOrchestratorDispatcherTrait;
     use core::panic_with_felt252;
     use starknet::storage::StoragePointerWriteAccess;
-    use starknet::{ClassHash, ContractAddress, syscalls};
+    use starknet::{ClassHash, ContractAddress, StorageAddress, syscalls};
     use starknet::contract_address::ContractAddressZero;
+    use starknet::info::SyscallResultTrait;
 
     // Scenarios.
     // The RETURN scenario *must* be zero, as the zero value also indicates end of scenario stream
@@ -20,6 +21,7 @@ mod FuzzRevertContract {
     const SCENARIO_RETURN: felt252 = 0;
     const SCENARIO_CALL: felt252 = 1;
     const SCENARIO_LIBRARY_CALL: felt252 = 2;
+    const SCENARIO_WRITE: felt252 = 3;
 
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
 
@@ -89,6 +91,13 @@ mod FuzzRevertContract {
                     }
                 },
             }
+        }
+
+        if scenario == SCENARIO_WRITE {
+            let key: StorageAddress = self.pop_front().try_into().unwrap();
+            let value = self.pop_front();
+            let address_domain = 0;
+            syscalls::storage_write_syscall(address_domain, key, value).unwrap_syscall();
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
