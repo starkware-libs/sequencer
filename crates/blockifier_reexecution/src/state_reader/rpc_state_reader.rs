@@ -469,7 +469,9 @@ impl StateReader for RpcStateReader {
     }
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        unimplemented!("The rpc state reader does not support get_compiled_class_hash.")
+        Err(StateError::StateReadError(
+            "The rpc state reader does not support get_compiled_class_hash.".to_string(),
+        ))
     }
 
     fn get_compiled_class_hash_v2(
