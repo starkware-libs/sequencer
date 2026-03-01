@@ -9,6 +9,7 @@ description = "A storage implementation for a Starknet node."
 [features]
 testing = ["starknet_api/testing", "tempfile", "tower"]
 storage_cli = ["clap", "reqwest"]
+storage_validation = ["clap"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -83,3 +84,7 @@ ignored = ["papyrus_common"]
 [[bin]]
 name = "storage_cli"
 required-features = ["storage_cli"]
+
+[[bin]]
+name = "validate_storage"
+required-features = ["storage_validation"]
