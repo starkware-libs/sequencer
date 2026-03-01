@@ -77,7 +77,7 @@ use apollo_state_sync_config::config::{
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
-use axum::http::StatusCode;
+use http::StatusCode;
 use axum::routing::{get, post};
 use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
