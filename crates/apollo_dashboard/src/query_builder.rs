@@ -32,6 +32,15 @@ pub(crate) fn seconds_since_last_timestamp(metric: &dyn MetricQueryName) -> Stri
     format!("time() - max(last_over_time({}[12h]))", metric.get_name_with_filter())
 }
 
+/// Returns `sum by (namespace, pod) (<inner>)` where `<inner>` is either
+/// the raw metric query or `increase(<metric>[<duration>])`.
+///
+/// - `metric`: source metric (with any label filters).
+/// - `display`: `DisplayMethod::Raw` or `Increase("<duration>")`.
+pub(crate) fn sum_by_pod(metric: &dyn MetricQueryName, display: DisplayMethod<'_>) -> String {
+    sum_by_label(metric, "namespace, pod", display, false)
+}
+
 /// Returns a query string that sums a metric **by a label**, optionally using
 /// `increase()` and filtering zeros.
 ///
@@ -44,6 +53,7 @@ pub(crate) fn seconds_since_last_timestamp(metric: &dyn MetricQueryName) -> Stri
 /// `sum_by_label(&m, "something", DisplayMethod::Increase("5m"), true)`
 /// → `sum by (something) (increase(<metric>[5m])) > 0`
 pub(crate) fn sum_by_label(
+
     metric: &dyn MetricQueryName,
     label: &str,
     display: DisplayMethod<'_>,
