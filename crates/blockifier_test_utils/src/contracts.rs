@@ -23,6 +23,10 @@ use crate::cairo_compile::{
 };
 use crate::cairo_versions::{CairoVersion, RunnableCairo1};
 
+#[cfg(test)]
+#[path = "contracts_test.rs"]
+mod contracts_test;
+
 pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "resources/feature_contracts/cairo1";
 pub const SIERRA_CONTRACTS_SUBDIR: &str = "sierra";
 
@@ -68,6 +72,9 @@ const EXPERIMENTAL_CONTRACT_BASE: u32 = 15 * CLASS_HASH_BASE;
 const TX_INFO_WRITER_CONTRACT_BASE: u32 = 16 * CLASS_HASH_BASE;
 const BLOCK_INFO_TEST_CONTRACT_BASE: u32 = 17 * CLASS_HASH_BASE;
 const MOCK_STAKING_CONTRACT_BASE: u32 = 18 * CLASS_HASH_BASE;
+const FUZZ_TEST_BASE: u32 = 19 * CLASS_HASH_BASE;
+const FUZZ_TEST2_BASE: u32 = 20 * CLASS_HASH_BASE;
+const FUZZ_TEST_ORCHESTRATOR_BASE: u32 = 21 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -87,6 +94,9 @@ const META_TX_CONTRACT_NAME: &str = "meta_tx_test_contract";
 const MOCK_STAKING_CONTRACT_NAME: &str = "mock_staking";
 const EXPERIMENTAL_CONTRACT_NAME: &str = "experimental_contract";
 const TX_INFO_WRITER_CONTRACT_NAME: &str = "tx_info_writer";
+const FUZZ_TEST_NAME: &str = "fuzz_revert";
+const FUZZ_TEST2_NAME: &str = "fuzz_revert_2";
+const FUZZ_TEST_ORCHESTRATOR_NAME: &str = "fuzz_revert_orchestrator";
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
     "./resources/ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
@@ -171,6 +181,21 @@ const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
 const MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x7fcb24cf8760f48805f01ef929c878a9d780cfb16cd04d8cd45e7d643d14b06"];
 
+const FUZZ_TEST_COMPILED_CLASS_HASH_V1: expect_test::Expect =
+    expect!["0x3309a10201aecd3b29f5e11cdf62951e5a501d1a66bbaf0e3b24614d079782b"];
+const FUZZ_TEST_COMPILED_CLASS_HASH_V2: expect_test::Expect =
+    expect!["0x649b03312f4ee8042374a22f6060b7cd3b28aa470e7f9d5e89bb7a10b91301a"];
+
+const FUZZ_TEST2_COMPILED_CLASS_HASH_V1: expect_test::Expect =
+    expect!["0x3b807eb055dc402605059ddfbf9d6891d4fbf4e65eb8d3dc0f40489a0d2048f"];
+const FUZZ_TEST2_COMPILED_CLASS_HASH_V2: expect_test::Expect =
+    expect!["0x106deaaa669df357b43de74530fb84f0ed5af6f09c05698fe37ff53084dcf30"];
+
+const FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V1: expect_test::Expect =
+    expect!["0x3eb0cba7ba60efe9a29d77c13fe0e7aa9e44dcaa331a1e882bd5180dacb064e"];
+const FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V2: expect_test::Expect =
+    expect!["0x2e531bd7cf63f2c61e475cb8884b0549ce99a557726a2840a5207aff38c8d0a"];
+
 pub type CairoVersionString = String;
 
 /// Enum representing all feature contracts.
@@ -195,6 +220,9 @@ pub enum FeatureContract {
     MetaTx(RunnableCairo1),
     MockStakingContract(RunnableCairo1),
     TxInfoWriter,
+    FuzzTest(CairoVersion),
+    FuzzTest2(RunnableCairo1),
+    FuzzTestOrchestrator(RunnableCairo1),
 }
 
 impl FeatureContract {
@@ -206,7 +234,8 @@ impl FeatureContract {
             | Self::Empty(version)
             | Self::FaultyAccount(version)
             | Self::TestContract(version)
-            | Self::ERC20(version) => *version,
+            | Self::ERC20(version)
+            | Self::FuzzTest(version) => *version,
             Self::DelegateProxy
             | Self::SecurityTests
             | Self::TestContract2
@@ -217,7 +246,9 @@ impl FeatureContract {
             Self::SierraExecutionInfoV1Contract(runnable_version)
             | Self::MetaTx(runnable_version)
             | Self::EmptyAccount(runnable_version)
-            | Self::MockStakingContract(runnable_version) => {
+            | Self::MockStakingContract(runnable_version)
+            | Self::FuzzTest2(runnable_version)
+            | Self::FuzzTestOrchestrator(runnable_version) => {
                 CairoVersion::Cairo1(*runnable_version)
             }
         }
@@ -231,11 +262,14 @@ impl FeatureContract {
             | Self::Empty(v)
             | Self::FaultyAccount(v)
             | Self::TestContract(v)
-            | Self::ERC20(v) => *v = version,
+            | Self::ERC20(v)
+            | Self::FuzzTest(v) => *v = version,
             Self::SierraExecutionInfoV1Contract(rv)
             | Self::MetaTx(rv)
             | Self::EmptyAccount(rv)
-            | Self::MockStakingContract(rv) => match version {
+            | Self::MockStakingContract(rv)
+            | Self::FuzzTest2(rv)
+            | Self::FuzzTestOrchestrator(rv) => match version {
                 CairoVersion::Cairo0 => panic!("{self:?} must be Cairo1"),
                 CairoVersion::Cairo1(runnable) => *rv = runnable,
             },
@@ -309,6 +343,16 @@ impl FeatureContract {
             Self::MockStakingContract(_) => (
                 MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V1,
                 MOCK_STAKING_CONTRACT_COMPILED_CLASS_HASH_V2,
+            ),
+            Self::FuzzTest(_) => {
+                (FUZZ_TEST_COMPILED_CLASS_HASH_V1, FUZZ_TEST_COMPILED_CLASS_HASH_V2)
+            }
+            Self::FuzzTest2(_) => {
+                (FUZZ_TEST2_COMPILED_CLASS_HASH_V1, FUZZ_TEST2_COMPILED_CLASS_HASH_V2)
+            }
+            Self::FuzzTestOrchestrator(_) => (
+                FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V1,
+                FUZZ_TEST_ORCHESTRATOR_COMPILED_CLASS_HASH_V2,
             ),
             Self::ERC20(_) => (ERC20_COMPILED_CLASS_HASH_V1, ERC20_COMPILED_CLASS_HASH_V2),
         }
@@ -412,6 +456,9 @@ impl FeatureContract {
                 Self::MetaTx(_) => META_TX_CONTRACT_BASE,
                 Self::MockStakingContract(_) => MOCK_STAKING_CONTRACT_BASE,
                 Self::TxInfoWriter => TX_INFO_WRITER_CONTRACT_BASE,
+                Self::FuzzTest(_) => FUZZ_TEST_BASE,
+                Self::FuzzTest2(_) => FUZZ_TEST2_BASE,
+                Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_BASE,
             }
     }
 
@@ -434,6 +481,9 @@ impl FeatureContract {
             Self::MetaTx(_) => META_TX_CONTRACT_NAME,
             Self::MockStakingContract(_) => MOCK_STAKING_CONTRACT_NAME,
             Self::TxInfoWriter => TX_INFO_WRITER_CONTRACT_NAME,
+            Self::FuzzTest(_) => FUZZ_TEST_NAME,
+            Self::FuzzTest2(_) => FUZZ_TEST2_NAME,
+            Self::FuzzTestOrchestrator(_) => FUZZ_TEST_ORCHESTRATOR_NAME,
             Self::ERC20(_) => unreachable!(),
         }
     }
@@ -530,7 +580,10 @@ impl FeatureContract {
                     | FeatureContract::SierraExecutionInfoV1Contract(_)
                     | FeatureContract::EmptyAccount(_)
                     | FeatureContract::MetaTx(_)
-                    | FeatureContract::MockStakingContract(_) => None,
+                    | FeatureContract::MockStakingContract(_)
+                    | FeatureContract::FuzzTest(_)
+                    | FeatureContract::FuzzTest2(_)
+                    | FeatureContract::FuzzTestOrchestrator(_) => None,
                     FeatureContract::ERC20(_) | FeatureContract::Experimental => unreachable!(),
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
@@ -569,7 +622,8 @@ impl FeatureContract {
             | Self::Empty(_)
             | Self::FaultyAccount(_)
             | Self::TestContract(_)
-            | Self::ERC20(_) => {
+            | Self::ERC20(_)
+            | Self::FuzzTest(_) => {
                 #[cfg(not(feature = "cairo_native"))]
                 let versions = [CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm)];
                 #[cfg(feature = "cairo_native")]
@@ -584,7 +638,9 @@ impl FeatureContract {
             Self::SierraExecutionInfoV1Contract(_)
             | Self::MetaTx(_)
             | Self::EmptyAccount(_)
-            | Self::MockStakingContract(_) => {
+            | Self::MockStakingContract(_)
+            | Self::FuzzTest2(_)
+            | Self::FuzzTestOrchestrator(_) => {
                 #[cfg(not(feature = "cairo_native"))]
                 {
                     vec![*self]
