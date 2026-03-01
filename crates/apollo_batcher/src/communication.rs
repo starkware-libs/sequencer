@@ -47,6 +47,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::AbortProposal(proposal_id) => {
                 BatcherResponse::AbortProposal(self.abort_proposal(proposal_id).await)
             }
+            BatcherRequest::FinishProposal(input) => {
+                BatcherResponse::FinishProposal(self.finish_proposal(input).await)
+            }
             BatcherRequest::AddSyncBlock(sync_block) => {
                 BatcherResponse::AddSyncBlock(self.add_sync_block(sync_block).await)
             }
