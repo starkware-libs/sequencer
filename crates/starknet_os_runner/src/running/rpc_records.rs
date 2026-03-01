@@ -26,6 +26,7 @@ use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::post;
 use axum::Router;
+use http::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::net::TcpListener;
@@ -165,8 +166,7 @@ impl MockRpcServer {
             Some(response) => axum::Json(response.clone()).into_response(),
             None => {
                 eprintln!("Mock RPC server: no match for {key}");
-                (axum::http::StatusCode::NOT_FOUND, "No matching recorded interaction")
-                    .into_response()
+                (StatusCode::NOT_FOUND, "No matching recorded interaction").into_response()
             }
         }
     }
@@ -279,8 +279,8 @@ impl RecordingProxy {
             .await
             .expect("Recording proxy: failed to forward request");
 
-        let status = axum::http::StatusCode::from_u16(response.status().as_u16())
-            .unwrap_or(axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+        let status = StatusCode::from_u16(response.status().as_u16())
+            .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
         let response_body: Value =
             response.json().await.expect("Recording proxy: failed to parse response as JSON");
 
