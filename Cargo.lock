@@ -2025,6 +2025,7 @@ dependencies = [
  "apollo_monitoring_endpoint_config",
  "async-trait",
  "axum",
+ "http 1.3.1",
  "http-body-util",
  "hyper-util",
  "metrics",

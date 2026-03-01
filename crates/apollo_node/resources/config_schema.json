@@ -219,6 +219,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
+    "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
+    "privacy": "Public",
+    "value": "off"
+  },
   "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
@@ -228,11 +233,6 @@
     "description": "Whether to panic on compilation failure.",
     "privacy": "Public",
     "value": false
-  },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
-    "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
-    "privacy": "Public",
-    "value": "off"
   },
   "batcher_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
@@ -2164,15 +2164,15 @@
     "pointer_target": "validator_id",
     "privacy": "Public"
   },
-  "consensus_manager_config.consensus_manager_config.static_config.startup_delay": {
-    "description": "Delay (seconds) before starting consensus to give time for network peering.",
-    "privacy": "Public",
-    "value": 5
-  },
   "consensus_manager_config.consensus_manager_config.static_config.skip_last_voted_height_check": {
     "description": "If true, skips check that we didn't vote on this height.",
     "privacy": "Public",
     "value": false
+  },
+  "consensus_manager_config.consensus_manager_config.static_config.startup_delay": {
+    "description": "Delay (seconds) before starting consensus to give time for network peering.",
+    "privacy": "Public",
+    "value": 5
   },
   "consensus_manager_config.consensus_manager_config.static_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -2554,6 +2554,11 @@
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
+    "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
+    "privacy": "Public",
+    "value": "off"
+  },
   "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
@@ -2563,11 +2568,6 @@
     "description": "Whether to panic on compilation failure.",
     "privacy": "Public",
     "value": false
-  },
-  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
-    "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
-    "privacy": "Public",
-    "value": "off"
   },
   "gateway_config.static_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
