@@ -40,7 +40,7 @@ pub use config::Config;
 pub use handler::{Handler, HandlerIn, HandlerOut};
 pub use merkle::{MerkleHash, MerkleProof, MerkleTree};
 pub use metrics::PropellerMetrics;
-pub use tree::{PropellerScheduleManager, Stake};
+pub use tree::PropellerScheduleManager;
 pub use types::{
     CommitteeId,
     CommitteeSetupError,

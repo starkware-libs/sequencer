@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use libp2p::identity::{Keypair, PeerId, PublicKey};
+use starknet_api::staking::StakingWeight;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, trace, warn};
 
@@ -18,7 +19,7 @@ use crate::metrics::PropellerMetrics;
 use crate::sharding::create_units_to_publish;
 use crate::signature;
 use crate::time_cache::TimeCache;
-use crate::tree::{PropellerScheduleManager, Stake};
+use crate::tree::PropellerScheduleManager;
 use crate::types::{CommitteeId, CommitteeSetupError, Event, MessageRoot, ShardPublishError};
 use crate::unit::PropellerUnit;
 
@@ -36,7 +37,7 @@ struct MessageKey {
 pub enum EngineCommand {
     RegisterCommitteePeers {
         committee_id: CommitteeId,
-        peers: Vec<(PeerId, Stake, Option<PublicKey>)>,
+        peers: Vec<(PeerId, StakingWeight, Option<PublicKey>)>,
         response: oneshot::Sender<Result<(), CommitteeSetupError>>,
     },
     // TODO(AndrewL): remove this variant once unregister is no longer needed.
@@ -135,7 +136,7 @@ impl Engine {
     pub fn register_committee(
         &mut self,
         committee_id: CommitteeId,
-        peers: Vec<(PeerId, Stake, Option<PublicKey>)>,
+        peers: Vec<(PeerId, StakingWeight, Option<PublicKey>)>,
     ) -> Result<(), CommitteeSetupError> {
         if self.committees.contains_key(&committee_id) {
             warn!(?committee_id, "Committee already registered, ignoring re-registration");
