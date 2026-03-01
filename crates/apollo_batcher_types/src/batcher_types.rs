@@ -120,17 +120,30 @@ pub struct SendProposalContentInput {
     pub content: SendProposalContent,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FinishProposalInput {
+    pub proposal_id: ProposalId,
+    pub final_n_executed_txs: usize,
+}
+
 /// The content of the stream that the consensus sends to the batcher.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
     /// Contains the final number of transactions in the block.
+    // TODO(Itamar): Remove this variant once all callers migrate to `finish_proposal`.
     Finish(usize),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SendProposalContentResponse {
     pub response: ProposalStatus,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum FinishProposalStatus {
+    Finished(FinishedProposalInfo),
+    InvalidProposal(String),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -158,6 +171,7 @@ pub struct DecisionReachedResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ProposalStatus {
     Processing,
+    // TODO(Itamar): Remove this variant once all callers migrate to `finish_proposal`.
     // Only sent in response to `Finish`.
     Finished(FinishedProposalInfo),
     // May be caused due to handling of a previous item of the new proposal.
