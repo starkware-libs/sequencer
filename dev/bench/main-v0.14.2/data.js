@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772364812390,
+  "lastUpdate": 1772381917771,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1495,6 +1495,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1142.81864992,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c134dcc8f091b08ca44152e48485508ff331a2e3",
+          "message": "apollo_http_server: resolve status code crate ambiguity (#12926)",
+          "timestamp": "2026-03-01T15:55:16Z",
+          "tree_id": "b6eab59bde890641abb55dd3d40fad9a95e1a003",
+          "url": "https://github.com/starkware-libs/sequencer/commit/c134dcc8f091b08ca44152e48485508ff331a2e3"
+        },
+        "date": 1772381917472,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 795.11703334,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1204.7506626099998,
             "unit": "ms"
           }
         ]
