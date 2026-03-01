@@ -6,6 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Integration tests for Starknet OS execution and state commitment flow."
 
+[features]
+fuzz_test_debug = []
+
 [dev-dependencies]
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["reexecution", "testing"] }

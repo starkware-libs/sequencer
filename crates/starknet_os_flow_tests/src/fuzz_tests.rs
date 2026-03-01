@@ -142,7 +142,7 @@ impl LibraryCallOperationData {
 }
 
 /// Data associated with a fuzz operation.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum FuzzOperationData {
     Return,
     Call(CallOperationData),
@@ -575,6 +575,22 @@ impl FuzzTestManager {
         }
     }
 
+    /// Expected address of a deploy operation.
+    pub fn address_of_deploy(
+        &self,
+        class_hash: ClassHash,
+        salt: ContractAddressSalt,
+    ) -> ContractAddress {
+        // Deployer address is always zero (for simplicity).
+        calculate_contract_address(
+            salt,
+            class_hash,
+            &calldata![**self.orchestrator_contract_address],
+            ContractAddress::default(),
+        )
+        .unwrap()
+    }
+
     /// Given a call path, revert all the context changes induced by it and it's child calls.
     pub fn compute_revert_info(&self, root_call: &FuzzCallInfo) -> RevertInfo {
         RevertInfo::combine(
@@ -654,16 +670,7 @@ impl FuzzTestManager {
                 // call-contract) should the code change be reflected.
             }
             FuzzOperationData::Deploy { class_hash, salt } => {
-                let ctor_calldata = calldata![**self.orchestrator_contract_address];
-                // Compute the address of the deployed contract.
-                // Deployer address is always zero (for simplicity).
-                let deployed_address = calculate_contract_address(
-                    salt,
-                    class_hash,
-                    &ctor_calldata,
-                    ContractAddress::default(),
-                )
-                .unwrap();
+                let deployed_address = self.address_of_deploy(class_hash, salt);
                 // Increment the salt for the next deploy operation.
                 self.next_salt.0 += Felt::ONE;
                 // Update the mapping from address to class hash.
@@ -726,6 +733,117 @@ impl FuzzTestManager {
     /// fuzz test.
     pub fn operations_to_scenario_data(operations: &[FuzzOperationData]) -> Vec<Felt> {
         operations.iter().flat_map(|op| op.felt_vector()).collect()
+    }
+
+    /// Pretty print the operations. Example output:
+    /// ```ignore
+    /// operations = [
+    ///     0x1 (Call),
+    ///     0xdeadbeef (Cairo1 address, class hash: 0xbeef),
+    ///     0x1 (unwraps error),
+    ///     0x2 (Library call),
+    ///     0xbee (Cairo0 class hash),
+    ///     0x0 (does not unwrap error),
+    ///     0x1 (Call),
+    ///     0xdeadbeef (Cairo1 address, class hash: 0xbeef),
+    ///     0x0 (Return),
+    ///     0x6 (Panic),
+    /// ]
+    /// ```
+    #[allow(unused)]
+    pub fn prettify_operations(&self) -> String {
+        let mut output = vec!["operations = [".to_string()];
+        for operation in self.operations.iter() {
+            let operation_felt_hexes = operation
+                .to_felt_vector()
+                .iter()
+                .map(|felt| felt.to_hex_string())
+                .collect::<Vec<String>>();
+            output.extend(match operation {
+                FuzzOperationData::Return => vec![format!("{} (Return)", operation_felt_hexes[0])],
+                FuzzOperationData::Call(call_operation_data) => {
+                    let class_hash =
+                        self.deployed_contracts.get(call_operation_data.address()).unwrap();
+                    let is_cairo1 = self.is_cairo1_class(class_hash);
+                    let mut call_print = vec![
+                        format!("{} (Call)", operation_felt_hexes[0]),
+                        format!(
+                            "{} (Cairo{} address, class hash: {})",
+                            operation_felt_hexes[1],
+                            if is_cairo1 { "1" } else { "0" },
+                            class_hash.0.to_hex_string()
+                        ),
+                    ];
+                    if let CallOperationData::Cairo1 { unwraps_error, .. } = call_operation_data {
+                        call_print.push(format!(
+                            "{} ({} error)",
+                            operation_felt_hexes[2],
+                            if *unwraps_error { "unwraps" } else { "does not unwrap" }
+                        ));
+                    }
+                    call_print
+                }
+                FuzzOperationData::LibraryCall(library_call_operation_data) => {
+                    let is_cairo1 = self.is_cairo1_class(library_call_operation_data.class_hash());
+                    let mut library_call_print = vec![
+                        format!("{} (Library call)", operation_felt_hexes[0]),
+                        format!(
+                            "{} (Cairo{} class hash)",
+                            operation_felt_hexes[1],
+                            if is_cairo1 { "1" } else { "0" },
+                        ),
+                    ];
+                    if let LibraryCallOperationData::Cairo1 { unwraps_error, .. } =
+                        library_call_operation_data
+                    {
+                        library_call_print.push(format!(
+                            "{} ({} error)",
+                            operation_felt_hexes[2],
+                            if *unwraps_error { "unwraps" } else { "does not unwrap" }
+                        ));
+                    }
+                    library_call_print
+                }
+                FuzzOperationData::Write(_, _) => {
+                    vec![
+                        format!("{} (Write)", operation_felt_hexes[0]),
+                        format!("{} (key)", operation_felt_hexes[1]),
+                        format!("{} (value)", operation_felt_hexes[2]),
+                    ]
+                }
+                FuzzOperationData::ReplaceClass(_) => {
+                    vec![
+                        format!("{} (Replace class)", operation_felt_hexes[0]),
+                        format!("{} (new class hash)", operation_felt_hexes[1]),
+                    ]
+                }
+                FuzzOperationData::Deploy { class_hash, salt } => {
+                    let deployed_address = self.address_of_deploy(*class_hash, *salt);
+                    let is_cairo1 = self.is_cairo1_class(class_hash);
+                    vec![
+                        format!(
+                            "{} (Deploy, new address: {})",
+                            operation_felt_hexes[0],
+                            deployed_address.to_hex_string()
+                        ),
+                        format!(
+                            "{} (Cairo{} class hash)",
+                            operation_felt_hexes[1],
+                            if is_cairo1 { "1" } else { "0" }
+                        ),
+                        format!("{} (salt)", operation_felt_hexes[2]),
+                    ]
+                }
+                FuzzOperationData::Panic => {
+                    vec![format!("{} (Panic)", operation_felt_hexes[0])]
+                }
+            });
+        }
+        for line in output.iter_mut().skip(1) {
+            *line = format!("    {line}");
+        }
+        output.push("]".to_string());
+        output.join(",\n").to_string()
     }
 
     /// Run the fuzz test. Should be called after the operations list is final (no need to finalize
@@ -797,6 +915,10 @@ async fn test_cairo1_revert_fuzz(
                 break;
             }
         }
+
+        println!("Seed: {iteration_seed}.");
+        #[cfg(feature = "fuzz_test_debug")]
+        println!("{}", fuzz_tester.prettify_operations());
 
         fuzz_tester.run_test().await;
     }
