@@ -24,11 +24,8 @@ starknet_api.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-apollo_network_types.workspace = true
-apollo_signature_manager_types.workspace = true
+expect-test.workspace = true
 hex.workspace = true
-pretty_assertions.workspace = true
-rstest.workspace = true
 starknet-core.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
