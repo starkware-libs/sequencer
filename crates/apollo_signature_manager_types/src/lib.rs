@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
 use starknet_api::core::Nonce;
 use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
 pub type KeyStoreResult<T> = Result<T, KeyStoreError>;
 pub type SignatureManagerResult<T> = Result<T, SignatureManagerError>;
@@ -86,7 +86,7 @@ pub enum SignatureManagerClientError {
 #[derive(Clone, Serialize, Deserialize, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(SignatureManagerRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub enum SignatureManagerRequest {

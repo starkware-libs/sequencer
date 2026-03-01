@@ -20,14 +20,7 @@ use apollo_node_config::config_utils::{config_to_preset, prune_by_is_none};
 use phf::phf_set;
 use serde::{Serialize, Serializer};
 use serde_json::{from_str, json, Map, Value};
-use strum::{
-    Display,
-    EnumDiscriminants,
-    EnumIter,
-    EnumVariantNames,
-    IntoEnumIterator,
-    IntoStaticStr,
-};
+use strum::{Display, EnumDiscriminants, EnumIter, IntoEnumIterator, IntoStaticStr, VariantNames};
 
 use crate::deployment_definitions::{ComponentConfigInService, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
@@ -114,7 +107,7 @@ pub static KEYS_TO_BE_REPLACED: phf::Set<&'static str> = phf_set! {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumDiscriminants)]
 #[strum_discriminants(
     name(NodeType),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames, Serialize, Display),
+    derive(IntoStaticStr, EnumIter, VariantNames, Serialize, Display),
     strum(serialize_all = "snake_case")
 )]
 pub enum NodeService {

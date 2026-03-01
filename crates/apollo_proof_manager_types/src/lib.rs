@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::fields::{Proof, ProofFacts};
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use thiserror::Error;
 
 pub type ProofManagerResult<T> = Result<T, ProofManagerError>;
@@ -64,7 +64,7 @@ pub enum ProofManagerClientError {
 #[derive(Clone, Serialize, Deserialize, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(ProofManagerRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub enum ProofManagerRequest {

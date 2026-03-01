@@ -2,10 +2,10 @@ use std::cmp::Eq;
 use std::collections::HashSet;
 use std::hash::Hash;
 
-use strum::EnumVariantNames;
+use strum::VariantNames;
 
 #[allow(dead_code)]
-#[derive(Debug, EnumVariantNames, Clone, Copy)]
+#[derive(Debug, VariantNames, Clone, Copy)]
 enum Color {
     Red,
     Green,
@@ -13,7 +13,7 @@ enum Color {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, EnumVariantNames, Clone, Copy)]
+#[derive(Debug, VariantNames, Clone, Copy)]
 enum Size {
     Small,
     Medium,

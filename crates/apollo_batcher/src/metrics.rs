@@ -15,7 +15,7 @@ use blockifier::metrics::{
     TOTAL_CALLS,
 };
 use starknet_api::block::BlockNumber;
-use strum::{EnumVariantNames, IntoStaticStr};
+use strum::{IntoStaticStr, VariantNames};
 
 define_infra_metrics!(batcher);
 
@@ -72,7 +72,7 @@ define_metrics!(
 
 pub const LABEL_NAME_BLOCK_CLOSE_REASON: &str = "block_close_reason";
 
-#[derive(Clone, Copy, Debug, IntoStaticStr, EnumVariantNames)]
+#[derive(Clone, Copy, Debug, IntoStaticStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 pub enum BlockCloseReason {
     FullBlock,

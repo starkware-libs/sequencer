@@ -8,7 +8,7 @@ use apollo_sizeof::SizeOf;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
 use starknet_core::types::EntryPointsByType as StarknetCoreEntryPointsByType;
-use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 
 use crate::contract_class::EntryPointType;
 use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -55,7 +55,7 @@ use crate::{impl_deploy_transaction_trait, StarknetApiError};
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, EnumDiscriminants)]
 #[strum_discriminants(
     name(RpcTransactionLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 #[serde(tag = "type")]
@@ -98,7 +98,7 @@ impl TransactionHasher for InternalRpcDeployAccountTransaction {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash, EnumDiscriminants, SizeOf)]
 #[strum_discriminants(
     name(InternalRpcTransactionLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 #[serde(tag = "type")]

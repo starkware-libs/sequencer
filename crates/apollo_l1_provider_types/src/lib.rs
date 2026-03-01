@@ -22,7 +22,7 @@ use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher};
 use starknet_api::StarknetApiError;
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tracing::instrument;
 
 use crate::errors::{L1ProviderClientError, L1ProviderError};
@@ -58,7 +58,7 @@ pub enum InvalidValidationStatus {
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(L1ProviderRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 pub enum L1ProviderRequest {

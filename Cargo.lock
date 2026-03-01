@@ -158,7 +158,7 @@ checksum = "bfaa9ea039a6f9304b4a593d780b1f23e1ae183acdee938b11b38795acacc9f1"
 dependencies = [
  "alloy-primitives",
  "num_enum",
- "strum 0.27.2",
+ "strum",
 ]
 
 [[package]]
@@ -909,7 +909,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -950,7 +950,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tower",
@@ -1019,7 +1019,7 @@ dependencies = [
  "hex",
  "mockall",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1053,7 +1053,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1098,7 +1098,7 @@ dependencies = [
  "serde",
  "starknet_api",
  "starknet_committer",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -1158,7 +1158,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1201,7 +1201,7 @@ dependencies = [
  "lazy_static",
  "serde",
  "serde_json",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
@@ -1265,7 +1265,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "serde",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1298,7 +1298,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "test-case",
  "thiserror 1.0.69",
@@ -1420,7 +1420,7 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-util",
@@ -1486,7 +1486,7 @@ dependencies = [
  "serde",
  "serde_json",
  "static_assertions",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "url",
 ]
@@ -1529,7 +1529,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1566,7 +1566,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -1645,7 +1645,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -1670,7 +1670,7 @@ dependencies = [
  "serde",
  "serde_json",
  "socket2 0.5.10",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -1751,7 +1751,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "static_assertions",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -1810,7 +1810,7 @@ dependencies = [
  "reqwest 0.12.24",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -1869,7 +1869,7 @@ dependencies = [
  "papyrus_base_layer",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -1916,7 +1916,7 @@ dependencies = [
  "rstest",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tokio",
  "tracing",
 ]
@@ -1977,7 +1977,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -1993,7 +1993,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -2009,7 +2009,7 @@ dependencies = [
  "paste",
  "regex",
  "rstest",
- "strum 0.25.0",
+ "strum",
  "tracing",
 ]
 
@@ -2073,7 +2073,7 @@ dependencies = [
  "rstest",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-retry",
@@ -2312,7 +2312,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -2426,7 +2426,7 @@ dependencies = [
  "starknet-core",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tokio",
  "tower",
  "tracing",
@@ -2507,7 +2507,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -2591,7 +2591,7 @@ dependencies = [
  "simple_logger",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tokio-retry",
@@ -2705,7 +2705,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
 ]
 
@@ -3746,7 +3746,7 @@ dependencies = [
  "sha2 0.10.9",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "test-case",
  "thiserror 1.0.69",
  "tikv-jemallocator",
@@ -3796,7 +3796,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "tokio",
  "tracing",
@@ -12275,7 +12275,7 @@ dependencies = [
  "starknet-core",
  "starknet-crypto 0.8.1",
  "starknet-types-core",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -12304,7 +12304,7 @@ dependencies = [
  "starknet_api",
  "starknet_patricia",
  "starknet_patricia_storage",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -12416,7 +12416,7 @@ dependencies = [
  "starknet_committer",
  "starknet_patricia",
  "starknet_patricia_storage",
- "strum 0.25.0",
+ "strum",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -12514,7 +12514,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_patricia_storage",
- "strum 0.25.0",
+ "strum",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -12574,33 +12574,11 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "strum"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
-dependencies = [
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "strum"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af23d6f6c1a224baef9d3f61e287d2761385a5b88fdab4eb4c6f11aeb54c4bcf"
 dependencies = [
- "strum_macros 0.27.2",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
-dependencies = [
- "heck 0.4.1",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.110",
+ "strum_macros",
 ]
 
 [[package]]

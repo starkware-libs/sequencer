@@ -5,7 +5,7 @@ use std::time::Duration;
 use apollo_proc_macros::unique_u16;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr, VariantNames};
 use tokio::sync::mpsc::channel;
 use tokio::sync::Semaphore;
 use tokio::task;
@@ -45,7 +45,7 @@ type TestResult = ClientResult<()>;
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(
     name(ConcurrentComponentRequestLabelValue),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    derive(IntoStaticStr, EnumIter, VariantNames),
     strum(serialize_all = "snake_case")
 )]
 enum ConcurrentComponentRequest {
