@@ -7,9 +7,12 @@ from starkware.starknet.common.syscalls import call_contract
 // Scenarios.
 // The RETURN scenario *must* be zero, as the zero value also indicates end of scenario stream.
 const SCENARIO_RETURN = 0;
+const SCENARIO_CALL = 1;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
+// selector_from_name("test_revert_fuzz").
+const FUZZ_TEST_SELECTOR = 0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd;
 
 @storage_var
 func orchestrator_address() -> (address: felt) {
@@ -72,6 +75,22 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 
     if (scenario == SCENARIO_RETURN) {
         return ();
+    } else {
+        tempvar syscall_ptr = syscall_ptr;
+        tempvar pedersen_ptr = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
+
+    if (scenario == SCENARIO_CALL) {
+        call_contract(
+            contract_address=pop_front(orchestrator),
+            function_selector=FUZZ_TEST_SELECTOR,
+            calldata_size=0,
+            calldata=new(),
+        );
+        tempvar syscall_ptr = syscall_ptr;
+        tempvar pedersen_ptr = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
     } else {
         tempvar syscall_ptr = syscall_ptr;
         tempvar pedersen_ptr = pedersen_ptr;
