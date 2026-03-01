@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+pub(crate) mod fuzz_tests;
 pub(crate) mod initial_state;
 pub(crate) mod special_contracts;
 pub(crate) mod test_manager;
