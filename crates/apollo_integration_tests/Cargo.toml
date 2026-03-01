@@ -65,6 +65,7 @@ cairo-lang-starknet-classes.workspace = true
 clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 hex.workspace = true
+http.workspace = true
 indexmap.workspace = true
 mempool_test_utils.workspace = true
 metrics-exporter-prometheus.workspace = true
