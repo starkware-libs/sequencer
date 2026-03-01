@@ -225,6 +225,62 @@
       "observer_applicable": "false"
     },
     {
+      "name": "consensus_inbound_peer_evicted",
+      "title": "Consensus inbound peer evicted",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(consensus_inbound_peer_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              5.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p5",
+      "observer_applicable": "false"
+    },
+    {
+      "name": "consensus_inbound_stream_buffer_full",
+      "title": "Consensus inbound stream buffer full",
+      "ruleGroup": "consensus",
+      "expr": "sum(increase(consensus_inbound_stream_buffer_full{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4",
+      "observer_applicable": "false"
+    },
+    {
       "name": "consensus_inbound_stream_evicted",
       "title": "Consensus inbound stream evicted",
       "ruleGroup": "consensus",
