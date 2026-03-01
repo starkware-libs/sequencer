@@ -38,7 +38,7 @@
         ],
         "EXTERNAL": [
             {
-                "offset": 249,
+                "offset": 277,
                 "selector": "0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd"
             },
             {
@@ -302,15 +302,43 @@
             "0x48127ffc7fff8000",
             "0x48127ffc7fff8000",
             "0x48127ffc7fff8000",
+            "0x4826800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffffe",
+            "0x20680017fff7fff",
+            "0x17",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x480a80007fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffac",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff92",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x480a80007fff8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff8c",
+            "0x48127ffc7fff8000",
+            "0x48127fe47fff8000",
+            "0x48127ffd7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff1e",
+            "0x48127ff67fff8000",
+            "0x48127ff67fff8000",
+            "0x10780017fff7fff",
+            "0x5",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff90",
             "0x208b7fff7fff7ffe",
             "0x402b7ffd7ffc7ffd",
             "0x480280007ffb8000",
             "0x480280017ffb8000",
             "0x480280027ffb8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffa5",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff89",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -449,7 +477,7 @@
                     }
                 }
             ],
-            "255": [
+            "283": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -460,7 +488,7 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 24,
+                            "group": 25,
                             "offset": 0
                         },
                         "reference_ids": {}
@@ -492,6 +520,10 @@
             "__main__.SCENARIO_RETURN": {
                 "type": "const",
                 "value": 0
+            },
+            "__main__.SCENARIO_WRITE": {
+                "type": "const",
+                "value": 3
             },
             "__main__.assert_not_zero": {
                 "destination": "starkware.cairo.common.math.assert_not_zero",
@@ -796,6 +828,10 @@
                 "type": "const",
                 "value": 0
             },
+            "__main__.storage_write": {
+                "destination": "starkware.starknet.common.syscalls.storage_write",
+                "type": "alias"
+            },
             "__main__.test_revert_fuzz": {
                 "decorators": [
                     "external"
@@ -910,7 +946,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 249,
+                "pc": 277,
                 "type": "function"
             },
             "__wrappers__.test_revert_fuzz.Args": {
