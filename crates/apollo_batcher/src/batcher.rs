@@ -193,12 +193,6 @@ pub struct Batcher {
     storage_reader_server_handle: AbortHandle,
 }
 
-impl Drop for Batcher {
-    fn drop(&mut self) {
-        self.storage_reader_server_handle.abort();
-    }
-}
-
 impl Batcher {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(

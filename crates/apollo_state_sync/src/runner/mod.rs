@@ -77,12 +77,6 @@ pub struct StateSyncRunner {
     storage_reader_server_handle: AbortHandle,
 }
 
-impl Drop for StateSyncRunner {
-    fn drop(&mut self) {
-        self.storage_reader_server_handle.abort();
-    }
-}
-
 #[async_trait]
 impl ComponentStarter for StateSyncRunner {
     async fn start(&mut self) {

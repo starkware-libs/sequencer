@@ -255,14 +255,6 @@ pub struct ClassHashStorage {
     storage_reader_server_handle: Arc<AbortHandle>,
 }
 
-impl Drop for ClassHashStorage {
-    fn drop(&mut self) {
-        if Arc::strong_count(&self.storage_reader_server_handle) == 1 {
-            self.storage_reader_server_handle.abort();
-        }
-    }
-}
-
 impl ClassHashStorage {
     pub fn new(
         storage_config: StorageConfig,
