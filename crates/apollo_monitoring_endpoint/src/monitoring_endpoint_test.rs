@@ -15,9 +15,9 @@ use apollo_monitoring_endpoint_config::config::{
     MONITORING_ENDPOINT_DEFAULT_IP,
     MONITORING_ENDPOINT_DEFAULT_PORT,
 };
-use axum::http::StatusCode;
 use axum::response::Response;
 use axum::Router;
+use http::StatusCode;
 use http_body_util::BodyExt;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::TokioExecutor;
