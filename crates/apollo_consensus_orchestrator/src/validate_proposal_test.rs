@@ -36,8 +36,8 @@ use tokio_util::sync::CancellationToken;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
-    block_info,
     create_test_and_network_deps,
+    proposal_init,
     SetupDepsArgs,
     TestDeps,
     CHANNEL_SIZE,
@@ -48,7 +48,7 @@ use crate::utils::{make_gas_price_params, GasPriceParams};
 use crate::validate_proposal::{
     validate_proposal,
     within_margin,
-    BlockInfoValidation,
+    ProposalInitValidation,
     ProposalValidateArguments,
     ValidateProposalError,
 };
@@ -56,7 +56,7 @@ use crate::validate_proposal::{
 struct TestProposalValidateArguments {
     pub deps: TestDeps,
     pub init: ProposalInit,
-    pub block_info_validation: BlockInfoValidation,
+    pub proposal_init_validation: ProposalInitValidation,
     pub proposal_id: ProposalId,
     pub timeout: Duration,
     pub batcher_timeout_margin: Duration,
@@ -71,7 +71,7 @@ impl From<TestProposalValidateArguments> for ProposalValidateArguments {
         ProposalValidateArguments {
             deps: args.deps.into(),
             init: args.init,
-            block_info_validation: args.block_info_validation,
+            proposal_init_validation: args.proposal_init_validation,
             proposal_id: args.proposal_id,
             timeout: args.timeout,
             batcher_timeout_margin: args.batcher_timeout_margin,
@@ -87,11 +87,11 @@ fn create_proposal_validate_arguments()
 -> (TestProposalValidateArguments, mpsc::Sender<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
-    let init = block_info(BlockNumber(0), 0);
-    let block_info_validation = BlockInfoValidation {
+    let init = proposal_init(BlockNumber(0), 0);
+    let proposal_init_validation = ProposalInitValidation {
         height: BlockNumber(0),
         block_timestamp_window_seconds: 60,
-        previous_block_info: None,
+        previous_proposal_init: None,
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
     };
@@ -108,7 +108,7 @@ fn create_proposal_validate_arguments()
         TestProposalValidateArguments {
             deps,
             init,
-            block_info_validation,
+            proposal_init_validation,
             proposal_id,
             timeout,
             batcher_timeout_margin,
@@ -233,15 +233,15 @@ async fn validation_timeout() {
 }
 
 #[tokio::test]
-async fn invalid_block_info() {
+async fn invalid_proposal_init() {
     let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
 
     proposal_args.init.l2_gas_price_fri =
-        GasPrice(proposal_args.block_info_validation.l2_gas_price_fri.0 + 1);
+        GasPrice(proposal_args.proposal_init_validation.l2_gas_price_fri.0 + 1);
     content_sender.send(ProposalPart::Init(proposal_args.init.clone())).await.unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::InvalidBlockInfo(_, _, _))));
+    assert!(matches!(res, Err(ValidateProposalError::InvalidProposalInit(_, _, _))));
 }
 
 #[tokio::test]
