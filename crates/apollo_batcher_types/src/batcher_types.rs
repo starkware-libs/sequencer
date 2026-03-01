@@ -134,9 +134,6 @@ pub struct FinishProposalInput {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
-    /// Contains the final number of transactions in the block.
-    // TODO(Itamar): Remove this variant once all callers migrate to `finish_proposal`.
-    Finish(usize),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -176,9 +173,6 @@ pub struct DecisionReachedResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ProposalStatus {
     Processing,
-    // TODO(Itamar): Remove this variant once all callers migrate to `finish_proposal`.
-    // Only sent in response to `Finish`.
-    Finished(FinishedProposalInfo),
     // May be caused due to handling of a previous item of the new proposal.
     // In this case, the proposal is aborted and no additional content will be processed.
     InvalidProposal(String),
