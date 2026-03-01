@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -8,8 +8,9 @@ use rand::prelude::IteratorRandom;
 use rand_chacha::rand_core::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::{calldata, invoke_tx_args};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_types_core::felt::Felt;
@@ -26,6 +27,7 @@ enum FuzzOperation {
     LibraryCall,
     Write,
     ReplaceClass,
+    Deploy,
 }
 
 impl FuzzOperation {
@@ -36,6 +38,7 @@ impl FuzzOperation {
             Self::LibraryCall => 2u8,
             Self::Write => 3u8,
             Self::ReplaceClass => 4u8,
+            Self::Deploy => 5u8,
         })
     }
 }
@@ -114,6 +117,7 @@ enum FuzzOperationData {
     LibraryCall(LibraryCallOperationData),
     Write(StorageKey, StarknetStorageValue),
     ReplaceClass(ClassHash),
+    Deploy { class_hash: ClassHash, salt: ContractAddressSalt },
 }
 
 impl FuzzOperationData {
@@ -124,6 +128,7 @@ impl FuzzOperationData {
             Self::LibraryCall(_) => FuzzOperation::LibraryCall,
             Self::Write(_, _) => FuzzOperation::Write,
             Self::ReplaceClass(_) => FuzzOperation::ReplaceClass,
+            Self::Deploy { .. } => FuzzOperation::Deploy,
         }
     }
 
@@ -137,6 +142,7 @@ impl FuzzOperationData {
             Self::LibraryCall(op) => op.to_felt_vector(),
             Self::Write(key, value) => vec![***key, value.0],
             Self::ReplaceClass(class_hash) => vec![class_hash.0],
+            Self::Deploy { class_hash, salt } => vec![class_hash.0, salt.0],
         });
         felt_vector
     }
@@ -185,6 +191,9 @@ struct FuzzCallInfo {
     pub inner_calls: Vec<FuzzCallInfo>,
     /// If this is true, then the class was replaced in this frame.
     pub class_replaced_here: bool,
+    /// If true, this call is a constructor; the address of this call is not a valid call address
+    /// until this call returns.
+    pub constructing: bool,
 }
 
 impl FuzzCallInfo {
@@ -199,6 +208,19 @@ impl FuzzCallInfo {
             parent_failure_behavior,
             inner_calls: vec![],
             class_replaced_here: false,
+            constructing: false,
+        }
+    }
+
+    pub fn new_deploy(address: ContractAddress, class_hash: ClassHash) -> Self {
+        Self {
+            address,
+            class_hash,
+            // Failures in constructors cannot be caught.
+            parent_failure_behavior: ParentFailureBehavior::Uncatchable,
+            inner_calls: vec![],
+            class_replaced_here: false,
+            constructing: true,
         }
     }
 }
@@ -220,8 +242,8 @@ struct FuzzTestManager {
     /// List of operations applied to the fuzz test so far.
     pub operations: Vec<FuzzOperationData>,
 
-    /// Deployed fuzz test contracts.
-    pub deployed_fuzz_contracts: BTreeMap<ContractAddress, ClassHash>,
+    /// Map from contract address to class hash.
+    pub deployed_contracts: BTreeMap<ContractAddress, ClassHash>,
 
     /// Undeployed class hash, for replacement or for library calls.
     pub cairo1_replacement_class_hash: ClassHash,
@@ -237,6 +259,9 @@ struct FuzzTestManager {
 
     /// Next value to write in a storage-write operation.
     pub next_storage_write_value: StarknetStorageValue,
+
+    /// Next salt to use for a deploy operation.
+    pub next_salt: ContractAddressSalt,
 
     pub test_manager: TestBuilder<DictStateReader>,
     pub orchestrator_contract_address: ContractAddress,
@@ -310,12 +335,13 @@ impl FuzzTestManager {
             current_call: vec![0],
             final_state: FinalizedState::Ongoing,
             operations: vec![],
-            deployed_fuzz_contracts,
+            deployed_contracts: deployed_fuzz_contracts,
             cairo1_replacement_class_hash,
             class_replaced: false,
             is_cairo1,
             valid_storage_keys: vec![Felt::from(1u16 << 8), Felt::from(1u16 << 9)],
             next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
+            next_salt: ContractAddressSalt(Felt::from(1u32 << 16)),
             test_manager,
             orchestrator_contract_address,
             rng: ChaCha8Rng::seed_from_u64(seed),
@@ -374,7 +400,7 @@ impl FuzzTestManager {
                 // There are two Cairo0 contracts and two Cairo1 contracts that can be called.
                 // When calling from a Cairo1 context, the caller can unwrap the call result or not.
                 let current_context_is_cairo1 = self.is_current_context_cairo1();
-                self.deployed_fuzz_contracts
+                self.deployed_contracts
                     .keys()
                     .flat_map(|address| {
                         if current_context_is_cairo1 {
@@ -442,6 +468,16 @@ impl FuzzTestManager {
                 }
                 vec![FuzzOperationData::ReplaceClass(self.cairo1_replacement_class_hash)]
             }
+            FuzzOperation::Deploy => {
+                // Three class hashes to choose from.
+                self.is_cairo1
+                    .keys()
+                    .map(|class_hash| FuzzOperationData::Deploy {
+                        class_hash: *class_hash,
+                        salt: self.next_salt,
+                    })
+                    .collect()
+            }
         }
     }
 
@@ -456,6 +492,7 @@ impl FuzzTestManager {
         self.operations.push(operation);
         match operation {
             FuzzOperationData::Return => {
+                // Go up the call tree.
                 self.current_call.pop();
                 // If we returned to orchestrator context, no more operations can be applied.
                 if self.current_call.is_empty() {
@@ -464,7 +501,7 @@ impl FuzzTestManager {
             }
             FuzzOperationData::Call(call_operation_data) => {
                 let address = *call_operation_data.address();
-                let class_hash = *self.deployed_fuzz_contracts.get(&address).unwrap();
+                let class_hash = *self.deployed_contracts.get(&address).unwrap();
                 self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo::new_call(
                     address,
                     class_hash,
@@ -490,13 +527,35 @@ impl FuzzTestManager {
                 self.class_replaced = true;
                 // Update the mapping from address to class hash, so subsequent calls to this
                 // address will correctly use the new class hash.
-                self.deployed_fuzz_contracts.insert(self.current_address(), class_hash);
+                self.deployed_contracts.insert(self.current_address(), class_hash);
                 // Update the current call to mark that it was replaced at this point, to make it
                 // easy to track if the change must be reverted mid-test.
                 self.current_fuzz_call_info_mut().class_replaced_here = true;
                 // Note: we do not mutate the class hash of this call, because in the current call
                 // context the original class code is run. Only if this address is called again (via
                 // call-contract) should the code change be reflected.
+            }
+            FuzzOperationData::Deploy { class_hash, salt } => {
+                // Orchestrator address, and boolean to indicate the fuzz test should run.
+                let ctor_calldata = calldata![**self.orchestrator_contract_address, Felt::ONE];
+                // Compute the address of the deployed contract.
+                // Deployer address is always zero (for simplicity).
+                let deployed_address = calculate_contract_address(
+                    salt,
+                    class_hash,
+                    &ctor_calldata,
+                    ContractAddress::default(),
+                )
+                .unwrap();
+                // Increment the salt for the next deploy operation.
+                self.next_salt.0 += Felt::ONE;
+                // Update the mapping from address to class hash.
+                self.deployed_contracts.insert(deployed_address, class_hash);
+                // Enter new call context.
+                self.current_fuzz_call_info_mut()
+                    .inner_calls
+                    .push(FuzzCallInfo::new_deploy(deployed_address, class_hash));
+                self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
             }
         }
     }

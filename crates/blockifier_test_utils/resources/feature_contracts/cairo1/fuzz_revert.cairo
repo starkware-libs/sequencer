@@ -14,6 +14,7 @@ mod FuzzRevertContract {
     const SCENARIO_LIBRARY_CALL: felt252 = 2;
     const SCENARIO_WRITE: felt252 = 3;
     const SCENARIO_REPLACE_CLASS: felt252 = 4;
+    const SCENARIO_DEPLOY: felt252 = 5;
 
     const POP_FRONT_SELECTOR: felt252 = selector!("pop_front");
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
@@ -106,6 +107,19 @@ mod FuzzRevertContract {
         if scenario == SCENARIO_REPLACE_CLASS {
             let class_hash: ClassHash = self.pop_front().try_into().unwrap();
             syscalls::replace_class_syscall(class_hash).unwrap_syscall();
+        }
+
+        if scenario == SCENARIO_DEPLOY {
+            // The class hash is assumed to be a fuzz test class hash.
+            // Deploy it with a non-trivial orchestrator address.
+            let class_hash: ClassHash = self.pop_front().try_into().unwrap();
+            let salt = self.pop_front();
+            let deploy_from_zero: bool = true;
+            let orchestrator_felt: felt252 = self.orchestrator_address.read().into();
+            let ctor_calldata = array![orchestrator_felt, 1];
+            // Deploy errors cannot be caught. Just unwrap the syscall.
+            syscalls::deploy_syscall(class_hash, salt, ctor_calldata.span(), deploy_from_zero)
+                .unwrap_syscall();
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
