@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772114377920,
+  "lastUpdate": 1772364812390,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1461,6 +1461,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1354.6644056199998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "avi.cohen@starkware.co",
+            "name": "Avi Cohen",
+            "username": "avi-starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6ccf010bb83757b86e7d417e00562a37b5542cd0",
+          "message": "starknet_os_runner: prove CairoPie in memory (#12709)\n\nReplace the subprocess-based prover invocation with an in-memory call to\nthe\nstwo_run_and_prove library, removing the need for temporary Cairo PIE\nfiles\nand the external stwo_run_and_prove binary.\n\nChanges:\n- Add stwo_run_and_prove module that passes CairoPie directly to the\nprover\n  via SimpleBootloaderInput, offloading sync work to spawn_blocking.\n- Add proving::error module with StwoRunAndProveError.\n- Simplify prover::prove to create temp files only for outputs (proof,\n  program_output) and call prove_pie_in_memory.\n- Remove ProvingError variants for disk-based input (WriteCairoPie,\n  WriteProgramInput, SerializeProgramInput).\n- Un-ignore the integration test (no external binary needed).",
+          "timestamp": "2026-03-01T11:10:04Z",
+          "tree_id": "2952df5ebecda542b2be26d7890c6552b5743509",
+          "url": "https://github.com/starkware-libs/sequencer/commit/6ccf010bb83757b86e7d417e00562a37b5542cd0"
+        },
+        "date": 1772364812090,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 740.14935919,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1142.81864992,
             "unit": "ms"
           }
         ]
