@@ -3,6 +3,8 @@ use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishProposalInput,
+    FinishProposalStatus,
     FinishedProposalInfo,
     GetProposalContent,
     GetProposalContentResponse,
@@ -252,34 +254,27 @@ impl TestDeps {
                 .in_sequence(&mut seq)
                 .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
                 .returning(move |input: SendProposalContentInput| {
-                    let SendProposalContent::Txs(txs) = input.content else {
-                        panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
-                    };
+                    let SendProposalContent::Txs(txs) = input.content;
                     assert_eq!(txs, INTERNAL_TX_BATCH.clone());
                     Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
                 });
             let proposal_id_clone = Arc::clone(&proposal_id);
 
             self.batcher
-                .expect_send_proposal_content()
+                .expect_finish_proposal()
                 .times(1)
                 .in_sequence(&mut seq)
                 .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
-                .returning(move |input: SendProposalContentInput| {
-                    assert_eq!(
-                        input.content,
-                        SendProposalContent::Finish(args.n_executed_txs_count)
-                    );
-                    Ok(SendProposalContentResponse {
-                        response: ProposalStatus::Finished(FinishedProposalInfo {
-                            proposal_commitment: ProposalCommitment {
-                                state_diff_commitment: STATE_DIFF_COMMITMENT,
-                            },
-                            final_n_executed_txs: args.n_executed_txs_count,
-                            block_header_commitments: BlockHeaderCommitments::default(),
-                            parent_proposal_commitment: None,
-                        }),
-                    })
+                .returning(move |input: FinishProposalInput| {
+                    assert_eq!(input.final_n_executed_txs, args.n_executed_txs_count);
+                    Ok(FinishProposalStatus::Finished(FinishedProposalInfo {
+                        proposal_commitment: ProposalCommitment {
+                            state_diff_commitment: STATE_DIFF_COMMITMENT,
+                        },
+                        final_n_executed_txs: args.n_executed_txs_count,
+                        block_header_commitments: BlockHeaderCommitments::default(),
+                        parent_proposal_commitment: None,
+                    }))
                 });
             block_number = block_number.unchecked_next();
         }
