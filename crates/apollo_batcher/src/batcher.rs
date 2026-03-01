@@ -177,7 +177,7 @@ pub struct Batcher {
     propose_tx_streams: HashMap<ProposalId, OutputStreamReceiver>,
 
     /// The validate blocks transaction streams, used to stream in the transactions to validate.
-    /// Each stream is kept until SendProposalContent::Finish/Abort is received, or a new height is
+    /// Each stream is kept until proposal finalization/abort is received, or a new height is
     /// started.
     validate_tx_streams: HashMap<ProposalId, InputStreamSender>,
 
@@ -492,19 +492,6 @@ impl Batcher {
 
         match send_proposal_content_input.content {
             SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
-            // TODO(Itamar): Remove this arm once all callers migrate to `finish_proposal`.
-            SendProposalContent::Finish(final_n_executed_txs) => {
-                let finish_response = self
-                    .finish_proposal(FinishProposalInput { proposal_id, final_n_executed_txs })
-                    .await?;
-                let response = match finish_response {
-                    FinishProposalStatus::Finished(info) => ProposalStatus::Finished(info),
-                    FinishProposalStatus::InvalidProposal(err) => {
-                        ProposalStatus::InvalidProposal(err)
-                    }
-                };
-                Ok(SendProposalContentResponse { response })
-            }
         }
     }
 
