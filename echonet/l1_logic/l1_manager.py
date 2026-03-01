@@ -104,10 +104,13 @@ class L1Manager:
         return rpc_response(logs)
 
     def get_block_by_number(self, block_number_hex: str) -> dict:
-        """Returns block data for block_number, or default block if not found. Removes all stored blocks < block_number."""
+        """Returns block data for block_number, or default block if not found. Removes stored blocks that are much older than block_number."""
         block_number = int(block_number_hex, 16)
-        # Cleanup older blocks
-        blocks_to_remove = [bn for bn in self.blocks.keys() if bn < block_number]
+        # Cleanup older blocks, but keep a buffer to avoid deleting blocks that haven't been scraped yet.
+        # This prevents the race condition where eth_getBlockByNumber(latest) is called before eth_getLogs,
+        # causing newer blocks to be deleted before their logs can be retrieved.
+        CLEANUP_BUFFER = L1Manager.L1_SCRAPER_FINALITY_CONFIG_VALUE * 2
+        blocks_to_remove = [bn for bn in self.blocks.keys() if bn < block_number - CLEANUP_BUFFER]
         for bn in blocks_to_remove:
             del self.blocks[bn]
 
