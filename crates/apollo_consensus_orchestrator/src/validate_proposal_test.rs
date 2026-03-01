@@ -200,6 +200,7 @@ async fn interrupt_proposal() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_const(Ok(()));
+    // TODO(Itamar): Migrate to `expect_abort_proposal()`.
     proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
         assert!(matches!(input.content, SendProposalContent::Abort));
         Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
@@ -223,6 +224,7 @@ async fn validation_timeout() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_const(Ok(()));
+    // TODO(Itamar): Migrate to `expect_abort_proposal()`.
     proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
         assert!(matches!(input.content, SendProposalContent::Abort));
         Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
