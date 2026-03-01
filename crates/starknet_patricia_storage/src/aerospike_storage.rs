@@ -12,6 +12,7 @@ use aerospike::{
     Bins,
     Client,
     ClientPolicy,
+    CommitLevel,
     Error as AerospikeError,
     Host,
     Key,
@@ -28,6 +29,7 @@ use crate::storage_trait::{
     DbHashMap,
     DbKey,
     DbValue,
+    EmptyStorageConfig,
     NoStats,
     PatriciaStorageResult,
     Storage,
@@ -78,10 +80,16 @@ impl AerospikeStorageConfig {
                 ..Default::default()
             },
             read_policy: ReadPolicy::default(),
-            write_policy: WritePolicy::default(),
+            write_policy: WritePolicy {
+                commit_level: CommitLevel::CommitAll,
+                ..WritePolicy::default()
+            },
             batch_policy: BatchPolicy::default(),
             batch_read_policy: BatchReadPolicy::default(),
-            batch_write_policy: BatchWritePolicy::default(),
+            batch_write_policy: BatchWritePolicy {
+                commit_level: CommitLevel::CommitAll,
+                ..BatchWritePolicy::default()
+            },
             bin_name: "default_bin".to_string(),
         }
     }
@@ -114,6 +122,7 @@ impl AerospikeStorage {
 
 impl Storage for AerospikeStorage {
     type Stats = NoStats;
+    type Config = EmptyStorageConfig;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let record = self

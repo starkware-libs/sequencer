@@ -1,6 +1,6 @@
 use std::clone::Clone;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_config::config::GatewayConfig;
@@ -22,18 +22,25 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_proof_manager_types::SharedProofManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
-use apollo_transaction_converter::{TransactionConverter, TransactionConverterTrait};
-use axum::async_trait;
+use apollo_transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+    VerificationHandle,
+};
+use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
-    RpcInvokeTransaction,
     RpcTransaction,
 };
-use starknet_api::transaction::fields::TransactionSignature;
+use starknet_api::transaction::fields::{Proof, ProofFacts, TransactionSignature};
+use starknet_api::transaction::TransactionHash;
+use starknet_types_core::felt::Felt;
+use tokio::task::JoinHandle;
+use tokio::time::timeout;
 use tracing::{debug, error, info, warn};
 
 use crate::errors::{
@@ -41,10 +48,17 @@ use crate::errors::{
     transaction_converter_err_to_deprecated_gw_err,
     GatewayResult,
 };
-use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
+use crate::metrics::{
+    register_metrics,
+    GatewayMetricHandle,
+    GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE,
+    GATEWAY_PROOF_MANAGER_STORE_LATENCY,
+};
 use crate::proof_archive_writer::{
     GcsProofArchiveWriter,
     NoOpProofArchiveWriter,
+    ProofArchiveError,
     ProofArchiveWriterTrait,
 };
 use crate::state_reader::StateReaderFactory;
@@ -62,6 +76,11 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 #[cfg(test)]
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
+
+const PROOF_ARCHIVE_WRITE_TIMEOUT: Duration = Duration::from_secs(5);
+
+type ProofArchiveHandle =
+    Option<(JoinHandle<(Felt, Result<(), ProofArchiveError>)>, TransactionHash)>;
 
 #[derive(Clone)]
 pub struct Gateway(
@@ -137,11 +156,11 @@ impl<
             config: Arc::new(config.clone()),
             stateless_tx_validator,
             stateful_tx_validator_factory: Arc::new(StatefulTransactionValidatorFactory {
-                config: config.stateful_tx_validator_config.clone(),
-                chain_info: config.chain_info.clone(),
+                config: config.static_config.stateful_tx_validator_config.clone(),
+                chain_info: config.static_config.chain_info.clone(),
                 state_reader_factory,
                 contract_class_manager: ContractClassManager::start(
-                    config.contract_class_manager_config.clone(),
+                    config.static_config.contract_class_manager_config.clone(),
                 ),
             }),
             mempool_client,
@@ -187,18 +206,6 @@ impl<
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
-        // Extract proof data early for potential archiving later.
-        let proof_data = match tx {
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(ref tx)) => {
-                if !tx.proof_facts.is_empty() {
-                    Some((tx.proof_facts.clone(), tx.proof.clone()))
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-
         if let RpcTransaction::Declare(ref declare_tx) = tx {
             if let Err(e) = self.check_declare_permissions(declare_tx) {
                 metric_counters.record_add_tx_failure(&e);
@@ -210,7 +217,7 @@ impl<
         self.stateless_tx_validator.validate(&tx)?;
 
         let tx_signature = tx.signature().clone();
-        let (internal_tx, executable_tx) =
+        let (internal_tx, executable_tx, proof_data) =
             self.convert_rpc_tx_to_internal_and_executable_txs(tx, &tx_signature).await?;
 
         let mut stateful_transaction_validator = self
@@ -224,34 +231,9 @@ impl<
             .await
             .inspect_err(|e| metric_counters.record_add_tx_failure(e))?;
 
-        if let Some((proof_facts, proof)) = proof_data {
-            let tx_hash = internal_tx.tx_hash;
-            let proof_manager_client = self.transaction_converter.get_proof_manager_client();
-            let proof_manager_store_start = Instant::now();
-            // Proof is verified during conversion to internal tx. It is stored here, after
-            // validation, to avoid storing proofs for rejected transactions.
-            if let Err(e) = proof_manager_client.set_proof(proof_facts.clone(), proof.clone()).await
-            {
-                error!("Failed to set proof in proof manager: {}", e);
-            }
-            let proof_manager_store_duration = proof_manager_store_start.elapsed();
-            info!(
-                "Proof manager store took: {proof_manager_store_duration:?} for tx hash: \
-                 {tx_hash:?}"
-            );
-            let proof_archive_writer_start = Instant::now();
-            let proof_archive_writer = self.proof_archive_writer.clone();
-            tokio::spawn(async move {
-                if let Err(e) = proof_archive_writer.set_proof(proof_facts, proof).await {
-                    error!("Failed to archive proof to GCS: {}", e);
-                }
-                let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
-                info!(
-                    "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
-                     {tx_hash:?}"
-                );
-            });
-        }
+        let proof_archive_handle =
+            self.store_proof_and_spawn_archiving(proof_data, internal_tx.tx_hash).await;
+
         let gateway_output = create_gateway_output(&internal_tx);
 
         let add_tx_args = AddTransactionArgsWrapper {
@@ -269,7 +251,89 @@ impl<
 
         metric_counters.transaction_sent_to_mempool();
 
+        // We await proof archiving only after the transaction is sent to the mempool to avoid
+        // delays.
+        Self::await_proof_archiving(proof_archive_handle).await;
+
         Ok(gateway_output)
+    }
+
+    async fn store_proof_and_spawn_archiving(
+        &self,
+        proof_data: Option<(ProofFacts, Proof)>,
+        tx_hash: TransactionHash,
+    ) -> ProofArchiveHandle {
+        let (proof_facts, proof) = proof_data?;
+
+        // Proof is verified during conversion to internal tx. It is stored here, after
+        // validation, to avoid storing proofs for rejected transactions.
+        let store_result = self
+            .transaction_converter
+            .store_proof_in_proof_manager(proof_facts.clone(), proof.clone())
+            .await;
+        match store_result {
+            Ok(proof_manager_store_duration) => {
+                GATEWAY_PROOF_MANAGER_STORE_LATENCY
+                    .record(proof_manager_store_duration.as_secs_f64());
+                info!(
+                    "Proof manager store in the gateway took: {proof_manager_store_duration:?} \
+                     for tx hash: {tx_hash:?}"
+                );
+            }
+            Err(e) => {
+                error!("Failed to set proof in proof manager: {}", e);
+            }
+        }
+
+        let proof_archive_writer = self.proof_archive_writer.clone();
+        let handle = tokio::spawn(async move {
+            let proof_facts_hash = proof_facts.hash();
+            let proof_archive_writer_start = Instant::now();
+            let result = proof_archive_writer.set_proof(proof_facts, proof).await;
+            let proof_archive_writer_duration = proof_archive_writer_start.elapsed();
+            info!(
+                "Proof archive writer took: {proof_archive_writer_duration:?} for tx hash: \
+                 {tx_hash:?}"
+            );
+            (proof_facts_hash, result)
+        });
+
+        Some((handle, tx_hash))
+    }
+
+    async fn await_proof_archiving(proof_archive_handle: ProofArchiveHandle) {
+        let Some((handle, tx_hash)) = proof_archive_handle else {
+            return;
+        };
+
+        let abort_handle = handle.abort_handle();
+        match timeout(PROOF_ARCHIVE_WRITE_TIMEOUT, handle).await {
+            Ok(Ok((proof_facts_hash, Ok(())))) => {
+                info!(
+                    "Proof archived successfully. proof_facts_hash: {proof_facts_hash:?}, \
+                     tx_hash: {tx_hash:?}"
+                );
+            }
+            Ok(Ok((proof_facts_hash, Err(e)))) => {
+                GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                error!(
+                    "Failed to archive proof to GCS. proof_facts_hash: {proof_facts_hash:?}, \
+                     tx_hash: {tx_hash:?}, error: {e}"
+                );
+            }
+            Ok(Err(e)) => {
+                GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                error!("Proof archive writer task panicked. tx_hash: {tx_hash:?}, error: {e}");
+            }
+            Err(_) => {
+                abort_handle.abort();
+                GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.increment(1);
+                error!(
+                    "Proof archive writer timed out after {PROOF_ARCHIVE_WRITE_TIMEOUT:?}. \
+                     tx_hash: {tx_hash:?}"
+                );
+            }
+        }
     }
 
     fn check_declare_permissions(
@@ -277,7 +341,7 @@ impl<
         declare_tx: &RpcDeclareTransaction,
     ) -> Result<(), StarknetError> {
         // TODO(noamsp): Return same error as in Python gateway.
-        if self.config.block_declare {
+        if self.config.static_config.block_declare {
             return Err(StarknetError {
                 code: StarknetErrorCode::UnknownErrorCode(
                     "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
@@ -304,14 +368,22 @@ impl<
         &self,
         tx: RpcTransaction,
         tx_signature: &TransactionSignature,
-    ) -> Result<(InternalRpcTransaction, AccountTransaction), StarknetError> {
-        let internal_tx =
+    ) -> Result<
+        (InternalRpcTransaction, AccountTransaction, Option<(ProofFacts, Proof)>),
+        StarknetError,
+    > {
+        let (internal_tx, verification_handle) =
             self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(tx).await.map_err(
                 |e| {
                     warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
                     transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
                 },
             )?;
+
+        // Await the verification task immediately.
+        let proof_data = self
+            .await_verification_task_and_extract_proof_data(verification_handle, tx_signature)
+            .await?;
 
         let executable_tx = self
             .transaction_converter
@@ -322,7 +394,30 @@ impl<
                 transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
             })?;
 
-        Ok((internal_tx, executable_tx))
+        Ok((internal_tx, executable_tx, proof_data))
+    }
+    async fn await_verification_task_and_extract_proof_data(
+        &self,
+        verification_handle: Option<VerificationHandle>,
+        tx_signature: &TransactionSignature,
+    ) -> Result<Option<(ProofFacts, Proof)>, StarknetError> {
+        let Some(handle) = verification_handle else {
+            return Ok(None);
+        };
+
+        handle
+            .verification_task
+            .await
+            .map_err(|e| {
+                warn!("Proof verification task panicked: {}", e);
+                StarknetError::internal_with_logging("Proof verification task panicked:", &e)
+            })?
+            .map_err(|e| {
+                warn!("Proof verification failed: {}", e);
+                transaction_converter_err_to_deprecated_gw_err(tx_signature, e)
+            })?;
+
+        Ok(Some((handle.proof_facts, handle.proof)))
     }
 }
 
@@ -342,18 +437,20 @@ pub fn create_gateway(
     let transaction_converter = Arc::new(TransactionConverter::new(
         class_manager_client,
         proof_manager_client,
-        config.chain_info.chain_id.clone(),
+        config.static_config.chain_info.chain_id.clone(),
     ));
     let stateless_tx_validator = Arc::new(StatelessTransactionValidator {
-        config: config.stateless_tx_validator_config.clone(),
+        config: config.static_config.stateless_tx_validator_config.clone(),
     });
 
     // Create proof archive writer: use NoOp if bucket name is empty, otherwise use real GCS.
     let proof_archive_writer: Arc<dyn ProofArchiveWriterTrait> =
-        if config.proof_archive_writer_config.bucket_name.is_empty() {
+        if config.static_config.proof_archive_writer_config.bucket_name.is_empty() {
             Arc::new(NoOpProofArchiveWriter)
         } else {
-            Arc::new(GcsProofArchiveWriter::new(config.proof_archive_writer_config.clone()))
+            Arc::new(GcsProofArchiveWriter::new(
+                config.static_config.proof_archive_writer_config.clone(),
+            ))
         };
 
     Gateway::new(
@@ -370,6 +467,7 @@ pub fn create_gateway(
 impl ComponentStarter for Gateway {
     async fn start(&mut self) {
         register_metrics();
+        self.0.proof_archive_writer.connect().await;
     }
 }
 

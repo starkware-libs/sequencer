@@ -122,8 +122,7 @@ pub(crate) fn start_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     _ctx: HintContext<'_>,
 ) -> OsHintResult {
-    let tx_type = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.tx_type();
-    hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.start_tx(tx_type)?;
+    hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.start_tx()?;
     Ok(())
 }
 

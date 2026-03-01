@@ -560,11 +560,13 @@ async fn stream_compiled_classes() {
         pythonic_hints: Default::default(),
         entry_points_by_type: Default::default(),
     };
-    for felt in felts {
-        let (class_hash, compiled_class_hash, compiled_class) =
+    let expected_block_numbers = [BlockNumber(0), BlockNumber(0), BlockNumber(1), BlockNumber(1)];
+    for (i, felt) in felts.into_iter().enumerate() {
+        let (block_number, class_hash, compiled_class_hash, compiled_class) =
             stream.next().await.unwrap().unwrap();
         let expected_class_hash = ClassHash(felt);
         let expected_compiled_class_hash = CompiledClassHash(felt);
+        assert_eq!(block_number, expected_block_numbers[i]);
         assert_eq!(class_hash, expected_class_hash);
         assert_eq!(compiled_class_hash, expected_compiled_class_hash);
         assert_eq!(compiled_class, expected_compiled_class);

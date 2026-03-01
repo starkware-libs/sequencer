@@ -364,7 +364,6 @@ macro_rules! create_client {
     };
 }
 
-// TODO(alonl): move these client creations to the component crates.
 pub fn create_node_clients(
     config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,

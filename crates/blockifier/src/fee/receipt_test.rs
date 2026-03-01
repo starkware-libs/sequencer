@@ -49,10 +49,11 @@ fn versioned_constants() -> &'static VersionedConstants {
 ///     1. An empty transaction.
 ///     2. A Declare transaction.
 ///     3. A DeployAccount transaction.
-///     4. An L1 handler.
-///     5. A transaction with L2-to-L1 messages.
-///     6. A transaction that modifies the storage.
-///     7. A combination of cases 4. 5. and 6.
+///     4. A transaction with client-side proving.
+///     5. An L1 handler.
+///     6. A transaction with L2-to-L1 messages.
+///     7. A transaction that modifies the storage.
+///     8. A combination of cases 5. 6. and 7.
 #[rstest]
 fn test_calculate_tx_gas_usage_basic<'a>(
     #[values(false, true)] use_kzg_da: bool,
@@ -80,6 +81,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
             StateResources::default(),
             None,
             ExecutionSummary::default(),
+            false,
         );
         let gas_per_code_byte = versioned_constants
             .get_archival_data_gas_costs(&gas_vector_computation_mode)
@@ -123,6 +125,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(deploy_account_state_changes_count, 0),
         None,
         ExecutionSummary::default(),
+        false,
     );
     let gas_per_data_felt = versioned_constants
         .get_archival_data_gas_costs(&gas_vector_computation_mode)
@@ -149,6 +152,40 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     );
     assert_eq!(manual_gas_vector, deploy_account_gas_usage_vector);
 
+    // Invoke with client-side proving.
+    // Client side proving is only supported from V3 transactions, which use AllResourceBounds.
+    if gas_vector_computation_mode == GasVectorComputationMode::All {
+        let proof_facts_length = 7;
+        let invoke_with_proof_starknet_resources = StarknetResources::new(
+            proof_facts_length,
+            0,
+            0,
+            StateResources::default(),
+            None,
+            ExecutionSummary::default(),
+            true,
+        );
+
+        // Manual calculation.
+        let proof_gas = versioned_constants
+            .get_archival_data_gas_costs(&gas_vector_computation_mode)
+            .gas_per_proof
+            .to_integer();
+        let proof_facts_gas = (gas_per_data_felt * u64_from_usize(proof_facts_length)).to_integer();
+        let total_proof_gas = proof_facts_gas + proof_gas;
+        let manual_proof_gas_vector = match gas_vector_computation_mode {
+            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(total_proof_gas.into()),
+            GasVectorComputationMode::All => GasVector::from_l2_gas(total_proof_gas.into()),
+        };
+
+        let invoke_with_proof_gas_vector = invoke_with_proof_starknet_resources.to_gas_vector(
+            &versioned_constants,
+            use_kzg_da,
+            &gas_vector_computation_mode,
+        );
+        assert_eq!(manual_proof_gas_vector, invoke_with_proof_gas_vector);
+    }
+
     // L1 handler.
 
     let l1_handler_payload_size = 4;
@@ -159,6 +196,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::default(),
         Some(l1_handler_payload_size),
         ExecutionSummary::default(),
+        false,
     );
     let l1_handler_gas_usage_vector = l1_handler_tx_starknet_resources.to_gas_vector(
         &versioned_constants,
@@ -235,6 +273,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(l2_to_l1_state_changes_count, 0),
         None,
         execution_summary.clone(),
+        false,
     );
 
     let l2_to_l1_messages_gas_usage_vector = l2_to_l1_starknet_resources.to_gas_vector(
@@ -290,6 +329,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         StateResources::new_for_testing(storage_writes_state_changes_count, n_storage_updates / 2),
         None,
         ExecutionSummary::default(),
+        false,
     );
 
     let storage_writings_gas_usage_vector = storage_writes_starknet_resources.to_gas_vector(
@@ -324,6 +364,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         ),
         Some(l1_handler_payload_size),
         execution_summary.clone(),
+        false,
     );
 
     let gas_usage_vector = combined_cases_starknet_resources.to_gas_vector(
@@ -382,7 +423,7 @@ fn test_calculate_tx_gas_usage(
             calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
             resource_bounds: max_resource_bounds,
     });
-    let calldata_length = account_tx.calldata_length();
+    let extended_calldata_length = account_tx.extended_calldata_length();
     let signature_length = account_tx.signature_length();
     let fee_token_address = chain_info.fee_token_address(&account_tx.fee_type());
     let tx_execution_info = account_tx.execute(state, block_context).unwrap();
@@ -397,12 +438,13 @@ fn test_calculate_tx_gas_usage(
     };
     let n_allocated_keys = 0; // This tx doesn't allocate the account balance.
     let starknet_resources = StarknetResources::new(
-        calldata_length,
+        extended_calldata_length,
         signature_length,
         0,
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         ExecutionSummary::default(),
+        false,
     );
 
     assert_eq!(
@@ -437,7 +479,7 @@ fn test_calculate_tx_gas_usage(
         nonce: nonce!(1_u8),
     });
 
-    let calldata_length = account_tx.calldata_length();
+    let extended_calldata_length = account_tx.extended_calldata_length();
     let signature_length = account_tx.signature_length();
     let tx_execution_info = account_tx.execute(state, block_context).unwrap();
     // For the balance update of the sender and the recipient.
@@ -456,13 +498,14 @@ fn test_calculate_tx_gas_usage(
     let execution_summary =
         CallInfo::summarize_many(vec![execution_call_info].into_iter(), versioned_constants);
     let starknet_resources = StarknetResources::new(
-        calldata_length,
+        extended_calldata_length,
         signature_length,
         0,
         StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         // The transfer entrypoint emits an event - pass the call info to count its resources.
         execution_summary,
+        false,
     );
 
     assert_eq!(

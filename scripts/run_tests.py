@@ -13,21 +13,28 @@ INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}
 # Set of crates which - if changed - should trigger re-running the integration tests with `cairo_native` feature.
 CAIRO_NATIVE_CRATE_TRIGGERS: Set[str] = {"blockifier"}
 
+# Packages that have features requiring a nightly Rust toolchain.  These are excluded from the
+# main CI clippy run (which uses --all-features on stable) and are instead checked by their own
+# dedicated CI workflow with the appropriate toolchain.
+NIGHTLY_FEATURES_PACKAGES: Set[str] = {"starknet_os_runner"}
+
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "apollo_node"
 
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_restart_flow",
+    "integration_test_positive_flow",
+    "integration_test_restart_service_multiple_nodes_flow",
+    "integration_test_revert_flow",
 ]
 NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
-    "integration_test_positive_flow",
-    "integration_test_restart_flow",
-    "integration_test_restart_service_multiple_nodes_flow",
+    # TODO(AndrewL): Try adding these tests to CI as well
     "integration_test_restart_service_single_node_flow",
-    "integration_test_revert_flow",
     "integration_test_central_and_p2p_sync_flow",
 ]
+# Timeout per single integration test
+INTEGRATION_TEST_TIMEOUT: str = "10m"
 
 
 # Enum of base commands.
@@ -47,8 +54,28 @@ class BaseCommand(Enum):
                 ["cargo", "nextest", "run"] + package_args + ["--no-fail-fast", "--no-tests=pass"]
             ]
         elif self == BaseCommand.CLIPPY:
-            clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return [["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]]
+            stable_crates = crates - NIGHTLY_FEATURES_PACKAGES
+            # When workspace-wide (crates is empty), check all nightly packages.
+            nightly_crates = (
+                crates & NIGHTLY_FEATURES_PACKAGES if crates else NIGHTLY_FEATURES_PACKAGES
+            )
+
+            cmds = []
+            if stable_crates:
+                stable_args = [arg for p in stable_crates for arg in ("--package", p)]
+                cmds.append(["cargo", "clippy"] + stable_args + ["--all-targets", "--all-features"])
+            elif not crates:
+                exclude_args = [arg for p in NIGHTLY_FEATURES_PACKAGES for arg in ("--exclude", p)]
+                cmds.append(
+                    ["cargo", "clippy", "--workspace"]
+                    + exclude_args
+                    + ["--all-targets", "--all-features"]
+                )
+            # Nightly packages: omit --all-features since they have features requiring a nightly
+            # toolchain. A dedicated nightly CI workflow checks them with full features.
+            for p in nightly_crates:
+                cmds.append(["cargo", "clippy", "--package", p, "--all-targets"])
+            return cmds
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
             return [["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args]
@@ -58,10 +85,8 @@ class BaseCommand(Enum):
                 print(f"Skipping sequencer integration tests.")
                 return []
 
-            integration_test_names_to_run = (
-                NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES
-                if is_nightly
-                else SEQUENCER_INTEGRATION_TEST_NAMES
+            integration_test_names_to_run = SEQUENCER_INTEGRATION_TEST_NAMES + (
+                NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES if is_nightly else []
             )
 
             print(f"Composing sequencer integration test commands.")
@@ -77,9 +102,19 @@ class BaseCommand(Enum):
                 ]
                 return build_cmds
 
+            def make_silent_test_cmd(test_binary_name: str) -> List[str]:
+                """Runs a test binary, only showing output on failure or timeout."""
+                return [
+                    "sh",
+                    "-c",
+                    f"timeout {INTEGRATION_TEST_TIMEOUT} ./target/debug/{test_binary_name} "
+                    f"> /tmp/{test_binary_name}_output.txt 2>&1 || "
+                    f"(cat /tmp/{test_binary_name}_output.txt; exit 1)",
+                ]
+
             # Commands to run the test binaries.
             run_cmds = [
-                [f"./target/debug/{test_binary_name}"]
+                make_silent_test_cmd(test_binary_name)
                 for test_binary_name in integration_test_names_to_run
             ]
 

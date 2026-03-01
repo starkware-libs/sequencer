@@ -1,12 +1,10 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::end_to_end_flow_utils::{
+use apollo_integration_tests::utils::{
+    create_deploy_account_tx_and_invoke_tx,
     end_to_end_flow,
     validate_tx_count,
     EndToEndFlowArgs,
-    TestScenario,
-};
-use apollo_integration_tests::utils::{
-    create_deploy_account_tx_and_invoke_tx,
+    EndToEndTestScenario,
     UNDEPLOYED_ACCOUNT_ID,
 };
 use blockifier::bouncer::BouncerWeights;
@@ -29,8 +27,8 @@ async fn deploy_account_and_invoke_flow() {
     .await
 }
 
-fn create_test_scenarios() -> TestScenario {
-    TestScenario {
+fn create_test_scenarios() -> EndToEndTestScenario {
+    EndToEndTestScenario {
         create_rpc_txs_fn: deploy_account_and_invoke,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: |tx_hashes| validate_tx_count(tx_hashes, 2),

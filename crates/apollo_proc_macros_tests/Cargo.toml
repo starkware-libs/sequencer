@@ -17,6 +17,7 @@ metrics-exporter-prometheus.workspace = true
 papyrus_common.workspace = true
 prometheus-parse.workspace = true
 rstest.workspace = true
+static_assertions.workspace = true
 
 [lints]
 workspace = true

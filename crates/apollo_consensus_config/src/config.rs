@@ -31,6 +31,8 @@ pub struct ConsensusDynamicConfig {
     pub sync_retry_interval: Duration,
     /// Future message limits configuration.
     pub future_msg_limit: FutureMsgLimitsConfig,
+    /// When true, require the virtual proposer to have voted in favor before reaching a decision.
+    pub require_virtual_proposer_vote: bool,
 }
 
 /// Static configuration for consensus that doesn't change during runtime.
@@ -65,6 +67,13 @@ impl SerializeConfig for ConsensusDynamicConfig {
                 "sync_retry_interval",
                 &self.sync_retry_interval.as_secs_f64(),
                 "The duration (seconds) between sync attempts.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "require_virtual_proposer_vote",
+                &self.require_virtual_proposer_vote,
+                "When true, require the virtual proposer to have voted in favor before reaching a \
+                 decision.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -103,6 +112,7 @@ impl Default for ConsensusDynamicConfig {
             timeouts: TimeoutsConfig::default(),
             sync_retry_interval: Duration::from_secs_f64(1.0),
             future_msg_limit: FutureMsgLimitsConfig::default(),
+            require_virtual_proposer_vote: false,
         }
     }
 }
@@ -167,7 +177,7 @@ impl Timeout {
 
     /// Compute the timeout for the given round: min(base + round * delta, max).
     fn get_timeout(&self, round: u32) -> Duration {
-        (self.base + round * self.delta).min(self.max)
+        (self.base + self.delta.saturating_mul(round)).min(self.max)
     }
 }
 
@@ -307,13 +317,15 @@ impl SerializeConfig for FutureMsgLimitsConfig {
 pub struct StreamHandlerConfig {
     /// The capacity of the channel buffer for stream messages.
     pub channel_buffer_capacity: usize,
-    /// The maximum number of streams that can be open at the same time.
+    /// The maximum number of peers that can send inbound messages.
+    pub max_peers: usize,
+    /// The maximum number of streams that can be open at the same time, per peer.
     pub max_streams: usize,
 }
 
 impl Default for StreamHandlerConfig {
     fn default() -> Self {
-        Self { channel_buffer_capacity: 1000, max_streams: 100 }
+        Self { channel_buffer_capacity: 1000, max_peers: 100, max_streams: 100 }
     }
 }
 
@@ -324,6 +336,12 @@ impl SerializeConfig for StreamHandlerConfig {
                 "channel_buffer_capacity",
                 &self.channel_buffer_capacity,
                 "The capacity of the channel buffer for stream messages.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_peers",
+                &self.max_peers,
+                "The maximum number of peers that can send inbound messages.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

@@ -189,7 +189,7 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
 
         let sub_key = T::get_sub_key(key)?;
         if let Some(mut bytes) = bytes.strip_prefix(sub_key.as_slice()) {
-            let value = V::deserialize(&mut bytes).ok_or(DbError::InnerDeserialization)?;
+            let value = V::Value::deserialize(&mut bytes).ok_or(DbError::InnerDeserialization)?;
             return Ok(Some(value));
         }
         Ok(None)

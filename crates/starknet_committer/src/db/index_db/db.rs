@@ -1,21 +1,41 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::sync::LazyLock;
 
 use async_trait::async_trait;
-use starknet_api::core::ContractAddress;
-use starknet_api::hash::HashOutput;
+use starknet_api::core::{ContractAddress, PATRICIA_KEY_UPPER_BOUND};
+use starknet_api::hash::{HashOutput, StateRoots};
 use starknet_patricia::db_layout::{NodeLayout, NodeLayoutFor};
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
-use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::TreeHashFunction;
 use starknet_patricia_storage::db_object::{DBObject, EmptyKeyContext, HasStaticPrefix};
-use starknet_patricia_storage::errors::SerializationResult;
-use starknet_patricia_storage::storage_trait::{DbHashMap, DbKey, Storage};
+use starknet_patricia_storage::errors::{DeserializationError, SerializationResult};
+#[cfg(any(feature = "testing", test))]
+use starknet_patricia_storage::storage_trait::AsyncStorage;
+use starknet_patricia_storage::storage_trait::{
+    create_db_key,
+    DbHashMap,
+    DbKey,
+    DbValue,
+    PatriciaStorageResult,
+    Storage,
+};
+use starknet_types_core::felt::Felt;
 
-use crate::block_committer::input::{ReaderConfig, StarknetStorageValue};
-use crate::db::facts_db::types::FactsDbInitialRead;
-use crate::db::forest_trait::{read_forest, ForestReader, ForestWriter};
+use crate::block_committer::input::{InputContext, ReaderConfig, StarknetStorageValue};
+use crate::db::db_layout::DbLayout;
+use crate::db::forest_trait::{
+    read_forest,
+    serialize_forest,
+    EmptyInitialReadContext,
+    ForestMetadata,
+    ForestMetadataType,
+    ForestReader,
+    ForestWriter,
+    StorageInitializer,
+};
 use crate::db::index_db::leaves::{
     IndexLayoutCompiledClassHash,
     IndexLayoutContractState,
@@ -24,6 +44,7 @@ use crate::db::index_db::leaves::{
 use crate::db::index_db::types::{
     EmptyNodeData,
     IndexFilledNode,
+    IndexFilledNodeWithHasher,
     IndexLayoutSubTree,
     IndexNodeContext,
 };
@@ -34,25 +55,95 @@ use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::CompiledClassHash;
 
-pub struct IndexDb<S: Storage> {
+/// Set to 2^251 + 1 to avoid collisions with contract addresses prefixes.
+pub(crate) static FIRST_AVAILABLE_PREFIX_FELT: LazyLock<Felt> =
+    LazyLock::new(|| Felt::from_hex_unchecked(PATRICIA_KEY_UPPER_BOUND) + Felt::ONE);
+
+/// The db key prefix of nodes in the contracts trie.
+pub(crate) static CONTRACTS_TREE_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| FIRST_AVAILABLE_PREFIX_FELT.to_bytes_be());
+
+/// The db key prefix of nodes in the contracts trie.
+pub(crate) static CLASSES_TREE_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (Felt::from_bytes_be(&CONTRACTS_TREE_PREFIX) + Felt::ONE).to_bytes_be());
+
+/// The db key prefix of the commitment offset.
+static COMMITMENT_OFFSET_METADATA_PREFIX: LazyLock<[u8; 32]> =
+    LazyLock::new(|| (Felt::from_bytes_be(&CLASSES_TREE_PREFIX) + Felt::ONE).to_bytes_be());
+
+/// The db key prefix of the block number to state diff hash mapping.
+static STATE_DIFF_HASH_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
+    (Felt::from_bytes_be(&COMMITMENT_OFFSET_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
+});
+
+/// The db key prefix of the block number to state root mapping.
+static STATE_ROOT_METADATA_PREFIX: LazyLock<[u8; 32]> = LazyLock::new(|| {
+    (Felt::from_bytes_be(&STATE_DIFF_HASH_METADATA_PREFIX) + Felt::ONE).to_bytes_be()
+});
+
+pub struct IndexDb<S: Storage, H = TreeHashFunctionImpl> {
     storage: S,
+    phantom: PhantomData<H>,
 }
 
 impl<S: Storage> IndexDb<S> {
-    pub fn new(storage: S) -> Self {
-        Self { storage }
+    pub fn get_stats(&self) -> PatriciaStorageResult<S::Stats> {
+        self.storage.get_stats()
+    }
+
+    pub fn reset_stats(&mut self) -> PatriciaStorageResult<()> {
+        self.storage.reset_stats()
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_async_underlying_storage<'a>(&'a self) -> Option<impl AsyncStorage + 'a> {
+        self.storage.get_async_self()
     }
 }
 
-pub struct IndexNodeLayout {}
+impl<S: Storage, H> StorageInitializer for IndexDb<S, H> {
+    type Storage = S;
+    fn new(storage: Self::Storage) -> Self {
+        Self { storage, phantom: PhantomData }
+    }
+}
 
-impl<'a, L> NodeLayout<'a, L> for IndexNodeLayout
+/// Empty initial context for index db. We don't need external information to start reading the
+/// tries.
+#[derive(Clone)]
+pub struct IndexDbReadContext;
+
+impl InputContext for IndexDbReadContext {}
+
+impl EmptyInitialReadContext for IndexDbReadContext {
+    fn create_empty() -> Self {
+        Self
+    }
+}
+
+pub struct IndexNodeLayout<H = TreeHashFunctionImpl>(PhantomData<H>);
+
+pub trait IndexLayoutHasher:
+    TreeHashFunction<IndexLayoutStarknetStorageValue>
+    + TreeHashFunction<IndexLayoutContractState>
+    + TreeHashFunction<IndexLayoutCompiledClassHash>
+{
+}
+
+impl<H> IndexLayoutHasher for H where
+    H: TreeHashFunction<IndexLayoutStarknetStorageValue>
+        + TreeHashFunction<IndexLayoutContractState>
+        + TreeHashFunction<IndexLayoutCompiledClassHash>
+{
+}
+
+impl<'a, L, H> NodeLayout<'a, L> for IndexNodeLayout<H>
 where
     L: Leaf,
-    TreeHashFunctionImpl: TreeHashFunction<L>,
+    H: TreeHashFunction<L>,
 {
     type NodeData = EmptyNodeData;
-    type NodeDbObject = IndexFilledNode<L>;
+    type NodeDbObject = IndexFilledNodeWithHasher<L, H>;
     type DeserializationContext = IndexNodeContext;
     type SubTree = IndexLayoutSubTree<'a>;
 
@@ -63,7 +154,7 @@ where
     ) -> (DbKey, Self::NodeDbObject) {
         let filled_node = Self::convert_node_data_and_leaf(filled_node);
 
-        let db_filled_node = IndexFilledNode(filled_node);
+        let db_filled_node = IndexFilledNodeWithHasher::<L, H>::new(filled_node);
 
         let suffix = &node_index.0.to_be_bytes();
         let key = db_filled_node.get_db_key(key_context, suffix);
@@ -72,36 +163,60 @@ where
     }
 }
 
-impl NodeLayoutFor<StarknetStorageValue> for IndexNodeLayout {
+impl<H> NodeLayoutFor<StarknetStorageValue> for IndexNodeLayout<H>
+where
+    H: TreeHashFunction<IndexLayoutStarknetStorageValue>,
+{
     type DbLeaf = IndexLayoutStarknetStorageValue;
 }
 
-impl NodeLayoutFor<ContractState> for IndexNodeLayout {
+impl<H> NodeLayoutFor<ContractState> for IndexNodeLayout<H>
+where
+    H: TreeHashFunction<IndexLayoutContractState>,
+{
     type DbLeaf = IndexLayoutContractState;
 }
 
-impl NodeLayoutFor<CompiledClassHash> for IndexNodeLayout {
+impl<H> NodeLayoutFor<CompiledClassHash> for IndexNodeLayout<H>
+where
+    H: TreeHashFunction<IndexLayoutCompiledClassHash>,
+{
     type DbLeaf = IndexLayoutCompiledClassHash;
+}
+
+impl<H> DbLayout for IndexNodeLayout<H>
+where
+    H: IndexLayoutHasher,
+{
+    type ContractStateDbLeaf = IndexLayoutContractState;
+    type CompiledClassHashDbLeaf = IndexLayoutCompiledClassHash;
+    type StarknetStorageValueDbLeaf = IndexLayoutStarknetStorageValue;
+    type NodeLayout = IndexNodeLayout<H>;
 }
 
 // TODO(Ariel): define an IndexDbInitialRead empty type, and check whether each tree is empty inside
 // create_xxx_trie.
 #[async_trait]
-impl<S: Storage> ForestReader<FactsDbInitialRead> for IndexDb<S> {
+impl<S: Storage, H: Send> ForestReader for IndexDb<S, H>
+where
+    H: IndexLayoutHasher,
+{
+    type InitialReadContext = IndexDbReadContext;
+
     /// Creates an original skeleton forest that includes the storage tries of the modified
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
     async fn read<'a>(
         &mut self,
-        context: FactsDbInitialRead,
+        roots: StateRoots,
         storage_updates: &'a HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         classes_updates: &'a LeafModifications<CompiledClassHash>,
         forest_sorted_indices: &'a ForestSortedIndices<'a>,
         config: ReaderConfig,
     ) -> ForestResult<(OriginalSkeletonForest<'a>, HashMap<NodeIndex, ContractState>)> {
-        read_forest::<S, IndexNodeLayout>(
+        read_forest::<S, IndexNodeLayout<H>>(
             &mut self.storage,
-            context,
+            roots,
             storage_updates,
             classes_updates,
             forest_sorted_indices,
@@ -109,22 +224,34 @@ impl<S: Storage> ForestReader<FactsDbInitialRead> for IndexDb<S> {
         )
         .await
     }
+
+    async fn read_roots(
+        &mut self,
+        _initial_read_context: Self::InitialReadContext,
+    ) -> PatriciaStorageResult<StateRoots> {
+        let contracts_trie_root_key = create_db_key(
+            IndexLayoutContractState::get_static_prefix(&EmptyKeyContext),
+            IndexLayoutContractState::DB_KEY_SEPARATOR,
+            &NodeIndex::ROOT.0.to_be_bytes(),
+        );
+        let classes_trie_root_key = create_db_key(
+            IndexLayoutCompiledClassHash::get_static_prefix(&EmptyKeyContext),
+            IndexLayoutCompiledClassHash::DB_KEY_SEPARATOR,
+            &NodeIndex::ROOT.0.to_be_bytes(),
+        );
+
+        let roots = self.storage.mget(&[&contracts_trie_root_key, &classes_trie_root_key]).await?;
+        let contracts_trie_root_hash = extract_root_hash::<IndexLayoutContractState>(&roots[0])?;
+        let classes_trie_root_hash = extract_root_hash::<IndexLayoutCompiledClassHash>(&roots[1])?;
+
+        Ok(StateRoots { contracts_trie_root_hash, classes_trie_root_hash })
+    }
 }
 
 #[async_trait]
 impl<S: Storage> ForestWriter for IndexDb<S> {
     fn serialize_forest(filled_forest: &FilledForest) -> SerializationResult<DbHashMap> {
-        let mut serialized_forest = DbHashMap::new();
-
-        for (contract_address, tree) in &filled_forest.storage_tries {
-            serialized_forest.extend(tree.serialize(contract_address)?);
-        }
-
-        // Contracts and classes tries.
-        serialized_forest.extend(filled_forest.contracts_trie.serialize(&EmptyKeyContext)?);
-        serialized_forest.extend(filled_forest.classes_trie.serialize(&EmptyKeyContext)?);
-
-        Ok(serialized_forest)
+        serialize_forest::<IndexNodeLayout>(filled_forest)
     }
 
     async fn write_updates(&mut self, updates: DbHashMap) -> usize {
@@ -134,5 +261,50 @@ impl<S: Storage> ForestWriter for IndexDb<S> {
             .await
             .unwrap_or_else(|_| panic!("Write of {n_updates} new updates to storage failed"));
         n_updates
+    }
+}
+
+#[async_trait]
+impl<S: Storage> ForestMetadata for IndexDb<S> {
+    fn metadata_key(metadata_type: ForestMetadataType) -> DbKey {
+        let mut key = Vec::with_capacity(64);
+        match metadata_type {
+            // Padding to 64byte keys to keep the 32byte prefix aligned between metadata and
+            // patricia nodes.
+            ForestMetadataType::CommitmentOffset => {
+                key.extend_from_slice(&*COMMITMENT_OFFSET_METADATA_PREFIX);
+                key.extend_from_slice(&[0u8; 32]);
+            }
+            ForestMetadataType::StateDiffHash(block_number) => {
+                key.extend_from_slice(&*STATE_DIFF_HASH_METADATA_PREFIX);
+                let block_number_bytes: [u8; 8] = block_number.serialize();
+                key.extend_from_slice(&block_number_bytes);
+                key.extend_from_slice(&[0u8; 24]);
+            }
+            ForestMetadataType::StateRoot(block_number) => {
+                key.extend_from_slice(&*STATE_ROOT_METADATA_PREFIX);
+                let block_number_bytes: [u8; 8] = block_number.serialize();
+                key.extend_from_slice(&block_number_bytes);
+                key.extend_from_slice(&[0u8; 24]);
+            }
+        }
+        DbKey(key)
+    }
+
+    async fn get_from_storage(&mut self, db_key: DbKey) -> ForestResult<Option<DbValue>> {
+        Ok(self.storage.get(&db_key).await?)
+    }
+}
+
+fn extract_root_hash<L: Leaf>(root: &Option<DbValue>) -> Result<HashOutput, DeserializationError>
+where
+    TreeHashFunctionImpl: TreeHashFunction<L>,
+{
+    if let Some(root) = root {
+        let root_node =
+            IndexFilledNode::<L>::deserialize(root, &IndexNodeContext { is_leaf: false })?;
+        Ok(root_node.0.hash)
+    } else {
+        Ok(HashOutput::ROOT_OF_EMPTY_TREE)
     }
 }

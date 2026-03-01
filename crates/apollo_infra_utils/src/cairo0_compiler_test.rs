@@ -55,6 +55,7 @@ from starkware.starknet.core.os.state import (
     AnotherUnused as AU,
 )
 from starkware.cairo.common.math import assert_lt as check_lt, assert_nn, unused_func
+from starkware.cairo.common.memcpy import memcpy
 import starkware.cairo.common.alloc as alloc
 import something.dead_code
 import something.used
@@ -65,6 +66,7 @@ func main{hash_ptr: HashBuiltin*}() {
     check_lt(1, 2);
     alloc.alloc();
     used();
+    // Note: memcpy mentioned in comment should not count as usage.
     return ();
 }
 "#;
@@ -85,6 +87,7 @@ func main{hash_ptr: HashBuiltin*}() {
     check_lt(1, 2);
     alloc.alloc();
     used();
+    // Note: memcpy mentioned in comment should not count as usage.
     return ();
 }
 "#;

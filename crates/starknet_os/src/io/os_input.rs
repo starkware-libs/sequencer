@@ -8,46 +8,11 @@ use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, OsChainInfo};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::hash::HashOutput;
 use starknet_api::state::ContractClassComponentHashes;
-use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
-#[derive(Debug)]
-pub struct CommitmentInfo {
-    pub previous_root: HashOutput,
-    pub updated_root: HashOutput,
-    pub tree_height: SubTreeHeight,
-    // TODO(Dori, 1/8/2025): The value type here should probably be more specific (NodeData<L> for
-    //   L: Leaf). This poses a problem in deserialization, as a serialized edge node and a
-    //   serialized contract state leaf are both currently vectors of 3 field elements; as the
-    //   semantics of the values are unimportant for the OS commitments, we make do with a vector
-    //   of field elements as values for now.
-    pub commitment_facts: HashMap<HashOutput, Vec<Felt>>,
-}
-
-// TODO(Aviv): Use this struct in `OsBlockInput`
-/// Contains all commitment information for a block's state trees.
-pub struct StateCommitmentInfos {
-    pub contracts_trie_commitment_info: CommitmentInfo,
-    pub classes_trie_commitment_info: CommitmentInfo,
-    pub storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
-}
-
-#[cfg(any(feature = "testing", test))]
-impl Default for CommitmentInfo {
-    fn default() -> CommitmentInfo {
-        CommitmentInfo {
-            previous_root: HashOutput::default(),
-            updated_root: HashOutput::default(),
-            tree_height: SubTreeHeight::ACTUAL_HEIGHT,
-            commitment_facts: HashMap::default(),
-        }
-    }
-}
+use crate::commitment_infos::CommitmentInfo;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]

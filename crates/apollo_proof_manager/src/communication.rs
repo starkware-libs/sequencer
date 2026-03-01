@@ -15,14 +15,17 @@ impl ComponentRequestHandler<ProofManagerRequest, ProofManagerResponse> for Proo
         match request {
             ProofManagerRequest::SetProof(proof_facts, proof) => ProofManagerResponse::SetProof(
                 self.set_proof(proof_facts, proof)
+                    .await
                     .map_err(|e| ProofManagerError::ProofStorage(e.to_string())),
             ),
             ProofManagerRequest::GetProof(proof_facts) => ProofManagerResponse::GetProof(
                 self.get_proof(proof_facts)
+                    .await
                     .map_err(|e| ProofManagerError::ProofStorage(e.to_string())),
             ),
             ProofManagerRequest::ContainsProof(proof_facts) => ProofManagerResponse::ContainsProof(
                 self.contains_proof(proof_facts)
+                    .await
                     .map_err(|e| ProofManagerError::ProofStorage(e.to_string())),
             ),
         }

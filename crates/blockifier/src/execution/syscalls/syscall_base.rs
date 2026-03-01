@@ -449,9 +449,9 @@ impl<'state> SyscallHandlerBase<'state> {
         let call_info = call.execute(self.state, self.context, remaining_gas)?;
 
         let mut raw_retdata = call_info.execution.retdata.0.clone();
-        let failed = call_info.execution.failed;
+        let call_failed = call_info.execution.failed;
         self.inner_calls.push(call_info);
-        if failed {
+        if call_failed {
             self.context.revert(revert_idx, self.state)?;
 
             // Delete events and l2_to_l1_messages from the reverted call.

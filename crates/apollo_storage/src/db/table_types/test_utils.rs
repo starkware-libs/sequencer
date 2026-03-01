@@ -234,41 +234,41 @@ fn table_cursor_test<T: TableType>(
 
     // Test lower_bound().
     let mut cursor = table.cursor(&txn).unwrap();
-    let current = cursor.lower_bound(&(0, 0)).unwrap();
-    assert_eq!(current, Some(((1, 1), 7)));
-    let current = cursor.lower_bound(&(2, 2)).unwrap();
-    assert_eq!(current, Some(((2, 2), 2)));
-    let current = cursor.lower_bound(&(2, 4)).unwrap();
-    assert_eq!(current, Some(((3, 1), 8)));
-    let current = cursor.lower_bound(&(4, 4)).unwrap();
-    assert_eq!(current, None);
+    let current_entry = cursor.lower_bound(&(0, 0)).unwrap();
+    assert_eq!(current_entry, Some(((1, 1), 7)));
+    let current_entry = cursor.lower_bound(&(2, 2)).unwrap();
+    assert_eq!(current_entry, Some(((2, 2), 2)));
+    let current_entry = cursor.lower_bound(&(2, 4)).unwrap();
+    assert_eq!(current_entry, Some(((3, 1), 8)));
+    let current_entry = cursor.lower_bound(&(4, 4)).unwrap();
+    assert_eq!(current_entry, None);
 
     // Iterate using next().
     let mut cursor = table.cursor(&txn).unwrap();
-    let mut current = cursor.lower_bound(&(0, 0)).unwrap();
+    let mut current_entry = cursor.lower_bound(&(0, 0)).unwrap();
     for kv_pair in SORTED_VALUES {
-        assert_eq!(current, Some(kv_pair));
-        current = cursor.next().unwrap();
+        assert_eq!(current_entry, Some(kv_pair));
+        current_entry = cursor.next().unwrap();
     }
-    current = cursor.next().unwrap();
-    assert_eq!(current, None);
+    current_entry = cursor.next().unwrap();
+    assert_eq!(current_entry, None);
     // In the end still return None.
-    current = cursor.next().unwrap();
-    assert_eq!(current, None);
+    current_entry = cursor.next().unwrap();
+    assert_eq!(current_entry, None);
 
     // Iterate using prev().
     let mut cursor = table.cursor(&txn).unwrap();
-    let mut current = cursor.lower_bound(&(4, 4)).unwrap();
-    assert_eq!(current, None);
+    let mut current_entry = cursor.lower_bound(&(4, 4)).unwrap();
+    assert_eq!(current_entry, None);
     for kv_pair in SORTED_VALUES.iter().rev().cloned() {
-        current = cursor.prev().unwrap();
-        assert_eq!(current, Some(kv_pair));
+        current_entry = cursor.prev().unwrap();
+        assert_eq!(current_entry, Some(kv_pair));
     }
-    current = cursor.prev().unwrap();
-    assert_eq!(current, None);
+    current_entry = cursor.prev().unwrap();
+    assert_eq!(current_entry, None);
     // In the end still return None.
-    current = cursor.prev().unwrap();
-    assert_eq!(current, None);
+    current_entry = cursor.prev().unwrap();
+    assert_eq!(current_entry, None);
 }
 
 // Constants for random_table_test.

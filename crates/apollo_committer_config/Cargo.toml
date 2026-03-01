@@ -10,6 +10,7 @@ description = "Configuration types for Apollo committer"
 apollo_config.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_committer.workspace = true
+starknet_patricia_storage = { workspace = true, features = ["rocksdb_storage"] }
 validator.workspace = true
 
 [lints]

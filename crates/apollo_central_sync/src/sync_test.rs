@@ -40,7 +40,6 @@ use crate::{
     StateSyncError,
     SyncConfig,
     SyncEvent,
-    GENESIS_HASH,
 };
 
 // TODO(anatg): Add a test to check that the sync calls the sort_state_diff function
@@ -304,14 +303,14 @@ async fn test_pending_sync(
 
 #[tokio::test]
 async fn pending_sync_advances_only_when_new_data_has_more_transactions() {
-    let genesis_hash = BlockHash(felt!(GENESIS_HASH));
+    let genesis_parent_hash = BlockHash::GENESIS_PARENT_HASH;
     // Storage with no block headers.
     let (reader, _) = get_test_storage().0;
     let mut rng = get_rng();
 
     let old_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![ClientTransaction::get_test_instance(&mut rng)],
             ..Default::default()
         }),
@@ -319,7 +318,7 @@ async fn pending_sync_advances_only_when_new_data_has_more_transactions() {
     };
     let advanced_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![
                 ClientTransaction::get_test_instance(&mut rng),
                 ClientTransaction::get_test_instance(&mut rng),
@@ -331,7 +330,7 @@ async fn pending_sync_advances_only_when_new_data_has_more_transactions() {
     };
     let less_advanced_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![
                 ClientTransaction::get_test_instance(&mut rng),
                 ClientTransaction::get_test_instance(&mut rng),
@@ -371,7 +370,7 @@ async fn pending_sync_advances_only_when_new_data_has_more_transactions() {
 #[tokio::test]
 async fn pending_sync_new_data_has_more_advanced_hash_and_less_transactions() {
     const FIRST_BLOCK_HASH: BlockHash = BlockHash(StarkHash::ONE);
-    let genesis_hash = BlockHash(felt!(GENESIS_HASH));
+    let genesis_parent_hash = BlockHash::GENESIS_PARENT_HASH;
     // Storage with one block header.
     let (reader, mut writer) = get_test_storage().0;
     writer
@@ -382,7 +381,7 @@ async fn pending_sync_new_data_has_more_advanced_hash_and_less_transactions() {
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
                 block_header_without_hash: BlockHeaderWithoutHash {
-                    parent_hash: genesis_hash,
+                    parent_hash: genesis_parent_hash,
                     block_number: BlockNumber(0),
                     ..Default::default()
                 },
@@ -396,7 +395,7 @@ async fn pending_sync_new_data_has_more_advanced_hash_and_less_transactions() {
 
     let old_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![
                 ClientTransaction::get_test_instance(&mut rng),
                 ClientTransaction::get_test_instance(&mut rng),
@@ -442,14 +441,14 @@ async fn pending_sync_new_data_has_more_advanced_hash_and_less_transactions() {
 
 #[tokio::test]
 async fn pending_sync_stops_when_data_has_block_hash_field_with_a_different_hash() {
-    let genesis_hash = BlockHash(felt!(GENESIS_HASH));
+    let genesis_parent_hash = BlockHash::GENESIS_PARENT_HASH;
     // Storage with no block headers.
     let (reader, _) = get_test_storage().0;
     let mut rng = get_rng();
 
     let old_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![ClientTransaction::get_test_instance(&mut rng)],
             ..Default::default()
         }),
@@ -461,7 +460,7 @@ async fn pending_sync_stops_when_data_has_block_hash_field_with_a_different_hash
                 block_hash: BlockHash(StarkHash::ONE),
                 ..Default::default()
             }),
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![ClientTransaction::get_test_instance(&mut rng)],
             ..Default::default()
         }),
@@ -488,7 +487,7 @@ async fn pending_sync_stops_when_data_has_block_hash_field_with_a_different_hash
 #[tokio::test]
 async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_hash() {
     const FIRST_BLOCK_HASH: BlockHash = BlockHash(StarkHash::ONE);
-    let genesis_hash = BlockHash(felt!(GENESIS_HASH));
+    let genesis_parent_hash = BlockHash::GENESIS_PARENT_HASH;
     // Storage with one block header.
     let (reader, mut writer) = get_test_storage().0;
     writer
@@ -499,7 +498,7 @@ async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_h
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
                 block_header_without_hash: BlockHeaderWithoutHash {
-                    parent_hash: genesis_hash,
+                    parent_hash: genesis_parent_hash,
                     block_number: BlockNumber(0),
                     ..Default::default()
                 },
@@ -528,7 +527,7 @@ async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_h
                 block_hash: FIRST_BLOCK_HASH,
                 ..Default::default()
             }),
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![ClientTransaction::get_test_instance(&mut rng)],
             ..Default::default()
         }),
@@ -565,7 +564,7 @@ async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_h
 async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_and_more_transactions()
  {
     const FIRST_BLOCK_HASH: BlockHash = BlockHash(StarkHash::ONE);
-    let genesis_hash = BlockHash(felt!(GENESIS_HASH));
+    let genesis_parent_hash = BlockHash::GENESIS_PARENT_HASH;
     // Storage with one block header.
     let (reader, mut writer) = get_test_storage().0;
     writer
@@ -576,7 +575,7 @@ async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
                 block_header_without_hash: BlockHeaderWithoutHash {
-                    parent_hash: genesis_hash,
+                    parent_hash: genesis_parent_hash,
                     block_number: BlockNumber(0),
                     ..Default::default()
                 },
@@ -602,7 +601,7 @@ async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_
                 block_hash: FIRST_BLOCK_HASH,
                 ..Default::default()
             }),
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![
                 ClientTransaction::get_test_instance(&mut rng),
                 ClientTransaction::get_test_instance(&mut rng),
@@ -640,7 +639,7 @@ async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_
 
 #[tokio::test]
 async fn pending_sync_classes_request_only_new_classes() {
-    let genesis_hash = BlockHash(felt!(GENESIS_HASH));
+    let genesis_parent_hash = BlockHash::GENESIS_PARENT_HASH;
     // Storage with no blocks.
     let (reader, _writer) = get_test_storage().0;
     let mut rng = get_rng();
@@ -650,7 +649,7 @@ async fn pending_sync_classes_request_only_new_classes() {
 
     let first_new_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             transactions: vec![ClientTransaction::get_test_instance(&mut rng)],
             ..Default::default()
         }),
@@ -693,7 +692,7 @@ async fn pending_sync_classes_request_only_new_classes() {
 
     let old_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             ..Default::default()
         }),
         ..Default::default()
@@ -721,7 +720,7 @@ async fn pending_sync_classes_request_only_new_classes() {
 #[tokio::test]
 async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_block() {
     const FIRST_BLOCK_HASH: BlockHash = BlockHash(StarkHash::ONE);
-    let genesis_hash = BlockHash(felt!(GENESIS_HASH));
+    let genesis_parent_hash = BlockHash::GENESIS_PARENT_HASH;
     // Storage with one block header.
     let (reader, mut writer) = get_test_storage().0;
     writer
@@ -732,7 +731,7 @@ async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_bloc
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
                 block_header_without_hash: BlockHeaderWithoutHash {
-                    parent_hash: genesis_hash,
+                    parent_hash: genesis_parent_hash,
                     block_number: BlockNumber(0),
                     ..Default::default()
                 },
@@ -746,7 +745,7 @@ async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_bloc
 
     let old_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
-            parent_block_hash: genesis_hash,
+            parent_block_hash: genesis_parent_hash,
             ..Default::default()
         }),
         ..Default::default()

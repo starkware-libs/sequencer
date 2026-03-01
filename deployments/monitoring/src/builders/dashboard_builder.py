@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 import requests
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
-from common.helpers import EnvironmentName, get_logger
+from common.logger import get_logger
 
 MAX_ALLOWED_JSON_SIZE = 1024 * 1024  # 1MB
 
@@ -141,7 +141,7 @@ def dashboard_file_name(out_dir: str, dashboard_name: str) -> str:
     return f"{out_dir}/{file_name}.json"
 
 
-def create_dashboard(dashboard_name: str, dev_dashboard: json, env: EnvironmentName) -> dict:
+def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
     dashboard = empty_dashboard.copy()
     templating = templating_object.copy()
     panel_id = 1
@@ -216,7 +216,6 @@ def dashboard_builder(args: argparse.Namespace) -> None:
                 create_dashboard(
                     dashboard_name=dashboard_name,
                     dev_dashboard=dev_json[dashboard_name],
-                    env=EnvironmentName(args.env),
                 ),
             ]
         )
@@ -226,11 +225,19 @@ def dashboard_builder(args: argparse.Namespace) -> None:
         if args.out_dir:
             output_dir = f"{args.out_dir}/dashboards"
             os.makedirs(output_dir, exist_ok=True)
+            dashboard_full_path = dashboard_file_name(output_dir, dashboard_name)
             json_data = json.dumps(dashboard, indent=1, ensure_ascii=False)
             assert len(json_data) < MAX_ALLOWED_JSON_SIZE, "Grafana dashboard JSON is too large"
-            with open(dashboard_file_name(output_dir, dashboard_name), "w", encoding="utf-8") as f:
+            with open(dashboard_full_path, "w", encoding="utf-8") as f:
                 f.write(json_data)
+            # Format with professional colors: Dashboard (white bold), name (cyan), saved to (white bold), path (dim cyan)
+            logger.info(
+                f'[bold white]Dashboard[/bold white] "[blue]{dashboard_name}[/blue]" [bold white]saved to[/bold white] [dim white]{dashboard_full_path}[/dim white]'
+            )
         if not args.dry_run:
             upload_dashboards_local(dashboard=dashboard)
+            logger.info(
+                f'[bold white]Dashboard[/bold white] "[blue]{dashboard_name}[/blue]" [bold white]uploaded to Grafana successfully[/bold white]'
+            )
 
     logger.info("Done building grafana dashboards")

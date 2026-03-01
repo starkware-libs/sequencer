@@ -12,16 +12,15 @@ testing = ["starknet_patricia/testing"]
 [dependencies]
 apollo_config.workspace = true
 async-trait.workspace = true
-csv.workspace = true
 derive_more = { workspace = true, features = ["as_ref", "from", "into"] }
 ethnum.workspace = true
 hex.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 rand_distr.workspace = true
-rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+starknet-rust-core.workspace = true
 starknet-types-core = { workspace = true, features = ["hash", "papyrus-serialization"] }
 starknet_api.workspace = true
 starknet_patricia.workspace = true
@@ -32,6 +31,10 @@ tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
 
 [dev-dependencies]
+async-recursion.workspace = true
+expect-test.workspace = true
+rstest.workspace = true
+rstest_reuse.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 
@@ -41,4 +44,4 @@ workspace = true
 # Optional dependencies required for tests and the testing feature.
 # See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
 [package.metadata.cargo-machete]
-ignored = ["hex", "strum_macros"]
+ignored = ["hex"]

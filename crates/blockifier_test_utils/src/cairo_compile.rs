@@ -41,6 +41,33 @@ pub fn allowed_libfuncs_json_path() -> String {
         .to_string()
 }
 
+/// Returns the path to the legacy-format allowed_libfuncs_legacy.json file (array of strings).
+///
+/// Older compiler versions (e.g. v2.1.0, v2.7.0) cannot parse the new map-based format. This
+/// file is committed to the repo and kept in sync via an `expect_file!` test.
+pub fn allowed_libfuncs_legacy_json_path() -> String {
+    resolve_project_relative_path(
+        "crates/blockifier_test_utils/resources/allowed_libfuncs_legacy.json",
+    )
+    .unwrap()
+    .to_string_lossy()
+    .to_string()
+}
+
+/// Converts the new-format allowed_libfuncs.json (map) to the legacy format (array of strings).
+pub fn generate_allowed_libfuncs_legacy_json() -> String {
+    let new_format_path = allowed_libfuncs_json_path();
+    let contents = std::fs::read_to_string(&new_format_path)
+        .unwrap_or_else(|err| panic!("Failed to read {new_format_path}: {err}"));
+    let parsed: serde_json::Value = serde_json::from_str(&contents)
+        .unwrap_or_else(|err| panic!("Failed to parse {new_format_path}: {err}"));
+    let libfuncs_map = parsed["allowed_libfuncs"]
+        .as_object()
+        .unwrap_or_else(|| panic!("Expected 'allowed_libfuncs' to be a map in {new_format_path}"));
+    let keys: Vec<&str> = libfuncs_map.keys().map(|k| k.as_str()).collect();
+    serde_json::json!({"allowed_libfuncs": keys}).to_string()
+}
+
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
 async fn download_cairo_package(version: &String) {

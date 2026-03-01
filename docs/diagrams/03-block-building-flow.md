@@ -1,0 +1,98 @@
+# Block Building Flow
+
+## Proposer Flow
+
+```mermaid
+sequenceDiagram
+    participant CM as Consensus Manager
+    participant Orch as Orchestrator
+    participant B as Batcher
+    participant L1P as L1 Provider
+    participant MP as Mempool
+    participant BF as Blockifier
+
+    CM->>Orch: build_proposal(ProposalInit, timeout)
+
+    Note over Orch: initiate_build()
+    Orch->>B: propose_block(ProposeBlockInput)
+    Note over B: Spawns async block building task
+
+    Orch->>CM: ProposalPart::Init
+    Orch->>CM: ProposalPart::BlockInfo
+
+    par [Parallel: Batcher builds block]
+        rect rgb(255, 245, 238)
+            Note over B,L1P: Phase 1: L1 Handler Transactions
+            B->>L1P: get_txs(n_txs, height)
+            L1P-->>B: Vec<L1HandlerTransaction>
+            B->>BF: add_txs_to_block(txs)
+            Note over B: Presend: txs sent to channel<br/>immediately after add_txs_to_block
+        end
+        rect rgb(240, 248, 255)
+            Note over B,MP: Phase 2: Mempool Transactions
+            loop Until block full or timeout
+                B->>MP: get_txs(n_txs)
+                MP-->>B: Vec<InternalRpcTransaction>
+                B->>BF: add_txs_to_block(txs)
+                Note over B: Presend: txs sent to channel
+                BF-->>B: execution results (async)
+            end
+        end
+        B->>BF: close_block()
+        BF-->>B: BlockExecutionArtifacts
+    and [Parallel: Orchestrator streams to consensus]
+        loop Until Finished
+            Orch->>B: get_proposal_content(proposal_id)
+            B-->>Orch: GetProposalContent::Txs(batch)
+            Orch->>CM: ProposalPart::Transactions(batch)
+        end
+        Orch->>B: get_proposal_content(proposal_id)
+        B-->>Orch: GetProposalContent::Finished(commitment, final_n_executed_txs)
+        Note over Orch,CM: Validators truncate present txs<br/>to final_n_executed_txs
+        Orch->>CM: ProposalPart::Fin(commitment, final_n_executed_txs)
+    end
+```
+
+## Validator Flow
+
+```mermaid
+sequenceDiagram
+    participant CM as Consensus Manager
+    participant Orch as Orchestrator
+    participant B as Batcher
+    participant L1P as L1 Provider
+    participant BF as Blockifier
+
+    CM->>Orch: validate_proposal(ProposalInit, timeout, content_receiver)
+
+    CM->>Orch: ProposalPart::Init
+    CM->>Orch: ProposalPart::BlockInfo
+
+    Note over Orch: initiate_validation()
+    Orch->>B: validate_block(ValidateBlockInput)
+    Note over B: Spawns async block building task
+
+    par [Parallel: Batcher executes received txs]
+        loop Receive txs from channel
+            Note over B: Wait for txs from Orchestrator
+            B->>L1P: validate(tx_hash, height)
+            L1P-->>B: ValidationStatus
+            B->>BF: add_txs_to_block(txs)
+            BF-->>B: execution results
+        end
+        Note over B: Receive finish signal
+        B->>BF: close_block()
+        BF-->>B: BlockExecutionArtifacts
+    and [Parallel: Orchestrator forwards proposal parts]
+        loop Until Fin received
+            CM->>Orch: ProposalPart::Transactions(batch)
+            Orch->>B: send_proposal_content(SendProposalContent::Txs)
+        end
+        CM->>Orch: ProposalPart::Fin(commitment, final_n_executed_txs)
+        Orch->>B: send_proposal_content(SendProposalContent::Finish)
+    end
+
+    Note over B: Truncate to final_n_executed_txs
+    B-->>Orch: ProposalCommitment
+    Orch-->>CM: ProposalCommitment
+```

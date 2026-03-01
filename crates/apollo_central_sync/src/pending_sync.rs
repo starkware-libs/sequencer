@@ -10,7 +10,6 @@ use futures_util::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::{PendingClasses, PendingClassesTrait};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ClassHash;
-use starknet_types_core::felt::Felt;
 use tokio::sync::RwLock;
 use tracing::{debug, trace};
 
@@ -34,7 +33,9 @@ pub(crate) async fn sync_pending_data<
     let header_marker = txn.get_header_marker()?;
     // TODO(Shahak): Consider extracting this functionality to different а function.
     let latest_block_hash = match header_marker {
-        BlockNumber(0) => BlockHash(Felt::from_hex_unchecked(crate::GENESIS_HASH)),
+        // TODO(shahak): Consider adding genesis hash to the config to support chains that have
+        // different genesis hash.
+        BlockNumber(0) => BlockHash::GENESIS_PARENT_HASH,
         _ => {
             txn.get_block_header(
                 header_marker

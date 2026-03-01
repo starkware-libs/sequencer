@@ -1,16 +1,18 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::future::Future;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use async_recursion::async_recursion;
 use starknet_api::hash::HashOutput;
 use starknet_patricia_storage::db_object::{DBObject, HasStaticPrefix};
 use starknet_patricia_storage::errors::SerializationResult;
 use starknet_patricia_storage::storage_trait::DbHashMap;
+use tokio::sync::Mutex;
 
+use crate::db_layout::NodeLayoutFor;
 use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
-use crate::patricia_merkle_tree::filled_tree::node::FactDbFilledNode;
+use crate::patricia_merkle_tree::filled_tree::node::HashFilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData, NodeData};
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -43,24 +45,27 @@ pub trait FilledTree<L: Leaf>: Sized + Send {
     /// Serializes the current state of the tree into a hashmap,
     /// where each key-value pair corresponds
     /// to a storage key and its serialized storage value.
-    fn serialize(
+    fn serialize<Layout: NodeLayoutFor<L>>(
         &self,
-        key_context: &<L as HasStaticPrefix>::KeyContext,
+        key_context: &<Layout::DbLeaf as HasStaticPrefix>::KeyContext,
     ) -> SerializationResult<DbHashMap>;
 
     fn get_root_hash(&self) -> HashOutput;
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct FilledTreeImpl<L: Leaf> {
-    pub tree_map: HashMap<NodeIndex, FactDbFilledNode<L>>,
+pub struct FilledTreeImpl<L>
+where
+    L: Leaf,
+{
+    pub tree_map: HashMap<NodeIndex, HashFilledNode<L>>,
     pub root_hash: HashOutput,
 }
 
 impl<L: Leaf + 'static> FilledTreeImpl<L> {
     fn initialize_filled_tree_output_map_with_placeholders<'a>(
         updated_skeleton: &impl UpdatedSkeletonTree<'a>,
-    ) -> HashMap<NodeIndex, Mutex<Option<FactDbFilledNode<L>>>> {
+    ) -> HashMap<NodeIndex, Mutex<Option<HashFilledNode<L>>>> {
         let mut filled_tree_output_map = HashMap::new();
         for (index, node) in updated_skeleton.get_nodes() {
             if !matches!(node, UpdatedSkeletonNode::UnmodifiedSubTree(_)) {
@@ -76,22 +81,20 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         Arc::new(leaf_index_to_leaf_input.keys().map(|index| (*index, Mutex::new(None))).collect())
     }
 
-    pub(crate) fn get_all_nodes(&self) -> &HashMap<NodeIndex, FactDbFilledNode<L>> {
+    pub(crate) fn get_all_nodes(&self) -> &HashMap<NodeIndex, HashFilledNode<L>> {
         &self.tree_map
     }
 
     /// Writes the hash and data to the output map. The writing is done in a thread-safe manner with
     /// interior mutability to avoid thread contention.
-    fn write_to_output_map<T: Debug>(
+    async fn write_to_output_map<T: Debug>(
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<T>>>>,
         index: NodeIndex,
         output: T,
     ) -> FilledTreeResult<()> {
         match output_map.get(&index) {
             Some(node) => {
-                let mut node = node.lock().map_err(|_| {
-                    FilledTreeError::PoisonedLock("Cannot lock node in output map.".to_owned())
-                })?;
+                let mut node = node.lock().await;
                 match node.take() {
                     Some(existing_node) => Err(FilledTreeError::DoubleUpdate {
                         index,
@@ -109,7 +112,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
 
     // Removes the `Arc` from the map and unwraps the `Mutex` and `Option` from the value.
     // If `panic_if_empty_placeholder` is `true`, will panic if an empty placeholder is found.
-    fn remove_arc_mutex_and_option_from_output_map<V>(
+    async fn remove_arc_mutex_and_option_from_output_map<V>(
         output_map: Arc<HashMap<NodeIndex, Mutex<Option<V>>>>,
         panic_if_empty_placeholder: bool,
     ) -> FilledTreeResult<HashMap<NodeIndex, V>> {
@@ -117,9 +120,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         for (key, value) in Arc::into_inner(output_map)
             .unwrap_or_else(|| panic!("Cannot retrieve output map from Arc."))
         {
-            let mut value = value
-                .lock()
-                .map_err(|_| FilledTreeError::PoisonedLock("Cannot lock node.".to_owned()))?;
+            let mut value = value.lock().await;
             match value.take() {
                 Some(unwrapped_value) => {
                     hash_map_out.insert(key, unwrapped_value);
@@ -163,7 +164,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                     .get(&index)
                     .ok_or(FilledTreeError::MissingLeafInput(index))?
                     .lock()
-                    .map_err(|_| FilledTreeError::PoisonedLock("Cannot lock node.".to_owned()))?
+                    .await
                     .take()
                     .unwrap_or_else(|| panic!("Leaf input is None for index {index:?}."));
                 let (leaf_data, leaf_output) = L::create(leaf_input).await.map_err(|leaf_err| {
@@ -183,7 +184,7 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
         index: NodeIndex,
         leaf_modifications: Option<Arc<LeafModifications<L>>>,
         leaf_index_to_leaf_input: Arc<HashMap<NodeIndex, Mutex<Option<L::Input>>>>,
-        filled_tree_output_map: Arc<HashMap<NodeIndex, Mutex<Option<FactDbFilledNode<L>>>>>,
+        filled_tree_output_map: Arc<HashMap<NodeIndex, Mutex<Option<HashFilledNode<L>>>>>,
         leaf_index_to_leaf_output: Arc<HashMap<NodeIndex, Mutex<Option<L::Output>>>>,
     ) -> FilledTreeResult<HashOutput>
     where
@@ -223,8 +224,9 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FactDbFilledNode { hash, data },
-                )?;
+                    HashFilledNode { hash, data },
+                )
+                .await?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::Edge(path_to_bottom) => {
@@ -246,8 +248,9 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FactDbFilledNode { hash, data },
-                )?;
+                    HashFilledNode { hash, data },
+                )
+                .await?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
@@ -263,10 +266,11 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 Self::write_to_output_map(
                     filled_tree_output_map,
                     index,
-                    FactDbFilledNode { hash, data },
-                )?;
+                    HashFilledNode { hash, data },
+                )
+                .await?;
                 if let Some(output) = leaf_output {
-                    Self::write_to_output_map(leaf_index_to_leaf_output, index, output)?
+                    Self::write_to_output_map(leaf_index_to_leaf_output, index, output).await?
                 };
                 Ok(hash)
             }
@@ -326,10 +330,12 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
                 tree_map: Self::remove_arc_mutex_and_option_from_output_map(
                     filled_tree_output_map,
                     true,
-                )?,
+                )
+                .await?,
                 root_hash,
             },
-            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)?,
+            Self::remove_arc_mutex_and_option_from_output_map(leaf_index_to_leaf_output, false)
+                .await?,
         ))
     }
 
@@ -364,23 +370,25 @@ impl<L: Leaf + 'static> FilledTree<L> for FilledTreeImpl<L> {
             tree_map: Self::remove_arc_mutex_and_option_from_output_map(
                 filled_tree_output_map,
                 true,
-            )?,
+            )
+            .await?,
             root_hash,
         })
     }
 
-    fn serialize(
+    fn serialize<Layout: NodeLayoutFor<L>>(
         &self,
-        key_context: &<L as HasStaticPrefix>::KeyContext,
+        key_context: &<Layout::DbLeaf as HasStaticPrefix>::KeyContext,
     ) -> SerializationResult<DbHashMap> {
         // This function iterates over each node in the tree, using the node's `db_key` as the
         // hashmap key and the result of the node's `serialize` method as the value.
         self.get_all_nodes()
-            .values()
-            .map(|node| {
-                let key = node.db_key(key_context);
-                let value = node.serialize()?;
-                Ok((key, value))
+            .iter()
+            .map(|(index, node)| {
+                let (db_key, node_db_object) =
+                    Layout::get_db_object(*index, key_context, node.clone());
+                let db_value = node_db_object.serialize()?;
+                Ok((db_key, db_value))
             })
             .collect::<Result<_, _>>()
     }

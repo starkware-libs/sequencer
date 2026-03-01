@@ -5,7 +5,7 @@ pub mod serde_utils;
 pub mod state_reader;
 pub mod utils;
 
-use blockifier::blockifier::config::ContractClassManagerConfig;
+use blockifier::blockifier::config::{CairoNativeMode, ContractClassManagerConfig};
 use blockifier::blockifier::transaction_executor::TransactionExecutionOutput;
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::StateMaps;
@@ -16,6 +16,7 @@ use starknet_api::core::ChainId;
 use starknet_api::transaction::Transaction;
 use state_reader::config::RpcStateReaderConfig;
 use state_reader::rpc_state_reader::ConsecutiveRpcStateReaders;
+use utils::get_chain_info;
 
 /// Executes a single transaction at the given block number using the RPC state reader.
 pub fn execute_single_transaction(
@@ -29,8 +30,8 @@ pub fn execute_single_transaction(
     // Initialize the contract class manager.
     let mut contract_class_manager_config = ContractClassManagerConfig::default();
     if cfg!(feature = "cairo_native") {
-        contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation = true;
-        contract_class_manager_config.cairo_native_run_config.run_cairo_native = true;
+        contract_class_manager_config.cairo_native_run_config.cairo_native_run_mode =
+            CairoNativeMode::WaitOnCompilation;
     }
     let contract_class_manager = ContractClassManager::start(contract_class_manager_config);
 
@@ -38,10 +39,11 @@ pub fn execute_single_transaction(
     assert!(block_number.0 != 0, "Cannot execute transaction at block 0");
     let prev_block_number = BlockNumber(block_number.0 - 1);
 
+    let chain_info = get_chain_info(&chain_id, None);
     let readers = ConsecutiveRpcStateReaders::new(
         prev_block_number,
         Some(rpc_state_reader_config),
-        chain_id,
+        chain_info,
         false,
         contract_class_manager,
     );

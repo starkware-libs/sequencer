@@ -18,11 +18,13 @@ apollo_batcher_config.workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_committer_types.workspace = true
+apollo_config_manager_types.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_l1_provider_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_metrics.workspace = true
+apollo_proc_macros.workspace = true
 apollo_proof_manager_types.workspace = true
 apollo_reverts.workspace = true
 apollo_starknet_client.workspace = true
@@ -39,8 +41,7 @@ indexmap.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
 starknet_api.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
+strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -50,6 +51,7 @@ validator.workspace = true
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_committer_types = { workspace = true, features = ["testing"] }
+apollo_config_manager_types = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }
 apollo_mempool_types = { workspace = true, features = ["testing"] }

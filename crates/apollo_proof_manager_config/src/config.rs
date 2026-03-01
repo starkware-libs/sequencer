@@ -7,9 +7,8 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-// TODO(Einat): update this value once we have a better understanding of the cache size.
 /// Default cache size for the proof manager (number of proofs to keep in memory).
-const DEFAULT_CACHE_SIZE: usize = 50;
+const DEFAULT_CACHE_SIZE: usize = 500;
 
 /// Configuration for the proof manager.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]

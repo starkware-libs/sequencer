@@ -1,3 +1,6 @@
+#[cfg(test)]
+pub mod create_original_skeleton_tests;
+pub mod db_layout;
 #[cfg(any(feature = "testing", test))]
 pub mod external_test_utils;
 pub mod facts_db;

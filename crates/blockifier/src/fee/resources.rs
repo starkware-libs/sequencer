@@ -4,11 +4,11 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 
 use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};
-use crate::execution::call_info::{EventSummary, ExecutionSummary};
+use crate::execution::call_info::{EventSummary, ExecutionSummary, ExtendedExecutionResources};
 #[cfg(test)]
 use crate::execution::contract_class::TrackedResource;
 use crate::fee::eth_gas_constants;
-use crate::fee::fee_utils::get_vm_resources_cost;
+use crate::fee::fee_utils::get_extended_vm_resources_cost;
 use crate::fee::gas_usage::{
     get_consumed_message_to_l2_emissions_cost,
     get_da_gas_cost,
@@ -57,10 +57,10 @@ impl TransactionResources {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ComputationResources {
-    /// Execution resources split between the transaction itself (`tx_vm_resources`) and OS
-    /// overhead (`os_vm_resources`). This enables clean proving gas calculation. See usage in
-    /// `get_tx_weights`.
-    pub tx_vm_resources: ExecutionResources,
+    /// Execution resources split between the transaction itself (`tx_extended_vm_resources`) and
+    /// OS overhead (`os_vm_resources`). This enables clean proving gas calculation. See usage
+    /// in `get_tx_weights`.
+    pub tx_extended_vm_resources: ExtendedExecutionResources,
     pub os_vm_resources: ExecutionResources,
     pub n_reverted_steps: usize,
     pub sierra_gas: GasAmount,
@@ -68,8 +68,13 @@ pub struct ComputationResources {
 }
 
 impl ComputationResources {
-    pub fn total_vm_resources(&self) -> ExecutionResources {
-        &self.tx_vm_resources + &self.os_vm_resources
+    pub fn total_extended_vm_resources(&self) -> ExtendedExecutionResources {
+        let execution_resources =
+            &self.tx_extended_vm_resources.vm_resources + &self.os_vm_resources;
+        ExtendedExecutionResources {
+            vm_resources: execution_resources,
+            opcode_instance_counter: self.tx_extended_vm_resources.opcode_instance_counter.clone(),
+        }
     }
 
     pub fn to_gas_vector(
@@ -77,9 +82,9 @@ impl ComputationResources {
         versioned_constants: &VersionedConstants,
         computation_mode: &GasVectorComputationMode,
     ) -> GasVector {
-        let vm_cost = get_vm_resources_cost(
+        let vm_cost = get_extended_vm_resources_cost(
             versioned_constants,
-            &self.total_vm_resources(),
+            &self.total_extended_vm_resources(),
             self.n_reverted_steps,
             computation_mode,
         );
@@ -111,7 +116,7 @@ impl ComputationResources {
     pub fn total_charged_computation_units(&self, resource: TrackedResource) -> usize {
         match resource {
             TrackedResource::CairoSteps => {
-                self.total_vm_resources().n_steps + self.n_reverted_steps
+                self.total_extended_vm_resources().vm_resources.n_steps + self.n_reverted_steps
             }
             TrackedResource::SierraGas => {
                 usize::try_from(self.sierra_gas.0 + self.reverted_sierra_gas.0).unwrap()
@@ -131,22 +136,22 @@ pub struct StarknetResources {
 
 impl StarknetResources {
     pub fn new(
-        calldata_length: usize,
+        extended_calldata_length: usize,
         signature_length: usize,
         code_size: usize,
         state_resources: StateResources,
         l1_handler_payload_size: Option<usize>,
         execution_summary_without_fee_transfer: ExecutionSummary,
-        // TODO(AvivG): Add proof_facts_length as a parameter.
+        has_client_side_proof: bool,
     ) -> Self {
         // TODO(Yoni): store the entire summary.
         Self {
             archival_data: ArchivalDataResources {
                 event_summary: execution_summary_without_fee_transfer.event_summary,
-                calldata_length,
+                extended_calldata_length,
                 signature_length,
                 code_size,
-                proof_facts_length: 0,
+                has_client_side_proof,
             },
             messages: MessageResources::new(
                 execution_summary_without_fee_transfer.l2_to_l1_payload_lengths,
@@ -249,10 +254,11 @@ impl StateResources {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ArchivalDataResources {
     pub event_summary: EventSummary,
-    pub calldata_length: usize,
+    /// Total calldata length, including proof_facts.
+    pub extended_calldata_length: usize,
     pub signature_length: usize,
     pub code_size: usize,
-    pub proof_facts_length: usize,
+    pub has_client_side_proof: bool,
 }
 
 impl ArchivalDataResources {
@@ -291,7 +297,7 @@ impl ArchivalDataResources {
         let archival_gas_costs = versioned_constants.get_archival_data_gas_costs(mode);
 
         // TODO(Avi, 20/2/2024): Calculate the number of bytes instead of the number of felts.
-        let total_data_size = u64_from_usize(self.calldata_length + self.signature_length);
+        let total_data_size = u64_from_usize(self.extended_calldata_length + self.signature_length);
         let gas_amount =
             (archival_gas_costs.gas_per_data_felt * total_data_size).to_integer().into();
 
@@ -320,33 +326,31 @@ impl ArchivalDataResources {
         }
     }
 
+    /// Returns the fixed gas cost for client-side proofs.
+    /// The per-felt cost for proof_facts is already included in calldata_length.
     fn get_client_side_proof_gas_cost(
         &self,
         versioned_constants: &VersionedConstants,
         mode: &GasVectorComputationMode,
     ) -> GasVector {
-        if self.proof_facts_length == 0 {
+        if !self.has_client_side_proof {
             return GasVector::ZERO;
         }
 
         let archival_gas_costs = versioned_constants.get_archival_data_gas_costs(mode);
 
-        let proof_facts_gas: GasAmount = (archival_gas_costs.gas_per_data_felt
-            * u64_from_usize(self.proof_facts_length))
-        .to_integer()
-        .into();
-
-        // Client-side proofs currently have a fixed gas cost. This cost corresponds to the
+        // Client-side proofs have a fixed gas cost. This cost corresponds to the
         // current proof version (reflected in the first proof fact).
         let proof_gas: GasAmount = archival_gas_costs.gas_per_proof.to_integer().into();
 
-        let total: GasAmount = proof_facts_gas
-            .checked_add(proof_gas)
-            .expect("client-side proof gas amount overflowed");
-
         match mode {
-            GasVectorComputationMode::All => GasVector::from_l2_gas(total),
-            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(total),
+            GasVectorComputationMode::All => GasVector::from_l2_gas(proof_gas),
+            GasVectorComputationMode::NoL2Gas => {
+                unreachable!(
+                    "Client side proving is only supported from V3 transactions, which use \
+                     AllResourceBounds."
+                )
+            }
         }
     }
 }

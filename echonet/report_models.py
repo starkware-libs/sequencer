@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping
 
-from echonet.echonet_types import JsonObject, ResyncTriggerMap
+from echonet.echonet_types import JsonObject, ResyncTriggerMap, RevertErrorInfo
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,8 +37,8 @@ class SnapshotModel:
     # Maps
     sent_tx_hashes: JsonObject
     gateway_errors: JsonObject
-    revert_errors_mainnet: Mapping[str, str]
-    revert_errors_echonet: Mapping[str, str]
+    revert_errors_mainnet: Mapping[str, RevertErrorInfo]
+    revert_errors_echonet: Mapping[str, RevertErrorInfo]
     resync_causes: ResyncTriggerMap
     certain_failures: ResyncTriggerMap
 

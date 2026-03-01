@@ -27,16 +27,10 @@ num-bigint = { workspace = true, optional = true }
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+starknet-rust-core.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_patricia_storage.workspace = true
-starknet-rust-core.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
+strum = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
-
-# Optional dependencies required for tests and the testing feature.
-# See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
-[package.metadata.cargo-machete]
-ignored = ["strum"]

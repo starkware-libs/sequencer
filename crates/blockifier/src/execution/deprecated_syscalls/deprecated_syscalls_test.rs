@@ -33,7 +33,14 @@ use test_case::test_case;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent, StorageAccessTracker};
+use crate::execution::call_info::{
+    cairo_primitive_counter_map,
+    CallExecution,
+    CallInfo,
+    ExtendedExecutionResources,
+    OrderedEvent,
+    StorageAccessTracker,
+};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
@@ -149,11 +156,12 @@ fn test_nested_library_call() {
         calldata: calldata![felt!(key), felt!(value)],
         ..nested_storage_entry_point
     };
-    let storage_entry_point_resources = ExecutionResources {
+    let storage_entry_point_resources: ExtendedExecutionResources = ExecutionResources {
         n_steps: 228,
         n_memory_holes: 0,
         builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
-    };
+    }
+    .into();
     let storage_entry_point_syscalls_usage = HashMap::from([
         (SyscallSelector::StorageRead, SyscallUsage::with_call_count(1)),
         (SyscallSelector::StorageWrite, SyscallUsage::with_call_count(1)),
@@ -167,24 +175,25 @@ fn test_nested_library_call() {
             accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
             ..Default::default()
         },
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 2)]),
+        builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 2)]),
         syscalls_usage: storage_entry_point_syscalls_usage.clone(),
         ..Default::default()
     };
-    let mut library_call_resources =
-        &get_const_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
+    let mut library_call_resources: ExtendedExecutionResources =
+        (&get_const_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
             + &ExecutionResources {
                 n_steps: 39,
                 n_memory_holes: 0,
                 builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 1)]),
-            };
+            })
+            .into();
     library_call_resources += &storage_entry_point_resources;
     let library_call_info = CallInfo {
         call: library_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
         resources: library_call_resources.clone(),
         inner_calls: vec![nested_storage_call_info],
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 19)]),
+        builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 19)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::LibraryCall,
             SyscallUsage::with_call_count(1),
@@ -194,32 +203,33 @@ fn test_nested_library_call() {
     let storage_call_info = CallInfo {
         call: storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value)]),
-        resources: storage_entry_point_resources.clone(),
+        resources: storage_entry_point_resources,
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(value)],
             accessed_storage_keys: HashSet::from([storage_key!(key)]),
             ..Default::default()
         },
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 2)]),
+        builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 2)]),
         syscalls_usage: storage_entry_point_syscalls_usage.clone(),
         ..Default::default()
     };
 
     // Nested library call cost: library_call(inner) + library_call(library_call(inner)).
     let mut main_call_resources =
-        &get_const_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
+        (&get_const_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
             + &ExecutionResources {
                 n_steps: 45,
                 n_memory_holes: 0,
                 builtin_instance_counter: BTreeMap::new(),
-            };
+            })
+            .into();
     main_call_resources += &(&library_call_resources * 2);
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
         execution: CallExecution::from_retdata(retdata![felt!(0_u8)]),
         resources: main_call_resources,
         inner_calls: vec![library_call_info, storage_call_info],
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 37)]),
+        builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 37)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::LibraryCall,
             SyscallUsage::with_call_count(2),
@@ -318,13 +328,14 @@ fn test_call_contract() {
             n_steps: 228,
             n_memory_holes: 0,
             builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 2)]),
-        },
+        }
+        .into(),
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![value],
             accessed_storage_keys: HashSet::from([storage_key!(key_int)]),
             ..Default::default()
         },
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 2)]),
+        builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 2)]),
         syscalls_usage: HashMap::from([
             (SyscallSelector::StorageWrite, SyscallUsage::with_call_count(1)),
             (SyscallSelector::StorageRead, SyscallUsage::with_call_count(1)),
@@ -340,13 +351,14 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution,
-        resources: &get_const_syscall_resources(DeprecatedSyscallSelector::CallContract)
+        resources: (&get_const_syscall_resources(DeprecatedSyscallSelector::CallContract)
             + &ExecutionResources {
                 n_steps: 267,
                 n_memory_holes: 0,
                 builtin_instance_counter: BTreeMap::from([(BuiltinName::range_check, 3)]),
-            },
-        builtin_counters: BTreeMap::from([(BuiltinName::range_check, 19)]),
+            })
+            .into(),
+        builtin_counters: cairo_primitive_counter_map([(BuiltinName::range_check, 19)]),
         syscalls_usage: HashMap::from([(
             SyscallSelector::CallContract,
             SyscallUsage::with_call_count(1),

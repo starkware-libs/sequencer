@@ -49,6 +49,7 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
+    TEST_OS_CONFIG_HASH,
 };
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
@@ -112,8 +113,10 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::test_templates::cairo_version;
 use crate::test_utils::{
+    create_valid_proof_facts_for_testing,
     get_const_syscall_resources,
     get_tx_resources,
+    get_valid_virtual_os_program_hash,
     CompilerBasedVersion,
     BALANCE,
 };
@@ -230,7 +233,8 @@ fn test_rc96_holes(
                 .receipt
                 .resources
                 .computation
-                .total_vm_resources()
+                .total_extended_vm_resources()
+                .vm_resources
                 .builtin_instance_counter[&BuiltinName::range_check96],
             24
         );
@@ -269,7 +273,7 @@ fn test_fee_enforcement(
     });
     let deploy_account_tx = AccountTransaction::new_for_sequencing(tx);
 
-    let enforce_fee = deploy_account_tx.enforce_fee();
+    let enforce_fee = deploy_account_tx.create_tx_info().enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
     let result = deploy_account_tx.execute(state, &block_context);
     // When fee is enforced, execution should fail because the account doesn't have sufficient
@@ -305,7 +309,7 @@ fn test_all_bounds_combinations_enforce_fee(
             },
         ),
     });
-    assert_eq!(account_tx.enforce_fee(), expected_enforce_fee);
+    assert_eq!(account_tx.create_tx_info().enforce_fee(), expected_enforce_fee);
 }
 
 #[rstest]
@@ -1393,7 +1397,13 @@ fn test_max_fee_to_max_steps_conversion(
     );
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context).unwrap();
-    let n_steps1 = tx_execution_info1.receipt.resources.computation.total_vm_resources().n_steps;
+    let n_steps1 = tx_execution_info1
+        .receipt
+        .resources
+        .computation
+        .total_extended_vm_resources()
+        .vm_resources
+        .n_steps;
     let gas_used_vector1 = tx_execution_info1.receipt.resources.to_gas_vector(
         &block_context.versioned_constants,
         block_context.block_info.use_kzg_da,
@@ -1418,7 +1428,13 @@ fn test_max_fee_to_max_steps_conversion(
     );
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context).unwrap();
-    let n_steps2 = tx_execution_info2.receipt.resources.computation.total_vm_resources().n_steps;
+    let n_steps2 = tx_execution_info2
+        .receipt
+        .resources
+        .computation
+        .total_extended_vm_resources()
+        .vm_resources
+        .n_steps;
     let gas_used_vector2 = tx_execution_info2.receipt.resources.to_gas_vector(
         &block_context.versioned_constants,
         block_context.block_info.use_kzg_da,
@@ -2203,9 +2219,9 @@ fn test_missing_validate_entrypoint_rejects(
 fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
     vec![
         snos.proof_version,
-        felt!(VIRTUAL_SNOS),
+        VIRTUAL_SNOS,
         snos.program_hash,
-        felt!(VIRTUAL_OS_OUTPUT_VERSION),
+        VIRTUAL_OS_OUTPUT_VERSION,
         felt!(snos.block_number.0),
         snos.block_hash.0,
         snos.config_hash,
@@ -2215,56 +2231,64 @@ fn snos_to_proof_facts(snos: SnosProofFacts) -> ProofFacts {
 
 /// Returns valid proof_facts with the maximum allowed block number.
 fn proof_facts_with_max_allowed_block() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
     let block_number = CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER;
-    snos_proof_facts.block_number = BlockNumber(block_number);
-    snos_proof_facts.block_hash = test_block_hash(block_number);
-    snos_to_proof_facts(snos_proof_facts)
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.block_number = BlockNumber(block_number);
+            snos.block_hash = test_block_hash(block_number);
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
 }
 
 /// Returns invalid proof_facts with a too recent block number (at the boundary).
 fn proof_facts_with_too_recent_block() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
     // Set the proof block number to the first invalid value:
     // `current_block_number - STORED_BLOCK_HASH_BUFFER + 1`
     // (i.e. last allowed block + 1).
-    snos_proof_facts.block_number =
-        BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER + 1);
-    snos_to_proof_facts(snos_proof_facts)
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.block_number = BlockNumber(CURRENT_BLOCK_NUMBER - STORED_BLOCK_HASH_BUFFER + 1);
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
 }
 
 /// Returns invalid proof_facts with a mismatched block hash.
 fn proof_facts_with_mismatched_hash() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
-    snos_proof_facts.block_hash = BlockHash(snos_proof_facts.block_hash.0 + 1);
-    snos_to_proof_facts(snos_proof_facts)
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.block_hash = BlockHash(snos.block_hash.0 + 1);
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
 }
 
 /// Returns invalid proof_facts with a zero block hash.
 fn proof_facts_with_zero_block_hash() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
-    snos_proof_facts.block_hash = BlockHash(Felt::ZERO);
-    snos_to_proof_facts(snos_proof_facts)
+    create_valid_proof_facts_for_testing()
+        .try_into()
+        .map(|mut snos: SnosProofFacts| {
+            snos.block_hash = BlockHash(Felt::ZERO);
+            snos_to_proof_facts(snos)
+        })
+        .unwrap()
 }
 
 /// Returns invalid proof_facts with an invalid program hash.
 fn proof_facts_with_invalid_program_hash() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
-    snos_proof_facts.program_hash = Felt::from(0x12345678_u64);
-    snos_to_proof_facts(snos_proof_facts)
+    ProofFacts::custom_proof_facts_for_testing(Felt::from(0x12345678_u64), *TEST_OS_CONFIG_HASH)
 }
 
 /// Returns invalid proof_facts with a mismatched config hash.
 fn proof_facts_with_invalid_config_hash() -> ProofFacts {
-    let mut snos_proof_facts =
-        SnosProofFacts::try_from(ProofFacts::snos_proof_facts_for_testing()).unwrap();
-    snos_proof_facts.config_hash = Felt::from(0x12345678_u64);
-    snos_to_proof_facts(snos_proof_facts)
+    ProofFacts::custom_proof_facts_for_testing(
+        get_valid_virtual_os_program_hash(),
+        Felt::from(0x12345678_u64),
+    )
 }
 
 /// Tests the `validate_proof_facts` function for Invoke V3 transactions.
@@ -2278,7 +2302,7 @@ fn proof_facts_with_invalid_config_hash() -> ProofFacts {
     Some("is too recent")
 )]
 #[case::current_block_number_too_small(
-    ProofFacts::snos_proof_facts_for_testing(),
+    create_valid_proof_facts_for_testing(),
     STORED_BLOCK_HASH_BUFFER - 1,
     Some("is below the required")
 )]

@@ -1,0 +1,154 @@
+# Gas Price & Block Info Flow
+
+## L1 Gas Price Scraping
+
+```mermaid
+sequenceDiagram
+    participant L1 as Ethereum L1
+    participant Scraper as L1 Gas Price Scraper
+    participant Provider as L1 Gas Price Provider
+
+    rect rgb(240, 248, 255)
+        Note over Scraper: Startup
+        Scraper->>Provider: initialize()
+        Provider-->>Scraper: Ok
+
+        Scraper->>L1: latest_l1_block_number()
+        L1-->>Scraper: latest_block_number
+        Note over Scraper: start_block = latest - <br/>(number_of_blocks_for_mean * startup_num_blocks_multiplier)
+
+        loop Scrape historical blocks (start_block to latest)
+            Scraper->>L1: l1_block_header(block_number)
+            L1-->>Scraper: L1BlockHeader
+            Scraper->>Provider: add_price_info(GasPriceData)
+            Provider-->>Scraper: Ok
+        end
+    end
+
+    loop Continuous scraping
+        Scraper->>L1: latest_l1_block_number()
+        L1-->>Scraper: latest_block_number
+
+        loop For each new block
+            Scraper->>L1: l1_block_header(block_number)
+            L1-->>Scraper: L1BlockHeader
+
+            Scraper->>Scraper: assert_no_l1_reorgs(header)
+            Note over Scraper: Check parent hash consistency
+
+            Note over Scraper: Extract from header:<br/>- base_fee_per_gas<br/>- blob_fee<br/>- timestamp
+
+            Scraper->>Provider: add_price_info(GasPriceData)
+            Note over Provider: GasPriceData contains:<br/>block_number, timestamp,<br/>PriceInfo(base_fee, blob_fee)
+
+            Provider->>Provider: Validate consecutive block numbers
+            opt Block number not consecutive
+                Provider-->>Scraper: UnexpectedBlockNumberError
+            end
+
+            Note over Provider: Push to internal RingBuffer<br/>(sliding window, size = storage_limit)
+            Provider-->>Scraper: Ok
+        end
+    end
+```
+
+## ETH to STRK Oracle
+
+```mermaid
+sequenceDiagram
+    participant Provider as L1 Gas Price Provider
+    participant Oracle as ETH to STRK Oracle
+    participant API as External Oracle API
+    participant Cache as Oracle Cache
+
+    Provider->>Oracle: eth_to_fri_rate(timestamp)
+
+    Oracle->>Oracle: Quantize timestamp<br/>(timestamp - lag) / lag_interval
+
+    Oracle->>Cache: Check cache for quantized_timestamp
+
+    alt Cache hit (query complete)
+        Cache-->>Oracle: cached rate
+        Oracle-->>Provider: u128 rate
+    else Cache miss or query in progress
+        Oracle->>API: GET /eth_to_strk?timestamp=...
+        API-->>Oracle: { price: "0x...", decimals: 18 }
+
+        Oracle->>Oracle: Parse price, validate decimals == 18
+        Oracle->>Cache: Store result
+        Oracle-->>Provider: u128 rate
+    end
+
+    opt Query not ready, no fallback
+        Oracle-->>Provider: QueryNotReadyError
+    end
+```
+
+## Block Info Creation (Proposer)
+
+```mermaid
+sequenceDiagram
+    participant CM as Consensus Manager
+    participant Orch as Orchestrator
+    participant Provider as L1 Gas Price Provider
+    participant Oracle as ETH to STRK Oracle
+
+    CM->>Orch: build_proposal(ProposalInit)
+
+    rect rgb(240, 248, 255)
+        Note over Orch: initiate_build()
+
+        Orch->>Orch: get_proposal_timestamp()
+        Note over Orch: Use clock time or state sync timestamp
+
+        Orch->>Provider: get_price_info(timestamp)
+        Provider-->>Orch: PriceInfo(base_fee, blob_fee)
+
+        Orch->>Provider: get_eth_to_fri_rate(timestamp)
+        Provider->>Oracle: eth_to_fri_rate(timestamp)
+        Oracle-->>Provider: u128 rate
+        Provider-->>Orch: u128 eth_to_fri_rate
+    end
+
+    rect rgb(255, 245, 238)
+        Note over Orch: apply_fee_transformations()
+        Note over Orch: base_fee += l1_gas_tip_wei<br/>blob_fee *= l1_data_gas_price_multiplier<br/>Clamp to min/max bounds
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Orch: Convert Wei to FRI
+        Orch->>Orch: L1PricesInFri::convert_from_wei(prices_wei, eth_to_fri_rate)
+
+        Note over Orch: Apply overrides if configured:<br/>- override_eth_to_fri_rate<br/>- override_l1_gas_price_fri<br/>- override_l1_data_gas_price_fri
+    end
+
+    Orch->>Orch: Create ConsensusBlockInfo
+    Note over Orch: ConsensusBlockInfo contains:<br/>height, timestamp, builder, l1_da_mode,<br/>l2_gas_price_fri,<br/>l1_gas_price_fri, l1_data_gas_price_fri,<br/>l1_gas_price_wei, l1_data_gas_price_wei
+
+    Orch->>CM: ProposalPart::BlockInfo(block_info)
+```
+
+## Fallback Resolution
+
+*When L1 Gas Price Provider or Oracle fails, the system uses fallback values:*
+
+```mermaid
+sequenceDiagram
+    participant Orch as Orchestrator
+    participant Provider as L1 Gas Price Provider
+
+    Orch->>Provider: get_price_info(timestamp)
+
+    alt Success
+        Provider-->>Orch: PriceInfo
+    else MissingDataError or StaleL1GasPricesError
+        Note over Orch: Fallback 1: Use previous block info
+        Orch->>Orch: Reuse previous_block_info L1 prices
+        Orch->>Orch: Recalculate eth_to_fri_rate from previous prices
+    else No previous block info
+        Note over Orch: Fallback 2: Use defaults
+        Orch->>Orch: Use min_l1_gas_price_wei (config)
+        Orch->>Orch: Use min_l1_data_gas_price_wei (config)
+        Orch->>Orch: Use DEFAULT_ETH_TO_FRI_RATE (10^21)
+    end
+```

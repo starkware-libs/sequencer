@@ -1,9 +1,9 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use log::debug;
 use num_bigint::BigUint;
+use num_rational::Ratio;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::ContractAddress;
@@ -13,8 +13,9 @@ use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource, Tip};
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::blockifier_versioned_constants::{ResourceCost, VersionedConstants};
 use crate::context::{BlockContext, TransactionContext};
+use crate::execution::call_info::{CairoPrimitiveName, ExtendedExecutionResources, OpcodeName};
 use crate::fee::resources::TransactionFeeResult;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
@@ -61,53 +62,76 @@ impl GasVectorToL1GasForFee for GasVector {
     }
 }
 
-/// Calculates the gas consumed when submitting the underlying Cairo program to SHARP.
-/// I.e., returns the heaviest Cairo resource weight (in terms of gas), as the size of
-/// a proof is determined similarly - by the (normalized) largest segment.
-/// The result can be in either L1 or L2 gas, according to the gas vector computation mode.
-pub fn get_vm_resources_cost(
+/// Returns the fee cost for a given Cairo primitive (builtin or opcode).
+fn get_cairo_primitive_fee_cost(
+    cairo_primitive: &CairoPrimitiveName,
+    builtin_fee_costs: &HashMap<BuiltinName, ResourceCost>,
     versioned_constants: &VersionedConstants,
-    vm_resource_usage: &ExecutionResources,
+) -> ResourceCost {
+    match cairo_primitive {
+        CairoPrimitiveName::Builtin(builtin) => {
+            *builtin_fee_costs.get(builtin).unwrap_or_else(|| {
+                panic!("Builtin {builtin} not found in versioned constants.");
+            })
+        }
+        CairoPrimitiveName::Opcode(OpcodeName::Blake) => {
+            // Blake cost comes from the builtin gas costs in versioned constants.
+            let blake_sierra_gas_cost = versioned_constants.os_constants.gas_costs.builtins.blake;
+            let blake_l1_gas_cost = versioned_constants
+                .sierra_gas_to_l1_gas_amount_round_up(GasAmount(blake_sierra_gas_cost));
+
+            Ratio::from_integer(blake_l1_gas_cost.0)
+        }
+    }
+}
+
+/// Calculates the total gas cost for a resource given its unit cost and usage count.
+fn calculate_resource_gas_cost(cost_per_unit: ResourceCost, usage: usize) -> u64 {
+    (cost_per_unit * u64_from_usize(usage)).ceil().to_integer()
+}
+
+/// Calculates the gas consumed when submitting the underlying Cairo program to SHARP.
+///
+/// Returns the heaviest Cairo resource weight (in terms of gas), since proof size is determined
+/// similarly - by the (normalized) largest segment.
+/// The result can be returned in either L1 or L2 gas, according to the gas vector computation mode.
+pub fn get_extended_vm_resources_cost(
+    versioned_constants: &VersionedConstants,
+    resource_usage: &ExtendedExecutionResources,
     n_reverted_steps: usize,
     computation_mode: &GasVectorComputationMode,
 ) -> GasVector {
     // TODO(Yoni, 1/7/2024): rename vm -> cairo.
-    let vm_resource_fee_costs = versioned_constants.vm_resource_fee_cost();
-    let builtin_usage_for_fee = vm_resource_usage.prover_builtins();
+    let fee_costs = versioned_constants.vm_resource_fee_cost();
 
-    // Validate used builtin resources.
-    let used_builtins = HashSet::<&BuiltinName>::from_iter(builtin_usage_for_fee.keys());
-    let known_builtins = HashSet::<&BuiltinName>::from_iter(vm_resource_fee_costs.builtins.keys());
-    assert!(
-        used_builtins.is_subset(&known_builtins),
-        "{known_builtins:#?} should contain {used_builtins:#?}",
-    );
+    let primitive_usage = resource_usage.prover_cairo_primitives();
 
-    // Convert Cairo resource usage to L1 gas usage.
-    // Do so by taking the maximum of the usage of each builtin + step usage.
-    let vm_l1_gas_usage = vm_resource_fee_costs
-        .builtins
-        .iter()
-        // Builtin costs and usage.
-        .map(|(builtin, resource_cost)| {
-            (*resource_cost, builtin_usage_for_fee.get(builtin).cloned().unwrap_or_default())
-        })
-        // Step costs and usage.
-        .chain(vec![(
-            vm_resource_fee_costs.n_steps,
-            // TODO(AvivG): Compute memory_holes gas accurately while maintaining backward compatibility
-            // Memory holes are slightly cheaper than actual steps, but we count them as such
-            // for simplicity.
-            vm_resource_usage.total_n_steps() + vm_resource_usage.n_memory_holes + n_reverted_steps,
-        )])
-        .map(|(cost, usage)| (cost * u64_from_usize(usage)).ceil().to_integer())
-        .fold(0, u64::max).into();
+    let steps_usage = {
+        // TODO(AvivG): Compute memory_holes gas accurately while maintaining backward
+        // compatibility. Memory holes are slightly cheaper than actual steps, but we count
+        // them as such for simplicity.
+        resource_usage.vm_resources.total_n_steps()
+            + resource_usage.vm_resources.n_memory_holes
+            + n_reverted_steps
+    };
+
+    let cairo_primitives_gas_costs = primitive_usage.iter().map(|(primitive, &usage)| {
+        let cost_per_unit =
+            get_cairo_primitive_fee_cost(primitive, &fee_costs.builtins, versioned_constants);
+        calculate_resource_gas_cost(cost_per_unit, usage)
+    });
+    let steps_gas_cost = calculate_resource_gas_cost(fee_costs.n_steps, steps_usage);
+
+    let max_l1_gas_usage =
+        cairo_primitives_gas_costs.chain(std::iter::once(steps_gas_cost)).max().unwrap_or(0);
+
+    let l1_gas = GasAmount(max_l1_gas_usage);
 
     match computation_mode {
-        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_l1_gas_usage),
-        GasVectorComputationMode::All => GasVector::from_l2_gas(
-            versioned_constants.l1_gas_to_sierra_gas_amount_round_up(vm_l1_gas_usage),
-        ),
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(l1_gas),
+        GasVectorComputationMode::All => {
+            GasVector::from_l2_gas(versioned_constants.l1_gas_to_sierra_gas_amount_round_up(l1_gas))
+        }
     }
 }
 

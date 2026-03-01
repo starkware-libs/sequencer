@@ -2,7 +2,9 @@ use toml_test_utils::{DependencyValue, ROOT_TOML};
 
 use crate::constants::REQUIRED_CAIRO_NATIVE_VERSION;
 
+// TODO(Avi): Re-enable once cairo-native is pinned to a stable crates.io version.
 #[test]
+#[ignore]
 fn required_cairo_native_version_test() {
     let cairo_native_version = ROOT_TOML
         .dependencies()

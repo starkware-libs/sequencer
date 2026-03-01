@@ -10,6 +10,10 @@ on:
         type: number
 
   pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -33,24 +37,42 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # https://graphite.com/docs/stacking-and-ci
+  optimize_ci:
+    runs-on: ubuntu-24.04
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: withgraphite/graphite-ci-action@v0.0.9
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
+
   check-system-test-trigger:
     runs-on: namespace-profile-small-ubuntu-24-04-amd64
+    needs: optimize_ci
+    if: needs.optimize_ci.outputs.skip == 'false'
     outputs:
       should_run: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.system_check.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: github.event_name != 'workflow_dispatch'
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
-        id: setup-pypy
+      - uses: actions/setup-python@v6
         if: github.event_name != 'workflow_dispatch'
         with:
           python-version: "pypy3.9"
-          cache: "pip"
 
-      - run: pip install -r scripts/requirements.txt
+      - name: Set up pip dependency caching
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: python
+
+      - name: Install Python Dependencies
+        run: pip install -r scripts/requirements.txt
         if: github.event_name != 'workflow_dispatch'
 
       - name: Check for system-test-triggering changes
@@ -88,7 +110,7 @@ jobs:
           - svc: dummy_eth_to_strk_oracle
             dockerfile: dummy_eth_to_strk_oracle.Dockerfile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build ${{ matrix.svc }} image remotely
         uses: docker/build-push-action@v6.18.0
@@ -105,7 +127,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Create registries.yaml for nscr.io
         run: |
@@ -121,13 +143,6 @@ jobs:
                 password: $(cat $NSC_TOKEN_FILE | jq -r .bearer_token)
           EOF
 
-      - name: Set up Rust cache
-        uses: namespacelabs/nscloud-cache-action@v1
-        continue-on-error: true
-        with:
-          cache: rust
-
-      # Install rust components.
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -159,22 +174,22 @@ jobs:
         run: |
           echo "🔧 Installing local-path-provisioner..."
           kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
-      
+
           echo "⏳ Waiting for local-path-provisioner pod to be ready..."
           kubectl wait --for=condition=Ready pod -l app=local-path-provisioner -n local-path-storage --timeout=60s
-      
+
           echo "✅ local-path-provisioner is ready."
-      
+
           echo "📦 Setting default StorageClass and volumeBindingMode..."
           # First, set as default StorageClass
           kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-          
+
           # Then, patch the volumeBindingMode in spec
           kubectl patch storageclass local-path --type='merge' -p '{"volumeBindingMode":"WaitForFirstConsumer"}'
-      
+
           echo "📦 Verifying StorageClass configuration..."
           kubectl get storageclass local-path -o yaml
-      
+
           echo "🎉 StorageClasses available:"
           kubectl get storageclass
 
@@ -246,7 +261,7 @@ jobs:
           kubectl create namespace ${{ env.namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Anvil to become ready..."
-          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 120s
           echo "🚀 Anvil deployed successfully."
 
           echo "🔍 Extracting Anvil addresses from logs."
@@ -297,7 +312,12 @@ jobs:
         run: kubectl config set-context --current --namespace ${{ env.namespace }}
 
       - name: Run readiness check
-        run: pipenv run python ./scripts/system_tests/readiness_check.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }}
+        run: |
+          pipenv run python ./scripts/system_tests/readiness_check.py \
+            --layout ${{ env.layout }} \
+            --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
+            --verbose
 
       - name: Test sequencer is alive
         env:
@@ -306,17 +326,30 @@ jobs:
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
           pipenv run python ./scripts/system_tests/liveness_check.py \
-            --namespace ${{ env.namespace }} \
             --layout ${{ env.layout }} \
             --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
             --timeout ${{ env.check_timeout_sec }} \
-            --interval ${{ env.check_interval_sec }}
+            --interval ${{ env.check_interval_sec }} \
+            --initial-delay ${{ env.initial_delay_sec }} \
+            --verbose
 
       - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }} --data-dir "./output/data/node_0"
+        run: |
+          pipenv run python ./scripts/system_tests/copy_state_and_restart.py \
+            --layout ${{ env.layout }} \
+            --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
+            --data-dir "./output/data/node_0" \
+            --verbose
 
       - name: Run readiness check
-        run: pipenv run python ./scripts/system_tests/readiness_check.py --layout ${{ env.layout }} --overlay ${{ env.overlay }} --namespace ${{ env.namespace }}
+        run: |
+          pipenv run python ./scripts/system_tests/readiness_check.py \
+            --layout ${{ env.layout }} \
+            --overlay ${{ env.overlay }} \
+            --namespace ${{ env.namespace }} \
+            --verbose
 
       - name: Port-forward Anvil pod to localhost:${{ env.anvil_port }}
         run: |
@@ -329,7 +362,7 @@ jobs:
           kubectl port-forward -n anvil "$ANVIL_POD" ${{ env.anvil_port }}:${{ env.anvil_port }} &
           echo "⏳ Waiting a few seconds to ensure port-forward is established..."
           sleep 2
-      
+
       - name: Print Second ConfigMap on the list
         run: |
           CONFIGMAP_NAME=$(kubectl get configmap -n "${{ env.namespace }}" -o jsonpath='{.items[1].metadata.name}')

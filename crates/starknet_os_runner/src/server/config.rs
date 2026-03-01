@@ -2,40 +2,54 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
+use std::str::FromStr;
 
-use blockifier::blockifier::config::ContractClassManagerConfig;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
 use tracing::info;
+
+use crate::config::ProverConfig;
+use crate::server::cors::normalize_cors_allow_origins;
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+mod config_test;
 
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_PORT: u16 = 3000;
+const DEFAULT_MAX_CONCURRENT_REQUESTS: usize = 2;
+const DEFAULT_MAX_CONNECTIONS: u32 = 10;
 
 /// Configuration for the HTTP proving service.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ServiceConfig {
-    /// Configuration for the contract class manager.
-    pub contract_class_manager_config: ContractClassManagerConfig,
-    /// Chain ID for transaction hash calculation.
-    pub chain_id: ChainId,
-    /// RPC node URL for fetching state.
-    pub rpc_node_url: String,
+    /// Configuration for the prover.
+    #[serde(flatten)]
+    pub prover_config: ProverConfig,
     /// IP address to bind the server to.
     pub ip: IpAddr,
     /// Port to bind the server to.
     pub port: u16,
+    /// Maximum number of concurrent proving requests.
+    pub max_concurrent_requests: usize,
+    /// Maximum number of simultaneous JSON-RPC connections (safety net).
+    pub max_connections: u32,
+    /// List of allowed web origins (domains) that may call this HTTP service from a browser
+    /// (CORS). Examples: `http://localhost:5173`, `https://app.example.com`, or `*` to allow any origin.
+    pub cors_allow_origin: Vec<String>,
 }
 
 impl Default for ServiceConfig {
     fn default() -> Self {
         Self {
-            contract_class_manager_config: ContractClassManagerConfig::default(),
-            chain_id: ChainId::Mainnet,
-            rpc_node_url: String::new(),
+            prover_config: ProverConfig::default(),
             ip: DEFAULT_IP,
             port: DEFAULT_PORT,
+            max_concurrent_requests: DEFAULT_MAX_CONCURRENT_REQUESTS,
+            max_connections: DEFAULT_MAX_CONNECTIONS,
+            cors_allow_origin: Vec::new(),
         }
     }
 }
@@ -64,16 +78,22 @@ impl ServiceConfig {
 
         // Override with CLI arguments if provided.
         if let Some(rpc_url) = args.rpc_url {
-            if rpc_url != config.rpc_node_url {
-                info!("CLI override: rpc_node_url: {} -> {}", config.rpc_node_url, rpc_url);
-                config.rpc_node_url = rpc_url;
+            if rpc_url != config.prover_config.rpc_node_url {
+                info!(
+                    "CLI override: rpc_node_url: {} -> {}",
+                    config.prover_config.rpc_node_url, rpc_url
+                );
+                config.prover_config.rpc_node_url = rpc_url;
             }
         }
         if let Some(chain_id) = args.chain_id {
             let new_chain_id = ChainId::from(chain_id.clone());
-            if new_chain_id != config.chain_id {
-                info!("CLI override: chain_id: {} -> {}", config.chain_id, new_chain_id);
-                config.chain_id = new_chain_id;
+            if new_chain_id != config.prover_config.chain_id {
+                info!(
+                    "CLI override: chain_id: {} -> {}",
+                    config.prover_config.chain_id, new_chain_id
+                );
+                config.prover_config.chain_id = new_chain_id;
             }
         }
         if let Some(port) = args.port {
@@ -91,12 +111,78 @@ impl ServiceConfig {
                 config.ip = new_ip;
             }
         }
+        if let Some(max) = args.max_concurrent_requests {
+            if max != config.max_concurrent_requests {
+                info!(
+                    "CLI override: max_concurrent_requests: {} -> {}",
+                    config.max_concurrent_requests, max
+                );
+                config.max_concurrent_requests = max;
+            }
+        }
+        if let Some(max) = args.max_connections {
+            if max != config.max_connections {
+                info!("CLI override: max_connections: {} -> {}", config.max_connections, max);
+                config.max_connections = max;
+            }
+        }
+
+        if args.no_cors && !args.cors_allow_origin.is_empty() {
+            return Err(ConfigError::InvalidArgument(
+                "--no-cors and --cors-allow-origin are mutually exclusive".to_string(),
+            ));
+        }
+
+        if args.no_cors {
+            if !config.cors_allow_origin.is_empty() {
+                info!(
+                    "CLI override: cors_allow_origin: {:?} -> [] (--no-cors)",
+                    config.cors_allow_origin
+                );
+            }
+            config.cors_allow_origin = Vec::new();
+        } else if !args.cors_allow_origin.is_empty() {
+            if args.cors_allow_origin != config.cors_allow_origin {
+                info!(
+                    "CLI override: cors_allow_origin: {:?} -> {:?}",
+                    config.cors_allow_origin, args.cors_allow_origin
+                );
+            }
+            config.cors_allow_origin = args.cors_allow_origin;
+        }
+
+        if let Some(hex_str) = args.strk_fee_token_address {
+            let strk_fee_token_address = ContractAddress::from_str(&hex_str).map_err(|e| {
+                ConfigError::InvalidArgument(format!("Invalid strk_fee_token_address: {}", e))
+            })?;
+            if Some(strk_fee_token_address) != config.prover_config.strk_fee_token_address {
+                info!(
+                    "CLI override: strk_fee_token_address: {:?} -> {:?}",
+                    config.prover_config.strk_fee_token_address, strk_fee_token_address
+                );
+                config.prover_config.strk_fee_token_address = Some(strk_fee_token_address);
+            }
+        }
 
         // Validate required fields.
-        if config.rpc_node_url.is_empty() {
+        if config.prover_config.rpc_node_url.is_empty() {
             return Err(ConfigError::MissingRequiredField(
                 "rpc_node_url is required (provide via --rpc-url or config file)".to_string(),
             ));
+        }
+        if config.max_concurrent_requests == 0 {
+            return Err(ConfigError::InvalidArgument(
+                "max_concurrent_requests must be at least 1".to_string(),
+            ));
+        }
+        if config.max_connections == 0 {
+            return Err(ConfigError::InvalidArgument(
+                "max_connections must be at least 1".to_string(),
+            ));
+        }
+        config.cors_allow_origin = normalize_cors_allow_origins(config.cors_allow_origin)?;
+        if config.cors_allow_origin == ["*"] {
+            info!("CORS allow-origin configured as wildcard '*'.");
         }
 
         Ok(config)
@@ -127,6 +213,42 @@ pub struct CliArgs {
     /// IP address to bind the server to.
     #[arg(long, value_name = "IP")]
     pub ip: Option<String>,
+
+    /// Maximum number of concurrent proving requests (default: 1).
+    #[arg(long, value_name = "N")]
+    pub max_concurrent_requests: Option<usize>,
+
+    /// Maximum number of simultaneous JSON-RPC connections (default: 10).
+    #[arg(long, value_name = "N")]
+    pub max_connections: Option<u32>,
+
+    /// Override STRK fee token address (hex, e.g. for custom environments that share a chain ID).
+    #[arg(long, value_name = "ADDRESS")]
+    pub strk_fee_token_address: Option<String>,
+
+    /// Disable CORS (clear any origins set in the config file).
+    #[arg(long, conflicts_with = "cors_allow_origin")]
+    pub no_cors: bool,
+
+    /// CORS allow-origin values (`*` or one or more origins such as `http://localhost:5173`).
+    #[arg(
+        long,
+        value_name = "ORIGIN",
+        long_help = "CORS allow-origin values ('*' or one or more origins).\n\n\
+            Repeat the flag for multiple origins:\n  \
+            --cors-allow-origin http://localhost:5173 \\\n  \
+            --cors-allow-origin https://app.example.com\n\n\
+            Rules:\n  \
+            - Omitted or empty: CORS is disabled (no Access-Control-Allow-Origin header).\n  \
+            - '*': allow all origins (wildcard mode).\n  \
+            - If '*' appears alongside other values, wildcard mode is used and the rest are \
+            ignored.\n  \
+            - Only http:// and https:// origins are accepted.\n  \
+            - Paths, query strings, fragments, and userinfo are rejected.\n  \
+            - Origins are normalized and deduplicated.\n\n\
+            Use --no-cors to explicitly disable CORS when a config file sets origins."
+    )]
+    pub cors_allow_origin: Vec<String>,
 }
 
 /// Errors that can occur during configuration.

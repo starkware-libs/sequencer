@@ -10,6 +10,7 @@ use starknet_patricia_storage::storage_trait::{DbKeyPrefix, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::block_committer::input::StarknetStorageValue;
+use crate::db::facts_db::node_serde::FACT_LAYOUT_DB_KEY_SEPARATOR;
 use crate::db::serde_db_utils::{deserialize_felt_no_packing, serialize_felt_no_packing};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use crate::patricia_merkle_tree::types::{fixed_hex_string_no_prefix, CompiledClassHash};
@@ -32,6 +33,8 @@ impl From<CommitterLeafPrefix> for DbKeyPrefix {
 }
 
 impl DBObject for StarknetStorageValue {
+    const DB_KEY_SEPARATOR: &[u8] = FACT_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Serializes the value into a 32-byte vector.
@@ -48,6 +51,8 @@ impl DBObject for StarknetStorageValue {
 }
 
 impl DBObject for CompiledClassHash {
+    const DB_KEY_SEPARATOR: &[u8] = FACT_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Creates a json string describing the leaf and casts it into a byte vector.
@@ -70,6 +75,8 @@ impl DBObject for CompiledClassHash {
 }
 
 impl DBObject for ContractState {
+    const DB_KEY_SEPARATOR: &[u8] = FACT_LAYOUT_DB_KEY_SEPARATOR;
+
     type DeserializeContext = EmptyDeserializationContext;
 
     /// Creates a json string describing the leaf and casts it into a byte vector.

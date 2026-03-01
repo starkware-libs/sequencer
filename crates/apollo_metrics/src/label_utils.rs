@@ -47,26 +47,27 @@ macro_rules! generate_permutations {
     ($const_name:ident, $(($name:expr, $enum:ty)),* $(,)?) => {
         $crate::paste::paste! {
             // The generated constant containing all permutations.
+            // Uses fully-qualified path so callers need not import strum::VariantNames.
             pub const $const_name: [[(&'static str, &'static str); {
                 // Compute the number of enums being used in the permutations.
-                [$($enum::VARIANTS.len()),*].len()
+                [$(< $enum as strum::VariantNames >::VARIANTS.len()),*].len()
             }]; {
                 // Compute the total number of permutations.
                 let mut total_size = 1;
-                $( total_size *= $enum::VARIANTS.len(); )*
+                $( total_size *= < $enum as strum::VariantNames >::VARIANTS.len(); )*
                 total_size
             }] = {
                 /// An array holding references to the variant names of each enum.
                 const ENUM_VARIANTS: [&'static [&'static str]; {
-                    [$($enum::VARIANTS.len()),*].len()
+                    [$(< $enum as strum::VariantNames >::VARIANTS.len()),*].len()
                 }] = [
-                    $($enum::VARIANTS),*
+                    $(< $enum as strum::VariantNames >::VARIANTS),*
                 ];
 
                 /// A constant representing the total number of permutations.
                 const TOTAL_SIZE: usize = {
                     let mut product = 1;
-                    $( product *= $enum::VARIANTS.len(); )*
+                    $( product *= < $enum as strum::VariantNames >::VARIANTS.len(); )*
                     product
                 };
 
@@ -222,9 +223,6 @@ macro_rules! generate_permutation_labels {
         }
     };
 }
-
-// TODO(Tsabary): make the generate_permutation_labels more robust with respect to its required
-// imports.
 
 #[cfg(test)]
 #[path = "label_utils_test.rs"]

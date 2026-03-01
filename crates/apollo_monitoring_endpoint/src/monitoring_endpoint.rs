@@ -9,12 +9,11 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
 use apollo_monitoring_endpoint_config::config::MonitoringEndpointConfig;
 use async_trait::async_trait;
-// TODO(victork): finalise migration to hyper 1.x
-use axum_08::extract::Path;
-use axum_08::http::StatusCode;
-use axum_08::response::{IntoResponse, Response};
-use axum_08::routing::{get, post};
-use axum_08::{Json, Router};
+use axum::extract::Path;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::{serve, Json, Router};
 use metrics_exporter_prometheus::PrometheusHandle;
 use tokio::net::TcpListener;
 use tracing::level_filters::LevelFilter;
@@ -74,7 +73,7 @@ impl MonitoringEndpoint {
         info!("MonitoringEndpoint running using socket: {}", endpoint_addr);
 
         let listener = TcpListener::bind(&endpoint_addr).await?;
-        axum_08::serve(listener, app).await
+        serve(listener, app).await
     }
 
     fn app(&self) -> Router {

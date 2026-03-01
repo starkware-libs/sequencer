@@ -36,8 +36,7 @@ derive_more = { workspace = true, features = ["deref", "from"] }
 indexmap.workspace = true
 rand.workspace = true
 starknet_api.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
+strum = { workspace = true, features = ["derive"] }
 tracing.workspace = true
 
 [dev-dependencies]

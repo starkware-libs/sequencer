@@ -5,10 +5,10 @@ replicas: 1
 config:
   configList: crates/apollo_deployments/resources/services/hybrid/replacer_deployment_sierra_compiler.json
   sequencerConfig:
-    components_sierra_compiler_port: 55007
-    components_sierra_compiler_url: sequencer-sierracompiler-service
-    sierra_compiler_config_audited_libfuncs_only: false
-    sierra_compiler_config_max_bytecode_size: 81920
+    components.sierra_compiler.port: 55007
+    components.sierra_compiler.url: sequencer-sierracompiler-service
+    sierra_compiler_config.audited_libfuncs_only: false
+    sierra_compiler_config.max_bytecode_size: 81920
 
 service:
   enabled: true

@@ -12,6 +12,3 @@ starknet-types-core.workspace = true
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-trybuild.workspace = true

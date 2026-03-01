@@ -6,7 +6,7 @@ use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;
-use tracing::info;
+use tracing::debug;
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -73,13 +73,13 @@ impl FilledForest {
         ));
 
         let classes_trie = classes_trie_task.await?.map_err(ForestError::ClassesTrie)?;
-        info!(
+        debug!(
             "Classes trie update complete; {:?} new facts computed.",
             classes_trie.tree_map.len()
         );
         let (contracts_trie, storage_tries) =
             contracts_trie_task.await?.map_err(ForestError::ContractsTrie)?;
-        info!(
+        debug!(
             "Contracts trie update complete; {:?} new facts computed.",
             contracts_trie.tree_map.len()
         );

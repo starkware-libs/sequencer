@@ -24,6 +24,7 @@ use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
+use crate::execution::call_info::{CairoPrimitiveName, OpcodeName};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsageMap};
@@ -99,7 +100,6 @@ pub struct RawVersionedConstants {
 #[serde(deny_unknown_fields)]
 pub struct RawOsConstants {
     // Allowed virtual OS program hashes for client-side proving.
-    // TODO(Meshi): Add a test that the latest virtual OS program hash is in this list.
     pub allowed_virtual_os_program_hashes: Vec<StarkHash>,
 
     // Selectors.
@@ -377,9 +377,9 @@ impl VersionedConstants {
     pub fn os_resources_for_tx_type(
         &self,
         tx_type: &TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
     ) -> ExecutionResources {
-        self.os_resources.resources_for_tx_type(tx_type, calldata_length)
+        self.os_resources.resources_for_tx_type(tx_type, extended_calldata_length)
     }
 
     pub fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
@@ -394,7 +394,7 @@ impl VersionedConstants {
     ) -> ExecutionResources {
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
-            starknet_resources.archival_data.calldata_length,
+            starknet_resources.archival_data.extended_calldata_length,
             starknet_resources.state.get_onchain_data_segment_length(),
             use_kzg_da,
         )
@@ -494,7 +494,9 @@ pub struct ArchivalDataGasCosts {
     // actual number we wanted is 1/32 gas per byte. Change the value to 1/32 in the next version
     // where rational numbers are supported.
     pub gas_per_code_byte: ResourceCost,
-    // TODO(AvivG): Update value for 0.14.2 once the value is finalized.
+    // Note: This field is only present in archival_data_gas_costs (for V3+ transactions with
+    // proof facts). It's not present in deprecated_l2_resource_gas_costs (for V0-V2 transactions).
+    #[serde(default)]
     pub gas_per_proof: ResourceCost,
 }
 
@@ -534,6 +536,7 @@ impl CairoNativeStackConfig {
 pub struct VersionedConstantsGatewayLimits {
     pub max_calldata_length: usize,
     pub max_contract_bytecode_size: usize,
+    pub max_proof_size: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
@@ -644,11 +647,12 @@ impl OsResources {
     fn get_additional_os_tx_resources(
         &self,
         tx_type: TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
         data_segment_length: usize,
         use_kzg_da: bool,
     ) -> ExecutionResources {
-        let mut os_additional_vm_resources = self.resources_for_tx_type(&tx_type, calldata_length);
+        let mut os_additional_vm_resources =
+            self.resources_for_tx_type(&tx_type, extended_calldata_length);
 
         if use_kzg_da {
             os_additional_vm_resources += &self.os_kzg_da_resources(data_segment_length);
@@ -698,12 +702,12 @@ impl OsResources {
     fn resources_for_tx_type(
         &self,
         tx_type: &TransactionType,
-        calldata_length: usize,
+        extended_calldata_length: usize,
     ) -> ExecutionResources {
         let resources_vector = self.resources_params_for_tx_type(tx_type);
         &resources_vector.constant
             + &CallDataFactor::from(&resources_vector.calldata_factor)
-                .calculate_resources(calldata_length)
+                .calculate_resources(extended_calldata_length)
     }
 
     fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
@@ -923,6 +927,7 @@ pub struct BaseGasCosts {
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
+// TODO(AvivG): Consider renaming to CairoPrimitiveGasCosts to match with its usage in the bouncer.
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.
@@ -937,10 +942,12 @@ pub struct BuiltinGasCosts {
     pub add_mod: u64,
     pub mul_mod: u64,
     pub ecdsa: u64,
+    // Blake opcode gas cost.
+    pub blake: u64,
 }
 
 impl BuiltinGasCosts {
-    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
+    fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
         let gas_cost = match *builtin {
             BuiltinName::range_check => self.range_check,
             BuiltinName::pedersen => self.pedersen,
@@ -959,6 +966,23 @@ impl BuiltinGasCosts {
         };
 
         Ok(gas_cost)
+    }
+
+    fn get_opcode_gas_cost(&self, opcode: &OpcodeName) -> u64 {
+        match opcode {
+            OpcodeName::Blake => self.blake,
+        }
+    }
+
+    /// Returns the gas cost for any Cairo primitive (builtin or opcode).
+    pub fn get_cairo_primitive_gas_cost(
+        &self,
+        primitive: &CairoPrimitiveName,
+    ) -> Result<u64, GasCostsError> {
+        match primitive {
+            CairoPrimitiveName::Builtin(builtin) => self.get_builtin_gas_cost(builtin),
+            CairoPrimitiveName::Opcode(opcode) => Ok(self.get_opcode_gas_cost(opcode)),
+        }
     }
 }
 

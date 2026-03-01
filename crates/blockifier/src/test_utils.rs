@@ -36,6 +36,7 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
+    TEST_OS_CONFIG_HASH,
     TEST_SEQUENCER_ADDRESS,
 };
 use starknet_api::transaction::fields::{
@@ -43,16 +44,16 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
+    ProofFacts,
 };
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 use strum::EnumCount;
-use strum_macros::EnumCount as EnumCountMacro;
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::ExecutionSummary;
+use crate::execution::call_info::{ExecutionSummary, ExtendedExecutionResources, OpcodeCounterMap};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::vm_syscall_utils::{
@@ -76,7 +77,24 @@ pub const ERC20_CONTRACT_PATH: &str = "../blockifier_test_utils/resources/ERC20/
 pub static ALIAS_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
     LazyLock::new(|| ContractAddress(PatriciaKey::try_from(Felt::TWO).unwrap()));
 
-#[derive(Clone, Copy, EnumCountMacro, PartialEq, Eq, Debug)]
+/// Returns the first allowed virtual OS program hash from versioned constants.
+pub fn get_valid_virtual_os_program_hash() -> Felt {
+    let vc = VersionedConstants::latest_constants();
+    *vc.os_constants
+        .allowed_virtual_os_program_hashes
+        .first()
+        .expect("No allowed virtual OS program hashes in versioned constants")
+}
+
+/// Creates valid proof facts for tests that validate the proof facts.
+pub fn create_valid_proof_facts_for_testing() -> ProofFacts {
+    ProofFacts::custom_proof_facts_for_testing(
+        get_valid_virtual_os_program_hash(),
+        *TEST_OS_CONFIG_HASH,
+    )
+}
+
+#[derive(Clone, Copy, EnumCount, PartialEq, Eq, Debug)]
 pub enum CompilerBasedVersion {
     CairoVersion(CairoVersion),
     OldCairo1,
@@ -336,6 +354,7 @@ pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
         StateResources::default(),
         None,
         ExecutionSummary::default(),
+        false,
     );
 
     versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false)
@@ -398,17 +417,21 @@ pub fn gas_vector_from_vm_usage(
     }
 }
 
-pub fn get_vm_resource_usage() -> ExecutionResources {
-    ExecutionResources {
-        n_steps: 10000,
-        n_memory_holes: 0,
-        builtin_instance_counter: BTreeMap::from([
-            (BuiltinName::pedersen, 10),
-            (BuiltinName::range_check, 24),
-            (BuiltinName::ecdsa, 1),
-            (BuiltinName::bitwise, 1),
-            (BuiltinName::poseidon, 1),
-        ]),
+pub fn get_extended_vm_resource_usage() -> ExtendedExecutionResources {
+    ExtendedExecutionResources {
+        vm_resources: ExecutionResources {
+            n_steps: 10000,
+            n_memory_holes: 0,
+            builtin_instance_counter: BTreeMap::from([
+                (BuiltinName::pedersen, 10),
+                (BuiltinName::range_check, 24),
+                (BuiltinName::ecdsa, 1),
+                (BuiltinName::bitwise, 1),
+                (BuiltinName::poseidon, 1),
+            ]),
+        },
+        // TODO(AvivG): test with non-default opcode instance counter.
+        opcode_instance_counter: OpcodeCounterMap::default(),
     }
 }
 

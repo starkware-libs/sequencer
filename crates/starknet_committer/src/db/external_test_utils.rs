@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde_json::json;
 use starknet_api::hash::HashOutput;
+use starknet_patricia::db_layout::NodeLayoutFor;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{
     Leaf,
@@ -18,29 +19,28 @@ use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::tree::{
 use starknet_patricia_storage::db_object::HasStaticPrefix;
 use starknet_patricia_storage::map_storage::MapStorage;
 
-use crate::db::facts_db::db::FactsNodeLayout;
 use crate::db::trie_traversal::create_original_skeleton_tree;
 
-// TODO(Ariel, 14/12/2025): make this generic over the layout.
-pub async fn tree_computation_flow<L, TH>(
+pub async fn tree_computation_flow<L, Layout, TH>(
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig,
-    key_context: &<L as HasStaticPrefix>::KeyContext,
+    key_context: &<Layout::DbLeaf as HasStaticPrefix>::KeyContext,
 ) -> FilledTreeImpl<L>
 where
     TH: TreeHashFunction<L> + 'static,
     L: Leaf + 'static,
+    Layout: NodeLayoutFor<L> + 'static,
 {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut original_skeleton = create_original_skeleton_tree::<L, FactsNodeLayout>(
+    let mut original_skeleton = create_original_skeleton_tree::<Layout::DbLeaf, Layout>(
         storage,
         root_hash,
         sorted_leaf_indices,
         &config,
-        &leaf_modifications,
+        &leaf_modifications.iter().map(|(k, v)| (*k, v.clone().into())).collect(),
         None,
         key_context,
     )
@@ -64,27 +64,36 @@ where
     )
     .expect("Failed to create the updated skeleton tree");
 
-    FilledTreeImpl::<L>::create_with_existing_leaves::<TH>(updated_skeleton, leaf_modifications)
+    FilledTreeImpl::create_with_existing_leaves::<TH>(updated_skeleton, leaf_modifications)
         .await
         .expect("Failed to create the filled tree")
 }
 
-pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
+pub async fn single_tree_flow_test<
+    L: Leaf + 'static,
+    Layout: for<'a> NodeLayoutFor<L> + 'static,
+    TH: TreeHashFunction<L> + 'static,
+>(
     leaf_modifications: LeafModifications<L>,
     storage: &mut MapStorage,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig,
-    key_context: &<L as HasStaticPrefix>::KeyContext,
+    key_context: &<Layout::DbLeaf as HasStaticPrefix>::KeyContext,
 ) -> String {
     // Move from leaf number to actual index.
     let leaf_modifications = leaf_modifications
         .into_iter()
         .map(|(k, v)| (NodeIndex::FIRST_LEAF + k, v))
-        .collect::<LeafModifications<L>>();
+        .collect::<LeafModifications<_>>();
 
-    let filled_tree =
-        tree_computation_flow::<L, TH>(leaf_modifications, storage, root_hash, config, key_context)
-            .await;
+    let filled_tree: FilledTreeImpl<L> = tree_computation_flow::<L, Layout, TH>(
+        leaf_modifications,
+        storage,
+        root_hash,
+        config,
+        key_context,
+    )
+    .await;
 
     let hash_result = filled_tree.get_root_hash();
 
@@ -93,7 +102,7 @@ pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 
     let json_hash = &json!(hash_result.0.to_hex_string());
     result_map.insert("root_hash", json_hash);
     // Serlialize the storage modifications.
-    let json_storage = &json!(filled_tree.serialize(key_context).unwrap());
+    let json_storage = &json!(filled_tree.serialize::<Layout>(key_context).unwrap());
     result_map.insert("storage_changes", json_storage);
     serde_json::to_string(&result_map).expect("serialization failed")
 }

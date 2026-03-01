@@ -16,8 +16,7 @@ use apollo_metrics::{define_infra_metrics, define_metrics, generate_permutation_
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use blockifier::metrics::CacheMetrics;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
-use strum::{EnumVariantNames, VariantNames};
-use strum_macros::IntoStaticStr;
+use strum::{EnumVariantNames, IntoStaticStr};
 
 use crate::communication::GATEWAY_REQUEST_LABELS;
 
@@ -46,10 +45,12 @@ define_metrics!(
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_ADD_TX_FAILURE, "gateway_add_tx_failure", "Counter of add_tx failures by reason", init = 0 , labels = ADD_TX_FAILURE_LABELS},
+        MetricCounter { GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE, "gateway_proof_archive_write_failure", "Counter of proof archive (GCS) write failures", init=0 },
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME, "gateway_validate_stateful_tx_storage_time", "Total time spent in storage operations in secs during stateful tx validation" },
         MetricHistogram { GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS, "gateway_validate_stateful_tx_storage_operations", "Total number of storage operations during stateful tx validation"},
+        MetricHistogram { GATEWAY_PROOF_MANAGER_STORE_LATENCY, "gateway_proof_manager_store_latency", "Latency of storing a proof in the proof manager in secs" },
     },
 );
 
@@ -83,6 +84,7 @@ pub enum GatewayAddTxFailureReason {
     ValidateFailure,
     TransactionLimitExceeded,
     UnauthorizedDeclare,
+    InvalidProof,
 
     // Additional explicit UnknownErrorCode strings
     InvalidContractClass,
@@ -201,6 +203,7 @@ fn map_starknet_error_to_gateway_add_tx_failure_reason(
             KnownStarknetErrorCode::UnauthorizedDeclare => {
                 GatewayAddTxFailureReason::UnauthorizedDeclare
             }
+            KnownStarknetErrorCode::InvalidProof => GatewayAddTxFailureReason::InvalidProof,
         },
         // TODO(Asmaa): Find better way to map unknown error codes to failure reasons
         StarknetErrorCode::UnknownErrorCode(s) => {
@@ -255,8 +258,10 @@ pub(crate) fn register_metrics() {
     GATEWAY_TRANSACTIONS_FAILED.register();
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.register();
     GATEWAY_ADD_TX_FAILURE.register();
+    GATEWAY_PROOF_ARCHIVE_WRITE_FAILURE.register();
     GATEWAY_ADD_TX_LATENCY.register();
     GATEWAY_VALIDATE_TX_LATENCY.register();
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_TIME.register();
     GATEWAY_VALIDATE_STATEFUL_TX_STORAGE_OPERATIONS.register();
+    GATEWAY_PROOF_MANAGER_STORE_LATENCY.register();
 }

@@ -1,10 +1,15 @@
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::future::Future;
 
-use serde::{Serialize, Serializer};
+use apollo_config::dumping::SerializeConfig;
+use apollo_config::{ParamPath, SerializedParam};
+use serde::{Deserialize, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
+use validator::Validate;
+
+use crate::errors::DeserializationError;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct DbKey(pub Vec<u8>);
@@ -30,12 +35,17 @@ pub enum PatriciaStorageError {
     #[cfg(feature = "aerospike_storage")]
     #[error(transparent)]
     AerospikeStorage(#[from] crate::aerospike_storage::AerospikeStorageError),
-    #[cfg(feature = "mdbx_storage")]
+    #[error(transparent)]
+    Deserialization(#[from] DeserializationError),
+    #[cfg(any(test, feature = "mdbx_storage"))]
     #[error(transparent)]
     Mdbx(#[from] libmdbx::Error),
-    #[cfg(feature = "rocksdb_storage")]
+    #[cfg(any(test, feature = "rocksdb_storage"))]
     #[error(transparent)]
     Rocksdb(#[from] rust_rocksdb::Error),
+    #[cfg(any(test, feature = "rocksdb_storage"))]
+    #[error("Failed to fetch RocksDb stats.")]
+    NoStats,
 }
 
 pub type PatriciaStorageResult<T> = Result<T, PatriciaStorageError>;
@@ -75,9 +85,16 @@ impl Display for NoStats {
     }
 }
 
+/// All configuration structs of storage implementations that can be used in apollo must implement
+/// this trait.
+pub trait StorageConfigTrait:
+    Clone + Debug + Serialize + PartialEq + Validate + SerializeConfig + Default + Send + Sync
+{
+}
 /// A trait for the storage. Does not assume concurrent access is possible - see [AsyncStorage].
 pub trait Storage: Send + Sync {
     type Stats: StorageStats;
+    type Config: StorageConfigTrait;
 
     /// Returns value from storage, if it exists.
     /// Uses a mutable &self to allow changes in the internal state of the storage (e.g.,
@@ -142,12 +159,31 @@ pub trait Storage: Send + Sync {
 pub trait AsyncStorage: Storage + Clone + 'static {}
 impl<S: Storage + Clone + 'static> AsyncStorage for S {}
 
+/// Empty config struct for storage implementations that don't require configuration.
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+pub struct EmptyStorageConfig {}
+
+impl Validate for EmptyStorageConfig {
+    fn validate(&self) -> Result<(), validator::ValidationErrors> {
+        Ok(())
+    }
+}
+
+impl SerializeConfig for EmptyStorageConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::new()
+    }
+}
+
+impl StorageConfigTrait for EmptyStorageConfig {}
+
 /// Dummy storage that does nothing.
 #[derive(Clone)]
 pub struct NullStorage;
 
 impl Storage for NullStorage {
     type Stats = NoStats;
+    type Config = EmptyStorageConfig;
 
     async fn get(&mut self, _key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         Ok(None)
@@ -182,7 +218,7 @@ impl Storage for NullStorage {
 pub struct DbKeyPrefix(Cow<'static, [u8]>);
 
 impl DbKeyPrefix {
-    pub fn new(prefix: Cow<'static, [u8]>) -> Self {
+    pub const fn new(prefix: Cow<'static, [u8]>) -> Self {
         Self(prefix)
     }
 
@@ -211,9 +247,9 @@ impl Serialize for DbKey {
     }
 }
 
-/// Returns a `DbKey` from a prefix and a suffix.
-pub fn create_db_key(prefix: DbKeyPrefix, suffix: &[u8]) -> DbKey {
-    DbKey([prefix.to_bytes().to_vec(), b":".to_vec(), suffix.to_vec()].concat())
+/// Returns a `DbKey` from a prefix , separator, and suffix.
+pub fn create_db_key(prefix: DbKeyPrefix, separator: &[u8], suffix: &[u8]) -> DbKey {
+    DbKey([prefix.to_bytes(), separator, suffix].concat().to_vec())
 }
 
 /// Extracts the suffix from a `DbKey`. If the key doesn't match the prefix, None is returned.

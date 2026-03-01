@@ -2,12 +2,12 @@ use std::convert::TryInto;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use apollo_proc_macros::unique_u16;
 use async_trait::async_trait;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use serde::{Deserialize, Serialize};
-use strum::EnumVariantNames;
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{AsRefStr, EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::sync::Semaphore;
 use tokio::task::{self, JoinSet};
@@ -174,7 +174,7 @@ async fn setup_remote_server_test(
     max_concurrency: usize,
 ) -> (Arc<Semaphore>, RemoteTestComponentClient) {
     let (test_sem, local_client) = setup_local_server_test().await;
-    let socket = available_ports_factory(6).get_next_local_host_socket();
+    let socket = available_ports_factory(unique_u16!()).get_next_local_host_socket();
     let config = RemoteClientConfig::default();
 
     let mut remote_server = RemoteComponentServer::new(

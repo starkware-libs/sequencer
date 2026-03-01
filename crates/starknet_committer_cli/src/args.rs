@@ -1,9 +1,9 @@
 use std::fs;
-use std::future::Future;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::sync::LazyLock;
 
+use async_trait::async_trait;
 use clap::{ArgAction, Args, Subcommand};
 use starknet_patricia_storage::aerospike_storage::{
     AerospikeStorage,
@@ -12,9 +12,9 @@ use starknet_patricia_storage::aerospike_storage::{
 };
 use starknet_patricia_storage::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
 use starknet_patricia_storage::mdbx_storage::MdbxStorage;
-use starknet_patricia_storage::rocksdb_storage::{RocksDbOptions, RocksDbStorage};
+use starknet_patricia_storage::rocksdb_storage::{RocksDbStorage, RocksDbStorageConfig};
 use starknet_patricia_storage::short_key_storage::ShortKeySize;
-use starknet_patricia_storage::storage_trait::Storage;
+use starknet_patricia_storage::storage_trait::{EmptyStorageConfig, Storage};
 
 use crate::commands::run_storage_benchmark_wrapper;
 
@@ -39,6 +39,10 @@ pub enum BenchmarkFlavor {
     /// Use SN-MAINNET state diffs for the benchmark.
     #[value(alias("mainnet"))]
     Mainnet,
+    /// Given an initial time offset T (which is now() minus the timestamp of the first block),
+    /// before committing block N, sleep max(time(N) + T - now(), 0).
+    #[value(alias("mainnet-with-sleeps"))]
+    MainnetWithSleeps,
 }
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
@@ -56,8 +60,15 @@ pub enum StorageType {
 pub const DEFAULT_DATA_PATH: &str = "/tmp/committer_storage_benchmark";
 pub static DEFAULT_PORT_STRING: LazyLock<String> = LazyLock::new(|| DEFAULT_PORT.to_string());
 
+#[async_trait]
 pub trait StorageFromArgs: Args {
-    fn storage(&self) -> impl Future<Output = impl Storage> + Send;
+    type Storage: Storage;
+
+    fn storage_config(&self) -> <Self::Storage as Storage>::Config;
+
+    // TODO(Ariel): remove this function once the Storage trait can instantiate a storage from the
+    // associated config.
+    async fn storage(&self) -> Self::Storage;
 }
 
 /// Key size, in bytes, for the short key storage.
@@ -197,9 +208,9 @@ pub struct InterferenceArgs {
 }
 
 #[derive(Debug, Args)]
-pub struct CachedStorageArgs<A: StorageFromArgs> {
+pub struct CachedStorageArgs<InnerStorageArgs: StorageFromArgs> {
     #[clap(flatten)]
-    pub storage_args: A,
+    pub storage_args: InnerStorageArgs,
 
     /// If true, statistics collection from the storage will include internal storage statistics
     /// (and not just cache stats).
@@ -211,23 +222,24 @@ pub struct CachedStorageArgs<A: StorageFromArgs> {
     pub cache_size: usize,
 }
 
-impl<A: StorageFromArgs + Sync> StorageFromArgs for CachedStorageArgs<A> {
-    async fn storage(&self) -> impl Storage {
-        CachedStorage::new(self.storage_args.storage().await, self.cached_storage_config())
-    }
-}
+#[async_trait]
+impl<InnerStorageArgs: StorageFromArgs + Sync> StorageFromArgs
+    for CachedStorageArgs<InnerStorageArgs>
+{
+    type Storage = CachedStorage<InnerStorageArgs::Storage>;
 
-impl<A: StorageFromArgs> CachedStorageArgs<A> {
-    pub fn cache_size(&self) -> NonZeroUsize {
-        NonZeroUsize::new(self.cache_size).unwrap()
-    }
-
-    pub fn cached_storage_config(&self) -> CachedStorageConfig {
+    fn storage_config(&self) -> <Self::Storage as Storage>::Config {
         CachedStorageConfig {
-            cache_size: self.cache_size(),
+            cache_size: NonZeroUsize::new(self.cache_size).unwrap(),
             cache_on_write: true,
             include_inner_stats: self.include_inner_stats,
+            inner_storage_config: self.storage_args.storage_config(),
         }
+    }
+
+    async fn storage(&self) -> Self::Storage {
+        let inner_storage = self.storage_args.storage().await;
+        CachedStorage::new(inner_storage, self.storage_config())
     }
 }
 
@@ -237,8 +249,15 @@ pub struct MemoryArgs {
     pub global_args: GlobalArgs,
 }
 
+#[async_trait]
 impl StorageFromArgs for MemoryArgs {
-    async fn storage(&self) -> impl Storage {
+    type Storage = MapStorage;
+
+    fn storage_config(&self) -> <Self::Storage as Storage>::Config {
+        EmptyStorageConfig::default()
+    }
+
+    async fn storage(&self) -> Self::Storage {
         MapStorage::default()
     }
 }
@@ -253,8 +272,15 @@ pub struct MdbxArgs {
     pub interference_args: InterferenceArgs,
 }
 
+#[async_trait]
 impl StorageFromArgs for MdbxArgs {
-    async fn storage(&self) -> impl Storage {
+    type Storage = MdbxStorage;
+
+    fn storage_config(&self) -> <Self::Storage as Storage>::Config {
+        EmptyStorageConfig::default()
+    }
+
+    async fn storage(&self) -> Self::Storage {
         MdbxStorage::open(Path::new(
             &self.file_storage_args.initialize_storage_path(StorageType::Mdbx),
         ))
@@ -270,27 +296,22 @@ pub struct RocksdbArgs {
     pub file_storage_args: FileStorageArgs,
     #[clap(flatten)]
     pub interference_args: InterferenceArgs,
-
-    /// If true, the storage will use memory-mapped files.
-    /// False by default, as fact storage layout does not benefit from mapping disk pages to
-    /// memory, as there is no locality of related data.
-    #[clap(long, short, action=ArgAction::SetTrue)]
-    pub allow_mmap: bool,
 }
 
+#[async_trait]
 impl StorageFromArgs for RocksdbArgs {
-    async fn storage(&self) -> impl Storage {
-        RocksDbStorage::open(
+    type Storage = RocksDbStorage;
+
+    fn storage_config(&self) -> <Self::Storage as Storage>::Config {
+        RocksDbStorageConfig::default()
+    }
+
+    async fn storage(&self) -> Self::Storage {
+        RocksDbStorage::new(
             Path::new(&self.file_storage_args.initialize_storage_path(StorageType::Rocksdb)),
-            self.rocksdb_options(),
+            self.storage_config(),
         )
         .unwrap()
-    }
-}
-
-impl RocksdbArgs {
-    pub fn rocksdb_options(&self) -> RocksDbOptions {
-        if self.allow_mmap { RocksDbOptions::default() } else { RocksDbOptions::default_no_mmap() }
     }
 }
 
@@ -321,8 +342,15 @@ pub struct AerospikeArgs {
     pub host: Vec<String>,
 }
 
+#[async_trait]
 impl StorageFromArgs for AerospikeArgs {
-    async fn storage(&self) -> impl Storage {
+    type Storage = AerospikeStorage;
+
+    fn storage_config(&self) -> <Self::Storage as Storage>::Config {
+        EmptyStorageConfig::default()
+    }
+
+    async fn storage(&self) -> Self::Storage {
         AerospikeStorage::new(self.aerospike_storage_config()).await.unwrap()
     }
 }

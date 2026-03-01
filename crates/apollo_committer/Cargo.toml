@@ -18,7 +18,7 @@ async-trait.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
 starknet_patricia.workspace = true
-starknet_patricia_storage.workspace = true
+starknet_patricia_storage = { workspace = true, features = ["rocksdb_storage"] }
 tracing.workspace = true
 
 [dev-dependencies]

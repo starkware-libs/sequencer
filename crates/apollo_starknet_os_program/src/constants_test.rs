@@ -9,6 +9,8 @@ use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::versioned_constants_logic::VersionedConstantsTrait;
 use starknet_types_core::felt::Felt;
 
+use crate::CONSTANTS_CAIRO_PATH;
+
 fn selector_to_hex(selector: &EntryPointSelector) -> String {
     format!("{:#?}", selector.0)
 }
@@ -132,6 +134,7 @@ fn generate_constants_file() -> String {
         ADD_MOD_GAS_COST = os_constants.gas_costs.builtins.add_mod,
         MUL_MOD_GAS_COST = os_constants.gas_costs.builtins.mul_mod,
         ECDSA_GAS_COST = os_constants.gas_costs.builtins.ecdsa,
+        BLAKE_GAS_COST = os_constants.gas_costs.builtins.blake,
         // Initial costs and gas limits.
         DEFAULT_INITIAL_GAS_COST = os_constants.default_initial_gas_cost,
         VALIDATE_MAX_SIERRA_GAS = os_constants.validate_max_sierra_gas,
@@ -242,6 +245,7 @@ fn test_os_constants() {
     // Generate `constants.cairo` from the current OS constants.
     let generated = generate_constants_file();
     let path = PathBuf::from(compile_time_cargo_manifest_dir!())
-        .join("src/cairo/starkware/starknet/core/os/constants.cairo");
+        .join("src/cairo")
+        .join(CONSTANTS_CAIRO_PATH);
     expect_file![path].assert_eq(&generated);
 }

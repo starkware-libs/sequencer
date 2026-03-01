@@ -6,9 +6,9 @@ use futures::FutureExt;
 
 use super::StateSyncRunner;
 
-#[test]
+#[tokio::test]
 #[should_panic]
-fn run_panics_when_network_future_returns() {
+async fn run_panics_when_network_future_returns() {
     let network_future = ready(Ok(())).boxed();
     let p2p_sync_client_future = pending().boxed();
     let p2p_sync_server_future = pending().boxed();
@@ -29,9 +29,9 @@ fn run_panics_when_network_future_returns() {
     state_sync_runner.start().now_or_never().unwrap();
 }
 
-#[test]
+#[tokio::test]
 #[should_panic]
-fn run_panics_when_network_future_returns_error() {
+async fn run_panics_when_network_future_returns_error() {
     let network_future =
         ready(Err(NetworkError::DialError(libp2p::swarm::DialError::Aborted))).boxed();
     let p2p_sync_client_future = pending().boxed();
@@ -53,9 +53,9 @@ fn run_panics_when_network_future_returns_error() {
     state_sync_runner.start().now_or_never().unwrap();
 }
 
-#[test]
+#[tokio::test]
 #[should_panic]
-fn run_panics_when_sync_client_future_returns_error() {
+async fn run_panics_when_sync_client_future_returns_error() {
     let network_future = pending().boxed();
     let p2p_sync_client_future = ready(Err(P2pSyncClientError::TooManyResponses)).boxed();
     let p2p_sync_server_future = pending().boxed();

@@ -5,7 +5,6 @@ use starknet_os::io::virtual_os_output::{
     VirtualOsRunnerOutput,
 };
 use starknet_os::runner::run_virtual_os;
-use starknet_types_core::felt::Felt;
 
 use crate::initial_state::FlowTestState;
 use crate::test_manager::TestRunner;
@@ -40,7 +39,7 @@ impl<S: FlowTestState> TestRunner<S> {
 
         let messages_to_l1_hashes = compute_messages_to_l1_hashes(&self.messages_to_l1);
         let expected_virtual_os_output = VirtualOsOutput {
-            version: Felt::from(VIRTUAL_OS_OUTPUT_VERSION),
+            version: VIRTUAL_OS_OUTPUT_VERSION,
             base_block_number: first_block.block_info.block_number,
             base_block_hash: first_block.new_block_hash.0,
             starknet_os_config_hash: config_hash,

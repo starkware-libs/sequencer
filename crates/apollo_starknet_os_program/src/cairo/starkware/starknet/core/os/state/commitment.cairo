@@ -164,7 +164,7 @@ func hash_contract_state_changes{hash_ptr: HashBuiltin*, range_check_ptr}(
     local n_updates = (state_dict_end - state_dict_start) / DictAccess.SIZE;
     // Call patricia_update_using_update_constants() (or the read-optimized variant) instead of
     // patricia_update() in order not to repeat globals_pow2 calculation.
-    tempvar should_use_read_optimized: felt;
+    local should_use_read_optimized: felt;
     %{ ShouldUseReadOptimizedPatriciaUpdate %}
     if (should_use_read_optimized != 0) {
         patricia_update_read_optimized(
@@ -185,7 +185,7 @@ func hash_contract_state_changes{hash_ptr: HashBuiltin*, range_check_ptr}(
             new_root=final_contract_state_root,
         );
     }
-    tempvar range_check_ptr = range_check_ptr;
+    local range_check_ptr = range_check_ptr;
 
     let (prev_value) = get_contract_state_hash(
         class_hash=prev_state.class_hash,

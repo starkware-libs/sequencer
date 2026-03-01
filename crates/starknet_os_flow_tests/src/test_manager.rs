@@ -56,7 +56,9 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
-use starknet_committer::db::facts_db::db::FactsDb;
+use starknet_committer::db::facts_db::FactsDb;
+use starknet_committer::db::forest_trait::StorageInitializer;
+use starknet_os::commitment_infos::create_commitment_infos;
 use starknet_os::hints::hint_implementation::state_diff_encryption::utils::compute_public_keys;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, OsHintsConfig, StarknetOsInput};
 use starknet_os::io::os_output::{MessageToL2, OsStateDiff, StarknetOsRunnerOutput};
@@ -69,6 +71,10 @@ use starknet_os::io::os_output_types::{
 use starknet_os::io::test_utils::validate_kzg_segment;
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_os::test_utils::coverage::expect_hint_coverage;
+use starknet_os_runner::running::committer_utils::{
+    commit_state_diff,
+    state_maps_to_committer_state_diff,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
@@ -81,9 +87,6 @@ use crate::initial_state::{
 };
 use crate::tests::NON_TRIVIAL_RESOURCE_BOUNDS;
 use crate::utils::{
-    commit_state_diff,
-    create_commitment_infos,
-    create_committer_state_diff,
     divide_vec_into_n_parts,
     execute_transactions,
     get_extended_initial_reads,
@@ -97,7 +100,7 @@ use crate::utils::{
 /// must be updated.
 pub(crate) const EXPECTED_STRK_FEE_TOKEN_ADDRESS: Expect = expect![
     r#"
-    0x4a058b5cfd03175ed4bf39ef9613319c8ffaa0380e0ec4c27b5ab76c642ed54
+    0x1d9267d6952e9d1fc449d4b2f91b439b65b48365294b9c0731a9faf578e1b14
 "#
 ];
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
@@ -379,13 +382,13 @@ impl<S: FlowTestState> TestRunner<S> {
             &self.os_hints,
             self.messages_to_l1,
             self.messages_to_l2,
-            create_committer_state_diff(entire_state_diff.clone()),
+            state_maps_to_committer_state_diff(entire_state_diff.clone()),
         );
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, self.os_hints).unwrap();
 
         let decompressed_state_diff =
-            create_committer_state_diff(TestBuilder::<S>::get_decompressed_state_diff(
+            state_maps_to_committer_state_diff(TestBuilder::<S>::get_decompressed_state_diff(
                 &os_output,
                 &final_state,
                 entire_initial_reads.alias_keys(),
@@ -787,7 +790,7 @@ impl<S: FlowTestState> TestBuilder<S> {
             state = final_state.state;
             state.apply_writes(&state_diff, &final_state.class_hash_to_class.borrow());
             // Commit the state diff.
-            let committer_state_diff = create_committer_state_diff(state_diff);
+            let committer_state_diff = state_maps_to_committer_state_diff(state_diff);
             let mut db = FactsDb::new(map_storage);
             let new_state_roots = commit_state_diff(
                 &mut db,
@@ -795,7 +798,8 @@ impl<S: FlowTestState> TestBuilder<S> {
                 previous_state_roots.classes_trie_root_hash,
                 committer_state_diff,
             )
-            .await;
+            .await
+            .expect("Failed to commit state diff.");
             map_storage = db.consume_storage();
 
             // Prepare the OS input.
@@ -805,7 +809,8 @@ impl<S: FlowTestState> TestBuilder<S> {
                 &mut map_storage,
                 &initial_reads.keys(),
             )
-            .await;
+            .await
+            .unwrap();
             let tx_execution_infos = execution_outputs
                 .into_iter()
                 .map(|(execution_info, _)| execution_info.into())

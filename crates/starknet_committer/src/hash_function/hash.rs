@@ -40,6 +40,7 @@ impl HashFunction for PoseidonHashFunction {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct TreeHashFunctionImpl;
 
 /// Implementation of TreeHashFunction for contracts trie.

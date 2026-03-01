@@ -1,3 +1,4 @@
+pub mod metrics;
 pub mod proof_verification;
 pub mod transaction_converter;
 
@@ -9,4 +10,6 @@ pub use transaction_converter::{
     TransactionConverterError,
     TransactionConverterResult,
     TransactionConverterTrait,
+    VerificationHandle,
+    VerifyAndStoreProofTask,
 };

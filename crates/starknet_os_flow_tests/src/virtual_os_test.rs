@@ -1,5 +1,6 @@
 use blockifier::execution::contract_class::TrackedResource;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use blockifier::test_utils::get_valid_virtual_os_program_hash;
 use blockifier::transaction::test_utils::ExpectedExecutionInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -137,6 +138,7 @@ async fn test_cairo0_contract_os_error() {
 #[rstest]
 #[case::deploy("Deploy")]
 #[case::get_block_hash("GetBlockHash")]
+#[case::keccak("Keccak")]
 #[case::replace_class("ReplaceClass")]
 #[case::meta_tx_v0("MetaTxV0")]
 #[tokio::test]
@@ -199,7 +201,8 @@ async fn test_get_execution_info(#[case] virtual_os: bool) {
         // Non-empty proof facts are not supported in virtual OS mode.
         ProofFacts::default()
     } else {
-        ProofFacts::snos_proof_facts_for_testing_with_config_hash(
+        ProofFacts::custom_proof_facts_for_testing(
+            get_valid_virtual_os_program_hash(),
             test_builder.compute_virtual_os_config_hash(),
         )
     };

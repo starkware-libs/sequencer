@@ -3,16 +3,17 @@ use std::io;
 use std::marker::PhantomData;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use axum::{Json, Router};
+use axum::{serve, Json, Router};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::net::TcpListener;
 use tokio::task::AbortHandle;
 use tracing::{error, info};
 use validator::Validate;
@@ -23,31 +24,22 @@ use crate::{StorageError, StorageReader};
 #[path = "storage_reader_server_test.rs"]
 mod storage_reader_server_test;
 
-/// Configuration for the storage reader server.
+/// Static configuration for the storage reader server.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
-pub struct ServerConfig {
+pub struct StorageReaderServerStaticConfig {
     /// The socket address for the server.
     pub ip: IpAddr,
     /// The port for the server.
     pub port: u16,
-    /// Whether the server is enabled.
-    pub enable: bool,
 }
 
-impl ServerConfig {
-    /// Creates a new server configuration.
-    pub fn new(ip: IpAddr, port: u16, enable: bool) -> Self {
-        Self { ip, port, enable }
-    }
-}
-
-impl Default for ServerConfig {
+impl Default for StorageReaderServerStaticConfig {
     fn default() -> Self {
-        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8091, enable: false }
+        Self { ip: Ipv4Addr::UNSPECIFIED.into(), port: 8091 }
     }
 }
 
-impl SerializeConfig for ServerConfig {
+impl SerializeConfig for StorageReaderServerStaticConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
@@ -62,13 +54,69 @@ impl SerializeConfig for ServerConfig {
                 "The port for the storage reader HTTP server.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "enable",
-                &self.enable,
-                "Whether to enable the storage reader HTTP server.",
-                ParamPrivacyInput::Public,
-            ),
         ])
+    }
+}
+
+/// Dynamic configuration for the storage reader server.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Validate)]
+pub struct StorageReaderServerDynamicConfig {
+    /// Whether the server is enabled.
+    pub enable: bool,
+}
+
+impl SerializeConfig for StorageReaderServerDynamicConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "enable",
+            &self.enable,
+            "Whether to enable the storage reader HTTP server.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+/// Configuration for the storage reader server (wrapper of static + dynamic).
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Validate)]
+pub struct ServerConfig {
+    /// Static configuration.
+    #[validate(nested)]
+    pub static_config: StorageReaderServerStaticConfig,
+    /// Dynamic configuration.
+    #[validate(nested)]
+    pub dynamic_config: StorageReaderServerDynamicConfig,
+}
+
+impl ServerConfig {
+    /// Creates a new server configuration.
+    pub fn new(ip: IpAddr, port: u16, enable: bool) -> Self {
+        Self {
+            static_config: StorageReaderServerStaticConfig { ip, port },
+            dynamic_config: StorageReaderServerDynamicConfig { enable },
+        }
+    }
+
+    /// Returns the server IP.
+    pub fn ip(&self) -> IpAddr {
+        self.static_config.ip
+    }
+
+    /// Returns the server port.
+    pub fn port(&self) -> u16 {
+        self.static_config.port
+    }
+
+    /// Returns whether the server is enabled.
+    pub fn is_enabled(&self) -> bool {
+        self.dynamic_config.enable
+    }
+}
+
+impl SerializeConfig for ServerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = prepend_sub_config_name(self.static_config.dump(), "static_config");
+        dump.append(&mut prepend_sub_config_name(self.dynamic_config.dump(), "dynamic_config"));
+        dump
     }
 }
 
@@ -82,8 +130,6 @@ pub trait StorageReaderServerHandler<Request, Response> {
     ) -> Result<Response, StorageError>;
 }
 
-// TODO(Nadin): Remove #[allow(dead_code)] once the fields are used in the implementation.
-#[allow(dead_code)]
 /// A server for handling remote storage reader queries via a configurable request handler.
 pub struct StorageReaderServer<RequestHandler, Request, Response>
 where
@@ -146,17 +192,21 @@ where
         Request: Send + Sync + 'static,
         Response: Send + Sync + 'static,
     {
-        if !self.config.enable {
+        if !self.config.is_enabled() {
             info!("Storage reader server is disabled, not starting");
             return Ok(());
         }
-        let socket = SocketAddr::from((self.config.ip, self.config.port));
+        let socket = SocketAddr::from((self.config.ip(), self.config.port()));
         info!("Starting storage reader server on {}", socket);
         let app = self.app();
         info!("Storage reader server listening on {}", socket);
 
         // Start the server
-        axum::Server::bind(&socket).serve(app.into_make_service()).await.map_err(|e| {
+        let listener = TcpListener::bind(&socket).await.map_err(|e| {
+            error!("Storage reader server error: {}", e);
+            StorageError::IOError(io::Error::other(e))
+        })?;
+        serve(listener, app).await.map_err(|e| {
             error!("Storage reader server error: {}", e);
             StorageError::IOError(io::Error::other(e))
         })
@@ -223,7 +273,7 @@ where
     Request: Serialize + DeserializeOwned + Send + 'static,
     Response: Serialize + DeserializeOwned + Send + 'static,
 {
-    if storage_reader_server_config.enable {
+    if storage_reader_server_config.is_enabled() {
         Some(StorageReaderServer::new(storage_reader, storage_reader_server_config))
     } else {
         None

@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import json
+import shutil
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional, Set
+from typing import ClassVar, Dict, List, Mapping, Optional, Set
 
-from echonet.constants import IGNORED_REVERT_PATTERNS
-from echonet.echonet_types import BLOCK_STORE_TUNING, CONFIG, JsonObject, ResyncTriggerMap
+from echonet.echonet_types import (
+    BLOCK_STORE_TUNING,
+    CONFIG,
+    JsonObject,
+    ResyncTriggerMap,
+    RevertErrorInfo,
+    create_revert_error_info,
+)
 from echonet.l1_logic.l1_client import L1Client
 from echonet.l1_logic.l1_manager import L1Manager
 from echonet.logger import get_logger
@@ -59,8 +67,8 @@ class _TxErrorTracker:
     """Gateway + revert error tracking (live vs cumulative) for reporting."""
 
     gateway_errors_live: Dict[str, JsonObject]  # reset on resync
-    revert_errors_mainnet: Dict[str, str]  # tx_hash -> revert_error
-    revert_errors_echonet: Dict[str, str]  # tx_hash -> revert_error
+    revert_errors_mainnet: Dict[str, RevertErrorInfo]  # tx_hash -> {block_number, error}
+    revert_errors_echonet: Dict[str, RevertErrorInfo]  # tx_hash -> {block_number, error}
 
     @classmethod
     def empty(cls) -> "_TxErrorTracker":
@@ -79,24 +87,21 @@ class _TxErrorTracker:
             "block_number": block_number,
         }
 
-    def record_mainnet_revert_error(self, tx_hash: str, error: str) -> None:
-        self.revert_errors_mainnet[tx_hash] = error
+    def record_mainnet_revert_error(self, tx_hash: str, error: str, block_number: int) -> None:
+        self.revert_errors_mainnet[tx_hash] = create_revert_error_info(
+            block_number=block_number, error=error
+        )
 
-    def record_echonet_revert_error(self, tx_hash: str, error: str) -> None:
-        def matches_ignored_revert_error(revert_error: str) -> bool:
-            return any(pattern in revert_error.lower() for pattern in IGNORED_REVERT_PATTERNS)
-
-        # Ignore expected revert errors. Exclude from both mainnet and echonet reports.
-        if matches_ignored_revert_error(error):
-            if tx_hash in self.revert_errors_mainnet:
-                self.revert_errors_mainnet.pop(tx_hash, None)
-            return
-
+    def record_echonet_revert_error(
+        self, tx_hash: str, error: str, source_block_number: int
+    ) -> None:
         # If we already have a mainnet revert for this tx, treat as matched and drop it.
         if tx_hash in self.revert_errors_mainnet:
             self.revert_errors_mainnet.pop(tx_hash, None)
         else:
-            self.revert_errors_echonet[tx_hash] = error
+            self.revert_errors_echonet[tx_hash] = create_revert_error_info(
+                block_number=source_block_number, error=error
+            )
 
     def clear_live(self) -> None:
         self.gateway_errors_live.clear()
@@ -142,6 +147,10 @@ class _ResyncTracker:
 class _BlockStore:
     """In-memory storage for echo_center outputs and raw feeder blocks."""
 
+    _MAX_BLOCKS_ARCHIVES_BYTES: ClassVar[int] = 30 * 1024 * 1024 * 1024  # 30 GiB
+    _CLEANUP_INTERVAL_SECONDS: ClassVar[int] = 5 * 60  # avoid expensive scans too frequently
+    _last_cleanup_monotonic: ClassVar[float] = 0.0
+
     blocks: Dict[int, JsonObject]  # block_number -> {blob, block, state_update}
     fgw_blocks: Dict[int, JsonObject]  # feeder-gateway block_number -> raw block object
     archive_dir: Optional[Path]  # lazily created on first eviction; reused for the run
@@ -167,6 +176,33 @@ class _BlockStore:
         candidate.mkdir(parents=True, exist_ok=True)
         self.archive_dir = candidate
         return candidate
+
+    @classmethod
+    def _enforce_blocks_archives_size_cap(cls) -> None:
+        """Delete the oldest blocks_* folder(s) in CONFIG.paths.log_dir if total size exceeds cap."""
+        now = time.monotonic()
+        if (now - cls._last_cleanup_monotonic) < cls._CLEANUP_INTERVAL_SECONDS:
+            return
+        cls._last_cleanup_monotonic = now
+
+        root_dir = CONFIG.paths.log_dir
+        archives = sorted(
+            (p for p in root_dir.iterdir() if p.is_dir() and p.name.startswith("blocks_")),
+            key=lambda p: p.name,  # blocks_YYYYmmddTHHMMSSZ sorts oldest->newest
+        )
+
+        sizes = {p: sum(f.stat().st_size for f in p.iterdir() if f.is_file()) for p in archives}
+        total_size = sum(sizes.values())
+
+        for p, size in sizes.items():
+            if total_size <= cls._MAX_BLOCKS_ARCHIVES_BYTES:
+                break
+            shutil.rmtree(p)
+            total_size -= size
+            logger.warning(
+                "Deleted old blocks archive folder to enforce cap "
+                f"({(cls._MAX_BLOCKS_ARCHIVES_BYTES / (1024**3)):.1f} GiB): {p}"
+            )
 
     @staticmethod
     def _evict_old_items(
@@ -228,6 +264,7 @@ class _BlockStore:
                     json.dumps(entry["state_update"], ensure_ascii=False),
                     encoding="utf-8",
                 )
+            _BlockStore._enforce_blocks_archives_size_cap()
         except Exception as e:
             logger.error(f"Failed to snapshot blocks to disk: {e}")
 
@@ -328,6 +365,14 @@ class SharedContext:
         with self._lock:
             self._tx.record_committed(tx_hash, block_number)
 
+    def is_pending_tx(self, tx_hash: str) -> bool:
+        with self._lock:
+            return tx_hash in self._tx.currently_pending
+
+    def get_pending_tx_count(self) -> int:
+        with self._lock:
+            return len(self._tx.currently_pending)
+
     def get_sent_block_number(self, tx_hash: str) -> int:
         with self._lock:
             return self._tx.currently_pending[tx_hash]
@@ -348,18 +393,20 @@ class SharedContext:
         with self._lock:
             self._errors.record_gateway_error(tx_hash, status, response, block_number=block_number)
 
-    def record_mainnet_revert_error(self, tx_hash: str, error: str) -> None:
+    def record_mainnet_revert_error(self, tx_hash: str, error: str, block_number: int) -> None:
         with self._lock:
-            self._errors.record_mainnet_revert_error(tx_hash, error)
+            self._errors.record_mainnet_revert_error(tx_hash, error, block_number=block_number)
 
-    def record_mainnet_revert_errors(self, errors: Mapping[str, str]) -> None:
+    def record_mainnet_revert_errors(self, block_number: int, errors: Mapping[str, str]) -> None:
         with self._lock:
             for tx_hash, err in errors.items():
-                self._errors.record_mainnet_revert_error(tx_hash, err)
+                self._errors.record_mainnet_revert_error(tx_hash, err, block_number=block_number)
 
     def record_echonet_revert_error(self, tx_hash: str, error: str) -> None:
         with self._lock:
-            self._errors.record_echonet_revert_error(tx_hash, error)
+            self._errors.record_echonet_revert_error(
+                tx_hash, error, source_block_number=self._tx.currently_pending[tx_hash]
+            )
 
     # --- Resync causes ---
     def record_resync_cause(self, tx_hash: str, block_number: int, reason: str) -> bool:

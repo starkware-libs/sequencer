@@ -36,7 +36,11 @@ impl SierraToCasmCompiler {
             "--allowed-libfuncs-list-name",
             if self.config.audited_libfuncs_only { "audited" } else { "all" },
         ];
-        let resource_limits = ResourceLimits::new(None, None, self.config.max_memory_usage);
+        let resource_limits = ResourceLimits::new(
+            Some(self.config.max_cpu_time),
+            None,
+            Some(self.config.max_memory_usage),
+        );
 
         let stdout = compile_with_args(
             compiler_binary_path,

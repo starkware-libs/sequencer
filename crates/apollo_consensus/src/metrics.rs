@@ -1,6 +1,5 @@
 use apollo_metrics::{define_metrics, generate_permutation_labels};
-use strum::{EnumVariantNames, VariantNames};
-use strum_macros::{EnumIter, IntoStaticStr};
+use strum::{EnumIter, EnumVariantNames, IntoStaticStr};
 
 define_metrics!(
     Consensus => {
@@ -14,7 +13,7 @@ define_metrics!(
         MetricCounter { CONSENSUS_DECISIONS_REACHED_BY_SYNC, "consensus_decisions_reached_by_sync", "The total number of decisions reached by way of sync", init=0},
         MetricCounter { CONSENSUS_DECISIONS_REACHED_AS_PROPOSER, "consensus_decisions_reached_as_proposer", "The total number of rounds with decision reached where this node is the proposer", init=0},
         MetricCounter { CONSENSUS_PROPOSALS_RECEIVED, "consensus_proposals_received", "The total number of proposals received", init=0},
-        MetricCounter { CONSENSUS_PROPOSALS_VALID_INIT, "consensus_proposals_valid_init", "The total number of proposals received with a valid init", init=0},
+        MetricCounter { CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION, "consensus_proposals_accepted_for_validation", "The number of proposal inits that passed initial checks and were accepted for validation", init=0},
         MetricCounter { CONSENSUS_PROPOSALS_VALIDATED, "consensus_proposals_validated", "The total number of complete, valid proposals received", init=0},
         MetricCounter { CONSENSUS_PROPOSALS_INVALID, "consensus_proposals_invalid", "The total number of proposals that failed validation", init=0},
         MetricCounter { CONSENSUS_BUILD_PROPOSAL_TOTAL, "consensus_build_proposal_total", "The total number of proposals built", init=0},
@@ -59,7 +58,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_DECISIONS_REACHED_BY_SYNC.register();
     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER.register();
     CONSENSUS_PROPOSALS_RECEIVED.register();
-    CONSENSUS_PROPOSALS_VALID_INIT.register();
+    CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION.register();
     CONSENSUS_PROPOSALS_VALIDATED.register();
     CONSENSUS_PROPOSALS_INVALID.register();
     CONSENSUS_BUILD_PROPOSAL_TOTAL.register();

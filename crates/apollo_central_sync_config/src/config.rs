@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
     deserialize_optional_sensitive_map,
     deserialize_seconds_to_duration,
     serialize_optional_map,
@@ -103,8 +104,8 @@ impl SerializeConfig for CentralSourceConfig {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub block_propagation_sleep_duration: Duration,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub latest_block_poll_interval_millis: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub base_layer_propagation_sleep_duration: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -113,16 +114,17 @@ pub struct SyncConfig {
     pub state_updates_max_stream_size: u32,
     pub verify_blocks: bool,
     pub collect_pending_data: bool,
-    pub store_sierras_and_casms: bool,
+    pub store_sierras_and_casms_block_threshold: u64,
 }
 
 impl SerializeConfig for SyncConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "block_propagation_sleep_duration",
-                &self.block_propagation_sleep_duration.as_secs(),
-                "Time in seconds before checking for a new block after the node is synchronized.",
+                "latest_block_poll_interval_millis",
+                &self.latest_block_poll_interval_millis.as_millis(),
+                "Time in milliseconds between polling for the latest block while node is \
+                 synchronized.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -163,13 +165,14 @@ impl SerializeConfig for SyncConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "store_sierras_and_casms",
-                &self.store_sierras_and_casms,
-                "Whether to persist **Sierra** and **CASM** artifacts to the local storage. This \
-                 is needed for backward compatibility with the native blockifier. Behavior: \
-                 \n`true`: Persist Sierra and CASM for all classes.\n`false`: Persist only for \
-                 **legacy** classes (compiled with a version < \
-                 `STARKNET_VERSION_TO_COMPILE_FROM`). Newer classes are not persisted.",
+                "store_sierras_and_casms_block_threshold",
+                &self.store_sierras_and_casms_block_threshold,
+                "Block-number threshold for persisting **Sierra** and **CASM** to local storage \
+                 (for backward compatibility with the native blockifier). For blocks with \
+                 block_number < this value, Sierra and CASM are stored for all classes; for \
+                 block_number >= this value they are stored only for **legacy** classes (compiled \
+                 with a version < `STARKNET_VERSION_TO_COMPILE_FROM`). Use 0 to store for no \
+                 blocks, or a large value (e.g. u64::MAX) to store for all.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -179,14 +182,14 @@ impl SerializeConfig for SyncConfig {
 impl Default for SyncConfig {
     fn default() -> Self {
         SyncConfig {
-            block_propagation_sleep_duration: Duration::from_secs(2),
+            latest_block_poll_interval_millis: Duration::from_millis(500),
             base_layer_propagation_sleep_duration: Duration::from_secs(10),
             recoverable_error_sleep_duration: Duration::from_secs(3),
             blocks_max_stream_size: 1000,
             state_updates_max_stream_size: 1000,
             verify_blocks: true,
             collect_pending_data: false,
-            store_sierras_and_casms: false,
+            store_sierras_and_casms_block_threshold: 0,
         }
     }
 }

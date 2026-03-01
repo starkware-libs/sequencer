@@ -7,7 +7,8 @@ use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier_versioned_constants::{BuiltinGasCosts, VersionedConstants};
-use crate::bouncer::vm_resources_to_gas;
+use crate::bouncer::extended_execution_resources_to_gas;
+use crate::execution::call_info::{ExtendedExecutionResources, OpcodeCounterMap, OpcodeName};
 use crate::execution::contract_class::{
     EntryPointV1,
     EntryPointsByType,
@@ -15,7 +16,6 @@ use crate::execution::contract_class::{
     NestedFeltCounts,
 };
 use crate::execution::execution_utils::poseidon_hash_many_cost;
-use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "casm_hash_estimation_test.rs"]
@@ -67,23 +67,26 @@ impl EstimatedExecutionResources {
         }
     }
 
+    pub fn to_extended_execution_resources(&self) -> ExtendedExecutionResources {
+        let mut opcode_instance_counter = OpcodeCounterMap::default();
+        if let Self::V2Hash { blake_count, .. } = self {
+            if *blake_count > 0 {
+                opcode_instance_counter.insert(OpcodeName::Blake, *blake_count);
+            }
+        }
+        ExtendedExecutionResources { vm_resources: self.resources(), opcode_instance_counter }
+    }
+
     pub fn to_gas(
         &self,
         builtin_gas_cost: &BuiltinGasCosts,
-        blake_opcode_gas_cost: usize,
         versioned_constants: &VersionedConstants,
     ) -> GasAmount {
-        let resources_gas =
-            vm_resources_to_gas(self.resources_ref(), builtin_gas_cost, versioned_constants);
-
-        let blake_gas = self
-            .blake_count()
-            .checked_mul(blake_opcode_gas_cost)
-            .map(u64_from_usize)
-            .map(GasAmount)
-            .expect("Overflow computing Blake opcode gas.");
-
-        resources_gas.checked_add_panic_on_overflow(blake_gas)
+        extended_execution_resources_to_gas(
+            &self.to_extended_execution_resources(),
+            builtin_gas_cost,
+            versioned_constants,
+        )
     }
 }
 

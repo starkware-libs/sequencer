@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use rstest::rstest;
 
 use crate::map_storage::{CachedStorage, CachedStorageConfig, MapStorage};
-use crate::storage_trait::{DbKey, DbValue, Storage};
+use crate::storage_trait::{DbKey, DbValue, EmptyStorageConfig, Storage};
 
 #[rstest]
 #[case::map_storage(MapStorage::default())]
@@ -13,6 +13,7 @@ use crate::storage_trait::{DbKey, DbValue, Storage};
         cache_size: NonZeroUsize::new(2).unwrap(),
         cache_on_write: true,
         include_inner_stats: false,
+        inner_storage_config: EmptyStorageConfig::default(),
     })
 )]
 #[tokio::test]

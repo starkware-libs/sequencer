@@ -37,7 +37,7 @@ use crate::state_reader::rpc_state_reader::{
     RetryConfig,
     RpcStateReader,
 };
-use crate::utils::RPC_NODE_URL;
+use crate::utils::{get_chain_info, RPC_NODE_URL};
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
@@ -102,7 +102,7 @@ pub fn test_state_reader() -> RpcStateReader {
         config: get_test_rpc_config(),
         block_id: get_test_block_id(),
         retry_config: RetryConfig::default(),
-        chain_id: ChainId::Mainnet,
+        chain_info: get_chain_info(&ChainId::Mainnet, None),
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
     }
 }
@@ -130,7 +130,7 @@ pub fn test_state_readers_last_and_current_block(
     ConsecutiveRpcStateReaders::new(
         last_constructed_block,
         None,
-        ChainId::Mainnet,
+        get_chain_info(&ChainId::Mainnet, None),
         false,
         contract_class_manager,
     )

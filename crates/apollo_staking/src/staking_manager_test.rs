@@ -1,46 +1,36 @@
 use std::collections::HashSet;
-use std::convert::TryFrom;
 use std::sync::Arc;
 
+use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
+use apollo_batcher_types::errors::BatcherError;
+use apollo_config_manager_types::communication::MockConfigManagerClient;
+use apollo_staking_config::config::{
+    CommitteeConfig,
+    ConfiguredStaker,
+    StakingManagerConfig,
+    StakingManagerDynamicConfig,
+    StakingManagerStaticConfig,
+};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use assert_matches::assert_matches;
-use blockifier::context::BlockContext;
-use blockifier::execution::call_info::Retdata;
-use blockifier::state::cached_state::CachedState;
-use blockifier::state::state_api::StateReader;
-use blockifier::test_utils::dict_state_reader::DictStateReader;
-use blockifier::test_utils::initial_test_state::test_state;
-use blockifier::test_utils::BALANCE;
-use blockifier::transaction::test_utils::{
-    default_all_resource_bounds,
-    invoke_tx_with_default_flags,
-};
-use blockifier::transaction::transactions::ExecutableTransaction;
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_calldata;
-use blockifier_test_utils::contracts::FeatureContract;
+use mockall::predicate::eq;
+use mockall::TimesRange;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
-use starknet_api::core::{ContractAddress, PatriciaKey, CONTRACT_ADDRESS_DOMAIN_SIZE};
+use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::staking::StakingWeight;
-use starknet_api::{contract_address, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::committee_provider::{
-    Committee,
+    CommitteeError,
     CommitteeProvider,
     CommitteeProviderError,
-    ExecutionContext,
     Staker,
+    StakerSet,
 };
-use crate::contract_types::{ContractStaker, RetdataDeserializationError, TryFromIterator};
-use crate::staking_manager::{Epoch, StakingManager, StakingManagerConfig};
-use crate::utils::MockBlockRandomGenerator;
-
-const STAKING_CONTRACT: FeatureContract =
-    FeatureContract::MockStakingContract(RunnableCairo1::Casm);
-const ACCOUNT_CONTRACT: FeatureContract =
-    FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+use crate::staking_contract::MockStakingContract;
+use crate::staking_manager::{Epoch, StakingManager, MIN_EPOCH_LENGTH};
+use crate::utils::{MockBlockRandomGenerator, MockBlockRandomGeneratorFactory};
 
 const STAKER_1: Staker = Staker {
     address: ContractAddress(PatriciaKey::from_hex_unchecked("0x1")),
@@ -63,66 +53,97 @@ const STAKER_4: Staker = Staker {
     public_key: Felt::from_raw([0, 0, 0, 4]),
 };
 
+const EPOCH_0: Epoch = Epoch { epoch_id: 0, start_block: BlockNumber(0), epoch_length: 100 };
 const EPOCH_1: Epoch = Epoch { epoch_id: 1, start_block: BlockNumber(1), epoch_length: 100 };
 const EPOCH_2: Epoch = Epoch { epoch_id: 2, start_block: BlockNumber(101), epoch_length: 100 };
+const EPOCH_3: Epoch = Epoch { epoch_id: 3, start_block: BlockNumber(201), epoch_length: 100 };
 
-type Context = Arc<BlockContext>;
-type State = CachedState<DictStateReader>;
+const E1_H1: BlockNumber = EPOCH_1.start_block;
+const E1_H2: BlockNumber = BlockNumber(EPOCH_1.start_block.0 + EPOCH_1.epoch_length - 1);
+const E2_H1: BlockNumber = EPOCH_2.start_block;
+const E2_H2: BlockNumber = BlockNumber(EPOCH_2.start_block.0 + MIN_EPOCH_LENGTH + 1);
+const E3_H1: BlockNumber = EPOCH_3.start_block;
 
-#[fixture]
-fn block_context() -> Context {
-    Arc::new(BlockContext::create_for_testing())
+fn test_config_with_committee_size(committee_size: usize) -> StakingManagerDynamicConfig {
+    let mut config = StakingManagerDynamicConfig::default();
+    config.default_committee.committee_size = committee_size;
+
+    let stakers = [STAKER_1, STAKER_2, STAKER_3];
+    let configured_stakers: Vec<ConfiguredStaker> =
+        stakers.iter().map(|s| create_configured_staker(s, true)).collect();
+
+    config.default_committee.stakers = configured_stakers;
+
+    config
 }
 
 #[fixture]
-fn state(block_context: Context) -> State {
-    // Prepare the storage with a mock staking contract, and a dummy account as a staker.
-    let state = test_state(
-        block_context.chain_info(),
-        BALANCE,
-        &[(STAKING_CONTRACT, 1), (ACCOUNT_CONTRACT, 1)],
-    );
-
-    state
+fn contract() -> MockStakingContract {
+    MockStakingContract::new()
 }
 
 #[fixture]
 fn default_config() -> StakingManagerConfig {
     StakingManagerConfig {
-        staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
-        max_cached_epochs: 10,
-        committee_size: 10,
-        proposer_prediction_window_in_heights: 10,
+        dynamic_config: test_config_with_committee_size(10),
+        static_config: StakingManagerStaticConfig {
+            max_cached_epochs: 10,
+            use_only_actual_proposer_selection: false,
+        },
     }
 }
 
-fn execute_call(
-    state: &mut State,
-    block_context: &Context,
-    function_name: &str,
-    calldata: &[Felt],
+fn set_stakers(contract: &mut MockStakingContract, epoch: Epoch, stakers: StakerSet) {
+    contract
+        .expect_get_stakers_with_config()
+        .withf(move |epoch_id, _config| *epoch_id == epoch.epoch_id)
+        .returning(move |_, _| Ok(stakers.clone()));
+}
+
+fn set_current_epoch(contract: &mut MockStakingContract, epoch: Epoch) {
+    contract.expect_get_current_epoch().times(1).returning(move || Ok(epoch.clone()));
+}
+
+fn set_current_epoch_with_times(
+    contract: &mut MockStakingContract,
+    epoch: Epoch,
+    times: impl Into<TimesRange>,
 ) {
-    let account_address = ACCOUNT_CONTRACT.get_instance_address(0);
-    let invoke_args = invoke_tx_args! {
-        sender_address: account_address,
-        calldata: create_calldata(STAKING_CONTRACT.get_instance_address(0), function_name, calldata),
-        resource_bounds: default_all_resource_bounds(),
-        nonce: state.get_nonce_at(account_address).unwrap(),
-    };
-    let account_tx = invoke_tx_with_default_flags(invoke_args);
-    let result = account_tx.execute(state, block_context).unwrap();
-    assert!(!result.execute_call_info.unwrap().execution.failed);
+    contract.expect_get_current_epoch().times(times).returning(move || Ok(epoch.clone()));
 }
 
-fn set_stakers(state: &mut State, block_context: &Context, stakers: &[ContractStaker]) {
-    let mut raw_felts: Vec<Felt> = stakers.iter().flat_map(<Vec<Felt>>::from).collect();
-    raw_felts.insert(0, Felt::from(stakers.len()));
-
-    execute_call(state, block_context, "set_stakers", &raw_felts);
+fn set_previous_epoch(contract: &mut MockStakingContract, epoch: Option<Epoch>) {
+    contract.expect_get_previous_epoch().times(1..).returning(move || Ok(epoch.clone()));
 }
 
-fn set_current_epoch(state: &mut State, block_context: &Context, epoch: Epoch) {
-    execute_call(state, block_context, "set_current_epoch", &Vec::<Felt>::from(&epoch));
+// Helper function to create a MockStateSyncClient that returns a block hash for any block.
+fn create_state_sync_client_with_block_hash() -> MockStateSyncClient {
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+    state_sync_client
+}
+
+// Helper function to create a MockBatcherClient that returns a block hash for any block.
+fn create_batcher_client_with_block_hash() -> MockBatcherClient {
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
+        .expect_get_block_hash()
+        .returning(|_| Ok(starknet_api::block::BlockHash(Felt::ZERO)));
+    batcher_client
+}
+
+// Returns a factory whose create_seeded always produces a generator that returns `value`.
+// Suitable for most tests; does not constrain the number of generate calls.
+fn make_generator_factory(value: u128) -> MockBlockRandomGeneratorFactory {
+    let mut factory = MockBlockRandomGeneratorFactory::new();
+    factory.expect_create_seeded().returning(move |_| {
+        let mut mock = MockBlockRandomGenerator::new();
+        mock.expect_generate().returning(move |_, _, _| value);
+        Box::new(mock)
+    });
+    factory
 }
 
 #[rstest]
@@ -132,144 +153,170 @@ fn set_current_epoch(state: &mut State, block_context: &Context, epoch: Epoch) {
 #[case::multiple_stakers_equal_to_committee_size(vec![STAKER_1, STAKER_2, STAKER_3], vec![STAKER_3, STAKER_2, STAKER_1])]
 #[case::multiple_stakers_greater_than_committee_size(vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4], vec![STAKER_4, STAKER_3, STAKER_2])]
 #[case::multiple_stakers_equal_weights(vec![STAKER_1, STAKER_2, STAKER_3, Staker { address: ContractAddress(PatriciaKey::from_hex_unchecked("0x0")), .. STAKER_1 }], vec![STAKER_3, STAKER_2, STAKER_1])]
-fn get_committee_success(
+#[tokio::test]
+async fn get_committee_success(
     default_config: StakingManagerConfig,
-    mut state: State,
-    block_context: Context,
-    #[case] stakers: Vec<Staker>,
-    #[case] expected_committee: Committee,
+    mut contract: MockStakingContract,
+    #[case] stakers: StakerSet,
+    #[case] expected_committee: StakerSet,
 ) {
-    set_current_epoch(&mut state, &block_context, EPOCH_1);
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, stakers);
 
-    let contract_stakers: Vec<ContractStaker> = stakers.iter().map(&ContractStaker::from).collect();
-    set_stakers(&mut state, &block_context, &contract_stakers);
-
-    let mut committee_manager = StakingManager::new(
-        Box::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { committee_size: 3, ..default_config },
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        StakingManagerConfig {
+            dynamic_config: test_config_with_committee_size(3),
+            ..default_config
+        },
+        None,
     );
 
-    let context = ExecutionContext {
-        state_reader: state.clone(),
-        block_context: block_context.clone(),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-    };
-    let committee = committee_manager.get_committee(BlockNumber(1), context).unwrap();
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
 
-    assert_eq!(*committee, expected_committee);
+    assert_eq!(*committee.members(), expected_committee);
 }
 
 #[rstest]
-fn get_committee_cache(
+#[tokio::test]
+async fn get_committee_cache(
     default_config: StakingManagerConfig,
-    mut state: State,
-    block_context: Context,
+    mut contract: MockStakingContract,
 ) {
-    set_current_epoch(&mut state, &block_context, EPOCH_1);
+    // Set contract expectations for the first query (Case 1).
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1]);
+    set_stakers(&mut contract, EPOCH_2, vec![STAKER_2]);
 
-    let mut committee_manager = StakingManager::new(
-        Box::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { max_cached_epochs: 1, ..default_config },
+    let mut config = default_config;
+    config.static_config.max_cached_epochs = 1;
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        config,
+        None,
     );
 
     // Case 1: Get committee for epoch 1. Cache miss – STAKER_1 fetched from contract.
-    set_stakers(&mut state, &block_context, &[ContractStaker::from(&STAKER_1)]);
-    let context = ExecutionContext {
-        state_reader: state.clone(),
-        block_context: block_context.clone(),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-    };
-    let committee = committee_manager.get_committee(BlockNumber(1), context).unwrap();
-    assert_eq!(*committee, vec![STAKER_1]);
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    assert_eq!(*committee.members(), vec![STAKER_1]);
 
-    // Case 2: Query epoch 1 again. Cache hit – STAKER_1 returned from cache despite contract
-    // change.
-    set_current_epoch(&mut state, &block_context, EPOCH_2);
-    set_stakers(&mut state, &block_context, &[ContractStaker::from(&STAKER_2)]);
-    let context = ExecutionContext {
-        state_reader: state.clone(),
-        block_context: block_context.clone(),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-    };
-    let committee = committee_manager.get_committee(BlockNumber(1), context.clone()).unwrap();
-    assert_eq!(*committee, vec![STAKER_1]);
+    // Case 2: Query epoch 1 again. Cache hit – STAKER_1 returned from cache.
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    assert_eq!(*committee.members(), vec![STAKER_1]);
 
     // Case 3: Get committee for epoch 2. Cache miss – new state is fetched from the contract.
-    let committee = committee_manager.get_committee(BlockNumber(101), context.clone()).unwrap();
-    assert_eq!(*committee, vec![STAKER_2]);
-
-    // Case 4: Query epoch 1 again - Invalid Height error. Since the manager advanced to epoch 2 in
-    // the previous step, epoch 1 is now considered too old.
-    let err = committee_manager.get_committee(BlockNumber(1), context).unwrap_err();
-    assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
+    let committee = committee_manager.get_committee(E2_H1).await.unwrap();
+    assert_eq!(*committee.members(), vec![STAKER_2]);
 }
 
 #[rstest]
-fn get_committee_filters_out_stakers_without_public_key(
+#[tokio::test]
+async fn get_committee_for_next_epoch(
     default_config: StakingManagerConfig,
-    mut state: State,
-    block_context: Context,
+    mut contract: MockStakingContract,
 ) {
-    set_current_epoch(&mut state, &block_context, EPOCH_1);
+    set_current_epoch_with_times(&mut contract, EPOCH_1, 1..);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
 
-    // Prepare the stakers that will be set in the contract. Set the public key of the first staker
-    // to None.
-    let mut contract_stakers: Vec<ContractStaker> =
-        [STAKER_1, STAKER_2, STAKER_3].iter().map(&ContractStaker::from).collect();
-    contract_stakers[0].public_key = None;
+    // Set the stakers for the next epoch.
+    set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2]);
 
-    set_stakers(&mut state, &block_context, &contract_stakers);
-
-    let mut committee_manager = StakingManager::new(
-        Box::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { committee_size: 3, ..default_config },
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        StakingManagerConfig {
+            dynamic_config: test_config_with_committee_size(3),
+            ..default_config
+        },
+        None,
     );
 
-    let context = ExecutionContext {
-        state_reader: state.clone(),
-        block_context: block_context.clone(),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-    };
-    let committee = (*committee_manager.get_committee(BlockNumber(1), context).unwrap()).clone();
-
-    // STAKER_1 should be filtered out. Comparing HashSets since the order of the stakers is not
-    // important.
-    assert_eq!(committee.into_iter().collect::<HashSet<_>>(), HashSet::from([STAKER_2, STAKER_3]));
-}
-
-#[rstest]
-fn get_committee_for_next_epoch(
-    default_config: StakingManagerConfig,
-    mut state: State,
-    block_context: Context,
-) {
-    set_current_epoch(&mut state, &block_context, EPOCH_1);
-
-    let contract_stakers: Vec<ContractStaker> =
-        [STAKER_1, STAKER_2].iter().map(&ContractStaker::from).collect();
-    set_stakers(&mut state, &block_context, &contract_stakers);
-
-    let mut committee_manager = StakingManager::new(
-        Box::new(MockBlockRandomGenerator::new()),
-        StakingManagerConfig { committee_size: 3, ..default_config },
-    );
-
-    let context = ExecutionContext {
-        state_reader: state.clone(),
-        block_context: block_context.clone(),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-    };
-
-    // 1. Valid Query: Height 101 falls within the next epoch's min bounds.
-    let committee =
-        (*committee_manager.get_committee(BlockNumber(101), context.clone()).unwrap()).clone();
+    // 1. Valid Query: E2_H1 falls within the next epoch's min bounds.
+    let committee = committee_manager.get_committee(E2_H1).await.unwrap().members().clone();
     assert_eq!(committee.into_iter().collect::<HashSet<_>>(), HashSet::from([STAKER_1, STAKER_2]));
 
-    // 2. Invalid Query: Height 150 exceeds the min bounds of the next epoch.
+    // 2. Invalid Query: E2_H2 exceeds the min bounds of the next epoch.
     // Since the next epoch's length is not known at this point, we cannot know if this height
     // belongs to Epoch 2 or a future Epoch > 2.
-    let err = committee_manager.get_committee(BlockNumber(150), context).unwrap_err();
+    let err = committee_manager.get_committee(E2_H2).await.err().unwrap();
     assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_committee_applies_dynamic_config_changes(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch_with_times(&mut contract, EPOCH_1, 1..);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+    set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    let mut config_manager_client = MockConfigManagerClient::new();
+    config_manager_client
+        .expect_get_staking_manager_dynamic_config()
+        .times(1)
+        .return_once(|| Ok(test_config_with_committee_size(2)));
+    config_manager_client
+        .expect_get_staking_manager_dynamic_config()
+        .times(1)
+        .return_once(|| Ok(test_config_with_committee_size(1)));
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        default_config,
+        Some(Arc::new(config_manager_client)),
+    );
+
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    assert_eq!(committee.members().len(), 2);
+
+    let committee = committee_manager.get_committee(E2_H1).await.unwrap();
+    assert_eq!(committee.members().len(), 1);
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_committee_block_hash_fallback_to_state_sync(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1]);
+
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
+        .expect_get_block_hash()
+        .times(1)
+        .returning(|_| Err(BatcherClientError::BatcherError(BatcherError::InternalError)));
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client.expect_get_block_hash().times(1).returning(|_| Ok(BlockHash(Felt::ZERO)));
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(batcher_client),
+        Arc::new(state_sync_client),
+        Arc::new(make_generator_factory(0)),
+        default_config,
+        None,
+    );
+
+    assert!(committee_manager.get_committee(E1_H1).await.is_ok());
 }
 
 #[rstest]
@@ -284,12 +331,12 @@ fn get_committee_for_next_epoch(
 #[tokio::test]
 async fn get_proposer_success(
     default_config: StakingManagerConfig,
-    mut state: State,
-    block_context: Context,
+    mut contract: MockStakingContract,
     #[case] random_value: u128,
     #[case] expected_proposer: Staker,
 ) {
-    set_current_epoch(&mut state, &block_context, EPOCH_1);
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
 
     // The staker weights are 1000, 2000, 3000, and 4000, totaling 10,000.
     // Based on the cumulative weight ranges:
@@ -298,47 +345,137 @@ async fn get_proposer_success(
     // - [7000–8999] → STAKER_2
     // - [9000–9999] → STAKER_1
 
-    let contract_stakers: Vec<ContractStaker> =
-        [STAKER_1, STAKER_2, STAKER_3, STAKER_4].iter().map(&ContractStaker::from).collect();
-    set_stakers(&mut state, &block_context, &contract_stakers);
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().returning(move |_, _, _, _| random_value);
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
+        .expect_get_block_hash()
+        .with(eq(EPOCH_0.start_block))
+        .returning(|_| Ok(BlockHash(Felt::ZERO)));
 
-    let mut committee_manager = StakingManager::new(Box::new(random_generator), default_config);
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(batcher_client),
+        Arc::new(MockStateSyncClient::new()),
+        Arc::new(make_generator_factory(random_value)),
+        default_config,
+        None,
+    );
 
-    let context = ExecutionContext {
-        state_reader: state.clone(),
-        block_context: block_context.clone(),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-    };
-    let proposer = committee_manager.get_proposer(BlockNumber(1), 0, context).await.unwrap();
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let proposer = committee.get_proposer(E1_H1, 0).unwrap();
 
     assert_eq!(proposer, expected_proposer.address);
 }
 
 #[rstest]
 #[tokio::test]
-async fn get_proposer_empty_committee(
+async fn get_proposer_for_next_epoch(
     default_config: StakingManagerConfig,
-    state: State,
-    block_context: Context,
+    mut contract: MockStakingContract,
 ) {
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().returning(move |_, _, _, _| 0);
+    set_current_epoch_with_times(&mut contract, EPOCH_1, 2);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
-    let mut committee_manager = StakingManager::new(
-        Box::new(random_generator),
-        StakingManagerConfig { committee_size: 0, ..default_config },
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
+        .expect_get_block_hash()
+        .with(eq(EPOCH_1.start_block))
+        .returning(|_| Ok(BlockHash(Felt::ZERO)));
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(batcher_client),
+        Arc::new(MockStateSyncClient::new()),
+        Arc::new(make_generator_factory(0)),
+        default_config,
+        None,
     );
 
-    let context = ExecutionContext {
-        state_reader: state.clone(),
-        block_context: block_context.clone(),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-    };
-    let err = committee_manager.get_proposer(BlockNumber(1), 0, context).await.unwrap_err();
-    assert_matches!(err, CommitteeProviderError::EmptyCommittee);
+    // Query a height in Epoch 2, that is within the min bounds of the next epoch.
+    let committee = committee_manager.get_committee(E2_H1).await.unwrap();
+    let proposer = committee.get_proposer(E2_H1, 0).unwrap();
+    assert_eq!(proposer, STAKER_4.address);
+
+    // Query a height in Epoch 2, that is outside the min bounds of the next epoch.
+    let err = committee_manager.get_committee(E2_H2).await.err().unwrap();
+    assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_proposer_epoch_cache_updates(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    // Expectations for the first get_proposer call (no epoch is cached):
+    // Initially set the contract current epoch to Epoch 1 and previous epoch to Epoch 0.
+    set_current_epoch(&mut contract, EPOCH_1);
+    contract.expect_get_previous_epoch().times(1).returning(|| Ok(Some(EPOCH_0)));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1]);
+
+    let mut batcher_client = MockBatcherClient::new();
+    batcher_client
+        .expect_get_block_hash()
+        .with(eq(EPOCH_0.start_block))
+        .returning(|_| Ok(BlockHash(Felt::ZERO)));
+
+    // Expectations for the second get_proposer call (epoch 1 and 0 should be cached):
+    // Advance the contract current epoch to Epoch 3, and previous epoch to Epoch 2.
+    set_current_epoch(&mut contract, EPOCH_3);
+    contract.expect_get_previous_epoch().times(1).returning(|| Ok(Some(EPOCH_2)));
+    set_stakers(&mut contract, EPOCH_3, vec![STAKER_3]);
+
+    batcher_client
+        .expect_get_block_hash()
+        .with(eq(EPOCH_2.start_block))
+        .returning(|_| Ok(BlockHash(Felt::ZERO)));
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(batcher_client),
+        Arc::new(MockStateSyncClient::new()),
+        Arc::new(make_generator_factory(0)),
+        default_config,
+        None,
+    );
+
+    // Query a height in Epoch 1, should return STAKER_1.
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let proposer = committee.get_proposer(E1_H1, 0).unwrap();
+    assert_eq!(proposer, STAKER_1.address);
+
+    // Query a height in Epoch 3, should return STAKER_3.
+    let committee = committee_manager.get_committee(E3_H1).await.unwrap();
+    let proposer = committee.get_proposer(E3_H1, 0).unwrap();
+    assert_eq!(proposer, STAKER_3.address);
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_proposer_empty_committee(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![]);
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        StakingManagerConfig {
+            dynamic_config: test_config_with_committee_size(0),
+            ..default_config
+        },
+        None,
+    );
+
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    assert_matches!(committee.get_proposer(E1_H1, 0).unwrap_err(), CommitteeError::EmptyCommittee);
 }
 
 #[rstest]
@@ -346,134 +483,337 @@ async fn get_proposer_empty_committee(
 #[should_panic]
 async fn get_proposer_random_value_exceeds_total_weight(
     default_config: StakingManagerConfig,
-    mut state: State,
-    block_context: Context,
+    mut contract: MockStakingContract,
 ) {
-    set_current_epoch(&mut state, &block_context, EPOCH_1);
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
 
     // Stakers with total weight 10000.
-    let contract_stakers: Vec<ContractStaker> =
-        [STAKER_1, STAKER_2, STAKER_3, STAKER_4].iter().map(&ContractStaker::from).collect();
-    set_stakers(&mut state, &block_context, &contract_stakers);
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
 
     // Random value is out of range. Valid range is [0, 10000).
-    let mut random_generator = MockBlockRandomGenerator::new();
-    random_generator.expect_generate().returning(move |_, _, _, _| 10000);
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(10000)),
+        default_config,
+        None,
+    );
 
-    let mut committee_manager = StakingManager::new(Box::new(random_generator), default_config);
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let _ = committee.get_proposer(E1_H1, 0);
+}
 
-    let context = ExecutionContext {
-        state_reader: state.clone(),
-        block_context: block_context.clone(),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
+#[rstest]
+#[tokio::test]
+async fn get_proposer_cache(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+
+    // Expect the generator to be called exactly 3 times (once per cache miss).
+    let mut factory = MockBlockRandomGeneratorFactory::new();
+    factory.expect_create_seeded().returning(|_| {
+        let mut mock = MockBlockRandomGenerator::new();
+        mock.expect_generate().times(3).returning(|_, _, _| 0);
+        Box::new(mock)
+    });
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(factory),
+        default_config,
+        None,
+    );
+
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+
+    // Query 1: (H1, 0) - cache miss, should call random generator.
+    assert_eq!(committee.get_proposer(E1_H1, 0).unwrap(), STAKER_4.address);
+
+    // Query 2: (H1, 0) - cache hit, should return from cache.
+    assert_eq!(committee.get_proposer(E1_H1, 0).unwrap(), STAKER_4.address);
+
+    // Query 3: (H2, 0) - different height, cache miss.
+    assert_eq!(committee.get_proposer(E1_H2, 0).unwrap(), STAKER_4.address);
+
+    // Query 4: (H2, 1) - different round, cache miss.
+    assert_eq!(committee.get_proposer(E1_H2, 1).unwrap(), STAKER_4.address);
+
+    // Query 5: (H2, 1) - cache hit.
+    assert_eq!(committee.get_proposer(E1_H2, 1).unwrap(), STAKER_4.address);
+}
+
+#[rstest]
+#[case::height_1_round_0(BlockNumber(1), 0, STAKER_2)]
+#[case::height_1_round_1(BlockNumber(1), 1, STAKER_1)]
+#[case::height_1_round_2(BlockNumber(1), 2, STAKER_3)]
+#[case::height_2_round_0(BlockNumber(2), 0, STAKER_1)]
+#[case::height_2_round_1(BlockNumber(2), 1, STAKER_3)]
+#[case::height_2_round_2(BlockNumber(2), 2, STAKER_2)]
+#[case::height_3_round_0(BlockNumber(3), 0, STAKER_3)]
+#[tokio::test]
+async fn test_get_proposer_with_actual_proposer_flag(
+    mut default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+    #[case] height: BlockNumber,
+    #[case] round: u32,
+    #[case] expected_proposer: Staker,
+) {
+    // Test that when use_only_actual_proposer_selection = true,
+    // get_proposer returns the same result as get_actual_proposer.
+    // Expected committee order: [STAKER_3, STAKER_2, STAKER_1] (by weight descending)
+    // With 3 eligible proposers, index = (height + round) % 3
+
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    default_config.static_config.use_only_actual_proposer_selection = true;
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        default_config,
+        None,
+    );
+
+    let committee = committee_manager.get_committee(height).await.unwrap();
+    // When the flag is true, get_proposer should return the same as get_actual_proposer.
+    let proposer_result = committee.get_proposer(height, round).unwrap();
+    let actual_proposer = committee.get_actual_proposer(height, round);
+    assert_eq!(proposer_result, actual_proposer);
+    assert_eq!(proposer_result, expected_proposer.address);
+}
+
+// Helper function to create ConfiguredStaker for testing
+fn create_configured_staker(staker: &Staker, can_propose: bool) -> ConfiguredStaker {
+    ConfiguredStaker {
+        address: staker.address,
+        weight: staker.weight,
+        public_key: staker.public_key,
+        can_propose,
+    }
+}
+
+#[rstest]
+#[case::height_1_round_0(BlockNumber(1), 0, STAKER_2)]
+#[case::height_1_round_1(BlockNumber(1), 1, STAKER_1)]
+#[case::height_1_round_2(BlockNumber(1), 2, STAKER_3)]
+#[case::height_2_round_0(BlockNumber(2), 0, STAKER_1)]
+#[case::height_2_round_1(BlockNumber(2), 1, STAKER_3)]
+#[case::height_2_round_2(BlockNumber(2), 2, STAKER_2)]
+#[case::height_3_round_0(BlockNumber(3), 0, STAKER_3)]
+#[tokio::test]
+async fn get_actual_proposer_all_eligible(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+    #[case] height: BlockNumber,
+    #[case] round: u32,
+    #[case] expected_proposer: Staker,
+) {
+    // Test round-robin selection across different heights and rounds.
+    // Expected committee order: [STAKER_3, STAKER_2, STAKER_1] (by weight descending)
+    // With 3 eligible proposers, index = (height + round) % 3
+
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        default_config,
+        None,
+    );
+
+    let committee = committee_manager.get_committee(height).await.unwrap();
+    let proposer = committee.get_actual_proposer(height, round);
+    assert_eq!(proposer, expected_proposer.address);
+}
+
+#[rstest]
+#[case::height_1_round_0(BlockNumber(1), 0, STAKER_2)]
+#[case::height_1_round_1(BlockNumber(1), 1, STAKER_3)]
+#[case::height_1_round_2(BlockNumber(1), 2, STAKER_2)]
+#[case::height_1_round_3(BlockNumber(1), 3, STAKER_3)]
+#[case::height_2_round_0(BlockNumber(2), 0, STAKER_3)]
+#[case::height_2_round_1(BlockNumber(2), 1, STAKER_2)]
+#[case::height_2_round_2(BlockNumber(2), 2, STAKER_3)]
+#[case::height_3_round_0(BlockNumber(3), 0, STAKER_2)]
+#[case::height_3_round_1(BlockNumber(3), 1, STAKER_3)]
+#[case::height_3_round_2(BlockNumber(3), 2, STAKER_2)]
+#[tokio::test]
+async fn get_actual_proposer_some_eligible(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+    #[case] height: BlockNumber,
+    #[case] round: u32,
+    #[case] expected_proposer: Staker,
+) {
+    // Expected committee order: [STAKER_4, STAKER_3, STAKER_2, STAKER_1] (by weight descending)
+    // With 2 eligible proposers, index = (height + round) % 2
+
+    let stakers = vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4];
+    // Only STAKER_2 and STAKER_3 are eligible to propose, STAKER_4 not in the config.
+    let configured_stakers = vec![
+        create_configured_staker(&STAKER_1, false),
+        create_configured_staker(&STAKER_2, true),
+        create_configured_staker(&STAKER_3, true),
+    ];
+
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, stakers);
+
+    let default_committee =
+        CommitteeConfig { start_epoch: 0, committee_size: 10, stakers: configured_stakers };
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig {
+                default_committee,
+                override_committee: None,
+            },
+            ..default_config
+        },
+        None,
+    );
+
+    let committee = committee_manager.get_committee(height).await.unwrap();
+    let proposer = committee.get_actual_proposer(height, round);
+    assert_eq!(proposer, expected_proposer.address);
+}
+
+#[rstest]
+#[tokio::test]
+#[should_panic]
+async fn get_actual_proposer_no_eligible_panics(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    // All stakers have can_propose = false
+    let default_committee = CommitteeConfig {
+        start_epoch: 0,
+        committee_size: 10,
+        stakers: vec![create_configured_staker(&STAKER_1, false)],
     };
 
-    let _ = committee_manager.get_proposer(BlockNumber(1), 0, context).await;
-}
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig {
+                default_committee,
+                override_committee: None,
+            },
+            ..default_config
+        },
+        None,
+    );
 
-// --- TryFrom tests for contract types ---
-
-#[rstest]
-fn staker_try_from_valid() {
-    let staker = ContractStaker::try_from_iter(
-        &mut vec![Felt::ONE, Felt::TWO, Felt::ZERO, Felt::THREE].into_iter(),
-    )
-    .unwrap();
-    assert_eq!(staker.contract_address, contract_address!("0x1"));
-    assert_eq!(staker.staking_power, StakingWeight(2));
-    assert_eq!(staker.public_key, Some(Felt::THREE));
-
-    // A valid staker with no public key.
-    let staker =
-        ContractStaker::try_from_iter(&mut vec![Felt::ONE, Felt::TWO, Felt::ONE].into_iter())
-            .unwrap();
-    assert_eq!(staker.contract_address, contract_address!("0x1"));
-    assert_eq!(staker.staking_power, StakingWeight(2));
-    assert_eq!(staker.public_key, None);
+    // Should panic.
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let _ = committee.get_actual_proposer(E1_H1, 0);
 }
 
 #[rstest]
-fn staker_try_from_invalid_address() {
-    let err = ContractStaker::try_from_iter(
-        &mut vec![CONTRACT_ADDRESS_DOMAIN_SIZE, Felt::ONE, Felt::ZERO, Felt::ONE].into_iter(),
-    )
-    .unwrap_err();
-    assert_matches!(err, RetdataDeserializationError::ContractAddressConversionError { .. });
+#[tokio::test]
+async fn test_get_actual_proposer_epoch_changes(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch_with_times(&mut contract, EPOCH_1, 1..);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
+    set_stakers(&mut contract, EPOCH_2, vec![STAKER_1, STAKER_2, STAKER_3]);
+
+    // In epoch 1 (using default), only STAKER_1 can propose
+    // In epoch 2 (using override), only STAKER_3 can propose
+    let default_committee = CommitteeConfig {
+        start_epoch: 0,
+        committee_size: 10,
+        stakers: vec![
+            create_configured_staker(&STAKER_1, true),
+            create_configured_staker(&STAKER_2, false),
+            create_configured_staker(&STAKER_3, false),
+        ],
+    };
+    let override_committee = Some(CommitteeConfig {
+        start_epoch: 2,
+        committee_size: 10,
+        stakers: vec![
+            create_configured_staker(&STAKER_1, false),
+            create_configured_staker(&STAKER_2, false),
+            create_configured_staker(&STAKER_3, true),
+        ],
+    });
+
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        StakingManagerConfig {
+            dynamic_config: StakingManagerDynamicConfig { default_committee, override_committee },
+            ..default_config
+        },
+        None,
+    );
+
+    // In epoch 1, should always get STAKER_1
+    let committee = committee_manager.get_committee(E1_H1).await.unwrap();
+    let proposer = committee.get_actual_proposer(E1_H1, 0);
+    assert_eq!(proposer, STAKER_1.address);
+    let committee = committee_manager.get_committee(E1_H2).await.unwrap();
+    let proposer = committee.get_actual_proposer(E1_H2, 5);
+    assert_eq!(proposer, STAKER_1.address);
+
+    // In epoch 2, should always get STAKER_3
+    let committee = committee_manager.get_committee(E2_H1).await.unwrap();
+    let proposer = committee.get_actual_proposer(E2_H1, 0);
+    assert_eq!(proposer, STAKER_3.address);
+    let committee = committee_manager.get_committee(E2_H1.unchecked_next()).await.unwrap();
+    let proposer = committee.get_actual_proposer(E2_H1.unchecked_next(), 5);
+    assert_eq!(proposer, STAKER_3.address);
 }
 
 #[rstest]
-fn staker_try_from_invalid_public_key() {
-    let err = ContractStaker::try_from_iter(
-        &mut vec![Felt::ONE, Felt::TWO, Felt::TWO, Felt::THREE].into_iter(),
-    )
-    .unwrap_err();
-    assert_matches!(err, RetdataDeserializationError::UnexpectedEnumVariant { .. });
-}
+#[tokio::test]
+async fn get_actual_proposer_invalid_height(
+    default_config: StakingManagerConfig,
+    mut contract: MockStakingContract,
+) {
+    set_current_epoch(&mut contract, EPOCH_1);
+    set_previous_epoch(&mut contract, Some(EPOCH_0));
+    set_stakers(&mut contract, EPOCH_1, vec![STAKER_1, STAKER_2, STAKER_3]);
 
-#[rstest]
-fn staker_try_from_invalid_staked_amount() {
-    let err = ContractStaker::try_from_iter(
-        &mut vec![Felt::ONE, Felt::MAX, Felt::ZERO, Felt::ONE].into_iter(),
-    )
-    .unwrap_err(); // Felt::MAX is too big for u128
-    assert_matches!(err, RetdataDeserializationError::U128ConversionError { .. });
-}
+    let committee_manager = StakingManager::new(
+        Arc::new(contract),
+        Arc::new(create_batcher_client_with_block_hash()),
+        Arc::new(create_state_sync_client_with_block_hash()),
+        Arc::new(make_generator_factory(0)),
+        default_config,
+        None,
+    );
 
-#[rstest]
-fn staker_array_retdata_try_from_valid() {
-    // Case 1: No stakers.
-    let retdata = Retdata(vec![Felt::ZERO]);
-    assert!(ContractStaker::from_retdata_many(retdata).unwrap().is_empty());
-
-    // Case 2: 4 Stakers, 1 with no public key.
-    let mut expected_stakers: Vec<ContractStaker> =
-        [STAKER_1, STAKER_2, STAKER_3, STAKER_4].iter().map(&ContractStaker::from).collect();
-    expected_stakers[2].public_key = None;
-    let raw_felts = [
-        [Felt::from(4)].as_slice(),
-        expected_stakers.iter().map(Vec::<Felt>::from).collect::<Vec<_>>().concat().as_slice(),
-    ]
-    .concat();
-
-    // A sanity check that the raw felts are constructed correctly.
-    // 1 felt for the number of stakers (4) + 3 stakers with public key (4 felts) + 1 staker with no
-    // public key (3 felts).
-    assert_eq!(raw_felts.len(), 1 + 3 * 4 + 3);
-
-    let result = ContractStaker::from_retdata_many(Retdata(raw_felts)).unwrap();
-    assert_eq!(result, expected_stakers);
-}
-
-#[rstest]
-#[case::empty_retdata(vec![])]
-#[case::invalid_length_1(vec![Felt::ONE; 3])]
-#[case::invalid_length_2(vec![Felt::ONE; 10])]
-fn staker_array_retdata_try_from_invalid_length(#[case] raw_felts: Vec<Felt>) {
-    let err = ContractStaker::from_retdata_many(Retdata(raw_felts)).unwrap_err();
-    assert_matches!(err, RetdataDeserializationError::InvalidObjectLength { .. });
-}
-
-#[rstest]
-fn epoch_try_from_valid() {
-    let epoch = Epoch::try_from(Retdata(vec![Felt::ONE, Felt::TWO, Felt::THREE])).unwrap();
-    assert_eq!(epoch, Epoch { epoch_id: 1, start_block: BlockNumber(2), epoch_length: 3 });
-}
-
-#[rstest]
-fn epoch_try_from_invalid_length() {
-    let err = Epoch::try_from(Retdata(vec![Felt::ONE, Felt::TWO])).unwrap_err();
-    assert_matches!(err, RetdataDeserializationError::InvalidObjectLength { .. });
-
-    let err =
-        Epoch::try_from(Retdata(vec![Felt::ONE, Felt::TWO, Felt::THREE, Felt::ONE])).unwrap_err();
-    assert_matches!(err, RetdataDeserializationError::InvalidObjectLength { .. });
-}
-
-#[rstest]
-#[case::invalid_epoch_id(vec![Felt::MAX, Felt::TWO, Felt::THREE])]
-#[case::invalid_start_block(vec![Felt::ONE, Felt::MAX, Felt::THREE])]
-#[case::invalid_epoch_length(vec![Felt::ONE, Felt::TWO, Felt::MAX])]
-fn epoch_try_from_conversion_errors(#[case] raw_felts: Vec<Felt>) {
-    let err = Epoch::try_from(Retdata(raw_felts)).unwrap_err();
-    assert_matches!(err, RetdataDeserializationError::U64ConversionError { .. });
+    let err = committee_manager.get_committee(E2_H2).await.err().unwrap();
+    assert_matches!(err, CommitteeProviderError::InvalidHeight { .. });
 }

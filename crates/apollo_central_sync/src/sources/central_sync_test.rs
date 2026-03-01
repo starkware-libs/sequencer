@@ -100,15 +100,16 @@ async fn check_storage(
 
 fn get_test_sync_config(verify_blocks: bool) -> SyncConfig {
     SyncConfig {
-        block_propagation_sleep_duration: SYNC_SLEEP_DURATION,
+        latest_block_poll_interval_millis: SYNC_SLEEP_DURATION,
         base_layer_propagation_sleep_duration: BASE_LAYER_SLEEP_DURATION,
         recoverable_error_sleep_duration: SYNC_SLEEP_DURATION,
         blocks_max_stream_size: STREAM_SIZE,
         state_updates_max_stream_size: STREAM_SIZE,
         verify_blocks,
         collect_pending_data: false,
-        // TODO(Shahak): Add test where store_sierras_and_casms is set to false.
-        store_sierras_and_casms: true,
+        // TODO(Shahak): Add test where store_sierras_and_casms_block_threshold is disabled, i.e.,
+        // setting 0.
+        store_sierras_and_casms_block_threshold: u64::MAX,
     }
 }
 
@@ -315,6 +316,7 @@ async fn sync_happy_flow() {
                     1 => {
                         let mut rng = get_rng();
                         yield Ok((
+                            block_number,
                             class_hash_1,
                             compiled_class_hash_1,
                             CasmContractClass::get_test_instance(&mut rng),
@@ -323,6 +325,7 @@ async fn sync_happy_flow() {
                     3 => {
                         let mut rng = get_rng();
                         yield Ok((
+                            block_number,
                             class_hash_2,
                             compiled_class_hash_2,
                             CasmContractClass::get_test_instance(&mut rng),
@@ -588,7 +591,7 @@ async fn sequencer_pub_key_management() {
     );
 
     let sync_result =
-        tokio::time::timeout(config.block_propagation_sleep_duration * 4, sync_future)
+        tokio::time::timeout(config.latest_block_poll_interval_millis * 4, sync_future)
             .await
             .unwrap()
             .expect_err("Expecting sync to fail due to sequencer pub key change.");

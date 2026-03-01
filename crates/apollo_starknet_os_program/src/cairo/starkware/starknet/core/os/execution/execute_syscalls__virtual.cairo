@@ -9,7 +9,6 @@ from starkware.starknet.common.new_syscalls import (
     EMIT_EVENT_SELECTOR,
     GET_CLASS_HASH_AT_SELECTOR,
     GET_EXECUTION_INFO_SELECTOR,
-    KECCAK_SELECTOR,
     LIBRARY_CALL_SELECTOR,
     SECP256K1_ADD_SELECTOR,
     SECP256K1_GET_POINT_FROM_X_SELECTOR,
@@ -40,7 +39,6 @@ from starkware.starknet.core.os.execution.syscall_impls import (
     execute_call_contract,
     execute_get_class_hash_at,
     execute_get_execution_info,
-    execute_keccak,
     execute_library_call,
     execute_secp256k1_add,
     execute_secp256k1_get_point_from_x,
@@ -148,16 +146,6 @@ func execute_syscalls{
 
     if (selector == GET_CLASS_HASH_AT_SELECTOR) {
         execute_get_class_hash_at();
-        %{ OsLoggerExitSyscall %}
-        return execute_syscalls(
-            block_context=block_context,
-            execution_context=execution_context,
-            syscall_ptr_end=syscall_ptr_end,
-        );
-    }
-
-    if (selector == KECCAK_SELECTOR) {
-        execute_keccak();
         %{ OsLoggerExitSyscall %}
         return execute_syscalls(
             block_context=block_context,

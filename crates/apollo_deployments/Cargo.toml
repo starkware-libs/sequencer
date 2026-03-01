@@ -18,8 +18,7 @@ phf = { workspace = true, features = ["macros"] }
 serde.workspace = true
 serde_json.workspace = true
 static_assertions.workspace = true
-strum.workspace = true
-strum_macros.workspace = true
+strum = { workspace = true, features = ["derive"] }
 url.workspace = true
 
 [dev-dependencies]

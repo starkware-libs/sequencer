@@ -12,13 +12,13 @@ use libmdbx::{
     WriteFlags,
     WriteMap,
 };
-use page_size;
 
 use crate::storage_trait::{
     AsyncStorage,
     DbHashMap,
     DbKey,
     DbValue,
+    EmptyStorageConfig,
     PatriciaStorageResult,
     Storage,
     StorageStats,
@@ -100,6 +100,7 @@ impl MdbxStorage {
 
 impl Storage for MdbxStorage {
     type Stats = MdbxStorageStats;
+    type Config = EmptyStorageConfig;
 
     async fn get(&mut self, key: &DbKey) -> PatriciaStorageResult<Option<DbValue>> {
         let txn = self.db.begin_ro_txn()?;

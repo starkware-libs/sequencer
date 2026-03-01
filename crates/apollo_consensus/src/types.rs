@@ -9,8 +9,8 @@ use apollo_network::network_manager::{
     GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::consensus::{BuildParam, ProposalInit, Vote};
 pub use apollo_protobuf::consensus::{ProposalCommitment, Round};
-use apollo_protobuf::consensus::{ProposalInit, Vote};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
@@ -47,7 +47,7 @@ pub trait ConsensusContext {
     /// parallel to the block being built.
     ///
     /// Params:
-    /// - `init`: The `ProposalInit` that is broadcast to the network.
+    /// - `build_param`: The `BuildParam` that is broadcast to the network.
     /// - `timeout`: The maximum time to wait for the block to be built.
     ///
     /// Returns:
@@ -56,7 +56,7 @@ pub trait ConsensusContext {
     ///   ConsensusContext.
     async fn build_proposal(
         &mut self,
-        init: ProposalInit,
+        build_param: BuildParam,
         timeout: Duration,
     ) -> Result<oneshot::Receiver<ProposalCommitment>, ConsensusError>;
 
@@ -86,19 +86,8 @@ pub trait ConsensusContext {
     ///
     /// Params:
     /// - `id`: The `ProposalCommitment` associated with the block's content.
-    /// - `init`: The `ProposalInit` that is broadcast to the network.
-    async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit);
-
-    /// Get the set of validators for a given height. These are the nodes that can propose and vote
-    /// on blocks.
-    // TODO(matan): We expect this to change in the future to BTreeMap. Why?
-    // 1. Map - The nodes will have associated information (e.g. voting weight).
-    // 2. BTreeMap - We want a stable ordering of the nodes for deterministic leader selection.
-    async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
-
-    /// Calculates the ID of the Proposer based on the inputs.
-    // TODO(matan): Consider passing the validator set in order to keep this sync.
-    fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
+    /// - `build_param`: The consensus metadata for reproposing.
+    async fn repropose(&mut self, id: ProposalCommitment, build_param: BuildParam);
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
@@ -150,6 +139,8 @@ impl From<BroadcastTopicChannels<Vote>> for BroadcastVoteChannel {
 pub enum ConsensusError {
     #[error(transparent)]
     BatcherError(#[from] BatcherClientError),
+    #[error("Committee error: {0}")]
+    CommitteeError(String),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]

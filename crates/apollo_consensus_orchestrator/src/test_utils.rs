@@ -3,6 +3,7 @@ use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
+    FinishedProposalInfo,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
@@ -27,7 +28,7 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_proof_manager_types::MockProofManagerClient;
 use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
+    BuildParam,
     HeightAndRound,
     ProposalCommitment as ProtoProposalCommitment,
     ProposalFin,
@@ -53,6 +54,7 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
+use starknet_api::block_hash::block_hash_calculator::BlockHeaderCommitments;
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -72,22 +74,22 @@ use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams, StreamSender};
+use crate::utils::{make_gas_price_params, GasPriceParams, PreviousBlockInfo, StreamSender};
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
-pub(crate) const NUM_VALIDATORS: u64 = 4;
 pub(crate) const STATE_DIFF_COMMITMENT: StateDiffCommitment =
     StateDiffCommitment(PoseidonHash(Felt::ZERO));
 pub(crate) const CHAIN_ID: ChainId = ChainId::Mainnet;
 
-// In order for gas price in ETH to be greather than 0 (required) we must have large enough
+// In order for gas price in ETH to be greater than 0 (required) we must have large enough
 // values here.
-pub(crate) const ETH_TO_FRI_RATE: u128 = u128::pow(10, 18);
+pub(crate) const ETH_TO_FRI_RATE: u128 = 2 * u128::pow(10, 18);
 
 pub(crate) static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
     LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
 
+// TODO(Einat): Add client side proving transactions.
 pub(crate) static INTERNAL_TX_BATCH: LazyLock<Vec<InternalConsensusTransaction>> =
     LazyLock::new(|| {
         // TODO(shahak): Use MockTransactionConverter instead.
@@ -102,8 +104,11 @@ pub(crate) static INTERNAL_TX_BATCH: LazyLock<Vec<InternalConsensusTransaction>>
             .iter()
             .cloned()
             .map(|tx| {
-                block_on(TRANSACTION_CONVERTER.convert_consensus_tx_to_internal_consensus_tx(tx))
-                    .unwrap()
+                let (internal_tx, _) = block_on(
+                    TRANSACTION_CONVERTER.convert_consensus_tx_to_internal_consensus_tx(tx),
+                )
+                .unwrap();
+                internal_tx
             })
             .collect()
     });
@@ -202,10 +207,14 @@ impl TestDeps {
                 .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
                 .returning(move |_input| {
                     Ok(GetProposalContentResponse {
-                        content: GetProposalContent::Finished {
-                            id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                        content: GetProposalContent::Finished(FinishedProposalInfo {
+                            proposal_commitment: ProposalCommitment {
+                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                            },
                             final_n_executed_txs: args.n_executed_txs_count,
-                        },
+                            block_header_commitments: BlockHeaderCommitments::default(),
+                            parent_proposal_commitment: None,
+                        }),
                     })
                 });
             block_number = block_number.unchecked_next();
@@ -262,8 +271,13 @@ impl TestDeps {
                         SendProposalContent::Finish(args.n_executed_txs_count)
                     );
                     Ok(SendProposalContentResponse {
-                        response: ProposalStatus::Finished(ProposalCommitment {
-                            state_diff_commitment: STATE_DIFF_COMMITMENT,
+                        response: ProposalStatus::Finished(FinishedProposalInfo {
+                            proposal_commitment: ProposalCommitment {
+                                state_diff_commitment: STATE_DIFF_COMMITMENT,
+                            },
+                            final_n_executed_txs: args.n_executed_txs_count,
+                            block_header_commitments: BlockHeaderCommitments::default(),
+                            parent_proposal_commitment: None,
                         }),
                     })
                 });
@@ -280,7 +294,8 @@ impl TestDeps {
             self.transaction_converter
                 .expect_convert_consensus_tx_to_internal_consensus_tx()
                 .withf(move |internal_tx| internal_tx == tx)
-                .returning(|_| Ok(internal_tx.clone()));
+                // TODO(Einat): Add verification handle when client-side proving is tested in the validate proposal test.
+                .returning(|_| Ok((internal_tx.clone(), None)));
         }
     }
 
@@ -303,7 +318,6 @@ impl TestDeps {
             ContextConfig {
                 static_config: ContextStaticConfig {
                     proposal_buffer_size: CHANNEL_SIZE,
-                    num_validators: NUM_VALIDATORS,
                     chain_id: CHAIN_ID,
                     ..Default::default()
                 },
@@ -354,7 +368,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
+pub(crate) fn block_info(height: BlockNumber, round: u32) -> ProposalInit {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
@@ -368,8 +382,11 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
     let l1_data_gas_price_fri = l1_data_gas_price_wei
         .wei_to_fri(ETH_TO_FRI_RATE)
         .expect("L1 data gas price must be non-zero");
-    ConsensusBlockInfo {
+    ProposalInit {
         height,
+        round,
+        valid_round: None,
+        proposer: Default::default(),
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
@@ -378,6 +395,8 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         l1_data_gas_price_fri,
         l1_gas_price_wei,
         l1_data_gas_price_wei,
+        starknet_version: starknet_api::block::StarknetVersion::LATEST,
+        version_constant_commitment: Default::default(),
     }
 }
 
@@ -385,11 +404,9 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
 // content_receiver.
 pub(crate) async fn send_proposal_to_validator_context(
     context: &mut SequencerConsensusContext,
-    block_info: ConsensusBlockInfo,
 ) -> mpsc::Receiver<ProposalPart> {
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.get_config().static_config.proposal_buffer_size);
-    content_sender.send(ProposalPart::BlockInfo(block_info)).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
         .await
@@ -398,6 +415,7 @@ pub(crate) async fn send_proposal_to_validator_context(
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: ProtoProposalCommitment(STATE_DIFF_COMMITMENT.0.0),
             executed_transaction_count: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+            commitment_parts: None,
         }))
         .await
         .unwrap();
@@ -415,7 +433,7 @@ pub(crate) struct NetworkDependencies {
 pub(crate) struct TestProposalBuildArguments {
     pub deps: TestDeps,
     pub batcher_deadline: DateTime,
-    pub proposal_init: ProposalInit,
+    pub build_param: BuildParam,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
     pub gas_price_params: GasPriceParams,
@@ -425,11 +443,11 @@ pub(crate) struct TestProposalBuildArguments {
     pub l2_gas_price: GasPrice,
     pub builder_address: ContractAddress,
     pub cancel_token: CancellationToken,
-    pub previous_block_info: Option<ConsensusBlockInfo>,
+    pub previous_block_info: Option<PreviousBlockInfo>,
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
-    pub use_state_sync_block_timestamp: bool,
+    pub override_timestamp: bool,
 }
 
 impl From<TestProposalBuildArguments> for ProposalBuildArguments {
@@ -437,7 +455,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
         ProposalBuildArguments {
             deps: args.deps.into(),
             batcher_deadline: args.batcher_deadline,
-            proposal_init: args.proposal_init,
+            build_param: args.build_param,
             l1_da_mode: args.l1_da_mode,
             stream_sender: args.stream_sender,
             gas_price_params: args.gas_price_params,
@@ -452,7 +470,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             retrospective_block_hash_deadline: args.retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis: args
                 .retrospective_block_hash_retry_interval_millis,
-            use_state_sync_block_timestamp: args.use_state_sync_block_timestamp,
+            override_timestamp: args.override_timestamp,
         }
     }
 }
@@ -465,7 +483,7 @@ pub(crate) fn create_proposal_build_arguments()
     let batcher_deadline = time_now + TIMEOUT;
     let retrospective_block_hash_deadline = time_now + TIMEOUT.mul_f32(0.1);
     let retrospective_block_hash_retry_interval_millis = Duration::from_millis(25);
-    let proposal_init = ProposalInit::default();
+    let build_param = BuildParam::default();
     let l1_da_mode = L1DataAvailabilityMode::Calldata;
     let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
     let stream_sender = StreamSender { proposal_sender };
@@ -480,13 +498,13 @@ pub(crate) fn create_proposal_build_arguments()
     let cancel_token = CancellationToken::new();
     let previous_block_info = None;
     let proposal_round = 0;
-    let use_state_sync_block_timestamp = false;
+    let override_timestamp = false;
 
     (
         TestProposalBuildArguments {
             deps,
             batcher_deadline,
-            proposal_init,
+            build_param,
             l1_da_mode,
             stream_sender,
             gas_price_params,
@@ -500,7 +518,7 @@ pub(crate) fn create_proposal_build_arguments()
             proposal_round,
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis,
-            use_state_sync_block_timestamp,
+            override_timestamp,
         },
         proposal_receiver,
     )

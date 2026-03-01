@@ -1,6 +1,6 @@
 use apollo_metrics::{define_metrics, generate_permutation_labels};
-use strum::{EnumVariantNames, VariantNames};
-use strum_macros::{EnumIter, IntoStaticStr};
+use apollo_transaction_converter::metrics::CONSENSUS_PROOF_MANAGER_STORE_LATENCY;
+use strum::{EnumIter, EnumVariantNames, IntoStaticStr};
 
 use crate::build_proposal::BuildProposalFailureReasonLabelValue;
 use crate::validate_proposal::ValidateProposalFailureReasonLabelValue;
@@ -98,4 +98,5 @@ pub(crate) fn register_metrics() {
     CENDE_WRITE_BLOB_FAILURE.register();
     CONSENSUS_BUILD_PROPOSAL_FAILURE.register();
     CONSENSUS_VALIDATE_PROPOSAL_FAILURE.register();
+    CONSENSUS_PROOF_MANAGER_STORE_LATENCY.register();
 }

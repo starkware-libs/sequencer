@@ -48,7 +48,7 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::HasRelatedFeeType;
+use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{default_all_resource_bounds, l1_resource_bounds};
 use crate::transaction::transactions::ExecutableTransaction;
 
@@ -254,7 +254,7 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         resource_bounds: l1_resource_bounds(max_amount, max_price_per_unit),
     });
     let deploy_account_tx_1 = AccountTransaction::new_for_sequencing(tx);
-    let enforce_fee = deploy_account_tx_1.enforce_fee();
+    let enforce_fee = deploy_account_tx_1.create_tx_info().enforce_fee();
 
     let ctor_storage_arg = felt!(1_u8);
     let ctor_grind_arg = felt!(0_u8); // Do not grind in deploy phase.

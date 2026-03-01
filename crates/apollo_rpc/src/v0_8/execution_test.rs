@@ -42,7 +42,7 @@ use apollo_test_utils::{
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::indexmap;
-use jsonrpsee::core::Error;
+use jsonrpsee::core::server::MethodsError;
 use jsonrpsee::RpcModule;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingClassesTrait};
@@ -249,7 +249,7 @@ async fn execution_call() {
         .await
         .unwrap_err();
 
-    assert_matches!(err, Error::Call(err) if err == CONTRACT_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == CONTRACT_NOT_FOUND.into());
 
     // Calling a non-existent block.
     let err = module
@@ -267,7 +267,7 @@ async fn execution_call() {
         .await
         .unwrap_err();
 
-    assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
+    assert_matches!(err, MethodsError::JsonRpc(err) if err == BLOCK_NOT_FOUND.into());
 
     // Calling a non-existent function (contract error).
     let err = module
@@ -288,14 +288,14 @@ async fn execution_call() {
     const CONTRACT_ERROR_CODE: i32 = 40;
 
     match err {
-        Error::Call(err) => {
+        MethodsError::JsonRpc(err) => {
             assert_eq!(err.code(), CONTRACT_ERROR_CODE);
             assert_eq!(
                 err.data().unwrap().get(),
                 r##"{"revert_error":"0x454e545259504f494e545f4e4f545f464f554e44 ('ENTRYPOINT_NOT_FOUND')"}"##
             );
         }
-        _ => panic!("Expected Error::Call"),
+        _ => panic!("Expected MethodsError::JsonRpc"),
     }
 
     // Test that the block context is passed correctly to blockifier.
@@ -492,14 +492,15 @@ async fn call_estimate_fee() {
         )
         .await
         .expect_err("Expecting error");
-    let Error::Call(err) = res else {
+    let MethodsError::JsonRpc(err) = res else {
         panic!("Expecting error");
     };
     assert_eq!(err.code(), 41);
     let Some(data) = err.data() else {
         panic!("Expecting error data");
     };
-    let tx_execution_error: TransactionExecutionError = serde_json::from_str(data.get()).unwrap();
+    let data_str: &str = data.get();
+    let tx_execution_error: TransactionExecutionError = serde_json::from_str(data_str).unwrap();
     assert_eq!(tx_execution_error.transaction_index, 0);
 
     // TODO(shahak): Write a new contract and test execution info. The reason we can't do this with

@@ -1,0 +1,55 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/*secret*.json)",
+      "Read(**/*secret*.yaml)",
+      "Read(**/*key*.json)",
+      "Read(**/*key*.yaml)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Edit(**/*secret*.json)",
+      "Edit(**/*secret*.yaml)",
+      "Edit(**/*key*.json)",
+      "Edit(**/*key*.yaml)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Write(**/*secret*.json)",
+      "Write(**/*secret*.yaml)",
+      "Write(**/*key*.json)",
+      "Write(**/*key*.yaml)",
+      "Write(**/.env)",
+      "Write(**/.env.*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE 'secret.*\\.(json|yaml)$|([^a-zA-Z]|^)keys?[^a-zA-Z].*\\.json$|([^a-zA-Z]|^)keys?\\.json$|\\.env(\\.|$)'; then echo 'BLOCKED: Cannot edit sensitive files' && exit 1; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE 'secret.*\\.(json|yaml)$|([^a-zA-Z]|^)keys?[^a-zA-Z].*\\.json$|([^a-zA-Z]|^)keys?\\.json$|\\.env(\\.|$)'; then echo 'BLOCKED: Cannot write to sensitive files' && exit 1; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_BASH_COMMAND\" | grep -qE '(^|&&|;|\\|)\\s*(git|gt) add (-A|--all|\\.(\\s|$))'; then echo 'BLOCKED: Stage specific files instead of git/gt add -A or git/gt add .' && exit 1; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

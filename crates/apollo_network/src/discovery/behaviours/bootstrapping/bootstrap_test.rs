@@ -84,6 +84,7 @@ async fn assert_no_event_happens_before_duration(
     tokio::time::resume();
 }
 
+// TODO(AndrewL): Move this to test_utils crate.
 fn get_peer_id(peer_index: u8) -> PeerId {
     let input_digest = vec![peer_index; 32];
     PeerId::from_multihash(Multihash::wrap(0x0, &input_digest).unwrap()).unwrap()

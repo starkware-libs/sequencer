@@ -13,3 +13,6 @@ workspace = true
 apollo_config.workspace = true
 serde.workspace = true
 validator.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true

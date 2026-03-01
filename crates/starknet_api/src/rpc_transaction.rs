@@ -8,8 +8,7 @@ use apollo_sizeof::SizeOf;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
 use starknet_core::types::EntryPointsByType as StarknetCoreEntryPointsByType;
-use strum::EnumVariantNames;
-use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
+use strum::{EnumDiscriminants, EnumIter, EnumVariantNames, IntoStaticStr};
 
 use crate::contract_class::EntryPointType;
 use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
