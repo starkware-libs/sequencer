@@ -167,36 +167,12 @@ struct MockDependencies {
 
 impl MockDependencies {
     fn gateway(
-<<<<<<< HEAD
-        mut self,
+        self,
     ) -> GenericGateway<
         MockStatelessTransactionValidatorTrait,
         MockTransactionConverterTrait,
         StatefulTransactionValidatorFactory<TestStateReaderFactory>,
     > {
-        // TODO(Einat): Move to mock dependencies fixture.
-        let proof_manager_client: Arc<dyn ProofManagerClient> =
-            Arc::new(self.mock_proof_manager_client);
-        let pmc = proof_manager_client.clone();
-        self.mock_transaction_converter
-            .expect_get_proof_manager_client()
-            .returning(move || pmc.clone());
-
-||||||| 72a6429fcf
-        mut self,
-    ) -> GenericGateway<MockStatelessTransactionValidatorTrait, MockTransactionConverterTrait> {
-        // TODO(Einat): Move to mock dependencies fixture.
-        let proof_manager_client: Arc<dyn ProofManagerClient> =
-            Arc::new(self.mock_proof_manager_client);
-        let pmc = proof_manager_client.clone();
-        self.mock_transaction_converter
-            .expect_get_proof_manager_client()
-            .returning(move || pmc.clone());
-
-=======
-        self,
-    ) -> GenericGateway<MockStatelessTransactionValidatorTrait, MockTransactionConverterTrait> {
->>>>>>> origin/main-v0.14.2
         register_metrics();
         GenericGateway::new(
             self.config,

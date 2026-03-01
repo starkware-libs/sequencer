@@ -10,16 +10,8 @@ use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_consensus_orchestrator_config::config::ContextDynamicConfig;
 use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
-<<<<<<< HEAD
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
-use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
-||||||| 72a6429fcf
-use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
-=======
 use apollo_protobuf::consensus::{ProposalInit, ProposalPart};
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
->>>>>>> origin/main-v0.14.2
+use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_time::time::{Clock, DateTime};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
@@ -374,16 +366,8 @@ pub(crate) fn convert_to_sn_api_block_info(
 /// First try to get the block hash from the batcher. If that fails, fall back to state sync.
 pub(crate) async fn retrospective_block_hash(
     batcher_client: Arc<dyn BatcherClient>,
-<<<<<<< HEAD
     state_sync_client: SharedStateSyncClient,
-    block_info: &ConsensusBlockInfo,
-||||||| 72a6429fcf
-    state_sync_client: Arc<dyn StateSyncClient>,
-    block_info: &ConsensusBlockInfo,
-=======
-    state_sync_client: Arc<dyn StateSyncClient>,
     init: &ProposalInit,
->>>>>>> origin/main-v0.14.2
 ) -> RetrospectiveBlockHashResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = init.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
 
@@ -421,16 +405,8 @@ pub(crate) async fn retrospective_block_hash(
 
 pub(crate) async fn wait_for_retrospective_block_hash(
     batcher_client: Arc<dyn BatcherClient>,
-<<<<<<< HEAD
     state_sync_client: SharedStateSyncClient,
-    block_info: &ConsensusBlockInfo,
-||||||| 72a6429fcf
-    state_sync_client: Arc<dyn StateSyncClient>,
-    block_info: &ConsensusBlockInfo,
-=======
-    state_sync_client: Arc<dyn StateSyncClient>,
     init: &ProposalInit,
->>>>>>> origin/main-v0.14.2
     clock: &dyn Clock,
     deadline: DateTime,
     retry_interval: Duration,
