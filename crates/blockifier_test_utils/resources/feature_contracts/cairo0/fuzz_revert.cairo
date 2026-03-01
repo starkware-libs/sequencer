@@ -2,12 +2,13 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
-from starkware.starknet.common.syscalls import call_contract
+from starkware.starknet.common.syscalls import call_contract, library_call
 
 // Scenarios.
 // The RETURN scenario *must* be zero, as the zero value also indicates end of scenario stream.
 const SCENARIO_RETURN = 0;
 const SCENARIO_CALL = 1;
+const SCENARIO_LIBRARY_CALL = 2;
 
 // selector_from_name("pop_front").
 const POP_FRONT_SELECTOR = 0x289c2d7d6351cd03d4f928bde75fa14d5f52e32bdbc750d5296e1b48c12f1c3;
@@ -74,6 +75,17 @@ func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     if (scenario == SCENARIO_CALL) {
         call_contract(
             contract_address=pop_front(orchestrator),
+            function_selector=FUZZ_TEST_SELECTOR,
+            calldata_size=0,
+            calldata=new(),
+        );
+        test_revert_fuzz();
+        return ();
+    }
+
+    if (scenario == SCENARIO_LIBRARY_CALL) {
+        library_call(
+            class_hash=pop_front(orchestrator),
             function_selector=FUZZ_TEST_SELECTOR,
             calldata_size=0,
             calldata=new(),
