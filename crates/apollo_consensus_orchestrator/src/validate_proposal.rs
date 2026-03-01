@@ -395,6 +395,7 @@ async fn handle_proposal_part(
             let duration = start.elapsed();
             info!("Awaiting the verify and store proof tasks took: {duration:?}");
 
+            // TODO(Itamar): Migrate to `batcher.finish_proposal(...)`.
             // Output this along with the ID from batcher, to compare them.
             let input = SendProposalContentInput {
                 proposal_id,
