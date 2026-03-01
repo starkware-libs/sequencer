@@ -77,7 +77,6 @@ use apollo_state_sync_config::config::{
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
-use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{serve, Json, Router};
 #[cfg(feature = "cairo_native")]
@@ -87,6 +86,7 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use http::StatusCode;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
