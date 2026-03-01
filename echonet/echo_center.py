@@ -209,17 +209,6 @@ class BlobTransformer:
         return tx_hashes
 
     @staticmethod
-    def _halve_gas_prices(v: str) -> str:
-        """By shifting the integer value right by 1, the gas prices are halved."""
-        return hex(int(v, 16) >> 1)
-
-    def _with_halved_gas_prices(self, price: JsonObject) -> JsonObject:
-        out = dict(price)
-        out["price_in_wei"] = self._halve_gas_prices(out["price_in_wei"])
-        out["price_in_fri"] = self._halve_gas_prices(out["price_in_fri"])
-        return out
-
-    @staticmethod
     @dataclass(slots=True)
     class FlattenedCallInfo:
         """
@@ -478,11 +467,7 @@ class BlobTransformer:
         )
 
         meta = self._fetch_upstream_block_meta(bn_for_meta)
-        block_document["timestamp"] = meta["timestamp"]
-
-        # The gas prices are halved in order for txs to pass the fee sequencer checks.
-        for price in ("l1_gas_price", "l1_data_gas_price", "l2_gas_price"):
-            block_document[price] = self._with_halved_gas_prices(meta[price])
+        block_document.update(meta)
 
         return block_document
 
