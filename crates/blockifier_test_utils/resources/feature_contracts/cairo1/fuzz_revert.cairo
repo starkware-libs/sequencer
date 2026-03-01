@@ -20,6 +20,7 @@ mod FuzzRevertContract {
     const SCENARIO_CALL: felt252 = 1;
     const SCENARIO_LIBRARY_CALL: felt252 = 2;
     const SCENARIO_WRITE: felt252 = 3;
+    const SCENARIO_REPLACE_CLASS: felt252 = 4;
 
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
 
@@ -96,6 +97,11 @@ mod FuzzRevertContract {
             let value = self.pop_front();
             let address_domain = 0;
             syscalls::storage_write_syscall(address_domain, key, value).unwrap_syscall();
+        }
+
+        if scenario == SCENARIO_REPLACE_CLASS {
+            let class_hash: ClassHash = self.pop_front().try_into().unwrap();
+            syscalls::replace_class_syscall(class_hash).unwrap_syscall();
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
