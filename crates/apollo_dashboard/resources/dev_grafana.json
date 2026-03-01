@@ -283,6 +283,24 @@
             "consensus_l2_gas_price{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"} / 1e9"
           ],
           "extra_params": {}
+        },
+        {
+          "title": "Inbound Peer Evicted",
+          "description": "The number of inbound peers evicted from the stream handler LRU cache (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_peer_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
+        },
+        {
+          "title": "Inbound Stream Buffer Full",
+          "description": "The number of inbound streams dropped due to full message buffer (10m window)",
+          "type": "timeseries",
+          "exprs": [
+            "increase(consensus_inbound_stream_buffer_full{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[10m])"
+          ],
+          "extra_params": {}
         }
       ],
       "collapsed": true

@@ -7,6 +7,8 @@ use apollo_consensus::metrics::{
     CONSENSUS_DECISIONS_REACHED_AS_PROPOSER,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_INBOUND_PEER_EVICTED,
+    CONSENSUS_INBOUND_STREAM_BUFFER_FULL,
     CONSENSUS_PROPOSALS_ACCEPTED_FOR_VALIDATION,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_RECEIVED,
@@ -555,6 +557,30 @@ pub(crate) fn get_panel_consensus_decisions_reached_as_proposer_counter() -> Pan
     .with_log_comment(CONSENSUS_KEY_EVENTS_LOG_QUERY)
 }
 
+fn get_panel_consensus_inbound_peer_evicted() -> Panel {
+    Panel::new(
+        "Inbound Peer Evicted",
+        format!(
+            "The number of inbound peers evicted from the stream handler LRU cache \
+             ({DEFAULT_DURATION} window)",
+        ),
+        increase(&CONSENSUS_INBOUND_PEER_EVICTED, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_consensus_inbound_stream_buffer_full() -> Panel {
+    Panel::new(
+        "Inbound Stream Buffer Full",
+        format!(
+            "The number of inbound streams dropped due to full message buffer ({DEFAULT_DURATION} \
+             window)",
+        ),
+        increase(&CONSENSUS_INBOUND_STREAM_BUFFER_FULL, DEFAULT_DURATION),
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_consensus_row() -> Row {
     Row::new(
         "Consensus",
@@ -578,6 +604,8 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_proof_manager_store_latency(),
             get_panel_consensus_timeouts_by_type(),
             get_panel_consensus_l2_gas_price(),
+            get_panel_consensus_inbound_peer_evicted(),
+            get_panel_consensus_inbound_stream_buffer_full(),
         ],
     )
 }
