@@ -28,6 +28,7 @@ enum FuzzOperation {
     Write,
     ReplaceClass,
     Deploy,
+    Panic,
 }
 
 impl FuzzOperation {
@@ -39,6 +40,7 @@ impl FuzzOperation {
             Self::Write => 3u8,
             Self::ReplaceClass => 4u8,
             Self::Deploy => 5u8,
+            Self::Panic => 6u8,
         })
     }
 }
@@ -118,6 +120,7 @@ enum FuzzOperationData {
     Write(StorageKey, StarknetStorageValue),
     ReplaceClass(ClassHash),
     Deploy { class_hash: ClassHash, salt: ContractAddressSalt },
+    Panic,
 }
 
 impl FuzzOperationData {
@@ -129,6 +132,7 @@ impl FuzzOperationData {
             Self::Write(_, _) => FuzzOperation::Write,
             Self::ReplaceClass(_) => FuzzOperation::ReplaceClass,
             Self::Deploy { .. } => FuzzOperation::Deploy,
+            Self::Panic => FuzzOperation::Panic,
         }
     }
 
@@ -137,7 +141,7 @@ impl FuzzOperationData {
     pub fn to_felt_vector(&self) -> Vec<Felt> {
         let mut felt_vector = vec![Felt::from(self.op().identifier())];
         felt_vector.extend(match self {
-            Self::Return => vec![],
+            Self::Return | Self::Panic => vec![],
             Self::Call(op) => op.to_felt_vector(),
             Self::LibraryCall(op) => op.to_felt_vector(),
             Self::Write(key, value) => vec![***key, value.0],
@@ -171,6 +175,7 @@ impl ParentFailureBehavior {
 /// Final state of the fuzz test transaction.
 enum FinalizedState {
     Ongoing,
+    Reverted,
     Succeeded,
 }
 
@@ -178,7 +183,7 @@ impl FinalizedState {
     pub fn finalized(&self) -> bool {
         match self {
             Self::Ongoing => false,
-            Self::Succeeded => true,
+            Self::Reverted | Self::Succeeded => true,
         }
     }
 }
@@ -222,6 +227,35 @@ impl FuzzCallInfo {
             inner_calls: vec![],
             class_replaced_here: false,
             constructing: true,
+        }
+    }
+}
+
+/// Data associated with a revert operation.
+struct RevertInfo {
+    /// Addresses of deployed contracts that were deployed in the reverted call tree.
+    pub deployed_addresses: BTreeSet<ContractAddress>,
+
+    /// If a class was replaced in the reverted call tree, the address and original class hash of
+    /// the replaced class.
+    pub class_replaced_and_original_class_hash: Option<(ContractAddress, ClassHash)>,
+}
+
+impl RevertInfo {
+    pub fn combine(others: Vec<Self>) -> Self {
+        // If there is a replace-class, there should be only one.
+        let mut class_replaced_and_original_class_hash = None;
+        for other in others.iter() {
+            if let Some(inner_replacement) = other.class_replaced_and_original_class_hash {
+                class_replaced_and_original_class_hash = Some(inner_replacement);
+            }
+        }
+        Self {
+            deployed_addresses: others
+                .into_iter()
+                .flat_map(|other| other.deployed_addresses)
+                .collect(),
+            class_replaced_and_original_class_hash,
         }
     }
 }
@@ -362,9 +396,14 @@ impl FuzzTestManager {
     }
 
     pub fn current_fuzz_call_info_mut(&mut self) -> &mut FuzzCallInfo {
-        let mut call = &mut self.calls[self.current_call[0]];
-        for i in 1..self.current_call.len() {
-            call = &mut call.inner_calls[self.current_call[i]];
+        let current_call = self.current_call.clone();
+        self.fuzz_call_info_mut(&current_call)
+    }
+
+    pub fn fuzz_call_info_mut(&mut self, call_path: &Vec<usize>) -> &mut FuzzCallInfo {
+        let mut call = &mut self.calls[call_path[0]];
+        for i in 1..call_path.len() {
+            call = &mut call.inner_calls[call_path[i]];
         }
         call
     }
@@ -479,6 +518,7 @@ impl FuzzTestManager {
                     })
                     .collect()
             }
+            FuzzOperation::Panic => vec![FuzzOperationData::Panic],
         }
     }
 
@@ -531,6 +571,45 @@ impl FuzzTestManager {
         // If we returned to orchestrator context, no more operations can be applied.
         if self.current_call.is_empty() {
             self.final_state = FinalizedState::Succeeded;
+        }
+    }
+
+    /// Given a call path, revert all the context changes induced by it and it's child calls.
+    pub fn compute_revert_info(&self, root_call: &FuzzCallInfo) -> RevertInfo {
+        RevertInfo::combine(
+            root_call
+                // Start with inner calls.
+                .inner_calls
+                .iter()
+                .map(|call| self.compute_revert_info(call))
+                // Add the root call.
+                .chain(vec![RevertInfo {
+                    deployed_addresses: if root_call.constructing {
+                        BTreeSet::from([root_call.address])
+                    } else {
+                        BTreeSet::new()
+                    },
+                    class_replaced_and_original_class_hash: if root_call.class_replaced_here {
+                        Some((root_call.address, root_call.class_hash))
+                    } else {
+                        None
+                    },
+                }])
+                .collect::<Vec<_>>(),
+        )
+    }
+
+    pub fn apply_revert_info(&mut self, revert_info: RevertInfo) {
+        // Revert class replacement. Do this before "undeploying" deployed contracts so we don't
+        // "redeploy" anything when we only intend to revert the class hash change.
+        if let Some((address, class_hash)) = revert_info.class_replaced_and_original_class_hash {
+            self.deployed_contracts.insert(address, class_hash);
+        }
+        // "Undeploy" all deployed contracts.
+        for address in revert_info.deployed_addresses.iter() {
+            // Remove without asserting that the address was actually deployed - the
+            // constructor may have reverted before being finalized.
+            self.deployed_contracts.remove(address);
         }
     }
 
@@ -592,6 +671,42 @@ impl FuzzTestManager {
                 // Enter constructor context.
                 self.enter_deploy(deployed_address, class_hash);
             }
+            FuzzOperationData::Panic => {
+                // For the current call index until the panic is either caught or an uncatchable
+                // frame is reached (root parent frame - the orchestrator - is cairo1-catching, so
+                // one of these two conditions will be met).
+                // First, check if the current call is in cairo0 context. If so, parent context is
+                // irrelevant - the entire tx will be reverted.
+                if !self.is_cairo1_class(&self.current_class_hash()) {
+                    self.final_state = FinalizedState::Reverted;
+                    return;
+                }
+                // Otherwise, climb up the call tree until the error is either caught or an
+                // uncatchable frame is reached.
+                while self.current_fuzz_call_info().parent_failure_behavior
+                    == ParentFailureBehavior::Cairo1Propagating
+                {
+                    // No need to finalize deploys here - we are reverting.
+                    self.current_call.pop();
+                }
+                match self.current_fuzz_call_info().parent_failure_behavior {
+                    // The simple case is when the parent is "uncatchable"; the entire tx will be
+                    // reverted, so no need to update the current context.
+                    ParentFailureBehavior::Uncatchable => {
+                        self.final_state = FinalizedState::Reverted;
+                    }
+                    // If the panic is caught, the effects of the entire subtree must be reverted.
+                    ParentFailureBehavior::Cairo1Catching => {
+                        // Revert the effects of the call tree rooted at the current path.
+                        self.apply_revert_info(
+                            self.compute_revert_info(self.current_fuzz_call_info()),
+                        );
+                        // Pop the current call index to go back up to the catching context.
+                        self.exit_call();
+                    }
+                    ParentFailureBehavior::Cairo1Propagating => unreachable!(),
+                }
+            }
         }
     }
 
@@ -643,6 +758,7 @@ impl FuzzTestManager {
         // Whether or not a revert is expected depends on context.
         let tx_revert_error = match self.final_state {
             FinalizedState::Succeeded => None,
+            FinalizedState::Reverted => Some("".to_string()),
             FinalizedState::Ongoing => unreachable!(),
         };
         let nonce = self.test_manager.next_nonce(*FUNDED_ACCOUNT_ADDRESS);
