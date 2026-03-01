@@ -11,6 +11,8 @@ use apollo_batcher_config::config::{
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
+    FinishProposalInput,
+    FinishProposalStatus,
     FinishedProposalInfo,
     GetHeightResponse,
     GetProposalContent,
@@ -635,6 +637,8 @@ async fn validate_block_full_flow() {
 
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
+// TODO(Itamar): Remove this case once we migrate to `finish_proposal`.
+// This case is tested in `action_on_unknown_proposal::finish`.
 #[case::send_finish(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
@@ -647,14 +651,22 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
 }
 
 #[rstest]
-#[case::abort(AfterEndProposalAction::Abort)]
+#[case::abort(ProposalAction::Abort)]
+#[case::finish(ProposalAction::FinishProposal)]
 #[tokio::test]
-async fn action_on_unknown_proposal(#[case] action: AfterEndProposalAction) {
+async fn action_on_unknown_proposal(#[case] action: ProposalAction) {
     let mut batcher = create_batcher(MockDependencies::default()).await;
 
     let result = match action {
-        AfterEndProposalAction::Abort => batcher.abort_proposal(PROPOSAL_ID).await,
-        AfterEndProposalAction::SendContent(content) => {
+        ProposalAction::Abort => batcher.abort_proposal(PROPOSAL_ID).await,
+        ProposalAction::FinishProposal => batcher
+            .finish_proposal(FinishProposalInput {
+                proposal_id: PROPOSAL_ID,
+                final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+            })
+            .await
+            .map(|_| ()),
+        ProposalAction::SendContent(content) => {
             let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
             batcher.send_proposal_content(input).await.map(|_| ())
         }
@@ -663,18 +675,31 @@ async fn action_on_unknown_proposal(#[case] action: AfterEndProposalAction) {
 }
 
 #[rstest]
-#[case::abort(AfterEndProposalAction::Abort)]
+#[case::abort(ProposalAction::Abort)]
+#[case::finish(ProposalAction::FinishProposal)]
 #[tokio::test]
-async fn action_on_invalid_proposal(#[case] action: AfterEndProposalAction) {
+async fn action_on_invalid_proposal(#[case] action: ProposalAction) {
     let mut batcher =
         create_batcher_with_active_validate_block(Err(BUILD_BLOCK_FAIL_ON_ERROR)).await;
     batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     match action {
-        AfterEndProposalAction::Abort => {
+        ProposalAction::Abort => {
             assert_eq!(batcher.abort_proposal(PROPOSAL_ID).await, Ok(()));
         }
-        AfterEndProposalAction::SendContent(content) => {
+        ProposalAction::FinishProposal => {
+            assert_eq!(
+                batcher
+                    .finish_proposal(FinishProposalInput {
+                        proposal_id: PROPOSAL_ID,
+                        final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+                    })
+                    .await
+                    .unwrap(),
+                FinishProposalStatus::InvalidProposal("Block is full".to_string())
+            );
+        }
+        ProposalAction::SendContent(content) => {
             let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
             let result = batcher.send_proposal_content(input).await.unwrap();
             assert_eq!(
@@ -684,14 +709,9 @@ async fn action_on_invalid_proposal(#[case] action: AfterEndProposalAction) {
         }
     }
 }
-
 // TODO(Itamar): Remove this test once all cases are tested separately for each method.
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal("Block is full".to_string()))]
-#[case::send_finish(
-    SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
-    ProposalStatus::InvalidProposal("Block is full".to_string())
-)]
 #[tokio::test]
 async fn send_content_to_an_invalid_proposal(
     #[case] content: SendProposalContent,
@@ -710,6 +730,8 @@ async fn send_content_to_an_invalid_proposal(
 // TODO(Itamar): Remove this test once all cases are tested separately for each method.
 #[rstest]
 #[case::send_txs_after_finish(SendProposalContent::Txs(test_txs(0..1)))]
+// TODO(Itamar): Remove this case once we migrate to `finish_proposal`.
+// This case is tested in `proposal_not_found_after_terminal_action::finish_after_finish`.
 #[case::send_finish_after_finish(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))]
 #[tokio::test]
 async fn send_proposal_content_after_finish(#[case] content: SendProposalContent) {
@@ -739,26 +761,31 @@ enum EndProposalAction {
 }
 
 #[derive(Clone)]
-enum AfterEndProposalAction {
+enum ProposalAction {
     Abort,
     SendContent(SendProposalContent),
+    FinishProposal,
 }
 
 #[rstest]
-#[case::abort_after_finish(EndProposalAction::Finish, AfterEndProposalAction::Abort)]
+#[case::abort_after_finish(EndProposalAction::Finish, ProposalAction::Abort)]
 #[case::send_txs_after_abort(
     EndProposalAction::Abort,
-    AfterEndProposalAction::SendContent(SendProposalContent::Txs(test_txs(0..1)))
+    ProposalAction::SendContent(SendProposalContent::Txs(test_txs(0..1)))
 )]
+// TODO(Itamar): Remove this case once we migrate to `finish_proposal`.
+// This case is tested in `proposal_not_found_after_terminal_action::finish_after_abort`.
 #[case::send_finish_after_abort(
     EndProposalAction::Abort,
-    AfterEndProposalAction::SendContent(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))
+    ProposalAction::SendContent(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))
 )]
-#[case::abort_after_abort(EndProposalAction::Abort, AfterEndProposalAction::Abort)]
+#[case::abort_after_abort(EndProposalAction::Abort, ProposalAction::Abort)]
+#[case::finish_after_finish(EndProposalAction::Finish, ProposalAction::FinishProposal)]
+#[case::finish_after_abort(EndProposalAction::Abort, ProposalAction::FinishProposal)]
 #[tokio::test]
 async fn proposal_not_found_after_terminal_action(
     #[case] end_action: EndProposalAction,
-    #[case] after_end_action: AfterEndProposalAction,
+    #[case] after_end_action: ProposalAction,
 ) {
     let mut batcher = create_batcher_with_active_validate_block(Ok(
         BlockExecutionArtifacts::create_for_testing().await,
@@ -779,11 +806,18 @@ async fn proposal_not_found_after_terminal_action(
     }
 
     let result = match after_end_action {
-        AfterEndProposalAction::Abort => batcher.abort_proposal(PROPOSAL_ID).await,
-        AfterEndProposalAction::SendContent(content) => {
+        ProposalAction::Abort => batcher.abort_proposal(PROPOSAL_ID).await,
+        ProposalAction::SendContent(content) => {
             let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
             batcher.send_proposal_content(input).await.map(|_| ())
         }
+        ProposalAction::FinishProposal => batcher
+            .finish_proposal(FinishProposalInput {
+                proposal_id: PROPOSAL_ID,
+                final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
+            })
+            .await
+            .map(|_| ()),
     };
     assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
