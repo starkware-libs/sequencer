@@ -200,11 +200,7 @@ async fn interrupt_proposal() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_const(Ok(()));
-    // TODO(Itamar): Migrate to `expect_abort_proposal()`.
-    proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
-        assert!(matches!(input.content, SendProposalContent::Abort));
-        Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-    });
+    proposal_args.deps.batcher.expect_abort_proposal().times(1).returning(|_| Ok(()));
 
     // Interrupt the proposal.
     proposal_args.cancel_token.cancel();
@@ -224,11 +220,7 @@ async fn validation_timeout() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_const(Ok(()));
-    // TODO(Itamar): Migrate to `expect_abort_proposal()`.
-    proposal_args.deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
-        assert!(matches!(input.content, SendProposalContent::Abort));
-        Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-    });
+    proposal_args.deps.batcher.expect_abort_proposal().times(1).returning(|_| Ok(()));
 
     // Set a very short timeout to trigger a timeout error.
     proposal_args.timeout = Duration::from_micros(1);
