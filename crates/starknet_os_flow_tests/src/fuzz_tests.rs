@@ -54,6 +54,7 @@ enum FuzzOperation {
     Call,
     LibraryCall,
     Write,
+    ReplaceClass,
 }
 
 impl FuzzOperation {
@@ -63,6 +64,7 @@ impl FuzzOperation {
             Self::Call => 1u8,
             Self::LibraryCall => 2u8,
             Self::Write => 3u8,
+            Self::ReplaceClass => 4u8,
         })
     }
 }
@@ -140,6 +142,7 @@ enum FuzzOperationData {
     Call(CallOperationData),
     LibraryCall(LibraryCallOperationData),
     Write(StorageKey, StarknetStorageValue),
+    ReplaceClass(ClassHash),
 }
 
 impl FuzzOperationData {
@@ -149,6 +152,7 @@ impl FuzzOperationData {
             Self::Call(_) => FuzzOperation::Call,
             Self::LibraryCall(_) => FuzzOperation::LibraryCall,
             Self::Write(_, _) => FuzzOperation::Write,
+            Self::ReplaceClass(_) => FuzzOperation::ReplaceClass,
         }
     }
 
@@ -161,6 +165,7 @@ impl FuzzOperationData {
             Self::Call(op) => op.felt_vector(),
             Self::LibraryCall(op) => op.felt_vector(),
             Self::Write(storage_key, value) => vec![***storage_key, value.0],
+            Self::ReplaceClass(class_hash) => vec![class_hash.0],
         });
         felt_vector
     }
@@ -208,6 +213,8 @@ struct FuzzCallInfo {
     pub class_hash: ClassHash,
     pub parent_failure_behavior: ParentFailureBehavior,
     pub inner_calls: Vec<FuzzCallInfo>,
+    /// If this is true, then the class was replaced in this frame.
+    pub class_replaced_here: bool,
 }
 
 impl FuzzCallInfo {
@@ -216,7 +223,13 @@ impl FuzzCallInfo {
         class_hash: ClassHash,
         parent_failure_behavior: ParentFailureBehavior,
     ) -> Self {
-        Self { address, class_hash, parent_failure_behavior, inner_calls: vec![] }
+        Self {
+            address,
+            class_hash,
+            parent_failure_behavior,
+            inner_calls: vec![],
+            class_replaced_here: false,
+        }
     }
 }
 
@@ -240,6 +253,9 @@ struct FuzzTestManager {
 
     /// Deployed fuzz test contracts.
     pub deployed_fuzz_contracts: BTreeMap<ContractAddress, ClassHash>,
+
+    /// We only allow one replace class per test.
+    pub class_replaced: bool,
 
     /// Next value to write in a storage-write operation.
     pub next_storage_write_value: StarknetStorageValue,
@@ -303,6 +319,7 @@ impl FuzzTestManager {
             final_state: FinalizedState::Ongoing,
             operations: vec![],
             deployed_fuzz_contracts,
+            class_replaced: false,
             next_storage_write_value: StarknetStorageValue(Felt::from(1u16 << 12)),
             test_manager,
             orchestrator_contract_address,
@@ -328,6 +345,10 @@ impl FuzzTestManager {
             call = &mut call.inner_calls[self.current_call[i]];
         }
         call
+    }
+
+    pub fn current_address(&self) -> ContractAddress {
+        self.current_fuzz_call_info().address
     }
 
     pub fn current_class_hash(&self) -> ClassHash {
@@ -416,6 +437,13 @@ impl FuzzTestManager {
                     )
                 })
                 .collect(),
+            FuzzOperation::ReplaceClass => {
+                // If class was already replaced, no more replacements are allowed.
+                if self.class_replaced {
+                    return vec![];
+                }
+                vec![FuzzOperationData::ReplaceClass(*CAIRO1_REPLACEMENT_CLASS_HASH)]
+            }
         }
     }
 
@@ -447,7 +475,7 @@ impl FuzzTestManager {
                 self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
             }
             FuzzOperationData::LibraryCall(library_call_operation_data) => {
-                let current_address = self.current_fuzz_call_info().address;
+                let current_address = self.current_address();
                 self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo::new_call(
                     current_address,
                     *library_call_operation_data.class_hash(),
@@ -457,6 +485,20 @@ impl FuzzTestManager {
             }
             FuzzOperationData::Write(_, _) => {
                 self.next_storage_write_value.0 += Felt::ONE;
+            }
+            FuzzOperationData::ReplaceClass(class_hash) => {
+                assert!(!self.class_replaced);
+                assert_eq!(class_hash, *CAIRO1_REPLACEMENT_CLASS_HASH);
+                self.class_replaced = true;
+                // Update the mapping from address to class hash, so subsequent calls to this
+                // address will correctly use the new class hash.
+                self.deployed_fuzz_contracts.insert(self.current_address(), class_hash);
+                // Update the current call to mark that it was replaced at this point, to make it
+                // easy to track if the change must be reverted mid-test.
+                self.current_fuzz_call_info_mut().class_replaced_here = true;
+                // Note: we do not mutate the class hash of this call, because in the current call
+                // context the original class code is run. Only if this address is called again (via
+                // call-contract) should the code change be reflected.
             }
         }
     }
