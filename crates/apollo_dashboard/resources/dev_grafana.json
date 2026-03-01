@@ -4003,7 +4003,7 @@
           "description": "The amount of time worker threads were busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
-            "increase(tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m])"
+            "sum by (namespace, pod) (increase(tokio_total_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}[1m]))"
           ],
           "extra_params": {
             "unit": "µs",
@@ -4017,7 +4017,7 @@
           "description": "The minimum amount of time a worker thread was busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
-            "tokio_min_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "sum by (namespace, pod) (tokio_min_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "unit": "µs",
@@ -4031,7 +4031,7 @@
           "description": "The maximum amount of time a worker thread was busy (in microseconds)",
           "type": "timeseries",
           "exprs": [
-            "tokio_max_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "sum by (namespace, pod) (tokio_max_busy_duration{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "unit": "µs",
@@ -4045,7 +4045,7 @@
           "description": "The number of times worker threads parked",
           "type": "timeseries",
           "exprs": [
-            "tokio_total_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "sum by (namespace, pod) (tokio_total_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "legends": [
@@ -4058,7 +4058,7 @@
           "description": "The minimum number of times any worker thread parked",
           "type": "timeseries",
           "exprs": [
-            "tokio_min_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "sum by (namespace, pod) (tokio_min_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "legends": [
@@ -4071,7 +4071,7 @@
           "description": "The maximum number of times any worker thread parked",
           "type": "timeseries",
           "exprs": [
-            "tokio_max_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "sum by (namespace, pod) (tokio_max_park_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "legends": [
@@ -4084,7 +4084,7 @@
           "description": "The number of tasks currently scheduled in the runtime's global queue",
           "type": "timeseries",
           "exprs": [
-            "tokio_global_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "sum by (namespace, pod) (tokio_global_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "legends": [
@@ -4097,7 +4097,7 @@
           "description": "The number of worker threads used by the runtime",
           "type": "timeseries",
           "exprs": [
-            "tokio_workers_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"}"
+            "sum by (namespace, pod) (tokio_workers_count{cluster=~\"$cluster\", namespace=~\"$namespace\", pod=~\"$pod\"})"
           ],
           "extra_params": {
             "legends": [
