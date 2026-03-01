@@ -490,6 +490,8 @@ async fn handle_proposal_part(
     }
 }
 
+// TODO(Itamar): Migrate to use `batcher.abort_proposal(proposal_id) instead of
+// send_proposal_content`.
 async fn batcher_abort_proposal(
     batcher: &dyn BatcherClient,
     proposal_id: ProposalId,
