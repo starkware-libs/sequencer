@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772381917771,
+  "lastUpdate": 1772389518641,
   "repoUrl": "https://github.com/starkware-libs/sequencer",
   "entries": {
     "Benchmark": [
@@ -1529,6 +1529,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "tree_computation_flow",
             "value": 1204.7506626099998,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "106665835+Itay-Tsabary-Starkware@users.noreply.github.com",
+            "name": "Itay-Tsabary-Starkware",
+            "username": "Itay-Tsabary-Starkware"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7dfb6a97ab4ea6b710c09a55c7c944bb1f7eee2e",
+          "message": "apollo_integration_tests: directly use http status code (#12928)",
+          "timestamp": "2026-03-01T18:03:11Z",
+          "tree_id": "1cb5a225ea32dec27c7c6c1d6dc5352a16143bf9",
+          "url": "https://github.com/starkware-libs/sequencer/commit/7dfb6a97ab4ea6b710c09a55c7c944bb1f7eee2e"
+        },
+        "date": 1772389518346,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "full_committer_flow",
+            "value": 752.2248272999999,
+            "unit": "ms"
+          },
+          {
+            "name": "tree_computation_flow",
+            "value": 1186.11356866,
             "unit": "ms"
           }
         ]
