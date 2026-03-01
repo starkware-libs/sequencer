@@ -493,11 +493,6 @@ impl Batcher {
             SendProposalContent::Finish(final_n_executed_txs) => {
                 self.handle_finish_proposal_request(proposal_id, final_n_executed_txs).await
             }
-            // TODO(Itamar): Remove this arm once all callers migrate to `abort_proposal`.
-            SendProposalContent::Abort => match self.abort_proposal(proposal_id).await {
-                Ok(()) => Ok(SendProposalContentResponse { response: ProposalStatus::Aborted }),
-                Err(err) => Err(err),
-            },
         }
     }
 
