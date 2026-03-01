@@ -22,6 +22,8 @@ use crate::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
     DecisionReachedResponse,
+    FinishProposalInput,
+    FinishProposalResponse,
     GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
@@ -87,6 +89,11 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<DecisionReachedResponse>;
     /// Aborts a proposal that is currently being validated.
     async fn abort_proposal(&self, proposal_id: ProposalId) -> BatcherClientResult<()>;
+    /// Signals that validation stream content is complete and waits for finalization.
+    async fn finish_proposal(
+        &self,
+        input: FinishProposalInput,
+    ) -> BatcherClientResult<FinishProposalResponse>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
     async fn get_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
@@ -107,6 +114,7 @@ pub enum BatcherRequest {
     // TODO(Itamar): Remove this variant once all callers migrate to their own method.
     SendProposalContent(SendProposalContentInput),
     AbortProposal(ProposalId),
+    FinishProposal(FinishProposalInput),
     StartHeight(StartHeightInput),
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
@@ -132,6 +140,7 @@ pub enum BatcherResponse {
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     AbortProposal(BatcherResult<()>),
+    FinishProposal(BatcherResult<FinishProposalResponse>),
     StartHeight(BatcherResult<()>),
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
@@ -218,6 +227,22 @@ where
             request,
             BatcherResponse,
             SendProposalContent,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn finish_proposal(
+        &self,
+        input: FinishProposalInput,
+    ) -> BatcherClientResult<FinishProposalResponse> {
+        let request = BatcherRequest::FinishProposal(input);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            FinishProposal,
             BatcherClientError,
             BatcherError,
             Direct
