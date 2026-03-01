@@ -636,6 +636,7 @@ async fn validate_block_full_flow() {
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
 #[case::send_finish(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))]
+// TODO(Itamar): Remove this case once all callers migrate to `abort_proposal`.
 #[case::send_abort(SendProposalContent::Abort)]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
@@ -648,11 +649,30 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
 }
 
 #[rstest]
+#[case::abort(AfterEndProposalAction::Abort)]
+#[tokio::test]
+async fn action_on_unknown_proposal(#[case] action: AfterEndProposalAction) {
+    let mut batcher = create_batcher(MockDependencies::default()).await;
+
+    let result = match action {
+        AfterEndProposalAction::Abort => batcher.abort_proposal(PROPOSAL_ID).await,
+        AfterEndProposalAction::SendContent(content) => {
+            let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
+            batcher.send_proposal_content(input).await.map(|_| ())
+        }
+    };
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+/// TODO(Itamar): Remove this test once all cases are tested separately for each method.
+#[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal("Block is full".to_string()))]
 #[case::send_finish(
     SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
     ProposalStatus::InvalidProposal("Block is full".to_string())
 )]
+// TODO(Itamar): Remove this case once we migrate to `abort_proposal`.
+// This case will be tested in `send_proposal_content_after_abort`.
 #[case::send_abort(SendProposalContent::Abort, ProposalStatus::Aborted)]
 #[tokio::test]
 async fn send_content_to_an_invalid_proposal(
@@ -669,6 +689,7 @@ async fn send_content_to_an_invalid_proposal(
     assert_eq!(result, SendProposalContentResponse { response });
 }
 
+// TODO(Itamar): Remove this test once all cases are tested separately for each method.
 #[rstest]
 #[case::send_txs_after_finish(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS), SendProposalContent::Txs(test_txs(0..1)))]
 #[case::send_finish_after_finish(
@@ -679,11 +700,17 @@ async fn send_content_to_an_invalid_proposal(
     SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
     SendProposalContent::Abort
 )]
+// TODO(Itamar): Remove this case once we migrate to `abort_proposal`.
+// This case will be tested in `send_proposal_content_after_abort`.
 #[case::send_txs_after_abort(SendProposalContent::Abort, SendProposalContent::Txs(test_txs(0..1)))]
+// TODO(Itamar): Remove this case once we migrate to `abort_proposal`.
+// This case will be tested in `send_proposal_content_after_abort`.
 #[case::send_finish_after_abort(
     SendProposalContent::Abort,
     SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS)
 )]
+// TODO(Itamar): Remove this case once we migrate to `abort_proposal`.
+// This case will be tested in `abort_after_abort`.
 #[case::send_abort_after_abort(SendProposalContent::Abort, SendProposalContent::Abort)]
 #[tokio::test]
 async fn send_proposal_content_after_finish_or_abort(
@@ -707,6 +734,64 @@ async fn send_proposal_content_after_finish_or_abort(
     assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
 
+#[derive(Clone)]
+enum EndProposalAction {
+    Finish,
+    Abort,
+}
+
+#[derive(Clone)]
+enum AfterEndProposalAction {
+    Abort,
+    SendContent(SendProposalContent),
+}
+
+#[rstest]
+#[case::abort_after_finish(EndProposalAction::Finish, AfterEndProposalAction::Abort)]
+#[case::send_txs_after_abort(
+    EndProposalAction::Abort,
+    AfterEndProposalAction::SendContent(SendProposalContent::Txs(test_txs(0..1)))
+)]
+#[case::send_finish_after_abort(
+    EndProposalAction::Abort,
+    AfterEndProposalAction::SendContent(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))
+)]
+#[case::abort_after_abort(EndProposalAction::Abort, AfterEndProposalAction::Abort)]
+#[tokio::test]
+async fn proposal_not_found_after_terminal_action(
+    #[case] end_action: EndProposalAction,
+    #[case] after_end_action: AfterEndProposalAction,
+) {
+    let mut batcher = create_batcher_with_active_validate_block(Ok(
+        BlockExecutionArtifacts::create_for_testing().await,
+    ))
+    .await;
+
+    match end_action {
+        EndProposalAction::Finish => {
+            let input = SendProposalContentInput {
+                proposal_id: PROPOSAL_ID,
+                content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
+            };
+            batcher.send_proposal_content(input).await.unwrap();
+        }
+        EndProposalAction::Abort => {
+            batcher.abort_proposal(PROPOSAL_ID).await.unwrap();
+        }
+    }
+
+    let result = match after_end_action {
+        AfterEndProposalAction::Abort => batcher.abort_proposal(PROPOSAL_ID).await,
+        AfterEndProposalAction::SendContent(content) => {
+            let input = SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
+            batcher.send_proposal_content(input).await.map(|_| ())
+        }
+    };
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+// TODO(Itamar): Remove this test once all callers migrate to `abort_proposal`.
+// This case is tested in `abort_proposal_test`.
 #[rstest]
 #[tokio::test]
 async fn send_proposal_content_abort() {
@@ -723,6 +808,27 @@ async fn send_proposal_content_abort() {
         batcher.send_proposal_content(send_abort_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Aborted }
     );
+
+    // The block builder is running in a separate task, and the proposal metrics are emitted from
+    // that task, so we need to wait for them (we don't have a way to wait for the completion of the
+    // abort).
+    // TODO(AlonH): Find a way to wait for the metrics to be emitted.
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 1, 0, 0, 1);
+}
+
+#[rstest]
+#[tokio::test]
+async fn abort_proposal_test() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let mut batcher =
+        create_batcher_with_active_validate_block(Err(BlockBuilderError::Aborted)).await;
+    let metrics = recorder.handle().render();
+    assert_proposal_metrics(&metrics, 1, 0, 0, 0);
+
+    batcher.abort_proposal(PROPOSAL_ID).await.unwrap();
 
     // The block builder is running in a separate task, and the proposal metrics are emitted from
     // that task, so we need to wait for them (we don't have a way to wait for the completion of the
