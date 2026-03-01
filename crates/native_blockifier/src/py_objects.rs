@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
-    CairoNativeMode,
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerConfig,
@@ -259,10 +258,7 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
 
 #[derive(Clone, Debug, FromPyObject)]
 pub struct PyCairoNativeRunConfig {
-    // TODO(Arni): Remove `run_cairo_native` and `wait_on_native_compilation` and align with
-    // CairoNativeMode.
-    pub run_cairo_native: bool,
-    pub wait_on_native_compilation: bool,
+    pub cairo_native_mode: String,
     pub channel_size: usize,
     pub panic_on_compilation_failure: bool,
 }
@@ -270,8 +266,7 @@ pub struct PyCairoNativeRunConfig {
 impl Default for PyCairoNativeRunConfig {
     fn default() -> Self {
         Self {
-            run_cairo_native: false,
-            wait_on_native_compilation: false,
+            cairo_native_mode: "off".to_string(),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             panic_on_compilation_failure: false,
         }
@@ -280,20 +275,8 @@ impl Default for PyCairoNativeRunConfig {
 
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
-        let cairo_native_mode = match (
-            py_cairo_native_run_config.run_cairo_native,
-            py_cairo_native_run_config.wait_on_native_compilation,
-        ) {
-            (true, true) => CairoNativeMode::WaitOnCompilation,
-            (true, false) => CairoNativeMode::LazyCompilation,
-            (false, false) => CairoNativeMode::Off,
-            (false, true) => {
-                panic!("wait_on_native_compilation must be false when run_cairo_native is false")
-            }
-        };
-
         CairoNativeRunConfig {
-            cairo_native_mode,
+            cairo_native_mode: py_cairo_native_run_config.cairo_native_mode.as_str().into(),
             channel_size: py_cairo_native_run_config.channel_size,
             panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,
         }
