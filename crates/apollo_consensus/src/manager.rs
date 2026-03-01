@@ -626,7 +626,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         trace!("Cached proposals for height {}: {:?}", height, cached_proposals);
         for (init, content_receiver) in cached_proposals {
             let new_requests =
-                self.handle_proposal_known_block_info(height, shc, init, content_receiver).await;
+                self.handle_proposal_known_proposal_init(height, shc, init, content_receiver).await;
             pending_requests.extend(new_requests);
         }
 
@@ -810,7 +810,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                             if self.cache.should_cache_proposal(&height, shc.current_round(), &init)
                             {
                                 Ok(self
-                                    .handle_proposal_known_block_info(
+                                    .handle_proposal_known_proposal_init(
                                         height,
                                         shc,
                                         init,
@@ -831,7 +831,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
     }
 
-    async fn handle_proposal_known_block_info(
+    async fn handle_proposal_known_proposal_init(
         &mut self,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
