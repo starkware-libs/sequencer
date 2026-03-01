@@ -21,18 +21,28 @@
             "name": "initialize",
             "outputs": [],
             "type": "function"
+        },
+        {
+            "inputs": [],
+            "name": "test_revert_fuzz",
+            "outputs": [],
+            "type": "function"
         }
     ],
     "entry_points_by_type": {
         "CONSTRUCTOR": [
             {
-                "offset": 42,
+                "offset": 44,
                 "selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
             }
         ],
         "EXTERNAL": [
             {
-                "offset": 67,
+                "offset": 91,
+                "selector": "0x8e64dfac867f301a439703710296f437e9f91d1bba17cfea5ad7f137a5acd"
+            },
+            {
+                "offset": 69,
                 "selector": "0x79dc0da7c54b95f10aa182ad0a46400db63156920adb65eca2654c0945a463"
             }
         ],
@@ -77,13 +87,15 @@
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x10780017fff7fff",
-            "0xb",
+            "0xd",
             "0x480a7ffa7fff8000",
             "0x480a7ffb7fff8000",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x18",
+            "0x1a",
+            "0x1104800180018000",
+            "0x31",
             "0x48127ffd7fff8000",
             "0x48127ffd7fff8000",
             "0x48127ffd7fff8000",
@@ -96,7 +108,7 @@
             "0x480280027ffb8000",
             "0x480280007ffd8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe9",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe7",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -111,7 +123,7 @@
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffce",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffcc",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x1",
@@ -122,6 +134,25 @@
             "0x480280007ffd8000",
             "0x1104800180018000",
             "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff3",
+            "0x40780017fff7fff",
+            "0x1",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x48127ffc7fff8000",
+            "0x480680017fff8000",
+            "0x0",
+            "0x48127ffb7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x480a7ffb7fff8000",
+            "0x480a7ffc7fff8000",
+            "0x480a7ffd7fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x402b7ffd7ffc7ffd",
+            "0x480280007ffb8000",
+            "0x480280017ffb8000",
+            "0x480280027ffb8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff9",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -152,7 +183,7 @@
                     }
                 }
             ],
-            "51": [
+            "53": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -163,14 +194,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 7,
+                            "group": 8,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "76": [
+            "78": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -181,8 +212,26 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 9,
+                            "group": 10,
                             "offset": 29
+                        },
+                        "reference_ids": {}
+                    }
+                }
+            ],
+            "97": [
+                {
+                    "accessible_scopes": [
+                        "__main__",
+                        "__main__",
+                        "__wrappers__",
+                        "__wrappers__.test_revert_fuzz"
+                    ],
+                    "code": "memory[ap] = segments.add()",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 12,
+                            "offset": 8
                         },
                         "reference_ids": {}
                     }
@@ -243,7 +292,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 60,
+                "pc": 62,
                 "type": "function"
             },
             "__main__.initialize.Args": {
@@ -404,11 +453,51 @@
                 "type": "const",
                 "value": 0
             },
+            "__main__.test_revert_fuzz": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 87,
+                "type": "function"
+            },
+            "__main__.test_revert_fuzz.Args": {
+                "full_name": "__main__.test_revert_fuzz.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__main__.test_revert_fuzz.ImplicitArgs": {
+                "full_name": "__main__.test_revert_fuzz.ImplicitArgs",
+                "members": {
+                    "pedersen_ptr": {
+                        "cairo_type": "starkware.cairo.common.cairo_builtins.HashBuiltin*",
+                        "offset": 1
+                    },
+                    "range_check_ptr": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    },
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 3,
+                "type": "struct"
+            },
+            "__main__.test_revert_fuzz.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "__main__.test_revert_fuzz.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
             "__wrappers__.constructor": {
                 "decorators": [
                     "constructor"
                 ],
-                "pc": 42,
+                "pc": 44,
                 "type": "function"
             },
             "__wrappers__.constructor.Args": {
@@ -443,7 +532,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 67,
+                "pc": 69,
                 "type": "function"
             },
             "__wrappers__.initialize.Args": {
@@ -471,6 +560,41 @@
                 "type": "alias"
             },
             "__wrappers__.initialize_encode_return.memcpy": {
+                "destination": "starkware.cairo.common.memcpy.memcpy",
+                "type": "alias"
+            },
+            "__wrappers__.test_revert_fuzz": {
+                "decorators": [
+                    "external"
+                ],
+                "pc": 91,
+                "type": "function"
+            },
+            "__wrappers__.test_revert_fuzz.Args": {
+                "full_name": "__wrappers__.test_revert_fuzz.Args",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_revert_fuzz.ImplicitArgs": {
+                "full_name": "__wrappers__.test_revert_fuzz.ImplicitArgs",
+                "members": {},
+                "size": 0,
+                "type": "struct"
+            },
+            "__wrappers__.test_revert_fuzz.Return": {
+                "cairo_type": "(syscall_ptr: felt*, pedersen_ptr: starkware.cairo.common.cairo_builtins.HashBuiltin*, range_check_ptr: felt, size: felt, retdata: felt*)",
+                "type": "type_definition"
+            },
+            "__wrappers__.test_revert_fuzz.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "__wrappers__.test_revert_fuzz.__wrapped_func": {
+                "destination": "__main__.test_revert_fuzz",
+                "type": "alias"
+            },
+            "__wrappers__.test_revert_fuzz_encode_return.memcpy": {
                 "destination": "starkware.cairo.common.memcpy.memcpy",
                 "type": "alias"
             },
