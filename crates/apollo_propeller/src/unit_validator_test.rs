@@ -4,6 +4,7 @@ use std::sync::Arc;
 use libp2p::identity::Keypair;
 use libp2p::PeerId;
 use rstest::{fixture, rstest};
+use starknet_api::staking::StakingWeight;
 
 use crate::types::ShardSignatureVerificationError;
 use crate::{
@@ -42,8 +43,8 @@ fn env() -> TestEnv {
     let local_peer = PeerId::random();
     let other_peers = (0..(NUM_PEERS - 2)).map(|_| PeerId::random()).collect::<Vec<_>>();
 
-    let mut peers = vec![(local_peer, 10), (publisher, 10)];
-    peers.extend(other_peers.iter().copied().map(|peer| (peer, 10)));
+    let mut peers = vec![(local_peer, StakingWeight(10)), (publisher, StakingWeight(10))];
+    peers.extend(other_peers.iter().copied().map(|peer| (peer, StakingWeight(10))));
 
     let schedule_manager = Arc::new(PropellerScheduleManager::new(local_peer, peers).unwrap());
 

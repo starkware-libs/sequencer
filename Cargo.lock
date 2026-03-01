@@ -2336,6 +2336,7 @@ dependencies = [
  "reed-solomon-simd",
  "rstest",
  "sha2 0.10.9",
+ "starknet_api",
  "thiserror 1.0.69",
  "tokio",
  "tokio-stream",
