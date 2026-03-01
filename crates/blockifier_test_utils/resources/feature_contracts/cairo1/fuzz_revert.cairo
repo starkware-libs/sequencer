@@ -1,6 +1,8 @@
 #[starknet::interface]
 trait IOrchestrator<TContractState> {
     fn pop_front(ref self: TContractState) -> felt252;
+    fn get_index(ref self: TContractState) -> felt252;
+    fn set_index(ref self: TContractState, index: felt252);
 }
 
 #[starknet::contract]
@@ -9,7 +11,7 @@ mod FuzzRevertContract {
     use super::IOrchestratorDispatcherTrait;
     use core::panic_with_felt252;
     use starknet::storage::StoragePointerWriteAccess;
-    use starknet::{ClassHash, ContractAddress, StorageAddress, syscalls};
+    use starknet::{ClassHash, ContractAddress, StorageAddress, SyscallResult, syscalls};
     use starknet::contract_address::ContractAddressZero;
     use starknet::info::SyscallResultTrait;
 
@@ -23,12 +25,40 @@ mod FuzzRevertContract {
     const SCENARIO_WRITE: felt252 = 3;
     const SCENARIO_REPLACE_CLASS: felt252 = 4;
     const SCENARIO_DEPLOY: felt252 = 5;
+    const SCENARIO_PANIC: felt252 = 6;
 
     const FUZZ_TEST_SELECTOR: felt252 = selector!("test_revert_fuzz");
 
     #[storage]
     struct Storage {
         orchestrator_address: ContractAddress,
+    }
+
+    #[generate_trait]
+    impl InternalFunctions of InternalFunctionsTrait {
+        fn orchestrator(ref self: ContractState) -> IOrchestratorDispatcher {
+            let orchestrator_address = self.orchestrator_address.read();
+            assert(orchestrator_address != ContractAddressZero::zero(), 'uninitialized');
+            IOrchestratorDispatcher { contract_address: orchestrator_address }
+        }
+
+        /// Handle error-catching: innermost panic data should include the next scenario index in
+        /// the orchestrator. This index must be explicitly reset as it's increments were reverted
+        /// when the inner call panicked.
+        fn handle_error_catch(
+            ref self: ContractState, result: SyscallResult<Span<felt252>>, should_unwrap: bool
+        ) {
+            if should_unwrap {
+                result.unwrap_syscall();
+            } else {
+                match result {
+                    Result::Ok(_) => (),
+                    Result::Err(mut error) => self
+                        .orchestrator()
+                        .set_index(error.pop_front().unwrap()),
+                }
+            }
+        }
     }
 
     /// If this contract is deployed as part of the fuzz test "deploy" scenario, the orchestrator
@@ -49,10 +79,9 @@ mod FuzzRevertContract {
 
     #[external(v0)]
     fn test_revert_fuzz(ref self: ContractState) {
+        let orchestrator = self.orchestrator();
+
         // Get next scenario; None means done.
-        let orchestrator_address = self.orchestrator_address.read();
-        assert(orchestrator_address != ContractAddressZero::zero(), 'uninitialized');
-        let orchestrator = IOrchestratorDispatcher { contract_address: orchestrator_address };
         let scenario = orchestrator.pop_front();
 
         if scenario == SCENARIO_RETURN {
@@ -61,30 +90,20 @@ mod FuzzRevertContract {
 
         if scenario == SCENARIO_CALL {
             let contract_address: ContractAddress = orchestrator.pop_front().try_into().unwrap();
-            let should_unwrap_with = orchestrator.pop_front();
-            match syscalls::call_contract_syscall(
+            let should_unwrap: bool = orchestrator.pop_front() != 0;
+            let result = syscalls::call_contract_syscall(
                 contract_address, FUZZ_TEST_SELECTOR, array![].span(),
-            ) {
-                Result::Ok(_) => (),
-                Result::Err(_) => {
-                    if should_unwrap_with != 0 {
-                        panic_with_felt252(should_unwrap_with);
-                    }
-                },
-            }
+            );
+            self.handle_error_catch(result, should_unwrap);
         }
 
         if scenario == SCENARIO_LIBRARY_CALL {
             let class_hash: ClassHash = orchestrator.pop_front().try_into().unwrap();
-            let should_unwrap_with = orchestrator.pop_front();
-            match syscalls::library_call_syscall(class_hash, FUZZ_TEST_SELECTOR, array![].span()) {
-                Result::Ok(_) => (),
-                Result::Err(_) => {
-                    if should_unwrap_with != 0 {
-                        panic_with_felt252(should_unwrap_with);
-                    }
-                },
-            }
+            let should_unwrap: bool = orchestrator.pop_front() != 0;
+            let result = syscalls::library_call_syscall(
+                class_hash, FUZZ_TEST_SELECTOR, array![].span()
+            );
+            self.handle_error_catch(result, should_unwrap);
         }
 
         if scenario == SCENARIO_WRITE {
@@ -105,10 +124,14 @@ mod FuzzRevertContract {
             let class_hash: ClassHash = orchestrator.pop_front().try_into().unwrap();
             let salt = orchestrator.pop_front();
             let deploy_from_zero: bool = true;
-            let ctor_calldata = array![orchestrator_address.into()];
+            let ctor_calldata = array![self.orchestrator_address.read().into()];
             // Deploy errors cannot be caught. Just unwrap the syscall.
             syscalls::deploy_syscall(class_hash, salt, ctor_calldata.span(), deploy_from_zero)
                 .unwrap_syscall();
+        }
+
+        if scenario == SCENARIO_PANIC {
+            panic_with_felt252(orchestrator.get_index());
         }
 
         // Unless explicitly stated otherwise, the next operation should be in the current call
