@@ -25,6 +25,7 @@ use crate::batcher_types::{
     GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
+    ProposalId,
     ProposeBlockInput,
     RevertBlockInput,
     SendProposalContentInput,
@@ -59,6 +60,8 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<GetProposalContentResponse>;
     /// Starts the process of validating a proposal.
     async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()>;
+
+    /// TODO(Itamar): Remove this method once all callers migrate to their own method.
     /// Sends the content of a proposal. Only relevant when validating a proposal.
     /// Note:
     ///   * This call can be blocking if the batcher has too many unprocessed transactions.
@@ -82,6 +85,8 @@ pub trait BatcherClient: Send + Sync {
         &self,
         input: DecisionReachedInput,
     ) -> BatcherClientResult<DecisionReachedResponse>;
+    /// Aborts a proposal that is currently being validated.
+    async fn abort_proposal(&self, proposal_id: ProposalId) -> BatcherClientResult<()>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
     async fn get_timestamp(&self) -> BatcherClientResult<UnixTimestamp>;
@@ -99,7 +104,9 @@ pub enum BatcherRequest {
     GetBlockHash(BlockNumber),
     GetProposalContent(GetProposalContentInput),
     ValidateBlock(ValidateBlockInput),
+    // TODO(Itamar): Remove this variant once all callers migrate to their own method.
     SendProposalContent(SendProposalContentInput),
+    AbortProposal(ProposalId),
     StartHeight(StartHeightInput),
     GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
@@ -124,6 +131,7 @@ pub enum BatcherResponse {
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
+    AbortProposal(BatcherResult<()>),
     StartHeight(BatcherResult<()>),
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
@@ -265,6 +273,19 @@ where
             request,
             BatcherResponse,
             AddSyncBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn abort_proposal(&self, proposal_id: ProposalId) -> BatcherClientResult<()> {
+        let request = BatcherRequest::AbortProposal(proposal_id);
+        handle_all_response_variants!(
+            self,
+            request,
+            BatcherResponse,
+            AbortProposal,
             BatcherClientError,
             BatcherError,
             Direct
