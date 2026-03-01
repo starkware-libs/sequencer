@@ -4,6 +4,7 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::{
     CentralObjects,
     DecisionReachedResponse,
+    FinishProposalStatus,
     FinishedProposalInfo,
     FinishedProposalInfoWithoutParent,
     ProposalCommitment as BatcherProposalCommitment,
@@ -342,27 +343,23 @@ async fn interrupt_active_proposal() {
 
     // Round 1: Will send Txs then Finish
     deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
-        let SendProposalContent::Txs(txs) = input.content else {
-            panic!("Expected Txs");
-        };
+        let SendProposalContent::Txs(txs) = input.content;
         assert_eq!(txs, *INTERNAL_TX_BATCH);
         Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
     });
-    deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
-        assert!(matches!(input.content, SendProposalContent::Finish(_)));
-        Ok(SendProposalContentResponse {
-            response: ProposalStatus::Finished(FinishedProposalInfo {
-                artifact: FinishedProposalInfoWithoutParent {
-                    proposal_commitment: BatcherProposalCommitment {
-                        partial_block_hash: PARTIAL_BLOCK_HASH,
-                    },
-                    final_n_executed_txs: 0,
-                    block_header_commitments: BlockHeaderCommitments::default(),
-                    l2_gas_used: GasAmount::default(),
+    deps.batcher.expect_finish_proposal().times(1).returning(|input| {
+        assert_eq!(input.final_n_executed_txs, INTERNAL_TX_BATCH.len());
+        Ok(FinishProposalStatus::Finished(FinishedProposalInfo {
+            artifact: FinishedProposalInfoWithoutParent {
+                proposal_commitment: BatcherProposalCommitment {
+                    partial_block_hash: PARTIAL_BLOCK_HASH,
                 },
-                parent_proposal_commitment: None,
-            }),
-        })
+                final_n_executed_txs: 0,
+                block_header_commitments: BlockHeaderCommitments::default(),
+                l2_gas_used: GasAmount::default(),
+            },
+            parent_proposal_commitment: None,
+        }))
     });
 
     let mut context = deps.build_context();
