@@ -743,24 +743,28 @@ class EchoCenterService:
         """
         data = flask.request.get_json()
         method = data["method"]
-        self.logger.info(f"Method: {method}")
-
         raw_params = data.get("params")
-        self.logger.info(f"Raw params: {raw_params}")
         params = raw_params[0] if isinstance(raw_params, list) and raw_params else {}
 
         if method == "eth_blockNumber":
             payload = self.l1_manager.get_block_number()
-            self.logger.info(f"eth_blockNumber payload: {payload}")
+            result = payload.get("result", "0x0")
+            self.logger.info(f"eth_blockNumber: {result} ({int(result, 16)})")
             return self._json_response(payload, requests.codes.ok)
 
         if method == "eth_getBlockByNumber":
+            self.logger.info(f"eth_getBlockByNumber: {params} ({int(params, 16)})")
             payload = self.l1_manager.get_block_by_number(params)
             return self._json_response(payload, requests.codes.ok)
 
         if method == "eth_getLogs":
+            from_block = params.get("fromBlock", "0x0")
+            to_block = params.get("toBlock", "0x0")
+            self.logger.info(
+                f"eth_getLogs: from={from_block} ({int(from_block, 16)}), to={to_block} ({int(to_block, 16)})"
+            )
             payload = self.l1_manager.get_logs(params)
-            self.logger.info(f"eth_getLogs payload: {payload}")
+            self.logger.info(f"eth_getLogs: {len(payload.get('result', []))} logs")
             return self._json_response(payload, requests.codes.ok)
 
         if method == "eth_call":
