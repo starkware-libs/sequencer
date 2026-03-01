@@ -24,21 +24,30 @@ const ORCHESTRATOR_CONTRACT: FeatureContract =
 const CAIRO0_CONTRACT: FeatureContract = FeatureContract::FuzzTest(CairoVersion::Cairo0);
 const CAIRO1_CONTRACT: FeatureContract =
     FeatureContract::FuzzTest(CairoVersion::Cairo1(RunnableCairo1::Casm));
+const CAIRO1_REPLACEMENT_CONTRACT: FeatureContract =
+    FeatureContract::FuzzTest2(RunnableCairo1::Casm);
 
 /// Class hashes and class_hash -> is_cairo1 mapping.
 static CAIRO0_CONTRACT_CLASS_HASH: LazyLock<ClassHash> =
     LazyLock::new(|| get_class_hash_of_feature_contract(CAIRO0_CONTRACT));
 static CAIRO1_CONTRACT_CLASS_HASH: LazyLock<ClassHash> =
     LazyLock::new(|| get_class_hash_of_feature_contract(CAIRO1_CONTRACT));
+static CAIRO1_REPLACEMENT_CLASS_HASH: LazyLock<ClassHash> =
+    LazyLock::new(|| get_class_hash_of_feature_contract(CAIRO1_REPLACEMENT_CONTRACT));
 #[allow(dead_code)]
 static IS_CAIRO1: LazyLock<BTreeMap<ClassHash, bool>> = LazyLock::new(|| {
-    BTreeMap::from([(*CAIRO0_CONTRACT_CLASS_HASH, false), (*CAIRO1_CONTRACT_CLASS_HASH, true)])
+    BTreeMap::from([
+        (*CAIRO0_CONTRACT_CLASS_HASH, false),
+        (*CAIRO1_CONTRACT_CLASS_HASH, true),
+        (*CAIRO1_REPLACEMENT_CLASS_HASH, true),
+    ])
 });
 
 #[derive(Clone, Copy, EnumIter)]
 enum FuzzOperation {
     Return,
     Call,
+    LibraryCall,
 }
 
 impl FuzzOperation {
@@ -46,6 +55,7 @@ impl FuzzOperation {
         Felt::from(match self {
             Self::Return => 0u8,
             Self::Call => 1u8,
+            Self::LibraryCall => 2u8,
         })
     }
 }
@@ -77,11 +87,40 @@ impl CallOperationData {
         match self {
             Self::Cairo0 { .. } => ParentFailureBehavior::Uncatchable,
             Self::Cairo1 { unwraps_error, .. } => {
-                if *unwraps_error {
-                    ParentFailureBehavior::Cairo1Propagating
-                } else {
-                    ParentFailureBehavior::Cairo1Catching
-                }
+                ParentFailureBehavior::cairo1_behavior(*unwraps_error)
+            }
+        }
+    }
+}
+
+/// Different variants depending on whether or not the calling context is Cairo0.
+#[derive(Clone, Copy, Debug)]
+enum LibraryCallOperationData {
+    Cairo0 { class_hash: ClassHash },
+    Cairo1 { class_hash: ClassHash, unwraps_error: bool },
+}
+
+impl LibraryCallOperationData {
+    pub fn felt_vector(&self) -> Vec<Felt> {
+        match self {
+            Self::Cairo0 { class_hash, .. } => vec![class_hash.0],
+            Self::Cairo1 { class_hash, unwraps_error, .. } => {
+                vec![class_hash.0, (*unwraps_error).into()]
+            }
+        }
+    }
+
+    pub fn class_hash(&self) -> &ClassHash {
+        match self {
+            Self::Cairo0 { class_hash } | Self::Cairo1 { class_hash, .. } => class_hash,
+        }
+    }
+
+    pub fn parent_failure_behavior(&self) -> ParentFailureBehavior {
+        match self {
+            Self::Cairo0 { .. } => ParentFailureBehavior::Uncatchable,
+            Self::Cairo1 { unwraps_error, .. } => {
+                ParentFailureBehavior::cairo1_behavior(*unwraps_error)
             }
         }
     }
@@ -92,6 +131,7 @@ impl CallOperationData {
 enum FuzzOperationData {
     Return,
     Call(CallOperationData),
+    LibraryCall(LibraryCallOperationData),
 }
 
 impl FuzzOperationData {
@@ -99,6 +139,7 @@ impl FuzzOperationData {
         match self {
             Self::Return => FuzzOperation::Return,
             Self::Call(_) => FuzzOperation::Call,
+            Self::LibraryCall(_) => FuzzOperation::LibraryCall,
         }
     }
 
@@ -109,6 +150,7 @@ impl FuzzOperationData {
         felt_vector.extend(match self {
             Self::Return => vec![],
             Self::Call(op) => op.felt_vector(),
+            Self::LibraryCall(op) => op.felt_vector(),
         });
         felt_vector
     }
@@ -125,6 +167,12 @@ enum ParentFailureBehavior {
 
     /// In cairo1, unwrapping errors from next context.
     Cairo1Propagating,
+}
+
+impl ParentFailureBehavior {
+    pub fn cairo1_behavior(unwraps_error: bool) -> Self {
+        if unwraps_error { Self::Cairo1Propagating } else { Self::Cairo1Catching }
+    }
 }
 
 /// Final state of the fuzz test transaction.
@@ -192,6 +240,8 @@ impl FuzzTestManager {
                 cairo1_contract_address_b,
                 cairo0_contract_address_a,
                 cairo0_contract_address_b,
+                // We don't need an instance of the replacement class, but we do want it declared.
+                _replacement_address,
             ],
         ) = TestBuilder::create_standard([
             (ORCHESTRATOR_CONTRACT, calldata![]),
@@ -199,6 +249,7 @@ impl FuzzTestManager {
             (CAIRO1_CONTRACT, calldata![Felt::ZERO]),
             (CAIRO0_CONTRACT, calldata![Felt::ZERO]),
             (CAIRO0_CONTRACT, calldata![Felt::ZERO]),
+            (CAIRO1_REPLACEMENT_CONTRACT, calldata![Felt::ZERO]),
         ])
         .await;
 
@@ -301,6 +352,34 @@ impl FuzzTestManager {
                     })
                     .collect()
             }
+            FuzzOperation::LibraryCall => {
+                // We have one Cairo0 contract and two Cairo1 contracts to choose from.
+                // Similar to calls, when calling from a Cairo1 context, the caller can unwrap the
+                // call result or not.
+                let current_context_is_cairo1 = self.is_current_context_cairo1();
+                IS_CAIRO1
+                    .keys()
+                    .flat_map(|class_hash| {
+                        if current_context_is_cairo1 {
+                            [true, false]
+                                .into_iter()
+                                .map(|unwraps_error| {
+                                    FuzzOperationData::LibraryCall(
+                                        LibraryCallOperationData::Cairo1 {
+                                            class_hash: *class_hash,
+                                            unwraps_error,
+                                        },
+                                    )
+                                })
+                                .collect()
+                        } else {
+                            vec![FuzzOperationData::LibraryCall(LibraryCallOperationData::Cairo0 {
+                                class_hash: *class_hash,
+                            })]
+                        }
+                    })
+                    .collect()
+            }
         }
     }
 
@@ -328,6 +407,16 @@ impl FuzzTestManager {
                     address,
                     class_hash,
                     parent_failure_behavior: call_operation_data.parent_failure_behavior(),
+                    inner_calls: vec![],
+                });
+                self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
+            }
+            FuzzOperationData::LibraryCall(library_call_operation_data) => {
+                let current_address = self.current_fuzz_call_info().address;
+                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo {
+                    address: current_address,
+                    class_hash: *library_call_operation_data.class_hash(),
+                    parent_failure_behavior: library_call_operation_data.parent_failure_behavior(),
                     inner_calls: vec![],
                 });
                 self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
