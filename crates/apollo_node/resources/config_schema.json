@@ -229,7 +229,7 @@
     "privacy": "Public",
     "value": false
   },
-  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_run_mode": {
+  "batcher_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
     "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
     "privacy": "Public",
     "value": "off"
@@ -2549,7 +2549,7 @@
     "privacy": "Public",
     "value": false
   },
-  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_run_mode": {
+  "gateway_config.static_config.contract_class_manager_config.cairo_native_run_config.cairo_native_mode": {
     "description": "Cairo native execution mode. 'off' disables native execution, 'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles asynchronously.",
     "privacy": "Public",
     "value": "off"

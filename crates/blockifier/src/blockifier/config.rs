@@ -157,9 +157,9 @@ impl Default for ContractClassManagerConfig {
 
 impl ContractClassManagerConfig {
     #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
-    pub fn create_for_testing(cairo_native_run_mode: CairoNativeMode) -> Self {
+    pub fn create_for_testing(cairo_native_mode: CairoNativeMode) -> Self {
         let cairo_native_run_config =
-            CairoNativeRunConfig { cairo_native_run_mode, ..Default::default() };
+            CairoNativeRunConfig { cairo_native_mode, ..Default::default() };
         let native_compiler_config = SierraCompilationConfig::create_for_testing();
         Self { cairo_native_run_config, native_compiler_config, ..Default::default() }
     }
@@ -240,7 +240,7 @@ impl NativeClassesWhitelist {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
-    pub cairo_native_run_mode: CairoNativeMode,
+    pub cairo_native_mode: CairoNativeMode,
     pub channel_size: usize,
     pub panic_on_compilation_failure: bool,
 }
@@ -248,7 +248,7 @@ pub struct CairoNativeRunConfig {
 impl Default for CairoNativeRunConfig {
     fn default() -> Self {
         Self {
-            cairo_native_run_mode: CairoNativeMode::default(),
+            cairo_native_mode: CairoNativeMode::default(),
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             panic_on_compilation_failure: false,
         }
@@ -259,8 +259,8 @@ impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "cairo_native_run_mode",
-                &self.cairo_native_run_mode,
+                "cairo_native_mode",
+                &self.cairo_native_mode,
                 "Cairo native execution mode. 'off' disables native execution, \
                  'wait_on_compilation' compiles synchronously, and 'lazy_compilation' compiles \
                  asynchronously.",

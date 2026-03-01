@@ -171,12 +171,12 @@ pub fn test_state_inner_with_contract_manager(
     );
 
     #[cfg(not(feature = "cairo_native"))]
-    let cairo_native_run_mode = CairoNativeMode::Off;
+    let cairo_native_mode = CairoNativeMode::Off;
     #[cfg(feature = "cairo_native")]
-    let cairo_native_run_mode = CairoNativeMode::WaitOnCompilation;
+    let cairo_native_mode = CairoNativeMode::WaitOnCompilation;
 
     let manager = ContractClassManager::start(ContractClassManagerConfig::create_for_testing(
-        cairo_native_run_mode,
+        cairo_native_mode,
     ));
 
     let reader = state_reader_and_contract_manager_for_testing(reader, manager);
