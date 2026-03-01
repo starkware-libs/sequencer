@@ -325,12 +325,16 @@ impl FuzzTestManager {
         call
     }
 
+    pub fn current_class_hash(&self) -> ClassHash {
+        self.current_fuzz_call_info().class_hash
+    }
+
     pub fn is_cairo1_class(&self, class_hash: &ClassHash) -> bool {
         *self.is_cairo1.get(class_hash).unwrap()
     }
 
     pub fn is_current_context_cairo1(&self) -> bool {
-        self.is_cairo1_class(&self.current_fuzz_call_info().class_hash)
+        self.is_cairo1_class(&self.current_class_hash())
     }
 
     /// Returns a vector of operations of the given type that can be applied on the current context.
