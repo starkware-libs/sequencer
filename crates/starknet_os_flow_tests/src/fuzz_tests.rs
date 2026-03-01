@@ -178,6 +178,7 @@ impl FuzzOperationData {
 }
 
 /// Parent frame behavior on failures.
+#[derive(Debug, PartialEq)]
 enum ParentFailureBehavior {
     /// In a cairo0 context, or in a constructor call tree. Failures in this context cannot be
     /// caught by any calling context.
@@ -488,6 +489,53 @@ impl FuzzTestManager {
         FuzzOperation::iter().flat_map(|op| self.valid_operations_of_type(op)).collect()
     }
 
+    /// Enter a new call or deploy context.
+    fn enter(
+        &mut self,
+        address: ContractAddress,
+        class_hash: ClassHash,
+        parent_failure_behavior: ParentFailureBehavior,
+        constructor: bool,
+    ) {
+        let current_call = self.current_fuzz_call_info_mut();
+        let next_call_index = current_call.inner_calls.len();
+        if constructor {
+            assert_eq!(parent_failure_behavior, ParentFailureBehavior::Uncatchable);
+            current_call.inner_calls.push(FuzzCallInfo::new_deploy(address, class_hash));
+        } else {
+            current_call.inner_calls.push(FuzzCallInfo::new_call(
+                address,
+                class_hash,
+                parent_failure_behavior,
+            ));
+        }
+        self.current_call.push(next_call_index);
+    }
+
+    /// Enter a new call context.
+    pub fn enter_call(
+        &mut self,
+        address: ContractAddress,
+        class_hash: ClassHash,
+        parent_failure_behavior: ParentFailureBehavior,
+    ) {
+        self.enter(address, class_hash, parent_failure_behavior, false);
+    }
+
+    /// Enter a new deploy (constructor) context.
+    pub fn enter_deploy(&mut self, address: ContractAddress, class_hash: ClassHash) {
+        self.enter(address, class_hash, ParentFailureBehavior::Uncatchable, true);
+    }
+
+    /// Exit the current call context.
+    pub fn exit_call(&mut self) {
+        self.current_call.pop();
+        // If we returned to orchestrator context, no more operations can be applied.
+        if self.current_call.is_empty() {
+            self.final_state = FinalizedState::Succeeded;
+        }
+    }
+
     /// Applies the operation and updates the context.
     pub fn apply(&mut self, operation: FuzzOperationData) {
         assert!(!self.finalized());
@@ -495,30 +543,20 @@ impl FuzzTestManager {
         match operation {
             FuzzOperationData::Return => {
                 // Go up the call tree.
-                self.current_call.pop();
-                // If we returned to orchestrator context, no more operations can be applied.
-                if self.current_call.is_empty() {
-                    self.final_state = FinalizedState::Succeeded;
-                }
+                self.exit_call()
             }
             FuzzOperationData::Call(call_operation_data) => {
                 let address = *call_operation_data.address();
                 let class_hash = *self.deployed_contracts.get(&address).unwrap();
-                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo::new_call(
-                    address,
-                    class_hash,
-                    call_operation_data.parent_failure_behavior(),
-                ));
-                self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
+                self.enter_call(address, class_hash, call_operation_data.parent_failure_behavior());
             }
             FuzzOperationData::LibraryCall(library_call_operation_data) => {
                 let current_address = self.current_address();
-                self.current_fuzz_call_info_mut().inner_calls.push(FuzzCallInfo::new_call(
+                self.enter_call(
                     current_address,
                     *library_call_operation_data.class_hash(),
                     library_call_operation_data.parent_failure_behavior(),
-                ));
-                self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
+                );
             }
             FuzzOperationData::Write(_, _) => {
                 self.next_storage_write_value.0 += Felt::ONE;
@@ -552,11 +590,8 @@ impl FuzzTestManager {
                 self.next_salt.0 += Felt::ONE;
                 // Update the mapping from address to class hash.
                 self.deployed_contracts.insert(deployed_address, class_hash);
-                // Enter new call context.
-                self.current_fuzz_call_info_mut()
-                    .inner_calls
-                    .push(FuzzCallInfo::new_deploy(deployed_address, class_hash));
-                self.current_call.push(self.current_fuzz_call_info().inner_calls.len() - 1);
+                // Enter constructor context.
+                self.enter_deploy(deployed_address, class_hash);
             }
         }
     }
