@@ -12434,6 +12434,8 @@ dependencies = [
  "cairo-vm",
  "expect-test",
  "itertools 0.12.1",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "rstest",
  "serde_json",
  "starknet-core",
@@ -12445,6 +12447,7 @@ dependencies = [
  "starknet_os_runner",
  "starknet_patricia",
  "starknet_patricia_storage",
+ "strum 0.25.0",
  "tokio",
 ]
 
