@@ -7,13 +7,23 @@ func orchestrator_address() -> (address: felt) {
 }
 
 /// If this contract is deployed as part of the fuzz test "deploy" scenario, the orchestrator
-/// address must be provided. Otherwise, deploy with [0] as args.
+/// address must be provided, and run_fuzz must be non zero. Otherwise, deploy with [0,0] as args.
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    maybe_orchestrator_address: felt,
+    maybe_orchestrator_address: felt, run_fuzz: felt,
 ) {
     if (maybe_orchestrator_address != 0) {
         initialize(maybe_orchestrator_address);
+        tempvar syscall_ptr = syscall_ptr;
+        tempvar pedersen_ptr = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        tempvar syscall_ptr = syscall_ptr;
+        tempvar pedersen_ptr = pedersen_ptr;
+        tempvar range_check_ptr = range_check_ptr;
+    }
+    if (run_fuzz != 0) {
+        test_revert_fuzz();
         tempvar syscall_ptr = syscall_ptr;
         tempvar pedersen_ptr = pedersen_ptr;
         tempvar range_check_ptr = range_check_ptr;
@@ -30,5 +40,10 @@ func initialize{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}
     orchestrator_address_input: felt
 ) {
     orchestrator_address.write(orchestrator_address_input);
+    return ();
+}
+
+@external
+func test_revert_fuzz{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() {
     return ();
 }
