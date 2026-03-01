@@ -24,12 +24,12 @@ const CURRENT_BLOCK_NUMBER: BlockNumber = BlockNumber(STORED_BLOCK_HASH_BUFFER);
 const RETRO_BLOCK_NUMBER: BlockNumber = BlockNumber(0);
 const RETRO_BLOCK_HASH: BlockHash = BlockHash(Felt::from_hex_unchecked("0x1234567890abcdef"));
 
-async fn get_block_info(args: &ProposalBuildArguments) -> ProposalInit {
+async fn get_proposal_init(args: &ProposalBuildArguments) -> ProposalInit {
     let timestamp = args.deps.clock.unix_now();
     let (l1_prices_fri, l1_prices_wei) = get_l1_prices_in_fri_and_wei(
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
-        args.previous_block_info.as_ref(),
+        args.previous_proposal_init.as_ref(),
         &args.gas_price_params,
     )
     .await;
@@ -88,7 +88,7 @@ async fn retrospective_block_hash_happy_flow(
     });
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let init = get_block_info(&proposal_args).await;
+    let init = get_proposal_init(&proposal_args).await;
     let res = retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,
@@ -150,7 +150,7 @@ async fn retrospective_block_hash_sad_flow(
         .returning(move |_| Err(state_sync_error.clone()));
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let init = get_block_info(&proposal_args).await;
+    let init = get_proposal_init(&proposal_args).await;
     let res = retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,
@@ -199,7 +199,7 @@ async fn wait_for_retrospective_block_hash_state_sync_ready_after_a_while() {
         .returning(|_| Ok(RETRO_BLOCK_HASH));
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let init = get_block_info(&proposal_args).await;
+    let init = get_proposal_init(&proposal_args).await;
     let res = wait_for_retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,
@@ -249,7 +249,7 @@ async fn wait_for_retrospective_block_hash_batcher_ready_after_a_while() {
         .returning(|_| Err(StateSyncError::BlockNotFound(RETRO_BLOCK_NUMBER).into()));
 
     let proposal_args: ProposalBuildArguments = test_proposal_args.into();
-    let init = get_block_info(&proposal_args).await;
+    let init = get_proposal_init(&proposal_args).await;
     let res = wait_for_retrospective_block_hash(
         proposal_args.deps.batcher,
         proposal_args.deps.state_sync_client,

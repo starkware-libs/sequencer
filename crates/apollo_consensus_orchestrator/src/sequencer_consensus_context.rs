@@ -85,12 +85,12 @@ use crate::utils::{
     make_gas_price_params,
     L1PricesInFri,
     L1PricesInWei,
-    PreviousBlockInfo,
+    PreviousProposalInitInfo,
     StreamSender,
 };
 use crate::validate_proposal::{
     validate_proposal,
-    BlockInfoValidation,
+    ProposalInitValidation,
     ProposalValidateArguments,
     ValidateProposalError,
 };
@@ -177,7 +177,7 @@ pub struct SequencerConsensusContext {
     queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalCommitment>)>,
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
-    previous_block_info: Option<PreviousBlockInfo>,
+    previous_proposal_init: Option<PreviousProposalInitInfo>,
 }
 
 #[derive(Clone)]
@@ -223,7 +223,7 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
-            previous_block_info: None,
+            previous_proposal_init: None,
         }
     }
 
@@ -527,7 +527,7 @@ impl ConsensusContext for SequencerConsensusContext {
             // TODO(Asmaa): Get it from committee once we have it.
             builder_address: self.config.static_config.builder_address,
             cancel_token,
-            previous_block_info: self.previous_block_info.clone(),
+            previous_proposal_init: self.previous_proposal_init.clone(),
             proposal_round: self.current_round,
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis: self
@@ -586,13 +586,13 @@ impl ConsensusContext for SequencerConsensusContext {
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
-                let block_info_validation = BlockInfoValidation {
+                let proposal_init_validation = ProposalInitValidation {
                     height: init.height,
                     block_timestamp_window_seconds: self
                         .config
                         .static_config
                         .block_timestamp_window_seconds,
-                    previous_block_info: self.previous_block_info.clone(),
+                    previous_proposal_init: self.previous_proposal_init.clone(),
                     l1_da_mode: self.l1_da_mode,
                     l2_gas_price_fri: self
                         .config
@@ -603,7 +603,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 };
                 self.validate_current_round_proposal(
                     init,
-                    block_info_validation,
+                    proposal_init_validation,
                     timeout,
                     self.config.static_config.validate_proposal_margin_millis,
                     content_receiver,
@@ -702,7 +702,7 @@ impl ConsensusContext for SequencerConsensusContext {
         )
         .await;
 
-        self.previous_block_info = Some(PreviousBlockInfo::from(&init));
+        self.previous_proposal_init = Some(PreviousProposalInitInfo::from(&init));
 
         Ok(())
     }
@@ -727,7 +727,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
         let last_block_timestamp =
-            self.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
+            self.previous_proposal_init.as_ref().map_or(0, |info| info.timestamp);
         let now: u64 = self.deps.clock.unix_now();
         if !(block_number == height
             && timestamp.0 >= last_block_timestamp
@@ -744,8 +744,8 @@ impl ConsensusContext for SequencerConsensusContext {
             );
             return false;
         }
-        self.previous_block_info =
-            Some(previous_block_info_from_block_header(&sync_block.block_header_without_hash));
+        self.previous_proposal_init =
+            Some(previous_proposal_init_from_block_header(&sync_block.block_header_without_hash));
         self.interrupt_active_proposal().await;
 
         info!(
@@ -813,13 +813,13 @@ impl ConsensusContext for SequencerConsensusContext {
         let Some(((init, timeout, content), fin_sender)) = to_process else {
             return Ok(());
         };
-        let block_info_validation = BlockInfoValidation {
+        let proposal_init_validation = ProposalInitValidation {
             height: init.height,
             block_timestamp_window_seconds: self
                 .config
                 .static_config
                 .block_timestamp_window_seconds,
-            previous_block_info: self.previous_block_info.clone(),
+            previous_proposal_init: self.previous_proposal_init.clone(),
             l1_da_mode: self.l1_da_mode,
             l2_gas_price_fri: self
                 .config
@@ -830,7 +830,7 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         self.validate_current_round_proposal(
             init,
-            block_info_validation,
+            proposal_init_validation,
             timeout,
             self.config.static_config.validate_proposal_margin_millis,
             content,
@@ -845,7 +845,7 @@ impl SequencerConsensusContext {
     async fn validate_current_round_proposal(
         &mut self,
         init: ProposalInit,
-        block_info_validation: BlockInfoValidation,
+        proposal_init_validation: ProposalInitValidation,
         timeout: Duration,
         batcher_timeout_margin: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
@@ -861,7 +861,7 @@ impl SequencerConsensusContext {
         let args = ProposalValidateArguments {
             deps: self.deps.clone(),
             init,
-            block_info_validation,
+            proposal_init_validation,
             proposal_id,
             timeout,
             batcher_timeout_margin,
@@ -963,10 +963,10 @@ async fn send_reproposal(
     Ok(())
 }
 
-fn previous_block_info_from_block_header(
+fn previous_proposal_init_from_block_header(
     block_header: &BlockHeaderWithoutHash,
-) -> PreviousBlockInfo {
-    PreviousBlockInfo {
+) -> PreviousProposalInitInfo {
+    PreviousProposalInitInfo {
         timestamp: block_header.timestamp.0,
         l1_prices_wei: L1PricesInWei {
             l1_gas_price: block_header.l1_gas_price.price_in_wei,

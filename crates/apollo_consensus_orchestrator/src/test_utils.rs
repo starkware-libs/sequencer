@@ -74,7 +74,7 @@ use crate::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
-use crate::utils::{make_gas_price_params, GasPriceParams, PreviousBlockInfo, StreamSender};
+use crate::utils::{make_gas_price_params, GasPriceParams, PreviousProposalInitInfo, StreamSender};
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
@@ -368,7 +368,7 @@ pub(crate) fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     }))
 }
 
-pub(crate) fn block_info(height: BlockNumber, round: u32) -> ProposalInit {
+pub(crate) fn proposal_init(height: BlockNumber, round: u32) -> ProposalInit {
     let context_config = ContextConfig::default();
     let l1_gas_price_wei =
         GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.dynamic_config.l1_gas_tip_wei);
@@ -443,7 +443,7 @@ pub(crate) struct TestProposalBuildArguments {
     pub l2_gas_price: GasPrice,
     pub builder_address: ContractAddress,
     pub cancel_token: CancellationToken,
-    pub previous_block_info: Option<PreviousBlockInfo>,
+    pub previous_proposal_init: Option<PreviousProposalInitInfo>,
     pub proposal_round: Round,
     pub retrospective_block_hash_deadline: DateTime,
     pub retrospective_block_hash_retry_interval_millis: Duration,
@@ -465,7 +465,7 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             l2_gas_price: args.l2_gas_price,
             builder_address: args.builder_address,
             cancel_token: args.cancel_token,
-            previous_block_info: args.previous_block_info,
+            previous_proposal_init: args.previous_proposal_init,
             proposal_round: args.proposal_round,
             retrospective_block_hash_deadline: args.retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis: args
@@ -496,7 +496,7 @@ pub(crate) fn create_proposal_build_arguments()
     let l2_gas_price = VersionedConstants::latest_constants().min_gas_price;
     let builder_address = ContractAddress::default();
     let cancel_token = CancellationToken::new();
-    let previous_block_info = None;
+    let previous_proposal_init = None;
     let proposal_round = 0;
     let override_timestamp = false;
 
@@ -514,7 +514,7 @@ pub(crate) fn create_proposal_build_arguments()
             l2_gas_price,
             builder_address,
             cancel_token,
-            previous_block_info,
+            previous_proposal_init,
             proposal_round,
             retrospective_block_hash_deadline,
             retrospective_block_hash_retry_interval_millis,

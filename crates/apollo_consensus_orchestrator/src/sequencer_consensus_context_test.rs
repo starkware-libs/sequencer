@@ -64,8 +64,8 @@ use crate::sequencer_consensus_context::{
     SequencerConsensusContextDeps,
 };
 use crate::test_utils::{
-    block_info,
     create_test_and_network_deps,
+    proposal_init,
     send_proposal_to_validator_context,
     SetupDepsArgs,
     CHAIN_ID,
@@ -104,8 +104,9 @@ async fn validate_proposal_success() {
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(BlockNumber(0), 0), TIMEOUT, content_receiver)
+        .await;
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
@@ -130,7 +131,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let init = block_info(BlockNumber(0), 0);
+    let init = proposal_init(BlockNumber(0), 0);
     let transactions =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
@@ -179,8 +180,9 @@ async fn proposals_from_different_rounds() {
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(prop_part_txs.clone()).await.unwrap();
 
-    let fin_receiver_past_round =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver_past_round = context
+        .validate_proposal(proposal_init(BlockNumber(0), 0), TIMEOUT, content_receiver)
+        .await;
     // No fin was sent, channel remains open.
     assert!(fin_receiver_past_round.await.is_err());
 
@@ -189,8 +191,9 @@ async fn proposals_from_different_rounds() {
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
-    let fin_receiver_curr_round =
-        context.validate_proposal(block_info(BlockNumber(0), 1), TIMEOUT, content_receiver).await;
+    let fin_receiver_curr_round = context
+        .validate_proposal(proposal_init(BlockNumber(0), 1), TIMEOUT, content_receiver)
+        .await;
     assert_eq!(fin_receiver_curr_round.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
     // The proposal from the future round should not be processed.
@@ -198,8 +201,9 @@ async fn proposals_from_different_rounds() {
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
-    let fin_receiver_future_round =
-        context.validate_proposal(block_info(BlockNumber(0), 2), TIMEOUT, content_receiver).await;
+    let fin_receiver_future_round = context
+        .validate_proposal(proposal_init(BlockNumber(0), 2), TIMEOUT, content_receiver)
+        .await;
     content_sender.close_channel();
     // Even with sending fin and closing the channel.
     assert!(fin_receiver_future_round.now_or_never().is_none());
@@ -254,12 +258,14 @@ async fn interrupt_active_proposal() {
     // without needing interrupt.
     let (mut _content_sender_0, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let fin_receiver_0 =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver_0 = context
+        .validate_proposal(proposal_init(BlockNumber(0), 0), TIMEOUT, content_receiver)
+        .await;
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver_1 =
-        context.validate_proposal(block_info(BlockNumber(0), 1), TIMEOUT, content_receiver).await;
+    let fin_receiver_1 = context
+        .validate_proposal(proposal_init(BlockNumber(0), 1), TIMEOUT, content_receiver)
+        .await;
     // Move the context to the next round.
     context.set_height_and_round(BlockNumber(0), 1).await.unwrap();
 
@@ -468,7 +474,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             mpsc::channel(context.config.static_config.proposal_buffer_size);
 
         let fin_receiver = context
-            .validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver)
+            .validate_proposal(proposal_init(BlockNumber(0), 0), TIMEOUT, content_receiver)
             .await;
         assert_eq!(fin_receiver.await, Err(Canceled));
     }
@@ -531,7 +537,7 @@ async fn gas_price_fri_out_of_range() {
     let (_content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
     // Receive a block info with l1_gas_price_fri that is outside the margin of error.
-    let mut init_1 = block_info(BlockNumber(0), 0);
+    let mut init_1 = proposal_init(BlockNumber(0), 0);
     init_1.l1_gas_price_fri = init_1.l1_gas_price_fri.checked_mul_u128(2).unwrap();
     // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
@@ -541,13 +547,13 @@ async fn gas_price_fri_out_of_range() {
     // Do the same for data gas price.
     let (mut content_sender, content_receiver) =
         mpsc::channel(context.config.static_config.proposal_buffer_size);
-    let mut init_2 = block_info(BlockNumber(0), 0);
+    let mut init_2 = proposal_init(BlockNumber(0), 0);
     init_2.l1_data_gas_price_fri = init_2.l1_data_gas_price_fri.checked_mul_u128(2).unwrap();
     content_sender.send(ProposalPart::Init(init_2).clone()).await.unwrap();
     // Use a large enough timeout to ensure fin_receiver was canceled due to invalid init,
     // not due to a timeout.
     let fin_receiver = context
-        .validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT * 100, content_receiver)
+        .validate_proposal(proposal_init(BlockNumber(0), 0), TIMEOUT * 100, content_receiver)
         .await;
     assert_eq!(fin_receiver.await, Err(Canceled));
     // TODO(guyn): How to check that the rejection is due to the l1_gas_price_fri mismatch?
@@ -588,7 +594,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
 
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
 
-    let mut init = block_info(BlockNumber(0), 0);
+    let mut init = proposal_init(BlockNumber(0), 0);
 
     if maximum {
         // Set the gas price to the maximum value.
@@ -812,8 +818,9 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(BlockNumber(0), 0), TIMEOUT, content_receiver)
+        .await;
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -834,7 +841,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     };
     assert_eq!(info.height, BlockNumber(1));
 
-    let previous_init = block_info(BlockNumber(0), 0);
+    let previous_init = proposal_init(BlockNumber(0), 0);
 
     assert_eq!(info.l1_gas_price_wei, previous_init.l1_gas_price_wei);
     assert_eq!(info.l1_data_gas_price_wei, previous_init.l1_data_gas_price_wei);
@@ -988,7 +995,7 @@ async fn override_prices_behavior(
 
     let actual_l2_gas_price = context.l2_gas_price.0;
 
-    let previous_block = context.previous_block_info.clone().unwrap();
+    let previous_block = context.previous_proposal_init.clone().unwrap();
     let actual_l1_gas_price = previous_block.l1_prices_fri.l1_gas_price.0;
     let actual_l1_data_gas_price = previous_block.l1_prices_fri.l1_data_gas_price.0;
     let actual_conversion_rate = previous_block
@@ -1108,8 +1115,9 @@ async fn change_gas_price_overrides() {
     context.set_height_and_round(BlockNumber(0), 0).await.unwrap();
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(0), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(BlockNumber(0), 0), TIMEOUT, content_receiver)
+        .await;
 
     let proposal_commitment = fin_receiver.await.unwrap();
     assert_eq!(proposal_commitment.0, STATE_DIFF_COMMITMENT.0.0);
@@ -1128,13 +1136,14 @@ async fn change_gas_price_overrides() {
 
     // This should fail, since the gas price is different from the input block info.
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(1), 0), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(BlockNumber(1), 0), TIMEOUT, content_receiver)
+        .await;
     let proposal_commitment = fin_receiver.await.unwrap_err();
     assert!(matches!(proposal_commitment, Canceled));
 
     // Modify the incoming init to make sure it matches the overrides. Now it passes.
-    let mut modified_init = block_info(BlockNumber(1), 0);
+    let mut modified_init = proposal_init(BlockNumber(1), 0);
     modified_init.l2_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L2_GAS_PRICE);
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
@@ -1154,13 +1163,14 @@ async fn change_gas_price_overrides() {
     context.set_height_and_round(BlockNumber(1), 1).await.unwrap();
 
     let content_receiver = send_proposal_to_validator_context(&mut context).await;
-    let fin_receiver =
-        context.validate_proposal(block_info(BlockNumber(1), 1), TIMEOUT, content_receiver).await;
+    let fin_receiver = context
+        .validate_proposal(proposal_init(BlockNumber(1), 1), TIMEOUT, content_receiver)
+        .await;
     let proposal_commitment = fin_receiver.await.unwrap_err();
     assert!(matches!(proposal_commitment, Canceled));
 
     // Add the new overrides so validation passes.
-    let mut modified_init = block_info(BlockNumber(1), 1);
+    let mut modified_init = proposal_init(BlockNumber(1), 1);
     modified_init.l1_data_gas_price_fri = GasPrice(ODDLY_SPECIFIC_L1_DATA_GAS_PRICE);
     // Note that the eth to fri conversion rate by default is 10^18 so we can just replace wei to
     // fri 1:1.
