@@ -126,8 +126,6 @@ pub enum SendProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
     /// Contains the final number of transactions in the block.
     Finish(usize),
-    // TODO(Itamar): Remove this variant once all callers migrate to `abort_proposal`.
-    Abort,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -162,9 +160,6 @@ pub enum ProposalStatus {
     Processing,
     // Only sent in response to `Finish`.
     Finished(FinishedProposalInfo),
-    // TODO(Itamar): Remove this variant once all callers migrate to `abort_proposal`.
-    // Only sent in response to `Abort`.
-    Aborted,
     // May be caused due to handling of a previous item of the new proposal.
     // In this case, the proposal is aborted and no additional content will be processed.
     InvalidProposal(String),
