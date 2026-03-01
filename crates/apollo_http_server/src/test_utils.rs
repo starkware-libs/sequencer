@@ -12,13 +12,14 @@ use apollo_http_server_config::config::{
 };
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use blockifier_test_utils::cairo_versions::CairoVersion;
+use http::StatusCode;
 use mempool_test_utils::starknet_api_test_utils::{
     declare_tx,
     deploy_account_tx,
     invoke_tx,
     invoke_tx_client_side_proving,
 };
-use reqwest::{Body, Client, Response, StatusCode};
+use reqwest::{Body, Client, Response};
 use serde::Serialize;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::{Proof, ProofFacts};

@@ -8,7 +8,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_gateway_types::errors::GatewayError;
-use axum::http::StatusCode;
+use http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use regex::Regex;
 use starknet_api::compression_utils::CompressionError;
