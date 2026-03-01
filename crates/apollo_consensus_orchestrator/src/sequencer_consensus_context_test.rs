@@ -219,6 +219,7 @@ async fn interrupt_active_proposal() {
         .return_const(Ok(()));
 
     // Round 0: Will be interrupted and send Abort
+    // TODO(Itamar): Migrate to `expect_abort_proposal()`.
     deps.batcher.expect_send_proposal_content().times(1).returning(|input| {
         assert!(matches!(input.content, SendProposalContent::Abort));
         Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
